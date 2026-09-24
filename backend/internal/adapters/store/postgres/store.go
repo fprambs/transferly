@@ -12,12 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
+	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
 	pgmigrations "github.com/fprambs/sentinel/migrations/postgres"
 )
 
-// Store wraps the PostgreSQL connection pool.
+// Store wraps the PostgreSQL connection pool and its generated queries.
 type Store struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	queries *db.Queries
 }
 
 // Open creates the connection pool and verifies connectivity.
@@ -30,11 +32,14 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 		pool.Close()
 		return nil, fmt.Errorf("connecting to postgres: %w", err)
 	}
-	return &Store{pool: pool}, nil
+	return &Store{pool: pool, queries: db.New(pool)}, nil
 }
 
 // Ping implements [ports.ReadinessChecker].
-func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+func (s *Store) Ping(ctx context.Context) error {
+	_, err := s.queries.Ping(ctx)
+	return err
+}
 
 // Close releases the connection pool.
 func (s *Store) Close() { s.pool.Close() }
