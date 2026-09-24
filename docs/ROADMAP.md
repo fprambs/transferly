@@ -140,7 +140,8 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 
 - [x] Go: `testutil` (base de datos aislada por test, helper HTTP, reloj falso), `-race`
 - [x] `compose.test.yaml`: `make test` corre las pruebas unitarias con cobertura y las E2E contra la imagen de producción
-- [ ] Esqueletos de `remotefstest`, `storetest` y matriz de autorización
+- [x] Puerto `RemoteFS`, suite de conformidad `remotefstest` y adaptador de referencia `memfs` (la suite se verificó con mutaciones)
+- [ ] `storetest` y matriz de autorización (se crean con el primer repositorio y el primer endpoint protegido, fase 1)
 - [x] Tests de contrato contra `openapi.yaml` (Go, con kin-openapi)
 - [x] Vitest, Testing Library, cobertura v8
 - [x] Playwright con page objects, líneas base visuales y axe (15 pruebas, contra la imagen de producción)

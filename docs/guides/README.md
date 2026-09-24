@@ -12,6 +12,7 @@ Before using a library for the first time, read its official documentation and r
 | [TanStack Query](tanstack-query.md) | done |
 | [shadcn/ui and Tailwind v4](shadcn-ui.md) | done; confirm Base UI or Radix at `init` |
 | [OpenAPI and code generation](openapi.md) | done |
+| [Conformance suites](conformance-suites.md) | done |
 | [Production image and stack](production-image.md) | done |
 | [Playwright](playwright.md) | done |
 | [Frontend tooling](frontend-tooling.md) | done |

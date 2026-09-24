@@ -178,7 +178,8 @@ type RemoteFS interface {
 ```
 
 - Una suite de conformidad (`remotefstest`) corre contra cada adaptador con servidores reales.
-- Errores normalizados: `ErrNotFound`, `ErrPermission`, `ErrExists`, `ErrAuth`, `ErrHostKeyMismatch`, `ErrConnectionLost`, `ErrQuota`.
+- Errores normalizados: `ErrNotFound`, `ErrExists`, `ErrPermission`, `ErrNotDirectory`, `ErrNotEmpty`, `ErrInvalid`, `ErrAuth`, `ErrHostKeyMismatch`, `ErrConnectionLost`, `ErrQuota`; `Retryable(err)` indica si conviene reintentar tras reconectar.
+- El adaptador `memfs` (en memoria) es la implementación de referencia de la suite y un doble de test para la cola de transferencias.
 - Un protocolo nuevo (S3, WebDAV, SMB, nubes) es un adaptador que pasa la suite.
 
 SFTP:
