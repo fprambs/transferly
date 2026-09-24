@@ -21,6 +21,7 @@ import (
 type Store struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
+	begin   func(ctx context.Context) (pgx.Tx, error)
 }
 
 // Open creates the connection pool and verifies connectivity.
@@ -33,7 +34,7 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 		pool.Close()
 		return nil, fmt.Errorf("connecting to postgres: %w", err)
 	}
-	return &Store{pool: pool, queries: db.New(pool)}, nil
+	return &Store{pool: pool, queries: db.New(pool), begin: pool.Begin}, nil
 }
 
 // Ping implements [ports.ReadinessChecker].

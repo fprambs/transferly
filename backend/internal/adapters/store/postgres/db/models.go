@@ -3,3 +3,112 @@
 //   sqlc v1.31.1
 
 package db
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type AuditEvent struct {
+	ID          int64
+	WorkspaceID uuid.NullUUID
+	UserID      uuid.NullUUID
+	Action      string
+	Target      string
+	Ip          string
+	Meta        []byte
+	At          time.Time
+}
+
+type KnownHost struct {
+	WorkspaceID       uuid.UUID
+	Host              string
+	Port              int32
+	KeyType           string
+	FingerprintSha256 string
+	FirstSeen         time.Time
+	AcceptedBy        uuid.NullUUID
+}
+
+type Membership struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Role        string
+	CreatedAt   time.Time
+}
+
+type Site struct {
+	ID           uuid.UUID
+	WorkspaceID  uuid.UUID
+	FolderID     uuid.NullUUID
+	Name         string
+	Protocol     string
+	Host         string
+	Port         int32
+	Username     string
+	AuthMethod   string
+	ListTimezone string
+	Options      []byte
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type SiteFolder struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	ParentID    uuid.NullUUID
+	Name        string
+}
+
+type SiteSecret struct {
+	SiteID     uuid.UUID
+	Kind       string
+	DekVersion int32
+	Sealed     []byte
+}
+
+type User struct {
+	ID           uuid.UUID
+	Email        string
+	PasswordHash string
+	Role         string
+	Status       string
+	Locale       string
+	Timezone     string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type UserSession struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	TokenHash  []byte
+	UserAgent  string
+	Ip         string
+	CreatedAt  time.Time
+	LastSeenAt time.Time
+	ExpiresAt  time.Time
+}
+
+type UserVault struct {
+	UserID             uuid.UUID
+	KdfMemoryKib       int32
+	KdfTime            int32
+	KdfThreads         int32
+	KdfSalt            []byte
+	WrappedDek         []byte
+	RecoveryWrappedDek []byte
+	DekVersion         int32
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type Workspace struct {
+	ID        uuid.UUID
+	Name      string
+	Kind      string
+	OwnerID   uuid.UUID
+	Settings  []byte
+	CreatedAt time.Time
+}

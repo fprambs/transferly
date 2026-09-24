@@ -16,6 +16,10 @@ Adding an adapter:
 
 Passing is not enough: check that the suite fails when the adapter is wrong. Break the reference adapter on purpose (allow renames over existing files, delete non-empty directories, return local times) and confirm a test fails. A mutation that survives is a gap in the suite; add the assertion.
 
+## Concurrency needs a deterministic test
+
+A statistical race test (many goroutines racing) can pass even when the lock is missing, because the race window is microseconds. Prove locking deterministically: hold the lock from another connection, start the operation, assert it blocks, release the lock and assert it completes. The first-user creation test does this with the Postgres advisory lock, and it fails when the lock is removed.
+
 ## Reference adapter
 
 `memfs` is an in-memory implementation that passes the suite and also serves as a test double for the transfer queue.

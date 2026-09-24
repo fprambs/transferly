@@ -168,8 +168,8 @@ Aceptación: con solo Docker instalado, los stacks de desarrollo y producción a
 Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas y commit propio):
 
 - [x] 1.1 Criptografía del vault: Argon2id con tope de derivaciones concurrentes, AES-256-GCM, DEK, recovery kit, key ring con TTL
-- [ ] 1.2 Esquema (usuarios, workspaces, sesiones, sitios, secretos, host keys, auditoría) y almacenes
-- [ ] 1.3 Autenticación: hash de contraseña, sesiones opacas, CSRF firmado, rate limit, asistente de primer arranque
+- [x] 1.2 Esquema (usuarios, vault, workspaces, sesiones, sitios, secretos, host keys, auditoría) con migración de subida y bajada
+- [ ] 1.3 Autenticación: hecho el núcleo (hash Argon2id PHC, sesiones opacas con caducidad, CSRF firmado, igualdad de coste ante cuentas inexistentes) y el almacén Postgres con suite `storetest`; faltan rate limit, endpoints y asistente de primer arranque
 - [ ] 1.4 Workspaces y `authz.Can`; matriz de autorización
 - [ ] 1.5 API del vault: setup, unlock, lock, cambio de maestra, recovery
 - [ ] 1.6 `netguard` y sitios: CRUD, secretos cifrados, host keys

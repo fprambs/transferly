@@ -3,6 +3,7 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -89,8 +90,9 @@ func TestRun_Migrate(t *testing.T) {
 	if err := app.Run(t.Context(), []string{"migrate", "status"}, env, &out); err != nil {
 		t.Fatalf("Run(migrate status) = %v", err)
 	}
-	if !strings.Contains(out.String(), "schema version: 1") {
-		t.Errorf("output = %q, want the schema version", out.String())
+	var version int
+	if _, err := fmt.Sscanf(out.String(), "schema version: %d", &version); err != nil || version < 1 {
+		t.Errorf("output = %q, want a schema version of at least 1", out.String())
 	}
 
 	unreachable := envOf(map[string]string{"SENTINEL_DATABASE_URL": "postgres://u:p@127.0.0.1:1/db?sslmode=disable&connect_timeout=1"})
