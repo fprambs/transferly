@@ -8,6 +8,12 @@ Sources: [Compose services](https://docs.docker.com/reference/compose-file/servi
 - `compose.testenv.yaml`: `sftp`, `ftp`, `ftps`, `ftps-implicit`, `toxiproxy`, behind the `testenv` profile.
 - Published ports bind to `127.0.0.1` only: backend `8080`, frontend `5173`, Postgres `5432` (override with `SENTINEL_HTTP_PORT`, `SENTINEL_WEB_PORT`).
 
+## Dev Container
+
+Source: [devcontainer.json reference](https://containers.dev/implementors/json_reference/).
+
+`.devcontainer/devcontainer.json` uses `dockerComposeFile` with the `tools` service, `runServices` limited to `tools` and `postgres`, `workspaceFolder` `/workspace` and `shutdownAction` `stopCompose`. Editor extensions and settings go under `customizations.vscode`.
+
 ## Rules
 
 - Health checks plus `depends_on: condition: service_healthy` order startup.

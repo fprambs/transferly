@@ -13,6 +13,8 @@ Before using a library for the first time, read its official documentation and r
 | [shadcn/ui and Tailwind v4](shadcn-ui.md) | done; confirm Base UI or Radix at `init` |
 | [OpenAPI and code generation](openapi.md) | done |
 | [Conformance suites](conformance-suites.md) | done |
+| [chi](chi.md) | done |
+| [goose](goose.md) | done |
 | [Production image and stack](production-image.md) | done |
 | [Playwright](playwright.md) | done |
 | [Frontend tooling](frontend-tooling.md) | done |
@@ -21,8 +23,8 @@ Before using a library for the first time, read its official documentation and r
 | [pkg/sftp](pkg-sftp.md) | done |
 | [sqlc and pgx](sqlc-pgx.md) | done |
 | TanStack Router, Table, Virtual; react-hook-form and zod; dnd-kit; react-arborist; Vitest; MSW | before use |
-| chi, goose, jlaffaye/ftp, coder/websocket, `x/text` | before use |
-| Dev Containers | before use |
+| jlaffaye/ftp (see the FTPS spike), coder/websocket, `x/text` | before first use |
+
 
 ## Pinned Versions (checked 2026-09-24)
 
