@@ -136,3 +136,57 @@ func TestLoad_Errors(t *testing.T) {
 		})
 	}
 }
+
+// TestLoad_WebSettings verifies the public URL, origins, session policy and proxy settings.
+//
+// Scenarios:
+//   - defaults: localhost base URL, 30 minute idle and 8 hour maximum sessions, 10 minute janitor, no proxies
+//   - an https base URL marks cookies as secure and a trailing slash is dropped
+//   - extra allowed origins and trusted proxies (addresses and networks) are accepted and blanks ignored
+//   - invalid base URLs, origins, proxies, durations and an idle time above the maximum are all reported
+func TestLoad_WebSettings(t *testing.T) {
+	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+
+	cfg, err := config.Load(env(base))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BaseURL != "http://localhost:8080" || cfg.CookieSecure() || cfg.SessionIdle != 30*time.Minute ||
+		cfg.SessionMax != 8*time.Hour || cfg.JanitorInterval != 10*time.Minute || len(cfg.TrustedProxies) != 0 ||
+		len(cfg.AllowedOrigins) != 1 || cfg.AllowedOrigins[0] != "http://localhost:8080" {
+		t.Errorf("defaults = %+v", cfg)
+	}
+
+	base["SENTINEL_BASE_URL"] = "https://files.example.com/"
+	base["SENTINEL_ALLOWED_ORIGINS"] = " http://localhost:5173 , ,https://other.example.com"
+	base["SENTINEL_TRUSTED_PROXIES"] = "10.0.0.0/8, 192.168.1.5, ::1"
+	base["SENTINEL_SESSION_IDLE"] = "10m"
+	base["SENTINEL_SESSION_MAX"] = "2h"
+	base["SENTINEL_JANITOR_INTERVAL"] = "1m"
+	cfg, err = config.Load(env(base))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BaseURL != "https://files.example.com" || !cfg.CookieSecure() || len(cfg.AllowedOrigins) != 3 ||
+		cfg.AllowedOrigins[1] != "http://localhost:5173" || len(cfg.TrustedProxies) != 3 ||
+		cfg.SessionIdle != 10*time.Minute || cfg.SessionMax != 2*time.Hour || cfg.JanitorInterval != time.Minute {
+		t.Errorf("overrides = %+v", cfg)
+	}
+
+	for name, vars := range map[string]map[string]string{
+		"base url with a path":     {"SENTINEL_BASE_URL": "https://x.example.com/app"},
+		"base url without scheme":  {"SENTINEL_BASE_URL": "x.example.com"},
+		"base url with userinfo":   {"SENTINEL_BASE_URL": "https://u:p@x.example.com"},
+		"base url not parsable":    {"SENTINEL_BASE_URL": "http://[::1"},
+		"origin with a query":      {"SENTINEL_ALLOWED_ORIGINS": "https://x.example.com?a=1"},
+		"proxy not an address":     {"SENTINEL_TRUSTED_PROXIES": "not-an-ip"},
+		"idle above maximum":       {"SENTINEL_SESSION_IDLE": "10h"},
+		"session idle not a time":  {"SENTINEL_SESSION_IDLE": "soon"},
+		"janitor interval not set": {"SENTINEL_JANITOR_INTERVAL": "0s"},
+	} {
+		vars["SENTINEL_DATABASE_URL"] = "postgres://x"
+		if _, err := config.Load(env(vars)); err == nil {
+			t.Errorf("%s: Load() = nil error, want error", name)
+		}
+	}
+}

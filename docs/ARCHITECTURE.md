@@ -143,9 +143,10 @@ DEK --AES-256-GCM(nonce, AAD=site_id|kind|dek_version)--> site_secrets
 
 ## 8. Autenticación y autorización
 
-- Email y contraseña (Argon2id), TOTP y passkeys; OIDC más adelante.
-- Cookie de sesión opaca (`HttpOnly`, `Secure`, `SameSite=Lax`), token CSRF en mutaciones, rate limit en login y unlock.
-- Nunca se deriva la IP del cliente de cabeceras de proxy no confiables; primero hace falta una lista de proxies de confianza.
+- Email y contraseña (Argon2id, PHC), TOTP y passkeys; OIDC más adelante. Detalle en [ADR-0005](adr/0005-authentication.md).
+- Cookie de sesión opaca (`HttpOnly`, `SameSite=Lax`, `Secure` con https; solo se guarda el hash del token), token CSRF firmado con la clave de instancia y ligado a la sesión, guarda de `Sec-Fetch-Site` y `Origin`, rate limit en login y setup.
+- La IP del cliente sale de la conexión, o de `X-Forwarded-For` solo detrás de proxies de confianza configurados (`SENTINEL_TRUSTED_PROXIES`).
+- Qué operaciones exigen sesión sale del contrato OpenAPI.
 
 | Acción | viewer | editor | admin | owner |
 |---|:-:|:-:|:-:|:-:|

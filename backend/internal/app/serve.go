@@ -14,7 +14,6 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
-	"github.com/fprambs/sentinel/internal/transport/webui"
 )
 
 const (
@@ -34,7 +33,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 		}
 	}
 
-	_, source, err := instancekey.Resolve(cfg.DataDir, cfg.InstanceKey, rand.Reader)
+	key, source, err := instancekey.Resolve(cfg.DataDir, cfg.InstanceKey, rand.Reader)
 	if err != nil {
 		return err
 	}
@@ -46,8 +45,13 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	}
 	defer store.Close()
 
+	wired := newWiring(cfg, logger, store, key)
+	janitorCtx, stopJanitor := context.WithCancel(ctx)
+	defer stopJanitor()
+	go runJanitor(janitorCtx, cfg.JanitorInterval, logger, wired.janitor)
+
 	srv := &http.Server{
-		Handler:           httpapi.NewRouter(httpapi.Deps{Logger: logger, Readiness: store, Web: webui.Handler()}),
+		Handler:           httpapi.NewRouter(wired.deps),
 		ReadHeaderTimeout: readHeaderTimeout,
 		IdleTimeout:       idleTimeout,
 	}

@@ -14,6 +14,7 @@ Before using a library for the first time, read its official documentation and r
 | [OpenAPI and code generation](openapi.md) | done |
 | [Conformance suites](conformance-suites.md) | done |
 | [chi](chi.md) | done |
+| [Authentication](authentication.md) | done |
 | [goose](goose.md) | done |
 | [Production image and stack](production-image.md) | done |
 | [Playwright](playwright.md) | done |

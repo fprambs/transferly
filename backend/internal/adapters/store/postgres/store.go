@@ -43,6 +43,9 @@ func (s *Store) Ping(ctx context.Context) error {
 	return err
 }
 
+// DB returns the connection pool, for tests that need to inspect or alter the database directly.
+func (s *Store) DB() *pgxpool.Pool { return s.pool }
+
 // Close releases the connection pool.
 func (s *Store) Close() { s.pool.Close() }
 

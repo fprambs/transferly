@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/google/uuid"
 
@@ -272,6 +273,46 @@ func TestLogoutAndPurge(t *testing.T) {
 	h.clock.Advance(15 * time.Minute)
 	if n, err := h.svc.PurgeExpired(ctx); err != nil || n != 1 {
 		t.Errorf("PurgeExpired() = %d, %v, want 1 idle session removed", n, err)
+	}
+}
+
+// TestUpdatePreferences verifies preference updates.
+//
+// Scenarios:
+//   - a valid language tag and IANA zone are stored, the tag in canonical form
+//   - empty values keep the current setting
+//   - invalid tags, unknown zones, the Local pseudo-zone and fixed offsets are rejected
+//   - a failing store is reported
+func TestUpdatePreferences(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	_, principal := signedIn(t, h)
+
+	updated, err := h.svc.UpdatePreferences(ctx, principal.User, "es-cl", "America/Santiago")
+	if err != nil || updated.Locale != "es-CL" || updated.Timezone != "America/Santiago" {
+		t.Fatalf("UpdatePreferences() = %+v, %v", updated, err)
+	}
+	if stored := h.store.users[principal.User.ID]; stored.Locale != "es-CL" || stored.Timezone != "America/Santiago" {
+		t.Errorf("stored user = %+v", stored)
+	}
+	kept, err := h.svc.UpdatePreferences(ctx, updated, "", "")
+	if err != nil || kept.Locale != "es-CL" || kept.Timezone != "America/Santiago" {
+		t.Errorf("empty update = %+v, %v, want the current settings", kept, err)
+	}
+
+	for _, locale := range []string{"not a tag!", "x"} {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, locale, ""); !errors.Is(err, auth.ErrInvalidLocale) {
+			t.Errorf("locale %q = %v, want ErrInvalidLocale", locale, err)
+		}
+	}
+	for _, zone := range []string{"Mars/Olympus", "Local", "+01:00", "../etc/passwd"} {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, "", zone); !errors.Is(err, auth.ErrInvalidTimezone) {
+			t.Errorf("time zone %q = %v, want ErrInvalidTimezone", zone, err)
+		}
+	}
+	h.store.failing("UpdatePreferences")
+	if _, err := h.svc.UpdatePreferences(ctx, updated, "en", "UTC"); !errors.Is(err, errBoom) {
+		t.Errorf("UpdatePreferences() with a failing store = %v", err)
 	}
 }
 

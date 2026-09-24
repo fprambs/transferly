@@ -5,10 +5,13 @@ info:
   description: HTTP API of the Sentinel file transfer client.
 servers:
   - url: /
+security:
+  - sessionCookie: []
 paths:
   /healthz:
     get:
       operationId: getHealth
+      security: []
       summary: Liveness probe
       description: Answers while the process is alive; it never checks dependencies.
       responses:
@@ -21,6 +24,7 @@ paths:
   /readyz:
     get:
       operationId: getReadiness
+      security: []
       summary: Readiness probe
       description: Checks that the backend and its dependencies can serve traffic.
       responses:
@@ -36,7 +40,223 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /api/v1/setup/status:
+    get:
+      operationId: getSetupStatus
+      summary: Whether the first administrator still has to be created
+      security: []
+      responses:
+        "200":
+          description: The setup state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+  /api/v1/setup:
+    post:
+      operationId: setup
+      summary: Create the first administrator and sign in
+      description: Only works while no account exists. Rate limited per client address.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "201":
+          description: Administrator created and signed in.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      summary: Sign in
+      description: Rate limited per client address and per account. Wrong emails and wrong passwords are indistinguishable.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "200":
+          description: Signed in.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      security:
+        - sessionCookie: []
+      summary: Sign out
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Signed out; the session cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me:
+    get:
+      operationId: getMe
+      security:
+        - sessionCookie: []
+      summary: The signed-in user and the anti-CSRF token of the session
+      responses:
+        "200":
+          description: The current session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: updateMe
+      security:
+        - sessionCookie: []
+      summary: Change the interface language and time zone
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Preferences"
+      responses:
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "200":
+          description: The updated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sentinel_session
+      description: Opaque session token set by login and setup. State-changing requests also need the X-CSRF-Token header.
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: false
+      description: Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+      schema:
+        type: string
+  headers:
+    SetCookie:
+      description: Sets or clears the session cookie (HttpOnly, SameSite=Lax, Secure over https).
+      schema:
+        type: string
+  responses:
+    RateLimited:
+      description: Too many attempts; retry after the indicated time.
+      headers:
+        Retry-After:
+          description: Seconds to wait before trying again.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   schemas:
     HealthStatus:
       type: object
@@ -67,3 +287,53 @@ components:
           type: object
           additionalProperties: true
           description: Values used to fill the translated message.
+    SetupStatus:
+      type: object
+      required: [required]
+      properties:
+        required:
+          type: boolean
+          description: True until the first administrator exists.
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          description: Sent to the server only; never returned.
+    Preferences:
+      type: object
+      properties:
+        locale:
+          type: string
+          description: BCP 47 language tag of the interface.
+        timezone:
+          type: string
+          description: IANA time zone name.
+    User:
+      type: object
+      required: [id, email, role, locale, timezone]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        locale:
+          type: string
+        timezone:
+          type: string
+    SessionInfo:
+      type: object
+      required: [user, csrfToken]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        csrfToken:
+          type: string
+          description: Send it as X-CSRF-Token on state-changing requests.

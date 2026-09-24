@@ -36,6 +36,8 @@ services:
       SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
       SENTINEL_HTTP_ADDR: ":8080"
       SENTINEL_LOG_LEVEL: debug
+      SENTINEL_DATA_DIR: /cache/sentinel
+      SENTINEL_ALLOWED_ORIGINS: http://localhost:${SENTINEL_WEB_PORT:-5173}
     ports:
       - "127.0.0.1:${SENTINEL_HTTP_PORT:-8080}:8080"
     depends_on:

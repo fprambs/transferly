@@ -37,6 +37,10 @@ var (
 	ErrUnauthenticated = errors.New("not authenticated")
 	// ErrUserDisabled means the account is disabled.
 	ErrUserDisabled = errors.New("account disabled")
+	// ErrInvalidLocale means the language tag is not valid BCP 47.
+	ErrInvalidLocale = errors.New("invalid locale")
+	// ErrInvalidTimezone means the name is not an IANA time zone.
+	ErrInvalidTimezone = errors.New("invalid time zone")
 	// ErrMalformedHash means a stored password hash cannot be parsed.
 	ErrMalformedHash = errors.New("malformed password hash")
 )

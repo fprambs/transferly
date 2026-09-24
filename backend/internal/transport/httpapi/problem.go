@@ -8,20 +8,20 @@ import (
 
 const problemContentType = "application/problem+json"
 
-// writeProblem writes an RFC 9457 problem document with the given status and stable code.
-func writeProblem(w http.ResponseWriter, status int, code string, params map[string]any) {
-	problem := Problem{
-		Type:   "about:blank",
-		Title:  http.StatusText(status),
-		Status: status,
-		Code:   code,
-	}
+// problemBody builds an RFC 9457 problem document with the given status and stable code.
+func problemBody(status int, code string, params map[string]any) Problem {
+	problem := Problem{Type: "about:blank", Title: http.StatusText(status), Status: status, Code: code}
 	if params != nil {
 		problem.Params = &params
 	}
+	return problem
+}
+
+// writeProblem writes a problem document with the given status and stable code.
+func writeProblem(w http.ResponseWriter, status int, code string, params map[string]any) {
 	w.Header().Set("Content-Type", problemContentType)
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(problem)
+	_ = json.NewEncoder(w).Encode(problemBody(status, code, params))
 }
 
 // requestErrorHandler answers requests the generated code could not decode or bind.

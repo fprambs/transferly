@@ -2,12 +2,16 @@ package httpapi
 
 import (
 	"context"
+	"errors"
+	"math"
 	"time"
+
+	"github.com/fprambs/sentinel/internal/core/auth"
 )
 
 const readinessTimeout = 2 * time.Second
 
-// server implements [StrictServerInterface] on top of the core ports.
+// server implements [StrictServerInterface] on top of the core services.
 type server struct {
 	deps Deps
 }
@@ -33,4 +37,35 @@ func (s *server) GetReadiness(ctx context.Context, _ GetReadinessRequestObject) 
 		return GetReadiness503JSONResponse{Status: Unavailable}, nil
 	}
 	return GetReadiness200JSONResponse{Status: Ok}, nil
+}
+
+// retryAfter converts a wait to whole seconds, rounding up so clients never retry too early.
+func retryAfter(d time.Duration) *int {
+	seconds := int(math.Ceil(d.Seconds()))
+	return &seconds
+}
+
+// userDTO converts an account to its public representation.
+func userDTO(u auth.User) User {
+	return User{Id: u.ID, Email: u.Email, Role: UserRole(u.Role), Locale: u.Locale, Timezone: u.Timezone}
+}
+
+// sessionInfo builds the session document, including the anti-CSRF token of the session.
+func (s *server) sessionInfo(p auth.Principal) SessionInfo {
+	return SessionInfo{User: userDTO(p.User), CsrfToken: auth.CSRFToken(s.deps.InstanceKey, p.Session.ID)}
+}
+
+// isValidation reports whether err is an input validation failure, and returns its stable code.
+func isValidation(err error) (string, bool) {
+	switch {
+	case errors.Is(err, auth.ErrInvalidEmail):
+		return "invalid_email", true
+	case errors.Is(err, auth.ErrWeakPassword):
+		return "weak_password", true
+	case errors.Is(err, auth.ErrInvalidLocale):
+		return "invalid_locale", true
+	case errors.Is(err, auth.ErrInvalidTimezone):
+		return "invalid_timezone", true
+	}
+	return "", false
 }

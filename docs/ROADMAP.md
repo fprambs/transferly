@@ -169,7 +169,7 @@ Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas 
 
 - [x] 1.1 Criptografía del vault: Argon2id con tope de derivaciones concurrentes, AES-256-GCM, DEK, recovery kit, key ring con TTL
 - [x] 1.2 Esquema (usuarios, vault, workspaces, sesiones, sitios, secretos, host keys, auditoría) con migración de subida y bajada
-- [ ] 1.3 Autenticación: hecho el núcleo (hash Argon2id PHC, sesiones opacas con caducidad, CSRF firmado, igualdad de coste ante cuentas inexistentes) y el almacén Postgres con suite `storetest`; faltan rate limit, endpoints y asistente de primer arranque
+- [x] 1.3 Autenticación: hash Argon2id PHC, sesiones opacas con caducidad, CSRF firmado y guardas de origen, rate limits por IP y cuenta con IP de cliente detrás de proxies de confianza, asistente de primer arranque, endpoints `/setup`, `/auth/login`, `/auth/logout`, `/me`, protección derivada del contrato ([ADR-0005](adr/0005-authentication.md))
 - [ ] 1.4 Workspaces y `authz.Can`; matriz de autorización
 - [ ] 1.5 API del vault: setup, unlock, lock, cambio de maestra, recovery
 - [ ] 1.6 `netguard` y sitios: CRUD, secretos cifrados, host keys

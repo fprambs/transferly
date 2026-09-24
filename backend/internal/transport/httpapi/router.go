@@ -10,8 +10,27 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/ports"
 )
+
+// Limits are the rate limiters that protect the unauthenticated endpoints.
+type Limits struct {
+	// SetupIP limits first-administrator setup attempts per client address.
+	SetupIP ports.RateLimiter
+	// LoginIP limits sign-in attempts per client address.
+	LoginIP ports.RateLimiter
+	// LoginAccount limits sign-in attempts per account, whether or not it exists.
+	LoginAccount ports.RateLimiter
+}
+
+// CookieConfig describes the session cookie.
+type CookieConfig struct {
+	// Secure marks the cookie as https only.
+	Secure bool
+	// MaxAge is how long the browser keeps the cookie.
+	MaxAge time.Duration
+}
 
 // Deps are the dependencies of the router.
 type Deps struct {
@@ -21,32 +40,47 @@ type Deps struct {
 	Readiness ports.ReadinessChecker
 	// Web serves the frontend for unknown GET and HEAD paths outside /api/; nil disables it.
 	Web http.Handler
+	// Auth is the account and session service.
+	Auth *auth.Service
+	// Limits are the rate limiters of the unauthenticated endpoints.
+	Limits Limits
+	// InstanceKey signs the anti-CSRF tokens.
+	InstanceKey []byte
+	// Cookie configures the session cookie.
+	Cookie CookieConfig
+	// AllowedOrigins lists the origins allowed to make state-changing requests.
+	AllowedOrigins []string
+	// TrustedProxies lists the addresses whose X-Forwarded-For header is believed; empty trusts none.
+	TrustedProxies []string
 }
 
 // NewRouter returns the HTTP handler with the base middleware stack.
 //
-// Routes come from the OpenAPI contract in api/openapi.yaml.
+// Routes come from the OpenAPI contract in api/openapi.yaml. Operations whose security requirement is not empty
+// require a valid session and, for state-changing methods, the anti-CSRF token.
 // Errors, including unknown routes and wrong methods, are returned as [Problem] documents.
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
+	r.Use(clientIPMiddleware(d.TrustedProxies))
 	r.Use(securityHeaders)
 	r.Use(requestLogger(d.Logger))
 	r.Use(middleware.Recoverer)
+	r.Use(originGuard(d.AllowedOrigins))
+	r.Use(clientInfo)
+	r.Use(authenticate(d.Auth, d.Logger))
 
 	r.NotFound(notFoundHandler(d.Web))
 	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) {
 		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", nil)
 	})
 
-	strict := NewStrictHandlerWithOptions(newServer(d), nil, StrictHTTPServerOptions{
+	spec, _ := GetSpec()
+	strict := NewStrictHandlerWithOptions(newServer(d), []StrictMiddlewareFunc{requireSession(d.InstanceKey, protectedOperations(spec))}, StrictHTTPServerOptions{
 		RequestErrorHandlerFunc:  requestErrorHandler,
 		ResponseErrorHandlerFunc: responseErrorHandler(d.Logger),
 	})
-	return HandlerWithOptions(strict, ChiServerOptions{
-		BaseRouter:       r,
-		ErrorHandlerFunc: requestErrorHandler,
-	})
+	return HandlerWithOptions(strict, ChiServerOptions{BaseRouter: r, ErrorHandlerFunc: requestErrorHandler})
 }
 
 // notFoundHandler answers unknown routes: application paths go to the frontend when one is configured,

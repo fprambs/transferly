@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"golang.org/x/text/language"
 
 	"github.com/fprambs/sentinel/internal/core/ports"
 )
@@ -141,7 +142,7 @@ func (s *Service) Login(ctx context.Context, email, password string, client Clie
 			return "", Principal{}, err
 		}
 	}
-	return s.openSession(ctx, user, client)
+	return s.StartSession(ctx, user, client)
 }
 
 // upgradeHash re-hashes the password under the current parameters after a successful sign-in.
@@ -153,8 +154,9 @@ func (s *Service) upgradeHash(ctx context.Context, user User, password string) e
 	return s.users.UpdatePasswordHash(ctx, user.ID, hash)
 }
 
-// openSession creates a session with a fresh random token, so any earlier token is never reused.
-func (s *Service) openSession(ctx context.Context, user User, client ClientInfo) (string, Principal, error) {
+// StartSession creates a session for user with a fresh random token, so an earlier token is never reused.
+// It returns the token, which is shown to the client once, and the principal.
+func (s *Service) StartSession(ctx context.Context, user User, client ClientInfo) (string, Principal, error) {
 	raw := make([]byte, tokenLength)
 	if _, err := io.ReadFull(s.random, raw); err != nil {
 		return "", Principal{}, fmt.Errorf("reading session token: %w", err)
@@ -234,6 +236,30 @@ func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 	now := s.clock.Now()
 	return s.sessions.DeleteExpiredSessions(ctx, now, now.Add(-s.config.IdleTimeout))
+}
+
+// UpdatePreferences validates and stores the locale and time zone of a user and returns the updated user.
+// Empty values keep the current setting.
+func (s *Service) UpdatePreferences(ctx context.Context, user User, locale, timezone string) (User, error) {
+	if locale == "" {
+		locale = user.Locale
+	}
+	if timezone == "" {
+		timezone = user.Timezone
+	}
+	tag, err := language.Parse(locale)
+	if err != nil {
+		return User{}, ErrInvalidLocale
+	}
+	if _, err := time.LoadLocation(timezone); err != nil || timezone == "Local" {
+		return User{}, ErrInvalidTimezone
+	}
+	locale = tag.String()
+	if err := s.users.UpdatePreferences(ctx, user.ID, locale, timezone); err != nil {
+		return User{}, err
+	}
+	user.Locale, user.Timezone = locale, timezone
+	return user, nil
 }
 
 // hashToken returns the SHA-256 of a session token, the only form that is stored.
