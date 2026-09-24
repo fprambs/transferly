@@ -9,7 +9,7 @@ Stored remote credentials must not be recoverable from a stolen database or back
 
 ## Decision
 
-- Master password to a key-encryption key with Argon2id (64 MiB, 3 passes, 1 lane), per-user salt and stored parameters.
+- Master password to a key-encryption key with Argon2id (RFC 9106 low-memory profile: 64 MiB, 3 passes, 4 lanes, with a cap on concurrent derivations), per-user salt and stored parameters.
 - The key wraps a random data-encryption key (DEK); secrets are sealed with AES-256-GCM, random 96-bit nonces and the site, kind and DEK version as associated data.
 - Team workspaces share a DEK sealed to each member's X25519 public key; removing a member rotates it.
 - DEKs live only in an in-memory key ring with a TTL and inactivity lock.

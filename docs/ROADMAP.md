@@ -165,6 +165,21 @@ Aceptación: con solo Docker instalado, los stacks de desarrollo y producción a
 
 ## Fase 1: MVP (usuario, vault, SFTP)
 
+Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas y commit propio):
+
+- [x] 1.1 Criptografía del vault: Argon2id con tope de derivaciones concurrentes, AES-256-GCM, DEK, recovery kit, key ring con TTL
+- [ ] 1.2 Esquema (usuarios, workspaces, sesiones, sitios, secretos, host keys, auditoría) y almacenes
+- [ ] 1.3 Autenticación: hash de contraseña, sesiones opacas, CSRF firmado, rate limit, asistente de primer arranque
+- [ ] 1.4 Workspaces y `authz.Can`; matriz de autorización
+- [ ] 1.5 API del vault: setup, unlock, lock, cambio de maestra, recovery
+- [ ] 1.6 `netguard` y sitios: CRUD, secretos cifrados, host keys
+- [ ] 1.7 Adaptador SFTP con TOFU y suite de conformidad (autenticación por clave incluida)
+- [ ] 1.8 Session manager: pool, keepalive, reconexión con backoff
+- [ ] 1.9 API de archivos, descarga en streaming y subida reanudable
+- [ ] 1.10 Cola de transferencias persistente y eventos por WebSocket
+- [ ] 1.11 Frontend: setup, login, unlock, sitios, explorador, transferencias, con E2E
+- [ ] 1.12 Revisión de seguridad de la fase 1
+
 - [ ] Usuarios: asistente de primer arranque, login y logout, sesiones, CSRF, rate limits, preferencias de idioma y zona horaria
 - [ ] Workspace personal creado automáticamente
 - [ ] Vault: setup, recovery kit, unlock y lock, bloqueo por inactividad, cambio de contraseña maestra

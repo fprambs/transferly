@@ -125,7 +125,7 @@ Toda consulta de negocio filtra por `workspace_id` y pasa por RBAC.
 ## 7. Vault de credenciales
 
 ```
-contraseña maestra --Argon2id(salt, m=64MiB, t=3, p=1)--> KEK
+contraseña maestra --Argon2id(salt, m=64MiB, t=3, p=4; RFC 9106, poca memoria)--> KEK
 KEK --AES-256-GCM (wrap)--> DEK del usuario (workspace personal)
 DEK del usuario --wrap--> clave privada X25519
 DEK del workspace --sellada con la clave pública de cada miembro--> memberships.wrapped_workspace_dek
