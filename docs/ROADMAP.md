@@ -134,7 +134,7 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 - [x] `docker/app.Dockerfile` (build del frontend, build de Go con el frontend embebido, distroless sin root; imagen de 6 MB)
 - [x] `compose.yaml` con `app`, `postgres`, perfil `https` (Caddy) opcional, healthchecks y contenedor endurecido
 - [x] Clave de instancia generada en el primer arranque (`0600`) y reutilizada al reiniciar
-- [ ] Verificado: clon limpio, `docker compose up -d`, la app responde en `localhost:8080`
+- [x] Verificado: clon limpio, `docker compose up -d --build` sin `.env`, la app responde y queda healthy
 
 ### 0.8 Infraestructura de tests
 
