@@ -74,18 +74,21 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 ### 0.2 Repositorio
 
 - [x] `git init`, `.gitignore`, `.dockerignore`, `.editorconfig`
-- [ ] Licencia, Conventional Commits, plantilla de ADR
+- [x] Conventional Commits y plantilla de ADR
+- [ ] Licencia (decisión abierta)
 - [x] ADR-0001 web primero, listo para escritorio
-- [ ] ADR-0002 stack, ADR-0003 PostgreSQL, ADR-0004 diseño del vault
+- [x] ADR-0002 stack, ADR-0003 PostgreSQL, ADR-0004 diseño del vault
 - [ ] `Makefile` opcional sobre `docker compose`; `README.md` con los dos flujos de uso
 
 ### 0.2b Guías de librerías
 
 - [x] React, Zustand, TanStack Query, shadcn/ui, Playwright, layout de Go, pkg/sftp, sqlc y pgx
 - [x] Guías de documentación, i18n, fechas y herramientas del frontend
-- [ ] TanStack Router, Table y Virtual; react-hook-form y zod; i18next; dnd-kit; react-arborist; Vitest; MSW
-- [ ] chi, goose, oapi-codegen, jlaffaye/ftp, coder/websocket, `x/text`
-- [ ] Docker: multi-stage, distroless, Compose, Dev Containers
+- [x] i18next, Vitest y Playwright (usadas)
+- [ ] TanStack Router, Table y Virtual; react-hook-form y zod; dnd-kit; react-arborist; MSW (se escriben antes de su primer uso, fase 1 en adelante)
+- [x] chi, goose, oapi-codegen, jlaffaye/ftp (informe del spike)
+- [ ] coder/websocket, `x/text` (antes de su primer uso)
+- [x] Docker: multi-stage, distroless, Compose, Dev Containers
 
 ### 0.3 Esqueleto del backend
 
@@ -151,12 +154,12 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 
 ### 0.9 CI
 
-- [ ] GitHub Actions sobre los mismos contenedores, con todas las barreras; imagen publicada en GHCR
-- [ ] `main` protegida
+- [x] Workflow de GitHub Actions (`.github/workflows/ci.yml`) sobre los mismos contenedores: código generado al día, lint y tests con 100 % de cobertura, E2E contra la imagen, auditoría y Trivy, y publicación en GHCR desde `main`; acciones fijadas por SHA y validado con `actionlint`; sus pasos se ejecutaron localmente
+- [ ] `main` protegida (ajuste del repositorio remoto: PR obligatorio y los cinco jobs de CI como requisito)
 
 ### 0.10 Revisión de seguridad
 
-- [ ] Informe [security/fase-0.md](security/fase-0.md) cerrado (en curso: ver hallazgos y pendientes)
+- [x] Informe [security/fase-0.md](security/fase-0.md) cerrado: 16 hallazgos, ninguno alto o crítico abierto
 
 Aceptación: con solo Docker instalado, los stacks de desarrollo y producción arrancan desde un clon limpio; un comando corre todos los tests con todas las barreras; los spikes quedan documentados en `docs/spikes/`; informe de seguridad cerrado.
 

@@ -43,4 +43,5 @@ ARG PNPM_VERSION=12.6.0
 RUN npm install -g pnpm@${PNPM_VERSION} && pnpm --version
 
 WORKDIR /workspace
+USER node
 CMD ["bash"]

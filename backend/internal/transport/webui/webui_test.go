@@ -67,7 +67,9 @@ func TestHandler_ServesFiles(t *testing.T) {
 //   - an unknown path without an extension receives the index document
 //   - a directory path receives the index document
 //   - a missing file with an extension is a 404, never HTML
-//   - path traversal attempts stay inside the file system
+//   - path traversal attempts, plain, percent-encoded and double-encoded, only ever reach the index document
+//   - backslash traversal is a 404 and never a host file
+//   - dotfiles are never served
 //   - a build without an index document answers 404 for application routes
 func TestHandler_ApplicationRoutes(t *testing.T) {
 	if rec := get(t, http.MethodGet, "/sites/42"); rec.Code != http.StatusOK || rec.Body.String() != "<html>app</html>" {
@@ -79,8 +81,26 @@ func TestHandler_ApplicationRoutes(t *testing.T) {
 	if rec := get(t, http.MethodGet, "/assets/missing.js"); rec.Code != http.StatusNotFound {
 		t.Errorf("missing asset = %d, want 404", rec.Code)
 	}
-	if rec := get(t, http.MethodGet, "/../../etc/passwd"); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "root:") {
-		t.Errorf("traversal = %d, want the index and no host file", rec.Code)
+	for _, target := range []string{
+		"/../../etc/passwd",
+		"/%2e%2e/%2e%2e/etc/passwd",
+		"/..%2f..%2fetc/passwd",
+		"/assets/../../../etc/passwd",
+		"//etc/passwd",
+		"/index.html/../../etc/passwd",
+		"/%252e%252e/%252e%252e/etc/passwd",
+		"/....//....//etc/passwd",
+	} {
+		rec := get(t, http.MethodGet, target)
+		if rec.Code != http.StatusOK || rec.Body.String() != "<html>app</html>" {
+			t.Errorf("traversal %q = %d %q, want only the index document", target, rec.Code, rec.Body.String())
+		}
+	}
+	if rec := get(t, http.MethodGet, "/\\..\\..\\etc\\passwd"); rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "root:") {
+		t.Errorf("backslash traversal = %d, want 404 and no host file", rec.Code)
+	}
+	if rec := get(t, http.MethodGet, "/.env"); rec.Code != http.StatusNotFound {
+		t.Errorf("dotfile = %d, want 404", rec.Code)
 	}
 
 	empty := httptest.NewRecorder()

@@ -1,0 +1,5 @@
+misconfigurations:
+  - id: DS-0002
+    paths:
+      - testenv/vsftpd/Dockerfile
+    statement: vsftpd must run as root to bind privileged ports, chroot users and authenticate through PAM. Test servers only, never published to the host.
