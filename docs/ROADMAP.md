@@ -96,8 +96,8 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 - [x] Migraciones goose embebidas, adaptador Postgres, apagado ordenado
 - [x] `ports.Clock`, reloj UTC, `time/tzdata` embebido
 - [x] `docscheck`: documentación obligatoria en todo y sin comentarios dentro de funciones
-- [ ] `api/openapi.yaml` y servidor y cliente generados
-- [ ] Configuración de sqlc
+- [x] `api/openapi.yaml` (OpenAPI 3.1) con servidor Go y tipos TypeScript generados
+- [x] Configuración de sqlc con la primera consulta (`Ping`)
 - [x] Lógica de la CLI en `internal/app` con tests; `cmd/sentinel/main.go` reducido a una función
 
 ### 0.4 Esqueleto del frontend
@@ -140,7 +140,7 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 - [x] Go: `testutil` (base de datos aislada por test, helper HTTP, reloj falso), `-race`
 - [ ] `compose.test.yaml` que corre todo con un comando
 - [ ] Esqueletos de `remotefstest`, `storetest` y matriz de autorización
-- [ ] Tests de contrato contra `openapi.yaml`
+- [x] Tests de contrato contra `openapi.yaml` (Go, con kin-openapi)
 - [x] Vitest, Testing Library, cobertura v8
 - [ ] MSW; Playwright con page objects, líneas base visuales y axe
 - [ ] Reportes de cobertura comparados con `main`; líneas base de benchmarks

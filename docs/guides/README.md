@@ -11,6 +11,7 @@ Before using a library for the first time, read its official documentation and r
 | [Zustand](zustand.md) | done |
 | [TanStack Query](tanstack-query.md) | done |
 | [shadcn/ui and Tailwind v4](shadcn-ui.md) | done; confirm Base UI or Radix at `init` |
+| [OpenAPI and code generation](openapi.md) | done |
 | [Playwright](playwright.md) | done |
 | [Frontend tooling](frontend-tooling.md) | done |
 | [Dev environment (Compose, air, Toxiproxy)](dev-environment.md) | done |
@@ -18,7 +19,7 @@ Before using a library for the first time, read its official documentation and r
 | [pkg/sftp](pkg-sftp.md) | done |
 | [sqlc and pgx](sqlc-pgx.md) | done |
 | TanStack Router, Table, Virtual; react-hook-form and zod; dnd-kit; react-arborist; Vitest; MSW | before use |
-| chi, goose, oapi-codegen, jlaffaye/ftp, coder/websocket, `x/text` | before use |
+| chi, goose, jlaffaye/ftp, coder/websocket, `x/text` | before use |
 | Docker: multi-stage, distroless, Compose, Dev Containers | before use |
 
 ## Pinned Versions (checked 2026-09-24)
