@@ -72,6 +72,11 @@ func MigrationStatus(ctx context.Context, databaseURL string) (int64, error) {
 	return v, nil
 }
 
+const (
+	lockRetrySeconds = 1
+	lockAttempts     = 120
+)
+
 // newLocker creates the advisory lock that serializes migrations across instances.
 var newLocker = lock.NewPostgresSessionLocker
 
@@ -86,7 +91,7 @@ func newProvider(databaseURL string, fsys fs.FS) (*goose.Provider, func(), error
 	db := (*sql.DB)(stdlib.OpenDB(*cfg))
 	closeDB := func() { _ = db.Close() }
 
-	locker, err := newLocker()
+	locker, err := newLocker(lock.WithLockTimeout(lockRetrySeconds, lockAttempts))
 	if err != nil {
 		closeDB()
 		return nil, nil, fmt.Errorf("creating migration lock: %w", err)
