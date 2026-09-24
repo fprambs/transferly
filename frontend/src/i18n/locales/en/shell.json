@@ -1,0 +1,27 @@
+{
+  "topbar": {
+    "label": "Main toolbar"
+  },
+  "sidebar": {
+    "label": "Sites",
+    "empty": "No sites yet"
+  },
+  "panes": {
+    "label": "File panes",
+    "local": "Local files",
+    "remote": "Remote files",
+    "empty": "Not connected"
+  },
+  "queue": {
+    "title": "Transfers",
+    "empty": "No transfers",
+    "show": "Show transfers",
+    "hide": "Hide transfers"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

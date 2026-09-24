@@ -1,0 +1,27 @@
+{
+  "topbar": {
+    "label": "Barra principal"
+  },
+  "sidebar": {
+    "label": "Sitios",
+    "empty": "Aún no hay sitios"
+  },
+  "panes": {
+    "label": "Paneles de archivos",
+    "local": "Archivos locales",
+    "remote": "Archivos remotos",
+    "empty": "Sin conexión"
+  },
+  "queue": {
+    "title": "Transferencias",
+    "empty": "No hay transferencias",
+    "show": "Mostrar transferencias",
+    "hide": "Ocultar transferencias"
+  },
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  }
+}

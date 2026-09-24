@@ -104,13 +104,14 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 
 - [x] Vite, React, TypeScript, Tailwind v4, `shadcn init` con Base UI y RTL (ejecutado en `tools`)
 - [x] i18next (`en`, `es`) con claves tipadas
-- [ ] TanStack Router y Query, Zustand (se agregan al primer uso), temas claro y oscuro
+- [x] Zustand con preferencias persistentes (tema y cola) y temas claro, oscuro y del sistema
+- [ ] TanStack Router y Query (se agregan al primer uso)
 - [x] `lib/datetime`, interfaz `Transport` con `HttpTransport`, `usePlatform()`
-- [ ] Layout vacío: barra superior, sidebar, doble panel, cola
+- [x] Layout base: barra superior, sidebar, doble panel y cola, con regiones accesibles
 - [x] oxlint (default de la plantilla): `no-restricted-imports` (las features usan solo `Transport`), `no-inline-comments`
 - [x] Guards de documentación en `frontend/guards`: TSDoc obligatorio y sin comentarios dentro de funciones
 - [x] Chequeo de recursos i18n (claves, vacíos y placeholders) como test
-- [ ] Prueba RTL con un pseudo-idioma
+- [x] Prueba RTL: idioma de derecha a izquierda fija `dir` y un guard prohíbe utilidades físicas left/right
 
 ### 0.5 Entorno de pruebas (`testenv/`)
 

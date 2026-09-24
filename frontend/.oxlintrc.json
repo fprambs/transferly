@@ -1,30 +1,75 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "categories": { "correctness": "error" },
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
     "no-inline-comments": "error",
-    "no-warning-comments": ["error", { "terms": ["todo", "fixme", "xxx"] }]
+    "no-warning-comments": [
+      "error",
+      {
+        "terms": [
+          "todo",
+          "fixme",
+          "xxx"
+        ]
+      }
+    ]
   },
   "overrides": [
     {
-      "files": ["src/features/**", "src/components/**"],
+      "files": [
+        "src/features/**",
+        "src/components/**"
+      ],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
-              { "group": ["@/lib/api", "@/lib/api/*", "@/lib/ws", "@/lib/ws/*"], "message": "Use the Transport interface instead of the HTTP or WebSocket clients." }
+              {
+                "group": [
+                  "@/lib/api",
+                  "@/lib/api/*",
+                  "@/lib/ws",
+                  "@/lib/ws/*"
+                ],
+                "message": "Use the Transport interface instead of the HTTP or WebSocket clients."
+              }
             ]
           }
         ],
         "no-restricted-globals": [
           "error",
-          { "name": "fetch", "message": "Use the Transport interface instead of calling fetch." },
-          { "name": "WebSocket", "message": "Use the Transport interface instead of opening WebSockets." }
+          {
+            "name": "fetch",
+            "message": "Use the Transport interface instead of calling fetch."
+          },
+          {
+            "name": "WebSocket",
+            "message": "Use the Transport interface instead of opening WebSockets."
+          }
         ]
+      }
+    },
+    {
+      "files": [
+        "src/components/ui/**"
+      ],
+      "rules": {
+        "react/only-export-components": "off"
       }
     }
   ]

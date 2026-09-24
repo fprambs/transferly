@@ -71,6 +71,7 @@ describe('createI18n', () => {
 
     expect(instance.resolvedLanguage).toBe('es')
     expect(instance.t(($) => $.language.label)).toBe('Idioma')
+    expect(instance.t(($) => $.queue.title, { ns: 'shell' })).toBe('Transferencias')
   })
 
   it('resolves regional variants to the supported language', async () => {

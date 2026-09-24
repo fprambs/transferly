@@ -3,7 +3,9 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
 import enCommon from './locales/en/common.json'
+import enShell from './locales/en/shell.json'
 import esCommon from './locales/es/common.json'
+import esShell from './locales/es/shell.json'
 
 /** Languages the interface is translated into. English is the source language. */
 export const supportedLanguages = ['en', 'es'] as const
@@ -16,8 +18,8 @@ export const defaultNS = 'common'
 
 /** Translation resources by language and namespace. */
 export const resources = {
-  en: { common: enCommon },
-  es: { common: esCommon },
+  en: { common: enCommon, shell: enShell },
+  es: { common: esCommon, shell: esShell },
 } as const
 
 /** Subset of an i18next instance needed to describe the document language. */
