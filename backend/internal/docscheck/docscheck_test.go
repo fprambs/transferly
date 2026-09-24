@@ -1,0 +1,193 @@
+// Package docscheck holds repository-wide documentation guards.
+package docscheck_test
+
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+const moduleRoot = "../.."
+
+// allowedDirectives lists comment prefixes that are compiler or linter directives.
+var allowedDirectives = []string{"//go:", "//nolint", "//line ", "//export "}
+
+// leadingArticles are the words a type doc comment may start with before the name.
+var leadingArticles = map[string]bool{"A": true, "An": true, "The": true}
+
+// span is a source range delimited by two positions.
+type span struct{ start, end token.Pos }
+
+// TestNoCommentsInsideFunctionBodies verifies that no Go file, tests included,
+// contains a comment inside a function body or function literal.
+// Compiler and linter directives such as //go:embed and //nolint are allowed.
+func TestNoCommentsInsideFunctionBodies(t *testing.T) {
+	fset := token.NewFileSet()
+	var violations []string
+
+	forEachGoFile(t, fset, func(path string, file *ast.File) {
+		violations = append(violations, commentsInsideBodies(fset, file)...)
+	})
+	for _, v := range violations {
+		t.Errorf("comment inside function body: %s", v)
+	}
+}
+
+// TestEveryDeclarationIsDocumented verifies that every package, function, method
+// and type has a doc comment that starts with its own name, test functions and
+// unexported declarations included.
+//
+// Scenarios:
+//   - a package clause without a doc comment in at least one file of the package
+//   - a function or method without a doc comment
+//   - a type without a doc comment
+//   - a doc comment whose first word is not the declared name
+func TestEveryDeclarationIsDocumented(t *testing.T) {
+	fset := token.NewFileSet()
+	var violations []string
+	packageDocs := map[string]bool{}
+
+	forEachGoFile(t, fset, func(path string, file *ast.File) {
+		dir := filepath.Dir(path)
+		if _, seen := packageDocs[dir]; !seen {
+			packageDocs[dir] = false
+		}
+		if file.Doc != nil {
+			packageDocs[dir] = true
+		}
+		violations = append(violations, undocumentedDeclarations(fset, file)...)
+	})
+	for dir, documented := range packageDocs {
+		if !documented {
+			violations = append(violations, dir+": package has no doc comment")
+		}
+	}
+	for _, v := range violations {
+		t.Errorf("documentation: %s", v)
+	}
+}
+
+// forEachGoFile parses every Go file under the module root, comments included,
+// and calls visit for each of them.
+func forEachGoFile(t *testing.T, fset *token.FileSet, visit func(path string, file *ast.File)) {
+	t.Helper()
+	err := filepath.WalkDir(moduleRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if err != nil {
+			return err
+		}
+		visit(path, file)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking %s: %v", moduleRoot, err)
+	}
+}
+
+// commentsInsideBodies returns every non-directive comment located inside a
+// function body or function literal of file.
+func commentsInsideBodies(fset *token.FileSet, file *ast.File) []string {
+	var bodies []span
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch fn := n.(type) {
+		case *ast.FuncDecl:
+			if fn.Body != nil {
+				bodies = append(bodies, span{fn.Body.Lbrace, fn.Body.Rbrace})
+			}
+		case *ast.FuncLit:
+			bodies = append(bodies, span{fn.Body.Lbrace, fn.Body.Rbrace})
+		}
+		return true
+	})
+
+	var out []string
+	for _, group := range file.Comments {
+		for _, c := range group.List {
+			if isDirective(c.Text) || !insideAny(c.Pos(), bodies) {
+				continue
+			}
+			out = append(out, fset.Position(c.Pos()).String()+": "+c.Text)
+		}
+	}
+	return out
+}
+
+// undocumentedDeclarations returns the top-level functions, methods and types of
+// file that lack a doc comment starting with their name.
+func undocumentedDeclarations(fset *token.FileSet, file *ast.File) []string {
+	var out []string
+	report := func(pos token.Pos, name, problem string) {
+		out = append(out, fset.Position(pos).String()+": "+name+" "+problem)
+	}
+	check := func(pos token.Pos, name string, doc *ast.CommentGroup) {
+		if doc == nil {
+			report(pos, name, "has no doc comment")
+			return
+		}
+		if first := firstWord(doc.Text()); first != name {
+			report(pos, name, "doc comment starts with "+first+", want the name")
+		}
+	}
+
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			check(d.Pos(), d.Name.Name, d.Doc)
+		case *ast.GenDecl:
+			if d.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range d.Specs {
+				ts := spec.(*ast.TypeSpec)
+				doc := ts.Doc
+				if doc == nil {
+					doc = d.Doc
+				}
+				check(ts.Pos(), ts.Name.Name, doc)
+			}
+		}
+	}
+	return out
+}
+
+// firstWord returns the first word of text, skipping a leading article.
+func firstWord(text string) string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return ""
+	}
+	if leadingArticles[words[0]] && len(words) > 1 {
+		return words[1]
+	}
+	return words[0]
+}
+
+// isDirective reports whether text is a compiler or linter directive comment.
+func isDirective(text string) bool {
+	for _, p := range allowedDirectives {
+		if strings.HasPrefix(text, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// insideAny reports whether pos lies strictly inside one of spans.
+func insideAny(pos token.Pos, spans []span) bool {
+	for _, s := range spans {
+		if pos > s.start && pos < s.end {
+			return true
+		}
+	}
+	return false
+}
