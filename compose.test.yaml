@@ -1,0 +1,80 @@
+# Test stack. One command per suite; see the Makefile.
+#   docker compose -f compose.test.yaml run --rm unit    # backend and frontend tests with coverage
+#   docker compose -f compose.test.yaml run --rm e2e     # browser tests against the production image
+name: sentinel-test
+
+x-user: &user
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  unit:
+    <<: *user
+    profiles: ["unit"]
+    build:
+      context: .
+      dockerfile: docker/tools.Dockerfile
+    image: sentinel-dev-tools
+    working_dir: /workspace
+    command: sh -c "./scripts/coverage-go.sh && cd frontend && pnpm install --frozen-lockfile && pnpm typecheck && pnpm lint && pnpm test:coverage"
+    environment:
+      CI: "true"
+      SENTINEL_TEST_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel_test?sslmode=disable
+    volumes:
+      - .:/workspace
+      - cache:/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  sentinel:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: sentinel:test
+    environment:
+      SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
+    tmpfs:
+      - /data:mode=0700,uid=65532,gid=65532
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  e2e:
+    <<: *user
+    profiles: ["e2e"]
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    init: true
+    ipc: host
+    working_dir: /workspace/frontend
+    command: node_modules/.bin/playwright test
+    environment:
+      CI: "true"
+      HOME: /tmp
+      SENTINEL_E2E_URL: http://sentinel:8080
+    volumes:
+      - .:/workspace
+    depends_on:
+      sentinel:
+        condition: service_healthy
+
+volumes:
+  cache:

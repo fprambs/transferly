@@ -1,7 +1,9 @@
 COMPOSE := docker compose -f compose.dev.yaml
 TOOLS := $(COMPOSE) run --rm -T tools
 
-.PHONY: up down testenv logs shell test lint hooks
+TEST := docker compose -f compose.test.yaml
+
+.PHONY: up down testenv logs shell test unit e2e e2e-update lint hooks
 
 up:
 	$(COMPOSE) up -d --build
@@ -18,8 +20,16 @@ logs:
 shell:
 	$(COMPOSE) run --rm tools bash
 
-test:
-	$(TOOLS) sh -c './scripts/coverage-go.sh && cd frontend && pnpm test:coverage'
+test: unit e2e
+
+unit:
+	$(TEST) run --rm unit
+
+e2e:
+	$(TEST) run --rm e2e
+
+e2e-update:
+	$(TEST) run --rm e2e node_modules/.bin/playwright test --update-snapshots
 
 lint:
 	$(TOOLS) sh -c 'cd backend && golangci-lint run ./... && cd ../frontend && pnpm lint && pnpm typecheck'

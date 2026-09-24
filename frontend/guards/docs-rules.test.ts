@@ -64,7 +64,7 @@ describe('findCommentsInsideBodies', () => {
  * - functions, classes, interfaces, type aliases and enums without TSDoc are reported
  * - class members and interface members without TSDoc are reported
  * - exported constants and constants holding functions need TSDoc; plain private constants do not
- * - top-level `describe` suites in test files need TSDoc; other files are not affected
+ * - top-level `describe` and `test.describe` suites in test and spec files need TSDoc; other files are not affected
  */
 describe('findUndocumentedDeclarations', () => {
   it('accepts a fully documented module', () => {
@@ -111,6 +111,20 @@ describe('findUndocumentedDeclarations', () => {
     )
 
     expect(findUndocumentedDeclarations('a.ts', text)).toHaveLength(3)
+  })
+
+  it('requires TSDoc on Playwright test.describe suites in spec files', () => {
+    const text = "test.describe('suite', () => {})"
+
+    expect(findUndocumentedDeclarations('a.spec.ts', text)).toHaveLength(1)
+    expect(findUndocumentedDeclarations('a.spec.ts', source('/** Covers a. */', text))).toEqual([])
+    expect(findUndocumentedDeclarations('a.ts', text)).toEqual([])
+  })
+
+  it('ignores other calls at the top level of test files', () => {
+    expect(findUndocumentedDeclarations('a.test.ts', "other('suite')")).toEqual([])
+    expect(findUndocumentedDeclarations('a.test.ts', "foo.bar('suite')")).toEqual([])
+    expect(findUndocumentedDeclarations('a.test.ts', "test.other('suite')")).toEqual([])
   })
 
   it('requires TSDoc on top-level describe suites in test files only', () => {

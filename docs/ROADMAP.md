@@ -139,13 +139,14 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 ### 0.8 Infraestructura de tests
 
 - [x] Go: `testutil` (base de datos aislada por test, helper HTTP, reloj falso), `-race`
-- [ ] `compose.test.yaml` que corre todo con un comando
+- [x] `compose.test.yaml`: `make test` corre las pruebas unitarias con cobertura y las E2E contra la imagen de producción
 - [ ] Esqueletos de `remotefstest`, `storetest` y matriz de autorización
 - [x] Tests de contrato contra `openapi.yaml` (Go, con kin-openapi)
 - [x] Vitest, Testing Library, cobertura v8
-- [ ] MSW; Playwright con page objects, líneas base visuales y axe
+- [x] Playwright con page objects, líneas base visuales y axe (15 pruebas, contra la imagen de producción)
+- [ ] MSW (se agrega con el primer componente que consuma la API)
 - [ ] Reportes de cobertura comparados con `main`; líneas base de benchmarks
-- [ ] Hooks de git
+- [x] Hooks de git (`pre-commit`, `commit-msg`, `pre-push`)
 
 ### 0.9 CI
 

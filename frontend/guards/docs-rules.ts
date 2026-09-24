@@ -80,13 +80,20 @@ function isCallableInitializer(expression: ts.Expression | undefined): boolean {
   )
 }
 
-/** Reports whether a statement is a top-level `describe(...)` call. */
+/** Reports whether a statement is a top-level `describe(...)` or `test.describe(...)` call. */
 function isSuite(statement: ts.Statement): boolean {
+  if (!ts.isExpressionStatement(statement) || !ts.isCallExpression(statement.expression)) {
+    return false
+  }
+  const callee = statement.expression.expression
+  if (ts.isIdentifier(callee)) {
+    return callee.text === 'describe'
+  }
   return (
-    ts.isExpressionStatement(statement) &&
-    ts.isCallExpression(statement.expression) &&
-    ts.isIdentifier(statement.expression.expression) &&
-    statement.expression.expression.text === 'describe'
+    ts.isPropertyAccessExpression(callee) &&
+    ts.isIdentifier(callee.expression) &&
+    callee.expression.text === 'test' &&
+    callee.name.text === 'describe'
   )
 }
 
@@ -149,14 +156,14 @@ export function findCommentsInsideBodies(file: string, text: string): Violation[
  *
  * Checked: functions, classes, interfaces, type aliases and enums; class members and
  * interface members; exported constants; constants holding functions; and, in test files,
- * every top-level `describe` suite.
+ * every top-level `describe` or `test.describe` suite.
  *
  * @param file - Path used in the reported violations; `.tsx` selects the JSX dialect.
  * @param text - Source text to analyze.
  */
 export function findUndocumentedDeclarations(file: string, text: string): Violation[] {
   const source = parseSource(file, text)
-  const isTestFile = /\.test\.tsx?$/.test(file)
+  const isTestFile = /\.(test|spec)\.tsx?$/.test(file)
   const violations: Violation[] = []
 
   const require = (node: ts.Node, description: string) => {

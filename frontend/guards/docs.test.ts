@@ -9,7 +9,7 @@ import {
   type Violation,
 } from './docs-rules.ts'
 
-const roots = ['src', 'guards'].map((directory) => path.resolve(import.meta.dirname, '..', directory))
+const roots = ['src', 'guards', 'e2e'].map((directory) => path.resolve(import.meta.dirname, '..', directory))
 
 /** Lists the TypeScript sources under a directory, skipping declaration files. */
 function listSources(directory: string): string[] {
