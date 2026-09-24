@@ -1,0 +1,49 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - depguard
+    - errorlint
+    - misspell
+    - noctx
+    - revive
+  settings:
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: package-comments
+        - name: exported
+    depguard:
+      rules:
+        core-isolation:
+          files:
+            - "**/internal/core/**"
+            - "!**/*_test.go"
+          deny:
+            - pkg: net/http
+              desc: core must not depend on HTTP; use a port in core/ports
+            - pkg: database/sql
+              desc: core must not depend on the database; use a port in core/ports
+            - pkg: github.com/jackc/pgx
+              desc: core must not depend on pgx; use a port in core/ports
+            - pkg: github.com/go-chi/chi
+              desc: core must not depend on the HTTP router
+            - pkg: github.com/wailsapp/wails
+              desc: core must not depend on Wails
+            - pkg: github.com/fprambs/sentinel/internal/adapters
+              desc: core must not import adapters
+            - pkg: github.com/fprambs/sentinel/internal/transport
+              desc: core must not import transports
+            - pkg: github.com/fprambs/sentinel/internal/app
+              desc: core must not import the composition root
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
