@@ -185,6 +185,7 @@ type RemoteFS interface {
 SFTP:
 
 - `UseConcurrentReads`, `UseConcurrentWrites`, 64 requests por archivo, paquetes de 32 KiB; ver [guides/pkg-sftp.md](guides/pkg-sftp.md).
+- Un canal SSH no supera ~`2 MiB / RTT` (ventana de `x/crypto/ssh`; ~20 MB/s a 100 ms), así que se ejecutan varias transferencias a la vez por sitio como clientes SFTP separados sobre la misma conexión SSH (por defecto 4). Ver [spikes](spikes/sftp-throughput.md).
 - Cifrados: `aes128-gcm@openssh.com`, `chacha20-poly1305@openssh.com`.
 - Auth: password, clave privada con passphrase, keyboard-interactive.
 - Host keys: confianza en el primer uso, bloqueo si cambian.
@@ -193,7 +194,7 @@ SFTP:
 FTP y FTPS:
 
 - Modo pasivo primero (EPSV, luego PASV); activo opcional.
-- FTPS explícito (AUTH TLS) e implícito (990), con reutilización de sesión TLS en el canal de datos.
+- FTPS explícito (AUTH TLS) e implícito (990), con reutilización de sesión TLS en el canal de datos: `tls.Config` con `ClientSessionCache` compartida y `ServerName` siempre no vacío (con IP como host la reutilización falla). Ver [spikes](spikes/ftps-session-reuse.md).
 - `MLSD` con fallback a `LIST`, `MDTM`, `SIZE`, `REST`, `UTF8`, charset configurable.
 
 ## 10. Sesiones y conexiones
@@ -276,7 +277,7 @@ Un WebSocket por pestaña (`/api/v1/ws`), con validación de `Origin`:
 - Fechas de los servidores remotos:
   - SFTP: segundos epoch, UTC.
   - FTP `MLSD` y `MDTM`: UTC por especificación.
-  - FTP `LIST`: sin zona. Se interpreta con `sites.list_timezone`, detectada automáticamente comparando `LIST` con `MDTM` y editable por el usuario.
+  - FTP `LIST`: sin zona. Se interpreta con `sites.list_timezone`, detectada subiendo un archivo de prueba y comparando su hora en `LIST` con el reloj del cliente (redondeo a 15 min), y editable por el usuario. `MDTM` no es fiable: vsftpd con `use_localtime=YES` lo devuelve en hora local. Ver [spikes](spikes/ftp-list-timezone.md).
   - `LIST` puede omitir segundos o el año; las entradas incluyen `modified_precision`.
 - Servidor: `time/tzdata` embebido en el binario; contenedor con `TZ=UTC`; el tiempo pasa por `ports.Clock`.
 - Las transferencias programadas guardan la zona IANA y manejan explícitamente los saltos de horario de verano.

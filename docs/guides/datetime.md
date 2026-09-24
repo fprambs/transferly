@@ -15,8 +15,9 @@ Sources: [MDN Intl.DateTimeFormat](https://developer.mozilla.org/en-US/docs/Web/
 | Source | Zone |
 |---|---|
 | SFTP | epoch seconds, UTC |
-| FTP `MLSD`, `MDTM` | UTC by specification |
-| FTP `LIST` | unspecified: use `sites.list_timezone`, auto-detected by comparing with `MDTM` |
+| FTP `MLSD` | UTC by specification |
+| FTP `MDTM` | UTC by specification, but vsftpd with `use_localtime=YES` answers local time: do not rely on it |
+| FTP `LIST` | unspecified: use `sites.list_timezone`, detected by comparing the listing of a just-uploaded probe file with the client clock (round to 15 minutes) |
 
 `LIST` can omit seconds or the year, so entries carry a `modified_precision` field.
 

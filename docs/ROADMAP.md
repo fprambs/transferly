@@ -124,10 +124,10 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 
 ### 0.6 Spikes
 
-- [ ] Throughput SFTP con y sin pipelining a 0 ms y 100 ms de latencia (meta: al menos 80 % del ancho de banda a 100 ms)
-- [ ] FTPS con reutilización de sesión TLS en el canal de datos usando `jlaffaye/ftp`; plan B: fork
-- [ ] Subida de 5 GB desde el navegador en streaming a SFTP con memoria del backend bajo 100 MB
-- [ ] Detección de zona horaria de `LIST` mediante `MDTM`
+- [x] Throughput SFTP con y sin pipelining a 0 ms y 100 ms de latencia: cumple (86 % de un enlace de 100 Mbit a 100 ms); un canal SSH se limita a ~20 MB/s a 100 ms, se mitiga con transferencias paralelas ([informe](spikes/sftp-throughput.md))
+- [x] FTPS con reutilización de sesión TLS usando `jlaffaye/ftp`: funciona sin fork con `ClientSessionCache` y `ServerName` ([informe](spikes/ftps-session-reuse.md))
+- [x] Subida de 5 GB en streaming a SFTP: memoria máxima 14 MiB ([informe](spikes/streaming-upload.md))
+- [x] Detección de zona horaria de `LIST`: `MDTM` no es fiable; se detecta comparando con el reloj del cliente ([informe](spikes/ftp-list-timezone.md))
 
 ### 0.7 Imagen de producción
 

@@ -16,7 +16,7 @@ Credentials for every server: `sentinel` / `sentinel`. The FTPS certificate is s
 
 ## Known Limits
 
-- vsftpd 3.0.3 does not implement `MLSD`, so these servers exercise the `LIST` plus `MDTM` path. A server with `MLSD` is still needed.
+- vsftpd 3.0.3 does not implement `MLSD`, so these servers exercise the `LIST` path (and `MDTM`, which vsftpd returns in local time with `use_localtime=YES`). A server with `MLSD` is still needed.
 - FTP data connections use passive ports directly and bypass Toxiproxy; only the control channel is proxied. SFTP is fully proxied.
 - vsftpd crashes as PID 1 when clients disconnect abruptly; the services run with `init: true`.
 - Package downloads in the vsftpd image use HTTPS because plain HTTP mirrors returned altered files on the development network.
