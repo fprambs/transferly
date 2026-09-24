@@ -1,0 +1,9 @@
+#!/bin/sh
+# Lints and type-checks inside the tools container before every commit.
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+docker compose -f compose.dev.yaml run --rm --no-deps -T tools sh -c '
+  cd backend && golangci-lint run ./... &&
+  cd ../frontend && pnpm lint && pnpm typecheck
+'

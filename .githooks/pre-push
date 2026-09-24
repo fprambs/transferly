@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runs the full test suites with coverage inside the tools container before pushing.
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+docker compose -f compose.dev.yaml run --rm -T tools sh -c './scripts/coverage-go.sh && cd frontend && pnpm test:coverage'
