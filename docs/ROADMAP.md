@@ -116,10 +116,10 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 ### 0.5 Entorno de pruebas (`testenv/`)
 
 - [x] Servidor SFTP (password), FTP, FTPS explícito e implícito exigiendo reutilización de sesión TLS; verificados con login, subida y listado
-- [ ] SFTP con autenticación por clave
+- [ ] SFTP con autenticación por clave (fase 1: las pruebas del adaptador SFTP generan las claves)
 - [x] toxiproxy delante de cada servidor (canal de control de FTP; el canal de datos pasivo aún no pasa por el proxy)
-- [ ] Servidor FTP con `MLSD` (vsftpd 3.0.3 no lo implementa)
-- [ ] Datos semilla: 50k archivos pequeños, archivos de 1 GB y 5 GB, nombres UTF-8 raros
+- [ ] Servidor FTP con `MLSD` (fase 2, con el adaptador FTP; vsftpd 3.0.3 no lo implementa)
+- [x] Datos semilla (`make seed`, `scripts/seed-testenv.sh [--large]`): 50 000 archivos pequeños, archivos de 1 GB y 5 GB y nombres UTF-8 raros, en SFTP y FTP
 - [x] Servidor FTP con hora local distinta de UTC (`America/Santiago`): `LIST` mostró 17:52 con la hora UTC en 20:52
 
 ### 0.6 Spikes

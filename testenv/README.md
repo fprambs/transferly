@@ -14,6 +14,10 @@ Start: `docker compose -f compose.dev.yaml --profile testenv up -d`
 
 Credentials for every server: `sentinel` / `sentinel`. The FTPS certificate is self-signed.
 
+## Test Data
+
+`make seed` (or `scripts/seed-testenv.sh`) creates 50,000 small files in `seed/many` and files with unusual names (spaces, accents, CJK, emoji, apostrophes, tabs) in `seed/names`, on both the SFTP and FTP servers. Add `--large` for 1 GiB and 5 GiB files.
+
 ## Known Limits
 
 - vsftpd 3.0.3 does not implement `MLSD`, so these servers exercise the `LIST` path (and `MDTM`, which vsftpd returns in local time with `use_localtime=YES`). A server with `MLSD` is still needed.

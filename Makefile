@@ -14,6 +14,9 @@ down:
 testenv:
 	$(COMPOSE) --profile testenv up -d --build
 
+seed:
+	./scripts/seed-testenv.sh
+
 logs:
 	$(COMPOSE) logs -f
 
