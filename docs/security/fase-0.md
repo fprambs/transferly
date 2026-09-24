@@ -20,10 +20,11 @@ Fecha de corte: 2026-09-24. Alcance construido hasta ahora: contenedor `tools`, 
 | 6 | Media | Las descargas de paquetes por HTTP plano desde `deb.debian.org` llegaron alteradas (`Hash Sum mismatch`) en la red de desarrollo: algo intermedio modifica el tráfico | Mitigado: la imagen de prueba usa repositorios HTTPS; apt verifica además las firmas. Conviene revisar la red o el proxy |
 | 7 | Informativa | Servidores de prueba con credenciales fijas (`sentinel`/`sentinel`) y certificado autofirmado | Aceptado: solo en la red interna de Compose, sin puertos publicados al host |
 | 8 | Informativa | La imagen `atmoz/sftp:alpine` se fija por etiqueta, no por digest | Pendiente al cerrar la fase: fijar por digest |
-| 9 | Informativa | Postgres de desarrollo publica el puerto 5432 en `127.0.0.1` con credenciales por defecto | Aceptado: solo desarrollo y solo loopback; producción no publica el puerto |
+| 9 | Baja | La contraseña de Postgres de `compose.yaml` es `sentinel` por defecto (`SENTINEL_DB_PASSWORD`) | Aceptado: la base solo es alcanzable en la red interna de Compose y no publica puertos; la guía indica fijar otra en producción |
+| 10 | Informativa | Imagen de producción verificada: usuario 65532, sistema de archivos de solo lectura, `cap_drop: ALL`, `no-new-privileges`, cabeceras OWASP, clave de instancia `0600` | Cumplido |
+| 11 | Informativa | Postgres de desarrollo publica el puerto 5432 en `127.0.0.1` con credenciales por defecto | Aceptado: solo desarrollo y solo loopback; producción no publica el puerto |
 
 ## Pendiente para cerrar la fase 0
 
-- Modelo de amenazas de la imagen de producción (usuario sin root, filesystem de solo lectura, `cap_drop`).
-- Generación segura de los secretos de la instancia en el primer arranque.
-- Escaneo Trivy de las imágenes y revisión de las imágenes base fijadas por digest.
+- Escaneo Trivy de las imágenes y revisión de las imágenes base.
+- Fijar por digest `atmoz/sftp` y las imágenes de compilación.

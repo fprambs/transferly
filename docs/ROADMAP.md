@@ -131,9 +131,9 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 
 ### 0.7 Imagen de producción
 
-- [ ] `docker/app.Dockerfile` (build del frontend, build de Go con el frontend embebido, distroless sin root)
-- [ ] `compose.yaml` con `app`, `postgres`, perfil `caddy` opcional y healthchecks
-- [ ] Secretos de la instancia generados en el primer arranque
+- [x] `docker/app.Dockerfile` (build del frontend, build de Go con el frontend embebido, distroless sin root; imagen de 6 MB)
+- [x] `compose.yaml` con `app`, `postgres`, perfil `https` (Caddy) opcional, healthchecks y contenedor endurecido
+- [x] Clave de instancia generada en el primer arranque (`0600`) y reutilizada al reiniciar
 - [ ] Verificado: clon limpio, `docker compose up -d`, la app responde en `localhost:8080`
 
 ### 0.8 Infraestructura de tests
