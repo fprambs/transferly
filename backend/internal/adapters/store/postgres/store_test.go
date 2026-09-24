@@ -42,6 +42,25 @@ func TestMigrate_IsIdempotent(t *testing.T) {
 	}
 }
 
+// TestMigrate_ConcurrentRunsAreSafe verifies that several instances migrating the same database at once all succeed.
+func TestMigrate_ConcurrentRunsAreSafe(t *testing.T) {
+	dbURL := testutil.NewDatabase(t)
+	const runs = 6
+	errs := make(chan error, runs)
+
+	for range runs {
+		go func() { errs <- postgres.Migrate(context.Background(), dbURL) }()
+	}
+	for range runs {
+		if err := <-errs; err != nil {
+			t.Errorf("concurrent Migrate() = %v", err)
+		}
+	}
+	if v, err := postgres.MigrationStatus(context.Background(), dbURL); err != nil || v < 1 {
+		t.Errorf("MigrationStatus() = %d, %v, want version >= 1", v, err)
+	}
+}
+
 // TestMigrate_InvalidURL verifies that a malformed database URL is rejected before connecting.
 func TestMigrate_InvalidURL(t *testing.T) {
 	if err := postgres.Migrate(context.Background(), "not a url"); err == nil {

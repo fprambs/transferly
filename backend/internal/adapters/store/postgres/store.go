@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
 	pgmigrations "github.com/fprambs/sentinel/migrations/postgres"
@@ -71,8 +72,12 @@ func MigrationStatus(ctx context.Context, databaseURL string) (int64, error) {
 	return v, nil
 }
 
+// newLocker creates the advisory lock that serializes migrations across instances.
+var newLocker = lock.NewPostgresSessionLocker
+
 // newProvider opens a database handle and builds a goose provider over fsys.
-// The returned function closes the handle.
+// The provider holds a Postgres advisory lock while migrating, so instances started together
+// apply migrations one at a time. The returned function closes the handle.
 func newProvider(databaseURL string, fsys fs.FS) (*goose.Provider, func(), error) {
 	cfg, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
@@ -81,7 +86,12 @@ func newProvider(databaseURL string, fsys fs.FS) (*goose.Provider, func(), error
 	db := (*sql.DB)(stdlib.OpenDB(*cfg))
 	closeDB := func() { _ = db.Close() }
 
-	p, err := goose.NewProvider(goose.DialectPostgres, db, fsys)
+	locker, err := newLocker()
+	if err != nil {
+		closeDB()
+		return nil, nil, fmt.Errorf("creating migration lock: %w", err)
+	}
+	p, err := goose.NewProvider(goose.DialectPostgres, db, fsys, goose.WithSessionLocker(locker))
 	if err != nil {
 		closeDB()
 		return nil, nil, fmt.Errorf("creating migration provider: %w", err)
