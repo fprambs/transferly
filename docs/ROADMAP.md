@@ -75,7 +75,7 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 
 - [x] `git init`, `.gitignore`, `.dockerignore`, `.editorconfig`
 - [x] Conventional Commits y plantilla de ADR
-- [ ] Licencia (decisión abierta)
+- [x] Licencia Apache-2.0 (`LICENSE`)
 - [x] ADR-0001 web primero, listo para escritorio
 - [x] ADR-0002 stack, ADR-0003 PostgreSQL, ADR-0004 diseño del vault
 - [ ] `Makefile` opcional sobre `docker compose`; `README.md` con los dos flujos de uso
@@ -273,6 +273,5 @@ Ver [ADR-0001](adr/0001-web-first-desktop-ready.md).
 
 ## Decisiones abiertas
 
-- Licencia.
 - Registro abierto o solo por invitación (recomendado: invitación).
 - Contraseña maestra opcional (recomendado: obligatoria en v1).

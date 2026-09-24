@@ -21,6 +21,10 @@ make lint        # linters and type checks
 
 Add `--profile testenv` (`make testenv`) for the SFTP, FTP and FTPS test servers; see [testenv/README.md](testenv/README.md).
 
+## License
+
+Apache License 2.0; see [LICENSE](LICENSE).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) and [roadmap](docs/ROADMAP.md) (Spanish)

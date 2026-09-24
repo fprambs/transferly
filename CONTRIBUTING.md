@@ -2,6 +2,10 @@
 
 Everything runs in Docker; the host needs Docker with Compose v2 and git.
 
+## License
+
+By contributing you agree that your work is licensed under the [Apache License 2.0](LICENSE).
+
 ## Workflow
 
 - Work in small units and commit each one in order.
