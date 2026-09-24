@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "Sentinel",
+    "tagline": "Secure file transfer over FTP, FTPS and SFTP"
+  },
+  "language": {
+    "label": "Language",
+    "names": {
+      "en": "English",
+      "es": "Español"
+    }
+  }
+}
