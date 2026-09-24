@@ -4,6 +4,7 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,6 +19,8 @@ type Deps struct {
 	Logger *slog.Logger
 	// Readiness backs the readiness endpoint.
 	Readiness ports.ReadinessChecker
+	// Web serves the frontend for unknown GET and HEAD paths outside /api/; nil disables it.
+	Web http.Handler
 }
 
 // NewRouter returns the HTTP handler with the base middleware stack.
@@ -27,12 +30,11 @@ type Deps struct {
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
+	r.Use(securityHeaders)
 	r.Use(requestLogger(d.Logger))
 	r.Use(middleware.Recoverer)
 
-	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
-		writeProblem(w, http.StatusNotFound, "not_found", nil)
-	})
+	r.NotFound(notFoundHandler(d.Web))
 	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) {
 		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", nil)
 	})
@@ -45,6 +47,19 @@ func NewRouter(d Deps) http.Handler {
 		BaseRouter:       r,
 		ErrorHandlerFunc: requestErrorHandler,
 	})
+}
+
+// notFoundHandler answers unknown routes: application paths go to the frontend when one is configured,
+// everything else, including any /api/ path, is a not_found problem.
+func notFoundHandler(web http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		readOnly := r.Method == http.MethodGet || r.Method == http.MethodHead
+		if web != nil && readOnly && !strings.HasPrefix(r.URL.Path, "/api/") {
+			web.ServeHTTP(w, r)
+			return
+		}
+		writeProblem(w, http.StatusNotFound, "not_found", nil)
+	}
 }
 
 // requestLogger logs one structured line per request with method, path, status, size, duration and request id.

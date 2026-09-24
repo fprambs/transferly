@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +30,7 @@ func testConfig(t *testing.T, databaseURL string) config.Config {
 		t.Fatal(err)
 	}
 	cfg.ShutdownTimeout = 5 * time.Second
+	cfg.DataDir = t.TempDir()
 	return cfg
 }
 
@@ -93,6 +96,21 @@ func TestServe_FailsWhenMigrationsCannotRun(t *testing.T) {
 	defer cancel()
 	if err := app.Serve(ctx, cfg, discardLogger(), ln); err == nil {
 		t.Error("Serve() with failing migrations = nil, want error")
+	}
+}
+
+// TestServe_FailsWhenTheInstanceKeyCannotBeResolved verifies that Serve refuses to start
+// when the instance key file is corrupt.
+func TestServe_FailsWhenTheInstanceKeyCannotBeResolved(t *testing.T) {
+	cfg := testConfig(t, testutil.NewDatabase(t))
+	if err := os.WriteFile(filepath.Join(cfg.DataDir, "instance.key"), []byte("junk\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := app.Serve(t.Context(), cfg, discardLogger(), listen(t))
+
+	if err == nil || !strings.Contains(err.Error(), "corrupt") {
+		t.Errorf("Serve() with a corrupt key = %v, want a corrupt key error", err)
 	}
 }
 

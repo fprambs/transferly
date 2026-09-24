@@ -71,6 +71,35 @@ func TestLoad_AutoMigrateFlag(t *testing.T) {
 	}
 }
 
+// TestLoad_DataDirAndInstanceKey verifies the data directory and instance key settings.
+//
+// Scenarios:
+//   - the data directory defaults to /data and can be overridden
+//   - a 64-character hexadecimal instance key is decoded
+//   - a key that is not hexadecimal or has the wrong length is rejected
+func TestLoad_DataDirAndInstanceKey(t *testing.T) {
+	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+
+	cfg, err := config.Load(env(base))
+	if err != nil || cfg.DataDir != "/data" || cfg.InstanceKey != nil {
+		t.Fatalf("defaults = %+v, %v, want /data and no key", cfg, err)
+	}
+
+	base["SENTINEL_DATA_DIR"] = "/var/lib/sentinel"
+	base["SENTINEL_INSTANCE_KEY"] = strings.Repeat("ab", 32)
+	cfg, err = config.Load(env(base))
+	if err != nil || cfg.DataDir != "/var/lib/sentinel" || len(cfg.InstanceKey) != 32 || cfg.InstanceKey[0] != 0xab {
+		t.Fatalf("overrides = %+v, %v, want the directory and a 32-byte key", cfg, err)
+	}
+
+	for _, bad := range []string{"zz" + strings.Repeat("ab", 31), "abcd"} {
+		base["SENTINEL_INSTANCE_KEY"] = bad
+		if _, err := config.Load(env(base)); err == nil || !strings.Contains(err.Error(), "SENTINEL_INSTANCE_KEY") {
+			t.Errorf("Load() with key %q = %v, want an error naming SENTINEL_INSTANCE_KEY", bad, err)
+		}
+	}
+}
+
 // TestLoad_Errors verifies that Load rejects invalid configuration and names each offending variable.
 //
 // Scenarios:

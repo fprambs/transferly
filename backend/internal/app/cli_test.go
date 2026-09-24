@@ -3,6 +3,9 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"strings"
 	"sync"
@@ -47,7 +50,7 @@ func envOf(vars map[string]string) func(string) string {
 //   - an address that cannot be listened on
 func TestRun_RejectsInvalidInvocations(t *testing.T) {
 	dbURL := testutil.NewDatabase(t)
-	valid := map[string]string{"SENTINEL_DATABASE_URL": dbURL}
+	valid := map[string]string{"SENTINEL_DATABASE_URL": dbURL, "SENTINEL_DATA_DIR": t.TempDir()}
 
 	tests := []struct {
 		name    string
@@ -58,7 +61,7 @@ func TestRun_RejectsInvalidInvocations(t *testing.T) {
 		{"missing configuration", []string{"serve"}, map[string]string{}, "SENTINEL_DATABASE_URL"},
 		{"unknown command", []string{"explode"}, valid, "unknown command"},
 		{"unknown migrate subcommand", []string{"migrate", "sideways"}, valid, "unknown migrate subcommand"},
-		{"unusable listen address", []string{"serve"}, map[string]string{"SENTINEL_DATABASE_URL": dbURL, "SENTINEL_HTTP_ADDR": "no-such-host-name:99999"}, "listening on"},
+		{"unusable listen address", []string{"serve"}, map[string]string{"SENTINEL_DATABASE_URL": dbURL, "SENTINEL_DATA_DIR": t.TempDir(), "SENTINEL_HTTP_ADDR": "no-such-host-name:99999"}, "listening on"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,6 +111,7 @@ func TestRun_ServeStartsAndStopsOnCancel(t *testing.T) {
 	env := envOf(map[string]string{
 		"SENTINEL_DATABASE_URL": testutil.NewDatabase(t),
 		"SENTINEL_HTTP_ADDR":    "127.0.0.1:0",
+		"SENTINEL_DATA_DIR":     t.TempDir(),
 		"SENTINEL_LOG_LEVEL":    "debug",
 	})
 	var logs syncBuffer
@@ -128,6 +132,45 @@ func TestRun_ServeStartsAndStopsOnCancel(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("Run() did not return after the context was canceled")
+	}
+}
+
+// TestRun_Healthcheck verifies the healthcheck command used by container health checks.
+//
+// Scenarios:
+//   - a server answering 200 on the liveness path is healthy
+//   - a server answering an error status is unhealthy
+//   - nothing listening on the address is unhealthy
+//   - a listen address without a port, or with an unusable port, is rejected
+func TestRun_Healthcheck(t *testing.T) {
+	status := http.StatusOK
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/healthz" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(status)
+	}))
+	defer server.Close()
+	envFor := func(addr string) func(string) string {
+		return envOf(map[string]string{"SENTINEL_DATABASE_URL": "postgres://x", "SENTINEL_HTTP_ADDR": addr})
+	}
+	run := func(addr string) error {
+		return app.Run(t.Context(), []string{"healthcheck"}, envFor(addr), &bytes.Buffer{})
+	}
+	_, port, _ := net.SplitHostPort(server.Listener.Addr().String())
+
+	if err := run(":" + port); err != nil {
+		t.Errorf("healthy server: Run(healthcheck) = %v, want nil", err)
+	}
+	status = http.StatusInternalServerError
+	if err := run(":" + port); err == nil || !strings.Contains(err.Error(), "500") {
+		t.Errorf("failing server: Run(healthcheck) = %v, want a 500 error", err)
+	}
+	for name, addr := range map[string]string{"nothing listening": ":1", "no port": "localhost", "unusable port": ":80 80"} {
+		if err := run(addr); err == nil {
+			t.Errorf("%s: Run(healthcheck) = nil, want error", name)
+		}
 	}
 }
 

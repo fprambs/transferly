@@ -2,6 +2,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +13,8 @@ const (
 	defaultHTTPAddr        = ":8080"
 	defaultLogLevel        = "info"
 	defaultShutdownTimeout = 15 * time.Second
+	defaultDataDir         = "/data"
+	instanceKeyLength      = 32
 )
 
 // Config holds the instance configuration.
@@ -26,6 +29,10 @@ type Config struct {
 	ShutdownTimeout time.Duration
 	// AutoMigrate applies pending migrations on startup.
 	AutoMigrate bool
+	// DataDir is the directory holding instance state such as the instance key.
+	DataDir string
+	// InstanceKey is an optional 32-byte instance key; when nil one is stored in DataDir.
+	InstanceKey []byte
 }
 
 // Load builds a [Config] from getenv, typically [os.Getenv].
@@ -38,6 +45,7 @@ func Load(getenv func(string) string) (Config, error) {
 		LogLevel:        strings.ToLower(valueOr(getenv("SENTINEL_LOG_LEVEL"), defaultLogLevel)),
 		ShutdownTimeout: defaultShutdownTimeout,
 		AutoMigrate:     true,
+		DataDir:         valueOr(getenv("SENTINEL_DATA_DIR"), defaultDataDir),
 	}
 
 	var errs []error
@@ -69,6 +77,15 @@ func Load(getenv func(string) string) (Config, error) {
 			cfg.AutoMigrate = false
 		default:
 			errs = append(errs, fmt.Errorf("invalid SENTINEL_AUTO_MIGRATE %q (want true|false)", v))
+		}
+	}
+
+	if v := getenv("SENTINEL_INSTANCE_KEY"); v != "" {
+		key, err := hex.DecodeString(v)
+		if err != nil || len(key) != instanceKeyLength {
+			errs = append(errs, errors.New("invalid SENTINEL_INSTANCE_KEY (want 64 hexadecimal characters)"))
+		} else {
+			cfg.InstanceKey = key
 		}
 	}
 

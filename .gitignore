@@ -16,3 +16,7 @@ frontend/playwright-report/
 .DS_Store
 coverage.out
 test.log
+
+# Built frontend embedded into the binary
+backend/internal/transport/webui/dist/*
+!backend/internal/transport/webui/dist/.gitkeep

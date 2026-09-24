@@ -3,15 +3,18 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"time"
 
+	"github.com/fprambs/sentinel/internal/adapters/instancekey"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/sentinel/internal/transport/webui"
 )
 
 const (
@@ -31,6 +34,12 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 		}
 	}
 
+	_, source, err := instancekey.Resolve(cfg.DataDir, cfg.InstanceKey, rand.Reader)
+	if err != nil {
+		return err
+	}
+	logger.InfoContext(ctx, "instance key ready", "source", string(source))
+
 	store, err := postgres.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
@@ -38,7 +47,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	defer store.Close()
 
 	srv := &http.Server{
-		Handler:           httpapi.NewRouter(httpapi.Deps{Logger: logger, Readiness: store}),
+		Handler:           httpapi.NewRouter(httpapi.Deps{Logger: logger, Readiness: store, Web: webui.Handler()}),
 		ReadHeaderTimeout: readHeaderTimeout,
 		IdleTimeout:       idleTimeout,
 	}

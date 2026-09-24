@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -97,5 +98,93 @@ func TestReadyz_DoesNotLeakInternalErrors(t *testing.T) {
 	resp := testutil.Do(t, http.MethodGet, srv.URL+"/readyz")
 	if string(resp.Body) != "{\"status\":\"unavailable\"}\n" {
 		t.Errorf("response exposes internal details: %q", resp.Body)
+	}
+}
+
+// fakeWeb is a frontend stand-in that answers with a marker and its own cache policy.
+var fakeWeb = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	_, _ = w.Write([]byte("frontend"))
+})
+
+// newServerWithWeb starts a test server whose router has a frontend handler.
+func newServerWithWeb(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(httpapi.NewRouter(httpapi.Deps{
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Readiness: fakeReadiness{},
+		Web:       fakeWeb,
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// TestSecurityHeaders verifies the hardening headers.
+//
+// Scenarios:
+//   - API, problem and frontend responses all carry the OWASP recommended headers
+//   - the content security policy forbids inline scripts and framing
+//   - responses are not cacheable by default, and the frontend can set its own cache policy
+func TestSecurityHeaders(t *testing.T) {
+	api := newServer(t, fakeReadiness{})
+	web := newServerWithWeb(t)
+
+	for name, url := range map[string]string{
+		"api":      api.URL + "/healthz",
+		"problem":  api.URL + "/missing",
+		"frontend": web.URL + "/sites",
+	} {
+		resp := testutil.Do(t, http.MethodGet, url)
+		for header, want := range map[string]string{
+			"X-Content-Type-Options":       "nosniff",
+			"X-Frame-Options":              "DENY",
+			"Referrer-Policy":              "strict-origin-when-cross-origin",
+			"Cross-Origin-Opener-Policy":   "same-origin",
+			"Cross-Origin-Resource-Policy": "same-origin",
+			"Permissions-Policy":           "geolocation=(), camera=(), microphone=()",
+		} {
+			if got := resp.Header.Get(header); got != want {
+				t.Errorf("%s: %s = %q, want %q", name, header, got, want)
+			}
+		}
+		csp := resp.Header.Get("Content-Security-Policy")
+		if !strings.Contains(csp, "script-src 'self'") || !strings.Contains(csp, "frame-ancestors 'none'") || strings.Contains(csp, "unsafe-inline") {
+			t.Errorf("%s: Content-Security-Policy = %q, want a strict policy", name, csp)
+		}
+	}
+
+	if got := testutil.Do(t, http.MethodGet, api.URL+"/healthz").Header.Get("Cache-Control"); got != "no-store" {
+		t.Errorf("API Cache-Control = %q, want no-store", got)
+	}
+	if got := testutil.Do(t, http.MethodGet, web.URL+"/sites").Header.Get("Cache-Control"); got != "public, max-age=60" {
+		t.Errorf("frontend Cache-Control = %q, want the frontend policy", got)
+	}
+}
+
+// TestNotFound_Frontend verifies which unknown paths reach the frontend.
+//
+// Scenarios:
+//   - GET and HEAD on application paths are served by the frontend
+//   - anything under /api/ is a not_found problem, never HTML
+//   - other methods on unknown paths are a not_found problem
+func TestNotFound_Frontend(t *testing.T) {
+	srv := newServerWithWeb(t)
+
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		if resp := testutil.Do(t, method, srv.URL+"/sites/42"); resp.Status != http.StatusOK {
+			t.Errorf("%s /sites/42 = %d, want the frontend", method, resp.Status)
+		}
+	}
+	if resp := testutil.Do(t, http.MethodGet, srv.URL+"/sites/42"); string(resp.Body) != "frontend" {
+		t.Errorf("body = %q, want the frontend marker", resp.Body)
+	}
+	for _, target := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/unknown"},
+		{http.MethodPost, "/sites"},
+	} {
+		resp := testutil.Do(t, target.method, srv.URL+target.path)
+		if resp.Status != http.StatusNotFound || !strings.Contains(resp.Header.Get("Content-Type"), "problem+json") {
+			t.Errorf("%s %s = %d %q, want a not_found problem", target.method, target.path, resp.Status, resp.Header.Get("Content-Type"))
+		}
 	}
 }
