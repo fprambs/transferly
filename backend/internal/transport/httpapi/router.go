@@ -2,8 +2,6 @@
 package httpapi
 
 import (
-	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -14,21 +12,18 @@ import (
 	"github.com/fprambs/sentinel/internal/core/ports"
 )
 
-const readinessTimeout = 2 * time.Second
-
 // Deps are the dependencies of the router.
 type Deps struct {
 	// Logger receives access and error logs.
 	Logger *slog.Logger
-	// Readiness backs the /readyz endpoint.
+	// Readiness backs the readiness endpoint.
 	Readiness ports.ReadinessChecker
 }
 
 // NewRouter returns the HTTP handler with the base middleware stack.
 //
-// It serves GET /healthz (liveness, independent of dependencies)
-// and GET /readyz (readiness, backed by [Deps.Readiness]).
-// Errors are returned as [Problem] documents.
+// Routes come from the OpenAPI contract in api/openapi.yaml.
+// Errors, including unknown routes and wrong methods, are returned as [Problem] documents.
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -42,36 +37,14 @@ func NewRouter(d Deps) http.Handler {
 		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", nil)
 	})
 
-	r.Get("/healthz", healthz)
-	r.Get("/readyz", readyz(d))
-	return r
-}
-
-// healthz answers liveness probes; it never touches dependencies.
-func healthz(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-// readyz answers readiness probes by pinging the readiness checker within a timeout.
-// Failures are logged and reported as 503 without exposing internal details.
-func readyz(d Deps) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), readinessTimeout)
-		defer cancel()
-		if err := d.Readiness.Ping(ctx); err != nil {
-			d.Logger.WarnContext(r.Context(), "readiness check failed", "error", err)
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	}
-}
-
-// writeJSON writes v as a JSON body with the given status.
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	strict := NewStrictHandlerWithOptions(newServer(d), nil, StrictHTTPServerOptions{
+		RequestErrorHandlerFunc:  requestErrorHandler,
+		ResponseErrorHandlerFunc: responseErrorHandler(d.Logger),
+	})
+	return HandlerWithOptions(strict, ChiServerOptions{
+		BaseRouter:       r,
+		ErrorHandlerFunc: requestErrorHandler,
+	})
 }
 
 // requestLogger logs one structured line per request with method, path, status, size, duration and request id.

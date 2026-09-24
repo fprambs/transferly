@@ -26,3 +26,7 @@ lint:
 
 hooks:
 	git config core.hooksPath .githooks
+.PHONY: gen
+
+gen:
+	$(TOOLS) ./scripts/generate.sh

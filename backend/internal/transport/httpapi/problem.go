@@ -2,32 +2,37 @@ package httpapi
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 )
 
 const problemContentType = "application/problem+json"
 
-// Problem is an RFC 9457 problem details object.
-//
-// Title is a fixed English summary for logs and debugging.
-// Clients translate Code, and use Params to fill the translated message.
-type Problem struct {
-	Type   string         `json:"type"`
-	Title  string         `json:"title"`
-	Status int            `json:"status"`
-	Code   string         `json:"code"`
-	Params map[string]any `json:"params,omitempty"`
-}
-
 // writeProblem writes an RFC 9457 problem document with the given status and stable code.
 func writeProblem(w http.ResponseWriter, status int, code string, params map[string]any) {
-	w.Header().Set("Content-Type", problemContentType)
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(Problem{
+	problem := Problem{
 		Type:   "about:blank",
 		Title:  http.StatusText(status),
 		Status: status,
 		Code:   code,
-		Params: params,
-	})
+	}
+	if params != nil {
+		problem.Params = &params
+	}
+	w.Header().Set("Content-Type", problemContentType)
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(problem)
+}
+
+// requestErrorHandler answers requests the generated code could not decode or bind.
+func requestErrorHandler(w http.ResponseWriter, _ *http.Request, _ error) {
+	writeProblem(w, http.StatusBadRequest, "invalid_request", nil)
+}
+
+// responseErrorHandler returns a handler that logs errors raised by operations and answers 500 without details.
+func responseErrorHandler(logger *slog.Logger) func(http.ResponseWriter, *http.Request, error) {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		logger.ErrorContext(r.Context(), "operation failed", "error", err)
+		writeProblem(w, http.StatusInternalServerError, "internal_error", nil)
+	}
 }

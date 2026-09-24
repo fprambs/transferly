@@ -1,22 +1,10 @@
-/** Status reported by a health endpoint. */
-export interface HealthStatus {
-  /** `ok` when the checked component can serve traffic. */
-  status: 'ok' | 'unavailable'
-}
+import type { components } from '../api/schema'
 
-/** RFC 9457 problem document returned by the backend on errors. */
-export interface Problem {
-  /** URI reference identifying the problem type; `about:blank` when generic. */
-  type: string
-  /** Fixed English summary meant for logs, never for display. */
-  title: string
-  /** HTTP status code, or 0 when the server was unreachable. */
-  status: number
-  /** Stable machine-readable code that the interface translates. */
-  code: string
-  /** Values used to fill the translated message. */
-  params?: Record<string, unknown>
-}
+/** Status reported by a health endpoint; generated from the OpenAPI contract. */
+export type HealthStatus = components['schemas']['HealthStatus']
+
+/** RFC 9457 problem document returned by the backend on errors; generated from the OpenAPI contract. */
+export type Problem = components['schemas']['Problem']
 
 /**
  * Boundary between the interface and the backend.

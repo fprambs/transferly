@@ -20,4 +20,5 @@ See the quality policy in [docs/ROADMAP.md](docs/ROADMAP.md): tests with every c
 | `make up` | Start the development stack |
 | `make test` | Run backend and frontend tests with coverage |
 | `make lint` | Run linters and type checks |
+| `make gen` | Regenerate code from the API contract and SQL |
 | `make shell` | Open a shell in the tools container |
