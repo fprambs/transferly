@@ -1,0 +1,14 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/sentinel ./cmd/sentinel"
+entrypoint = ["./tmp/sentinel"]
+args_bin = ["serve"]
+include_ext = ["go", "sql"]
+exclude_dir = ["tmp", "coverage"]
+exclude_regex = ["_test\\.go$"]
+delay = 300
+kill_delay = "5s"
+send_interrupt = true
+stop_on_error = true

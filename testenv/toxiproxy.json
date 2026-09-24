@@ -1,0 +1,6 @@
+[
+  { "name": "sftp", "listen": "0.0.0.0:2222", "upstream": "sftp:22", "enabled": true },
+  { "name": "ftp", "listen": "0.0.0.0:2121", "upstream": "ftp:21", "enabled": true },
+  { "name": "ftps", "listen": "0.0.0.0:2122", "upstream": "ftps:21", "enabled": true },
+  { "name": "ftps-implicit", "listen": "0.0.0.0:2990", "upstream": "ftps-implicit:990", "enabled": true }
+]
