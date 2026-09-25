@@ -100,6 +100,12 @@ func (e WorkspaceRole) Valid() bool {
 	}
 }
 
+// ChangeMasterPasswordRequest defines model for ChangeMasterPasswordRequest.
+type ChangeMasterPasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
 // Credentials defines model for Credentials.
 type Credentials struct {
 	Email string `json:"email"`
@@ -115,6 +121,12 @@ type HealthStatus struct {
 
 // HealthStatusStatus defines model for HealthStatus.Status.
 type HealthStatusStatus string
+
+// MasterPasswordRequest defines model for MasterPasswordRequest.
+type MasterPasswordRequest struct {
+	// MasterPassword Sent to the server only; never returned.
+	MasterPassword string `json:"masterPassword"`
+}
 
 // Preferences defines model for Preferences.
 type Preferences struct {
@@ -143,6 +155,18 @@ type Problem struct {
 	Type string `json:"type"`
 }
 
+// RecoverVaultRequest defines model for RecoverVaultRequest.
+type RecoverVaultRequest struct {
+	NewPassword string `json:"newPassword"`
+	RecoveryKit string `json:"recoveryKit"`
+}
+
+// RecoveryKit defines model for RecoveryKit.
+type RecoveryKit struct {
+	// RecoveryKit Key that recovers the vault when the master password is lost. Shown once.
+	RecoveryKit string `json:"recoveryKit"`
+}
+
 // SessionInfo defines model for SessionInfo.
 type SessionInfo struct {
 	// CsrfToken Send it as X-CSRF-Token on state-changing requests.
@@ -167,6 +191,12 @@ type User struct {
 
 // UserRole defines model for User.Role.
 type UserRole string
+
+// VaultStatus defines model for VaultStatus.
+type VaultStatus struct {
+	Initialized bool `json:"initialized"`
+	Unlocked    bool `json:"unlocked"`
+}
 
 // Workspace defines model for Workspace.
 type Workspace struct {
@@ -206,6 +236,42 @@ type UpdateMeParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// LockVaultParams defines parameters for LockVault.
+type LockVaultParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// ChangeMasterPasswordParams defines parameters for ChangeMasterPassword.
+type ChangeMasterPasswordParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// RecoverVaultParams defines parameters for RecoverVault.
+type RecoverVaultParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// RegenerateRecoveryKitParams defines parameters for RegenerateRecoveryKit.
+type RegenerateRecoveryKitParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// SetupVaultParams defines parameters for SetupVault.
+type SetupVaultParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// UnlockVaultParams defines parameters for UnlockVault.
+type UnlockVaultParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = Credentials
 
@@ -214,6 +280,21 @@ type UpdateMeJSONRequestBody = Preferences
 
 // SetupJSONRequestBody defines body for Setup for application/json ContentType.
 type SetupJSONRequestBody = Credentials
+
+// ChangeMasterPasswordJSONRequestBody defines body for ChangeMasterPassword for application/json ContentType.
+type ChangeMasterPasswordJSONRequestBody = ChangeMasterPasswordRequest
+
+// RecoverVaultJSONRequestBody defines body for RecoverVault for application/json ContentType.
+type RecoverVaultJSONRequestBody = RecoverVaultRequest
+
+// RegenerateRecoveryKitJSONRequestBody defines body for RegenerateRecoveryKit for application/json ContentType.
+type RegenerateRecoveryKitJSONRequestBody = MasterPasswordRequest
+
+// SetupVaultJSONRequestBody defines body for SetupVault for application/json ContentType.
+type SetupVaultJSONRequestBody = MasterPasswordRequest
+
+// UnlockVaultJSONRequestBody defines body for UnlockVault for application/json ContentType.
+type UnlockVaultJSONRequestBody = MasterPasswordRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -235,6 +316,27 @@ type ServerInterface interface {
 	// GetSetupStatus Whether the first administrator still has to be created
 	// (GET /api/v1/setup/status)
 	GetSetupStatus(w http.ResponseWriter, r *http.Request)
+	// GetVault State of the vault in this session
+	// (GET /api/v1/vault)
+	GetVault(w http.ResponseWriter, r *http.Request)
+	// LockVault Lock the vault for this session
+	// (POST /api/v1/vault/lock)
+	LockVault(w http.ResponseWriter, r *http.Request, params LockVaultParams)
+	// ChangeMasterPassword Change the master password
+	// (POST /api/v1/vault/password)
+	ChangeMasterPassword(w http.ResponseWriter, r *http.Request, params ChangeMasterPasswordParams)
+	// RecoverVault Set a new master password with the recovery kit
+	// (POST /api/v1/vault/recover)
+	RecoverVault(w http.ResponseWriter, r *http.Request, params RecoverVaultParams)
+	// RegenerateRecoveryKit Replace the recovery kit
+	// (POST /api/v1/vault/recovery-kit)
+	RegenerateRecoveryKit(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryKitParams)
+	// SetupVault Create the vault and unlock it
+	// (POST /api/v1/vault/setup)
+	SetupVault(w http.ResponseWriter, r *http.Request, params SetupVaultParams)
+	// UnlockVault Unlock the vault for this session
+	// (POST /api/v1/vault/unlock)
+	UnlockVault(w http.ResponseWriter, r *http.Request, params UnlockVaultParams)
 	// ListWorkspaces Workspaces the signed-in user belongs to, with their role in each
 	// (GET /api/v1/workspaces)
 	ListWorkspaces(w http.ResponseWriter, r *http.Request)
@@ -286,6 +388,48 @@ func (_ Unimplemented) Setup(w http.ResponseWriter, r *http.Request) {
 // GetSetupStatus Whether the first administrator still has to be created
 // (GET /api/v1/setup/status)
 func (_ Unimplemented) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVault State of the vault in this session
+// (GET /api/v1/vault)
+func (_ Unimplemented) GetVault(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// LockVault Lock the vault for this session
+// (POST /api/v1/vault/lock)
+func (_ Unimplemented) LockVault(w http.ResponseWriter, r *http.Request, params LockVaultParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ChangeMasterPassword Change the master password
+// (POST /api/v1/vault/password)
+func (_ Unimplemented) ChangeMasterPassword(w http.ResponseWriter, r *http.Request, params ChangeMasterPasswordParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RecoverVault Set a new master password with the recovery kit
+// (POST /api/v1/vault/recover)
+func (_ Unimplemented) RecoverVault(w http.ResponseWriter, r *http.Request, params RecoverVaultParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RegenerateRecoveryKit Replace the recovery kit
+// (POST /api/v1/vault/recovery-kit)
+func (_ Unimplemented) RegenerateRecoveryKit(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryKitParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetupVault Create the vault and unlock it
+// (POST /api/v1/vault/setup)
+func (_ Unimplemented) SetupVault(w http.ResponseWriter, r *http.Request, params SetupVaultParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UnlockVault Unlock the vault for this session
+// (POST /api/v1/vault/unlock)
+func (_ Unimplemented) UnlockVault(w http.ResponseWriter, r *http.Request, params UnlockVaultParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -451,6 +595,266 @@ func (siw *ServerInterfaceWrapper) GetSetupStatus(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSetupStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVault operation middleware
+func (siw *ServerInterfaceWrapper) GetVault(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVault(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LockVault operation middleware
+func (siw *ServerInterfaceWrapper) LockVault(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LockVaultParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LockVault(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeMasterPassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangeMasterPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeMasterPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeMasterPassword(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverVault operation middleware
+func (siw *ServerInterfaceWrapper) RecoverVault(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RecoverVaultParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverVault(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegenerateRecoveryKit operation middleware
+func (siw *ServerInterfaceWrapper) RegenerateRecoveryKit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegenerateRecoveryKitParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegenerateRecoveryKit(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetupVault operation middleware
+func (siw *ServerInterfaceWrapper) SetupVault(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetupVaultParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupVault(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlockVault operation middleware
+func (siw *ServerInterfaceWrapper) UnlockVault(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UnlockVaultParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlockVault(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -670,6 +1074,27 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}", wrapper.GetWorkspace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/vault", wrapper.GetVault)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/vault/setup", wrapper.SetupVault)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/vault/unlock", wrapper.UnlockVault)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/vault/lock", wrapper.LockVault)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/vault/password", wrapper.ChangeMasterPassword)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/vault/recover", wrapper.RecoverVault)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/vault/recovery-kit", wrapper.RegenerateRecoveryKit)
 	})
 
 	return r
@@ -1057,6 +1482,580 @@ func (response GetSetupStatus200JSONResponse) VisitGetSetupStatusResponse(w http
 	return err
 }
 
+type GetVaultRequestObject struct {
+}
+
+type GetVaultResponseObject interface {
+	VisitGetVaultResponse(w http.ResponseWriter) error
+}
+
+type GetVault200JSONResponse VaultStatus
+
+func (response GetVault200JSONResponse) VisitGetVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVault401ApplicationProblemPlusJSONResponse Problem
+
+func (response GetVault401ApplicationProblemPlusJSONResponse) VisitGetVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockVaultRequestObject struct {
+	Params LockVaultParams
+}
+
+type LockVaultResponseObject interface {
+	VisitLockVaultResponse(w http.ResponseWriter) error
+}
+
+type LockVault204Response struct {
+}
+
+func (response LockVault204Response) VisitLockVaultResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type LockVault401ApplicationProblemPlusJSONResponse Problem
+
+func (response LockVault401ApplicationProblemPlusJSONResponse) VisitLockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LockVault403ApplicationProblemPlusJSONResponse Problem
+
+func (response LockVault403ApplicationProblemPlusJSONResponse) VisitLockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangeMasterPasswordRequestObject struct {
+	Params ChangeMasterPasswordParams
+	Body   *ChangeMasterPasswordJSONRequestBody
+}
+
+type ChangeMasterPasswordResponseObject interface {
+	VisitChangeMasterPasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangeMasterPassword204Response struct {
+}
+
+func (response ChangeMasterPassword204Response) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ChangeMasterPassword400ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangeMasterPassword400ApplicationProblemPlusJSONResponse) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangeMasterPassword401ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangeMasterPassword401ApplicationProblemPlusJSONResponse) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangeMasterPassword403ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangeMasterPassword403ApplicationProblemPlusJSONResponse) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangeMasterPassword409ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangeMasterPassword409ApplicationProblemPlusJSONResponse) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangeMasterPassword422ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangeMasterPassword422ApplicationProblemPlusJSONResponse) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangeMasterPassword429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response ChangeMasterPassword429ApplicationProblemPlusJSONResponse) VisitChangeMasterPasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverVaultRequestObject struct {
+	Params RecoverVaultParams
+	Body   *RecoverVaultJSONRequestBody
+}
+
+type RecoverVaultResponseObject interface {
+	VisitRecoverVaultResponse(w http.ResponseWriter) error
+}
+
+type RecoverVault204Response struct {
+}
+
+func (response RecoverVault204Response) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RecoverVault400ApplicationProblemPlusJSONResponse Problem
+
+func (response RecoverVault400ApplicationProblemPlusJSONResponse) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverVault401ApplicationProblemPlusJSONResponse Problem
+
+func (response RecoverVault401ApplicationProblemPlusJSONResponse) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverVault403ApplicationProblemPlusJSONResponse Problem
+
+func (response RecoverVault403ApplicationProblemPlusJSONResponse) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverVault409ApplicationProblemPlusJSONResponse Problem
+
+func (response RecoverVault409ApplicationProblemPlusJSONResponse) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverVault422ApplicationProblemPlusJSONResponse Problem
+
+func (response RecoverVault422ApplicationProblemPlusJSONResponse) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverVault429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response RecoverVault429ApplicationProblemPlusJSONResponse) VisitRecoverVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateRecoveryKitRequestObject struct {
+	Params RegenerateRecoveryKitParams
+	Body   *RegenerateRecoveryKitJSONRequestBody
+}
+
+type RegenerateRecoveryKitResponseObject interface {
+	VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error
+}
+
+type RegenerateRecoveryKit200JSONResponse RecoveryKit
+
+func (response RegenerateRecoveryKit200JSONResponse) VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateRecoveryKit400ApplicationProblemPlusJSONResponse Problem
+
+func (response RegenerateRecoveryKit400ApplicationProblemPlusJSONResponse) VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateRecoveryKit401ApplicationProblemPlusJSONResponse Problem
+
+func (response RegenerateRecoveryKit401ApplicationProblemPlusJSONResponse) VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateRecoveryKit403ApplicationProblemPlusJSONResponse Problem
+
+func (response RegenerateRecoveryKit403ApplicationProblemPlusJSONResponse) VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateRecoveryKit409ApplicationProblemPlusJSONResponse Problem
+
+func (response RegenerateRecoveryKit409ApplicationProblemPlusJSONResponse) VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateRecoveryKit429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response RegenerateRecoveryKit429ApplicationProblemPlusJSONResponse) VisitRegenerateRecoveryKitResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupVaultRequestObject struct {
+	Params SetupVaultParams
+	Body   *SetupVaultJSONRequestBody
+}
+
+type SetupVaultResponseObject interface {
+	VisitSetupVaultResponse(w http.ResponseWriter) error
+}
+
+type SetupVault201JSONResponse RecoveryKit
+
+func (response SetupVault201JSONResponse) VisitSetupVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupVault400ApplicationProblemPlusJSONResponse Problem
+
+func (response SetupVault400ApplicationProblemPlusJSONResponse) VisitSetupVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupVault401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetupVault401ApplicationProblemPlusJSONResponse) VisitSetupVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupVault403ApplicationProblemPlusJSONResponse Problem
+
+func (response SetupVault403ApplicationProblemPlusJSONResponse) VisitSetupVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupVault409ApplicationProblemPlusJSONResponse Problem
+
+func (response SetupVault409ApplicationProblemPlusJSONResponse) VisitSetupVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupVault422ApplicationProblemPlusJSONResponse Problem
+
+func (response SetupVault422ApplicationProblemPlusJSONResponse) VisitSetupVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVaultRequestObject struct {
+	Params UnlockVaultParams
+	Body   *UnlockVaultJSONRequestBody
+}
+
+type UnlockVaultResponseObject interface {
+	VisitUnlockVaultResponse(w http.ResponseWriter) error
+}
+
+type UnlockVault204Response struct {
+}
+
+func (response UnlockVault204Response) VisitUnlockVaultResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type UnlockVault400ApplicationProblemPlusJSONResponse Problem
+
+func (response UnlockVault400ApplicationProblemPlusJSONResponse) VisitUnlockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVault401ApplicationProblemPlusJSONResponse Problem
+
+func (response UnlockVault401ApplicationProblemPlusJSONResponse) VisitUnlockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVault403ApplicationProblemPlusJSONResponse Problem
+
+func (response UnlockVault403ApplicationProblemPlusJSONResponse) VisitUnlockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVault409ApplicationProblemPlusJSONResponse Problem
+
+func (response UnlockVault409ApplicationProblemPlusJSONResponse) VisitUnlockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVault429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response UnlockVault429ApplicationProblemPlusJSONResponse) VisitUnlockVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListWorkspacesRequestObject struct {
 }
 
@@ -1218,6 +2217,27 @@ type StrictServerInterface interface {
 	// GetSetupStatus Whether the first administrator still has to be created
 	// (GET /api/v1/setup/status)
 	GetSetupStatus(ctx context.Context, request GetSetupStatusRequestObject) (GetSetupStatusResponseObject, error)
+	// GetVault State of the vault in this session
+	// (GET /api/v1/vault)
+	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
+	// LockVault Lock the vault for this session
+	// (POST /api/v1/vault/lock)
+	LockVault(ctx context.Context, request LockVaultRequestObject) (LockVaultResponseObject, error)
+	// ChangeMasterPassword Change the master password
+	// (POST /api/v1/vault/password)
+	ChangeMasterPassword(ctx context.Context, request ChangeMasterPasswordRequestObject) (ChangeMasterPasswordResponseObject, error)
+	// RecoverVault Set a new master password with the recovery kit
+	// (POST /api/v1/vault/recover)
+	RecoverVault(ctx context.Context, request RecoverVaultRequestObject) (RecoverVaultResponseObject, error)
+	// RegenerateRecoveryKit Replace the recovery kit
+	// (POST /api/v1/vault/recovery-kit)
+	RegenerateRecoveryKit(ctx context.Context, request RegenerateRecoveryKitRequestObject) (RegenerateRecoveryKitResponseObject, error)
+	// SetupVault Create the vault and unlock it
+	// (POST /api/v1/vault/setup)
+	SetupVault(ctx context.Context, request SetupVaultRequestObject) (SetupVaultResponseObject, error)
+	// UnlockVault Unlock the vault for this session
+	// (POST /api/v1/vault/unlock)
+	UnlockVault(ctx context.Context, request UnlockVaultRequestObject) (UnlockVaultResponseObject, error)
 	// ListWorkspaces Workspaces the signed-in user belongs to, with their role in each
 	// (GET /api/v1/workspaces)
 	ListWorkspaces(ctx context.Context, request ListWorkspacesRequestObject) (ListWorkspacesResponseObject, error)
@@ -1440,6 +2460,221 @@ func (sh *strictHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// GetVault operation middleware
+func (sh *strictHandler) GetVault(w http.ResponseWriter, r *http.Request) {
+	var request GetVaultRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVault(ctx, request.(GetVaultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVault")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVaultResponseObject); ok {
+		if err := validResponse.VisitGetVaultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LockVault operation middleware
+func (sh *strictHandler) LockVault(w http.ResponseWriter, r *http.Request, params LockVaultParams) {
+	var request LockVaultRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LockVault(ctx, request.(LockVaultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LockVault")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LockVaultResponseObject); ok {
+		if err := validResponse.VisitLockVaultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ChangeMasterPassword operation middleware
+func (sh *strictHandler) ChangeMasterPassword(w http.ResponseWriter, r *http.Request, params ChangeMasterPasswordParams) {
+	var request ChangeMasterPasswordRequestObject
+
+	request.Params = params
+
+	var body ChangeMasterPasswordJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangeMasterPassword(ctx, request.(ChangeMasterPasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangeMasterPassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ChangeMasterPasswordResponseObject); ok {
+		if err := validResponse.VisitChangeMasterPasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverVault operation middleware
+func (sh *strictHandler) RecoverVault(w http.ResponseWriter, r *http.Request, params RecoverVaultParams) {
+	var request RecoverVaultRequestObject
+
+	request.Params = params
+
+	var body RecoverVaultJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverVault(ctx, request.(RecoverVaultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverVault")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverVaultResponseObject); ok {
+		if err := validResponse.VisitRecoverVaultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RegenerateRecoveryKit operation middleware
+func (sh *strictHandler) RegenerateRecoveryKit(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryKitParams) {
+	var request RegenerateRecoveryKitRequestObject
+
+	request.Params = params
+
+	var body RegenerateRecoveryKitJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RegenerateRecoveryKit(ctx, request.(RegenerateRecoveryKitRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RegenerateRecoveryKit")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RegenerateRecoveryKitResponseObject); ok {
+		if err := validResponse.VisitRegenerateRecoveryKitResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetupVault operation middleware
+func (sh *strictHandler) SetupVault(w http.ResponseWriter, r *http.Request, params SetupVaultParams) {
+	var request SetupVaultRequestObject
+
+	request.Params = params
+
+	var body SetupVaultJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetupVault(ctx, request.(SetupVaultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetupVault")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetupVaultResponseObject); ok {
+		if err := validResponse.VisitSetupVaultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnlockVault operation middleware
+func (sh *strictHandler) UnlockVault(w http.ResponseWriter, r *http.Request, params UnlockVaultParams) {
+	var request UnlockVaultRequestObject
+
+	request.Params = params
+
+	var body UnlockVaultJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UnlockVault(ctx, request.(UnlockVaultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnlockVault")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UnlockVaultResponseObject); ok {
+		if err := validResponse.VisitUnlockVaultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListWorkspaces operation middleware
 func (sh *strictHandler) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	var request ListWorkspacesRequestObject
@@ -1543,41 +2778,51 @@ func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"JONklKxv1v8dAA==",
+	"7Fzfbxs3Ev5XBnv3cIeTLSdxUcTGPbjGpTGSNIblNAcERkHtjrSsV+SWnLWiBPrfD0PuT4kr2Rc7dVK9",
+	"2VqKHM58/PjNkKvPUaxnuVaoyEZHn6MURYLG/TlCOtX6WiL/k6CNjcxJahUd8SML2kCcoTAWKEWwaK3U",
+	"CmL3FfjHS6L8rcoWAxiJGY4k4b9fi48DGGFcGAR9gwZSotz+cz8aRDZOcSZ4IFrkGB1FloxU02i5XA6i",
+	"XBgxQyrNOrVmcqmvUa2bdaJI7p2OLl4AcQMwSIVRmMBcUtqxUqgExrpQCZAGSfvwRqhEkDYL0AosCcK9",
+	"OBVqKtUUDP5RoOUZT8DKqcJkTyooLBp7XPZqeDpC2TkaC4cHzyC2ZvKbVDcik354XRAPFA0iyaZ6P0eD",
+	"SIkZz/e/zu49P7FN/hhE77W5trmI8SxZd8FZgorkRKJha9m4edW8HjsXlDYjz1vdDSKeqzSYREdkCmwb",
+	"MtFmJig6iopCcstAoAzaXCuLLk4XgvC1nElCZ2asFaEi/lPkeSZjwRYPc6PHGc7+9bvVLqDNeH83OImO",
+	"or8NG4AO/VM7PPff8qN2HXCpNcyEWoAgwllO9phhYBYgJoTGeUSqhIfHBEjOnFtaqL/gxnsn3DiE+1ir",
+	"xDJo5kISjHGiDQKZBeNETIVUQTRLRThFw/Yul9Vzj2YGGb4RltCcC2vn2iQXHm/8ODc6R0PSuzQujEFF",
+	"VbsAPAaRwvmG58t2hD+sddj9+lUdZD3+HWPi7k8NOoSJzK7bhzMhs6BVecukVZcqYn+21pFW2eIYFPLf",
+	"1RLejwZb5uIHbw0VMv8liozSEQkqbMAW9zkYzLVheIwXICB1XwFUSa6lciu4O2tb94aqmLEp+joaRIUS",
+	"N0JmYpxhdLXN+LKPkMm3xMas0+wB/bwyUMjkc4MTNKhiDIAk07HIAnvKT6fncPgjZEJNCzFFIDGtKIyX",
+	"j5mUFLaGLV7En7QKdHl28suJW+PAz4EJLzy/wAw8wax1efHiFJ4f/vAjlMQFiY6LGfu23my0AjRGG7sO",
+	"lVgnGITdOEOYiTiVCvcMisR9wK2BUkEQZxIVWSAjlM0EhR3h9kk3jkgSyZ2L7Lw1vmf07ti/iqxAy5uZ",
+	"2wonMsucy+uREpihtWLaHrLxk+1ZSS8vL8/BP3TTaH255kKOHIWQ8EJ+xAT+o6aZtCnYYjYTZgEzFIpg",
+	"og1kemoHJW75/0TaPBOLMDgWeWCEdxdnUGMUpN8zHYfz3KvQ8nePQYx1QUfjTKhrmKeoYIoKjYy3rxT3",
+	"tJpl7auBR0Fo3VxgzLroV1Fk1LvQNxM8W+A6WbyStH0DaDfeTv4X3a67dq2M23X4K1x4JJetvGa84Yl6",
+	"p/K/nlmgInCQFjJtaR9GqZ4r0CrG7U5vmxGaw8grwDM10YENtl9bjlAlIAmEhbZW2yAXg3hk1bhN3byz",
+	"aNbm5b44aFkYnhwVebO7rQao6m11bpemQCgUSb/2J9JYApHMpJKWjCBtAD/K7pTGWmcoVMD/5d8h+96V",
+	"s7+tbJDJLZTnoLWlrD0yOsP21uxmFZVxuNqym2xGmrOlUh1unNqSVjchN7gF3hcmqSTLK/kJ2+u7djcL",
+	"i0zH1+Gnqya2+mp9MWRTnVUEVoVB3ghOqBOMhEHP04wG/3fgrqVK2tHJ0VjetbgtilkwQD5t2RDqlQ1b",
+	"Z1jpiG7yBlKtJ0iVJXqu3Hqr8IKJJM0f3EicB6ETQoeztZxmjZHGnetx4C2VE2RJixGzQakwPWf1ZeNv",
+	"c/FH0eS2Pve1SKxfMz2VPt21zA37MOrJbUVmNShkGZBil+J8dlSnjz7DbxJIi4qkwuy30oAm0CKXr3Dh",
+	"szRZEm5AJ5ycn1URGpV9sRApRcgETal/9uvN9CiqG56cn3FU0Fjf48H+k/0DhoPOUYlcRkfRM/fRwOW9",
+	"zp9DkcvhzZOhKCgdOg/xp7m2gZ2L01jIfB4LeW0LiCQxaK1zLX8s4lgXivbhvdFqCo4X/NO5+6Da1SwI",
+	"41NQS1JNC2lTFns8N15zLivmxD567ezyoEJLP+lksSGPvlv+3M7ill3kskhcTeWfHhzc29Dt/TeQvo/c",
+	"EgWfR3eLUXsN/kMDlI2HTdnKdX+40fZ7Lz+clOJ/Hy6ZcKgl5DHLvOwpETRnPZSKPEeXdzlbn3xDtj77",
+	"dmx9+rxv6Brnw3a9qs3D0dGHq0FUZiElQkH6vXaVSHRBbSZZW9D8vFvP/BA2q2kybOqdy6u1dXkYEKp+",
+	"BemCjkOFWWl91dan+vezwnaovX9buwhc0wAfrpbrqGR4tWHphdIUA2D8GekNRn8ez7M/yupjhdBvjALv",
+	"GKDLdf3J4oAHECvHFpVa9R36yg7F6XoQ3+Uswl0cv4xT7l9htEuAX1lhlOlzEHKF81ji/F/ibScPdvLg",
+	"6ffJOf5wqVtCbwrsjn6q4nhn33CpYn9KxMe6PmuGecp5mtJV+lPViWBL2rSe7rjS1WNJd558rW3wpFNk",
+	"KysDPl3/aydCz3fs8dgToVOH1t6KcQXi1VzJkcuwOTjqk6ftWvaD6tRmmB7R4Cz2Vf79jR55nyKlaHpd",
+	"YomP11LhLhCMsVrvHfe4M5FNfnHF44f0SLs6HfBIe5LO2JLzXcClharK7Mur0v415D37q64ze7eszH89",
+	"ykN21KZ6QXxdBfthSwZuFPBh2ynNxwIpjn8LTnzSvQVP7Vs2Yen2C2JS2lgm31phQK1V1ew1mRa6r/QI",
+	"089N16pupQADq+TNyvG0O0PBpFtlsyQWDQfuUszdwt8J2kcsaO+SQq9cTwnwb3n3pJ9+3zlesBtY/S5c",
+	"3L4u9Ag5OHSb6b6412CeiXiVfOWOeXfMu2Pe74N5R0ggQOF87V5g/TZHddcPriX10/Fi71rSbSTxyjie",
+	"W3KDN1IXlscASzq3rvQp1fRuVO1ujQrCi86Ny8fG2V+gmA/ue+NwLuopyTAs2tEfgG3dEd1R/476vznq",
+	"f2A6vfCK6Ta8ueX453Klh+oeZWUny7BmNbqyoL+rb0kblmzN63Ag3A3vNYbPtEUL6EawGBukngOjx6p9",
+	"v4BHn3wtHvVVv/aZ00487xh0J54f3Sl+c87mawbNUoUgf/tnd7jS3Ctbfb3iOyTZ3kOQHQXuKHAnIvuo",
+	"yPPBbQ+l6hdr+s/5X0tL75tmX5hUSsKZ7fNA5fx6uOb10EgYIxZ9uWYzjQFULyj54/3v+0i7iUvo5akx",
+	"ZlpNLZAe1AUZacDoDDkhQBGnPWAYfm795MRy01WHJlR33Xzav5GxvPpCWN0STVvQU1/3Na030qr30CR9",
+	"gyR++H3i/q1qRy346qBHtv9liE8tBK+a7H8Pxl+SLN8sj9FazpBFJm/wmHNgnxzHKfLJUII5qgRVLDFw",
+	"SfJnJP8LFg95/6fzGxk9qF6dyOZ7Ua/lDSpuzqgor5oaFMmi33en3h3unXH23FjE16h8miqp6yeIhfK/",
+	"aQFkxGQi46DnLlAkks34M53HRiyA9Kq9y0H0w8Gzr2bGSePAhT82q3+sZHMoayfWsbzd6uLZltRdmCw6",
+	"iobR8mr5vwEA",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

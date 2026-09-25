@@ -12,6 +12,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
@@ -143,6 +144,31 @@ func TestWorkspaceStore_ReportsDatabaseFailures(t *testing.T) {
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, workspace.ErrNotFound) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestVaultStore_Conformance runs the shared vault store suite against Postgres.
+func TestVaultStore_Conformance(t *testing.T) {
+	storetest.RunVault(t, func(t *testing.T) storetest.VaultStore { return openMigrated(t) })
+}
+
+// TestVaultStore_ReportsDatabaseFailures verifies that every vault operation returns the database error
+// instead of hiding it, using a store whose connection pool is closed.
+func TestVaultStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"CreateVault": store.CreateVault(ctx, id, vault.Enrollment{}),
+		"Vault":       second(store.Vault(ctx, id)),
+		"UpdateVault": store.UpdateVault(ctx, id, vault.Enrollment{}),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, vault.ErrNoVault) || errors.Is(err, vault.ErrVaultExists) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
 	}

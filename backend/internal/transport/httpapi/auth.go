@@ -81,6 +81,7 @@ func (s *server) Login(ctx context.Context, request LoginRequestObject) (LoginRe
 // Logout ends the current session and clears its cookie.
 func (s *server) Logout(ctx context.Context, _ LogoutRequestObject) (LogoutResponseObject, error) {
 	p, _ := principalFrom(ctx)
+	s.deps.Vault.Lock(vaultKey(p))
 	if err := s.deps.Auth.Logout(ctx, p.token); err != nil {
 		return nil, err
 	}

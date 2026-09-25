@@ -85,6 +85,11 @@ func New(kdf *KDF, params Params, random io.Reader) (*Vault, error) {
 	return &Vault{kdf: kdf, params: params, random: random}, nil
 }
 
+// NewDefault returns a vault that uses [DefaultParams], which are always valid.
+func NewDefault(kdf *KDF, random io.Reader) *Vault {
+	return &Vault{kdf: kdf, params: DefaultParams, random: random}
+}
+
 // KDF derives keys with Argon2id while bounding how many derivations run at once,
 // because each one allocates its full memory cost.
 type KDF struct {

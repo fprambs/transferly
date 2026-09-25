@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/fprambs/sentinel/internal/config"
 )
 
 // TestRunJanitor verifies the periodic cleanup loop.
@@ -51,5 +53,26 @@ func TestRunJanitor(t *testing.T) {
 	out := logs.String()
 	if !strings.Contains(out, "janitor task failed") || !strings.Contains(out, "disk on fire") || !strings.Contains(out, "janitor removed items") {
 		t.Errorf("logs = %q, want the failure and the cleanup", out)
+	}
+}
+
+// TestNewWiring_RegistersJanitorTasks verifies that the wiring cleans expired sessions and expired vault keys.
+//
+// Scenarios:
+//   - the key sweep task is registered and reports nothing to remove on an empty key ring
+func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
+	w := newWiring(config.Config{SessionIdle: time.Minute, SessionMax: time.Hour}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef"))
+
+	names := map[string]int{}
+	for _, task := range w.janitor {
+		if task.name == "expired vault keys" {
+			if removed, err := task.run(t.Context()); removed != 0 || err != nil {
+				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
+			}
+		}
+		names[task.name]++
+	}
+	if names["expired vault keys"] != 1 || names["expired sessions"] != 1 {
+		t.Errorf("janitor tasks = %v; want sessions and vault keys once each", names)
 	}
 }

@@ -165,3 +165,34 @@ func TestWorkspaceFailures(t *testing.T) {
 	expectProblem(t, list.do(request{method: http.MethodGet, path: "/api/v1/workspaces", cookie: cookie}), 500, "internal_error")
 	expectProblem(t, list.do(request{method: http.MethodGet, path: "/api/v1/workspaces/" + uuid.NewString(), cookie: cookie}), 500, "internal_error")
 }
+
+// brokenVaults is a store whose vault reads fail.
+type brokenVaults struct{ *postgres.Store }
+
+// Vault always fails.
+func (brokenVaults) Vault(context.Context, uuid.UUID) (vault.Enrollment, error) {
+	return vault.Enrollment{}, errInjected
+}
+
+// TestVaultFailures verifies that store failures inside the vault handlers are 500 problems.
+//
+// Scenarios:
+//   - reading the vault state, setting up, unlocking, changing the password, recovering and regenerating the kit
+//     each answer 500 when the store fails
+func TestVaultFailures(t *testing.T) {
+	a := newAPI(t, func(d *httpapi.Deps) {
+		store := brokenVaults{d.Readiness.(*postgres.Store)}
+		v, err := vault.New(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Vault = vault.NewService(v, store, vault.NewKeyRing(realClock{}, time.Hour))
+	})
+	cookie, csrf := a.setup()
+
+	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/vault", cookie: cookie}), 500, "internal_error")
+	body := map[string]string{"masterPassword": masterPassword, "currentPassword": masterPassword, "newPassword": newMaster, "recoveryKit": "kit"}
+	for _, path := range []string{"/setup", "/unlock", "/password", "/recover", "/recovery-kit"} {
+		expectProblem(t, a.vaultCall(path, body, cookie, csrf), 500, "internal_error")
+	}
+}

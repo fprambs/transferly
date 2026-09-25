@@ -72,10 +72,12 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Readiness:  store,
 		Auth:       service,
 		Workspaces: workspace.NewService(store, clock, nil),
+		Vault:      newTestVault(store, clock),
 		Limits: httpapi.Limits{
-			SetupIP:      ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
-			LoginIP:      ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
-			LoginAccount: ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
+			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
+			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
+			LoginAccount:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
+			VaultAttempts: ratelimit.New(clock, ratelimit.Rule{Burst: 4, Every: 10 * time.Second}, 100),
 		},
 		InstanceKey:    instanceKey,
 		Cookie:         httpapi.CookieConfig{MaxAge: 8 * time.Hour},
@@ -555,4 +557,12 @@ func TestContract_AuthEndpointsMatchTheSpec(t *testing.T) {
 	}
 	check(request{method: http.MethodPost, path: "/api/v1/auth/login", body: creds(adminEmail, "wrong password here")}, 429)
 	check(request{method: http.MethodPost, path: "/api/v1/auth/logout", cookie: cookie, headers: map[string]string{"X-CSRF-Token": csrf}}, 204)
+}
+
+// mustDecode parses JSON or fails the test.
+func mustDecode(t *testing.T, raw []byte, into any) {
+	t.Helper()
+	if err := json.Unmarshal(raw, into); err != nil {
+		t.Fatalf("decoding %q: %v", raw, err)
+	}
 }

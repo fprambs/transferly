@@ -273,6 +273,292 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/vault:
+    get:
+      operationId: getVault
+      summary: State of the vault in this session
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Whether the vault exists and is unlocked in this session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultStatus"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/vault/setup:
+    post:
+      operationId: setupVault
+      summary: Create the vault and unlock it
+      description: The recovery kit in the response is shown once and never stored; without it a lost master password loses every secret.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MasterPasswordRequest"
+      responses:
+        "201":
+          description: Vault created and unlocked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryKit"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/vault/unlock:
+    post:
+      operationId: unlockVault
+      summary: Unlock the vault for this session
+      description: Rate limited per account.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MasterPasswordRequest"
+      responses:
+        "204":
+          description: Vault unlocked.
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/vault/lock:
+    post:
+      operationId: lockVault
+      summary: Lock the vault for this session
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Vault locked.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/vault/password:
+    post:
+      operationId: changeMasterPassword
+      summary: Change the master password
+      description: Needs the current one. Rate limited per account.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeMasterPasswordRequest"
+      responses:
+        "204":
+          description: Master password changed; the session stays unlocked.
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/vault/recover:
+    post:
+      operationId: recoverVault
+      summary: Set a new master password with the recovery kit
+      description: Unlocks the vault for this session. Rate limited per account.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoverVaultRequest"
+      responses:
+        "204":
+          description: Master password replaced; the session is unlocked.
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/vault/recovery-kit:
+    post:
+      operationId: regenerateRecoveryKit
+      summary: Replace the recovery kit
+      description: Needs the master password; the previous kit stops working. Rate limited per account.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MasterPasswordRequest"
+      responses:
+        "200":
+          description: The new recovery kit, shown once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryKit"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
 components:
   securitySchemes:
     sessionCookie:
@@ -359,6 +645,44 @@ components:
         password:
           type: string
           description: Sent to the server only; never returned.
+    VaultStatus:
+      type: object
+      required: [initialized, unlocked]
+      properties:
+        initialized:
+          type: boolean
+        unlocked:
+          type: boolean
+    MasterPasswordRequest:
+      type: object
+      required: [masterPassword]
+      properties:
+        masterPassword:
+          type: string
+          description: Sent to the server only; never returned.
+    ChangeMasterPasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+    RecoverVaultRequest:
+      type: object
+      required: [recoveryKit, newPassword]
+      properties:
+        recoveryKit:
+          type: string
+        newPassword:
+          type: string
+    RecoveryKit:
+      type: object
+      required: [recoveryKit]
+      properties:
+        recoveryKit:
+          type: string
+          description: Key that recovers the vault when the master password is lost. Shown once.
     Workspace:
       type: object
       required: [id, name, kind, role, createdAt]

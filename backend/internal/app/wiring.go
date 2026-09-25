@@ -24,6 +24,7 @@ var (
 	setupRule        = ratelimit.Rule{Burst: 5, Every: time.Minute}
 	loginIPRule      = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
 	loginAccountRule = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
+	vaultRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 )
 
 // janitorTask is a periodic cleanup that reports how many items it removed.
@@ -47,6 +48,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		auth.Config{IdleTimeout: cfg.SessionIdle, AbsoluteTimeout: cfg.SessionMax})
 
 	workspaces := workspace.NewService(store, system, nil)
+	keyRing := vault.NewKeyRing(system, cfg.SessionIdle)
+	vaults := vault.NewService(vault.NewDefault(kdf, rand.Reader), store, keyRing)
 
 	return wiring{
 		deps: httpapi.Deps{
@@ -55,17 +58,22 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Web:        webui.Handler(),
 			Auth:       authService,
 			Workspaces: workspaces,
+			Vault:      vaults,
 			Limits: httpapi.Limits{
-				SetupIP:      ratelimit.New(system, setupRule, maxTrackedClients),
-				LoginIP:      ratelimit.New(system, loginIPRule, maxTrackedClients),
-				LoginAccount: ratelimit.New(system, loginAccountRule, maxTrackedClients),
+				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
+				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),
+				LoginAccount:  ratelimit.New(system, loginAccountRule, maxTrackedClients),
+				VaultAttempts: ratelimit.New(system, vaultRule, maxTrackedClients),
 			},
 			InstanceKey:    instanceKey,
 			Cookie:         httpapi.CookieConfig{Secure: cfg.CookieSecure(), MaxAge: cfg.SessionMax},
 			AllowedOrigins: cfg.AllowedOrigins,
 			TrustedProxies: cfg.TrustedProxies,
 		},
-		janitor: []janitorTask{{name: "expired sessions", run: authService.PurgeExpired}},
+		janitor: []janitorTask{
+			{name: "expired sessions", run: authService.PurgeExpired},
+			{name: "expired vault keys", run: func(context.Context) (int, error) { return keyRing.Sweep(), nil }},
+		},
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
 
@@ -23,6 +24,8 @@ type Limits struct {
 	LoginIP ports.RateLimiter
 	// LoginAccount limits sign-in attempts per account, whether or not it exists.
 	LoginAccount ports.RateLimiter
+	// VaultAttempts limits attempts to prove a vault secret, per signed-in account.
+	VaultAttempts ports.RateLimiter
 }
 
 // CookieConfig describes the session cookie.
@@ -45,6 +48,8 @@ type Deps struct {
 	Auth *auth.Service
 	// Workspaces is the workspace and permission service.
 	Workspaces *workspace.Service
+	// Vault is the credential vault service.
+	Vault *vault.Service
 	// Limits are the rate limiters of the unauthenticated endpoints.
 	Limits Limits
 	// InstanceKey signs the anti-CSRF tokens.
