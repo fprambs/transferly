@@ -49,6 +49,7 @@ services:
     image: sentinel:test
     environment:
       SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
+      SENTINEL_ALLOWED_ORIGINS: http://sentinel:8080
     tmpfs:
       - /data:mode=0700,uid=65532,gid=65532
     read_only: true

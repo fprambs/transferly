@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
+  globalSetup: './e2e/global-setup.ts',
   testDir: './e2e/specs',
   snapshotPathTemplate: '{testDir}/../__screenshots__/{testFilePath}/{arg}{ext}',
   fullyParallel: true,
@@ -14,6 +15,7 @@ export default defineConfig({
     locale: 'en-US',
     timezoneId: 'UTC',
     colorScheme: 'light',
+    storageState: 'e2e/.auth/state.json',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 })
