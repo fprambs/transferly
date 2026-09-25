@@ -12,6 +12,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
@@ -199,6 +200,32 @@ func TestSiteStore_ReportsDatabaseFailures(t *testing.T) {
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, site.ErrNotFound) || errors.Is(err, site.ErrNoSecret) || errors.Is(err, site.ErrNameTaken) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestHostKeyStore_Conformance runs the shared host key store suite against Postgres.
+func TestHostKeyStore_Conformance(t *testing.T) {
+	storetest.RunHostKey(t, func(t *testing.T) storetest.HostKeyStore { return openMigrated(t) })
+}
+
+// TestHostKeyStore_ReportsDatabaseFailures verifies that every host key operation returns the database error
+// instead of hiding it, using a store whose connection pool is closed.
+func TestHostKeyStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"Trusted": second(store.Trusted(ctx, id, "h", 22)),
+		"List":    second(store.List(ctx, id)),
+		"Add":     store.Add(ctx, id, hostkey.Key{}),
+		"Delete":  store.Delete(ctx, id, "h", 22, "t"),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, hostkey.ErrNotFound) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
 	}

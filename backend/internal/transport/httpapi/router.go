@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -49,6 +50,8 @@ type Deps struct {
 	Auth *auth.Service
 	// Workspaces is the workspace and permission service.
 	Workspaces *workspace.Service
+	// HostKeys is the trusted server keys service.
+	HostKeys *hostkey.Service
 	// Sites is the saved connections service.
 	Sites *site.Service
 	// Vault is the credential vault service.

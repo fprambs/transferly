@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -220,6 +221,24 @@ type HealthStatus struct {
 
 // HealthStatusStatus defines model for HealthStatus.Status.
 type HealthStatusStatus string
+
+// HostKeyInput defines model for HostKeyInput.
+type HostKeyInput struct {
+	Fingerprint string `json:"fingerprint"`
+	Host        string `json:"host"`
+	KeyType     string `json:"keyType"`
+	Port        int    `json:"port"`
+}
+
+// KnownHost defines model for KnownHost.
+type KnownHost struct {
+	// Fingerprint SHA-256 fingerprint in OpenSSH notation.
+	Fingerprint string    `json:"fingerprint"`
+	FirstSeen   time.Time `json:"firstSeen"`
+	Host        string    `json:"host"`
+	KeyType     string    `json:"keyType"`
+	Port        int       `json:"port"`
+}
 
 // MasterPasswordRequest defines model for MasterPasswordRequest.
 type MasterPasswordRequest struct {
@@ -433,6 +452,27 @@ type UnlockVaultParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// ForgetHostKeyParams defines parameters for ForgetHostKey.
+type ForgetHostKeyParams struct {
+	// Host Server name or address.
+	Host string `form:"host" json:"host"`
+
+	// Port Server port.
+	Port int `form:"port" json:"port"`
+
+	// KeyType Key algorithm, such as ssh-ed25519.
+	KeyType string `form:"keyType" json:"keyType"`
+
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// TrustHostKeyParams defines parameters for TrustHostKey.
+type TrustHostKeyParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // CreateSiteParams defines parameters for CreateSite.
 type CreateSiteParams struct {
 	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
@@ -474,6 +514,9 @@ type SetupVaultJSONRequestBody = MasterPasswordRequest
 
 // UnlockVaultJSONRequestBody defines body for UnlockVault for application/json ContentType.
 type UnlockVaultJSONRequestBody = MasterPasswordRequest
+
+// TrustHostKeyJSONRequestBody defines body for TrustHostKey for application/json ContentType.
+type TrustHostKeyJSONRequestBody = HostKeyInput
 
 // CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
 type CreateSiteJSONRequestBody = SiteInput
@@ -528,6 +571,15 @@ type ServerInterface interface {
 	// GetWorkspace One workspace of the signed-in user
 	// (GET /api/v1/workspaces/{workspaceId})
 	GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ForgetHostKey Forget a trusted key, so the next connection asks again
+	// (DELETE /api/v1/workspaces/{workspaceId}/known-hosts)
+	ForgetHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ForgetHostKeyParams)
+	// ListKnownHosts Server keys trusted in a workspace
+	// (GET /api/v1/workspaces/{workspaceId}/known-hosts)
+	ListKnownHosts(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// TrustHostKey Trust a server key
+	// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
+	TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams)
 	// ListSites Sites of a workspace
 	// (GET /api/v1/workspaces/{workspaceId}/sites)
 	ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -642,6 +694,24 @@ func (_ Unimplemented) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 // GetWorkspace One workspace of the signed-in user
 // (GET /api/v1/workspaces/{workspaceId})
 func (_ Unimplemented) GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ForgetHostKey Forget a trusted key, so the next connection asks again
+// (DELETE /api/v1/workspaces/{workspaceId}/known-hosts)
+func (_ Unimplemented) ForgetHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ForgetHostKeyParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListKnownHosts Server keys trusted in a workspace
+// (GET /api/v1/workspaces/{workspaceId}/known-hosts)
+func (_ Unimplemented) ListKnownHosts(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// TrustHostKey Trust a server key
+// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
+func (_ Unimplemented) TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1134,6 +1204,171 @@ func (siw *ServerInterfaceWrapper) GetWorkspace(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ForgetHostKey operation middleware
+func (siw *ServerInterfaceWrapper) ForgetHostKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ForgetHostKeyParams
+
+	// ------------- Required query parameter "host" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "host", r.URL.Query(), &params.Host, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "host"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "host", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "port" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "port", r.URL.Query(), &params.Port, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "port"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "port", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "keyType" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "keyType", r.URL.Query(), &params.KeyType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "keyType"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keyType", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForgetHostKey(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListKnownHosts operation middleware
+func (siw *ServerInterfaceWrapper) ListKnownHosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListKnownHosts(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TrustHostKey operation middleware
+func (siw *ServerInterfaceWrapper) TrustHostKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TrustHostKeyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TrustHostKey(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSites operation middleware
 func (siw *ServerInterfaceWrapper) ListSites(w http.ResponseWriter, r *http.Request) {
 
@@ -1569,6 +1804,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/api/v1/workspaces/{workspaceId}/sites/{siteId}", wrapper.UpdateSite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/v1/workspaces/{workspaceId}/known-hosts", wrapper.ForgetHostKey)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}/known-hosts", wrapper.ListKnownHosts)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/known-hosts", wrapper.TrustHostKey)
 	})
 
 	return r
@@ -2615,6 +2859,237 @@ func (response GetWorkspace404ApplicationProblemPlusJSONResponse) VisitGetWorksp
 	return err
 }
 
+type ForgetHostKeyRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Params      ForgetHostKeyParams
+}
+
+type ForgetHostKeyResponseObject interface {
+	VisitForgetHostKeyResponse(w http.ResponseWriter) error
+}
+
+type ForgetHostKey204Response struct {
+}
+
+func (response ForgetHostKey204Response) VisitForgetHostKeyResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ForgetHostKey400ApplicationProblemPlusJSONResponse Problem
+
+func (response ForgetHostKey400ApplicationProblemPlusJSONResponse) VisitForgetHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetHostKey401ApplicationProblemPlusJSONResponse Problem
+
+func (response ForgetHostKey401ApplicationProblemPlusJSONResponse) VisitForgetHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetHostKey403ApplicationProblemPlusJSONResponse Problem
+
+func (response ForgetHostKey403ApplicationProblemPlusJSONResponse) VisitForgetHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetHostKey404ApplicationProblemPlusJSONResponse Problem
+
+func (response ForgetHostKey404ApplicationProblemPlusJSONResponse) VisitForgetHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListKnownHostsRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListKnownHostsResponseObject interface {
+	VisitListKnownHostsResponse(w http.ResponseWriter) error
+}
+
+type ListKnownHosts200JSONResponse []KnownHost
+
+func (response ListKnownHosts200JSONResponse) VisitListKnownHostsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListKnownHosts401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListKnownHosts401ApplicationProblemPlusJSONResponse) VisitListKnownHostsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListKnownHosts404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListKnownHosts404ApplicationProblemPlusJSONResponse) VisitListKnownHostsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKeyRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Params      TrustHostKeyParams
+	Body        *TrustHostKeyJSONRequestBody
+}
+
+type TrustHostKeyResponseObject interface {
+	VisitTrustHostKeyResponse(w http.ResponseWriter) error
+}
+
+type TrustHostKey201JSONResponse KnownHost
+
+func (response TrustHostKey201JSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKey400ApplicationProblemPlusJSONResponse Problem
+
+func (response TrustHostKey400ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKey401ApplicationProblemPlusJSONResponse Problem
+
+func (response TrustHostKey401ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKey403ApplicationProblemPlusJSONResponse Problem
+
+func (response TrustHostKey403ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKey404ApplicationProblemPlusJSONResponse Problem
+
+func (response TrustHostKey404ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKey409ApplicationProblemPlusJSONResponse Problem
+
+func (response TrustHostKey409ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrustHostKey422ApplicationProblemPlusJSONResponse Problem
+
+func (response TrustHostKey422ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSitesRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -3096,6 +3571,15 @@ type StrictServerInterface interface {
 	// GetWorkspace One workspace of the signed-in user
 	// (GET /api/v1/workspaces/{workspaceId})
 	GetWorkspace(ctx context.Context, request GetWorkspaceRequestObject) (GetWorkspaceResponseObject, error)
+	// ForgetHostKey Forget a trusted key, so the next connection asks again
+	// (DELETE /api/v1/workspaces/{workspaceId}/known-hosts)
+	ForgetHostKey(ctx context.Context, request ForgetHostKeyRequestObject) (ForgetHostKeyResponseObject, error)
+	// ListKnownHosts Server keys trusted in a workspace
+	// (GET /api/v1/workspaces/{workspaceId}/known-hosts)
+	ListKnownHosts(ctx context.Context, request ListKnownHostsRequestObject) (ListKnownHostsResponseObject, error)
+	// TrustHostKey Trust a server key
+	// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
+	TrustHostKey(ctx context.Context, request TrustHostKeyRequestObject) (TrustHostKeyResponseObject, error)
 	// ListSites Sites of a workspace
 	// (GET /api/v1/workspaces/{workspaceId}/sites)
 	ListSites(ctx context.Context, request ListSitesRequestObject) (ListSitesResponseObject, error)
@@ -3592,6 +4076,93 @@ func (sh *strictHandler) GetWorkspace(w http.ResponseWriter, r *http.Request, wo
 	}
 }
 
+// ForgetHostKey operation middleware
+func (sh *strictHandler) ForgetHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ForgetHostKeyParams) {
+	var request ForgetHostKeyRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ForgetHostKey(ctx, request.(ForgetHostKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ForgetHostKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ForgetHostKeyResponseObject); ok {
+		if err := validResponse.VisitForgetHostKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListKnownHosts operation middleware
+func (sh *strictHandler) ListKnownHosts(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListKnownHostsRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListKnownHosts(ctx, request.(ListKnownHostsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListKnownHosts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListKnownHostsResponseObject); ok {
+		if err := validResponse.VisitListKnownHostsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TrustHostKey operation middleware
+func (sh *strictHandler) TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams) {
+	var request TrustHostKeyRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.Params = params
+
+	var body TrustHostKeyJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TrustHostKey(ctx, request.(TrustHostKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TrustHostKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TrustHostKeyResponseObject); ok {
+		if err := validResponse.VisitTrustHostKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListSites operation middleware
 func (sh *strictHandler) ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
 	var request ListSitesRequestObject
@@ -3795,62 +4366,69 @@ func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"sugomkbrT+v/HwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

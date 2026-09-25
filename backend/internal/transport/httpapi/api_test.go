@@ -19,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -77,6 +78,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Auth:       service,
 		Workspaces: workspaces,
 		Vault:      vaults,
+		HostKeys:   hostkey.NewService(store, workspaces, clock),
 		Sites:      site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil),
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),

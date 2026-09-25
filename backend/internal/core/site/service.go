@@ -112,7 +112,7 @@ func normalize(in Input) (Input, error) {
 	if _, ok := defaultPorts[in.Protocol]; !ok {
 		return in, ErrInvalidProtocol
 	}
-	if !validHost(in.Host) {
+	if !ValidHost(in.Host) {
 		return in, ErrInvalidHost
 	}
 	if in.Port == 0 {
@@ -139,8 +139,8 @@ func normalize(in Input) (Input, error) {
 	return in, nil
 }
 
-// validHost accepts IP addresses and dotted host names, without scheme, port, path or spaces.
-func validHost(host string) bool {
+// ValidHost reports whether host is an IP address or a dotted host name, without scheme, port, path or spaces.
+func ValidHost(host string) bool {
 	if host == "" || len(host) > maxHostLength {
 		return false
 	}

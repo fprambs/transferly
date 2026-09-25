@@ -763,6 +763,146 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/known-hosts:
+    get:
+      operationId: listKnownHosts
+      security:
+        - sessionCookie: []
+      summary: Server keys trusted in a workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: The trusted keys by host, port and type.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KnownHost"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: trustHostKey
+      security:
+        - sessionCookie: []
+      summary: Trust a server key
+      description: Records the key a user saw and confirmed. A different key of the same type must be forgotten first.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostKeyInput"
+      responses:
+        "201":
+          description: The trusted key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnownHost"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: forgetHostKey
+      security:
+        - sessionCookie: []
+      summary: Forget a trusted key, so the next connection asks again
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: host
+          in: query
+          required: true
+          description: Server name or address.
+          schema:
+            type: string
+        - name: port
+          in: query
+          required: true
+          description: Server port.
+          schema:
+            type: integer
+        - name: keyType
+          in: query
+          required: true
+          description: Key algorithm, such as ssh-ed25519.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Forgotten.
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     sessionCookie:
@@ -963,6 +1103,34 @@ components:
         passphrase:
           type: string
           description: Write only. Same rules as the password.
+    KnownHost:
+      type: object
+      required: [host, port, keyType, fingerprint, firstSeen]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        keyType:
+          type: string
+        fingerprint:
+          type: string
+          description: SHA-256 fingerprint in OpenSSH notation.
+        firstSeen:
+          type: string
+          format: date-time
+    HostKeyInput:
+      type: object
+      required: [host, port, keyType, fingerprint]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        keyType:
+          type: string
+        fingerprint:
+          type: string
     Workspace:
       type: object
       required: [id, name, kind, role, createdAt]

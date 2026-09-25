@@ -347,6 +347,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/known-hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Server keys trusted in a workspace */
+        get: operations["listKnownHosts"];
+        put?: never;
+        /**
+         * Trust a server key
+         * @description Records the key a user saw and confirmed. A different key of the same type must be forgotten first.
+         */
+        post: operations["trustHostKey"];
+        /** Forget a trusted key, so the next connection asks again */
+        delete: operations["forgetHostKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -441,6 +463,21 @@ export interface components {
             privateKey?: string;
             /** @description Write only. Same rules as the password. */
             passphrase?: string;
+        };
+        KnownHost: {
+            host: string;
+            port: number;
+            keyType: string;
+            /** @description SHA-256 fingerprint in OpenSSH notation. */
+            fingerprint: string;
+            /** Format: date-time */
+            firstSeen: string;
+        };
+        HostKeyInput: {
+            host: string;
+            port: number;
+            keyType: string;
+            fingerprint: string;
         };
         Workspace: {
             /** Format: uuid */
@@ -1569,6 +1606,198 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listKnownHosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The trusted keys by host, port and type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownHost"][];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    trustHostKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostKeyInput"];
+            };
+        };
+        responses: {
+            /** @description The trusted key. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownHost"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    forgetHostKey: {
+        parameters: {
+            query: {
+                /** @description Server name or address. */
+                host: string;
+                /** @description Server port. */
+                port: number;
+                /** @description Key algorithm, such as ssh-ed25519. */
+                keyType: string;
+            };
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Forgotten. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
             };
             /** @description An error. The stable code tells the client what happened. */
             401: {

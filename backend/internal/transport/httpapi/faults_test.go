@@ -14,6 +14,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -234,4 +235,38 @@ func TestSiteFailures(t *testing.T) {
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), siteBody("A"), cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodPut, sitesPath(ws, id), siteBody("A"), cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodDelete, sitesPath(ws, id), nil, cookie, csrf), 500, "internal_error")
+}
+
+// brokenHostKeys is a store whose host key reads and deletes fail.
+type brokenHostKeys struct{ *postgres.Store }
+
+// Trusted always fails.
+func (brokenHostKeys) Trusted(context.Context, uuid.UUID, string, int) ([]hostkey.Key, error) {
+	return nil, errInjected
+}
+
+// List always fails.
+func (brokenHostKeys) List(context.Context, uuid.UUID) ([]hostkey.Key, error) {
+	return nil, errInjected
+}
+
+// Delete always fails.
+func (brokenHostKeys) Delete(context.Context, uuid.UUID, string, int, string) error {
+	return errInjected
+}
+
+// TestHostKeyFailures verifies that store failures inside the known host handlers are 500 problems.
+//
+// Scenarios:
+//   - listing, trusting and forgetting answer 500 when the store fails
+func TestHostKeyFailures(t *testing.T) {
+	a := newAPI(t, func(d *httpapi.Deps) {
+		d.HostKeys = hostkey.NewService(brokenHostKeys{d.Readiness.(*postgres.Store)}, d.Workspaces, realClock{})
+	})
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+
+	expectProblem(t, a.do(request{method: http.MethodGet, path: hostKeysPath(ws), cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, hostKeysPath(ws), hostKeyBody("files.example.com", fingerprintA), cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodDelete, forgetPath(ws, "files.example.com", 22, "ssh-ed25519"), nil, cookie, csrf), 500, "internal_error")
 }

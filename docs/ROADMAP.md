@@ -172,7 +172,7 @@ Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas 
 - [x] 1.3 Autenticación: hash Argon2id PHC, sesiones opacas con caducidad, CSRF firmado y guardas de origen, rate limits por IP y cuenta con IP de cliente detrás de proxies de confianza, asistente de primer arranque, endpoints `/setup`, `/auth/login`, `/auth/logout`, `/me`, protección derivada del contrato ([ADR-0005](adr/0005-authentication.md))
 - [x] 1.4 Workspaces y permisos (`workspace.Can`: matriz rol × acción); espacio personal automático; matriz de autorización HTTP (se amplía con cada endpoint nuevo)
 - [x] 1.5 API del vault: setup, unlock, lock, cambio de maestra, recovery y regeneración del kit; llaves en memoria por sesión con TTL, límite de intentos por cuenta y bloqueo al cerrar sesión
-- [ ] 1.6 `netguard` y sitios: CRUD, secretos cifrados, host keys (hecho: `netguard`, sitios y secretos; falta: host keys)
+- [x] 1.6 `netguard` y sitios: CRUD, secretos cifrados sellados con la llave del vault, host keys de confianza (TOFU) con listado, confianza y olvido
 - [ ] 1.7 Adaptador SFTP con TOFU y suite de conformidad (autenticación por clave incluida)
 - [ ] 1.8 Session manager: pool, keepalive, reconexión con backoff
 - [ ] 1.9 API de archivos, descarga en streaming y subida reanudable
