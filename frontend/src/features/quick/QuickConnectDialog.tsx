@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { QuickConnectInput, QuickConnection } from '@/lib/api'
-import { useApi } from '@/lib/api/use-api'
+import { useApi, type Api } from '@/lib/api/use-api'
 
 import { quickErrorKeyOf, unknownHostKeyOf, type QuickErrorKey, type UnknownHostKey } from './errors'
 import { quickSchema, toQuickInput, type QuickValues } from './schema'
@@ -31,6 +31,18 @@ async function timed<T>(run: () => Promise<T>): Promise<{ value: T; elapsedMs: n
   const started = performance.now()
   const value = await run()
   return { value, elapsedMs: Math.round(performance.now() - started) }
+}
+
+/** Opens a quick connection and proves it works by listing the root; a connection that fails is closed again. */
+async function connect(api: Api, workspaceId: string, input: QuickConnectInput): Promise<QuickConnection> {
+  const connection = await api.quick.create(workspaceId, input)
+  try {
+    await api.files.list(workspaceId, connection.id, '/')
+  } catch (error) {
+    await api.quick.close(workspaceId, connection.id).catch(() => undefined)
+    throw error
+  }
+  return connection
 }
 
 /** Props of {@link QuickConnectDialog}. */
@@ -63,7 +75,7 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
       return
     }
     try {
-      const { value, elapsedMs } = await timed(() => api.quick.create(workspaceId, input))
+      const { value, elapsedMs } = await timed(() => connect(api, workspaceId, input))
       setPending(null)
       reset()
       onOpenChange(false)

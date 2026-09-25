@@ -25,12 +25,20 @@ const opened: QuickConnection = {
   createdAt: '2026-01-01T00:00:00Z',
 }
 
+/** Answers with an unknown host key. */
+function unknownKey() {
+  return HttpResponse.json(
+    { type: 'about:blank', title: 'x', status: 409, code: 'host_key_unknown', params: { keyType: 'ssh-ed25519', fingerprint: 'SHA256:abc' } },
+    { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+  )
+}
+
 /** Renders the sidebar with the quick connect journey and waits for the workspace to load. */
 async function renderFlow() {
   const user = userEvent.setup()
   await renderWithProviders(
     <>
-      <SitesSidebar />
+      <SitesSidebar onOpen={() => undefined} />
       <QuickConnectFlow />
     </>,
   )
@@ -63,6 +71,7 @@ async function fillAndConnect(user: ReturnType<typeof userEvent.setup>, port = '
  * - the form validates before calling the server and Cancel closes it
  * - connecting sends the values with the default or the typed port, closes the dialog and offers to keep the server
  * - "Not now" dismisses the offer
+ * - connecting proves the server answers by listing its root; a server that does not is closed again and explained
  * - a server key that is not known yet asks for trust, going back returns to the form and trusting connects
  * - a failing trust call and a changed or refused server show their message
  * - saving files the connection under a name and a collection and refreshes the tree
@@ -73,6 +82,10 @@ describe('quick connect', () => {
   beforeEach(() => {
     useDialogsStore.setState({ quickConnectOpen: false })
     mockWorkspaceData({ collections: [{ id: 'c1', name: 'Work' }, { id: 'c2', name: 'Staging', parentId: 'c1' }] })
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/q1/files', () => HttpResponse.json([])),
+      http.delete('/api/v1/workspaces/:id/quick-connections/q1', () => new HttpResponse(null, { status: 204 })),
+    )
   })
 
   it('opens from the button and the shortcut only', async () => {
@@ -154,20 +167,18 @@ describe('quick connect', () => {
 
   it('asks to trust an unknown server key, and connects after trusting it', async () => {
     const seen: string[] = []
-    let attempts = 0
+    let trusted = false
     server.use(
-      http.post('/api/v1/workspaces/:id/quick-connections', () => {
-        attempts++
-        if (attempts <= 2) {
-          return HttpResponse.json(
-            { type: 'about:blank', title: 'x', status: 409, code: 'host_key_unknown', params: { keyType: 'ssh-ed25519', fingerprint: 'SHA256:abc' } },
-            { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
-          )
+      http.post('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(opened, { status: 201 })),
+      http.get('/api/v1/workspaces/:id/sites/q1/files', () => {
+        if (!trusted) {
+          return unknownKey()
         }
         seen.push('connected')
-        return HttpResponse.json(opened, { status: 201 })
+        return HttpResponse.json([])
       }),
       http.post('/api/v1/workspaces/:id/known-hosts', async ({ request }) => {
+        trusted = true
         seen.push(JSON.stringify(await request.json()))
         return HttpResponse.json({}, { status: 201 })
       }),
@@ -193,14 +204,41 @@ describe('quick connect', () => {
     ])
   })
 
+  it('closes the quick connection again when it does not work', async () => {
+    let closed = 0
+    server.use(
+      http.post('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(opened, { status: 201 })),
+      http.get('/api/v1/workspaces/:id/sites/q1/files', () => problem(502, 'remote_auth_failed')),
+      http.delete('/api/v1/workspaces/:id/quick-connections/q1', () => (closed++, new HttpResponse(null, { status: 204 }))),
+    )
+    const user = await renderFlow()
+    await openDialog(user)
+
+    await fillAndConnect(user)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The server refused the username or password.')
+    expect(closed).toBe(1)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('still reports the failure when closing the connection fails too', async () => {
+    server.use(
+      http.post('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(opened, { status: 201 })),
+      http.get('/api/v1/workspaces/:id/sites/q1/files', () => problem(502, 'remote_unavailable')),
+      http.delete('/api/v1/workspaces/:id/quick-connections/q1', () => problem(500, 'internal')),
+    )
+    const user = await renderFlow()
+    await openDialog(user)
+
+    await fillAndConnect(user)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The server did not answer.')
+  })
+
   it('shows the failure when trusting the key fails', async () => {
     server.use(
-      http.post('/api/v1/workspaces/:id/quick-connections', () =>
-        HttpResponse.json(
-          { type: 'about:blank', title: 'x', status: 409, code: 'host_key_unknown', params: { keyType: 'ssh-ed25519', fingerprint: 'SHA256:abc' } },
-          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
-        ),
-      ),
+      http.post('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(opened, { status: 201 })),
+      http.get('/api/v1/workspaces/:id/sites/q1/files', () => unknownKey()),
       http.post('/api/v1/workspaces/:id/known-hosts', () => problem(403, 'forbidden')),
     )
     const user = await renderFlow()
@@ -214,7 +252,8 @@ describe('quick connect', () => {
 
   it('treats a key without a fingerprint as an ordinary failure', async () => {
     server.use(
-      http.post('/api/v1/workspaces/:id/quick-connections', () =>
+      http.post('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(opened, { status: 201 })),
+      http.get('/api/v1/workspaces/:id/sites/q1/files', () =>
         HttpResponse.json(
           { type: 'about:blank', title: 'x', status: 409, code: 'host_key_unknown' },
           { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
@@ -352,7 +391,7 @@ describe('quick connect', () => {
     const user = userEvent.setup()
     await renderWithProviders(
       <>
-        <SitesSidebar />
+        <SitesSidebar onOpen={() => undefined} />
         <QuickConnectFlow />
       </>,
       'es',
