@@ -28,6 +28,9 @@ describe('TransportProvider', () => {
     const transport: Transport = {
       health: () => Promise.resolve({ status: 'ok' }),
       ready: () => Promise.resolve({ status: 'ok' }),
+      request: () => Promise.resolve(undefined as never),
+      url: (path) => path,
+      setCsrfToken: () => undefined,
     }
     render(
       <TransportProvider transport={transport}>

@@ -132,3 +132,97 @@ describe('HttpTransport', () => {
     expect(globalFetch).toHaveBeenCalledWith('/healthz', { method: 'GET' })
   })
 })
+
+/** Builds a fetch stub that records the init of each call and answers with the given response. */
+function recorder(make: () => Response | Error) {
+  const inits: RequestInit[] = []
+  const urls: string[] = []
+  const fetchStub: typeof fetch = (input, init) => {
+    urls.push(String(input))
+    inits.push(init ?? {})
+    const response = make()
+    return response instanceof Error ? Promise.reject(response) : Promise.resolve(response)
+  }
+  return { fetchStub, inits, urls }
+}
+
+/**
+ * Covers the `request`, `url` and `setCsrfToken` methods of {@link HttpTransport}.
+ *
+ * Scenarios:
+ * - a JSON call sends the body as JSON, accepts JSON and returns the parsed answer
+ * - the anti-CSRF token is sent with changes, never with reads, and can be forgotten
+ * - binary bodies (blobs, buffers, typed arrays) are sent as they are, not as JSON
+ * - problem documents become an ApiError, network failures a `network_error`, and answers without a body resolve empty
+ * - the URL joins the base URL, the path and the encoded query, leaving out undefined values
+ * - the abort signal is passed to fetch
+ */
+describe('HttpTransport.request', () => {
+  it('sends JSON and returns the parsed answer', async () => {
+    const { fetchStub, inits, urls } = recorder(() => jsonResponse({ id: 1 }, 200))
+    const transport = new HttpTransport({ baseUrl: 'http://api.test', fetch: fetchStub })
+
+    await expect(transport.request({ method: 'POST', path: '/api/v1/x', body: { a: 1 } })).resolves.toEqual({ id: 1 })
+
+    expect(urls).toEqual(['http://api.test/api/v1/x'])
+    expect(inits[0]).toMatchObject({ method: 'POST', body: '{"a":1}' })
+    expect(inits[0]?.headers).toMatchObject({ Accept: 'application/json', 'Content-Type': 'application/json' })
+  })
+
+  it('sends the anti-CSRF token with changes only, until it is forgotten', async () => {
+    const { fetchStub, inits } = recorder(() => jsonResponse({}, 200))
+    const transport = new HttpTransport({ fetch: fetchStub })
+    transport.setCsrfToken('token')
+
+    await transport.request({ method: 'GET', path: '/a' })
+    await transport.request({ method: 'DELETE', path: '/a' })
+    transport.setCsrfToken(undefined)
+    await transport.request({ method: 'DELETE', path: '/a' })
+
+    expect(inits.map((init) => (init.headers as Record<string, string>)['X-CSRF-Token'])).toEqual([undefined, 'token', undefined])
+  })
+
+  it.each([
+    ['a blob', new Blob(['x'])],
+    ['an array buffer', new ArrayBuffer(2)],
+    ['a typed array', new Uint8Array([1, 2])],
+  ])('sends %s as binary data', async (_name, body) => {
+    const { fetchStub, inits } = recorder(() => jsonResponse({}, 200))
+
+    await new HttpTransport({ fetch: fetchStub }).request({ method: 'PUT', path: '/a', body })
+
+    expect(inits[0]?.body).toBe(body)
+    expect(inits[0]?.headers).toMatchObject({ 'Content-Type': 'application/octet-stream' })
+  })
+
+  it('throws the problem of a failed call and resolves empty for answers without a body', async () => {
+    const failing = recorder(() => jsonResponse({ type: 'about:blank', title: 'Conflict', status: 409, code: 'path_exists' }, 409, 'application/problem+json'))
+    await expect(new HttpTransport({ fetch: failing.fetchStub }).request({ method: 'POST', path: '/a' })).rejects.toMatchObject({ code: 'path_exists' })
+
+    const empty = recorder(() => new Response(null, { status: 204 }))
+    await expect(new HttpTransport({ fetch: empty.fetchStub }).request({ method: 'DELETE', path: '/a' })).resolves.toBeUndefined()
+  })
+
+  it('maps network failures to a network_error', async () => {
+    const { fetchStub } = recorder(() => new TypeError('offline'))
+
+    await expect(new HttpTransport({ fetch: fetchStub }).request({ method: 'GET', path: '/a' })).rejects.toMatchObject({ code: 'network_error', problem: { status: 0 } })
+  })
+
+  it('builds URLs with the encoded query and without undefined values', () => {
+    const transport = new HttpTransport({ baseUrl: 'http://api.test' })
+
+    expect(transport.url('/p', { path: '/a b', n: 2, flag: true, none: undefined })).toBe('http://api.test/p?path=%2Fa+b&n=2&flag=true')
+    expect(transport.url('/p')).toBe('http://api.test/p')
+    expect(transport.url('/p', { none: undefined })).toBe('http://api.test/p')
+  })
+
+  it('passes the abort signal to fetch', async () => {
+    const { fetchStub, inits } = recorder(() => jsonResponse({}, 200))
+    const controller = new AbortController()
+
+    await new HttpTransport({ fetch: fetchStub }).request({ method: 'GET', path: '/a', signal: controller.signal })
+
+    expect(inits[0]?.signal).toBe(controller.signal)
+  })
+})
