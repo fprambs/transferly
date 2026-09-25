@@ -1,0 +1,30 @@
+{
+  "errors": {
+    "nameRequired": "Escribe un nombre.",
+    "collection_name_taken": "Ya existe una colección con este nombre aquí.",
+    "collection_cycle": "Una colección no se puede mover dentro de sí misma.",
+    "collection_too_deep": "Las colecciones se pueden anidar como máximo 8 niveles.",
+    "collection_not_empty": "Vacía primero la colección: aún contiene sitios o colecciones.",
+    "collection_not_found": "Esta colección ya no existe.",
+    "forbidden": "No tienes permiso para cambiar este espacio de trabajo.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  },
+  "collection": {
+    "actions": "Acciones de {{name}}",
+    "newSub": "Nueva subcolección",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "createTitle": "Nueva colección",
+    "editTitle": "Editar colección",
+    "name": "Nombre",
+    "parent": "Dentro de",
+    "top": "Nivel superior",
+    "create": "Crear",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "deleteTitle": "¿Eliminar esta colección?",
+    "deleteBody": "Se eliminará {{name}}. Debe estar vacía.",
+    "deleteConfirm": "Eliminar"
+  }
+}

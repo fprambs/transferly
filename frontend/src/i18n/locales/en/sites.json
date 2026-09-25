@@ -1,0 +1,30 @@
+{
+  "errors": {
+    "nameRequired": "Enter a name.",
+    "collection_name_taken": "A collection with this name already exists here.",
+    "collection_cycle": "A collection cannot be moved inside itself.",
+    "collection_too_deep": "Collections can be nested at most 8 levels.",
+    "collection_not_empty": "Empty the collection first: it still holds sites or collections.",
+    "collection_not_found": "This collection no longer exists.",
+    "forbidden": "You do not have permission to change this workspace.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again."
+  },
+  "collection": {
+    "actions": "Actions for {{name}}",
+    "newSub": "New subcollection",
+    "edit": "Edit",
+    "delete": "Delete",
+    "createTitle": "New collection",
+    "editTitle": "Edit collection",
+    "name": "Name",
+    "parent": "Inside",
+    "top": "Top level",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel",
+    "deleteTitle": "Delete this collection?",
+    "deleteBody": "{{name}} will be removed. It must be empty.",
+    "deleteConfirm": "Delete"
+  }
+}
