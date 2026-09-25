@@ -45,9 +45,12 @@ func userFrom(id uuid.UUID, email, hash, role, status, locale, timezone string, 
 	}
 }
 
+// errNoRows is the driver's error for a query that found no row.
+var errNoRows = pgx.ErrNoRows
+
 // notFound maps the driver's missing row error to [auth.ErrNotFound].
 func notFound(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, errNoRows) {
 		return auth.ErrNotFound
 	}
 	return err

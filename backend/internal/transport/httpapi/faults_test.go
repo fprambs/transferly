@@ -15,6 +15,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 )
 
@@ -110,4 +111,57 @@ func TestClientInfoIsSanitized(t *testing.T) {
 	if ip != "unknown" {
 		t.Errorf("stored address = %q, want unknown", ip)
 	}
+}
+
+// failingWorkspaces is a workspace store whose selected operations fail.
+type failingWorkspaces struct {
+	*postgres.Store
+	failList   bool
+	failCreate bool
+}
+
+// WorkspacesForUser fails when configured to.
+func (f *failingWorkspaces) WorkspacesForUser(ctx context.Context, id uuid.UUID) ([]workspace.Summary, error) {
+	if f.failList {
+		return nil, errInjected
+	}
+	return f.Store.WorkspacesForUser(ctx, id)
+}
+
+// CreateWorkspace fails when configured to.
+func (f *failingWorkspaces) CreateWorkspace(ctx context.Context, w workspace.Workspace) error {
+	if f.failCreate {
+		return errInjected
+	}
+	return f.Store.CreateWorkspace(ctx, w)
+}
+
+// withFailingWorkspaces replaces the workspace service by one over a store with injected failures.
+func withFailingWorkspaces(configure func(*failingWorkspaces)) func(*httpapi.Deps) {
+	return func(d *httpapi.Deps) {
+		f := &failingWorkspaces{Store: d.Readiness.(*postgres.Store)}
+		configure(f)
+		d.Workspaces = workspace.NewService(f, realClock{}, nil)
+	}
+}
+
+// TestWorkspaceFailures verifies that internal failures around workspaces are 500 problems.
+//
+// Scenarios:
+//   - a personal workspace that cannot be created fails setup and login
+//   - a workspace listing that fails fails the list and get endpoints
+func TestWorkspaceFailures(t *testing.T) {
+	create := newAPI(t, withFailingWorkspaces(func(f *failingWorkspaces) { f.failCreate = true }))
+	expectProblem(t, create.do(request{method: http.MethodPost, path: "/api/v1/setup", body: map[string]string{"email": adminEmail, "password": adminPassword}}), 500, "internal_error")
+	if _, err := create.auth.Register(t.Context(), "u@example.com", adminPassword); err != nil {
+		t.Fatal(err)
+	}
+	expectProblem(t, create.do(request{method: http.MethodPost, path: "/api/v1/auth/login", body: map[string]string{"email": "u@example.com", "password": adminPassword}}), 500, "internal_error")
+
+	var toggle *failingWorkspaces
+	list := newAPI(t, withFailingWorkspaces(func(f *failingWorkspaces) { toggle = f }))
+	cookie, _ := list.setup()
+	toggle.failList = true
+	expectProblem(t, list.do(request{method: http.MethodGet, path: "/api/v1/workspaces", cookie: cookie}), 500, "internal_error")
+	expectProblem(t, list.do(request{method: http.MethodGet, path: "/api/v1/workspaces/" + uuid.NewString(), cookie: cookie}), 500, "internal_error")
 }

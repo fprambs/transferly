@@ -20,6 +20,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 )
@@ -67,9 +68,10 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	hasher := auth.NewHasher(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
 	service := auth.NewService(store, store, hasher, clock, rand.Reader, auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour})
 	deps := httpapi.Deps{
-		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Readiness: store,
-		Auth:      service,
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Readiness:  store,
+		Auth:       service,
+		Workspaces: workspace.NewService(store, clock, nil),
 		Limits: httpapi.Limits{
 			SetupIP:      ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
 			LoginIP:      ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),

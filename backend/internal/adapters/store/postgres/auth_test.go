@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
 
@@ -119,3 +121,29 @@ func TestCreateFirstUser_WaitsForTheCreationLock(t *testing.T) {
 
 // second returns the error of a call that also returns a value.
 func second[T any](_ T, err error) error { return err }
+
+// TestWorkspaceStore_Conformance runs the shared workspace store suite against Postgres.
+func TestWorkspaceStore_Conformance(t *testing.T) {
+	storetest.RunWorkspace(t, func(t *testing.T) storetest.WorkspaceStore { return openMigrated(t) })
+}
+
+// TestWorkspaceStore_ReportsDatabaseFailures verifies that every workspace operation returns the database
+// error instead of hiding it, using a store whose connection pool is closed.
+func TestWorkspaceStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"CreateWorkspace":   store.CreateWorkspace(ctx, workspace.Workspace{ID: id, OwnerID: id}),
+		"PersonalWorkspace": second(store.PersonalWorkspace(ctx, id)),
+		"WorkspacesForUser": second(store.WorkspacesForUser(ctx, id)),
+		"RoleOf":            second(store.RoleOf(ctx, id, id)),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, workspace.ErrNotFound) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}

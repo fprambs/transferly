@@ -13,6 +13,7 @@ import (
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 	"github.com/fprambs/sentinel/internal/transport/webui"
 )
@@ -45,12 +46,15 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	authService := auth.NewService(store, store, hasher, system, rand.Reader,
 		auth.Config{IdleTimeout: cfg.SessionIdle, AbsoluteTimeout: cfg.SessionMax})
 
+	workspaces := workspace.NewService(store, system, nil)
+
 	return wiring{
 		deps: httpapi.Deps{
-			Logger:    logger,
-			Readiness: store,
-			Web:       webui.Handler(),
-			Auth:      authService,
+			Logger:     logger,
+			Readiness:  store,
+			Web:        webui.Handler(),
+			Auth:       authService,
+			Workspaces: workspaces,
 			Limits: httpapi.Limits{
 				SetupIP:      ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:      ratelimit.New(system, loginIPRule, maxTrackedClients),

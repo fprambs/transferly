@@ -225,6 +225,54 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces:
+    get:
+      operationId: listWorkspaces
+      security:
+        - sessionCookie: []
+      summary: Workspaces the signed-in user belongs to, with their role in each
+      responses:
+        "200":
+          description: The workspaces, personal first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}:
+    get:
+      operationId: getWorkspace
+      security:
+        - sessionCookie: []
+      summary: One workspace of the signed-in user
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: The workspace and the role of the user in it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     sessionCookie:
@@ -240,6 +288,14 @@ components:
       description: Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
       schema:
         type: string
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Identifier of the workspace.
+      schema:
+        type: string
+        format: uuid
   headers:
     SetCookie:
       description: Sets or clears the session cookie (HttpOnly, SameSite=Lax, Secure over https).
@@ -303,6 +359,25 @@ components:
         password:
           type: string
           description: Sent to the server only; never returned.
+    Workspace:
+      type: object
+      required: [id, name, kind, role, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [personal, team]
+        role:
+          type: string
+          enum: [owner, admin, editor, viewer]
+          description: Role of the signed-in user in the workspace.
+        createdAt:
+          type: string
+          format: date-time
     Preferences:
       type: object
       properties:

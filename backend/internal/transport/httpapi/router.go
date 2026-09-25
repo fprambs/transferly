@@ -12,6 +12,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/workspace"
 )
 
 // Limits are the rate limiters that protect the unauthenticated endpoints.
@@ -42,6 +43,8 @@ type Deps struct {
 	Web http.Handler
 	// Auth is the account and session service.
 	Auth *auth.Service
+	// Workspaces is the workspace and permission service.
+	Workspaces *workspace.Service
 	// Limits are the rate limiters of the unauthenticated endpoints.
 	Limits Limits
 	// InstanceKey signs the anti-CSRF tokens.

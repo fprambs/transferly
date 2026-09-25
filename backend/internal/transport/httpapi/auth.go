@@ -37,6 +37,9 @@ func (s *server) Setup(ctx context.Context, request SetupRequestObject) (SetupRe
 	if err != nil {
 		return nil, err
 	}
+	if _, err := s.deps.Workspaces.EnsurePersonal(ctx, user.ID); err != nil {
+		return nil, err
+	}
 	token, principal, err := s.deps.Auth.StartSession(ctx, user, client)
 	if err != nil {
 		return nil, err
@@ -66,6 +69,9 @@ func (s *server) Login(ctx context.Context, request LoginRequestObject) (LoginRe
 		return Login403ApplicationProblemPlusJSONResponse(problemBody(403, "user_disabled", nil)), nil
 	}
 	if err != nil {
+		return nil, err
+	}
+	if _, err := s.deps.Workspaces.EnsurePersonal(ctx, principal.User.ID); err != nil {
 		return nil, err
 	}
 	cookie := newSessionCookie(token, s.deps.Cookie)
