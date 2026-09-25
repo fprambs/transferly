@@ -1,0 +1,296 @@
+// Package files implements the operations users perform on the files of a remote site: browsing, downloading,
+// uploading and changing them. It checks the user's permissions, borrows connections from the pool and keeps
+// them borrowed only as long as a stream is open.
+package files
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/google/uuid"
+
+	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/sentinel/internal/core/workspace"
+)
+
+const maxPathLength = 4096
+
+// ErrRangeNotSatisfiable means the requested byte range lies outside the file.
+var ErrRangeNotSatisfiable = errors.New("range not satisfiable")
+
+// RangeError is the [ErrRangeNotSatisfiable] of a file of a known size, which the answer to the client carries.
+type RangeError struct {
+	// Size is the size of the file.
+	Size int64
+}
+
+// Error describes the failure.
+func (e *RangeError) Error() string {
+	return fmt.Sprintf("%v: the file has %d bytes", ErrRangeNotSatisfiable, e.Size)
+}
+
+// Is matches [ErrRangeNotSatisfiable].
+func (e *RangeError) Is(target error) bool { return target == ErrRangeNotSatisfiable }
+
+// Authorizer checks that a user may perform an action in a workspace.
+type Authorizer interface {
+	// Authorize returns the role of the user or an error that says why the action is refused.
+	Authorize(ctx context.Context, userID, workspaceID uuid.UUID, action workspace.Action) (workspace.Role, error)
+}
+
+// Pool lends connections to remote servers.
+type Pool interface {
+	// Acquire borrows a connection for the site of key; the caller releases it.
+	Acquire(ctx context.Context, key connections.Key, session string) (*connections.Lease, error)
+}
+
+var _ Pool = (*connections.Manager)(nil)
+
+// Target says who acts on which site.
+type Target struct {
+	// Actor is the user performing the operation.
+	Actor uuid.UUID
+	// Workspace is the workspace of the site.
+	Workspace uuid.UUID
+	// Site is the site whose files are used.
+	Site uuid.UUID
+	// Session identifies the actor's session, whose unlocked vault key opens the site credentials.
+	Session string
+}
+
+// key returns the pool key of the target.
+func (t Target) key() connections.Key {
+	return connections.Key{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site}
+}
+
+// Service performs file operations.
+type Service struct {
+	authz Authorizer
+	pool  Pool
+}
+
+// NewService returns a service that checks permissions with authz and borrows connections from pool.
+func NewService(authz Authorizer, pool Pool) *Service {
+	return &Service{authz: authz, pool: pool}
+}
+
+// checkPath refuses paths that cannot be valid: empty, too long, or holding control characters.
+func checkPath(paths ...string) error {
+	for _, p := range paths {
+		if p == "" || len(p) > maxPathLength || strings.ContainsFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+			return fmt.Errorf("%w: the path is empty, too long or has control characters", remotefs.ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// begin authorizes the action, validates the paths and borrows a connection.
+func (s *Service) begin(ctx context.Context, t Target, action workspace.Action, paths ...string) (*connections.Lease, error) {
+	if _, err := s.authz.Authorize(ctx, t.Actor, t.Workspace, action); err != nil {
+		return nil, err
+	}
+	if err := checkPath(paths...); err != nil {
+		return nil, err
+	}
+	return s.pool.Acquire(ctx, t.key(), t.Session)
+}
+
+// run performs a short operation on a borrowed connection and gives it back.
+func run[T any](ctx context.Context, s *Service, t Target, action workspace.Action, paths []string, op func(remotefs.RemoteFS) (T, error)) (T, error) {
+	var zero T
+	lease, err := s.begin(ctx, t, action, paths...)
+	if err != nil {
+		return zero, err
+	}
+	result, err := op(lease.FS())
+	lease.Release(err)
+	if err != nil {
+		return zero, err
+	}
+	return result, nil
+}
+
+// List returns the entries of a directory.
+func (s *Service) List(ctx context.Context, t Target, dir string) ([]remotefs.Entry, error) {
+	return run(ctx, s, t, workspace.ActionBrowse, []string{dir}, func(fsys remotefs.RemoteFS) ([]remotefs.Entry, error) {
+		return fsys.List(ctx, dir)
+	})
+}
+
+// Stat describes one path.
+func (s *Service) Stat(ctx context.Context, t Target, p string) (remotefs.Entry, error) {
+	return run(ctx, s, t, workspace.ActionBrowse, []string{p}, func(fsys remotefs.RemoteFS) (remotefs.Entry, error) {
+		return fsys.Stat(ctx, p)
+	})
+}
+
+// Mkdir creates a directory and returns it.
+func (s *Service) Mkdir(ctx context.Context, t Target, p string) (remotefs.Entry, error) {
+	return run(ctx, s, t, workspace.ActionModify, []string{p}, func(fsys remotefs.RemoteFS) (remotefs.Entry, error) {
+		if err := fsys.Mkdir(ctx, p); err != nil {
+			return remotefs.Entry{}, err
+		}
+		return fsys.Stat(ctx, p)
+	})
+}
+
+// Rename moves a file or directory and returns it at its new path. An existing destination is never replaced.
+func (s *Service) Rename(ctx context.Context, t Target, from, to string) (remotefs.Entry, error) {
+	return run(ctx, s, t, workspace.ActionModify, []string{from, to}, func(fsys remotefs.RemoteFS) (remotefs.Entry, error) {
+		if err := fsys.Rename(ctx, from, to); err != nil {
+			return remotefs.Entry{}, err
+		}
+		return fsys.Stat(ctx, to)
+	})
+}
+
+// Delete removes a file or an empty directory, or a whole tree when recursive is set.
+func (s *Service) Delete(ctx context.Context, t Target, p string, recursive bool) error {
+	_, err := run(ctx, s, t, workspace.ActionModify, []string{p}, func(fsys remotefs.RemoteFS) (struct{}, error) {
+		if recursive {
+			return struct{}{}, fsys.RemoveAll(ctx, p)
+		}
+		return struct{}{}, fsys.Remove(ctx, p)
+	})
+	return err
+}
+
+// Range selects bytes of a file. The zero value selects all of it.
+type Range struct {
+	// Set is true when a range was requested.
+	Set bool
+	// Start is the first byte; ignored for suffix ranges.
+	Start int64
+	// End is the last byte, inclusive; negative means the end of the file.
+	End int64
+	// Suffix, when positive, selects the last Suffix bytes.
+	Suffix int64
+}
+
+// resolve returns the first and last byte to send for a file of the given size, or a [RangeError].
+func (r Range) resolve(size int64) (start, end int64, err error) {
+	if !r.Set {
+		return 0, size - 1, nil
+	}
+	if r.Suffix > 0 {
+		if size == 0 {
+			return 0, 0, &RangeError{Size: size}
+		}
+		return max(size-r.Suffix, 0), size - 1, nil
+	}
+	end = r.End
+	if end < 0 || end >= size {
+		end = size - 1
+	}
+	if r.Start < 0 || r.Start >= size || r.Start > end {
+		return 0, 0, &RangeError{Size: size}
+	}
+	return r.Start, end, nil
+}
+
+// Download is an open stream of a file's bytes. Closing it gives the connection back.
+type Download struct {
+	// Entry describes the whole file.
+	Entry remotefs.Entry
+	// Start and End are the first and last byte of the stream, inclusive.
+	Start, End int64
+	// Partial is true when the stream is a range of the file.
+	Partial bool
+	// Body is the stream; the caller closes it.
+	Body io.ReadCloser
+}
+
+// Length returns the number of bytes the stream holds.
+func (d *Download) Length() int64 { return d.End - d.Start + 1 }
+
+// body reads a limited part of a remote file and returns the connection when closed.
+type body struct {
+	src     io.Reader
+	closer  io.Closer
+	lease   *connections.Lease
+	readErr error
+	closed  bool
+}
+
+// Read reads from the file and remembers a failure of the connection.
+func (b *body) Read(p []byte) (int, error) {
+	n, err := b.src.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		b.readErr = err
+	}
+	return n, err
+}
+
+// Close closes the remote file and gives the connection back; a lost connection is discarded.
+func (b *body) Close() error {
+	if b.closed {
+		return nil
+	}
+	b.closed = true
+	err := b.closer.Close()
+	b.lease.Release(errors.Join(b.readErr, err))
+	return err
+}
+
+// Download opens a file, or a range of it, for streaming. Directories cannot be downloaded.
+func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*Download, error) {
+	lease, err := s.begin(ctx, t, workspace.ActionDownload, p)
+	if err != nil {
+		return nil, err
+	}
+	entry, err := lease.FS().Stat(ctx, p)
+	if err == nil && entry.IsDir() {
+		err = fmt.Errorf("%w: %s is a directory", remotefs.ErrInvalid, p)
+	}
+	if err != nil {
+		lease.Release(err)
+		return nil, err
+	}
+	start, end, err := r.resolve(entry.Size)
+	if err != nil {
+		lease.Release(nil)
+		return nil, err
+	}
+	src, err := lease.FS().OpenRead(ctx, p, start)
+	if err != nil {
+		lease.Release(err)
+		return nil, err
+	}
+	d := &Download{Entry: entry, Start: start, End: end, Partial: r.Set}
+	d.Body = &body{src: io.LimitReader(src, d.Length()), closer: src, lease: lease}
+	return d, nil
+}
+
+// Upload writes the request body to a file and returns the file afterwards. The mode says what happens when
+// the file exists: create refuses, overwrite truncates, resume continues at offset, which must not exceed the
+// size of the file. Offsets are only valid for resume. A body that ends early leaves a partial file that a
+// resumed upload can complete.
+func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.WriteMode, offset int64, data io.Reader) (remotefs.Entry, error) {
+	if offset < 0 || (offset != 0 && mode != remotefs.WriteResume) {
+		return remotefs.Entry{}, fmt.Errorf("%w: an offset is only valid when resuming", remotefs.ErrInvalid)
+	}
+	lease, err := s.begin(ctx, t, workspace.ActionUpload, p)
+	if err != nil {
+		return remotefs.Entry{}, err
+	}
+	w, err := lease.FS().OpenWrite(ctx, p, offset, mode)
+	if err != nil {
+		lease.Release(err)
+		return remotefs.Entry{}, err
+	}
+	_, err = io.Copy(w, data)
+	if closeErr := w.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		lease.Release(err)
+		return remotefs.Entry{}, err
+	}
+	entry, err := lease.FS().Stat(ctx, p)
+	lease.Release(err)
+	return entry, err
+}

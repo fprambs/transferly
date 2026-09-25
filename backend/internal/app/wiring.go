@@ -14,6 +14,7 @@ import (
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -78,6 +79,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Sites:       sites,
 			HostKeys:    hostKeys,
 			Connections: pool,
+			Files:       files.NewService(workspaces, pool),
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

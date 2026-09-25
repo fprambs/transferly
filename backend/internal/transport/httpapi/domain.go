@@ -2,10 +2,13 @@ package httpapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
+	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
@@ -13,13 +16,18 @@ import (
 // domainProblem is the answer to a operation that failed for a reason the client can act on.
 // It implements the response interface of every operation.
 type domainProblem struct {
-	status int
-	code   string
+	status  int
+	code    string
+	params  map[string]any
+	headers map[string]string
 }
 
 // write sends the problem document.
 func (p domainProblem) write(w http.ResponseWriter) error {
-	writeProblem(w, p.status, p.code, nil)
+	for name, value := range p.headers {
+		w.Header().Set(name, value)
+	}
+	writeProblem(w, p.status, p.code, p.params)
 	return nil
 }
 
@@ -43,6 +51,27 @@ func (p domainProblem) VisitTrustHostKeyResponse(w http.ResponseWriter) error { 
 
 // VisitForgetHostKeyResponse implements [ForgetHostKeyResponseObject].
 func (p domainProblem) VisitForgetHostKeyResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListFilesResponse implements [ListFilesResponseObject].
+func (p domainProblem) VisitListFilesResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitStatFileResponse implements [StatFileResponseObject].
+func (p domainProblem) VisitStatFileResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitDownloadFileResponse implements [DownloadFileResponseObject].
+func (p domainProblem) VisitDownloadFileResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitUploadFileResponse implements [UploadFileResponseObject].
+func (p domainProblem) VisitUploadFileResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCreateDirectoryResponse implements [CreateDirectoryResponseObject].
+func (p domainProblem) VisitCreateDirectoryResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitRenameFileResponse implements [RenameFileResponseObject].
+func (p domainProblem) VisitRenameFileResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitDeleteFileResponse implements [DeleteFileResponseObject].
+func (p domainProblem) VisitDeleteFileResponse(w http.ResponseWriter) error { return p.write(w) }
 
 // VisitDeleteSiteResponse implements [DeleteSiteResponseObject].
 func (p domainProblem) VisitDeleteSiteResponse(w http.ResponseWriter) error { return p.write(w) }
@@ -69,15 +98,37 @@ var domainProblems = []struct {
 	{hostkey.ErrNotFound, http.StatusNotFound, "host_key_not_found"},
 	{hostkey.ErrChanged, http.StatusConflict, "host_key_changed"},
 	{hostkey.ErrInvalid, http.StatusUnprocessableEntity, "invalid_host_key"},
+	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
+	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
+	{remotefs.ErrNotEmpty, http.StatusConflict, "directory_not_empty"},
+	{remotefs.ErrNotDirectory, http.StatusUnprocessableEntity, "not_a_directory"},
+	{remotefs.ErrInvalid, http.StatusUnprocessableEntity, "invalid_path"},
+	{remotefs.ErrPermission, http.StatusForbidden, "remote_permission_denied"},
+	{remotefs.ErrQuota, http.StatusInsufficientStorage, "remote_quota_exceeded"},
+	{remotefs.ErrAuth, http.StatusBadGateway, "remote_auth_failed"},
+	{remotefs.ErrConnectionLost, http.StatusBadGateway, "remote_unavailable"},
 	{netguard.ErrBlocked, http.StatusUnprocessableEntity, "destination_blocked"},
 	{netguard.ErrUnresolvable, http.StatusUnprocessableEntity, "host_unresolvable"},
 }
 
 // asProblem returns the problem for err, or false when err is not one the client can act on.
 func asProblem(err error) (domainProblem, bool) {
+	var hostKey *remotefs.HostKeyError
+	var badRange *files.RangeError
+	switch {
+	case errors.As(err, &hostKey):
+		code := "host_key_unknown"
+		if hostKey.Changed {
+			code = "host_key_changed"
+		}
+		return domainProblem{status: http.StatusConflict, code: code, params: map[string]any{"keyType": hostKey.Type, "fingerprint": hostKey.Fingerprint}}, true
+	case errors.As(err, &badRange):
+		return domainProblem{status: http.StatusRequestedRangeNotSatisfiable, code: "range_not_satisfiable",
+			headers: map[string]string{"Content-Range": fmt.Sprintf("bytes */%d", badRange.Size)}}, true
+	}
 	for _, m := range domainProblems {
 		if errors.Is(err, m.err) {
-			return domainProblem{m.status, m.code}, true
+			return domainProblem{status: m.status, code: m.code}, true
 		}
 	}
 	return domainProblem{}, false

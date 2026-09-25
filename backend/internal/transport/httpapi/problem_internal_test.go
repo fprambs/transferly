@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/fprambs/sentinel/internal/core/remotefs"
 )
 
 // TestWriteProblem_Params verifies that parameters are included in the problem document when given.
@@ -62,5 +66,53 @@ func TestResponseErrorHandler(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), "password=secret") {
 		t.Error("the internal error was not logged")
+	}
+}
+
+// TestRemoteEntryDTO verifies how remote entries are presented.
+//
+// Scenarios:
+//   - regular files, directories, symbolic links and special files get their type
+//   - the mode is in ls notation, the time is UTC and the precision has its public name
+func TestRemoteEntryDTO(t *testing.T) {
+	when := time.Date(2026, 3, 8, 12, 0, 0, 0, time.FixedZone("UTC-3", -3*3600))
+	tests := []struct {
+		name string
+		mode fs.FileMode
+		want RemoteEntryType
+	}{
+		{"file", 0o644, "file"},
+		{"directory", fs.ModeDir | 0o755, "directory"},
+		{"symlink", fs.ModeSymlink | 0o777, "symlink"},
+		{"device", fs.ModeDevice | 0o600, "other"},
+		{"socket", fs.ModeSocket | 0o600, "other"},
+	}
+	for _, tt := range tests {
+		dto := remoteEntryDTO(remotefs.Entry{Name: tt.name, Path: "/" + tt.name, Mode: tt.mode, ModTime: when, ModTimePrecision: remotefs.PrecisionMinute})
+		if dto.Type != tt.want || dto.ModifiedPrecision != "minute" || dto.ModifiedAt.Location() != time.UTC || !dto.ModifiedAt.Equal(when) || dto.Mode != tt.mode.String() {
+			t.Errorf("%s: dto = %+v", tt.name, dto)
+		}
+	}
+	for precision, name := range map[remotefs.Precision]RemoteEntryModifiedPrecision{remotefs.PrecisionSecond: "second", remotefs.PrecisionDay: "day"} {
+		if got := remoteEntryDTO(remotefs.Entry{ModTimePrecision: precision}).ModifiedPrecision; got != name {
+			t.Errorf("precision %d = %q; want %q", precision, got, name)
+		}
+	}
+}
+
+// TestAttachment verifies that download names cannot inject headers.
+//
+// Scenarios:
+//   - plain names are quoted parameters, and names with line breaks, NUL bytes, invalid UTF-8 or non-ASCII text are
+//     percent-encoded, never containing raw control characters
+func TestAttachment(t *testing.T) {
+	if got := attachment("report.txt"); got != "attachment; filename=report.txt" {
+		t.Errorf("attachment(report.txt) = %q", got)
+	}
+	for _, name := range []string{"a\r\nSet-Cookie: x=1", "a\x00b", "\xff\xfe", "é.txt"} {
+		got := attachment(name)
+		if strings.ContainsAny(got, "\r\n\x00") || !strings.HasPrefix(got, "attachment; filename*=utf-8''") {
+			t.Errorf("attachment(%q) = %q; want a percent-encoded name without control characters", name, got)
+		}
 	}
 }

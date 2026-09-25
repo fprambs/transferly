@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -14,8 +15,11 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
@@ -269,4 +273,79 @@ func TestHostKeyFailures(t *testing.T) {
 	expectProblem(t, a.do(request{method: http.MethodGet, path: hostKeysPath(ws), cookie: cookie}), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodPost, hostKeysPath(ws), hostKeyBody("files.example.com", fingerprintA), cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodDelete, forgetPath(ws, "files.example.com", 22, "ssh-ed25519"), nil, cookie, csrf), 500, "internal_error")
+}
+
+// failingConnector fails every connection with a chosen error.
+type failingConnector struct{ err error }
+
+// Connect returns the error.
+func (f failingConnector) Connect(context.Context, connections.Key, string) (remotefs.RemoteFS, error) {
+	return nil, f.err
+}
+
+// withConnectError makes every connection to a remote server fail with err.
+func withConnectError(err error) func(*httpapi.Deps) {
+	return func(d *httpapi.Deps) {
+		pool := connections.New(failingConnector{err}, realClock{}, connections.Config{Attempts: 1})
+		d.Files = files.NewService(d.Workspaces, pool)
+	}
+}
+
+// fileCalls lists one request for each file endpoint.
+func fileCalls(ws, siteID uuid.UUID) []request {
+	return []request{
+		{method: http.MethodGet, path: filesPath(ws, siteID, "", q("path", "/"))},
+		{method: http.MethodGet, path: filesPath(ws, siteID, "/entry", q("path", "/f"))},
+		{method: http.MethodGet, path: filesPath(ws, siteID, "/content", q("path", "/f"))},
+		{method: http.MethodPut, path: filesPath(ws, siteID, "/content", q("path", "/f")), body: "x", headers: map[string]string{"Content-Type": "application/octet-stream"}},
+		{method: http.MethodPost, path: filesPath(ws, siteID, "/directories", nil), body: map[string]string{"path": "/d"}},
+		{method: http.MethodPost, path: filesPath(ws, siteID, "/rename", nil), body: map[string]string{"from": "/a", "to": "/b"}},
+		{method: http.MethodDelete, path: filesPath(ws, siteID, "", q("path", "/f"))},
+	}
+}
+
+// TestRemoteFileFailures verifies how failures of the connection to a remote server are reported.
+//
+// Scenarios:
+//   - a lost connection is 502 remote_unavailable and bad credentials are 502 remote_auth_failed, on every endpoint
+//   - an untrusted or a changed server key is 409 host_key_unknown or host_key_changed with the fingerprint
+//   - a forbidden destination is 422 destination_blocked, a locked vault 409 vault_locked
+//   - an unexpected error is a 500 without details, on every endpoint
+func TestRemoteFileFailures(t *testing.T) {
+	cases := []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{"lost", fmt.Errorf("%w: down", remotefs.ErrConnectionLost), 502, "remote_unavailable"},
+		{"auth", remotefs.ErrAuth, 502, "remote_auth_failed"},
+		{"unknown key", &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc"}, 409, "host_key_unknown"},
+		{"changed key", &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc", Changed: true}, 409, "host_key_changed"},
+		{"blocked", netguard.ErrBlocked, 422, "destination_blocked"},
+		{"locked", site.ErrLocked, 409, "vault_locked"},
+		{"quota", remotefs.ErrQuota, 507, "remote_quota_exceeded"},
+		{"unexpected", errors.New("boom: secret detail"), 500, "internal_error"},
+	}
+	for _, tt := range cases {
+		a := newAPI(t, withConnectError(tt.err))
+		cookie, csrf := a.setup()
+		ws := a.personal(cookie)
+		created := a.send(http.MethodPost, sitesPath(ws), siteBody("S"), cookie, csrf)
+		for _, call := range fileCalls(ws, created.site(t).Id) {
+			call.cookie = cookie
+			if call.headers == nil {
+				call.headers = map[string]string{}
+			}
+			call.headers["X-CSRF-Token"] = csrf
+			r := a.do(call)
+			expectProblem(t, r, tt.status, tt.code)
+			if strings.Contains(string(r.Body), "secret detail") {
+				t.Errorf("%s: the response exposes an internal detail: %s", tt.name, r.Body)
+			}
+			if tt.name == "unknown key" && !strings.Contains(string(r.Body), "SHA256:abc") {
+				t.Errorf("%s: the response does not carry the fingerprint: %s", tt.name, r.Body)
+			}
+		}
+	}
 }

@@ -109,3 +109,68 @@ func TestContract_ProblemsMatchTheSchema(t *testing.T) {
 		}
 	}
 }
+
+// validateReply checks a real reply against the response definition of the spec for its operation and status.
+func validateReply(t *testing.T, router routers.Router, method, target string, r reply) {
+	t.Helper()
+	lookup := httptest.NewRequestWithContext(t.Context(), method, target, nil)
+	route, params, err := router.FindRoute(lookup)
+	if err != nil {
+		t.Fatalf("%s %s: finding the route in the spec: %v", method, target, err)
+	}
+	input := &openapi3filter.ResponseValidationInput{
+		RequestValidationInput: &openapi3filter.RequestValidationInput{Request: lookup, PathParams: params, Route: route},
+		Status:                 r.Status,
+		Header:                 r.Header,
+		Options:                &openapi3filter.Options{IncludeResponseStatus: true},
+	}
+	input.SetBodyBytes(r.Body)
+	if err := openapi3filter.ValidateResponse(t.Context(), input); err != nil {
+		t.Errorf("%s %s answered %d: the response does not satisfy the spec: %v", method, target, r.Status, err)
+	}
+}
+
+// TestContract_FileResponses verifies that the responses of the file endpoints, successes and problems, satisfy the spec.
+//
+// Scenarios:
+//   - listing, describing, creating, uploading, renaming and deleting answer as documented
+//   - a whole download, a range and an unsatisfiable range answer as documented, headers included
+//   - path, exists, not empty and invalid mode problems answer as documented
+func TestContract_FileResponses(t *testing.T) {
+	_, router := loadSpec(t)
+	e := newFileEnv(t)
+	check := func(method, target string, r reply) reply {
+		validateReply(t, router, method, target, r)
+		return r
+	}
+
+	dirs := filesPath(e.ws, e.site, "/directories", nil)
+	check(http.MethodPost, dirs, e.a.send(http.MethodPost, dirs, map[string]string{"path": "/d"}, e.cookie, e.csrf))
+	check(http.MethodPost, dirs, e.a.send(http.MethodPost, dirs, map[string]string{"path": "/d"}, e.cookie, e.csrf))
+
+	put := filesPath(e.ws, e.site, "/content", q("path", "/d/f"))
+	check(http.MethodPut, put, e.a.upload(e.ws, e.site, q("path", "/d/f"), "0123456789", e.cookie, e.csrf))
+	check(http.MethodPut, put, e.a.upload(e.ws, e.site, q("path", "/d/f"), "again", e.cookie, e.csrf))
+	bad := filesPath(e.ws, e.site, "/content", q("path", "/d/f", "mode", "sideways"))
+	check(http.MethodPut, bad, e.a.upload(e.ws, e.site, q("path", "/d/f", "mode", "sideways"), "x", e.cookie, e.csrf))
+
+	list := filesPath(e.ws, e.site, "", q("path", "/d"))
+	check(http.MethodGet, list, e.get("", q("path", "/d"), nil))
+	entry := filesPath(e.ws, e.site, "/entry", q("path", "/d/f"))
+	check(http.MethodGet, entry, e.get("/entry", q("path", "/d/f"), nil))
+	missing := filesPath(e.ws, e.site, "/entry", q("path", "/nope"))
+	check(http.MethodGet, missing, e.get("/entry", q("path", "/nope"), nil))
+
+	content := filesPath(e.ws, e.site, "/content", q("path", "/d/f"))
+	check(http.MethodGet, content, e.get("/content", q("path", "/d/f"), nil))
+	check(http.MethodGet, content, e.get("/content", q("path", "/d/f"), map[string]string{"Range": "bytes=2-4"}))
+	check(http.MethodGet, content, e.get("/content", q("path", "/d/f"), map[string]string{"Range": "bytes=50-"}))
+
+	rename := filesPath(e.ws, e.site, "/rename", nil)
+	check(http.MethodPost, rename, e.a.send(http.MethodPost, rename, map[string]string{"from": "/d/f", "to": "/g"}, e.cookie, e.csrf))
+	del := filesPath(e.ws, e.site, "", q("path", "/d"))
+	check(http.MethodDelete, del, e.a.send(http.MethodDelete, del, nil, e.cookie, e.csrf))
+	e.a.upload(e.ws, e.site, q("path", "/d/x"), "x", e.cookie, e.csrf)
+	check(http.MethodDelete, del, e.a.send(http.MethodDelete, del, nil, e.cookie, e.csrf))
+	check(http.MethodDelete, del, e.a.send(http.MethodDelete, filesPath(e.ws, e.site, "", q("path", "/d", "recursive", "true")), nil, e.cookie, e.csrf))
+}

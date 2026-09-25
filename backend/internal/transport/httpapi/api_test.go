@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/ports"
@@ -76,6 +78,8 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	service := auth.NewService(store, store, hasher, clock, rand.Reader, auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour})
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
+	sites := site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil)
+	pool := connections.New(newMemConnector(clock, sites), clock, connections.Config{Attempts: 1})
 	deps := httpapi.Deps{
 		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Readiness:   store,
@@ -83,8 +87,9 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Workspaces:  workspaces,
 		Vault:       vaults,
 		HostKeys:    hostkey.NewService(store, workspaces, clock),
-		Connections: connections.New(memConnector{clock: clock}, clock, connections.Config{}),
-		Sites:       site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil),
+		Connections: pool,
+		Sites:       sites,
+		Files:       files.NewService(workspaces, pool),
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
 			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
@@ -579,10 +584,37 @@ func mustDecode(t *testing.T, raw []byte, into any) {
 	}
 }
 
-// memConnector opens in-memory file systems, whatever the site.
-type memConnector struct{ clock ports.Clock }
+// memConnector serves one in-memory file system per site, after checking that the site exists like the real
+// connector does. The file systems outlive the connections that use them.
+type memConnector struct {
+	clock ports.Clock
+	sites *site.Service
+	mu    *sync.Mutex
+	byID  map[uuid.UUID]*sharedFS
+}
 
-// Connect returns a new in-memory file system.
-func (c memConnector) Connect(context.Context, connections.Key, string) (remotefs.RemoteFS, error) {
-	return memfs.New(c.clock), nil
+// sharedFS is an in-memory file system that stays open when a connection closes it.
+type sharedFS struct{ *memfs.FS }
+
+// Close does nothing: the data outlives the connection.
+func (sharedFS) Close() error { return nil }
+
+// newMemConnector returns a connector over the sites service.
+func newMemConnector(clock ports.Clock, sites *site.Service) memConnector {
+	return memConnector{clock: clock, sites: sites, mu: &sync.Mutex{}, byID: map[uuid.UUID]*sharedFS{}}
+}
+
+// Connect returns a connection to the file system of the site.
+func (c memConnector) Connect(ctx context.Context, key connections.Key, _ string) (remotefs.RemoteFS, error) {
+	if _, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID); err != nil {
+		return nil, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	fsys, ok := c.byID[key.SiteID]
+	if !ok {
+		fsys = &sharedFS{memfs.New(c.clock)}
+		c.byID[key.SiteID] = fsys
+	}
+	return fsys, nil
 }

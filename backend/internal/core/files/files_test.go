@@ -1,0 +1,489 @@
+package files_test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
+	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/files"
+	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/testutil"
+)
+
+// shared lets several connections use one in-memory file system, and keeps it open when one of them closes.
+type shared struct{ *memfs.FS }
+
+// Close does nothing: the file system outlives its connections.
+func (shared) Close() error { return nil }
+
+// flakyFS is a shared file system whose next operations can fail as if the connection dropped.
+type flakyFS struct {
+	shared
+	failRead   bool
+	failOpen   bool
+	failStat   bool
+	failCommit bool
+}
+
+// Stat fails when configured to.
+func (f *flakyFS) Stat(ctx context.Context, p string) (remotefs.Entry, error) {
+	if f.failStat {
+		return remotefs.Entry{}, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+	}
+	return f.shared.Stat(ctx, p)
+}
+
+// OpenRead fails, or returns a stream that fails, when configured to.
+func (f *flakyFS) OpenRead(ctx context.Context, p string, offset int64) (io.ReadCloser, error) {
+	if f.failOpen {
+		return nil, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+	}
+	r, err := f.shared.OpenRead(ctx, p, offset)
+	if err != nil || !f.failRead {
+		return r, err
+	}
+	return brokenReader{r}, nil
+}
+
+// OpenWrite returns a writer whose Close fails when configured to.
+func (f *flakyFS) OpenWrite(ctx context.Context, p string, offset int64, mode remotefs.WriteMode) (io.WriteCloser, error) {
+	w, err := f.shared.OpenWrite(ctx, p, offset, mode)
+	if err != nil || !f.failCommit {
+		return w, err
+	}
+	return failingCloser{w}, nil
+}
+
+// brokenReader fails after its first read.
+type brokenReader struct{ io.ReadCloser }
+
+// Read reads a little and then fails like a dropped connection.
+func (b brokenReader) Read(p []byte) (int, error) {
+	n, _ := b.ReadCloser.Read(p[:1])
+	return n, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+}
+
+// failingCloser fails when closed.
+type failingCloser struct{ io.WriteCloser }
+
+// Close closes the writer and reports a lost connection.
+func (f failingCloser) Close() error {
+	_ = f.WriteCloser.Close()
+	return fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+}
+
+// connector hands out connections to one shared file system.
+type connector struct{ fsys *flakyFS }
+
+// Connect returns a connection to the shared file system.
+func (c connector) Connect(context.Context, connections.Key, string) (remotefs.RemoteFS, error) {
+	return c.fsys, nil
+}
+
+// roles answers authorization from a table of roles by user, using the real permission matrix.
+type roles map[uuid.UUID]workspace.Role
+
+// Authorize applies the permission matrix.
+func (r roles) Authorize(_ context.Context, user, _ uuid.UUID, action workspace.Action) (workspace.Role, error) {
+	role, ok := r[user]
+	if !ok {
+		return "", workspace.ErrNotFound
+	}
+	if !workspace.Can(role, action) {
+		return "", workspace.ErrForbidden
+	}
+	return role, nil
+}
+
+// fixture is a service over an in-memory file system, with one user per role.
+type fixture struct {
+	svc    *files.Service
+	fs     *flakyFS
+	pool   *connections.Manager
+	editor files.Target
+	viewer files.Target
+}
+
+// newFixture returns a service where the editor may change files and the viewer may only browse and download.
+func newFixture(t *testing.T) *fixture {
+	t.Helper()
+	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	fsys := &flakyFS{shared: shared{memfs.New(clock)}}
+	pool := connections.New(connector{fsys}, clock, connections.Config{Attempts: 1})
+	t.Cleanup(pool.Close)
+	ws, site := uuid.New(), uuid.New()
+	editor, viewer := uuid.New(), uuid.New()
+	return &fixture{
+		svc: files.NewService(roles{editor: workspace.RoleEditor, viewer: workspace.RoleViewer}, pool), fs: fsys, pool: pool,
+		editor: files.Target{Actor: editor, Workspace: ws, Site: site, Session: "s"},
+		viewer: files.Target{Actor: viewer, Workspace: ws, Site: site, Session: "s"},
+	}
+}
+
+// put stores a file directly in the file system.
+func (f *fixture) put(t *testing.T, path, content string) {
+	t.Helper()
+	w, err := f.fs.shared.OpenWrite(t.Context(), path, 0, remotefs.WriteOverwrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(w, content)
+	_ = w.Close()
+}
+
+// idle returns how many connections are idle in the pool.
+func (f *fixture) idle(t files.Target) int {
+	idle, _ := f.pool.Stats(connections.Key{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site})
+	return idle
+}
+
+// TestService_Operations verifies the short operations.
+//
+// Scenarios:
+//   - listing, stat, mkdir, rename and delete work and return the affected entry
+//   - deleting a directory needs recursive unless it is empty, and removes the tree when set
+//   - remote errors keep their sentinels: missing paths, existing destinations, non-empty directories
+//   - every operation gives its connection back to the pool
+func TestService_Operations(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	f.put(t, "/a.txt", "hello")
+
+	list, err := f.svc.List(ctx, f.editor, "/")
+	if err != nil || len(list) != 1 || list[0].Name != "a.txt" {
+		t.Fatalf("List() = %v, %v", list, err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/a.txt"); err != nil || e.Size != 5 {
+		t.Errorf("Stat() = %+v, %v", e, err)
+	}
+	dir, err := f.svc.Mkdir(ctx, f.editor, "/d")
+	if err != nil || !dir.IsDir() {
+		t.Fatalf("Mkdir() = %+v, %v", dir, err)
+	}
+	if _, err := f.svc.Mkdir(ctx, f.editor, "/d"); !errors.Is(err, remotefs.ErrExists) {
+		t.Errorf("Mkdir() again = %v; want ErrExists", err)
+	}
+	moved, err := f.svc.Rename(ctx, f.editor, "/a.txt", "/d/b.txt")
+	if err != nil || moved.Path != "/d/b.txt" {
+		t.Fatalf("Rename() = %+v, %v", moved, err)
+	}
+	f.put(t, "/other", "x")
+	if _, err := f.svc.Rename(ctx, f.editor, "/other", "/d/b.txt"); !errors.Is(err, remotefs.ErrExists) {
+		t.Errorf("Rename() onto an existing path = %v; want ErrExists", err)
+	}
+	if _, err := f.svc.Stat(ctx, f.editor, "/missing"); !errors.Is(err, remotefs.ErrNotFound) {
+		t.Errorf("Stat() of a missing path = %v; want ErrNotFound", err)
+	}
+
+	if err := f.svc.Delete(ctx, f.editor, "/d", false); !errors.Is(err, remotefs.ErrNotEmpty) {
+		t.Errorf("Delete() of a non-empty directory = %v; want ErrNotEmpty", err)
+	}
+	if err := f.svc.Delete(ctx, f.editor, "/d", true); err != nil {
+		t.Errorf("recursive Delete() = %v", err)
+	}
+	if err := f.svc.Delete(ctx, f.editor, "/other", false); err != nil {
+		t.Errorf("Delete() of a file = %v", err)
+	}
+	if f.idle(f.editor) != 1 {
+		t.Errorf("idle connections = %d; want every operation to give its connection back", f.idle(f.editor))
+	}
+}
+
+// TestService_Authorization verifies permissions and path validation.
+//
+// Scenarios:
+//   - a viewer may list, stat and download but not upload, create directories, rename or delete
+//   - a stranger gets workspace.ErrNotFound for everything
+//   - empty, oversized and control-character paths are ErrInvalid and never reach the server
+//   - no connection is borrowed for refused requests
+func TestService_Authorization(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	f.put(t, "/a.txt", "hello")
+	stranger := f.editor
+	stranger.Actor = uuid.New()
+
+	if _, err := f.svc.List(ctx, f.viewer, "/"); err != nil {
+		t.Errorf("viewer List() = %v", err)
+	}
+	if _, err := f.svc.Stat(ctx, f.viewer, "/a.txt"); err != nil {
+		t.Errorf("viewer Stat() = %v", err)
+	}
+	if d, err := f.svc.Download(ctx, f.viewer, "/a.txt", files.Range{}); err != nil {
+		t.Errorf("viewer Download() = %v", err)
+	} else {
+		_ = d.Body.Close()
+	}
+	refused := map[string]error{
+		"Upload": second(f.svc.Upload(ctx, f.viewer, "/n", remotefs.WriteCreate, 0, strings.NewReader("x"))),
+		"Mkdir":  second(f.svc.Mkdir(ctx, f.viewer, "/n")),
+		"Rename": second(f.svc.Rename(ctx, f.viewer, "/a.txt", "/b.txt")),
+		"Delete": f.svc.Delete(ctx, f.viewer, "/a.txt", false),
+	}
+	for name, err := range refused {
+		if !errors.Is(err, workspace.ErrForbidden) {
+			t.Errorf("viewer %s = %v; want ErrForbidden", name, err)
+		}
+	}
+	strangers := map[string]error{
+		"List":     second(f.svc.List(ctx, stranger, "/")),
+		"Stat":     second(f.svc.Stat(ctx, stranger, "/a.txt")),
+		"Download": second(f.svc.Download(ctx, stranger, "/a.txt", files.Range{})),
+		"Upload":   second(f.svc.Upload(ctx, stranger, "/n", remotefs.WriteCreate, 0, strings.NewReader("x"))),
+	}
+	for name, err := range strangers {
+		if !errors.Is(err, workspace.ErrNotFound) {
+			t.Errorf("stranger %s = %v; want workspace.ErrNotFound", name, err)
+		}
+	}
+
+	for _, bad := range []string{"", strings.Repeat("a", 4097), "/a\nb", "/a\x00b", "/a\x7f"} {
+		if _, err := f.svc.Stat(ctx, f.editor, bad); !errors.Is(err, remotefs.ErrInvalid) {
+			t.Errorf("Stat(%q) = %v; want ErrInvalid", bad, err)
+		}
+	}
+	if _, err := f.svc.Rename(ctx, f.editor, "/a.txt", ""); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("Rename() to an empty path = %v; want ErrInvalid", err)
+	}
+}
+
+// second returns the error of a call that also returns a value.
+func second[T any](_ T, err error) error { return err }
+
+// readAll reads a download to the end and closes it.
+func readAll(t *testing.T, d *files.Download) string {
+	t.Helper()
+	data, err := io.ReadAll(d.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// TestService_Download verifies streaming and ranges.
+//
+// Scenarios:
+//   - a whole file streams with its entry, and the connection returns to the pool when the stream is closed
+//   - closing twice is harmless
+//   - ranges: from an offset, bounded, beyond the end (clamped), and the last bytes
+//   - unsatisfiable ranges, ranges on empty files and directories are refused, and give the connection back
+//   - a connection lost while opening or reading is reported and the broken connection is not pooled
+func TestService_Download(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	f.put(t, "/f", "0123456789")
+	f.put(t, "/empty", "")
+	if _, err := f.svc.Mkdir(ctx, f.editor, "/dir"); err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{})
+	if err != nil || d.Partial || d.Entry.Size != 10 || d.Length() != 10 {
+		t.Fatalf("Download() = %+v, %v", d, err)
+	}
+	if got := readAll(t, d); got != "0123456789" {
+		t.Errorf("content = %q", got)
+	}
+	_ = d.Body.Close()
+	if f.idle(f.viewer) != 1 {
+		t.Error("closing the stream did not return the connection")
+	}
+
+	ranges := []struct {
+		name  string
+		r     files.Range
+		want  string
+		start int64
+	}{
+		{"from an offset", files.Range{Set: true, Start: 4, End: -1}, "456789", 4},
+		{"bounded", files.Range{Set: true, Start: 2, End: 5}, "2345", 2},
+		{"past the end", files.Range{Set: true, Start: 8, End: 99}, "89", 8},
+		{"last bytes", files.Range{Set: true, Suffix: 3}, "789", 7},
+		{"suffix longer than the file", files.Range{Set: true, Suffix: 99}, "0123456789", 0},
+	}
+	for _, tt := range ranges {
+		d, err := f.svc.Download(ctx, f.viewer, "/f", tt.r)
+		if err != nil || !d.Partial || d.Start != tt.start {
+			t.Errorf("%s: Download() = %+v, %v", tt.name, d, err)
+			continue
+		}
+		if got := readAll(t, d); got != tt.want || d.Length() != int64(len(tt.want)) {
+			t.Errorf("%s: content = %q (length %d); want %q", tt.name, got, d.Length(), tt.want)
+		}
+	}
+
+	unsatisfiable := []struct {
+		name, path string
+		r          files.Range
+	}{
+		{"start beyond the end", "/f", files.Range{Set: true, Start: 10, End: -1}},
+		{"start after end", "/f", files.Range{Set: true, Start: 5, End: 2}},
+		{"negative start", "/f", files.Range{Set: true, Start: -1, End: 3}},
+		{"any range of an empty file", "/empty", files.Range{Set: true, Start: 0, End: -1}},
+		{"suffix of an empty file", "/empty", files.Range{Set: true, Suffix: 5}},
+	}
+	for _, tt := range unsatisfiable {
+		_, err := f.svc.Download(ctx, f.viewer, tt.path, tt.r)
+		var badRange *files.RangeError
+		if !errors.Is(err, files.ErrRangeNotSatisfiable) || !errors.As(err, &badRange) || !strings.Contains(err.Error(), fmt.Sprint(badRange.Size)) {
+			t.Errorf("%s: Download() = %v; want a RangeError with the file size", tt.name, err)
+		}
+	}
+	if d, err := f.svc.Download(ctx, f.viewer, "/empty", files.Range{}); err != nil || d.Length() != 0 || readAll(t, d) != "" {
+		t.Errorf("Download() of an empty file = %+v, %v", d, err)
+	}
+	if _, err := f.svc.Download(ctx, f.viewer, "/dir", files.Range{}); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("Download() of a directory = %v; want ErrInvalid", err)
+	}
+	if _, err := f.svc.Download(ctx, f.viewer, "/missing", files.Range{}); !errors.Is(err, remotefs.ErrNotFound) {
+		t.Errorf("Download() of a missing file = %v; want ErrNotFound", err)
+	}
+	if f.idle(f.viewer) != 1 {
+		t.Errorf("idle connections = %d after refused downloads; want them all returned", f.idle(f.viewer))
+	}
+
+	f.fs.failOpen = true
+	if _, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{}); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("Download() with a failing open = %v; want ErrConnectionLost", err)
+	}
+	f.fs.failOpen = false
+	f.fs.failRead = true
+	d, err = f.svc.Download(ctx, f.viewer, "/f", files.Range{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadAll(d.Body); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("reading a dropped stream = %v; want ErrConnectionLost", err)
+	}
+	_ = d.Body.Close()
+	if f.idle(f.viewer) != 0 {
+		t.Error("a connection that dropped while streaming was pooled")
+	}
+}
+
+// TestService_Upload verifies writing.
+//
+// Scenarios:
+//   - create writes a new file and returns its entry, and refuses to replace an existing one
+//   - overwrite replaces the content
+//   - resume continues at the given offset and completes a partial upload
+//   - an offset outside resume, a negative offset and an offset past the end are ErrInvalid
+//   - a body that fails midway returns its own error, leaves the partial file and keeps the connection pooled
+//   - a connection lost while closing the file is reported and the connection is discarded
+//   - the connection is returned when the file cannot be opened
+func TestService_Upload(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+
+	e, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteCreate, 0, strings.NewReader("hello "))
+	if err != nil || e.Size != 6 {
+		t.Fatalf("Upload() = %+v, %v", e, err)
+	}
+	if _, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteCreate, 0, strings.NewReader("x")); !errors.Is(err, remotefs.ErrExists) {
+		t.Errorf("create over an existing file = %v; want ErrExists", err)
+	}
+	if e, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteResume, 6, strings.NewReader("world")); err != nil || e.Size != 11 {
+		t.Errorf("resume = %+v, %v", e, err)
+	}
+	if e, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteOverwrite, 0, strings.NewReader("new")); err != nil || e.Size != 3 {
+		t.Errorf("overwrite = %+v, %v", e, err)
+	}
+	for name, call := range map[string]func() error{
+		"offset without resume": func() error {
+			return second(f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteOverwrite, 1, strings.NewReader("x")))
+		},
+		"negative offset": func() error {
+			return second(f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteResume, -1, strings.NewReader("x")))
+		},
+		"offset past the end": func() error {
+			return second(f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteResume, 99, strings.NewReader("x")))
+		},
+	} {
+		if err := call(); !errors.Is(err, remotefs.ErrInvalid) {
+			t.Errorf("%s = %v; want ErrInvalid", name, err)
+		}
+	}
+
+	interrupted := errors.New("client went away")
+	body := io.MultiReader(strings.NewReader("partial"), errReader{interrupted})
+	if _, err := f.svc.Upload(ctx, f.editor, "/partial", remotefs.WriteCreate, 0, body); !errors.Is(err, interrupted) || errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("Upload() with a failing body = %v; want the body error only", err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/partial"); err != nil || e.Size != 7 {
+		t.Errorf("the partial file = %+v, %v; want the 7 bytes that arrived", e, err)
+	}
+	if e, err := f.svc.Upload(ctx, f.editor, "/partial", remotefs.WriteResume, 7, strings.NewReader(" done")); err != nil || e.Size != 12 {
+		t.Errorf("resuming the partial file = %+v, %v", e, err)
+	}
+	if f.idle(f.editor) != 1 {
+		t.Errorf("idle connections = %d; want the connection kept after a body failure", f.idle(f.editor))
+	}
+
+	f.fs.failCommit = true
+	if _, err := f.svc.Upload(ctx, f.editor, "/g", remotefs.WriteCreate, 0, strings.NewReader("x")); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("Upload() with a failing close = %v; want ErrConnectionLost", err)
+	}
+	f.fs.failCommit = false
+	if f.idle(f.editor) != 0 {
+		t.Error("a connection that dropped while closing the file was pooled")
+	}
+
+	f.fs.failStat = true
+	if _, err := f.svc.Upload(ctx, f.editor, "/h", remotefs.WriteCreate, 0, strings.NewReader("x")); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("Upload() whose final stat fails = %v; want ErrConnectionLost", err)
+	}
+	f.fs.failStat = false
+}
+
+// errReader fails every read with its error.
+type errReader struct{ err error }
+
+// Read returns the error.
+func (e errReader) Read([]byte) (int, error) { return 0, e.err }
+
+// TestService_Concurrency verifies that parallel transfers use separate connections.
+//
+// Scenarios:
+//   - many uploads and downloads at once complete and leave the file system consistent
+func TestService_Concurrency(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			name := fmt.Sprintf("/f%d", i)
+			payload := bytes.Repeat([]byte{byte('a' + i)}, 1000)
+			if _, err := f.svc.Upload(ctx, f.editor, name, remotefs.WriteCreate, 0, bytes.NewReader(payload)); err != nil {
+				t.Errorf("Upload(%s) = %v", name, err)
+				return
+			}
+			d, err := f.svc.Download(ctx, f.viewer, name, files.Range{})
+			if err != nil {
+				t.Errorf("Download(%s) = %v", name, err)
+				return
+			}
+			got, _ := io.ReadAll(d.Body)
+			_ = d.Body.Close()
+			if !bytes.Equal(got, payload) {
+				t.Errorf("%s: content differs", name)
+			}
+		}()
+	}
+	wg.Wait()
+}

@@ -175,7 +175,7 @@ Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas 
 - [x] 1.6 `netguard` y sitios: CRUD, secretos cifrados sellados con la llave del vault, host keys de confianza (TOFU) con listado, confianza y olvido
 - [x] 1.7 Adaptador SFTP (`sftpfs`) con verificación de host key por callback obligatorio, autenticación por contraseña y por clave, suite de conformidad contra un servidor en proceso y contra OpenSSH real
 - [x] 1.8 Gestor de conexiones: pool por usuario y sitio (máximo 4), keepalive, validación antes de usar, reconexión con backoff solo ante fallos de red, cierre al bloquear el vault o cerrar sesión, conector con host key TOFU y `netguard`
-- [ ] 1.9 API de archivos, descarga en streaming y subida reanudable
+- [x] 1.9 API de archivos: listar, describir, crear carpetas, renombrar, borrar (recursivo opcional), descarga en streaming con rangos y subida en streaming reanudable; adjuntos inertes; errores con códigos estables
 - [ ] 1.10 Cola de transferencias persistente y eventos por WebSocket
 - [ ] 1.11 Frontend: setup, login, unlock, sitios, explorador, transferencias, con E2E
 - [ ] 1.12 Revisión de seguridad de la fase 1

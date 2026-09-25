@@ -184,11 +184,13 @@ func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) { pool = d.Connections })
 	cookie, csrf := a.setup()
 	otherCookie, other := a.signIn("other@example.com")
-	_ = otherCookie
+	otherCSRF := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: otherCookie}).session(t).CsrfToken
 	admin := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}).session(t).User.Id
 
-	pooled := func(user uuid.UUID) connections.Key {
-		key := connections.Key{UserID: user, WorkspaceID: uuid.New(), SiteID: uuid.New()}
+	pooled := func(user uuid.UUID, c *http.Cookie, token string) connections.Key {
+		ws := a.personal(c)
+		created := a.send(http.MethodPost, sitesPath(ws), siteBody("Site "+uuid.NewString()), c, token)
+		key := connections.Key{UserID: user, WorkspaceID: ws, SiteID: created.site(t).Id}
 		lease, err := pool.Acquire(t.Context(), key, "s")
 		if err != nil {
 			t.Fatal(err)
@@ -196,7 +198,7 @@ func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
 		lease.Release(nil)
 		return key
 	}
-	mine, theirs := pooled(admin), pooled(other.ID)
+	mine, theirs := pooled(admin, cookie, csrf), pooled(other.ID, otherCookie, otherCSRF)
 
 	if r := a.vaultCall("/lock", nil, cookie, csrf); r.Status != http.StatusNoContent {
 		t.Fatalf("lock = %d %s", r.Status, r.Body)
@@ -208,7 +210,7 @@ func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
 		t.Error("locking the vault closed another user's connections")
 	}
 
-	mine = pooled(admin)
+	mine = pooled(admin, cookie, csrf)
 	if r := a.do(request{method: http.MethodPost, path: "/api/v1/auth/logout", cookie: cookie, headers: map[string]string{"X-CSRF-Token": csrf}}); r.Status != http.StatusNoContent {
 		t.Fatalf("logout = %d", r.Status)
 	}

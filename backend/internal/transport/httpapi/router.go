@@ -12,6 +12,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -51,6 +52,8 @@ type Deps struct {
 	Auth *auth.Service
 	// Workspaces is the workspace and permission service.
 	Workspaces *workspace.Service
+	// Files performs operations on the files of remote sites.
+	Files *files.Service
 	// Connections pools the connections to remote servers; the vault lock and sign-out close a user's connections.
 	Connections *connections.Manager
 	// HostKeys is the trusted server keys service.
