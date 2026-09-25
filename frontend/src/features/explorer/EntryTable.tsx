@@ -1,13 +1,14 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { File, FileQuestion, Folder, Link2 } from 'lucide-react'
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { RemoteEntry } from '@/lib/api'
 import { formatInstant } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
-import { formatSize } from './entries'
+import { formatSize, resolveSelection } from './entries'
 
 /** Height of every row, in pixels. */
 const rowHeight = 32
@@ -27,6 +28,16 @@ export interface EntryTableProps {
   onOpen: (entry: RemoteEntry) => void
   /** Called when the user asks to go up one level with Backspace. */
   onUp: () => void
+  /** Path of the selected entry; the first entry is selected when it is `null` or gone. */
+  selectedPath: string | null
+  /** Called when the selection moves to an entry. */
+  onSelect: (entry: RemoteEntry) => void
+  /** Called to rename an entry: F2 or the context menu. */
+  onRename: (entry: RemoteEntry) => void
+  /** Called to delete an entry: Delete or the context menu. */
+  onDelete: (entry: RemoteEntry) => void
+  /** Called to create a folder from the context menu. */
+  onNewFolder: () => void
 }
 
 /** Icon that tells the kind of an entry. */
@@ -67,10 +78,9 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, selectedPath, onSelect, onRename, onDelete, onNewFolder }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
-  const [selected, setSelected] = useState(0)
   const virtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => scroller.current,
@@ -78,7 +88,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp }: EntryTab
     scrollMargin: rowHeight,
     overscan: 8,
   })
-  const current = Math.min(selected, entries.length - 1)
+  const current = resolveSelection(entries, selectedPath)
   const active = entries[current]
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -92,25 +102,36 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp }: EntryTab
       onUp()
       return
     }
+    if (event.key === 'F2') {
+      event.preventDefault()
+      onRename(active)
+      return
+    }
+    if (event.key === 'Delete') {
+      event.preventDefault()
+      onDelete(active)
+      return
+    }
     const next = movedTo(event.key, current, entries.length - 1)
     if (next !== undefined) {
       event.preventDefault()
-      setSelected(next)
+      onSelect(entries[next])
       virtualizer.scrollToIndex(next)
     }
   }
 
   return (
-    <div
-      ref={scroller}
-      role="grid"
-      aria-label={t(($) => $.list)}
-      aria-rowcount={entries.length + 1}
-      tabIndex={0}
-      aria-activedescendant={`entry-${current}`}
-      onKeyDown={onKeyDown}
-      className="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-    >
+    <ContextMenu>
+      <ContextMenuTrigger
+        ref={scroller}
+        role="grid"
+        aria-label={t(($) => $.list)}
+        aria-rowcount={entries.length + 1}
+        tabIndex={0}
+        aria-activedescendant={`entry-${current}`}
+        onKeyDown={onKeyDown}
+        className="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
       <div
         role="row"
         className={cn(columns, 'sticky top-0 z-10 h-8 border-b bg-background text-[11px] font-medium tracking-wider text-muted-foreground uppercase')}
@@ -132,7 +153,8 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp }: EntryTab
               role="row"
               aria-rowindex={item.index + 2}
               aria-selected={item.index === current}
-              onClick={() => setSelected(item.index)}
+              onClick={() => onSelect(entry)}
+              onContextMenu={() => onSelect(entry)}
               onDoubleClick={() => onOpen(entry)}
               style={{ height: rowHeight, transform: `translateY(${item.start - rowHeight}px)` }}
               className={cn(
@@ -157,6 +179,14 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp }: EntryTab
           )
         })}
       </div>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent aria-label={t(($) => $.menu.label)} className="min-w-44">
+        {active.type === 'directory' && <ContextMenuItem onClick={() => onOpen(active)}>{t(($) => $.menu.open)}</ContextMenuItem>}
+        <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>
+        <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={onNewFolder}>{t(($) => $.menu.newFolder)}</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

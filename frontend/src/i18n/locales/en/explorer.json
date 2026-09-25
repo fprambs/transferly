@@ -44,6 +44,47 @@
     "site_not_found": "This site no longer exists.",
     "quick_connection_not_found": "This quick connection was closed. Open it again from quick connect.",
     "network_error": "Could not reach the server.",
-    "unknown": "Something went wrong. Try again."
-  }
+    "unknown": "Something went wrong. Try again.",
+    "nameRequired": "Enter a name.",
+    "nameInvalid": "The name cannot contain a slash or be . or .."
+  },
+  "toolbar": {
+    "newFolder": "New folder",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
+  "menu": {
+    "label": "Actions for the selected item",
+    "open": "Open",
+    "rename": "Rename",
+    "delete": "Delete",
+    "newFolder": "New folder"
+  },
+  "newFolder": {
+    "title": "New folder",
+    "name": "Name",
+    "submit": "Create"
+  },
+  "rename": {
+    "title": "Rename",
+    "name": "New name",
+    "submit": "Rename"
+  },
+  "delete": {
+    "titleFile": "Delete this file?",
+    "titleFolder": "Delete this folder?",
+    "body": "{{name}} will be removed from the server. This cannot be undone.",
+    "recursive": "Also delete everything inside it",
+    "confirm": "Delete"
+  },
+  "inspector": {
+    "label": "Details",
+    "name": "Name",
+    "path": "Path",
+    "kind": "Kind",
+    "size": "Size",
+    "modified": "Modified",
+    "mode": "Permissions"
+  },
+  "cancel": "Cancel"
 }

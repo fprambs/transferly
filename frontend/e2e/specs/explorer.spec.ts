@@ -43,7 +43,8 @@ async function openQuickConnection(page: Page): Promise<void> {
  * Scenarios:
  * - quick connect asks to trust the server key, reports success and opens the server in the tree
  * - the root lists the server's folders, a folder opens with a double click and the breadcrumb and address follow
- * - going up returns to the root, and an empty folder says so
+ * - going up returns to the root
+ * - a folder is created, renamed and deleted on the server with the toolbar, F2, Delete and the context menu
  * - the explorer has no WCAG violations in any of the twelve themes
  */
 test.describe('explorer', () => {
@@ -59,11 +60,47 @@ test.describe('explorer', () => {
     await grid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(page).toHaveURL(/path=%2Fupload$/)
     await expect(page.getByRole('button', { name: 'upload' })).toHaveAttribute('aria-current', 'page')
-    await expect(page.getByText('This folder is empty.')).toBeVisible()
 
     await page.getByRole('button', { name: 'Up one level' }).click()
     await expect(page).toHaveURL(/path=%2F$/)
     await expect(grid.getByRole('row', { name: /upload/ })).toBeVisible()
+  })
+
+  test('creates, renames and deletes a folder on the server', async ({ shell }) => {
+    const { page } = shell
+    const created = `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    const renamed = `${created}-renamed`
+    await openQuickConnection(page)
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /upload/ }).dblclick()
+    await expect(page).toHaveURL(/path=%2Fupload$/)
+
+    await page.getByRole('button', { name: 'New folder' }).click()
+    await page.getByRole('dialog').getByLabel('Name').fill(created)
+    await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
+    const row = grid.getByRole('row', { name: new RegExp(created) })
+    await expect(row).toBeVisible()
+
+    await row.click()
+    await grid.press('F2')
+    await page.getByRole('dialog').getByLabel('New name').fill(renamed)
+    await page.getByRole('dialog').getByRole('button', { name: 'Rename' }).click()
+    const renamedRow = grid.getByRole('row', { name: new RegExp(renamed) })
+    await expect(renamedRow).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Details' })).toContainText(`/upload/${renamed}`)
+
+    const rowBox = (await renamedRow.boundingBox())!
+    await renamedRow.click({ button: 'right' })
+    const menu = page.getByRole('menu')
+    await expect(menu).toBeVisible()
+    const box = (await menu.boundingBox())!
+    expect(box.y).toBeGreaterThan(rowBox.y - 8)
+    expect(box.y).toBeLessThan(rowBox.y + rowBox.height + 8)
+    await page.keyboard.press('Escape')
+
+    await grid.press('Delete')
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await expect(renamedRow).toBeHidden()
   })
 
   test('has no WCAG violations in any theme', async ({ shell }) => {

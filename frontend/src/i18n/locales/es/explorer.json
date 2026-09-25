@@ -44,6 +44,47 @@
     "site_not_found": "Este sitio ya no existe.",
     "quick_connection_not_found": "Esta conexión rápida se cerró. Ábrela de nuevo desde la conexión rápida.",
     "network_error": "No se pudo contactar con el servidor.",
-    "unknown": "Algo salió mal. Inténtalo de nuevo."
-  }
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "nameRequired": "Escribe un nombre.",
+    "nameInvalid": "El nombre no puede contener una barra ni ser . o .."
+  },
+  "toolbar": {
+    "newFolder": "Nueva carpeta",
+    "rename": "Renombrar",
+    "delete": "Eliminar"
+  },
+  "menu": {
+    "label": "Acciones del elemento seleccionado",
+    "open": "Abrir",
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "newFolder": "Nueva carpeta"
+  },
+  "newFolder": {
+    "title": "Nueva carpeta",
+    "name": "Nombre",
+    "submit": "Crear"
+  },
+  "rename": {
+    "title": "Renombrar",
+    "name": "Nuevo nombre",
+    "submit": "Renombrar"
+  },
+  "delete": {
+    "titleFile": "¿Eliminar este archivo?",
+    "titleFolder": "¿Eliminar esta carpeta?",
+    "body": "Se eliminará {{name}} del servidor. No se puede deshacer.",
+    "recursive": "Eliminar también todo lo que contiene",
+    "confirm": "Eliminar"
+  },
+  "inspector": {
+    "label": "Detalles",
+    "name": "Nombre",
+    "path": "Ruta",
+    "kind": "Tipo",
+    "size": "Tamaño",
+    "modified": "Modificado",
+    "mode": "Permisos"
+  },
+  "cancel": "Cancelar"
 }

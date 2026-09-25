@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { RemoteEntry } from '@/lib/api'
 
-import { formatSize, parentPath, pathSegments, sortEntries } from './entries'
+import { formatSize, joinPath, parentPath, pathSegments, resolveSelection, sortEntries } from './entries'
 
 /** Builds an entry with only what sorting looks at. */
 function entry(name: string, type: RemoteEntry['type'] = 'file'): RemoteEntry {
@@ -17,6 +17,8 @@ function entry(name: string, type: RemoteEntry['type'] = 'file'): RemoteEntry {
  * - sizes use bytes below a kilobyte and one decimal above, up to terabytes and beyond
  * - a path splits into steps that start at the root, and ignores repeated slashes
  * - the parent of a path is the step before it, and the root is its own parent
+ * - names join onto folders, including the root
+ * - the selection is the entry with the selected path, or the first one when there is none or it is gone
  */
 describe('explorer entries', () => {
   it('lists directories first and sorts names naturally', () => {
@@ -55,5 +57,18 @@ describe('explorer entries', () => {
     expect(parentPath('/var/www')).toBe('/var')
     expect(parentPath('/var')).toBe('/')
     expect(parentPath('/')).toBe('/')
+  })
+
+  it('joins a name onto a folder', () => {
+    expect(joinPath('/', 'a')).toBe('/a')
+    expect(joinPath('/var/www', 'a')).toBe('/var/www/a')
+  })
+
+  it('resolves the selected entry', () => {
+    const entries = [entry('a'), entry('b')]
+
+    expect(resolveSelection(entries, '/b')).toBe(1)
+    expect(resolveSelection(entries, '/gone')).toBe(0)
+    expect(resolveSelection(entries, null)).toBe(0)
   })
 })

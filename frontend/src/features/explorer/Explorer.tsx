@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, RefreshCw, ShieldQuestion } from 'lucide-react'
+import { ArrowUp, FolderPlus, RefreshCw, ShieldQuestion } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import type { RemoteEntry } from '@/lib/api'
 import { resolveTimeZone } from '@/lib/datetime'
 import { useApi } from '@/lib/api/use-api'
 
@@ -12,10 +13,16 @@ import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { Breadcrumbs } from './Breadcrumbs'
+import { DeleteEntryDialog } from './DeleteEntryDialog'
+import { EntryNameDialog } from './EntryNameDialog'
 import { EntryTable } from './EntryTable'
+import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
-import { parentPath, sortEntries } from './entries'
+import { joinPath, parentPath, resolveSelection, sortEntries } from './entries'
 import { filesKey } from './files-key'
+
+/** The dialog that is open over the explorer. */
+type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry }
 
 /** Props of {@link Explorer}. */
 export interface ExplorerProps {
@@ -37,10 +44,13 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
   const session = useSession()
   const { sites, quick } = useSitesData(workspaceId)
   const [trustFailure, setTrustFailure] = useState<ExplorerErrorKey | null>(null)
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<Dialog | null>(null)
   const listing = useQuery({ queryKey: filesKey(workspaceId, siteId, path), queryFn: () => api.files.list(workspaceId, siteId, path) })
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const hostKey = unknownHostKeyOf(listing.error)
+  const timeZone = session?.user.timezone ?? resolveTimeZone()
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
 
   const trust = async (key: UnknownHostKey, connection: { host: string; port: number }): Promise<void> => {
@@ -53,6 +63,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
     setTrustFailure(null)
     await listing.refetch()
   }
+
+  const reload = (): Promise<void> => queryClient.invalidateQueries({ queryKey: filesKey(workspaceId, siteId, path) })
 
   const open = (entry: { type: string; path: string }): void => {
     if (entry.type === 'directory') {
@@ -68,11 +80,15 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
         </Button>
         <Breadcrumbs path={path} onNavigate={onNavigate} />
         <span className="font-mono text-xs text-muted-foreground">{t(($) => $.rows, { count: entries.length })}</span>
+        <Button variant="ghost" size="sm" disabled={!listing.isSuccess} onClick={() => setDialog({ kind: 'newFolder' })}>
+          <FolderPlus />
+          {t(($) => $.toolbar.newFolder)}
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label={t(($) => $.refresh)}
-          onClick={() => void queryClient.invalidateQueries({ queryKey: filesKey(workspaceId, siteId, path) })}
+          onClick={() => void reload()}
         >
           <RefreshCw />
         </Button>
@@ -107,13 +123,61 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
       )}
       {listing.isSuccess && entries.length === 0 && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.emptyDir)}</p>}
       {listing.isSuccess && entries.length > 0 && (
-        <EntryTable
-          key={path}
-          entries={entries}
-          locale={i18n.language}
-          timeZone={session?.user.timezone ?? resolveTimeZone()}
-          onOpen={open}
-          onUp={() => onNavigate(parentPath(path))}
+        <div className="flex min-h-0 flex-1">
+          <EntryTable
+            key={path}
+            entries={entries}
+            locale={i18n.language}
+            timeZone={timeZone}
+            onOpen={open}
+            onUp={() => onNavigate(parentPath(path))}
+            selectedPath={selectedPath}
+            onSelect={(entry) => setSelectedPath(entry.path)}
+            onRename={(entry) => setDialog({ kind: 'rename', entry })}
+            onDelete={(entry) => setDialog({ kind: 'delete', entry })}
+            onNewFolder={() => setDialog({ kind: 'newFolder' })}
+          />
+          <Inspector
+            entry={entries[resolveSelection(entries, selectedPath)]}
+            locale={i18n.language}
+            timeZone={timeZone}
+            onRename={(entry) => setDialog({ kind: 'rename', entry })}
+            onDelete={(entry) => setDialog({ kind: 'delete', entry })}
+          />
+        </div>
+      )}
+      {dialog?.kind === 'newFolder' && (
+        <EntryNameDialog
+          mode="newFolder"
+          initialName=""
+          onSubmit={async (name) => {
+            const created = await api.files.mkdir(workspaceId, siteId, joinPath(path, name))
+            setSelectedPath(created.path)
+            await reload()
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'rename' && (
+        <EntryNameDialog
+          mode="rename"
+          initialName={dialog.entry.name}
+          onSubmit={async (name) => {
+            const renamed = await api.files.rename(workspaceId, siteId, dialog.entry.path, joinPath(path, name))
+            setSelectedPath(renamed.path)
+            await reload()
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'delete' && (
+        <DeleteEntryDialog
+          entry={dialog.entry}
+          onDelete={async (recursive) => {
+            await api.files.remove(workspaceId, siteId, dialog.entry.path, recursive)
+            await reload()
+          }}
+          onClose={() => setDialog(null)}
         />
       )}
     </section>

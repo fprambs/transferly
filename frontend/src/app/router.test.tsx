@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -206,9 +206,9 @@ describe('routes', () => {
     const { history } = await renderApp()
 
     await user.click(await screen.findByRole('treeitem', { name: /Prod/ }))
-    await user.dblClick(await screen.findByText('www'))
+    await user.dblClick(within(await screen.findByRole('grid')).getByText('www'))
 
-    expect(await screen.findByText('index.html')).toBeInTheDocument()
+    expect(await within(await screen.findByRole('grid')).findByText('index.html')).toBeInTheDocument()
     expect(history.location.pathname).toBe('/sites/s1')
     expect(history.location.search).toBe('?path=%2Fwww')
   })

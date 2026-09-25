@@ -116,7 +116,7 @@ describe('explorer', () => {
 
     await renderExplorer()
 
-    expect(await screen.findByText(/Mar 8, 2026/)).toBeInTheDocument()
+    expect(within(await screen.findByRole('grid')).getByText(/Mar 8, 2026/)).toBeInTheDocument()
   })
 
   it('shows dates in the time zone of the account', async () => {
@@ -289,6 +289,6 @@ describe('explorer', () => {
 
     await renderExplorer('/www', 's1', 'es')
 
-    expect(await screen.findByText(/8 mar 2026/)).toBeInTheDocument()
+    expect(within(await screen.findByRole('grid')).getByText(/8 mar 2026/)).toBeInTheDocument()
   })
 })

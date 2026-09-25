@@ -44,3 +44,16 @@ export function parentPath(path: string): string {
   const segments = pathSegments(path)
   return segments[Math.max(segments.length - 2, 0)].path
 }
+
+/** Joins a folder path and an entry name into an absolute path. */
+export function joinPath(directory: string, name: string): string {
+  return directory === '/' ? `/${name}` : `${directory}/${name}`
+}
+
+/** Picks the selected entry: the one with the given path, or the first when there is none or it is gone. */
+export function resolveSelection(entries: readonly RemoteEntry[], selectedPath: string | null): number {
+  return Math.max(
+    entries.findIndex((entry) => entry.path === selectedPath),
+    0,
+  )
+}
