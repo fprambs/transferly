@@ -1,0 +1,63 @@
+{
+  "title": "Quick connect",
+  "description": "Try a server without saving anything. Credentials stay in memory until you disconnect.",
+  "protocol": {
+    "label": "Protocol",
+    "sftp": "SFTP",
+    "ftps": "FTPS",
+    "ftp": "FTP"
+  },
+  "fields": {
+    "host": "Host",
+    "port": "Port",
+    "username": "Username",
+    "password": "Password"
+  },
+  "memoryNote": "Nothing is written to the vault or the database.",
+  "cancel": "Cancel",
+  "connect": "Connect",
+  "connecting": "Connecting…",
+  "trust": {
+    "title": "Trust this server?",
+    "description": "{{host}} has not been seen before. Check that this fingerprint matches the one your server administrator gave you.",
+    "keyType": "Key type",
+    "fingerprint": "Fingerprint",
+    "back": "Back",
+    "confirm": "Trust and connect"
+  },
+  "keep": {
+    "title": "It works. Keep this server?",
+    "detail": "Connected to {{host}} · not saved",
+    "save": "Save as site…",
+    "dismiss": "Not now"
+  },
+  "save": {
+    "title": "Save as site",
+    "description": "Keep {{host}} in your workspace. Credentials are stored encrypted in the vault.",
+    "name": "Name",
+    "collection": "Collection",
+    "noCollection": "No collection",
+    "submit": "Save site"
+  },
+  "errors": {
+    "hostRequired": "Enter the host.",
+    "portInvalid": "Enter a port between 1 and 65535.",
+    "usernameRequired": "Enter the username.",
+    "passwordRequired": "Enter the password.",
+    "nameRequired": "Enter a name.",
+    "host_key_changed": "The server key changed since it was trusted. This could be an attack: do not connect.",
+    "remote_auth_failed": "The server refused the username or password.",
+    "remote_unavailable": "The server did not answer.",
+    "destination_blocked": "This address is not allowed by the server policy.",
+    "host_unresolvable": "The host name could not be resolved.",
+    "invalid_host": "The host is not valid.",
+    "invalid_port": "The port is not valid.",
+    "invalid_protocol": "This protocol is not available yet.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "too_many_quick_connections": "Too many quick connections are open. Close one first.",
+    "site_name_taken": "A site with this name already exists.",
+    "vault_locked": "Unlock the vault to save sites.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again."
+  }
+}

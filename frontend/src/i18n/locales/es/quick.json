@@ -1,0 +1,63 @@
+{
+  "title": "Conexión rápida",
+  "description": "Prueba un servidor sin guardar nada. Las credenciales quedan en memoria hasta que te desconectes.",
+  "protocol": {
+    "label": "Protocolo",
+    "sftp": "SFTP",
+    "ftps": "FTPS",
+    "ftp": "FTP"
+  },
+  "fields": {
+    "host": "Host",
+    "port": "Puerto",
+    "username": "Usuario",
+    "password": "Contraseña"
+  },
+  "memoryNote": "No se escribe nada en el vault ni en la base de datos.",
+  "cancel": "Cancelar",
+  "connect": "Conectar",
+  "connecting": "Conectando…",
+  "trust": {
+    "title": "¿Confiar en este servidor?",
+    "description": "{{host}} no se había visto antes. Comprueba que esta huella coincide con la que te dio el administrador del servidor.",
+    "keyType": "Tipo de clave",
+    "fingerprint": "Huella",
+    "back": "Volver",
+    "confirm": "Confiar y conectar"
+  },
+  "keep": {
+    "title": "Funciona. ¿Guardar este servidor?",
+    "detail": "Conectado a {{host}} · sin guardar",
+    "save": "Guardar como sitio…",
+    "dismiss": "Ahora no"
+  },
+  "save": {
+    "title": "Guardar como sitio",
+    "description": "Guarda {{host}} en tu espacio de trabajo. Las credenciales se almacenan cifradas en el vault.",
+    "name": "Nombre",
+    "collection": "Colección",
+    "noCollection": "Sin colección",
+    "submit": "Guardar sitio"
+  },
+  "errors": {
+    "hostRequired": "Escribe el host.",
+    "portInvalid": "Escribe un puerto entre 1 y 65535.",
+    "usernameRequired": "Escribe el usuario.",
+    "passwordRequired": "Escribe la contraseña.",
+    "nameRequired": "Escribe un nombre.",
+    "host_key_changed": "La clave del servidor cambió desde que confiaste en ella. Podría ser un ataque: no te conectes.",
+    "remote_auth_failed": "El servidor rechazó el usuario o la contraseña.",
+    "remote_unavailable": "El servidor no respondió.",
+    "destination_blocked": "La política del servidor no permite esta dirección.",
+    "host_unresolvable": "No se pudo resolver el nombre del host.",
+    "invalid_host": "El host no es válido.",
+    "invalid_port": "El puerto no es válido.",
+    "invalid_protocol": "Este protocolo aún no está disponible.",
+    "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+    "too_many_quick_connections": "Hay demasiadas conexiones rápidas abiertas. Cierra alguna primero.",
+    "site_name_taken": "Ya existe un sitio con este nombre.",
+    "vault_locked": "Desbloquea el vault para guardar sitios.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

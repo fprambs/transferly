@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useDialogsStore } from '@/state/dialogs-store'
 
 import { useWorkspace } from '../workspace/use-workspace'
 
@@ -74,6 +75,7 @@ function toggled(open: ReadonlySet<string>, id: string): ReadonlySet<string> {
 export function SitesSidebar() {
   const { t } = useTranslation('shell')
   const workspace = useWorkspace()
+  const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
   const { collections, sites, quick } = useSitesData(workspace?.id)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
@@ -92,7 +94,7 @@ export function SitesSidebar() {
         </div>
       </div>
       <div className="px-2 pb-2.5">
-        <Button variant="outline" className="h-8 w-full justify-start gap-2 bg-muted/40">
+        <Button variant="outline" className="h-8 w-full justify-start gap-2 bg-muted/40" onClick={() => setQuickConnectOpen(true)}>
           <Zap className="text-warn" />
           <span className="flex-1 text-start">{t(($) => $.sidebar.quickConnect)}</span>
           <kbd className="rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground">⌘⇧K</kbd>

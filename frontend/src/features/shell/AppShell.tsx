@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
+import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 
 import { LanguageSelect } from './LanguageSelect'
@@ -51,6 +52,7 @@ export function AppShell() {
         </main>
       </div>
       <QueuePanel />
+      <QuickConnectFlow />
     </div>
   )
 }
