@@ -443,3 +443,42 @@ func TestGenerationFailures(t *testing.T) {
 		t.Errorf("Login() with a corrupt stored hash = %v, want ErrMalformedHash", err)
 	}
 }
+
+// TestVerify verifies validation that does not count as use.
+//
+// Scenarios:
+//   - a valid token returns its principal, and unknown tokens are rejected
+//   - verifying does not record use, so a session idle for too long is rejected however often it is verified
+//   - expired sessions are deleted, and a disabled account is refused
+func TestVerify(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	token, principal := signedIn(t, h)
+
+	got, err := h.svc.Verify(ctx, token)
+	if err != nil || got.User.ID != principal.User.ID {
+		t.Fatalf("Verify() = %+v, %v", got, err)
+	}
+	if _, err := h.svc.Verify(ctx, "unknown-token"); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Errorf("Verify(unknown) = %v", err)
+	}
+
+	for range 3 {
+		h.clock.Advance(20 * time.Minute)
+		_, err = h.svc.Verify(ctx, token)
+	}
+	if !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Errorf("Verify() of a session that only a background check kept = %v; want ErrUnauthenticated", err)
+	}
+	if len(h.store.sessions) != 0 {
+		t.Error("the idle session was not deleted")
+	}
+
+	again, _, _ := h.svc.Login(ctx, testEmail, testPassword, auth.ClientInfo{})
+	user := h.store.users[principal.User.ID]
+	user.Disabled = true
+	h.store.users[user.ID] = user
+	if _, err := h.svc.Verify(ctx, again); !errors.Is(err, auth.ErrUserDisabled) {
+		t.Errorf("Verify() of a disabled account = %v", err)
+	}
+}

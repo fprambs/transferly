@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/vault"
 )
 
@@ -74,6 +75,7 @@ func (s *server) LockVault(ctx context.Context, _ LockVaultRequestObject) (LockV
 	p, _ := principalFrom(ctx)
 	s.deps.Vault.Lock(vaultKey(p))
 	s.deps.Connections.CloseUser(p.User.ID)
+	s.deps.Events.Publish(ports.Event{Type: "vault.locked", UserID: p.User.ID})
 	return LockVault204Response{}, nil
 }
 

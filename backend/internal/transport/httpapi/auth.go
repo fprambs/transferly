@@ -83,6 +83,7 @@ func (s *server) Logout(ctx context.Context, _ LogoutRequestObject) (LogoutRespo
 	p, _ := principalFrom(ctx)
 	s.deps.Vault.Lock(vaultKey(p))
 	s.deps.Connections.CloseUser(p.User.ID)
+	s.deps.Events.CloseSession(vaultKey(p))
 	if err := s.deps.Auth.Logout(ctx, p.token); err != nil {
 		return nil, err
 	}

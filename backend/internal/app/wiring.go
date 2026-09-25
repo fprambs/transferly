@@ -90,6 +90,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Connections: pool,
 			Files:       files.NewService(workspaces, pool),
 			Transfers:   transfers,
+			Events:      hub,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

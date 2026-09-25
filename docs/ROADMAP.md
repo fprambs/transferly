@@ -87,7 +87,7 @@ Ninguna fase se cierra sin este análisis. Proceso, plantilla y catálogo de ata
 - [x] i18next, Vitest y Playwright (usadas)
 - [ ] TanStack Router, Table y Virtual; react-hook-form y zod; dnd-kit; react-arborist; MSW (se escriben antes de su primer uso, fase 1 en adelante)
 - [x] chi, goose, oapi-codegen, jlaffaye/ftp (informe del spike)
-- [ ] coder/websocket, `x/text` (antes de su primer uso)
+- [x] coder/websocket (guía hecha con su primer uso) · [ ] `x/text`
 - [x] Docker: multi-stage, distroless, Compose, Dev Containers
 
 ### 0.3 Esqueleto del backend
@@ -176,7 +176,7 @@ Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas 
 - [x] 1.7 Adaptador SFTP (`sftpfs`) con verificación de host key por callback obligatorio, autenticación por contraseña y por clave, suite de conformidad contra un servidor en proceso y contra OpenSSH real
 - [x] 1.8 Gestor de conexiones: pool por usuario y sitio (máximo 4), keepalive, validación antes de usar, reconexión con backoff solo ante fallos de red, cierre al bloquear el vault o cerrar sesión, conector con host key TOFU y `netguard`
 - [x] 1.9 API de archivos: listar, describir, crear carpetas, renombrar, borrar (recursivo opcional), descarga en streaming con rangos y subida en streaming reanudable; adjuntos inertes; errores con códigos estables
-- [ ] 1.10 Cola de transferencias persistente y eventos por WebSocket
+- [x] 1.10 Transferencias registradas de forma persistente (estado, progreso, reanudación, cancelación, historial privado por usuario) y eventos por WebSocket con `Origin` validado, instantánea inicial y cierre al terminar la sesión. El scheduler con límites por sitio y la expansión de carpetas llegan en la fase 2
 - [ ] 1.11 Frontend: setup, login, unlock, sitios, explorador, transferencias, con E2E
 - [ ] 1.12 Revisión de seguridad de la fase 1
 

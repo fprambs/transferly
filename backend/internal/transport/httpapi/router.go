@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/fprambs/sentinel/internal/adapters/events"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -53,6 +54,10 @@ type Deps struct {
 	Auth *auth.Service
 	// Workspaces is the workspace and permission service.
 	Workspaces *workspace.Service
+	// Events delivers events to the clients connected through the WebSocket.
+	Events *events.Hub
+	// WebSocket tunes the event stream.
+	WebSocket WebSocketConfig
 	// Transfers records uploads and downloads.
 	Transfers *transfer.Service
 	// Files performs operations on the files of remote sites.
@@ -97,6 +102,8 @@ func NewRouter(d Deps) http.Handler {
 	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) {
 		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", nil)
 	})
+
+	r.Get(EventsPath, eventsHandler(d))
 
 	spec, _ := GetSpec()
 	strict := NewStrictHandlerWithOptions(newServer(d), []StrictMiddlewareFunc{requireSession(d.InstanceKey, protectedOperations(spec))}, StrictHTTPServerOptions{

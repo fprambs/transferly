@@ -17,6 +17,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/adapters/events"
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
@@ -52,6 +53,7 @@ type api struct {
 	auth   *auth.Service
 	hash   *auth.Hasher
 	events *recordedEvents
+	hub    *events.Hub
 }
 
 // reply is a fully read HTTP response.
@@ -82,8 +84,9 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	vaults := newTestVault(store, clock)
 	sites := site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil)
 	pool := connections.New(newMemConnector(clock, sites), clock, connections.Config{Attempts: 1})
-	events := &recordedEvents{}
-	transfers := transfer.NewService(store, events, clock, transfer.Config{}, nil)
+	recorded := &recordedEvents{}
+	hub := events.New(64)
+	transfers := transfer.NewService(store, fanout{recorded, hub}, clock, transfer.Config{EventEvery: time.Millisecond}, nil)
 	deps := httpapi.Deps{
 		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Readiness:   store,
@@ -95,6 +98,8 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Sites:       sites,
 		Files:       files.NewService(workspaces, pool),
 		Transfers:   transfers,
+		Events:      hub,
+		WebSocket:   httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
 			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
@@ -110,7 +115,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	}
 	srv := httptest.NewServer(httpapi.NewRouter(deps))
 	t.Cleanup(srv.Close)
-	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: events}
+	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub}
 }
 
 // request describes one call.
@@ -648,4 +653,14 @@ func (r *recordedEvents) ofType(kind string) []ports.Event {
 		}
 	}
 	return out
+}
+
+// fanout publishes every event to several sinks.
+type fanout []ports.EventSink
+
+// Publish hands the event to every sink.
+func (f fanout) Publish(e ports.Event) {
+	for _, s := range f {
+		s.Publish(e)
+	}
 }

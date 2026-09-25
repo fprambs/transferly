@@ -20,6 +20,7 @@ Before using a library for the first time, read its official documentation and r
 | [Playwright](playwright.md) | done |
 | [Connection pool](connection-pool.md) | done |
 | [Remote files API](remote-files-api.md) | done |
+| [coder/websocket](websocket.md) | done |
 | [Frontend tooling](frontend-tooling.md) | done |
 | [Dev environment (Compose, air, Toxiproxy)](dev-environment.md) | done |
 | [Go module layout](go-layout.md) | done |

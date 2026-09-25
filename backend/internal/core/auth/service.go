@@ -183,6 +183,18 @@ func (s *Service) StartSession(ctx context.Context, user User, client ClientInfo
 // Sessions past their absolute end or idle for too long are deleted and rejected.
 // Use is recorded at most once per minute.
 func (s *Service) Authenticate(ctx context.Context, token string) (Principal, error) {
+	return s.validate(ctx, token, true)
+}
+
+// Verify checks that a session is still valid without recording use, so that an open connection, such as a
+// WebSocket, does not keep an unattended session alive. Expired sessions are rejected and deleted as by
+// [Service.Authenticate].
+func (s *Service) Verify(ctx context.Context, token string) (Principal, error) {
+	return s.validate(ctx, token, false)
+}
+
+// validate resolves a token to its principal, recording use when touch is set.
+func (s *Service) validate(ctx context.Context, token string, touch bool) (Principal, error) {
 	session, err := s.sessions.SessionByTokenHash(ctx, hashToken(token))
 	if errors.Is(err, ErrNotFound) {
 		return Principal{}, ErrUnauthenticated
@@ -205,7 +217,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Principal, er
 	if user.Disabled {
 		return Principal{}, ErrUserDisabled
 	}
-	if now.Sub(session.LastSeenAt) >= touchInterval {
+	if touch && now.Sub(session.LastSeenAt) >= touchInterval {
 		if err := s.sessions.TouchSession(ctx, session.ID, now); err != nil {
 			return Principal{}, err
 		}
