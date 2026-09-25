@@ -22,6 +22,10 @@ Before using a library for the first time, read its official documentation and r
 | [Remote files API](remote-files-api.md) | done |
 | [coder/websocket](websocket.md) | done |
 | [Theming](theming.md) | done |
+| [TanStack Router](tanstack-router.md) | done |
+| [Forms (react-hook-form and zod)](forms.md) | done |
+| [Mock Service Worker](msw.md) | done |
+| [TanStack Virtual](tanstack-virtual.md) | done |
 | [Frontend tooling](frontend-tooling.md) | done |
 | [Dev environment (Compose, air, Toxiproxy)](dev-environment.md) | done |
 | [Go module layout](go-layout.md) | done |
