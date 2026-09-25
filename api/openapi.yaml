@@ -2443,9 +2443,12 @@ components:
         timezone:
           type: string
           description: IANA time zone name.
+        theme:
+          type: string
+          description: Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
     User:
       type: object
-      required: [id, email, role, locale, timezone]
+      required: [id, email, role, locale, timezone, theme]
       properties:
         id:
           type: string
@@ -2458,6 +2461,8 @@ components:
         locale:
           type: string
         timezone:
+          type: string
+        theme:
           type: string
     SessionInfo:
       type: object

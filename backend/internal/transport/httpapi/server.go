@@ -47,7 +47,7 @@ func retryAfter(d time.Duration) *int {
 
 // userDTO converts an account to its public representation.
 func userDTO(u auth.User) User {
-	return User{Id: u.ID, Email: u.Email, Role: UserRole(u.Role), Locale: u.Locale, Timezone: u.Timezone}
+	return User{Id: u.ID, Email: u.Email, Role: UserRole(u.Role), Locale: u.Locale, Timezone: u.Timezone, Theme: u.Theme}
 }
 
 // sessionInfo builds the session document, including the anti-CSRF token of the session.
@@ -66,6 +66,8 @@ func isValidation(err error) (string, bool) {
 		return "invalid_locale", true
 	case errors.Is(err, auth.ErrInvalidTimezone):
 		return "invalid_timezone", true
+	case errors.Is(err, auth.ErrInvalidTheme):
+		return "invalid_theme", true
 	}
 	return "", false
 }

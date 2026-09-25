@@ -54,7 +54,7 @@ func TestAuthStore_ReportsDatabaseFailures(t *testing.T) {
 		"CreateFirstUser":       store.CreateFirstUser(ctx, user),
 		"CreateUser":            store.CreateUser(ctx, user),
 		"UpdatePasswordHash":    store.UpdatePasswordHash(ctx, id, "h"),
-		"UpdatePreferences":     store.UpdatePreferences(ctx, id, "en", "UTC"),
+		"UpdatePreferences":     store.UpdatePreferences(ctx, id, "en", "UTC", "sentinel-dark"),
 		"CreateSession":         store.CreateSession(ctx, session),
 		"TouchSession":          store.TouchSession(ctx, id, at),
 		"DeleteSession":         store.DeleteSession(ctx, id),

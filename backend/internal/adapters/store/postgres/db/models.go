@@ -98,6 +98,7 @@ type User struct {
 	Timezone     string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	Theme        string
 }
 
 type UserSession struct {

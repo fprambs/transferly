@@ -48,11 +48,11 @@ func (f *flakyStore) CreateSession(ctx context.Context, s auth.Session) error {
 }
 
 // UpdatePreferences fails when configured to.
-func (f *flakyStore) UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone string) error {
+func (f *flakyStore) UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone, theme string) error {
 	if f.failPreferences {
 		return errInjected
 	}
-	return f.Store.UpdatePreferences(ctx, id, locale, timezone)
+	return f.Store.UpdatePreferences(ctx, id, locale, timezone, theme)
 }
 
 // SessionByTokenHash fails once the configured number of lookups has been served.

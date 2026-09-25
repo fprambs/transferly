@@ -98,17 +98,20 @@ func (s *server) GetMe(ctx context.Context, _ GetMeRequestObject) (GetMeResponse
 	return GetMe200JSONResponse(s.sessionInfo(p.Principal)), nil
 }
 
-// UpdateMe changes the interface language and time zone of the signed-in user.
+// UpdateMe changes the interface language, time zone and theme of the signed-in user.
 func (s *server) UpdateMe(ctx context.Context, request UpdateMeRequestObject) (UpdateMeResponseObject, error) {
 	p, _ := principalFrom(ctx)
-	locale, timezone := "", ""
+	locale, timezone, theme := "", "", ""
 	if request.Body.Locale != nil {
 		locale = *request.Body.Locale
 	}
 	if request.Body.Timezone != nil {
 		timezone = *request.Body.Timezone
 	}
-	user, err := s.deps.Auth.UpdatePreferences(ctx, p.User, locale, timezone)
+	if request.Body.Theme != nil {
+		theme = *request.Body.Theme
+	}
+	user, err := s.deps.Auth.UpdatePreferences(ctx, p.User, locale, timezone, theme)
 	if code, ok := isValidation(err); ok {
 		return UpdateMe422ApplicationProblemPlusJSONResponse(problemBody(422, code, nil)), nil
 	}

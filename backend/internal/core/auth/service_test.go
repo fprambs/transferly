@@ -279,39 +279,50 @@ func TestLogoutAndPurge(t *testing.T) {
 // TestUpdatePreferences verifies preference updates.
 //
 // Scenarios:
-//   - a valid language tag and IANA zone are stored, the tag in canonical form
+//   - a valid language tag, IANA zone and theme are stored, the tag in canonical form, and new users start on the default theme
 //   - empty values keep the current setting
-//   - invalid tags, unknown zones, the Local pseudo-zone and fixed offsets are rejected
+//   - invalid tags, unknown zones, the Local pseudo-zone, fixed offsets and malformed theme identifiers are rejected
 //   - a failing store is reported
 func TestUpdatePreferences(t *testing.T) {
 	h := newHarness(t, nil)
 	ctx := context.Background()
 	_, principal := signedIn(t, h)
 
-	updated, err := h.svc.UpdatePreferences(ctx, principal.User, "es-cl", "America/Santiago")
-	if err != nil || updated.Locale != "es-CL" || updated.Timezone != "America/Santiago" {
+	if principal.User.Theme != "sentinel-dark" {
+		t.Errorf("a new user has the theme %q; want sentinel-dark", principal.User.Theme)
+	}
+	updated, err := h.svc.UpdatePreferences(ctx, principal.User, "es-cl", "America/Santiago", "monokai")
+	if err != nil || updated.Locale != "es-CL" || updated.Timezone != "America/Santiago" || updated.Theme != "monokai" {
 		t.Fatalf("UpdatePreferences() = %+v, %v", updated, err)
 	}
-	if stored := h.store.users[principal.User.ID]; stored.Locale != "es-CL" || stored.Timezone != "America/Santiago" {
+	if stored := h.store.users[principal.User.ID]; stored.Locale != "es-CL" || stored.Timezone != "America/Santiago" || stored.Theme != "monokai" {
 		t.Errorf("stored user = %+v", stored)
 	}
-	kept, err := h.svc.UpdatePreferences(ctx, updated, "", "")
-	if err != nil || kept.Locale != "es-CL" || kept.Timezone != "America/Santiago" {
+	kept, err := h.svc.UpdatePreferences(ctx, updated, "", "", "")
+	if err != nil || kept.Locale != "es-CL" || kept.Timezone != "America/Santiago" || kept.Theme != "monokai" {
 		t.Errorf("empty update = %+v, %v, want the current settings", kept, err)
 	}
 
 	for _, locale := range []string{"not a tag!", "x"} {
-		if _, err := h.svc.UpdatePreferences(ctx, updated, locale, ""); !errors.Is(err, auth.ErrInvalidLocale) {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, locale, "", ""); !errors.Is(err, auth.ErrInvalidLocale) {
 			t.Errorf("locale %q = %v, want ErrInvalidLocale", locale, err)
 		}
 	}
 	for _, zone := range []string{"Mars/Olympus", "Local", "+01:00", "../etc/passwd"} {
-		if _, err := h.svc.UpdatePreferences(ctx, updated, "", zone); !errors.Is(err, auth.ErrInvalidTimezone) {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, "", zone, ""); !errors.Is(err, auth.ErrInvalidTimezone) {
 			t.Errorf("time zone %q = %v, want ErrInvalidTimezone", zone, err)
 		}
 	}
+	for _, theme := range []string{"Monokai", "with space", "-dash", "", "a/b", strings.Repeat("x", 41)} {
+		if theme == "" {
+			continue
+		}
+		if _, err := h.svc.UpdatePreferences(ctx, updated, "", "", theme); !errors.Is(err, auth.ErrInvalidTheme) {
+			t.Errorf("theme %q = %v, want ErrInvalidTheme", theme, err)
+		}
+	}
 	h.store.failing("UpdatePreferences")
-	if _, err := h.svc.UpdatePreferences(ctx, updated, "en", "UTC"); !errors.Is(err, errBoom) {
+	if _, err := h.svc.UpdatePreferences(ctx, updated, "en", "UTC", "nord"); !errors.Is(err, errBoom) {
 		t.Errorf("UpdatePreferences() with a failing store = %v", err)
 	}
 }

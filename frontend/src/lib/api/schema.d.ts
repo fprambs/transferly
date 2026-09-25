@@ -900,6 +900,8 @@ export interface components {
             locale?: string;
             /** @description IANA time zone name. */
             timezone?: string;
+            /** @description Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes. */
+            theme?: string;
         };
         User: {
             /** Format: uuid */
@@ -909,6 +911,7 @@ export interface components {
             role: "admin" | "user";
             locale: string;
             timezone: string;
+            theme: string;
         };
         SessionInfo: {
             user: components["schemas"]["User"];

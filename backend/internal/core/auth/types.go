@@ -41,6 +41,8 @@ var (
 	ErrInvalidLocale = errors.New("invalid locale")
 	// ErrInvalidTimezone means the name is not an IANA time zone.
 	ErrInvalidTimezone = errors.New("invalid time zone")
+	// ErrInvalidTheme means the theme identifier is not made of lower case letters, digits and hyphens, up to 40.
+	ErrInvalidTheme = errors.New("invalid theme")
 	// ErrMalformedHash means a stored password hash cannot be parsed.
 	ErrMalformedHash = errors.New("malformed password hash")
 )
@@ -61,6 +63,9 @@ type User struct {
 	Locale string
 	// Timezone is the preferred IANA time zone name.
 	Timezone string
+	// Theme is the identifier of the interface theme the user chose. The server only checks its shape: the themes
+	// themselves belong to the clients.
+	Theme string
 	// CreatedAt is when the account was created, in UTC.
 	CreatedAt time.Time
 }
@@ -115,8 +120,8 @@ type UserStore interface {
 	CountUsers(ctx context.Context) (int, error)
 	// UpdatePasswordHash replaces the stored password hash.
 	UpdatePasswordHash(ctx context.Context, id uuid.UUID, hash string) error
-	// UpdatePreferences changes the locale and time zone.
-	UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone string) error
+	// UpdatePreferences changes the locale, time zone and theme.
+	UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone, theme string) error
 }
 
 // SessionStore persists sessions.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -26,8 +27,12 @@ const (
 	touchInterval      = time.Minute
 	defaultLocale      = "en"
 	defaultTimezone    = "UTC"
+	defaultTheme       = "sentinel-dark"
 	sessionTokenPrefix = "sentinel/session/v1"
 )
+
+// themePattern matches theme identifiers.
+var themePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,39}$`)
 
 // Config holds the session policy.
 type Config struct {
@@ -110,7 +115,7 @@ func (s *Service) newUser(ctx context.Context, email, password string, role Role
 	}
 	return User{
 		ID: id, Email: normalized, PasswordHash: hash, Role: role,
-		Locale: defaultLocale, Timezone: defaultTimezone, CreatedAt: s.clock.Now(),
+		Locale: defaultLocale, Timezone: defaultTimezone, Theme: defaultTheme, CreatedAt: s.clock.Now(),
 	}, nil
 }
 
@@ -250,14 +255,20 @@ func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 	return s.sessions.DeleteExpiredSessions(ctx, now, now.Add(-s.config.IdleTimeout))
 }
 
-// UpdatePreferences validates and stores the locale and time zone of a user and returns the updated user.
+// UpdatePreferences validates and stores the locale, time zone and theme of a user and returns the updated user.
 // Empty values keep the current setting.
-func (s *Service) UpdatePreferences(ctx context.Context, user User, locale, timezone string) (User, error) {
+func (s *Service) UpdatePreferences(ctx context.Context, user User, locale, timezone, theme string) (User, error) {
 	if locale == "" {
 		locale = user.Locale
 	}
 	if timezone == "" {
 		timezone = user.Timezone
+	}
+	if theme == "" {
+		theme = user.Theme
+	}
+	if !themePattern.MatchString(theme) {
+		return User{}, ErrInvalidTheme
 	}
 	tag, err := language.Parse(locale)
 	if err != nil {
@@ -267,10 +278,10 @@ func (s *Service) UpdatePreferences(ctx context.Context, user User, locale, time
 		return User{}, ErrInvalidTimezone
 	}
 	locale = tag.String()
-	if err := s.users.UpdatePreferences(ctx, user.ID, locale, timezone); err != nil {
+	if err := s.users.UpdatePreferences(ctx, user.ID, locale, timezone, theme); err != nil {
 		return User{}, err
 	}
-	user.Locale, user.Timezone = locale, timezone
+	user.Locale, user.Timezone, user.Theme = locale, timezone, theme
 	return user, nil
 }
 

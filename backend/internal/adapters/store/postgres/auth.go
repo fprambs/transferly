@@ -25,23 +25,30 @@ var (
 	_ auth.SessionStore = (*Store)(nil)
 )
 
+// defaultTheme is the theme of users created without one, the same as the column default.
+const defaultTheme = "sentinel-dark"
+
 // insertUserParams converts a user to the parameters of the insert query.
 func insertUserParams(u auth.User) db.InsertUserParams {
+	theme := u.Theme
+	if theme == "" {
+		theme = defaultTheme
+	}
 	status := statusActive
 	if u.Disabled {
 		status = statusDisabled
 	}
 	return db.InsertUserParams{
 		ID: u.ID, Email: u.Email, PasswordHash: u.PasswordHash, Role: string(u.Role),
-		Status: status, Locale: u.Locale, Timezone: u.Timezone, CreatedAt: u.CreatedAt,
+		Status: status, Locale: u.Locale, Timezone: u.Timezone, CreatedAt: u.CreatedAt, Theme: theme,
 	}
 }
 
 // userFrom converts a stored user row to the core type.
-func userFrom(id uuid.UUID, email, hash, role, status, locale, timezone string, createdAt time.Time) auth.User {
+func userFrom(id uuid.UUID, email, hash, role, status, locale, timezone, theme string, createdAt time.Time) auth.User {
 	return auth.User{
 		ID: id, Email: email, PasswordHash: hash, Role: auth.Role(role), Disabled: status == statusDisabled,
-		Locale: locale, Timezone: timezone, CreatedAt: createdAt.UTC(),
+		Locale: locale, Timezone: timezone, Theme: theme, CreatedAt: createdAt.UTC(),
 	}
 }
 
@@ -98,7 +105,7 @@ func (s *Store) UserByEmail(ctx context.Context, email string) (auth.User, error
 	if err != nil {
 		return auth.User{}, notFound(err)
 	}
-	return userFrom(r.ID, r.Email, r.PasswordHash, r.Role, r.Status, r.Locale, r.Timezone, r.CreatedAt), nil
+	return userFrom(r.ID, r.Email, r.PasswordHash, r.Role, r.Status, r.Locale, r.Timezone, r.Theme, r.CreatedAt), nil
 }
 
 // UserByID implements [auth.UserStore].
@@ -107,7 +114,7 @@ func (s *Store) UserByID(ctx context.Context, id uuid.UUID) (auth.User, error) {
 	if err != nil {
 		return auth.User{}, notFound(err)
 	}
-	return userFrom(r.ID, r.Email, r.PasswordHash, r.Role, r.Status, r.Locale, r.Timezone, r.CreatedAt), nil
+	return userFrom(r.ID, r.Email, r.PasswordHash, r.Role, r.Status, r.Locale, r.Timezone, r.Theme, r.CreatedAt), nil
 }
 
 // CountUsers implements [auth.UserStore].
@@ -122,8 +129,8 @@ func (s *Store) UpdatePasswordHash(ctx context.Context, id uuid.UUID, hash strin
 }
 
 // UpdatePreferences implements [auth.UserStore].
-func (s *Store) UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone string) error {
-	return s.queries.UpdatePreferences(ctx, db.UpdatePreferencesParams{ID: id, Locale: locale, Timezone: timezone})
+func (s *Store) UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone, theme string) error {
+	return s.queries.UpdatePreferences(ctx, db.UpdatePreferencesParams{ID: id, Locale: locale, Timezone: timezone, Theme: theme})
 }
 
 // CreateSession implements [auth.SessionStore].

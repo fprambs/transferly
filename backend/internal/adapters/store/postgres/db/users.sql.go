@@ -24,8 +24,8 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const insertUser = `-- name: InsertUser :exec
-INSERT INTO users (id, email, password_hash, role, status, locale, timezone, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO users (id, email, password_hash, role, status, locale, timezone, created_at, theme)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type InsertUserParams struct {
@@ -37,6 +37,7 @@ type InsertUserParams struct {
 	Locale       string
 	Timezone     string
 	CreatedAt    time.Time
+	Theme        string
 }
 
 func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
@@ -49,6 +50,7 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
 		arg.Locale,
 		arg.Timezone,
 		arg.CreatedAt,
+		arg.Theme,
 	)
 	return err
 }
@@ -77,22 +79,28 @@ func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHash
 }
 
 const updatePreferences = `-- name: UpdatePreferences :exec
-UPDATE users SET locale = $2, timezone = $3, updated_at = now() WHERE id = $1
+UPDATE users SET locale = $2, timezone = $3, theme = $4, updated_at = now() WHERE id = $1
 `
 
 type UpdatePreferencesParams struct {
 	ID       uuid.UUID
 	Locale   string
 	Timezone string
+	Theme    string
 }
 
 func (q *Queries) UpdatePreferences(ctx context.Context, arg UpdatePreferencesParams) error {
-	_, err := q.db.Exec(ctx, updatePreferences, arg.ID, arg.Locale, arg.Timezone)
+	_, err := q.db.Exec(ctx, updatePreferences,
+		arg.ID,
+		arg.Locale,
+		arg.Timezone,
+		arg.Theme,
+	)
 	return err
 }
 
 const userByEmail = `-- name: UserByEmail :one
-SELECT id, email, password_hash, role, status, locale, timezone, created_at
+SELECT id, email, password_hash, role, status, locale, timezone, created_at, theme
 FROM users WHERE email = $1
 `
 
@@ -105,6 +113,7 @@ type UserByEmailRow struct {
 	Locale       string
 	Timezone     string
 	CreatedAt    time.Time
+	Theme        string
 }
 
 func (q *Queries) UserByEmail(ctx context.Context, email string) (UserByEmailRow, error) {
@@ -119,12 +128,13 @@ func (q *Queries) UserByEmail(ctx context.Context, email string) (UserByEmailRow
 		&i.Locale,
 		&i.Timezone,
 		&i.CreatedAt,
+		&i.Theme,
 	)
 	return i, err
 }
 
 const userByID = `-- name: UserByID :one
-SELECT id, email, password_hash, role, status, locale, timezone, created_at
+SELECT id, email, password_hash, role, status, locale, timezone, created_at, theme
 FROM users WHERE id = $1
 `
 
@@ -137,6 +147,7 @@ type UserByIDRow struct {
 	Locale       string
 	Timezone     string
 	CreatedAt    time.Time
+	Theme        string
 }
 
 func (q *Queries) UserByID(ctx context.Context, id uuid.UUID) (UserByIDRow, error) {
@@ -151,6 +162,7 @@ func (q *Queries) UserByID(ctx context.Context, id uuid.UUID) (UserByIDRow, erro
 		&i.Locale,
 		&i.Timezone,
 		&i.CreatedAt,
+		&i.Theme,
 	)
 	return i, err
 }
