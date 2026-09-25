@@ -19,6 +19,11 @@ configure({ asyncUtilTimeout: 4000 })
 
 window.scrollTo = () => undefined
 
+Object.defineProperties(HTMLElement.prototype, {
+  offsetWidth: { configurable: true, get: () => 900 },
+  offsetHeight: { configurable: true, get: () => 400 },
+})
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 
 afterEach(() => {

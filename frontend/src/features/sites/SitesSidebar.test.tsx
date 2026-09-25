@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { Site } from '@/lib/api'
 import { mockWorkspaceData } from '@/test/handlers'
@@ -34,6 +34,7 @@ function site(id: string, name: string, collectionId?: string): Site {
  * - collections, sites and quick connections appear as a tree with counts and the "not saved" mark
  * - opening a collection reveals its children and closing it hides them again
  * - clicking a row selects it and only one row is selected at a time; Enter and Space select the row with focus
+ * - selecting a site or a quick connection opens it, and selecting a collection does not
  * - the toolbar offers quick connect and the create actions
  * - the labels follow the interface language
  */
@@ -41,7 +42,7 @@ describe('SitesSidebar', () => {
   it('shows the empty message for a workspace without sites', async () => {
     mockWorkspaceData()
 
-    await renderWithProviders(<SitesSidebar />)
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
     expect(await screen.findByText('No sites yet')).toBeInTheDocument()
   })
@@ -65,7 +66,7 @@ describe('SitesSidebar', () => {
       ],
     })
     const user = userEvent.setup()
-    await renderWithProviders(<SitesSidebar />)
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
     const tree = await screen.findByRole('tree', { name: 'Sites' })
 
     const work = await within(tree).findByRole('treeitem', { name: /Work/ })
@@ -102,7 +103,8 @@ describe('SitesSidebar', () => {
       ],
     })
     const user = userEvent.setup()
-    await renderWithProviders(<SitesSidebar />)
+    const onOpen = vi.fn()
+    await renderWithProviders(<SitesSidebar onOpen={onOpen} />)
     const home = await screen.findByRole('treeitem', { name: /Home/ })
     const work = screen.getByRole('treeitem', { name: /Work/ })
     const quick = screen.getByRole('treeitem', { name: /198.51.100.7/ })
@@ -125,12 +127,13 @@ describe('SitesSidebar', () => {
     await user.keyboard(' ')
     expect(home).toHaveAttribute('aria-selected', 'true')
     expect(quick).toHaveAttribute('aria-selected', 'false')
+    expect(onOpen.mock.calls).toEqual([['s2'], ['q1'], ['s2']])
   })
 
   it('offers quick connect and the create actions', async () => {
     mockWorkspaceData()
 
-    await renderWithProviders(<SitesSidebar />)
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
     expect(await screen.findByRole('button', { name: /Quick connect/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New collection' })).toBeInTheDocument()
@@ -140,7 +143,7 @@ describe('SitesSidebar', () => {
   it('speaks the interface language', async () => {
     mockWorkspaceData()
 
-    await renderWithProviders(<SitesSidebar />, 'es')
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />, 'es')
 
     expect(await screen.findByRole('navigation', { name: 'Sitios' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Conexión rápida/ })).toBeInTheDocument()

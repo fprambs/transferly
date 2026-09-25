@@ -17,12 +17,6 @@
     "collectionCount": "{{count}} sites",
     "loading": "Loading sites…"
   },
-  "panes": {
-    "label": "File panes",
-    "local": "Local files",
-    "remote": "Remote files",
-    "empty": "Not connected"
-  },
   "queue": {
     "title": "Transfers",
     "empty": "No transfers",

@@ -7,7 +7,10 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
+import { z } from 'zod'
 
+import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
+import { SiteExplorer } from '@/features/explorer/SiteExplorer'
 import { AppShell } from '@/features/shell/AppShell'
 import { AuthScreen } from '@/features/auth/AuthScreen'
 import type { Api } from '@/lib/api/use-api'
@@ -28,10 +31,10 @@ export interface RouterContext {
 /** Root route: renders whatever child matches. */
 const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet })
 
-/** Home of a signed-in user; sends everybody else to setup or login. */
-const homeRoute = createRoute({
+/** Layout of everything a signed-in user sees; it sends everybody else to setup or login. */
+const shellRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/',
+  id: 'shell',
   beforeLoad: async ({ context }) => {
     const session = await context.queryClient.ensureQueryData(sessionQuery(context.api, context.transport))
     if (session !== null) {
@@ -41,6 +44,17 @@ const homeRoute = createRoute({
     throw redirect({ to: setupRequired ? '/setup' : '/login' })
   },
   component: AppShell,
+})
+
+/** Home of a signed-in user: no site is open yet. */
+const homeRoute = createRoute({ getParentRoute: () => shellRoute, path: '/', component: EmptyExplorer })
+
+/** A saved site or quick connection, browsed at the folder given by the `path` search parameter. */
+const siteRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/sites/$siteId',
+  validateSearch: z.object({ path: z.string().catch('/') }),
+  component: SiteExplorer,
 })
 
 /** Sends a signed-in user home; anyone else may see the screen. */
@@ -73,7 +87,7 @@ const setupRoute = createRoute({
 })
 
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([homeRoute, loginRoute, setupRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute]), loginRoute, setupRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

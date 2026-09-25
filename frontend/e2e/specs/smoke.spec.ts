@@ -15,7 +15,7 @@ test.describe('smoke', () => {
     await expect(shell.heading).toHaveText('Sentinel')
     await expect(page.getByRole('banner')).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Sites' })).toBeVisible()
-    await expect(page.getByRole('main', { name: 'File panes' })).toBeVisible()
+    await expect(page.getByRole('main', { name: 'Explorer' })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Transfers' })).toBeVisible()
   })
 

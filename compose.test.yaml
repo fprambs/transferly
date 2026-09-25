@@ -42,6 +42,15 @@ services:
       postgres:
         condition: service_healthy
 
+  sftp:
+    image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
+    command: sentinel:sentinel:1001:100:upload
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 22"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   sentinel:
     build:
       context: .
@@ -50,6 +59,7 @@ services:
     environment:
       SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
       SENTINEL_ALLOWED_ORIGINS: http://sentinel:8080
+      SENTINEL_ALLOWED_NETWORKS: 172.16.0.0/12
     tmpfs:
       - /data:mode=0700,uid=65532,gid=65532
     read_only: true
@@ -75,6 +85,8 @@ services:
       - .:/workspace
     depends_on:
       sentinel:
+        condition: service_healthy
+      sftp:
         condition: service_healthy
 
 volumes:

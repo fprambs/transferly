@@ -13,14 +13,14 @@ import { renderApp } from '@/test/render-app'
 /** Renders the application signed in and waits for the shell. */
 async function renderShell() {
   await renderApp()
-  await screen.findByRole('main', { name: 'File panes' })
+  await screen.findByRole('main', { name: 'Explorer' })
 }
 
 /**
  * Covers {@link AppShell} and the panels it composes.
  *
  * Scenarios:
- * - exposes the landmark regions: toolbar, sites navigation, file panes and transfers
+ * - exposes the landmark regions: toolbar, sites navigation, explorer and transfers
  * - the theme list offers every theme grouped by scheme and changes the stored choice
  * - following the system disables the theme list
  * - the transfer queue collapses and expands, announcing its state
@@ -40,9 +40,8 @@ describe('AppShell', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
     expect(screen.getByRole('banner', { name: 'Main toolbar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Sites' })).toBeInTheDocument()
-    expect(screen.getByRole('main', { name: 'File panes' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Local files' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Remote files' })).toBeInTheDocument()
+    expect(screen.getByRole('main', { name: 'Explorer' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Pick a site to start' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Transfers' })).toBeInTheDocument()
   })
 
@@ -104,7 +103,7 @@ describe('AppShell', () => {
     const unbind = bindDocumentLanguage(i18n)
 
     await renderApp({ i18n })
-    await screen.findByRole('main', { name: 'File panes' })
+    await screen.findByRole('main', { name: 'Explorer' })
 
     expect(document.documentElement.dir).toBe('rtl')
     unbind()

@@ -1,0 +1,49 @@
+{
+  "label": "Explorer",
+  "empty": {
+    "title": "Pick a site to start",
+    "body": "Choose a saved site in the sidebar, or use quick connect to try a server."
+  },
+  "breadcrumbs": "Path",
+  "columns": {
+    "name": "Name",
+    "size": "Size",
+    "modified": "Modified",
+    "mode": "Permissions"
+  },
+  "list": "Files",
+  "emptyDir": "This folder is empty.",
+  "loading": "Loading…",
+  "retry": "Try again",
+  "up": "Up one level",
+  "refresh": "Refresh",
+  "rows": "{{count}} items",
+  "directory": "Folder",
+  "symlink": "Link",
+  "other": "Other",
+  "file": "File",
+  "trust": {
+    "title": "Trust this server?",
+    "body": "This server key is new. Check the fingerprint before trusting it.",
+    "keyType": "Key type",
+    "fingerprint": "Fingerprint",
+    "confirm": "Trust and connect"
+  },
+  "errors": {
+    "host_key_changed": "The server key changed since it was trusted. This could be an attack: do not connect.",
+    "remote_auth_failed": "The server refused the credentials.",
+    "remote_unavailable": "The server did not answer.",
+    "remote_permission_denied": "You do not have permission to read this folder.",
+    "path_not_found": "This folder does not exist.",
+    "not_a_directory": "This path is not a folder.",
+    "path_exists": "An item with this name already exists.",
+    "directory_not_empty": "The folder is not empty.",
+    "destination_blocked": "This address is not allowed by the server policy.",
+    "host_unresolvable": "The host name could not be resolved.",
+    "vault_locked": "Unlock the vault to use the saved credentials.",
+    "site_not_found": "This site no longer exists.",
+    "quick_connection_not_found": "This quick connection was closed. Open it again from quick connect.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again."
+  }
+}

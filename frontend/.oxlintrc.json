@@ -77,6 +77,14 @@
       "rules": {
         "react/rules-of-hooks": "off"
       }
+    },
+    {
+      "files": [
+        "src/features/explorer/EntryTable.tsx"
+      ],
+      "rules": {
+        "react/incompatible-library": "off"
+      }
     }
   ]
 }

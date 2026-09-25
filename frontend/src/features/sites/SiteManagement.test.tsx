@@ -36,7 +36,7 @@ function unknownKey() {
 /** Renders the sidebar and waits for the tree. */
 async function renderSidebar() {
   const user = userEvent.setup()
-  await renderWithProviders(<SitesSidebar />)
+  await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
   await screen.findByRole('treeitem', { name: /Prod/ })
   return user
 }

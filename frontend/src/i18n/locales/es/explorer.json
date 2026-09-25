@@ -1,0 +1,49 @@
+{
+  "label": "Explorador",
+  "empty": {
+    "title": "Elige un sitio para empezar",
+    "body": "Elige un sitio guardado en la barra lateral, o usa la conexión rápida para probar un servidor."
+  },
+  "breadcrumbs": "Ruta",
+  "columns": {
+    "name": "Nombre",
+    "size": "Tamaño",
+    "modified": "Modificado",
+    "mode": "Permisos"
+  },
+  "list": "Archivos",
+  "emptyDir": "Esta carpeta está vacía.",
+  "loading": "Cargando…",
+  "retry": "Reintentar",
+  "up": "Subir un nivel",
+  "refresh": "Actualizar",
+  "rows": "{{count}} elementos",
+  "directory": "Carpeta",
+  "symlink": "Enlace",
+  "other": "Otro",
+  "file": "Archivo",
+  "trust": {
+    "title": "¿Confiar en este servidor?",
+    "body": "La clave de este servidor es nueva. Comprueba la huella antes de confiar en ella.",
+    "keyType": "Tipo de clave",
+    "fingerprint": "Huella",
+    "confirm": "Confiar y conectar"
+  },
+  "errors": {
+    "host_key_changed": "La clave del servidor cambió desde que confiaste en ella. Podría ser un ataque: no te conectes.",
+    "remote_auth_failed": "El servidor rechazó las credenciales.",
+    "remote_unavailable": "El servidor no respondió.",
+    "remote_permission_denied": "No tienes permiso para leer esta carpeta.",
+    "path_not_found": "Esta carpeta no existe.",
+    "not_a_directory": "Esta ruta no es una carpeta.",
+    "path_exists": "Ya existe un elemento con este nombre.",
+    "directory_not_empty": "La carpeta no está vacía.",
+    "destination_blocked": "La política del servidor no permite esta dirección.",
+    "host_unresolvable": "No se pudo resolver el nombre del host.",
+    "vault_locked": "Desbloquea el vault para usar las credenciales guardadas.",
+    "site_not_found": "Este sitio ya no existe.",
+    "quick_connection_not_found": "Esta conexión rápida se cerró. Ábrela de nuevo desde la conexión rápida.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

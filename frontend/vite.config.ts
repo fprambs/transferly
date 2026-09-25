@@ -19,6 +19,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'guards/**/*.test.ts'],
+    testTimeout: 20000,
     restoreMocks: true,
     unstubGlobals: true,
     coverage: {

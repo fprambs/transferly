@@ -1,9 +1,9 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { adminSession, mockSession, mockWorkspaceData, mockSetupRequired, problem } from '@/test/handlers'
+import { adminSession, mockSession, mockSetupRequired, mockWorkspaceData, personalWorkspace, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 
@@ -18,6 +18,8 @@ import { renderApp } from '@/test/render-app'
  * - creating the administrator opens the shell
  * - a wrong password shows the server error and clears the password
  * - the form validates the email and the password before calling the server
+ * - opening a site from the sidebar shows its folder, and moving through folders updates the address
+ * - a site opened by its address shows nothing until the workspace is known
  * - the messages follow the interface language
  */
 describe('routes', () => {
@@ -165,6 +167,68 @@ describe('routes', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByText('Use at least 12 characters.')).toBeInTheDocument()
+  })
+
+  it('opens a site from the sidebar and moves through its folders', async () => {
+    mockSession(adminSession)
+    mockWorkspaceData({
+      sites: [
+        {
+          id: 's1',
+          name: 'Prod',
+          protocol: 'sftp',
+          host: 'prod.example.com',
+          port: 22,
+          username: 'deploy',
+          authMethod: 'password',
+          listTimezone: 'UTC',
+          secrets: [],
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    })
+    const entry = (name: string, type: 'file' | 'directory') => ({
+      name,
+      path: `/${name}`,
+      type,
+      size: 10,
+      mode: '-rw-r--r--',
+      modifiedAt: '2026-03-08T07:30:00Z',
+      modifiedPrecision: 'minute',
+    })
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', ({ request }) =>
+        HttpResponse.json(new URL(request.url).searchParams.get('path') === '/' ? [entry('www', 'directory')] : [entry('index.html', 'file')]),
+      ),
+    )
+    const user = userEvent.setup()
+    const { history } = await renderApp()
+
+    await user.click(await screen.findByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(await screen.findByText('www'))
+
+    expect(await screen.findByText('index.html')).toBeInTheDocument()
+    expect(history.location.pathname).toBe('/sites/s1')
+    expect(history.location.search).toBe('?path=%2Fwww')
+  })
+
+  it('waits for the workspace before showing a site opened by its address', async () => {
+    mockSession(adminSession)
+    mockWorkspaceData()
+    server.use(
+      http.get('/api/v1/workspaces', async () => {
+        await delay(100)
+        return HttpResponse.json([personalWorkspace])
+      }),
+      http.get('/api/v1/workspaces/:id/sites/s1/files', () => HttpResponse.json([])),
+    )
+
+    await renderApp({ path: '/sites/s1?path=%2Fwww' })
+
+    await screen.findByRole('main', { name: 'Explorer' })
+    expect(screen.queryByRole('navigation', { name: 'Path' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Path' })).toBeInTheDocument()
   })
 
   it('speaks the interface language', async () => {

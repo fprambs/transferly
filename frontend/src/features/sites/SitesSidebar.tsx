@@ -26,6 +26,8 @@ interface CollectionActions {
   selected: string | null
   /** Called when a row is selected. */
   onSelect: (key: string) => void
+  /** Called to open a saved site or a quick connection. */
+  onOpen: (siteId: string) => void
   /** Called when a collection is opened or closed. */
   onToggle: (id: string) => void
   /** Called to create a collection inside another. */
@@ -84,10 +86,15 @@ function Row({ node, actions }: RowProps) {
   const { t } = useTranslation('shell')
   const { t: sites } = useTranslation('sites')
   const selected = actions.selected === rowKey(node)
-  const select = () => actions.onSelect(rowKey(node))
+  const select = () => {
+    actions.onSelect(rowKey(node))
+    if (node.kind !== 'collection') {
+      actions.onOpen(node.id)
+    }
+  }
   const style = { paddingInlineStart: `${node.depth * indentPerLevel + 8}px` }
   const base =
-    'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md pe-2 text-start text-[13px] outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-primary/15 aria-selected:font-medium'
+    'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md pe-2 text-start text-[13px] outline-none hover:bg-accent hover:[&_span]:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-primary/15 aria-selected:font-medium aria-selected:[&_span]:text-foreground'
 
   if (node.kind === 'collection') {
     return (
@@ -182,8 +189,14 @@ function toggled(open: ReadonlySet<string>, id: string): ReadonlySet<string> {
   return new Set(open.has(id) ? [...open].filter((item) => item !== id) : [...open, id])
 }
 
+/** Props of {@link SitesSidebar}. */
+export interface SitesSidebarProps {
+  /** Called with the identifier of the saved site or quick connection the user opens. */
+  onOpen: (siteId: string) => void
+}
+
 /** Sidebar of the shell: quick connect and the tree of collections and sites. */
-export function SitesSidebar() {
+export function SitesSidebar({ onOpen }: SitesSidebarProps) {
   const { t } = useTranslation('shell')
   const workspace = useWorkspace()
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
@@ -198,6 +211,7 @@ export function SitesSidebar() {
   const actions: CollectionActions = {
     selected,
     onSelect: setSelected,
+    onOpen,
     onToggle: (id) => setExpanded((open) => toggled(open, id)),
     onCreateIn: (parentId) => {
       setExpanded((open) => new Set([...open, parentId]))

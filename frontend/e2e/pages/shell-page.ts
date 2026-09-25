@@ -6,7 +6,7 @@ export type Language = 'en' | 'es'
 /** Identifier of a theme the interface offers, such as `monokai`. */
 export type Theme = string
 
-/** Page object for the application shell: toolbar, sites sidebar, file panes and transfer queue. */
+/** Page object for the application shell: toolbar, sites sidebar, explorer and transfer queue. */
 export class ShellPage {
   /** Level one heading with the product name. */
   readonly heading: Locator

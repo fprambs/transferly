@@ -15,4 +15,4 @@ Source: [Virtual React](https://tanstack.com/virtual/latest/docs/framework/react
 
 ## Tests
 
-jsdom has no layout: pass `initialRect: { width: 800, height: 400 }` and `observeElementRect` through an injectable option of the component, so tests render a known window and assert which rows exist.
+jsdom has no layout, so `src/test/setup.ts` makes every element report a 900 by 400 box (`offsetWidth` and `offsetHeight`, which is what the virtualizer reads): the virtualizer then draws a known window and tests assert which rows exist. Components take no test-only props.
