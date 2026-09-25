@@ -6,6 +6,26 @@ export type HealthStatus = components['schemas']['HealthStatus']
 /** RFC 9457 problem document returned by the backend on errors; generated from the OpenAPI contract. */
 export type Problem = components['schemas']['Problem']
 
+/** A recorded upload or download; generated from the OpenAPI contract. */
+export type TransferRecord = components['schemas']['Transfer']
+
+/** A message of the server's event stream. */
+export type ServerEvent =
+  | { type: 'snapshot'; data: { transfers: TransferRecord[] } }
+  | { type: 'transfer.state'; data: TransferRecord }
+  | { type: 'transfer.progress'; data: { id: string; bytesDone: number; totalBytes: number } }
+  | { type: 'vault.locked'; data: null }
+
+/** What to do with the events of the server's stream and with the life of its connection. */
+export interface EventHandlers {
+  /** Called for every event that arrives. */
+  onEvent: (event: ServerEvent) => void
+  /** Called when the stream is open, the first time and after every reconnection made by the caller. */
+  onOpen: () => void
+  /** Called when the stream ends without the caller asking for it. */
+  onClose: () => void
+}
+
 /** HTTP methods of the API. */
 export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -42,6 +62,12 @@ export interface Transport {
   request<T>(request: ApiRequest): Promise<T>
   /** Returns the URL of a path, for links the browser follows itself such as downloads. */
   url(path: string, query?: ApiQuery): string
+  /**
+   * Opens the server's event stream: transfer state and progress, and vault locks.
+   *
+   * @returns A function that closes the stream; after it, `onClose` is not called.
+   */
+  events(handlers: EventHandlers): () => void
   /** Sets the anti-CSRF token sent with every state-changing call; `undefined` forgets it. */
   setCsrfToken(token: string | undefined): void
 }

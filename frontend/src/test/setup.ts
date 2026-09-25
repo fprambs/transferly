@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 
 import { cleanup, configure } from '@testing-library/react'
-import { afterAll, afterEach, beforeAll } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 
+import { FakeSocket } from './fake-socket'
 import { server } from './msw'
 
 Object.defineProperty(window, 'matchMedia', {
@@ -22,6 +23,11 @@ window.scrollTo = () => undefined
 Object.defineProperties(HTMLElement.prototype, {
   offsetWidth: { configurable: true, get: () => 900 },
   offsetHeight: { configurable: true, get: () => 400 },
+})
+
+beforeEach(() => {
+  FakeSocket.reset()
+  vi.stubGlobal('WebSocket', FakeSocket)
 })
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))

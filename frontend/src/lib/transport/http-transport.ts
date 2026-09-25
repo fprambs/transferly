@@ -1,4 +1,13 @@
-import { type ApiQuery, type ApiRequest, ApiError, type HealthStatus, type Problem, type Transport } from './types'
+import {
+  type ApiQuery,
+  type ApiRequest,
+  ApiError,
+  type EventHandlers,
+  type HealthStatus,
+  type Problem,
+  type ServerEvent,
+  type Transport,
+} from './types'
 
 const problemMediaType = 'application/problem+json'
 const jsonMediaType = 'application/json'
@@ -9,6 +18,8 @@ export interface HttpTransportOptions {
   baseUrl?: string
   /** Function used to send requests; defaults to the global `fetch`. */
   fetch?: typeof fetch
+  /** Constructor used to open the event stream; defaults to the global `WebSocket`. */
+  webSocket?: typeof WebSocket
 }
 
 /** {@link Transport} that talks to the Sentinel backend over HTTP. */
@@ -17,6 +28,8 @@ export class HttpTransport implements Transport {
   private readonly baseUrl: string
   /** Function used to send requests. */
   private readonly send: typeof fetch
+  /** Constructor used to open the event stream. */
+  private readonly openSocket: (url: string) => WebSocket
   /** Anti-CSRF token sent with state-changing calls. */
   private csrfToken: string | undefined
 
@@ -24,6 +37,8 @@ export class HttpTransport implements Transport {
   constructor(options: HttpTransportOptions = {}) {
     this.baseUrl = options.baseUrl ?? ''
     this.send = options.fetch ?? ((input, init) => fetch(input, init))
+    const Socket = options.webSocket
+    this.openSocket = Socket === undefined ? (url) => new WebSocket(url) : (url) => new Socket(url)
   }
 
   /** Sets the anti-CSRF token sent with every call that is not a read. */
@@ -41,6 +56,23 @@ export class HttpTransport implements Transport {
     }
     const text = parameters.toString()
     return `${this.baseUrl}${path}${text === '' ? '' : `?${text}`}`
+  }
+
+  /** Opens `GET /api/v1/ws`, on the same origin as the page unless a base URL was given. */
+  events(handlers: EventHandlers): () => void {
+    const socket = this.openSocket(eventsUrl(this.baseUrl))
+    socket.onopen = () => handlers.onOpen()
+    socket.onclose = () => handlers.onClose()
+    socket.onmessage = (message) => {
+      const event = parseEvent(message.data)
+      if (event !== undefined) {
+        handlers.onEvent(event)
+      }
+    }
+    return () => {
+      socket.onclose = null
+      socket.close()
+    }
   }
 
   /** Performs an API call, sending the session cookie and, for changes, the anti-CSRF token. */
@@ -115,6 +147,26 @@ export class HttpTransport implements Transport {
         code: 'invalid_response',
       })
     }
+  }
+}
+
+/** Event types the server sends. */
+const eventTypes = ['snapshot', 'transfer.state', 'transfer.progress', 'vault.locked']
+
+/** Builds the address of the event stream: `ws` or `wss` to match the page, or the base URL. */
+function eventsUrl(baseUrl: string): string {
+  const url = new URL('/api/v1/ws', baseUrl === '' ? window.location.href : baseUrl)
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  return url.toString()
+}
+
+/** Reads a stream message, or returns `undefined` when it is not JSON or not an event the client knows. */
+function parseEvent(data: unknown): ServerEvent | undefined {
+  try {
+    const event = JSON.parse(String(data)) as { type?: unknown }
+    return typeof event.type === 'string' && eventTypes.includes(event.type) ? (event as ServerEvent) : undefined
+  } catch {
+    return undefined
   }
 }
 

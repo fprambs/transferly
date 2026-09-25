@@ -4,13 +4,15 @@ import { useTranslation } from 'react-i18next'
 import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { TopBar } from '@/features/topbar/TopBar'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
+import { TransfersDock } from '@/features/transfers/TransfersDock'
+import { useTransferStream } from '@/features/transfers/use-transfer-stream'
 
-import { QueuePanel } from './QueuePanel'
 
 /** Application layout: top bar, sites sidebar, the explorer of the open site and the transfer queue. */
 export function AppShell() {
   const explorer = useTranslation('explorer').t
   const navigate = useNavigate()
+  useTransferStream()
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -21,7 +23,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
-      <QueuePanel />
+      <TransfersDock />
       <QuickConnectFlow />
     </div>
   )

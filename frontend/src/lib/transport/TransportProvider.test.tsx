@@ -30,6 +30,7 @@ describe('TransportProvider', () => {
       ready: () => Promise.resolve({ status: 'ok' }),
       request: () => Promise.resolve(undefined as never),
       url: (path) => path,
+      events: () => () => undefined,
       setCsrfToken: () => undefined,
     }
     render(

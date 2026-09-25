@@ -1,0 +1,27 @@
+{
+  "tabs": {
+    "active": "Active",
+    "finished": "Finished"
+  },
+  "emptyActive": "Nothing is transferring.",
+  "emptyFinished": "No finished transfers.",
+  "summary": "{{count}} active",
+  "upload": "Upload",
+  "download": "Download",
+  "status": {
+    "queued": "Queued",
+    "running": "Running",
+    "done": "Done",
+    "failed": "Failed",
+    "canceled": "Canceled",
+    "interrupted": "Interrupted"
+  },
+  "cancel": "Cancel",
+  "remove": "Remove",
+  "cancelLabel": "Cancel {{name}}",
+  "removeLabel": "Remove {{name}} from the list",
+  "progress": "Progress of {{name}}",
+  "left": "{{time}} left",
+  "of": "{{done}} of {{total}}",
+  "unknownSize": "{{done}}"
+}

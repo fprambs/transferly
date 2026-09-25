@@ -1,0 +1,27 @@
+{
+  "tabs": {
+    "active": "Activas",
+    "finished": "Terminadas"
+  },
+  "emptyActive": "No se está transfiriendo nada.",
+  "emptyFinished": "No hay transferencias terminadas.",
+  "summary": "{{count}} activas",
+  "upload": "Subida",
+  "download": "Descarga",
+  "status": {
+    "queued": "En cola",
+    "running": "En curso",
+    "done": "Lista",
+    "failed": "Fallida",
+    "canceled": "Cancelada",
+    "interrupted": "Interrumpida"
+  },
+  "cancel": "Cancelar",
+  "remove": "Quitar",
+  "cancelLabel": "Cancelar {{name}}",
+  "removeLabel": "Quitar {{name}} de la lista",
+  "progress": "Progreso de {{name}}",
+  "left": "faltan {{time}}",
+  "of": "{{done}} de {{total}}",
+  "unknownSize": "{{done}}"
+}
