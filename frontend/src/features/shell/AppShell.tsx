@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 
 import { LanguageSelect } from './LanguageSelect'
 import { QueuePanel } from './QueuePanel'
-import { ThemeToggle } from './ThemeToggle'
+import { ThemeSelect } from './ThemeSelect'
 
 /** Props of {@link Pane}. */
 interface PaneProps {
@@ -37,7 +37,7 @@ export function AppShell() {
       >
         <h1 className="text-lg font-semibold">{t(($) => $.app.name)}</h1>
         <div className="flex items-center gap-4">
-          <ThemeToggle />
+          <ThemeSelect />
           <LanguageSelect />
         </div>
       </header>

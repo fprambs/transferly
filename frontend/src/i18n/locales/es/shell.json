@@ -20,8 +20,10 @@
   },
   "theme": {
     "label": "Tema",
-    "light": "Claro",
-    "dark": "Oscuro",
-    "system": "Sistema"
+    "followSystem": "Seguir al sistema",
+    "groups": {
+      "dark": "Oscuros",
+      "light": "Claros"
+    }
   }
 }

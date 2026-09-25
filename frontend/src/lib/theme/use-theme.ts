@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 
 import { useUiStore } from '@/state/ui-store'
 
-import { applyTheme, resolveTheme } from './index'
+import { applyTheme, resolveTheme, type ThemeDefinition } from './index'
 
 const darkQuery = '(prefers-color-scheme: dark)'
 
@@ -22,12 +22,18 @@ export function usePrefersDark(): boolean {
   )
 }
 
-/** Keeps the document color scheme in sync with the stored preference and the operating system. */
+/** Returns the theme the interface wears now, given the stored choice and the operating system. */
+export function useActiveTheme(): ThemeDefinition {
+  const themeId = useUiStore((state) => state.themeId)
+  const followSystem = useUiStore((state) => state.followSystem)
+  return resolveTheme({ themeId, followSystem }, usePrefersDark())
+}
+
+/** Keeps the document theme in sync with the stored choice and the operating system. */
 export function useThemeSync(): void {
-  const preference = useUiStore((state) => state.theme)
-  const prefersDark = usePrefersDark()
+  const theme = useActiveTheme()
 
   useEffect(() => {
-    applyTheme(document.documentElement, resolveTheme(preference, prefersDark))
-  }, [preference, prefersDark])
+    applyTheme(document.documentElement, theme)
+  }, [theme])
 }

@@ -15,14 +15,15 @@ import { AppShell } from './AppShell'
  *
  * Scenarios:
  * - exposes the landmark regions: toolbar, sites navigation, file panes and transfers
- * - the theme buttons reflect and change the stored preference
+ * - the theme list offers every theme grouped by scheme and changes the stored choice
+ * - following the system disables the theme list
  * - the transfer queue collapses and expands, announcing its state
  * - the interface switches to Spanish from the language selector
  * - a right-to-left language sets the document direction
  */
 describe('AppShell', () => {
   beforeEach(() => {
-    useUiStore.setState({ theme: 'system', queueOpen: true })
+    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
   })
 
   it('exposes the landmark regions', async () => {
@@ -37,16 +38,29 @@ describe('AppShell', () => {
     expect(screen.getByRole('region', { name: 'Transfers' })).toBeInTheDocument()
   })
 
-  it('reflects and changes the theme preference', async () => {
+  it('lists the themes by scheme and changes the chosen one', async () => {
     await renderWithI18n(<AppShell />)
-    const group = screen.getByRole('group', { name: 'Theme' })
+    const select = screen.getByRole('combobox', { name: 'Theme' })
 
-    expect(within(group).getByRole('button', { name: 'System' })).toHaveAttribute('aria-pressed', 'true')
-    await userEvent.click(within(group).getByRole('button', { name: 'Dark' }))
+    expect(select).toHaveValue('sentinel-dark')
+    expect(within(select).getAllByRole('option')).toHaveLength(12)
+    expect(screen.getByRole('group', { name: 'Dark' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Light' })).toBeInTheDocument()
 
-    expect(useUiStore.getState().theme).toBe('dark')
-    expect(within(group).getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(group).getByRole('button', { name: 'System' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.selectOptions(select, 'monokai')
+
+    expect(useUiStore.getState().themeId).toBe('monokai')
+    expect(select).toHaveValue('monokai')
+  })
+
+  it('follows the system instead of the chosen theme when asked to', async () => {
+    await renderWithI18n(<AppShell />)
+    const select = screen.getByRole('combobox', { name: 'Theme' })
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Follow the system' }))
+
+    expect(useUiStore.getState().followSystem).toBe(true)
+    expect(select).toBeDisabled()
   })
 
   it('collapses and expands the transfer queue', async () => {

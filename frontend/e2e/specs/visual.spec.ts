@@ -2,17 +2,18 @@ import type { Language, Theme } from '../pages/shell-page.ts'
 import { expect, test } from '../fixtures.ts'
 
 const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
-  { language: 'en', theme: 'light' },
-  { language: 'en', theme: 'dark' },
-  { language: 'es', theme: 'light' },
-  { language: 'es', theme: 'dark' },
+  { language: 'en', theme: 'sentinel-dark' },
+  { language: 'en', theme: 'sentinel-light' },
+  { language: 'en', theme: 'monokai' },
+  { language: 'en', theme: 'nord' },
+  { language: 'es', theme: 'sentinel-dark' },
 ]
 
 /**
  * Visual regression of the application shell against versioned baselines.
  *
  * Scenarios:
- * - the shell in English and Spanish, each in the light and dark theme
+ * - the shell in the default theme in English and Spanish, and in the light, Monokai and Nord themes
  *
  * Baselines are generated and compared only inside the official Playwright container.
  */
