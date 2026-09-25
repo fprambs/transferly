@@ -559,6 +559,210 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /api/v1/workspaces/{workspaceId}/sites:
+    get:
+      operationId: listSites
+      security:
+        - sessionCookie: []
+      summary: Sites of a workspace
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: The sites by name, with the kinds of secret stored but never the secrets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                    $ref: "#/components/schemas/Site"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: createSite
+      security:
+        - sessionCookie: []
+      summary: Save a site
+      description: Writing secrets needs the vault unlocked in the session. Hosts on private networks are refused unless the administrator allowed them.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteInput"
+      responses:
+        "201":
+          description: The saved site.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Site"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}:
+    get:
+      operationId: getSite
+      security:
+        - sessionCookie: []
+      summary: One site
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+      responses:
+        "200":
+          description: The site.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Site"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: updateSite
+      security:
+        - sessionCookie: []
+      summary: Change a site
+      description: Secrets left out stay as they are, an empty string removes one and any other value replaces it.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteInput"
+      responses:
+        "200":
+          description: The updated site.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Site"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteSite
+      security:
+        - sessionCookie: []
+      summary: Delete a site and its secrets
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     sessionCookie:
@@ -579,6 +783,14 @@ components:
       in: path
       required: true
       description: Identifier of the workspace.
+      schema:
+        type: string
+        format: uuid
+    SiteId:
+      name: siteId
+      in: path
+      required: true
+      description: Identifier of the site.
       schema:
         type: string
         format: uuid
@@ -683,6 +895,74 @@ components:
         recoveryKit:
           type: string
           description: Key that recovers the vault when the master password is lost. Shown once.
+    Site:
+      type: object
+      required: [id, name, protocol, host, port, username, authMethod, listTimezone, secrets, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        protocol:
+          type: string
+          enum: [sftp, ftp, ftps]
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        authMethod:
+          type: string
+          enum: [password, key]
+        listTimezone:
+          type: string
+          description: IANA zone in which the server prints listing times.
+        secrets:
+          type: array
+          description: Kinds of secret stored for the site. The secrets themselves are never returned.
+          items:
+            type: string
+            enum: [password, private_key, passphrase]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SiteInput:
+      type: object
+      required: [name, protocol, host, username]
+      properties:
+        name:
+          type: string
+        protocol:
+          type: string
+          enum: [sftp, ftp, ftps]
+        host:
+          type: string
+        port:
+          type: integer
+          description: Defaults to the protocol's port.
+        username:
+          type: string
+        authMethod:
+          type: string
+          enum: [password, key]
+          description: Defaults to password; key is for SFTP only.
+        listTimezone:
+          type: string
+          description: IANA zone of the server's listing times; defaults to UTC.
+        password:
+          type: string
+          description: Write only. Left out keeps the stored one; an empty string removes it.
+        privateKey:
+          type: string
+          description: Write only. Same rules as the password.
+        passphrase:
+          type: string
+          description: Write only. Same rules as the password.
     Workspace:
       type: object
       required: [id, name, kind, role, createdAt]

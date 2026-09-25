@@ -12,6 +12,8 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
@@ -51,6 +53,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	keyRing := vault.NewKeyRing(system, cfg.SessionIdle)
 	vaults := vault.NewService(vault.NewDefault(kdf, rand.Reader), store, keyRing)
 
+	sites := site.NewService(store, workspaces, vaults, netguard.NewPolicy(cfg.AllowedNetworks, nil), system, rand.Reader, nil)
+
 	return wiring{
 		deps: httpapi.Deps{
 			Logger:     logger,
@@ -59,6 +63,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Auth:       authService,
 			Workspaces: workspaces,
 			Vault:      vaults,
+			Sites:      sites,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

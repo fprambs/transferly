@@ -12,6 +12,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
@@ -48,6 +49,8 @@ type Deps struct {
 	Auth *auth.Service
 	// Workspaces is the workspace and permission service.
 	Workspaces *workspace.Service
+	// Sites is the saved connections service.
+	Sites *site.Service
 	// Vault is the credential vault service.
 	Vault *vault.Service
 	// Limits are the rate limiters of the unauthenticated endpoints.

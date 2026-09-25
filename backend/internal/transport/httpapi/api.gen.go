@@ -40,6 +40,105 @@ func (e HealthStatusStatus) Valid() bool {
 	}
 }
 
+// Defines values for SiteAuthMethod.
+const (
+	SiteAuthMethodKey      SiteAuthMethod = "key"
+	SiteAuthMethodPassword SiteAuthMethod = "password"
+)
+
+// Valid indicates whether the value is a known member of the SiteAuthMethod enum.
+func (e SiteAuthMethod) Valid() bool {
+	switch e {
+	case SiteAuthMethodKey:
+		return true
+	case SiteAuthMethodPassword:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SiteProtocol.
+const (
+	SiteProtocolFtp  SiteProtocol = "ftp"
+	SiteProtocolFtps SiteProtocol = "ftps"
+	SiteProtocolSftp SiteProtocol = "sftp"
+)
+
+// Valid indicates whether the value is a known member of the SiteProtocol enum.
+func (e SiteProtocol) Valid() bool {
+	switch e {
+	case SiteProtocolFtp:
+		return true
+	case SiteProtocolFtps:
+		return true
+	case SiteProtocolSftp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SiteSecrets.
+const (
+	SiteSecretsPassphrase SiteSecrets = "passphrase"
+	SiteSecretsPassword   SiteSecrets = "password"
+	SiteSecretsPrivateKey SiteSecrets = "private_key"
+)
+
+// Valid indicates whether the value is a known member of the SiteSecrets enum.
+func (e SiteSecrets) Valid() bool {
+	switch e {
+	case SiteSecretsPassphrase:
+		return true
+	case SiteSecretsPassword:
+		return true
+	case SiteSecretsPrivateKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SiteInputAuthMethod.
+const (
+	SiteInputAuthMethodKey      SiteInputAuthMethod = "key"
+	SiteInputAuthMethodPassword SiteInputAuthMethod = "password"
+)
+
+// Valid indicates whether the value is a known member of the SiteInputAuthMethod enum.
+func (e SiteInputAuthMethod) Valid() bool {
+	switch e {
+	case SiteInputAuthMethodKey:
+		return true
+	case SiteInputAuthMethodPassword:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SiteInputProtocol.
+const (
+	SiteInputProtocolFtp  SiteInputProtocol = "ftp"
+	SiteInputProtocolFtps SiteInputProtocol = "ftps"
+	SiteInputProtocolSftp SiteInputProtocol = "sftp"
+)
+
+// Valid indicates whether the value is a known member of the SiteInputProtocol enum.
+func (e SiteInputProtocol) Valid() bool {
+	switch e {
+	case SiteInputProtocolFtp:
+		return true
+	case SiteInputProtocolFtps:
+		return true
+	case SiteInputProtocolSftp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UserRole.
 const (
 	UserRoleAdmin UserRole = "admin"
@@ -180,6 +279,65 @@ type SetupStatus struct {
 	Required bool `json:"required"`
 }
 
+// Site defines model for Site.
+type Site struct {
+	AuthMethod SiteAuthMethod     `json:"authMethod"`
+	CreatedAt  time.Time          `json:"createdAt"`
+	Host       string             `json:"host"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// ListTimezone IANA zone in which the server prints listing times.
+	ListTimezone string       `json:"listTimezone"`
+	Name         string       `json:"name"`
+	Port         int          `json:"port"`
+	Protocol     SiteProtocol `json:"protocol"`
+
+	// Secrets Kinds of secret stored for the site. The secrets themselves are never returned.
+	Secrets   []SiteSecrets `json:"secrets"`
+	UpdatedAt time.Time     `json:"updatedAt"`
+	Username  string        `json:"username"`
+}
+
+// SiteAuthMethod defines model for Site.AuthMethod.
+type SiteAuthMethod string
+
+// SiteProtocol defines model for Site.Protocol.
+type SiteProtocol string
+
+// SiteSecrets defines model for Site.Secrets.
+type SiteSecrets string
+
+// SiteInput defines model for SiteInput.
+type SiteInput struct {
+	// AuthMethod Defaults to password; key is for SFTP only.
+	AuthMethod *SiteInputAuthMethod `json:"authMethod,omitempty"`
+	Host       string               `json:"host"`
+
+	// ListTimezone IANA zone of the server's listing times; defaults to UTC.
+	ListTimezone *string `json:"listTimezone,omitempty"`
+	Name         string  `json:"name"`
+
+	// Passphrase Write only. Same rules as the password.
+	Passphrase *string `json:"passphrase,omitempty"`
+
+	// Password Write only. Left out keeps the stored one; an empty string removes it.
+	Password *string `json:"password,omitempty"`
+
+	// Port Defaults to the protocol's port.
+	Port *int `json:"port,omitempty"`
+
+	// PrivateKey Write only. Same rules as the password.
+	PrivateKey *string           `json:"privateKey,omitempty"`
+	Protocol   SiteInputProtocol `json:"protocol"`
+	Username   string            `json:"username"`
+}
+
+// SiteInputAuthMethod Defaults to password; key is for SFTP only.
+type SiteInputAuthMethod string
+
+// SiteInputProtocol defines model for SiteInput.Protocol.
+type SiteInputProtocol string
+
 // User defines model for User.
 type User struct {
 	Email    string             `json:"email"`
@@ -217,6 +375,9 @@ type WorkspaceRole string
 
 // CsrfToken defines model for CsrfToken.
 type CsrfToken = string
+
+// SiteId defines model for SiteId.
+type SiteId = openapi_types.UUID
 
 // WorkspaceId defines model for WorkspaceId.
 type WorkspaceId = openapi_types.UUID
@@ -272,6 +433,24 @@ type UnlockVaultParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// CreateSiteParams defines parameters for CreateSite.
+type CreateSiteParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// DeleteSiteParams defines parameters for DeleteSite.
+type DeleteSiteParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// UpdateSiteParams defines parameters for UpdateSite.
+type UpdateSiteParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = Credentials
 
@@ -295,6 +474,12 @@ type SetupVaultJSONRequestBody = MasterPasswordRequest
 
 // UnlockVaultJSONRequestBody defines body for UnlockVault for application/json ContentType.
 type UnlockVaultJSONRequestBody = MasterPasswordRequest
+
+// CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
+type CreateSiteJSONRequestBody = SiteInput
+
+// UpdateSiteJSONRequestBody defines body for UpdateSite for application/json ContentType.
+type UpdateSiteJSONRequestBody = SiteInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -343,6 +528,21 @@ type ServerInterface interface {
 	// GetWorkspace One workspace of the signed-in user
 	// (GET /api/v1/workspaces/{workspaceId})
 	GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ListSites Sites of a workspace
+	// (GET /api/v1/workspaces/{workspaceId}/sites)
+	ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// CreateSite Save a site
+	// (POST /api/v1/workspaces/{workspaceId}/sites)
+	CreateSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params CreateSiteParams)
+	// DeleteSite Delete a site and its secrets
+	// (DELETE /api/v1/workspaces/{workspaceId}/sites/{siteId})
+	DeleteSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params DeleteSiteParams)
+	// GetSite One site
+	// (GET /api/v1/workspaces/{workspaceId}/sites/{siteId})
+	GetSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId)
+	// UpdateSite Change a site
+	// (PUT /api/v1/workspaces/{workspaceId}/sites/{siteId})
+	UpdateSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params UpdateSiteParams)
 	// GetHealth Liveness probe
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -442,6 +642,36 @@ func (_ Unimplemented) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 // GetWorkspace One workspace of the signed-in user
 // (GET /api/v1/workspaces/{workspaceId})
 func (_ Unimplemented) GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListSites Sites of a workspace
+// (GET /api/v1/workspaces/{workspaceId}/sites)
+func (_ Unimplemented) ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateSite Save a site
+// (POST /api/v1/workspaces/{workspaceId}/sites)
+func (_ Unimplemented) CreateSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params CreateSiteParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteSite Delete a site and its secrets
+// (DELETE /api/v1/workspaces/{workspaceId}/sites/{siteId})
+func (_ Unimplemented) DeleteSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params DeleteSiteParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetSite One site
+// (GET /api/v1/workspaces/{workspaceId}/sites/{siteId})
+func (_ Unimplemented) GetSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateSite Change a site
+// (PUT /api/v1/workspaces/{workspaceId}/sites/{siteId})
+func (_ Unimplemented) UpdateSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params UpdateSiteParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -904,6 +1134,235 @@ func (siw *ServerInterfaceWrapper) GetWorkspace(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListSites operation middleware
+func (siw *ServerInterfaceWrapper) ListSites(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSites(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSite operation middleware
+func (siw *ServerInterfaceWrapper) CreateSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateSiteParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSite(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSite operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "siteId" -------------
+	var siteId SiteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "siteId", chi.URLParam(r, "siteId"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "siteId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteSiteParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSite(w, r, workspaceId, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSite operation middleware
+func (siw *ServerInterfaceWrapper) GetSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "siteId" -------------
+	var siteId SiteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "siteId", chi.URLParam(r, "siteId"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "siteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSite(w, r, workspaceId, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSite operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "siteId" -------------
+	var siteId SiteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "siteId", chi.URLParam(r, "siteId"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "siteId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateSiteParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSite(w, r, workspaceId, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
 
@@ -1095,6 +1554,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/v1/vault/recovery-kit", wrapper.RegenerateRecoveryKit)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}/sites", wrapper.ListSites)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/sites", wrapper.CreateSite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/v1/workspaces/{workspaceId}/sites/{siteId}", wrapper.DeleteSite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}/sites/{siteId}", wrapper.GetSite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/api/v1/workspaces/{workspaceId}/sites/{siteId}", wrapper.UpdateSite)
 	})
 
 	return r
@@ -2141,6 +2615,384 @@ func (response GetWorkspace404ApplicationProblemPlusJSONResponse) VisitGetWorksp
 	return err
 }
 
+type ListSitesRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListSitesResponseObject interface {
+	VisitListSitesResponse(w http.ResponseWriter) error
+}
+
+type ListSites200JSONResponse []Site
+
+func (response ListSites200JSONResponse) VisitListSitesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSites401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListSites401ApplicationProblemPlusJSONResponse) VisitListSitesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSites404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListSites404ApplicationProblemPlusJSONResponse) VisitListSitesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSiteRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Params      CreateSiteParams
+	Body        *CreateSiteJSONRequestBody
+}
+
+type CreateSiteResponseObject interface {
+	VisitCreateSiteResponse(w http.ResponseWriter) error
+}
+
+type CreateSite201JSONResponse Site
+
+func (response CreateSite201JSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSite400ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSite400ApplicationProblemPlusJSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSite401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSite401ApplicationProblemPlusJSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSite403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSite403ApplicationProblemPlusJSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSite404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSite404ApplicationProblemPlusJSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSite409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSite409ApplicationProblemPlusJSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSite422ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSite422ApplicationProblemPlusJSONResponse) VisitCreateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSiteRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	SiteId      SiteId      `json:"siteId"`
+	Params      DeleteSiteParams
+}
+
+type DeleteSiteResponseObject interface {
+	VisitDeleteSiteResponse(w http.ResponseWriter) error
+}
+
+type DeleteSite204Response struct {
+}
+
+func (response DeleteSite204Response) VisitDeleteSiteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSite401ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteSite401ApplicationProblemPlusJSONResponse) VisitDeleteSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSite403ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteSite403ApplicationProblemPlusJSONResponse) VisitDeleteSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSite404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteSite404ApplicationProblemPlusJSONResponse) VisitDeleteSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSiteRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	SiteId      SiteId      `json:"siteId"`
+}
+
+type GetSiteResponseObject interface {
+	VisitGetSiteResponse(w http.ResponseWriter) error
+}
+
+type GetSite200JSONResponse Site
+
+func (response GetSite200JSONResponse) VisitGetSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSite401ApplicationProblemPlusJSONResponse Problem
+
+func (response GetSite401ApplicationProblemPlusJSONResponse) VisitGetSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSite404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetSite404ApplicationProblemPlusJSONResponse) VisitGetSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSiteRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	SiteId      SiteId      `json:"siteId"`
+	Params      UpdateSiteParams
+	Body        *UpdateSiteJSONRequestBody
+}
+
+type UpdateSiteResponseObject interface {
+	VisitUpdateSiteResponse(w http.ResponseWriter) error
+}
+
+type UpdateSite200JSONResponse Site
+
+func (response UpdateSite200JSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSite400ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSite400ApplicationProblemPlusJSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSite401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSite401ApplicationProblemPlusJSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSite403ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSite403ApplicationProblemPlusJSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSite404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSite404ApplicationProblemPlusJSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSite409ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSite409ApplicationProblemPlusJSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSite422ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSite422ApplicationProblemPlusJSONResponse) VisitUpdateSiteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetHealthRequestObject struct {
 }
 
@@ -2244,6 +3096,21 @@ type StrictServerInterface interface {
 	// GetWorkspace One workspace of the signed-in user
 	// (GET /api/v1/workspaces/{workspaceId})
 	GetWorkspace(ctx context.Context, request GetWorkspaceRequestObject) (GetWorkspaceResponseObject, error)
+	// ListSites Sites of a workspace
+	// (GET /api/v1/workspaces/{workspaceId}/sites)
+	ListSites(ctx context.Context, request ListSitesRequestObject) (ListSitesResponseObject, error)
+	// CreateSite Save a site
+	// (POST /api/v1/workspaces/{workspaceId}/sites)
+	CreateSite(ctx context.Context, request CreateSiteRequestObject) (CreateSiteResponseObject, error)
+	// DeleteSite Delete a site and its secrets
+	// (DELETE /api/v1/workspaces/{workspaceId}/sites/{siteId})
+	DeleteSite(ctx context.Context, request DeleteSiteRequestObject) (DeleteSiteResponseObject, error)
+	// GetSite One site
+	// (GET /api/v1/workspaces/{workspaceId}/sites/{siteId})
+	GetSite(ctx context.Context, request GetSiteRequestObject) (GetSiteResponseObject, error)
+	// UpdateSite Change a site
+	// (PUT /api/v1/workspaces/{workspaceId}/sites/{siteId})
+	UpdateSite(ctx context.Context, request UpdateSiteRequestObject) (UpdateSiteResponseObject, error)
 	// GetHealth Liveness probe
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -2725,6 +3592,156 @@ func (sh *strictHandler) GetWorkspace(w http.ResponseWriter, r *http.Request, wo
 	}
 }
 
+// ListSites operation middleware
+func (sh *strictHandler) ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListSitesRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSites(ctx, request.(ListSitesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSites")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSitesResponseObject); ok {
+		if err := validResponse.VisitListSitesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSite operation middleware
+func (sh *strictHandler) CreateSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params CreateSiteParams) {
+	var request CreateSiteRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.Params = params
+
+	var body CreateSiteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSite(ctx, request.(CreateSiteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSiteResponseObject); ok {
+		if err := validResponse.VisitCreateSiteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSite operation middleware
+func (sh *strictHandler) DeleteSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params DeleteSiteParams) {
+	var request DeleteSiteRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.SiteId = siteId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSite(ctx, request.(DeleteSiteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSiteResponseObject); ok {
+		if err := validResponse.VisitDeleteSiteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSite operation middleware
+func (sh *strictHandler) GetSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId) {
+	var request GetSiteRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.SiteId = siteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSite(ctx, request.(GetSiteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSiteResponseObject); ok {
+		if err := validResponse.VisitGetSiteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSite operation middleware
+func (sh *strictHandler) UpdateSite(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params UpdateSiteParams) {
+	var request UpdateSiteRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.SiteId = siteId
+	request.Params = params
+
+	var body UpdateSiteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSite(ctx, request.(UpdateSiteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSiteResponseObject); ok {
+		if err := validResponse.VisitUpdateSiteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetHealth operation middleware
 func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	var request GetHealthRequestObject
@@ -2778,51 +3795,62 @@ func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"iobR8mr5vwEA",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

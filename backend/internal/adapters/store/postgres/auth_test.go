@@ -12,6 +12,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -169,6 +170,35 @@ func TestVaultStore_ReportsDatabaseFailures(t *testing.T) {
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, vault.ErrNoVault) || errors.Is(err, vault.ErrVaultExists) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestSiteStore_Conformance runs the shared site store suite against Postgres.
+func TestSiteStore_Conformance(t *testing.T) {
+	storetest.RunSite(t, func(t *testing.T) storetest.SiteStore { return openMigrated(t) })
+}
+
+// TestSiteStore_ReportsDatabaseFailures verifies that every site operation returns the database error
+// instead of hiding it, using a store whose connection pool is closed.
+func TestSiteStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+	s := site.Site{ID: id, WorkspaceID: id}
+
+	calls := map[string]error{
+		"CreateSite": store.CreateSite(ctx, s, nil),
+		"UpdateSite": store.UpdateSite(ctx, s, nil, nil),
+		"Site":       second(store.Site(ctx, id, id)),
+		"Sites":      second(store.Sites(ctx, id)),
+		"DeleteSite": store.DeleteSite(ctx, id, id),
+		"Secret":     second(store.Secret(ctx, id, id, site.SecretPassword)),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, site.ErrNotFound) || errors.Is(err, site.ErrNoSecret) || errors.Is(err, site.ErrNameTaken) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
 	}

@@ -5,13 +5,17 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/testutil"
 )
 
 // errStep is the failure injected by the fake transaction.
@@ -27,10 +31,12 @@ type fakeTx struct {
 // Exec fails for the lock or an insert step when selected.
 func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag, error) {
 	if (f.failAt == "lock" && strings.Contains(sql, "pg_advisory")) || (f.failAt == "insert" && strings.Contains(sql, "INSERT INTO users")) ||
-		(f.failAt == "workspace" && strings.Contains(sql, "INSERT INTO workspaces")) || (f.failAt == "membership" && strings.Contains(sql, "INSERT INTO memberships")) {
+		(f.failAt == "workspace" && strings.Contains(sql, "INSERT INTO workspaces")) || (f.failAt == "membership" && strings.Contains(sql, "INSERT INTO memberships")) ||
+		(f.failAt == "site" && strings.Contains(sql, "INSERT INTO sites")) || (f.failAt == "update-site" && strings.HasPrefix(sql, "-- name: UpdateSite")) ||
+		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
-	return pgconn.CommandTag{}, nil
+	return pgconn.NewCommandTag("UPDATE 1"), nil
 }
 
 // QueryRow returns the user count, or a failing row when the count step is selected.
@@ -115,5 +121,91 @@ func TestCreateWorkspace_ReportsFailuresInsideTheTransaction(t *testing.T) {
 	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
 	if err := failing.CreateWorkspace(context.Background(), workspace.Workspace{}); !errors.Is(err, errStep) {
 		t.Errorf("failure to start = %v, want the injected error", err)
+	}
+}
+
+// TestSiteWrites_ReportFailuresInsideTheTransaction verifies that a failure at any step of creating or updating
+// a site is returned to the caller.
+//
+// Scenarios:
+//   - creating fails when the transaction cannot start, inserting the site, sealing a secret or committing fails
+//   - updating fails when the transaction cannot start, updating the site, writing a secret, removing a secret
+//     or committing fails
+func TestSiteWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
+	ctx := context.Background()
+	secrets := []site.Sealed{{Kind: site.SecretPassword}}
+	remove := []site.SecretKind{site.SecretPassphrase}
+
+	for _, step := range []string{"site", "secret", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.CreateSite(ctx, site.Site{}, secrets); !errors.Is(err, errStep) {
+			t.Errorf("CreateSite failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	for _, step := range []string{"update-site", "secret", "remove-secret", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.UpdateSite(ctx, site.Site{}, secrets, remove); !errors.Is(err, errStep) {
+			t.Errorf("UpdateSite failure at %s = %v, want the injected error", step, err)
+		}
+	}
+
+	failing := &Store{queries: db.New(nil)}
+	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+	if err := failing.CreateSite(ctx, site.Site{}, nil); !errors.Is(err, errStep) {
+		t.Errorf("CreateSite failure to start = %v, want the injected error", err)
+	}
+	if err := failing.UpdateSite(ctx, site.Site{}, nil, nil); !errors.Is(err, errStep) {
+		t.Errorf("UpdateSite failure to start = %v, want the injected error", err)
+	}
+}
+
+// secretsBroken is a database handle that fails every query touching the secrets table.
+type secretsBroken struct{ db.DBTX }
+
+// Query fails for secret queries and delegates the rest.
+func (s secretsBroken) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	if strings.Contains(sql, "site_secrets") {
+		return nil, errStep
+	}
+	return s.DBTX.Query(ctx, sql, args...)
+}
+
+// TestSiteReads_ReportSecretKindFailures verifies that reads fail when the secret kinds cannot be loaded.
+//
+// Scenarios:
+//   - reading one site and listing sites return the error of the secrets query
+func TestSiteReads_ReportSecretKindFailures(t *testing.T) {
+	dbURL := testutil.NewDatabase(t)
+	if err := Migrate(t.Context(), dbURL); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(t.Context(), dbURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(store.Close)
+
+	at := time.Now().UTC()
+	owner := auth.User{ID: uuid.New(), Email: "a@example.com", PasswordHash: "h", Role: auth.RoleUser, Locale: "en", Timezone: "UTC", CreatedAt: at}
+	if err := store.CreateUser(t.Context(), owner); err != nil {
+		t.Fatal(err)
+	}
+	ws := workspace.Workspace{ID: uuid.New(), Name: "Personal", Kind: workspace.KindPersonal, OwnerID: owner.ID, CreatedAt: at}
+	if err := store.CreateWorkspace(t.Context(), ws); err != nil {
+		t.Fatal(err)
+	}
+	created := site.Site{ID: uuid.New(), WorkspaceID: ws.ID, Name: "S", Protocol: site.SFTP, Host: "h", Port: 22, Username: "u", AuthMethod: site.AuthPassword, ListTimezone: "UTC", CreatedAt: at, UpdatedAt: at}
+	if err := store.CreateSite(t.Context(), created, nil); err != nil {
+		t.Fatal(err)
+	}
+	store.queries = db.New(secretsBroken{store.pool})
+
+	if _, err := store.Site(t.Context(), ws.ID, created.ID); !errors.Is(err, errStep) {
+		t.Errorf("Site() = %v, want the secrets error", err)
+	}
+	if _, err := store.Sites(t.Context(), ws.ID); !errors.Is(err, errStep) {
+		t.Errorf("Sites() = %v, want the secrets error", err)
 	}
 }

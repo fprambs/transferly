@@ -14,6 +14,8 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
@@ -195,4 +197,41 @@ func TestVaultFailures(t *testing.T) {
 	for _, path := range []string{"/setup", "/unlock", "/password", "/recover", "/recovery-kit"} {
 		expectProblem(t, a.vaultCall(path, body, cookie, csrf), 500, "internal_error")
 	}
+}
+
+// brokenSites is a store whose site reads and writes fail.
+type brokenSites struct{ *postgres.Store }
+
+// Sites always fails.
+func (brokenSites) Sites(context.Context, uuid.UUID) ([]site.Site, error) { return nil, errInjected }
+
+// Site always fails.
+func (brokenSites) Site(context.Context, uuid.UUID, uuid.UUID) (site.Site, error) {
+	return site.Site{}, errInjected
+}
+
+// CreateSite always fails.
+func (brokenSites) CreateSite(context.Context, site.Site, []site.Sealed) error { return errInjected }
+
+// DeleteSite always fails.
+func (brokenSites) DeleteSite(context.Context, uuid.UUID, uuid.UUID) error { return errInjected }
+
+// TestSiteFailures verifies that store failures inside the site handlers are 500 problems.
+//
+// Scenarios:
+//   - listing, reading, creating, updating and deleting answer 500 when the store fails
+func TestSiteFailures(t *testing.T) {
+	a := newAPI(t, func(d *httpapi.Deps) {
+		store := brokenSites{d.Readiness.(*postgres.Store)}
+		d.Sites = site.NewService(store, d.Workspaces, d.Vault, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
+	})
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	id := uuid.NewString()
+
+	expectProblem(t, a.do(request{method: http.MethodGet, path: sitesPath(ws), cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.do(request{method: http.MethodGet, path: sitesPath(ws, id), cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), siteBody("A"), cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPut, sitesPath(ws, id), siteBody("A"), cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodDelete, sitesPath(ws, id), nil, cookie, csrf), 500, "internal_error")
 }
