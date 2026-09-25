@@ -117,7 +117,7 @@ users --< memberships >-- workspaces --< sites --< site_secrets
 | `sites` | id, workspace_id, folder_id, protocol, host, port, username, auth_method, list_timezone (IANA), options (jsonb) |
 | `site_secrets` | site_id, kind, nonce, ciphertext, dek_version |
 | `known_hosts` | workspace_id, host, port, key_type, fingerprint_sha256 |
-| `transfer_jobs` / `transfer_items` | direction, src, dst, status, priority, bytes_done, attempts, checksum |
+| `transfers` | user_id, workspace_id, site_id, direction, path, status, total_bytes, bytes_done (desde dónde se reanuda), error_code, attempts. En la fase 1 cada subida o descarga HTTP es una fila; `transfer_jobs` / `transfer_items` (expansión de carpetas, prioridad, checksum) llegan con las fases 2 y 3 |
 | `audit_events` | workspace_id, user_id, action, target, ip, meta (jsonb), at (timestamptz) |
 
 Toda consulta de negocio filtra por `workspace_id` y pasa por RBAC.

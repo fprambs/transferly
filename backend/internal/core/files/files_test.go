@@ -487,3 +487,112 @@ func TestService_Concurrency(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// recorder is an observer that keeps what it was told.
+type recorder struct {
+	mu      sync.Mutex
+	started []int64
+	bytes   int64
+}
+
+// Started records the total.
+func (r *recorder) Started(total int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.started = append(r.started, total)
+}
+
+// Progress adds to the count.
+func (r *recorder) Progress(n int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.bytes += n
+}
+
+// TestService_Observer verifies how transfers are followed.
+//
+// Scenarios:
+//   - an upload announces its start once it has a connection and counts every byte
+//   - a download announces the number of bytes it will send, also for a range, and counts what was read
+//   - canceling the context stops an upload and a download between chunks with the context error
+//   - the service works without an observer
+//   - Check authorizes and validates without connecting
+func TestService_Observer(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	obs := &recorder{}
+	target := f.editor
+	target.Observer = obs
+
+	if _, err := f.svc.Upload(ctx, target, "/f", remotefs.WriteCreate, 0, strings.NewReader("0123456789")); err != nil {
+		t.Fatal(err)
+	}
+	if len(obs.started) != 1 || obs.started[0] != -1 || obs.bytes != 10 {
+		t.Errorf("upload observed %v started and %d bytes; want one start and 10 bytes", obs.started, obs.bytes)
+	}
+
+	obs.started, obs.bytes = nil, 0
+	d, err := f.svc.Download(ctx, target, "/f", files.Range{Set: true, Start: 2, End: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(obs.started) != 1 || obs.started[0] != 4 {
+		t.Errorf("download announced %v; want 4 bytes", obs.started)
+	}
+	if got := readAll(t, d); got != "2345" || obs.bytes < 4 {
+		t.Errorf("content %q, %d bytes counted", got, obs.bytes)
+	}
+
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := f.svc.Upload(canceled, target, "/g", remotefs.WriteCreate, 0, strings.NewReader("x")); !errors.Is(err, context.Canceled) {
+		t.Errorf("Upload() with a canceled context = %v", err)
+	}
+	live, stop := context.WithCancel(ctx)
+	stream, err := f.svc.Download(live, target, "/f", files.Range{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	if _, err := stream.Body.Read(make([]byte, 4)); !errors.Is(err, context.Canceled) {
+		t.Errorf("reading after the cancellation = %v; want context.Canceled", err)
+	}
+	_ = stream.Body.Close()
+	interrupted := &cancelAfter{cancel: stop, limit: 3}
+	upCtx, upStop := context.WithCancel(ctx)
+	interrupted.cancel = upStop
+	if _, err := f.svc.Upload(upCtx, target, "/h", remotefs.WriteCreate, 0, io.MultiReader(interrupted, strings.NewReader("never sent"))); !errors.Is(err, context.Canceled) {
+		t.Errorf("Upload() canceled midway = %v; want context.Canceled", err)
+	}
+
+	if err := f.svc.Check(ctx, f.viewer, workspace.ActionBrowse, "/f"); err != nil {
+		t.Errorf("Check() = %v", err)
+	}
+	if err := f.svc.Check(ctx, f.viewer, workspace.ActionUpload, "/f"); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("Check() of an upload by a viewer = %v; want ErrForbidden", err)
+	}
+	if err := f.svc.Check(ctx, f.editor, workspace.ActionUpload, ""); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("Check() of an empty path = %v; want ErrInvalid", err)
+	}
+	if f.idle(f.editor) == 0 {
+		t.Error("no connection was pooled after the transfers")
+	}
+}
+
+// cancelAfter delivers some bytes and then cancels a context.
+type cancelAfter struct {
+	cancel context.CancelFunc
+	limit  int
+	sent   int
+}
+
+// Read delivers one byte at a time and cancels the context after the limit.
+func (c *cancelAfter) Read(p []byte) (int, error) {
+	if c.sent >= c.limit {
+		c.cancel()
+		return 0, io.EOF
+	}
+	c.sent++
+	p[0] = 'x'
+	return 1, nil
+}

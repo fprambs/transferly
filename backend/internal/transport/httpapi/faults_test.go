@@ -21,6 +21,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
@@ -348,4 +349,41 @@ func TestRemoteFileFailures(t *testing.T) {
 			}
 		}
 	}
+}
+
+// brokenTransfers is a store whose transfer reads and deletes fail.
+type brokenTransfers struct{ *postgres.Store }
+
+// ListTransfers always fails.
+func (brokenTransfers) ListTransfers(context.Context, uuid.UUID, uuid.UUID, int) ([]transfer.Transfer, error) {
+	return nil, errInjected
+}
+
+// TransferByID always fails.
+func (brokenTransfers) TransferByID(context.Context, uuid.UUID, uuid.UUID) (transfer.Transfer, error) {
+	return transfer.Transfer{}, errInjected
+}
+
+// TestTransferFailures verifies that store failures inside the transfer handlers are 500 problems.
+//
+// Scenarios:
+//   - listing, reading, deleting and canceling answer 500 when the store fails
+//   - an upload or a download whose record cannot be created answers 500 and moves no data
+func TestTransferFailures(t *testing.T) {
+	a := newAPI(t, func(d *httpapi.Deps) {
+		d.Transfers = transfer.NewService(brokenTransfers{d.Readiness.(*postgres.Store)}, &recordedEvents{}, realClock{}, transfer.Config{}, nil)
+	})
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	created := a.send(http.MethodPost, sitesPath(ws), siteBody("S"), cookie, csrf)
+	id := uuid.NewString()
+
+	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/transfers", cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/transfers/" + id, cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodDelete, "/api/v1/transfers/"+id, nil, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, "/api/v1/transfers/"+id+"/cancel", nil, cookie, csrf), 500, "internal_error")
+
+	site := created.site(t).Id
+	expectProblem(t, a.upload(ws, site, q("path", "/f"), "x", cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.do(request{method: http.MethodGet, path: filesPath(ws, site, "/content", q("path", "/f")), cookie: cookie}), 500, "internal_error")
 }

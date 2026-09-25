@@ -14,6 +14,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -226,6 +227,35 @@ func TestHostKeyStore_ReportsDatabaseFailures(t *testing.T) {
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, hostkey.ErrNotFound) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestTransferStore_Conformance runs the shared transfer store suite against Postgres.
+func TestTransferStore_Conformance(t *testing.T) {
+	storetest.RunTransfer(t, func(t *testing.T) storetest.TransferStore { return openMigrated(t) })
+}
+
+// TestTransferStore_ReportsDatabaseFailures verifies that every transfer operation returns the database error
+// instead of hiding it, using a store whose connection pool is closed.
+func TestTransferStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"Create":  store.CreateTransfer(ctx, transfer.Transfer{ID: id}),
+		"Update":  store.UpdateTransfer(ctx, transfer.Transfer{ID: id}),
+		"Get":     second(store.TransferByID(ctx, id, id)),
+		"List":    second(store.ListTransfers(ctx, id, uuid.Nil, 5)),
+		"ListWs":  second(store.ListTransfers(ctx, id, id, 5)),
+		"Delete":  store.DeleteTransfer(ctx, id, id),
+		"Recover": second(store.InterruptActive(ctx, time.Now())),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, transfer.ErrNotFound) || errors.Is(err, transfer.ErrExists) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
 	}

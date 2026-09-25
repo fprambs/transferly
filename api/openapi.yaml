@@ -1097,6 +1097,7 @@ paths:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/SiteId"
         - $ref: "#/components/parameters/RemotePath"
+        - $ref: "#/components/parameters/TransferIdQuery"
         - name: Range
           in: header
           required: false
@@ -1107,6 +1108,10 @@ paths:
         "200":
           description: The whole file.
           headers:
+            X-Transfer-Id:
+              schema:
+                type: string
+                format: uuid
             Accept-Ranges:
               schema:
                 type: string
@@ -1124,6 +1129,10 @@ paths:
         "206":
           description: The requested range of the file.
           headers:
+            X-Transfer-Id:
+              schema:
+                type: string
+                format: uuid
             Accept-Ranges:
               schema:
                 type: string
@@ -1221,6 +1230,15 @@ paths:
             format: int64
             minimum: 0
             default: 0
+        - $ref: "#/components/parameters/TransferIdQuery"
+        - name: size
+          in: query
+          required: false
+          description: Expected number of bytes, for progress; informational only.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
       requestBody:
         required: true
         content:
@@ -1231,6 +1249,12 @@ paths:
       responses:
         "201":
           description: The file after the upload.
+          headers:
+            X-Transfer-Id:
+              description: Identifier of the transfer record.
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
@@ -1426,6 +1450,142 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/transfers:
+    get:
+      operationId: listTransfers
+      security:
+        - sessionCookie: []
+      summary: The signed-in user's transfers, newest first
+      description: Transfers are private to the user who started them.
+      parameters:
+        - name: workspaceId
+          in: query
+          required: false
+          description: Only the transfers of this workspace.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: How many to return, at most 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: The transfers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transfer"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/transfers/{transferId}:
+    get:
+      operationId: getTransfer
+      security:
+        - sessionCookie: []
+      summary: One transfer
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+      responses:
+        "200":
+          description: The transfer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteTransfer
+      security:
+        - sessionCookie: []
+      summary: Remove a finished transfer from the history
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/transfers/{transferId}/cancel:
+    post:
+      operationId: cancelTransfer
+      security:
+        - sessionCookie: []
+      summary: Stop a transfer in progress
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: The transfer is being stopped.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     sessionCookie:
@@ -1464,6 +1624,22 @@ components:
       description: Path on the remote server.
       schema:
         type: string
+    TransferId:
+      name: transferId
+      in: path
+      required: true
+      description: Identifier of the transfer.
+      schema:
+        type: string
+        format: uuid
+    TransferIdQuery:
+      name: transferId
+      in: query
+      required: false
+      description: Identifier the client chose for this transfer, to follow it and to resume it; a new one is generated when left out.
+      schema:
+        type: string
+        format: uuid
   headers:
     SetCookie:
       description: Sets or clears the session cookie (HttpOnly, SameSite=Lax, Secure over https).
@@ -1700,6 +1876,57 @@ components:
           type: string
         to:
           type: string
+    Transfer:
+      type: object
+      required: [id, workspaceId, siteName, direction, path, name, status, bytesDone, attempts, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
+        siteId:
+          type: string
+          format: uuid
+          description: Left out once the site was deleted.
+        siteName:
+          type: string
+        direction:
+          type: string
+          enum: [upload, download]
+        path:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, done, failed, canceled, interrupted]
+        totalBytes:
+          type: integer
+          format: int64
+          description: Left out while the size is unknown.
+        bytesDone:
+          type: integer
+          format: int64
+          description: For an upload, where a resume continues.
+        errorCode:
+          type: string
+          description: Stable code of the error that stopped the transfer.
+        attempts:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
     Workspace:
       type: object
       required: [id, name, kind, role, createdAt]

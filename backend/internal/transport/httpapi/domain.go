@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
 
@@ -51,6 +53,15 @@ func (p domainProblem) VisitTrustHostKeyResponse(w http.ResponseWriter) error { 
 
 // VisitForgetHostKeyResponse implements [ForgetHostKeyResponseObject].
 func (p domainProblem) VisitForgetHostKeyResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitGetTransferResponse implements [GetTransferResponseObject].
+func (p domainProblem) VisitGetTransferResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitDeleteTransferResponse implements [DeleteTransferResponseObject].
+func (p domainProblem) VisitDeleteTransferResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCancelTransferResponse implements [CancelTransferResponseObject].
+func (p domainProblem) VisitCancelTransferResponse(w http.ResponseWriter) error { return p.write(w) }
 
 // VisitListFilesResponse implements [ListFilesResponseObject].
 func (p domainProblem) VisitListFilesResponse(w http.ResponseWriter) error { return p.write(w) }
@@ -98,6 +109,11 @@ var domainProblems = []struct {
 	{hostkey.ErrNotFound, http.StatusNotFound, "host_key_not_found"},
 	{hostkey.ErrChanged, http.StatusConflict, "host_key_changed"},
 	{hostkey.ErrInvalid, http.StatusUnprocessableEntity, "invalid_host_key"},
+	{context.Canceled, http.StatusConflict, "transfer_canceled"},
+	{transfer.ErrNotFound, http.StatusNotFound, "transfer_not_found"},
+	{transfer.ErrActive, http.StatusConflict, "transfer_active"},
+	{transfer.ErrNotActive, http.StatusConflict, "transfer_not_active"},
+	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
 	{remotefs.ErrNotEmpty, http.StatusConflict, "directory_not_empty"},

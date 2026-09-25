@@ -28,6 +28,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -44,12 +45,13 @@ var instanceKey = []byte("0123456789abcdef0123456789abcdef")
 
 // api is a running router over a real database, with controllable time.
 type api struct {
-	t     *testing.T
-	srv   *httptest.Server
-	store *postgres.Store
-	clock *testutil.FakeClock
-	auth  *auth.Service
-	hash  *auth.Hasher
+	t      *testing.T
+	srv    *httptest.Server
+	store  *postgres.Store
+	clock  *testutil.FakeClock
+	auth   *auth.Service
+	hash   *auth.Hasher
+	events *recordedEvents
 }
 
 // reply is a fully read HTTP response.
@@ -80,6 +82,8 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	vaults := newTestVault(store, clock)
 	sites := site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil)
 	pool := connections.New(newMemConnector(clock, sites), clock, connections.Config{Attempts: 1})
+	events := &recordedEvents{}
+	transfers := transfer.NewService(store, events, clock, transfer.Config{}, nil)
 	deps := httpapi.Deps{
 		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Readiness:   store,
@@ -90,6 +94,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Connections: pool,
 		Sites:       sites,
 		Files:       files.NewService(workspaces, pool),
+		Transfers:   transfers,
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
 			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
@@ -105,7 +110,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	}
 	srv := httptest.NewServer(httpapi.NewRouter(deps))
 	t.Cleanup(srv.Close)
-	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher}
+	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: events}
 }
 
 // request describes one call.
@@ -617,4 +622,30 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, _ string
 		c.byID[key.SiteID] = fsys
 	}
 	return fsys, nil
+}
+
+// recordedEvents keeps the events the server published.
+type recordedEvents struct {
+	mu   sync.Mutex
+	list []ports.Event
+}
+
+// Publish records an event.
+func (r *recordedEvents) Publish(e ports.Event) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.list = append(r.list, e)
+}
+
+// ofType returns the recorded events of a type.
+func (r *recordedEvents) ofType(kind string) []ports.Event {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []ports.Event
+	for _, e := range r.list {
+		if e.Type == kind {
+			out = append(out, e)
+		}
+	}
+	return out
 }

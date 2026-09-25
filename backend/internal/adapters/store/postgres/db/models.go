@@ -68,6 +68,26 @@ type SiteSecret struct {
 	Sealed     []byte
 }
 
+type Transfer struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	SiteID      uuid.NullUUID
+	SiteName    string
+	Direction   string
+	Path        string
+	Name        string
+	Status      string
+	TotalBytes  *int64
+	BytesDone   int64
+	ErrorCode   string
+	Attempts    int32
+	CreatedAt   time.Time
+	StartedAt   *time.Time
+	UpdatedAt   time.Time
+	FinishedAt  *time.Time
+}
+
 type User struct {
 	ID           uuid.UUID
 	Email        string

@@ -46,6 +46,11 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	defer store.Close()
 
 	wired := newWiring(cfg, logger, store, key)
+	if interrupted, err := wired.recover(ctx); err != nil {
+		return fmt.Errorf("recovering transfers: %w", err)
+	} else if interrupted > 0 {
+		logger.WarnContext(ctx, "transfers interrupted by the previous shutdown", "count", interrupted)
+	}
 	janitorCtx, stopJanitor := context.WithCancel(ctx)
 	defer stopJanitor()
 	go runJanitor(janitorCtx, cfg.JanitorInterval, logger, wired.janitor)

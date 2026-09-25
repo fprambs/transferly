@@ -468,6 +468,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in user's transfers, newest first
+         * @description Transfers are private to the user who started them.
+         */
+        get: operations["listTransfers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transferId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One transfer */
+        get: operations["getTransfer"];
+        put?: never;
+        post?: never;
+        /** Remove a finished transfer from the history */
+        delete: operations["deleteTransfer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transfers/{transferId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop a transfer in progress */
+        post: operations["cancelTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -605,6 +660,45 @@ export interface components {
             from: string;
             to: string;
         };
+        Transfer: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            workspaceId: string;
+            /**
+             * Format: uuid
+             * @description Left out once the site was deleted.
+             */
+            siteId?: string;
+            siteName: string;
+            /** @enum {string} */
+            direction: "upload" | "download";
+            path: string;
+            name: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "failed" | "canceled" | "interrupted";
+            /**
+             * Format: int64
+             * @description Left out while the size is unknown.
+             */
+            totalBytes?: number;
+            /**
+             * Format: int64
+             * @description For an upload, where a resume continues.
+             */
+            bytesDone: number;
+            /** @description Stable code of the error that stopped the transfer. */
+            errorCode?: string;
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            finishedAt?: string;
+        };
         Workspace: {
             /** Format: uuid */
             id: string;
@@ -662,6 +756,10 @@ export interface components {
         SiteId: string;
         /** @description Path on the remote server. */
         RemotePath: string;
+        /** @description Identifier of the transfer. */
+        TransferId: string;
+        /** @description Identifier the client chose for this transfer, to follow it and to resume it; a new one is generated when left out. */
+        TransferIdQuery: string;
     };
     requestBodies: never;
     headers: {
@@ -2237,6 +2335,8 @@ export interface operations {
             query: {
                 /** @description Path on the remote server. */
                 path: components["parameters"]["RemotePath"];
+                /** @description Identifier the client chose for this transfer, to follow it and to resume it; a new one is generated when left out. */
+                transferId?: components["parameters"]["TransferIdQuery"];
             };
             header?: {
                 /** @description A single byte range, such as bytes=0-1023. */
@@ -2255,6 +2355,7 @@ export interface operations {
             /** @description The whole file. */
             200: {
                 headers: {
+                    "X-Transfer-Id"?: string;
                     "Accept-Ranges"?: string;
                     "Content-Disposition"?: string;
                     "Last-Modified"?: string;
@@ -2267,6 +2368,7 @@ export interface operations {
             /** @description The requested range of the file. */
             206: {
                 headers: {
+                    "X-Transfer-Id"?: string;
                     "Accept-Ranges"?: string;
                     "Content-Disposition"?: string;
                     "Content-Range"?: string;
@@ -2361,6 +2463,10 @@ export interface operations {
                 mode?: "create" | "overwrite" | "resume";
                 /** @description Byte to continue at; only valid with mode=resume and not beyond the size of the file. */
                 offset?: number;
+                /** @description Identifier the client chose for this transfer, to follow it and to resume it; a new one is generated when left out. */
+                transferId?: components["parameters"]["TransferIdQuery"];
+                /** @description Expected number of bytes, for progress; informational only. */
+                size?: number;
             };
             header?: {
                 /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
@@ -2383,6 +2489,8 @@ export interface operations {
             /** @description The file after the upload. */
             201: {
                 headers: {
+                    /** @description Identifier of the transfer record. */
+                    "X-Transfer-Id"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2662,6 +2770,201 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listTransfers: {
+        parameters: {
+            query?: {
+                /** @description Only the transfers of this workspace. */
+                workspaceId?: string;
+                /** @description How many to return, at most 200. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The transfers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transfer"][];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTransfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the transfer. */
+                transferId: components["parameters"]["TransferId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The transfer. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transfer"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteTransfer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the transfer. */
+                transferId: components["parameters"]["TransferId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancelTransfer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the transfer. */
+                transferId: components["parameters"]["TransferId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The transfer is being stopped. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

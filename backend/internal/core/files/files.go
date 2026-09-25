@@ -50,6 +50,29 @@ type Pool interface {
 
 var _ Pool = (*connections.Manager)(nil)
 
+// Observer follows the data of an upload or download.
+type Observer interface {
+	// Started is called when the transfer got its connection and begins to move data. A non-negative total is
+	// the number of bytes it will move.
+	Started(total int64)
+	// Progress is called with the number of bytes that just moved.
+	Progress(n int64)
+}
+
+// started tells an observer, if there is one, that data begins to move.
+func started(o Observer, total int64) {
+	if o != nil {
+		o.Started(total)
+	}
+}
+
+// progress tells an observer, if there is one, that bytes moved.
+func progress(o Observer, n int64) {
+	if o != nil {
+		o.Progress(n)
+	}
+}
+
 // Target says who acts on which site.
 type Target struct {
 	// Actor is the user performing the operation.
@@ -60,6 +83,8 @@ type Target struct {
 	Site uuid.UUID
 	// Session identifies the actor's session, whose unlocked vault key opens the site credentials.
 	Session string
+	// Observer follows uploads and downloads; nil follows nothing.
+	Observer Observer
 }
 
 // key returns the pool key of the target.
@@ -86,6 +111,15 @@ func checkPath(paths ...string) error {
 		}
 	}
 	return nil
+}
+
+// Check verifies that the actor may perform an action in the workspace and that the paths are valid,
+// without connecting. Callers use it to refuse a request before they record anything about it.
+func (s *Service) Check(ctx context.Context, t Target, action workspace.Action, paths ...string) error {
+	if _, err := s.authz.Authorize(ctx, t.Actor, t.Workspace, action); err != nil {
+		return err
+	}
+	return checkPath(paths...)
 }
 
 // begin authorizes the action, validates the paths and borrows a connection.
@@ -209,16 +243,23 @@ func (d *Download) Length() int64 { return d.End - d.Start + 1 }
 
 // body reads a limited part of a remote file and returns the connection when closed.
 type body struct {
+	ctx     context.Context
 	src     io.Reader
 	closer  io.Closer
 	lease   *connections.Lease
+	obs     Observer
 	readErr error
 	closed  bool
 }
 
-// Read reads from the file and remembers a failure of the connection.
+// Read reads from the file, counts what it read and remembers a failure of the connection. It stops with the
+// context error once the context ended.
 func (b *body) Read(p []byte) (int, error) {
+	if err := b.ctx.Err(); err != nil {
+		return 0, err
+	}
 	n, err := b.src.Read(p)
+	progress(b.obs, int64(n))
 	if err != nil && !errors.Is(err, io.EOF) {
 		b.readErr = err
 	}
@@ -261,7 +302,8 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 		return nil, err
 	}
 	d := &Download{Entry: entry, Start: start, End: end, Partial: r.Set}
-	d.Body = &body{src: io.LimitReader(src, d.Length()), closer: src, lease: lease}
+	started(t.Observer, d.Length())
+	d.Body = &body{ctx: ctx, src: io.LimitReader(src, d.Length()), closer: src, lease: lease, obs: t.Observer}
 	return d, nil
 }
 
@@ -282,7 +324,8 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 		lease.Release(err)
 		return remotefs.Entry{}, err
 	}
-	_, err = io.Copy(w, data)
+	started(t.Observer, -1)
+	_, err = io.Copy(w, &countingReader{ctx: ctx, src: data, obs: t.Observer})
 	if closeErr := w.Close(); err == nil {
 		err = closeErr
 	}
@@ -293,4 +336,21 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 	entry, err := lease.FS().Stat(ctx, p)
 	lease.Release(err)
 	return entry, err
+}
+
+// countingReader counts what it reads and stops with the context error once the context ended.
+type countingReader struct {
+	ctx context.Context
+	src io.Reader
+	obs Observer
+}
+
+// Read reads from the source and reports the bytes.
+func (c *countingReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	n, err := c.src.Read(p)
+	progress(c.obs, int64(n))
+	return n, err
 }

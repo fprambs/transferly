@@ -1,0 +1,261 @@
+package transfer
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/fprambs/sentinel/internal/core/ports"
+)
+
+// saveTimeout bounds each write of a transfer to the store made after the request ended.
+const saveTimeout = 5 * time.Second
+
+// EventState is the type of the event sent when a transfer changes state.
+const EventState = "transfer.state"
+
+// EventProgress is the type of the event sent while data moves.
+const EventProgress = "transfer.progress"
+
+var (
+	// errCanceledByUser is the cause of a context canceled by the user's request.
+	errCanceledByUser = errors.New("canceled by the user")
+	// ErrIncomplete tells a tracker that a transfer stopped before all its bytes moved, without an error of its own.
+	ErrIncomplete = errors.New("transfer stopped before it finished")
+)
+
+// Progress is the payload of a progress event.
+type Progress struct {
+	// ID identifies the transfer.
+	ID uuid.UUID
+	// BytesDone is how many bytes moved so far.
+	BytesDone int64
+	// TotalBytes is the size of the file, or nil while it is unknown.
+	TotalBytes *int64
+}
+
+// BeginInput describes a transfer that is about to start.
+type BeginInput struct {
+	// ID is chosen by the client to follow the transfer and to resume it; the nil identifier selects a new one.
+	ID uuid.UUID
+	// UserID is the user who transfers.
+	UserID uuid.UUID
+	// WorkspaceID is the workspace of the site.
+	WorkspaceID uuid.UUID
+	// SiteID is the site.
+	SiteID uuid.UUID
+	// SiteName is the name of the site, kept in the history.
+	SiteName string
+	// Direction is upload or download.
+	Direction Direction
+	// Path is the remote path.
+	Path string
+	// Name is the file name.
+	Name string
+	// Total is the number of bytes to move, or a negative number when unknown.
+	Total int64
+	// Offset is where the transfer starts, for resumed uploads.
+	Offset int64
+}
+
+// Begin records a transfer as queued and returns the tracker that follows it, with the context the data
+// movement must use: canceling the transfer cancels that context. Beginning again with the identifier of an
+// interrupted or failed transfer of the same file resumes it.
+func (s *Service) Begin(ctx context.Context, in BeginInput) (*Tracker, context.Context, error) {
+	now := s.clock.Now().UTC()
+	id := in.ID
+	if id == uuid.Nil {
+		var err error
+		if id, err = s.newID(); err != nil {
+			return nil, nil, fmt.Errorf("generating transfer id: %w", err)
+		}
+	}
+
+	t, err := s.store.TransferByID(ctx, in.UserID, id)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		t = Transfer{ID: id, WorkspaceID: in.WorkspaceID, UserID: in.UserID, SiteID: in.SiteID, SiteName: in.SiteName, Direction: in.Direction,
+			Path: in.Path, Name: in.Name, Status: Queued, BytesDone: in.Offset, Attempts: 1, CreatedAt: now, UpdatedAt: now}
+		if in.Total >= 0 {
+			t.TotalBytes = &in.Total
+		}
+		if err := s.store.CreateTransfer(ctx, t); err != nil {
+			return nil, nil, err
+		}
+	case err != nil:
+		return nil, nil, err
+	default:
+		if t.Direction != in.Direction || t.Path != in.Path || t.SiteID != in.SiteID {
+			return nil, nil, ErrExists
+		}
+		if t.Status.Active() {
+			return nil, nil, ErrActive
+		}
+		t.Status, t.BytesDone, t.ErrorCode, t.Attempts, t.StartedAt, t.FinishedAt, t.UpdatedAt = Queued, in.Offset, "", t.Attempts+1, nil, nil, now
+		t.TotalBytes = nil
+		if in.Total >= 0 {
+			t.TotalBytes = &in.Total
+		}
+		if err := s.store.UpdateTransfer(ctx, t); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	runCtx, cancel := context.WithCancelCause(ctx)
+	k := &Tracker{s: s, t: t, ctx: runCtx, cancel: cancel, base: context.WithoutCancel(ctx), lastEvent: now, lastSave: now}
+	s.mu.Lock()
+	s.active[id] = k
+	s.mu.Unlock()
+	s.publishState(t)
+	return k, runCtx, nil
+}
+
+// publishState tells the user's clients that a transfer changed state.
+func (s *Service) publishState(t Transfer) {
+	s.sink.Publish(ports.Event{Type: EventState, UserID: t.UserID, Data: t})
+}
+
+// Tracker follows one transfer. It is safe for concurrent use.
+type Tracker struct {
+	s      *Service
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+	base   context.Context
+
+	mu        sync.Mutex
+	t         Transfer
+	lastEvent time.Time
+	lastSave  time.Time
+	finished  bool
+}
+
+// ID returns the identifier of the transfer.
+func (k *Tracker) ID() uuid.UUID { return k.t.ID }
+
+// save writes the current record to the store; the caller holds the lock.
+func (k *Tracker) save() {
+	ctx, cancel := context.WithTimeout(k.base, saveTimeout)
+	defer cancel()
+	_ = k.s.store.UpdateTransfer(ctx, k.t)
+}
+
+// Started marks the transfer as running because a connection was obtained. A non-negative total is the number
+// of bytes the transfer will move.
+func (k *Tracker) Started(total int64) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.finished {
+		return
+	}
+	now := k.s.clock.Now().UTC()
+	k.t.Status, k.t.StartedAt, k.t.UpdatedAt = Running, &now, now
+	if total >= 0 {
+		k.t.TotalBytes = &total
+	}
+	k.save()
+	k.lastSave = now
+	k.s.publishState(k.t)
+}
+
+// Progress adds n bytes to the count. Events and writes to the store are throttled.
+func (k *Tracker) Progress(n int64) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.finished {
+		return
+	}
+	now := k.s.clock.Now().UTC()
+	k.t.BytesDone += n
+	k.t.UpdatedAt = now
+	if now.Sub(k.lastEvent) >= k.s.cfg.EventEvery {
+		k.lastEvent = now
+		k.s.sink.Publish(ports.Event{Type: EventProgress, UserID: k.t.UserID, Data: Progress{ID: k.t.ID, BytesDone: k.t.BytesDone, TotalBytes: k.t.TotalBytes}})
+	}
+	if now.Sub(k.lastSave) >= k.s.cfg.SaveEvery {
+		k.lastSave = now
+		k.save()
+	}
+}
+
+// Complete reports whether every expected byte moved.
+func (k *Tracker) Complete() bool {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return k.t.TotalBytes != nil && k.t.BytesDone >= *k.t.TotalBytes
+}
+
+// Finish ends the transfer. A nil err means it is done; a cancellation requested by the user ends as canceled;
+// a context that ended, or [ErrIncomplete], as interrupted; anything else as failed with code as its error code.
+// Finishing twice has no effect.
+func (k *Tracker) Finish(err error, code string) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.finished {
+		return
+	}
+	k.finished = true
+	now := k.s.clock.Now().UTC()
+	switch {
+	case err == nil:
+		k.t.Status = Done
+	case errors.Is(context.Cause(k.ctx), errCanceledByUser):
+		k.t.Status = Canceled
+	case errors.Is(err, ErrIncomplete), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		k.t.Status = Interrupted
+	default:
+		k.t.Status, k.t.ErrorCode = Failed, code
+	}
+	k.t.UpdatedAt, k.t.FinishedAt = now, &now
+	k.save()
+	k.cancel(nil)
+	k.s.mu.Lock()
+	delete(k.s.active, k.t.ID)
+	k.s.mu.Unlock()
+	k.s.publishState(k.t)
+}
+
+// finishingBody ends the transfer when a download stream is closed.
+type finishingBody struct {
+	io.ReadCloser
+	k       *Tracker
+	code    func(error) string
+	readErr error
+}
+
+// Read reads from the stream, stops when the transfer was canceled and remembers a failure.
+func (b *finishingBody) Read(p []byte) (int, error) {
+	if err := b.k.ctx.Err(); err != nil {
+		b.readErr = context.Cause(b.k.ctx)
+		return 0, err
+	}
+	n, err := b.ReadCloser.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		b.readErr = err
+	}
+	return n, err
+}
+
+// Close closes the stream and ends the transfer: done when every byte was read, failed when reading failed,
+// interrupted when the reader stopped early.
+func (b *finishingBody) Close() error {
+	err := b.ReadCloser.Close()
+	switch {
+	case b.readErr != nil:
+		b.k.Finish(b.readErr, b.code(b.readErr))
+	case b.k.Complete():
+		b.k.Finish(nil, "")
+	default:
+		b.k.Finish(ErrIncomplete, "")
+	}
+	return err
+}
+
+// Download wraps a download stream so that closing it ends the transfer. code turns a failure into its stable code.
+func (k *Tracker) Download(body io.ReadCloser, code func(error) string) io.ReadCloser {
+	return &finishingBody{ReadCloser: body, k: k, code: code}
+}

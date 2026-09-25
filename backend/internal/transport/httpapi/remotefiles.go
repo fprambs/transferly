@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,8 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/sentinel/internal/core/workspace"
 )
 
 // target returns who acts on which site for the request.
@@ -155,31 +158,85 @@ func attachment(name string) string {
 	return mime.FormatMediaType("attachment", map[string]string{"filename": name})
 }
 
-// DownloadFile streams a remote file, or a range of it.
+// problemCode returns the stable code the client sees for err, for the record of a failed transfer.
+func problemCode(err error) string {
+	if problem, ok := asProblem(err); ok {
+		return problem.code
+	}
+	return "internal_error"
+}
+
+// track records a transfer of the site's file. The record is created only after the request was authorized, so
+// refused requests leave no trace.
+func (s *server) track(ctx context.Context, t files.Target, direction transfer.Direction, p string, id *TransferIdQuery, total, offset int64) (*transfer.Tracker, context.Context, error) {
+	found, err := s.deps.Sites.Get(ctx, t.Actor, t.Workspace, t.Site)
+	if err != nil {
+		return nil, nil, err
+	}
+	in := transfer.BeginInput{
+		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site, SiteName: found.Name, Direction: direction,
+		Path: p, Name: path.Base(p), Total: total, Offset: offset,
+	}
+	if id != nil {
+		in.ID = uuid.UUID(*id)
+	}
+	return s.deps.Transfers.Begin(ctx, in)
+}
+
+// DownloadFile streams a remote file, or a range of it. Whole downloads, and ranges that name a transfer, are
+// recorded as transfers; other ranges, such as a browser seeking in a video, are not.
 func (s *server) DownloadFile(ctx context.Context, request DownloadFileRequestObject) (DownloadFileResponseObject, error) {
 	var requested files.Range
 	if request.Params.Range != nil {
 		requested = parseRange(*request.Params.Range)
 	}
-	d, err := s.deps.Files.Download(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Params.Path, requested)
-	if problem, ok := asProblem(err); ok {
-		return problem, nil
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+
+	var tracker *transfer.Tracker
+	if !requested.Set || request.Params.TransferId != nil {
+		if err := s.deps.Files.Check(ctx, t, workspace.ActionDownload, request.Params.Path); err != nil {
+			return downloadFailure(err)
+		}
+		var err error
+		if tracker, ctx, err = s.track(ctx, t, transfer.Download, request.Params.Path, request.Params.TransferId, -1, 0); err != nil {
+			return downloadFailure(err)
+		}
+		t.Observer = tracker
 	}
+
+	d, err := s.deps.Files.Download(ctx, t, request.Params.Path, requested)
 	if err != nil {
-		return nil, err
+		if tracker != nil {
+			tracker.Finish(err, problemCode(err))
+		}
+		return downloadFailure(err)
+	}
+	var id *uuid.UUID
+	if tracker != nil {
+		d.Body = tracker.Download(d.Body, problemCode)
+		trackedID := tracker.ID()
+		id = &trackedID
 	}
 	ranges, disposition, modified := "bytes", attachment(d.Entry.Name), d.Entry.ModTime.UTC().Format(http.TimeFormat)
 	if !d.Partial {
 		return DownloadFile200ApplicationoctetStreamResponse{
 			Body: d.Body, ContentLength: d.Length(),
-			Headers: DownloadFile200ResponseHeaders{AcceptRanges: &ranges, ContentDisposition: &disposition, LastModified: &modified},
+			Headers: DownloadFile200ResponseHeaders{AcceptRanges: &ranges, ContentDisposition: &disposition, LastModified: &modified, XTransferId: id},
 		}, nil
 	}
 	contentRange := "bytes " + strconv.FormatInt(d.Start, 10) + "-" + strconv.FormatInt(d.End, 10) + "/" + strconv.FormatInt(d.Entry.Size, 10)
 	return DownloadFile206ApplicationoctetStreamResponse{
 		Body: d.Body, ContentLength: d.Length(),
-		Headers: DownloadFile206ResponseHeaders{AcceptRanges: &ranges, ContentDisposition: &disposition, ContentRange: &contentRange, LastModified: &modified},
+		Headers: DownloadFile206ResponseHeaders{AcceptRanges: &ranges, ContentDisposition: &disposition, ContentRange: &contentRange, LastModified: &modified, XTransferId: id},
 	}, nil
+}
+
+// downloadFailure answers a download that could not start: with its problem, or as an internal error.
+func downloadFailure(err error) (DownloadFileResponseObject, error) {
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	return nil, err
 }
 
 // uploadModes maps the public upload modes to write modes.
@@ -189,9 +246,17 @@ var uploadModes = map[UploadFileParamsMode]remotefs.WriteMode{
 	"resume":    remotefs.WriteResume,
 }
 
-// UploadFile streams the request body to a remote file.
+// uploadFailure answers an upload that could not start or finish: with its problem, or as an internal error.
+func uploadFailure(err error) (UploadFileResponseObject, error) {
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	return nil, err
+}
+
+// UploadFile streams the request body to a remote file and records the transfer.
 func (s *server) UploadFile(ctx context.Context, request UploadFileRequestObject) (UploadFileResponseObject, error) {
-	mode, offset := remotefs.WriteCreate, int64(0)
+	mode, offset, size := remotefs.WriteCreate, int64(0), int64(-1)
 	if m := request.Params.Mode; m != nil {
 		var ok bool
 		if mode, ok = uploadModes[*m]; !ok {
@@ -201,12 +266,23 @@ func (s *server) UploadFile(ctx context.Context, request UploadFileRequestObject
 	if request.Params.Offset != nil {
 		offset = *request.Params.Offset
 	}
-	entry, err := s.deps.Files.Upload(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Params.Path, mode, offset, request.Body)
-	if problem, ok := asProblem(err); ok {
-		return problem, nil
+	if request.Params.Size != nil {
+		size = *request.Params.Size
 	}
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	if err := s.deps.Files.Check(ctx, t, workspace.ActionUpload, request.Params.Path); err != nil {
+		return uploadFailure(err)
+	}
+	tracker, runCtx, err := s.track(ctx, t, transfer.Upload, request.Params.Path, request.Params.TransferId, size, offset)
 	if err != nil {
-		return nil, err
+		return uploadFailure(err)
 	}
-	return UploadFile201JSONResponse(remoteEntryDTO(entry)), nil
+	t.Observer = tracker
+	entry, err := s.deps.Files.Upload(runCtx, t, request.Params.Path, mode, offset, request.Body)
+	tracker.Finish(err, problemCode(err))
+	if err != nil {
+		return uploadFailure(err)
+	}
+	id := tracker.ID()
+	return UploadFile201JSONResponse{Body: remoteEntryDTO(entry), Headers: UploadFile201ResponseHeaders{XTransferId: &id}}, nil
 }

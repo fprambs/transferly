@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fprambs/sentinel/internal/adapters/clock"
+	"github.com/fprambs/sentinel/internal/adapters/events"
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/connect"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
@@ -18,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
@@ -28,6 +30,7 @@ const (
 	maxTrackedClients = 10000
 	connectTimeout    = 15 * time.Second
 	poolSweepEvery    = 30 * time.Second
+	eventBuffer       = 256
 )
 
 var (
@@ -48,6 +51,8 @@ type wiring struct {
 	deps    httpapi.Deps
 	janitor []janitorTask
 	pool    *connections.Manager
+	hub     *events.Hub
+	recover func(ctx context.Context) (int, error)
 }
 
 // newWiring composes the core services with the store and the configuration.
@@ -65,10 +70,14 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	hostKeys := hostkey.NewService(store, workspaces, system)
 	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)
 	sites := site.NewService(store, workspaces, vaults, policy, system, rand.Reader, nil)
+	hub := events.New(eventBuffer)
+	transfers := transfer.NewService(store, hub, system, transfer.Config{}, nil)
 	pool := connections.New(connect.New(sites, hostKeys, policy, connectTimeout), system, connections.Config{})
 
 	return wiring{
-		pool: pool,
+		pool:    pool,
+		hub:     hub,
+		recover: transfers.Recover,
 		deps: httpapi.Deps{
 			Logger:      logger,
 			Readiness:   store,
@@ -80,6 +89,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			HostKeys:    hostKeys,
 			Connections: pool,
 			Files:       files.NewService(workspaces, pool),
+			Transfers:   transfers,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

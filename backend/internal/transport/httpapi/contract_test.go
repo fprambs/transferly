@@ -13,6 +13,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/legacy"
+	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 )
@@ -173,4 +174,36 @@ func TestContract_FileResponses(t *testing.T) {
 	e.a.upload(e.ws, e.site, q("path", "/d/x"), "x", e.cookie, e.csrf)
 	check(http.MethodDelete, del, e.a.send(http.MethodDelete, del, nil, e.cookie, e.csrf))
 	check(http.MethodDelete, del, e.a.send(http.MethodDelete, filesPath(e.ws, e.site, "", q("path", "/d", "recursive", "true")), nil, e.cookie, e.csrf))
+}
+
+// TestContract_TransferResponses verifies that the responses of the transfer endpoints, and the transfer headers of
+// uploads and downloads, satisfy the spec.
+//
+// Scenarios:
+//   - uploading and downloading with an identifier answer with the documented headers
+//   - listing, reading, canceling a finished transfer and deleting answer as documented, problems included
+func TestContract_TransferResponses(t *testing.T) {
+	_, router := loadSpec(t)
+	e := newFileEnv(t)
+	check := func(method, target string, r reply) reply {
+		validateReply(t, router, method, target, r)
+		return r
+	}
+
+	id := uuid.New()
+	put := filesPath(e.ws, e.site, "/content", q("path", "/f", "transferId", id.String(), "size", "3"))
+	check(http.MethodPut, put, e.a.upload(e.ws, e.site, q("path", "/f", "transferId", id.String(), "size", "3"), "abc", e.cookie, e.csrf))
+	content := filesPath(e.ws, e.site, "/content", q("path", "/f"))
+	check(http.MethodGet, content, e.get("/content", q("path", "/f"), nil))
+	check(http.MethodGet, content, e.get("/content", q("path", "/f", "transferId", uuid.NewString()), map[string]string{"Range": "bytes=0-1"}))
+
+	check(http.MethodGet, "/api/v1/transfers", e.a.do(request{method: http.MethodGet, path: "/api/v1/transfers", cookie: e.cookie}))
+	one := "/api/v1/transfers/" + id.String()
+	check(http.MethodGet, one, e.a.do(request{method: http.MethodGet, path: one, cookie: e.cookie}))
+	missing := "/api/v1/transfers/" + uuid.NewString()
+	check(http.MethodGet, missing, e.a.do(request{method: http.MethodGet, path: missing, cookie: e.cookie}))
+	cancel := one + "/cancel"
+	check(http.MethodPost, cancel, e.a.send(http.MethodPost, cancel, nil, e.cookie, e.csrf))
+	check(http.MethodDelete, one, e.a.send(http.MethodDelete, one, nil, e.cookie, e.csrf))
+	check(http.MethodDelete, one, e.a.send(http.MethodDelete, one, nil, e.cookie, e.csrf))
 }

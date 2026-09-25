@@ -18,3 +18,14 @@ sql:
               type: NullUUID
           - db_type: timestamptz
             go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+          - db_type: pg_catalog.int8
+            nullable: true
+            go_type:
+              type: int64
+              pointer: true
