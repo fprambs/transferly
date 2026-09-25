@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { Collection } from '@/lib/api'
+import type { Collection, Site } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useDialogsStore } from '@/state/dialogs-store'
 
@@ -12,6 +12,8 @@ import { useWorkspace } from '../workspace/use-workspace'
 
 import { CollectionDialog, type CollectionTarget } from './CollectionDialog'
 import { DeleteCollectionDialog } from './DeleteCollectionDialog'
+import { DeleteSiteDialog } from './DeleteSiteDialog'
+import { SiteDialog, type SiteTarget } from './SiteDialog'
 import { buildTree, type CollectionNode, type TreeNode } from './tree'
 import { useSitesData } from './use-sites-data'
 
@@ -28,6 +30,12 @@ interface CollectionActions {
   onEdit: (id: string) => void
   /** Called to delete a collection. */
   onDelete: (id: string) => void
+  /** Called to create a site inside a collection. */
+  onCreateSiteIn: (collectionId: string) => void
+  /** Called to edit a saved site. */
+  onEditSite: (id: string) => void
+  /** Called to delete a saved site. */
+  onDeleteSite: (id: string) => void
 }
 
 /** Props of {@link Row}. */
@@ -86,6 +94,7 @@ function Row({ node, actions }: RowProps) {
             <Ellipsis className="size-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
+            <DropdownMenuItem onClick={() => actions.onCreateSiteIn(node.id)}>{sites(($) => $.site.newHere)}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.onCreateIn(node.id)}>{sites(($) => $.collection.newSub)}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.onEdit(node.id)}>{sites(($) => $.collection.edit)}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.onDelete(node.id)}>{sites(($) => $.collection.delete)}</DropdownMenuItem>
@@ -105,11 +114,23 @@ function Row({ node, actions }: RowProps) {
     )
   }
   return (
-    <div role="treeitem" aria-level={node.depth + 1} tabIndex={0} className={base} style={style}>
+    <div role="treeitem" aria-level={node.depth + 1} tabIndex={0} className={cn(base, 'group')} style={style}>
       <span className="w-3 shrink-0" />
       <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />
       <span className="min-w-0 flex-1 truncate">{node.name}</span>
-      <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
+      <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground group-hover:hidden group-focus-within:hidden">{node.host}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={sites(($) => $.site.actions, { name: node.name })}
+          className="hidden size-5 items-center justify-center rounded text-muted-foreground hover:bg-background group-focus-within:flex group-hover:flex"
+        >
+          <Ellipsis className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-40">
+          <DropdownMenuItem onClick={() => actions.onEditSite(node.id)}>{sites(($) => $.site.edit)}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => actions.onDeleteSite(node.id)}>{sites(($) => $.site.delete)}</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
@@ -128,6 +149,8 @@ export function SitesSidebar() {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [target, setTarget] = useState<CollectionTarget | null>(null)
   const [deleting, setDeleting] = useState<Collection | null>(null)
+  const [siteTarget, setSiteTarget] = useState<SiteTarget | null>(null)
+  const [deletingSite, setDeletingSite] = useState<Site | null>(null)
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
   const actions: CollectionActions = {
     onToggle: (id) => setExpanded((open) => toggled(open, id)),
@@ -137,6 +160,12 @@ export function SitesSidebar() {
     },
     onEdit: (id) => setTarget({ mode: 'edit', collection: collections.find((collection) => collection.id === id) as Collection }),
     onDelete: (id) => setDeleting(collections.find((collection) => collection.id === id) as Collection),
+    onCreateSiteIn: (collectionId) => {
+      setExpanded((open) => new Set([...open, collectionId]))
+      setSiteTarget({ mode: 'create', collectionId })
+    },
+    onEditSite: (id) => setSiteTarget({ mode: 'edit', site: sites.find((site) => site.id === id) as Site }),
+    onDeleteSite: (id) => setDeletingSite(sites.find((site) => site.id === id) as Site),
   }
 
   return (
@@ -147,7 +176,7 @@ export function SitesSidebar() {
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newCollection)} onClick={() => setTarget({ mode: 'create' })}>
             <FolderPlus />
           </Button>
-          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)}>
+          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
             <Plus />
           </Button>
         </div>
@@ -169,6 +198,8 @@ export function SitesSidebar() {
         <>
           <CollectionDialog target={target} workspaceId={workspace.id} collections={collections} onClose={() => setTarget(null)} />
           <DeleteCollectionDialog collection={deleting} workspaceId={workspace.id} onClose={() => setDeleting(null)} />
+          <SiteDialog target={siteTarget} workspaceId={workspace.id} collections={collections} onClose={() => setSiteTarget(null)} />
+          <DeleteSiteDialog site={deletingSite} workspaceId={workspace.id} onClose={() => setDeletingSite(null)} />
         </>
       )}
     </nav>
