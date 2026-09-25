@@ -18,6 +18,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -38,6 +39,7 @@ var (
 	loginIPRule      = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
 	loginAccountRule = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 	vaultRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
+	quickRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 )
 
 // janitorTask is a periodic cleanup that reports how many items it removed.
@@ -72,7 +74,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	sites := site.NewService(store, workspaces, vaults, policy, system, rand.Reader, nil)
 	hub := events.New(eventBuffer)
 	transfers := transfer.NewService(store, hub, system, transfer.Config{}, nil)
-	pool := connections.New(connect.New(sites, hostKeys, policy, connectTimeout), system, connections.Config{})
+	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
+	pool := connections.New(connect.New(sites, quickConnections, hostKeys, policy, connectTimeout), system, connections.Config{})
 
 	return wiring{
 		pool:    pool,
@@ -90,11 +93,13 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Connections: pool,
 			Files:       files.NewService(workspaces, pool),
 			Transfers:   transfers,
+			Quick:       quickConnections,
 			Events:      hub,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),
 				LoginAccount:  ratelimit.New(system, loginAccountRule, maxTrackedClients),
+				QuickConnect:  ratelimit.New(system, quickRule, maxTrackedClients),
 				VaultAttempts: ratelimit.New(system, vaultRule, maxTrackedClients),
 			},
 			InstanceKey:    instanceKey,
@@ -104,6 +109,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		},
 		janitor: []janitorTask{
 			{name: "expired sessions", run: authService.PurgeExpired},
+			{name: "idle quick connections", run: func(context.Context) (int, error) { return quickConnections.Sweep(cfg.SessionIdle), nil }},
 			{name: "expired vault keys", run: func(context.Context) (int, error) { return keyRing.Sweep(), nil }},
 		},
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -30,6 +31,8 @@ type Limits struct {
 	LoginIP ports.RateLimiter
 	// LoginAccount limits sign-in attempts per account, whether or not it exists.
 	LoginAccount ports.RateLimiter
+	// QuickConnect limits how often a user starts quick connections.
+	QuickConnect ports.RateLimiter
 	// VaultAttempts limits attempts to prove a vault secret, per signed-in account.
 	VaultAttempts ports.RateLimiter
 }
@@ -58,6 +61,8 @@ type Deps struct {
 	Events *events.Hub
 	// WebSocket tunes the event stream.
 	WebSocket WebSocketConfig
+	// Quick keeps the servers users try without saving them.
+	Quick *quick.Service
 	// Transfers records uploads and downloads.
 	Transfers *transfer.Service
 	// Files performs operations on the files of remote sites.

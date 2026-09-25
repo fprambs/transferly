@@ -425,6 +425,18 @@ func (m *Manager) closePools(pools []*pool) {
 	}
 }
 
+// CloseKey closes the connections of one site of one user, for example when a quick connection ends or is saved as
+// a site. Connections in use are closed when released.
+func (m *Manager) CloseKey(key Key) {
+	m.mu.Lock()
+	p, ok := m.pools[key]
+	delete(m.pools, key)
+	m.mu.Unlock()
+	if ok {
+		m.closePools([]*pool{p})
+	}
+}
+
 // CloseUser closes the connections of a user, for example when they lock their vault or sign out.
 // Connections in use are closed when released, and callers waiting for one get [ErrClosed].
 func (m *Manager) CloseUser(userID uuid.UUID) {

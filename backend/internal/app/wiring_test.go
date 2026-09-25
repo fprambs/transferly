@@ -65,6 +65,11 @@ func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 
 	names := map[string]int{}
 	for _, task := range w.janitor {
+		if task.name == "idle quick connections" {
+			if removed, err := task.run(t.Context()); removed != 0 || err != nil {
+				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
+			}
+		}
 		if task.name == "expired vault keys" {
 			if removed, err := task.run(t.Context()); removed != 0 || err != nil {
 				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
@@ -72,7 +77,7 @@ func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 		}
 		names[task.name]++
 	}
-	if names["expired vault keys"] != 1 || names["expired sessions"] != 1 {
+	if names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 {
 		t.Errorf("janitor tasks = %v; want sessions and vault keys once each", names)
 	}
 }

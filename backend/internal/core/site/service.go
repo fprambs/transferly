@@ -109,8 +109,9 @@ func NewService(store interface {
 	return &Service{store: store, authz: authz, keys: keys, guard: guard, clock: clock, random: random, newID: newID}
 }
 
-// normalize validates the input and fills in defaults.
-func normalize(in Input) (Input, error) {
+// Normalize validates the settings and fills in the defaults: the port of the protocol, password authentication and
+// UTC listing times. Text fields are trimmed.
+func Normalize(in Input) (Input, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Host = strings.TrimSpace(in.Host)
 	in.Username = strings.TrimSpace(in.Username)
@@ -216,7 +217,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Site{}, err
 	}
-	in, err := normalize(in)
+	in, err := Normalize(in)
 	if err != nil {
 		return Site{}, err
 	}
@@ -265,7 +266,7 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Site{}, err
 	}
-	in, err := normalize(in)
+	in, err := Normalize(in)
 	if err != nil {
 		return Site{}, err
 	}

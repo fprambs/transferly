@@ -42,6 +42,84 @@ func (e HealthStatusStatus) Valid() bool {
 	}
 }
 
+// Defines values for QuickConnectInputAuthMethod.
+const (
+	QuickConnectInputAuthMethodKey      QuickConnectInputAuthMethod = "key"
+	QuickConnectInputAuthMethodPassword QuickConnectInputAuthMethod = "password"
+)
+
+// Valid indicates whether the value is a known member of the QuickConnectInputAuthMethod enum.
+func (e QuickConnectInputAuthMethod) Valid() bool {
+	switch e {
+	case QuickConnectInputAuthMethodKey:
+		return true
+	case QuickConnectInputAuthMethodPassword:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuickConnectInputProtocol.
+const (
+	QuickConnectInputProtocolFtp  QuickConnectInputProtocol = "ftp"
+	QuickConnectInputProtocolFtps QuickConnectInputProtocol = "ftps"
+	QuickConnectInputProtocolSftp QuickConnectInputProtocol = "sftp"
+)
+
+// Valid indicates whether the value is a known member of the QuickConnectInputProtocol enum.
+func (e QuickConnectInputProtocol) Valid() bool {
+	switch e {
+	case QuickConnectInputProtocolFtp:
+		return true
+	case QuickConnectInputProtocolFtps:
+		return true
+	case QuickConnectInputProtocolSftp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuickConnectionAuthMethod.
+const (
+	QuickConnectionAuthMethodKey      QuickConnectionAuthMethod = "key"
+	QuickConnectionAuthMethodPassword QuickConnectionAuthMethod = "password"
+)
+
+// Valid indicates whether the value is a known member of the QuickConnectionAuthMethod enum.
+func (e QuickConnectionAuthMethod) Valid() bool {
+	switch e {
+	case QuickConnectionAuthMethodKey:
+		return true
+	case QuickConnectionAuthMethodPassword:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuickConnectionProtocol.
+const (
+	QuickConnectionProtocolFtp  QuickConnectionProtocol = "ftp"
+	QuickConnectionProtocolFtps QuickConnectionProtocol = "ftps"
+	QuickConnectionProtocolSftp QuickConnectionProtocol = "sftp"
+)
+
+// Valid indicates whether the value is a known member of the QuickConnectionProtocol enum.
+func (e QuickConnectionProtocol) Valid() bool {
+	switch e {
+	case QuickConnectionProtocolFtp:
+		return true
+	case QuickConnectionProtocolFtps:
+		return true
+	case QuickConnectionProtocolSftp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RemoteEntryModifiedPrecision.
 const (
 	Day    RemoteEntryModifiedPrecision = "day"
@@ -420,6 +498,61 @@ type Problem struct {
 	Type string `json:"type"`
 }
 
+// QuickConnectInput defines model for QuickConnectInput.
+type QuickConnectInput struct {
+	AuthMethod   *QuickConnectInputAuthMethod `json:"authMethod,omitempty"`
+	Host         string                       `json:"host"`
+	ListTimezone *string                      `json:"listTimezone,omitempty"`
+
+	// Passphrase Write only; kept in memory until the connection ends.
+	Passphrase *string `json:"passphrase,omitempty"`
+
+	// Password Write only; kept in memory until the connection ends.
+	Password *string `json:"password,omitempty"`
+
+	// Port Defaults to the protocol's port.
+	Port *int `json:"port,omitempty"`
+
+	// PrivateKey Write only; kept in memory until the connection ends.
+	PrivateKey *string                   `json:"privateKey,omitempty"`
+	Protocol   QuickConnectInputProtocol `json:"protocol"`
+	Username   string                    `json:"username"`
+}
+
+// QuickConnectInputAuthMethod defines model for QuickConnectInput.AuthMethod.
+type QuickConnectInputAuthMethod string
+
+// QuickConnectInputProtocol defines model for QuickConnectInput.Protocol.
+type QuickConnectInputProtocol string
+
+// QuickConnection defines model for QuickConnection.
+type QuickConnection struct {
+	AuthMethod   QuickConnectionAuthMethod `json:"authMethod"`
+	CreatedAt    time.Time                 `json:"createdAt"`
+	Host         string                    `json:"host"`
+	Id           openapi_types.UUID        `json:"id"`
+	ListTimezone string                    `json:"listTimezone"`
+
+	// Name The host.
+	Name     string                  `json:"name"`
+	Port     int                     `json:"port"`
+	Protocol QuickConnectionProtocol `json:"protocol"`
+	Username string                  `json:"username"`
+}
+
+// QuickConnectionAuthMethod defines model for QuickConnection.AuthMethod.
+type QuickConnectionAuthMethod string
+
+// QuickConnectionProtocol defines model for QuickConnection.Protocol.
+type QuickConnectionProtocol string
+
+// QuickSaveInput defines model for QuickSaveInput.
+type QuickSaveInput struct {
+	// CollectionId Collection to keep the site in; left out keeps it at the top level.
+	CollectionId *openapi_types.UUID `json:"collectionId,omitempty"`
+	Name         string              `json:"name"`
+}
+
 // RecoverVaultRequest defines model for RecoverVaultRequest.
 type RecoverVaultRequest struct {
 	NewPassword string `json:"newPassword"`
@@ -613,6 +746,9 @@ type CollectionId = openapi_types.UUID
 // CsrfToken defines model for CsrfToken.
 type CsrfToken = string
 
+// QuickId defines model for QuickId.
+type QuickId = openapi_types.UUID
+
 // RemotePath defines model for RemotePath.
 type RemotePath = string
 
@@ -735,6 +871,24 @@ type ForgetHostKeyParams struct {
 
 // TrustHostKeyParams defines parameters for TrustHostKey.
 type TrustHostKeyParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// CreateQuickConnectionParams defines parameters for CreateQuickConnection.
+type CreateQuickConnectionParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// CloseQuickConnectionParams defines parameters for CloseQuickConnection.
+type CloseQuickConnectionParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// SaveQuickConnectionParams defines parameters for SaveQuickConnection.
+type SaveQuickConnectionParams struct {
 	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
@@ -862,6 +1016,12 @@ type UpdateCollectionJSONRequestBody = CollectionChanges
 // TrustHostKeyJSONRequestBody defines body for TrustHostKey for application/json ContentType.
 type TrustHostKeyJSONRequestBody = HostKeyInput
 
+// CreateQuickConnectionJSONRequestBody defines body for CreateQuickConnection for application/json ContentType.
+type CreateQuickConnectionJSONRequestBody = QuickConnectInput
+
+// SaveQuickConnectionJSONRequestBody defines body for SaveQuickConnection for application/json ContentType.
+type SaveQuickConnectionJSONRequestBody = QuickSaveInput
+
 // CreateSiteJSONRequestBody defines body for CreateSite for application/json ContentType.
 type CreateSiteJSONRequestBody = SiteInput
 
@@ -954,6 +1114,18 @@ type ServerInterface interface {
 	// TrustHostKey Trust a server key
 	// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
 	TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams)
+	// ListQuickConnections The signed-in user's quick connections in a workspace
+	// (GET /api/v1/workspaces/{workspaceId}/quick-connections)
+	ListQuickConnections(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// CreateQuickConnection Try a server without saving it
+	// (POST /api/v1/workspaces/{workspaceId}/quick-connections)
+	CreateQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params CreateQuickConnectionParams)
+	// CloseQuickConnection End a quick connection and forget its credentials
+	// (DELETE /api/v1/workspaces/{workspaceId}/quick-connections/{quickId})
+	CloseQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, quickId QuickId, params CloseQuickConnectionParams)
+	// SaveQuickConnection Keep a quick connection as a site
+	// (POST /api/v1/workspaces/{workspaceId}/quick-connections/{quickId}/save)
+	SaveQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, quickId QuickId, params SaveQuickConnectionParams)
 	// ListSites Sites of a workspace
 	// (GET /api/v1/workspaces/{workspaceId}/sites)
 	ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -1155,6 +1327,30 @@ func (_ Unimplemented) ListKnownHosts(w http.ResponseWriter, r *http.Request, wo
 // TrustHostKey Trust a server key
 // (POST /api/v1/workspaces/{workspaceId}/known-hosts)
 func (_ Unimplemented) TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListQuickConnections The signed-in user's quick connections in a workspace
+// (GET /api/v1/workspaces/{workspaceId}/quick-connections)
+func (_ Unimplemented) ListQuickConnections(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateQuickConnection Try a server without saving it
+// (POST /api/v1/workspaces/{workspaceId}/quick-connections)
+func (_ Unimplemented) CreateQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params CreateQuickConnectionParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CloseQuickConnection End a quick connection and forget its credentials
+// (DELETE /api/v1/workspaces/{workspaceId}/quick-connections/{quickId})
+func (_ Unimplemented) CloseQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, quickId QuickId, params CloseQuickConnectionParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SaveQuickConnection Keep a quick connection as a site
+// (POST /api/v1/workspaces/{workspaceId}/quick-connections/{quickId}/save)
+func (_ Unimplemented) SaveQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, quickId QuickId, params SaveQuickConnectionParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2220,6 +2416,200 @@ func (siw *ServerInterfaceWrapper) TrustHostKey(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListQuickConnections operation middleware
+func (siw *ServerInterfaceWrapper) ListQuickConnections(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListQuickConnections(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateQuickConnection operation middleware
+func (siw *ServerInterfaceWrapper) CreateQuickConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateQuickConnectionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateQuickConnection(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CloseQuickConnection operation middleware
+func (siw *ServerInterfaceWrapper) CloseQuickConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "quickId" -------------
+	var quickId QuickId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "quickId", chi.URLParam(r, "quickId"), &quickId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "quickId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CloseQuickConnectionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseQuickConnection(w, r, workspaceId, quickId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveQuickConnection operation middleware
+func (siw *ServerInterfaceWrapper) SaveQuickConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "quickId" -------------
+	var quickId QuickId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "quickId", chi.URLParam(r, "quickId"), &quickId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "quickId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SaveQuickConnectionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveQuickConnection(w, r, workspaceId, quickId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSites operation middleware
 func (siw *ServerInterfaceWrapper) ListSites(w http.ResponseWriter, r *http.Request) {
 
@@ -3223,6 +3613,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Patch(options.BaseURL+"/api/v1/workspaces/{workspaceId}/collections/{collectionId}", wrapper.UpdateCollection)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}/quick-connections", wrapper.ListQuickConnections)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/quick-connections", wrapper.CreateQuickConnection)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/v1/workspaces/{workspaceId}/quick-connections/{quickId}", wrapper.CloseQuickConnection)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/quick-connections/{quickId}/save", wrapper.SaveQuickConnection)
 	})
 
 	return r
@@ -5073,6 +5475,352 @@ func (response TrustHostKey422ApplicationProblemPlusJSONResponse) VisitTrustHost
 	return err
 }
 
+type ListQuickConnectionsRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListQuickConnectionsResponseObject interface {
+	VisitListQuickConnectionsResponse(w http.ResponseWriter) error
+}
+
+type ListQuickConnections200JSONResponse []QuickConnection
+
+func (response ListQuickConnections200JSONResponse) VisitListQuickConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListQuickConnections401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListQuickConnections401ApplicationProblemPlusJSONResponse) VisitListQuickConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListQuickConnections404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListQuickConnections404ApplicationProblemPlusJSONResponse) VisitListQuickConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnectionRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Params      CreateQuickConnectionParams
+	Body        *CreateQuickConnectionJSONRequestBody
+}
+
+type CreateQuickConnectionResponseObject interface {
+	VisitCreateQuickConnectionResponse(w http.ResponseWriter) error
+}
+
+type CreateQuickConnection201JSONResponse QuickConnection
+
+func (response CreateQuickConnection201JSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection400ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateQuickConnection400ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateQuickConnection401ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateQuickConnection403ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateQuickConnection404ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateQuickConnection409ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection422ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateQuickConnection422ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuickConnection429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response CreateQuickConnection429ApplicationProblemPlusJSONResponse) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CloseQuickConnectionRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	QuickId     QuickId     `json:"quickId"`
+	Params      CloseQuickConnectionParams
+}
+
+type CloseQuickConnectionResponseObject interface {
+	VisitCloseQuickConnectionResponse(w http.ResponseWriter) error
+}
+
+type CloseQuickConnection204Response struct {
+}
+
+func (response CloseQuickConnection204Response) VisitCloseQuickConnectionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CloseQuickConnection401ApplicationProblemPlusJSONResponse Problem
+
+func (response CloseQuickConnection401ApplicationProblemPlusJSONResponse) VisitCloseQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CloseQuickConnection403ApplicationProblemPlusJSONResponse Problem
+
+func (response CloseQuickConnection403ApplicationProblemPlusJSONResponse) VisitCloseQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CloseQuickConnection404ApplicationProblemPlusJSONResponse Problem
+
+func (response CloseQuickConnection404ApplicationProblemPlusJSONResponse) VisitCloseQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnectionRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	QuickId     QuickId     `json:"quickId"`
+	Params      SaveQuickConnectionParams
+	Body        *SaveQuickConnectionJSONRequestBody
+}
+
+type SaveQuickConnectionResponseObject interface {
+	VisitSaveQuickConnectionResponse(w http.ResponseWriter) error
+}
+
+type SaveQuickConnection201JSONResponse Site
+
+func (response SaveQuickConnection201JSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnection400ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveQuickConnection400ApplicationProblemPlusJSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnection401ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveQuickConnection401ApplicationProblemPlusJSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnection403ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveQuickConnection403ApplicationProblemPlusJSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnection404ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveQuickConnection404ApplicationProblemPlusJSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnection409ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveQuickConnection409ApplicationProblemPlusJSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveQuickConnection422ApplicationProblemPlusJSONResponse Problem
+
+func (response SaveQuickConnection422ApplicationProblemPlusJSONResponse) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSitesRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -6584,6 +7332,18 @@ type StrictServerInterface interface {
 	// TrustHostKey Trust a server key
 	// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
 	TrustHostKey(ctx context.Context, request TrustHostKeyRequestObject) (TrustHostKeyResponseObject, error)
+	// ListQuickConnections The signed-in user's quick connections in a workspace
+	// (GET /api/v1/workspaces/{workspaceId}/quick-connections)
+	ListQuickConnections(ctx context.Context, request ListQuickConnectionsRequestObject) (ListQuickConnectionsResponseObject, error)
+	// CreateQuickConnection Try a server without saving it
+	// (POST /api/v1/workspaces/{workspaceId}/quick-connections)
+	CreateQuickConnection(ctx context.Context, request CreateQuickConnectionRequestObject) (CreateQuickConnectionResponseObject, error)
+	// CloseQuickConnection End a quick connection and forget its credentials
+	// (DELETE /api/v1/workspaces/{workspaceId}/quick-connections/{quickId})
+	CloseQuickConnection(ctx context.Context, request CloseQuickConnectionRequestObject) (CloseQuickConnectionResponseObject, error)
+	// SaveQuickConnection Keep a quick connection as a site
+	// (POST /api/v1/workspaces/{workspaceId}/quick-connections/{quickId}/save)
+	SaveQuickConnection(ctx context.Context, request SaveQuickConnectionRequestObject) (SaveQuickConnectionResponseObject, error)
 	// ListSites Sites of a workspace
 	// (GET /api/v1/workspaces/{workspaceId}/sites)
 	ListSites(ctx context.Context, request ListSitesRequestObject) (ListSitesResponseObject, error)
@@ -7417,6 +8177,129 @@ func (sh *strictHandler) TrustHostKey(w http.ResponseWriter, r *http.Request, wo
 	}
 }
 
+// ListQuickConnections operation middleware
+func (sh *strictHandler) ListQuickConnections(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListQuickConnectionsRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListQuickConnections(ctx, request.(ListQuickConnectionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListQuickConnections")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListQuickConnectionsResponseObject); ok {
+		if err := validResponse.VisitListQuickConnectionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateQuickConnection operation middleware
+func (sh *strictHandler) CreateQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params CreateQuickConnectionParams) {
+	var request CreateQuickConnectionRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.Params = params
+
+	var body CreateQuickConnectionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateQuickConnection(ctx, request.(CreateQuickConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateQuickConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateQuickConnectionResponseObject); ok {
+		if err := validResponse.VisitCreateQuickConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CloseQuickConnection operation middleware
+func (sh *strictHandler) CloseQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, quickId QuickId, params CloseQuickConnectionParams) {
+	var request CloseQuickConnectionRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.QuickId = quickId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CloseQuickConnection(ctx, request.(CloseQuickConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CloseQuickConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CloseQuickConnectionResponseObject); ok {
+		if err := validResponse.VisitCloseQuickConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SaveQuickConnection operation middleware
+func (sh *strictHandler) SaveQuickConnection(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, quickId QuickId, params SaveQuickConnectionParams) {
+	var request SaveQuickConnectionRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.QuickId = quickId
+	request.Params = params
+
+	var body SaveQuickConnectionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SaveQuickConnection(ctx, request.(SaveQuickConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SaveQuickConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SaveQuickConnectionResponseObject); ok {
+		if err := validResponse.VisitSaveQuickConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListSites operation middleware
 func (sh *strictHandler) ListSites(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
 	var request ListSitesRequestObject
@@ -7832,106 +8715,116 @@ func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"zph7pcgOqHQePY/2ossPl/8/AA==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -683,3 +683,36 @@ func TestConfig_DefaultSleepWaits(t *testing.T) {
 	}
 	lease.Release(nil)
 }
+
+// TestManager_CloseKey verifies closing the connections of one site.
+//
+// Scenarios:
+//   - idle connections of the key are closed and the pool forgotten, other sites of the same user are not touched
+//   - a connection in use is closed when released
+//   - closing a key without a pool is harmless
+func TestManager_CloseKey(t *testing.T) {
+	f := newFixture(t, connections.Config{})
+	other := connections.Key{UserID: f.key.UserID, WorkspaceID: f.key.WorkspaceID, SiteID: uuid.New()}
+	busy := f.acquire(t)
+	idle, err := f.m.Acquire(t.Context(), other, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	idle.Release(nil)
+
+	f.m.CloseKey(f.key)
+	f.m.CloseKey(connections.Key{})
+	busy.Release(nil)
+	if !f.conn.connection(1).closed.Load() {
+		t.Error("a connection in use was not closed on release")
+	}
+	if f.conn.connection(2).closed.Load() {
+		t.Error("another site's connection was closed")
+	}
+	if idleCount, total := f.m.Stats(f.key); idleCount != 0 || total != 0 {
+		t.Errorf("Stats() after closing the key = %d, %d", idleCount, total)
+	}
+	if idleCount, _ := f.m.Stats(other); idleCount != 1 {
+		t.Error("another site's pool was affected")
+	}
+}

@@ -166,15 +166,25 @@ func problemCode(err error) string {
 	return "internal_error"
 }
 
+// siteOf returns the identifier and the name to record for the site a request works on: those of a saved site, or
+// the nil identifier and the host for a quick connection, which is not stored anywhere.
+func (s *server) siteOf(ctx context.Context, t files.Target) (uuid.UUID, string, error) {
+	if q, ok := s.deps.Quick.Describe(t.Actor, t.Workspace, t.Site); ok {
+		return uuid.Nil, q.Name, nil
+	}
+	found, err := s.deps.Sites.Get(ctx, t.Actor, t.Workspace, t.Site)
+	return found.ID, found.Name, err
+}
+
 // track records a transfer of the site's file. The record is created only after the request was authorized, so
 // refused requests leave no trace.
 func (s *server) track(ctx context.Context, t files.Target, direction transfer.Direction, p string, id *TransferIdQuery, total, offset int64) (*transfer.Tracker, context.Context, error) {
-	found, err := s.deps.Sites.Get(ctx, t.Actor, t.Workspace, t.Site)
+	siteID, name, err := s.siteOf(ctx, t)
 	if err != nil {
 		return nil, nil, err
 	}
 	in := transfer.BeginInput{
-		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site, SiteName: found.Name, Direction: direction,
+		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, SiteName: name, Direction: direction,
 		Path: p, Name: path.Base(p), Total: total, Offset: offset,
 	}
 	if id != nil {

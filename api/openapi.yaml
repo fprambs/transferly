@@ -1769,6 +1769,187 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/quick-connections:
+    get:
+      operationId: listQuickConnections
+      security:
+        - sessionCookie: []
+      summary: The signed-in user's quick connections in a workspace
+      description: Quick connections are servers tried without saving anything. Their credentials live in memory only.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: The quick connections, oldest first, never with credentials.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuickConnection"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: createQuickConnection
+      security:
+        - sessionCookie: []
+      summary: Try a server without saving it
+      description: The returned id works wherever a siteId is expected, in the file endpoints. Needs the permission to manage sites, follows the same rules as a saved site (private destinations are refused) and is rate limited.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuickConnectInput"
+      responses:
+        "201":
+          description: The quick connection. Nothing was contacted yet; the first file call connects.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuickConnection"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/workspaces/{workspaceId}/quick-connections/{quickId}:
+    delete:
+      operationId: closeQuickConnection
+      security:
+        - sessionCookie: []
+      summary: End a quick connection and forget its credentials
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/QuickId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Ended.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/quick-connections/{quickId}/save:
+    post:
+      operationId: saveQuickConnection
+      security:
+        - sessionCookie: []
+      summary: Keep a quick connection as a site
+      description: Seals the credentials with the vault, so it needs the vault unlocked (409 vault_locked otherwise, and the quick connection stays). On success the quick connection ends and the site takes its place.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/QuickId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuickSaveInput"
+      responses:
+        "201":
+          description: The saved site.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Site"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     sessionCookie:
@@ -1828,6 +2009,14 @@ components:
       in: path
       required: true
       description: Identifier of the collection.
+      schema:
+        type: string
+        format: uuid
+    QuickId:
+      name: quickId
+      in: path
+      required: true
+      description: Identifier of the quick connection.
       schema:
         type: string
         format: uuid
@@ -2161,6 +2350,71 @@ components:
         moveToTop:
           type: boolean
           description: Move to the top level; wins over parentId.
+    QuickConnectInput:
+      type: object
+      required: [protocol, host, username]
+      properties:
+        protocol:
+          type: string
+          enum: [sftp, ftp, ftps]
+        host:
+          type: string
+        port:
+          type: integer
+          description: Defaults to the protocol's port.
+        username:
+          type: string
+        authMethod:
+          type: string
+          enum: [password, key]
+        listTimezone:
+          type: string
+        password:
+          type: string
+          description: Write only; kept in memory until the connection ends.
+        privateKey:
+          type: string
+          description: Write only; kept in memory until the connection ends.
+        passphrase:
+          type: string
+          description: Write only; kept in memory until the connection ends.
+    QuickConnection:
+      type: object
+      required: [id, name, protocol, host, port, username, authMethod, listTimezone, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: The host.
+        protocol:
+          type: string
+          enum: [sftp, ftp, ftps]
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        authMethod:
+          type: string
+          enum: [password, key]
+        listTimezone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    QuickSaveInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        collectionId:
+          type: string
+          format: uuid
+          description: Collection to keep the site in; left out keeps it at the top level.
     Workspace:
       type: object
       required: [id, name, kind, role, createdAt]

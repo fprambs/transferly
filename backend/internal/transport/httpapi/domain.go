@@ -9,6 +9,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
@@ -53,6 +54,26 @@ func (p domainProblem) VisitTrustHostKeyResponse(w http.ResponseWriter) error { 
 
 // VisitForgetHostKeyResponse implements [ForgetHostKeyResponseObject].
 func (p domainProblem) VisitForgetHostKeyResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListQuickConnectionsResponse implements [ListQuickConnectionsResponseObject].
+func (p domainProblem) VisitListQuickConnectionsResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
+
+// VisitCreateQuickConnectionResponse implements [CreateQuickConnectionResponseObject].
+func (p domainProblem) VisitCreateQuickConnectionResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
+
+// VisitCloseQuickConnectionResponse implements [CloseQuickConnectionResponseObject].
+func (p domainProblem) VisitCloseQuickConnectionResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
+
+// VisitSaveQuickConnectionResponse implements [SaveQuickConnectionResponseObject].
+func (p domainProblem) VisitSaveQuickConnectionResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
 
 // VisitListCollectionsResponse implements [ListCollectionsResponseObject].
 func (p domainProblem) VisitListCollectionsResponse(w http.ResponseWriter) error { return p.write(w) }
@@ -127,6 +148,8 @@ var domainProblems = []struct {
 	{hostkey.ErrChanged, http.StatusConflict, "host_key_changed"},
 	{hostkey.ErrInvalid, http.StatusUnprocessableEntity, "invalid_host_key"},
 	{context.Canceled, http.StatusConflict, "transfer_canceled"},
+	{quick.ErrNotFound, http.StatusNotFound, "quick_connection_not_found"},
+	{quick.ErrTooMany, http.StatusConflict, "too_many_quick_connections"},
 	{transfer.ErrNotFound, http.StatusNotFound, "transfer_not_found"},
 	{transfer.ErrActive, http.StatusConflict, "transfer_active"},
 	{transfer.ErrNotActive, http.StatusConflict, "transfer_not_active"},

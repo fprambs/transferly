@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
@@ -83,7 +84,8 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	sites := site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil)
-	pool := connections.New(newMemConnector(clock, sites), clock, connections.Config{Attempts: 1})
+	quickConnections := quick.NewService(workspaces, netguard.NewPolicy(nil, nil), sites, clock, nil)
+	pool := connections.New(newMemConnector(clock, sites, quickConnections), clock, connections.Config{Attempts: 1})
 	recorded := &recordedEvents{}
 	hub := events.New(64)
 	transfers := transfer.NewService(store, fanout{recorded, hub}, clock, transfer.Config{EventEvery: time.Millisecond}, nil)
@@ -98,6 +100,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Sites:       sites,
 		Files:       files.NewService(workspaces, pool),
 		Transfers:   transfers,
+		Quick:       quickConnections,
 		Events:      hub,
 		WebSocket:   httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},
 		Limits: httpapi.Limits{
@@ -105,6 +108,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
 			LoginAccount:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
 			VaultAttempts: ratelimit.New(clock, ratelimit.Rule{Burst: 4, Every: 10 * time.Second}, 100),
+			QuickConnect:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
 		},
 		InstanceKey:    instanceKey,
 		Cookie:         httpapi.CookieConfig{MaxAge: 8 * time.Hour},
@@ -599,6 +603,7 @@ func mustDecode(t *testing.T, raw []byte, into any) {
 type memConnector struct {
 	clock ports.Clock
 	sites *site.Service
+	quick *quick.Service
 	mu    *sync.Mutex
 	byID  map[uuid.UUID]*sharedFS
 }
@@ -610,14 +615,16 @@ type sharedFS struct{ *memfs.FS }
 func (sharedFS) Close() error { return nil }
 
 // newMemConnector returns a connector over the sites service.
-func newMemConnector(clock ports.Clock, sites *site.Service) memConnector {
-	return memConnector{clock: clock, sites: sites, mu: &sync.Mutex{}, byID: map[uuid.UUID]*sharedFS{}}
+func newMemConnector(clock ports.Clock, sites *site.Service, quickConnections *quick.Service) memConnector {
+	return memConnector{clock: clock, sites: sites, quick: quickConnections, mu: &sync.Mutex{}, byID: map[uuid.UUID]*sharedFS{}}
 }
 
 // Connect returns a connection to the file system of the site.
 func (c memConnector) Connect(ctx context.Context, key connections.Key, _ string) (remotefs.RemoteFS, error) {
-	if _, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID); err != nil {
-		return nil, err
+	if _, ok := c.quick.Describe(key.UserID, key.WorkspaceID, key.SiteID); !ok {
+		if _, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID); err != nil {
+			return nil, err
+		}
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()

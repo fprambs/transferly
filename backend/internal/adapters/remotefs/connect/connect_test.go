@@ -21,6 +21,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -73,6 +74,7 @@ type env struct {
 	hostKeys  *hostkey.Service
 	vaults    *vault.Service
 	allow     *netguard.Policy
+	quick     *quick.Service
 }
 
 // newEnv builds the environment. The vault is set up and unlocked in session-1.
@@ -108,8 +110,10 @@ func newEnv(t *testing.T) *env {
 	}
 	unreliable := &flaky{Store: store}
 	allow := netguard.NewPolicy([]netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}, nil)
+	quickConnections := quick.NewService(workspaces, allow, nil, clock, nil)
 	return &env{
-		t: t, store: store, flaky: unreliable, user: user.ID, workspace: personal.ID, vaults: vaults, allow: allow,
+		quick: quickConnections,
+		t:     t, store: store, flaky: unreliable, user: user.ID, workspace: personal.ID, vaults: vaults, allow: allow,
 		sites:    site.NewService(unreliable, workspaces, vaults, allow, clock, rand.Reader, nil),
 		hostKeys: hostkey.NewService(unreliable, workspaces, clock),
 	}
@@ -163,7 +167,7 @@ func (e *env) key(s site.Site) connections.Key {
 
 // connector returns a connector with the given network policy.
 func (e *env) connector(p *netguard.Policy) *connect.Connector {
-	return connect.New(e.sites, e.hostKeys, p, 5*time.Second)
+	return connect.New(e.sites, e.quick, e.hostKeys, p, 5*time.Second)
 }
 
 // trust records the server key of s as trusted for its address.
@@ -367,5 +371,88 @@ func TestConnector_StoreFailures(t *testing.T) {
 	e.flaky.failPassphrase = true
 	if _, err := c.Connect(t.Context(), e.key(keyed), session); !errors.Is(err, errFlaky) {
 		t.Errorf("Connect() with a failing passphrase read = %v; want the store error", err)
+	}
+}
+
+// TestConnector_QuickConnections verifies connecting to quick connections.
+//
+// Scenarios:
+//   - a quick connection with a password connects after its host key is trusted, without touching the vault
+//   - one with a private key and its passphrase connects
+//   - a quick connection without the credential its method needs is ErrAuth, and an FTP one is refused as unsupported
+//   - an unknown host key is reported with its fingerprint, as for saved sites
+//   - quick connections of another user are not found, and the wiped secrets of an ended connection are gone
+func TestConnector_QuickConnections(t *testing.T) {
+	e := newEnv(t)
+	pub, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, err := ssh.NewPublicKey(pub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, err := ssh.MarshalPrivateKeyWithPassphrase(private, "", []byte("open sesame"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}, Keys: map[string][]ssh.PublicKey{sshUser: {public}}})
+	host, port, _ := splitAddr(server.Addr)
+	c := e.connector(e.allow)
+
+	start := func(in site.Input, secrets quick.Secrets) uuid.UUID {
+		t.Helper()
+		in.Host, in.Port, in.Username, in.Protocol = host, port, sshUser, site.SFTP
+		created, err := e.quick.Create(t.Context(), e.user, e.workspace, in, secrets)
+		if err != nil {
+			t.Fatalf("Create() = %v", err)
+		}
+		return created.Site.ID
+	}
+	withPassword := start(site.Input{}, quick.Secrets{Password: []byte(sshPassword)})
+
+	if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: withPassword}, "no-vault-session"); !errors.Is(err, remotefs.ErrHostKeyUnknown) {
+		t.Fatalf("Connect() before trusting = %v; want ErrHostKeyUnknown", err)
+	}
+	e.trust(server)
+	fsys, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: withPassword}, "no-vault-session")
+	if err != nil {
+		t.Fatalf("Connect() to a quick connection = %v", err)
+	}
+	if _, err := fsys.List(t.Context(), "/"); err != nil {
+		t.Errorf("List() = %v", err)
+	}
+	_ = fsys.Close()
+
+	withKey := start(site.Input{AuthMethod: site.AuthKey}, quick.Secrets{PrivateKey: pem.EncodeToMemory(block), Passphrase: []byte("open sesame")})
+	if fsys, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: withKey}, "s"); err != nil {
+		t.Errorf("Connect() with a key = %v", err)
+	} else {
+		_ = fsys.Close()
+	}
+
+	plainFTP, err := e.quick.Create(t.Context(), e.user, e.workspace, site.Input{Protocol: site.FTP, Host: host, Username: sshUser}, quick.Secrets{Password: []byte("x")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: plainFTP.Site.ID}, "s"); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("Connect() to an FTP quick connection = %v; want ErrInvalid", err)
+	}
+	keyless := start(site.Input{AuthMethod: site.AuthKey}, quick.Secrets{})
+	passwordless := start(site.Input{}, quick.Secrets{})
+	for _, id := range []uuid.UUID{keyless, passwordless} {
+		if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: id}, "s"); !errors.Is(err, remotefs.ErrAuth) {
+			t.Errorf("Connect() without credentials = %v; want ErrAuth", err)
+		}
+	}
+
+	if _, err := c.Connect(t.Context(), connections.Key{UserID: uuid.New(), WorkspaceID: e.workspace, SiteID: withPassword}, "s"); err == nil {
+		t.Error("another user connected through a quick connection they do not own")
+	}
+	if err := e.quick.Close(e.user, e.workspace, withPassword); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: withPassword}, "s"); !errors.Is(err, site.ErrNotFound) {
+		t.Errorf("Connect() to an ended quick connection = %v; want site.ErrNotFound", err)
 	}
 }
