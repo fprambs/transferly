@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { SessionInfo } from '@/lib/api'
+import type { Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
 import { server } from './msw'
 
 /** A signed-in administrator with an anti-CSRF token. */
@@ -32,4 +32,35 @@ export function mockSession(session: SessionInfo | null): void {
 /** Answers the setup status endpoint. */
 export function mockSetupRequired(required: boolean): void {
   server.use(http.get('/api/v1/setup/status', () => HttpResponse.json({ required })))
+}
+
+/** Personal workspace of the signed-in administrator. */
+export const personalWorkspace: Workspace = {
+  id: '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10',
+  name: 'Personal',
+  kind: 'personal',
+  role: 'owner',
+  createdAt: '2026-01-01T00:00:00Z',
+}
+
+/** Contents a workspace can be mocked with. */
+export interface WorkspaceData {
+  /** Workspaces the user belongs to. */
+  workspaces?: Workspace[]
+  /** Collections of the workspace. */
+  collections?: Collection[]
+  /** Saved sites. */
+  sites?: Site[]
+  /** Open quick connections. */
+  quick?: QuickConnection[]
+}
+
+/** Answers the workspace, collection, site and quick connection lists; whatever is not given is empty. */
+export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [] }: WorkspaceData = {}): void {
+  server.use(
+    http.get('/api/v1/workspaces', () => HttpResponse.json(workspaces)),
+    http.get('/api/v1/workspaces/:id/collections', () => HttpResponse.json(collections)),
+    http.get('/api/v1/workspaces/:id/sites', () => HttpResponse.json(sites)),
+    http.get('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(quick)),
+  )
 }

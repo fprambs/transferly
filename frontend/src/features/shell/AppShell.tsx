@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
+import { SitesSidebar } from '@/features/sites/SitesSidebar'
+
 import { LanguageSelect } from './LanguageSelect'
 import { QueuePanel } from './QueuePanel'
 import { ThemeSelect } from './ThemeSelect'
@@ -42,9 +44,7 @@ export function AppShell() {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        <nav aria-label={shell(($) => $.sidebar.label)} className="w-56 border-e bg-card p-4">
-          <p className="text-sm text-muted-foreground">{shell(($) => $.sidebar.empty)}</p>
-        </nav>
+        <SitesSidebar />
         <main aria-label={shell(($) => $.panes.label)} className="grid flex-1 grid-cols-2 gap-px bg-border">
           <Pane kind="local" />
           <Pane kind="remote" />

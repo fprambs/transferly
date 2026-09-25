@@ -1,9 +1,9 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-import { adminSession, mockSession, mockSetupRequired, problem } from '@/test/handlers'
+import { adminSession, mockSession, mockWorkspaceData, mockSetupRequired, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 
@@ -21,6 +21,10 @@ import { renderApp } from '@/test/render-app'
  * - the messages follow the interface language
  */
 describe('routes', () => {
+  beforeEach(() => {
+    mockWorkspaceData()
+  })
+
   it('sends a visitor to login when the install is complete', async () => {
     mockSession(null)
     mockSetupRequired(false)

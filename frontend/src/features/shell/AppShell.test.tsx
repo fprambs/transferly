@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createInstance } from 'i18next'
@@ -5,8 +6,10 @@ import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { bindDocumentLanguage, defaultNS, resources } from '@/i18n'
+import { mockWorkspaceData } from '@/test/handlers'
+import { HttpTransport, TransportProvider } from '@/lib/transport'
 import { useUiStore } from '@/state/ui-store'
-import { renderWithI18n } from '@/test/render'
+import { renderWithProviders } from '@/test/render'
 
 import { AppShell } from './AppShell'
 
@@ -23,11 +26,12 @@ import { AppShell } from './AppShell'
  */
 describe('AppShell', () => {
   beforeEach(() => {
+    mockWorkspaceData()
     useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
   })
 
   it('exposes the landmark regions', async () => {
-    await renderWithI18n(<AppShell />)
+    await renderWithProviders(<AppShell />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
     expect(screen.getByRole('banner', { name: 'Main toolbar' })).toBeInTheDocument()
@@ -39,7 +43,7 @@ describe('AppShell', () => {
   })
 
   it('lists the themes by scheme and changes the chosen one', async () => {
-    await renderWithI18n(<AppShell />)
+    await renderWithProviders(<AppShell />)
     const select = screen.getByRole('combobox', { name: 'Theme' })
 
     expect(select).toHaveValue('sentinel-dark')
@@ -54,7 +58,7 @@ describe('AppShell', () => {
   })
 
   it('follows the system instead of the chosen theme when asked to', async () => {
-    await renderWithI18n(<AppShell />)
+    await renderWithProviders(<AppShell />)
     const select = screen.getByRole('combobox', { name: 'Theme' })
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Follow the system' }))
@@ -64,7 +68,7 @@ describe('AppShell', () => {
   })
 
   it('collapses and expands the transfer queue', async () => {
-    await renderWithI18n(<AppShell />)
+    await renderWithProviders(<AppShell />)
     expect(screen.getByText('No transfers')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide transfers' }))
@@ -76,7 +80,7 @@ describe('AppShell', () => {
   })
 
   it('switches the interface to Spanish from the selector', async () => {
-    await renderWithI18n(<AppShell />)
+    await renderWithProviders(<AppShell />)
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Language' }), 'es')
 
@@ -97,7 +101,11 @@ describe('AppShell', () => {
 
     render(
       <I18nextProvider i18n={i18n}>
-        <AppShell />
+        <TransportProvider transport={new HttpTransport()}>
+          <QueryClientProvider client={new QueryClient()}>
+            <AppShell />
+          </QueryClientProvider>
+        </TransportProvider>
       </I18nextProvider>,
     )
 

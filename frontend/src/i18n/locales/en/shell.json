@@ -4,7 +4,14 @@
   },
   "sidebar": {
     "label": "Sites",
-    "empty": "No sites yet"
+    "empty": "No sites yet",
+    "sites": "Sites",
+    "quickConnect": "Quick connect",
+    "notSaved": "not saved",
+    "newCollection": "New collection",
+    "newSite": "New site",
+    "collectionCount": "{{count}} sites",
+    "loading": "Loading sites…"
   },
   "panes": {
     "label": "File panes",

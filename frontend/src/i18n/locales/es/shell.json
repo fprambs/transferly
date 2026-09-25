@@ -4,7 +4,14 @@
   },
   "sidebar": {
     "label": "Sitios",
-    "empty": "Aún no hay sitios"
+    "empty": "Aún no hay sitios",
+    "sites": "Sitios",
+    "quickConnect": "Conexión rápida",
+    "notSaved": "sin guardar",
+    "newCollection": "Nueva colección",
+    "newSite": "Nuevo sitio",
+    "collectionCount": "{{count}} sitios",
+    "loading": "Cargando sitios…"
   },
   "panes": {
     "label": "Paneles de archivos",
