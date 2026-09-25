@@ -18,40 +18,43 @@ const themes = [
   'github-light',
 ]
 
-/** Connects to the SFTP server of the test stack with quick connect, trusting its key when asked, and opens it. */
-async function openQuickConnection(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /Quick connect/ }).click()
-  const dialog = page.getByRole('dialog', { name: 'Quick connect' })
-  await dialog.getByLabel('Host').fill('sftp')
-  await dialog.getByLabel('Username').fill('sentinel')
-  await dialog.getByLabel('Password').fill('sentinel')
-  await dialog.getByRole('button', { name: 'Connect' }).click()
-  const trust = page.getByRole('button', { name: 'Trust and connect' })
-  const kept = page.getByRole('status')
-  await expect(trust.or(kept)).toBeVisible()
-  if (await trust.isVisible()) {
-    await trust.click()
-  }
-  await expect(kept).toContainText('It works. Keep this server?')
-  await page.getByRole('button', { name: 'Not now' }).click()
-  await page.getByRole('treeitem', { name: /sftp/ }).first().click()
+/** Opens the quick connection that the global setup made to the SFTP server of the test stack, at its root. */
+async function openQuickConnection(page: Page, quickId: string): Promise<void> {
+  await page.goto(`/sites/${quickId}?path=%2F`)
+  await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
 }
 
 /**
  * The file explorer against a real SFTP server.
  *
  * Scenarios:
- * - quick connect asks to trust the server key, reports success and opens the server in the tree
+ * - quick connect from its dialog reports success, offers to keep the server and lists it in the tree
  * - the root lists the server's folders, a folder opens with a double click and the breadcrumb and address follow
  * - going up returns to the root
  * - a folder is created, renamed and deleted on the server with the toolbar, F2, Delete and the context menu
  * - the explorer has no WCAG violations in any of the twelve themes
  */
 test.describe('explorer', () => {
-  test('browses a real SFTP server', async ({ shell }) => {
+  test('connects from the quick connect dialog', async ({ shell }) => {
     const { page } = shell
 
-    await openQuickConnection(page)
+    await page.getByRole('button', { name: /Quick connect/ }).click()
+    const dialog = page.getByRole('dialog', { name: 'Quick connect' })
+    await dialog.getByLabel('Host').fill('sftp')
+    await dialog.getByLabel('Username').fill('sentinel')
+    await dialog.getByLabel('Password').fill('sentinel')
+    await dialog.getByRole('button', { name: 'Connect' }).click()
+
+    await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
+    await page.getByRole('button', { name: 'Not now' }).click()
+    await page.getByRole('treeitem', { name: /sftp/ }).last().click()
+    await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
+  })
+
+  test('browses a real SFTP server', async ({ shell, quickId }) => {
+    const { page } = shell
+
+    await openQuickConnection(page, quickId)
 
     const grid = page.getByRole('grid', { name: 'Files' })
     await expect(grid.getByRole('row', { name: /upload/ })).toBeVisible()
@@ -66,11 +69,11 @@ test.describe('explorer', () => {
     await expect(grid.getByRole('row', { name: /upload/ })).toBeVisible()
   })
 
-  test('creates, renames and deletes a folder on the server', async ({ shell }) => {
+  test('creates, renames and deletes a folder on the server', async ({ shell, quickId }) => {
     const { page } = shell
     const created = `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
     const renamed = `${created}-renamed`
-    await openQuickConnection(page)
+    await openQuickConnection(page, quickId)
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(page).toHaveURL(/path=%2Fupload$/)
@@ -103,11 +106,10 @@ test.describe('explorer', () => {
     await expect(renamedRow).toBeHidden()
   })
 
-  test('has no WCAG violations in any theme', async ({ shell }) => {
+  test('has no WCAG violations in any theme', async ({ shell, quickId }) => {
     test.setTimeout(120_000)
     const { page } = shell
-    await openQuickConnection(page)
-    await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
+    await openQuickConnection(page, quickId)
 
     for (const theme of themes) {
       await shell.setTheme(theme)

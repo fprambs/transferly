@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+
 import { request, type FullConfig } from '@playwright/test'
 
 /** Account the browser tests sign in with; it is created on first use. */
@@ -9,8 +11,12 @@ const masterPassword = 'a long e2e master password'
 /** Where the signed-in browser state is kept for every test. */
 export const storageStatePath = 'e2e/.auth/state.json'
 
+/** Where the identifier of the shared quick connection is kept. */
+export const quickConnectionPath = 'e2e/.auth/quick.json'
+
 /**
- * Creates the test account and its vault, or signs in and unlocks them when they exist, and saves the session for every test.
+ * Creates the test account and its vault, or signs in and unlocks them when they exist, opens one quick connection to the
+ * SFTP server of the test stack, and saves the session for every test.
  *
  * Doing it once per run keeps the tests clear of the rate limits of the account endpoints.
  */
@@ -35,6 +41,27 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   } else if (!vault.ok()) {
     throw new Error(`Could not set up the test vault: ${vault.status()}`)
   }
+  const { id: workspaceId } = ((await (await context.get('/api/v1/workspaces', { headers })).json()) as Array<{ id: string }>)[0]
+  const quick = await context.post(`/api/v1/workspaces/${workspaceId}/quick-connections`, {
+    data: { protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+    headers,
+  })
+  if (!quick.ok()) {
+    throw new Error(`Could not open the quick connection to the test SFTP server: ${quick.status()}`)
+  }
+  const { id: quickId } = (await quick.json()) as { id: string }
+  const files = `/api/v1/workspaces/${workspaceId}/sites/${quickId}/files`
+  let listing = await context.get(files, { params: { path: '/' }, headers })
+  if (listing.status() === 409) {
+    const { params } = (await listing.json()) as { params: { keyType: string; fingerprint: string } }
+    await context.post(`/api/v1/workspaces/${workspaceId}/known-hosts`, { data: { host: 'sftp', port: 22, ...params }, headers })
+    listing = await context.get(files, { params: { path: '/' }, headers })
+  }
+  if (!listing.ok()) {
+    throw new Error(`The test SFTP server did not answer: ${listing.status()}`)
+  }
+  await mkdir('e2e/.auth', { recursive: true })
+  await writeFile(quickConnectionPath, JSON.stringify({ quickId }))
   await context.storageState({ path: storageStatePath })
   await context.dispose()
 }
