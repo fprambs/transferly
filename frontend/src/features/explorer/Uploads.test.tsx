@@ -9,6 +9,7 @@ import type { RemoteEntry, Site } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
+import { clearUploadSources, recallUpload } from '../transfers/upload-sources'
 
 import { Explorer } from './Explorer'
 
@@ -88,6 +89,7 @@ async function renderExplorer() {
  * Scenarios:
  * - chosen files are uploaded one after another into the folder in view, with their size and a transfer identifier
  * - a file that exists asks before overwriting; overwrite sends it again, skip and closing the dialog do not
+ * - the source of a failed upload is kept so it can be resumed, and the source of a finished, skipped or overwritten one is not
  * - failures are listed by file and can be dismissed, and the other files still upload
  * - dropping files uploads them, and dragging over the folder shows a hint that goes away
  * - files download from the inspector and the context menu, folders do not offer it
@@ -96,6 +98,7 @@ describe('uploads and downloads', () => {
   beforeEach(() => {
     mockSession(adminSession)
     mockWorkspaceData({ sites: [prod] })
+    clearUploadSources()
   })
 
   it('uploads the chosen files in order', async () => {
@@ -171,6 +174,32 @@ describe('uploads and downloads', () => {
 
     await user.click(within(alert).getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps the source of a failed upload only', async () => {
+    const ids: Record<string, string> = {}
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', () => HttpResponse.json([entry('index.html')])),
+      http.put('/api/v1/workspaces/:id/sites/s1/files/content', ({ request }) => {
+        const url = new URL(request.url)
+        const path = url.searchParams.get('path') as string
+        ids[`${path}:${url.searchParams.get('mode')}`] = url.searchParams.get('transferId') as string
+        if (path.endsWith('bad.txt')) {
+          return problem(502, 'remote_unavailable')
+        }
+        return path.endsWith('taken.txt') && url.searchParams.get('mode') === 'create' ? problem(409, 'path_exists') : HttpResponse.json(entry('ok'), { status: 201 })
+      }),
+    )
+    const { user } = await renderExplorer()
+
+    await user.upload(screen.getByLabelText('Choose files to upload'), [file('bad.txt', 'x'), file('good.txt', 'y'), file('taken.txt', 'z')])
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Overwrite' }))
+
+    await waitFor(() => expect(ids['/www/taken.txt:overwrite']).toBeDefined())
+    expect(recallUpload(ids['/www/bad.txt:create'])?.file.name).toBe('bad.txt')
+    expect(recallUpload(ids['/www/good.txt:create'])).toBeUndefined()
+    expect(recallUpload(ids['/www/taken.txt:create'])).toBeUndefined()
+    expect(recallUpload(ids['/www/taken.txt:overwrite'])).toBeUndefined()
   })
 
   it('uploads dropped files and shows a hint while dragging', async () => {

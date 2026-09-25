@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,8 @@ import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
 
 import { TransferRow } from './TransferRow'
-import { isActive, newestFirst, useTransfersStore } from './transfers-store'
+import { useResume } from './use-resume'
+import { isActive, newestFirst, useTransfersStore, type TransferItem } from './transfers-store'
 
 /** Bottom panel that lists the transfers, active ones and finished ones, with their progress and actions. */
 export function TransfersDock() {
@@ -19,10 +20,21 @@ export function TransfersDock() {
   const items = useTransfersStore((state) => state.items)
   const forget = useTransfersStore((state) => state.forget)
   const [tab, setTab] = useState('active')
+  const picker = useRef<HTMLInputElement>(null)
+  const resumer = useResume()
+  const failure = resumer.failure
   const { active, finished } = useMemo(() => {
     const all = newestFirst(items)
     return { active: all.filter(isActive), finished: all.filter((item) => !isActive(item)) }
   }, [items])
+
+  const resume = (item: TransferItem): void => {
+    const needsFile = resumer.resume(item.record)
+    if (needsFile) {
+      const input = picker.current as HTMLInputElement
+      input.click()
+    }
+  }
 
   const cancel = (id: string): void => void api.transfers.cancel(id).catch(() => undefined)
   const remove = (id: string): void => void api.transfers.remove(id).then(() => forget(id)).catch(() => undefined)
@@ -40,6 +52,24 @@ export function TransfersDock() {
           {open ? t(($) => $.queue.hide) : t(($) => $.queue.show)}
         </Button>
       </div>
+      <input
+        ref={picker}
+        type="file"
+        hidden
+        aria-label={transfers(($) => $.fileInput)}
+        onChange={(event) => {
+          resumer.chooseFile((event.target.files as FileList)[0])
+          event.target.value = ''
+        }}
+      />
+      {failure === null ? null : (
+        <div role="alert" className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+          <span>{transfers(($) => $.resumeErrors[failure])}</span>
+          <Button variant="outline" size="sm" onClick={resumer.clearFailure}>
+            {transfers(($) => $.resumeErrors.dismiss)}
+          </Button>
+        </div>
+      )}
       {open ? (
         <div id="queue-body" className="border-t">
           {Object.keys(items).length === 0 ? (
@@ -60,7 +90,7 @@ export function TransfersDock() {
                 ) : (
                   <ul>
                     {active.map((item) => (
-                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} />
+                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} />
                     ))}
                   </ul>
                 )}
@@ -71,7 +101,7 @@ export function TransfersDock() {
                 ) : (
                   <ul>
                     {finished.map((item) => (
-                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} />
+                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} />
                     ))}
                   </ul>
                 )}

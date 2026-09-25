@@ -23,5 +23,13 @@
   "progress": "Progress of {{name}}",
   "left": "{{time}} left",
   "of": "{{done}} of {{total}}",
-  "unknownSize": "{{done}}"
+  "unknownSize": "{{done}}",
+  "resume": "Resume",
+  "resumeLabel": "Resume {{name}}",
+  "resumeErrors": {
+    "mismatch": "That is not the file that was being uploaded: its name or size differ.",
+    "unknown": "The upload could not be resumed. Try again.",
+    "dismiss": "Dismiss"
+  },
+  "fileInput": "Choose the file to resume the upload"
 }

@@ -23,5 +23,13 @@
   "progress": "Progreso de {{name}}",
   "left": "faltan {{time}}",
   "of": "{{done}} de {{total}}",
-  "unknownSize": "{{done}}"
+  "unknownSize": "{{done}}",
+  "resume": "Reanudar",
+  "resumeLabel": "Reanudar {{name}}",
+  "resumeErrors": {
+    "mismatch": "Ese no es el archivo que se estaba subiendo: el nombre o el tamaño no coinciden.",
+    "unknown": "No se pudo reanudar la subida. Inténtalo de nuevo.",
+    "dismiss": "Cerrar"
+  },
+  "fileInput": "Elegir el archivo para reanudar la subida"
 }

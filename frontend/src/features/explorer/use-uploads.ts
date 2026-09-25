@@ -4,6 +4,8 @@ import type { Api } from '@/lib/api/use-api'
 import { ApiError } from '@/lib/transport'
 import { uuid } from '@/lib/uuid'
 
+import { forgetUpload, rememberUpload } from '../transfers/upload-sources'
+
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
 import { joinPath } from './entries'
 
@@ -58,7 +60,8 @@ function isExisting(error: unknown): boolean {
  * Uploads files to the folder in view, one after another.
  *
  * A file that exists is never overwritten silently: the upload waits for {@link Uploads.resolve}. Progress is reported
- * by the server over the event stream, so the transfers dock follows it without help from here.
+ * by the server over the event stream, so the transfers dock follows it without help from here. A file whose upload
+ * fails stays in the upload sources, so the dock can resume it.
  */
 export function useUploads({ api, workspaceId, siteId, path, onUploaded }: UploadTarget): Uploads {
   const [failures, setFailures] = useState<UploadFailure[]>([])
@@ -75,21 +78,26 @@ export function useUploads({ api, workspaceId, siteId, path, onUploaded }: Uploa
       })
     })
 
-  const send = (file: File, mode: 'create' | 'overwrite') =>
-    api.files.upload(workspaceId, siteId, joinPath(path, file.name), file, { mode, transferId: uuid(), size: file.size })
+  const send = async (file: File, mode: 'create' | 'overwrite', transferId: string): Promise<void> => {
+    rememberUpload(transferId, { file, workspaceId, siteId })
+    await api.files.upload(workspaceId, siteId, joinPath(path, file.name), file, { mode, transferId, size: file.size })
+    forgetUpload(transferId)
+  }
 
   const one = async (file: File): Promise<void> => {
     try {
+      const first = uuid()
       try {
-        await send(file, 'create')
+        await send(file, 'create', first)
       } catch (error) {
         if (!isExisting(error)) {
           throw error
         }
+        forgetUpload(first)
         if (!(await ask(file))) {
           return
         }
-        await send(file, 'overwrite')
+        await send(file, 'overwrite', uuid())
       }
       await onUploaded()
     } catch (error) {

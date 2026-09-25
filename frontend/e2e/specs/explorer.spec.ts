@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 import { AxeBuilder } from '@axe-core/playwright'
@@ -36,6 +37,8 @@ async function openQuickConnection(page: Page, quickId: string): Promise<void> {
  * - a folder is created, renamed and deleted on the server with the toolbar, F2, Delete and the context menu
  * - a file is uploaded to the server, appears in the folder and in the transfers dock as done, downloads back with the same
  *   content, and is deleted
+ * - an upload canceled half way leaves a partial file, and resuming it from the dock sends only the rest, so the file that
+ *   comes back is identical to the one that went out
  * - the explorer has no WCAG violations in any of the twelve themes
  */
 test.describe('explorer', () => {
@@ -136,6 +139,57 @@ test.describe('explorer', () => {
     expect(downloaded.suggestedFilename()).toBe(name)
     const path = await downloaded.path()
     expect(await readFile(path, 'utf8')).toBe(content)
+
+    await grid.press('Delete')
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await expect(row).toBeHidden()
+  })
+
+  test('resumes a canceled upload and the file arrives intact', async ({ shell, quickId }) => {
+    test.setTimeout(120_000)
+    const { page } = shell
+    const name = `e2e-resume-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
+    const content = Buffer.alloc(3 * 1024 * 1024)
+    for (let index = 0; index < content.length; index++) {
+      content[index] = (index * 31 + (index >> 8)) & 0xff
+    }
+    await openQuickConnection(page, quickId)
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /upload/ }).dblclick()
+    await expect(page).toHaveURL(/path=%2Fupload$/)
+
+    const client = await page.context().newCDPSession(page)
+    await client.send('Network.enable')
+    await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: 300 * 1024 })
+    await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'application/octet-stream', buffer: content })
+
+    const dock = page.getByRole('region', { name: 'Transfers' })
+    const running = dock.getByRole('listitem').filter({ hasText: name })
+    await expect.poll(async () => Number(await running.getByRole('progressbar').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(10)
+    await running.getByRole('button', { name: `Cancel ${name}` }).click()
+
+    await dock.getByRole('tab', { name: /Finished/ }).click()
+    const stopped = dock.getByRole('listitem').filter({ hasText: name })
+    await expect(stopped).toContainText('Canceled')
+    await expect(stopped.getByRole('button', { name: `Resume ${name}` })).toBeVisible()
+
+    await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
+    const resumed = page.waitForRequest((request) => request.method() === 'PUT' && request.url().includes('/files/content'))
+    await stopped.getByRole('button', { name: `Resume ${name}` }).click()
+    const url = new URL((await resumed).url())
+    expect(url.searchParams.get('mode')).toBe('resume')
+    expect(Number(url.searchParams.get('offset'))).toBeGreaterThan(0)
+    expect(Number(url.searchParams.get('offset'))).toBeLessThan(content.length)
+    expect(url.searchParams.get('size')).toBe(String(content.length))
+    await expect(stopped).toContainText('Done', { timeout: 30_000 })
+    await expect(stopped).toContainText('3.0 MB of 3.0 MB')
+
+    const row = grid.getByRole('row', { name: new RegExp(name) })
+    await row.click()
+    const download = page.waitForEvent('download')
+    await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Download' }).click()
+    const received = await readFile((await (await download).path()) as string)
+    expect(createHash('sha256').update(received).digest('hex')).toBe(createHash('sha256').update(content).digest('hex'))
 
     await grid.press('Delete')
     await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()

@@ -1,9 +1,11 @@
-import { ArrowDown, ArrowUp, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, RotateCw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { formatSize } from '../explorer/entries'
 
+import { canResume } from './use-resume'
+import { isStoppedUpload } from './resume'
 import { formatDuration, formatSpeed, percentDone } from './format'
 import { etaSeconds, isActive, type TransferItem } from './transfers-store'
 
@@ -15,10 +17,12 @@ export interface TransferRowProps {
   onCancel: (id: string) => void
   /** Called to remove a finished transfer from the list. */
   onRemove: (id: string) => void
+  /** Called to resume an upload that stopped. */
+  onResume: (item: TransferItem) => void
 }
 
 /** One transfer of the dock: what it moves, how far it got, how fast, and the action that fits its state. */
-export function TransferRow({ item, onCancel, onRemove }: TransferRowProps) {
+export function TransferRow({ item, onCancel, onRemove, onResume }: TransferRowProps) {
   const { t } = useTranslation('transfers')
   const { record } = item
   const active = isActive(item)
@@ -67,9 +71,17 @@ export function TransferRow({ item, onCancel, onRemove }: TransferRowProps) {
           <X />
         </Button>
       ) : (
-        <Button variant="ghost" size="sm" aria-label={t(($) => $.removeLabel, { name: record.name })} onClick={() => onRemove(record.id)}>
-          {t(($) => $.remove)}
-        </Button>
+        <div className="flex items-center gap-1">
+          {isStoppedUpload(record) && canResume(record) ? (
+            <Button variant="outline" size="sm" aria-label={t(($) => $.resumeLabel, { name: record.name })} onClick={() => onResume(item)}>
+              <RotateCw />
+              {t(($) => $.resume)}
+            </Button>
+          ) : null}
+          <Button variant="ghost" size="sm" aria-label={t(($) => $.removeLabel, { name: record.name })} onClick={() => onRemove(record.id)}>
+            {t(($) => $.remove)}
+          </Button>
+        </div>
       )}
     </li>
   )
