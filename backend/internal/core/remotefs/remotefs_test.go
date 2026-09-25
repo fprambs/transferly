@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/fprambs/sentinel/internal/core/remotefs"
@@ -46,5 +47,36 @@ func TestEntry_IsDir(t *testing.T) {
 	}
 	if (remotefs.Entry{Mode: 0o644}).IsDir() {
 		t.Error("file entry: IsDir() = true")
+	}
+}
+
+// TestHostKeyError verifies how a rejected host key matches the sentinels.
+//
+// Scenarios:
+//   - an unseen key matches ErrHostKeyUnknown and not ErrHostKeyMismatch
+//   - a changed key matches ErrHostKeyMismatch and not ErrHostKeyUnknown
+//   - both kinds survive wrapping, are not retryable, and their message carries the type and fingerprint
+func TestHostKeyError(t *testing.T) {
+	unseen := &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc"}
+	changed := &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc", Changed: true}
+
+	if !errors.Is(unseen, remotefs.ErrHostKeyUnknown) || errors.Is(unseen, remotefs.ErrHostKeyMismatch) {
+		t.Error("an unseen key must match only ErrHostKeyUnknown")
+	}
+	if !errors.Is(changed, remotefs.ErrHostKeyMismatch) || errors.Is(changed, remotefs.ErrHostKeyUnknown) {
+		t.Error("a changed key must match only ErrHostKeyMismatch")
+	}
+	wrapped := fmt.Errorf("dial: %w", changed)
+	var got *remotefs.HostKeyError
+	if !errors.Is(wrapped, remotefs.ErrHostKeyMismatch) || !errors.As(wrapped, &got) || got.Fingerprint != "SHA256:abc" {
+		t.Error("a wrapped key error lost its identity")
+	}
+	if remotefs.Retryable(unseen) || remotefs.Retryable(changed) {
+		t.Error("a rejected host key must not be retried")
+	}
+	for _, e := range []*remotefs.HostKeyError{unseen, changed} {
+		if msg := e.Error(); !strings.Contains(msg, "ssh-ed25519") || !strings.Contains(msg, "SHA256:abc") {
+			t.Errorf("Error() = %q; want the type and fingerprint", msg)
+		}
 	}
 }

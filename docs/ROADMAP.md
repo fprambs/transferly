@@ -173,7 +173,7 @@ Bloques de trabajo (cada uno con tests al 100 %, guía de las librerías nuevas 
 - [x] 1.4 Workspaces y permisos (`workspace.Can`: matriz rol × acción); espacio personal automático; matriz de autorización HTTP (se amplía con cada endpoint nuevo)
 - [x] 1.5 API del vault: setup, unlock, lock, cambio de maestra, recovery y regeneración del kit; llaves en memoria por sesión con TTL, límite de intentos por cuenta y bloqueo al cerrar sesión
 - [x] 1.6 `netguard` y sitios: CRUD, secretos cifrados sellados con la llave del vault, host keys de confianza (TOFU) con listado, confianza y olvido
-- [ ] 1.7 Adaptador SFTP con TOFU y suite de conformidad (autenticación por clave incluida)
+- [x] 1.7 Adaptador SFTP (`sftpfs`) con verificación de host key por callback obligatorio, autenticación por contraseña y por clave, suite de conformidad contra un servidor en proceso y contra OpenSSH real
 - [ ] 1.8 Session manager: pool, keepalive, reconexión con backoff
 - [ ] 1.9 API de archivos, descarga en streaming y subida reanudable
 - [ ] 1.10 Cola de transferencias persistente y eventos por WebSocket

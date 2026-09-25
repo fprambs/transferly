@@ -4,6 +4,7 @@ package remotefs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"time"
@@ -80,6 +81,8 @@ var (
 	ErrAuth = errors.New("authentication failed")
 	// ErrHostKeyMismatch means the server identity differs from the trusted one.
 	ErrHostKeyMismatch = errors.New("host key mismatch")
+	// ErrHostKeyUnknown means the server presented a key that is not trusted yet; the user must confirm its fingerprint.
+	ErrHostKeyUnknown = errors.New("host key not trusted yet")
 	// ErrConnectionLost means the connection dropped; the operation may be retried after reconnecting.
 	ErrConnectionLost = errors.New("connection lost")
 	// ErrQuota means a storage quota was exceeded.
@@ -121,4 +124,31 @@ type RemoteFS interface {
 	Ping(ctx context.Context) error
 	// Close releases the connection; later operations fail with [ErrConnectionLost].
 	Close() error
+}
+
+// HostKeyError reports the key a server presented when it was not accepted. It matches [ErrHostKeyUnknown]
+// or [ErrHostKeyMismatch] with [errors.Is], so callers can ask the user to confirm the fingerprint or refuse.
+type HostKeyError struct {
+	// Type is the key algorithm, such as ssh-ed25519.
+	Type string
+	// Fingerprint is the SHA-256 fingerprint of the key in OpenSSH notation.
+	Fingerprint string
+	// Changed is true when a different key of the same type was trusted before.
+	Changed bool
+}
+
+// Error describes the rejected key.
+func (e *HostKeyError) Error() string {
+	if e.Changed {
+		return fmt.Sprintf("%v: %s %s", ErrHostKeyMismatch, e.Type, e.Fingerprint)
+	}
+	return fmt.Sprintf("%v: %s %s", ErrHostKeyUnknown, e.Type, e.Fingerprint)
+}
+
+// Is matches the sentinel that corresponds to the kind of rejection.
+func (e *HostKeyError) Is(target error) bool {
+	if e.Changed {
+		return target == ErrHostKeyMismatch
+	}
+	return target == ErrHostKeyUnknown
 }

@@ -5,7 +5,7 @@ set -eu
 
 cd "$(dirname "$0")/../backend"
 
-packages=$(go list ./... | grep -v -e '/cmd/' -e '/internal/testutil' -e '/internal/docscheck' -e '/store/postgres/db' -e '/remotefstest' -e '/storetest' -e '/spikes' | paste -sd, -)
+packages=$(go list ./... | grep -v -e '/cmd/' -e '/internal/testutil' -e '/internal/docscheck' -e '/store/postgres/db' -e '/remotefstest' -e '/sftptest' -e '/storetest' -e '/spikes' | paste -sd, -)
 status=0
 go test -race -count=1 -coverpkg="$packages" -coverprofile=coverage.out ./... >test.log 2>&1 || status=$?
 sed -E 's/[[:space:]]+coverage: .*//' test.log
