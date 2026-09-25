@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 
@@ -32,6 +34,8 @@ async function openQuickConnection(page: Page, quickId: string): Promise<void> {
  * - the root lists the server's folders, a folder opens with a double click and the breadcrumb and address follow
  * - going up returns to the root
  * - a folder is created, renamed and deleted on the server with the toolbar, F2, Delete and the context menu
+ * - a file is uploaded to the server, appears in the folder and in the transfers dock as done, downloads back with the same
+ *   content, and is deleted
  * - the explorer has no WCAG violations in any of the twelve themes
  */
 test.describe('explorer', () => {
@@ -62,7 +66,7 @@ test.describe('explorer', () => {
 
     await grid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(page).toHaveURL(/path=%2Fupload$/)
-    await expect(page.getByRole('button', { name: 'upload' })).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByRole('button', { name: 'upload', exact: true })).toHaveAttribute('aria-current', 'page')
 
     await page.getByRole('button', { name: 'Up one level' }).click()
     await expect(page).toHaveURL(/path=%2F$/)
@@ -104,6 +108,38 @@ test.describe('explorer', () => {
     await grid.press('Delete')
     await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
     await expect(renamedRow).toBeHidden()
+  })
+
+  test('uploads, downloads and deletes a file on the server', async ({ shell, quickId }) => {
+    const { page } = shell
+    const name = `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}.txt`
+    const content = 'hello from the browser test\n'
+    await openQuickConnection(page, quickId)
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /upload/ }).dblclick()
+    await expect(page).toHaveURL(/path=%2Fupload$/)
+
+    await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from(content) })
+    const row = grid.getByRole('row', { name: new RegExp(name) })
+    await expect(row).toBeVisible()
+
+    const dock = page.getByRole('region', { name: 'Transfers' })
+    await dock.getByRole('tab', { name: /Finished/ }).click()
+    const transfer = dock.getByRole('listitem').filter({ hasText: name })
+    await expect(transfer).toContainText('Done')
+    await expect(transfer).toContainText(`${content.length} B of ${content.length} B`)
+
+    await row.click()
+    const download = page.waitForEvent('download')
+    await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Download' }).click()
+    const downloaded = await download
+    expect(downloaded.suggestedFilename()).toBe(name)
+    const path = await downloaded.path()
+    expect(await readFile(path, 'utf8')).toBe(content)
+
+    await grid.press('Delete')
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await expect(row).toBeHidden()
   })
 
   test('has no WCAG violations in any theme', async ({ shell, quickId }) => {

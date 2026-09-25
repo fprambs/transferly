@@ -51,14 +51,17 @@
   "toolbar": {
     "newFolder": "Nueva carpeta",
     "rename": "Renombrar",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "upload": "Subir",
+    "download": "Descargar"
   },
   "menu": {
     "label": "Acciones del elemento seleccionado",
     "open": "Abrir",
     "rename": "Renombrar",
     "delete": "Eliminar",
-    "newFolder": "Nueva carpeta"
+    "newFolder": "Nueva carpeta",
+    "download": "Descargar"
   },
   "newFolder": {
     "title": "Nueva carpeta",
@@ -86,5 +89,15 @@
     "modified": "Modificado",
     "mode": "Permisos"
   },
-  "cancel": "Cancelar"
+  "cancel": "Cancelar",
+  "upload": {
+    "dropHint": "Suelta archivos para subirlos aquí",
+    "failures": "Algunos archivos no se pudieron subir",
+    "dismiss": "Cerrar",
+    "conflictTitle": "{{name}} ya existe",
+    "conflictBody": "¿Sobrescribir el archivo del servidor con el que elegiste?",
+    "overwrite": "Sobrescribir",
+    "skip": "Omitir",
+    "fileInput": "Elegir archivos para subir"
+  }
 }

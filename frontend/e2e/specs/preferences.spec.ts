@@ -50,12 +50,13 @@ test.describe('preferences', () => {
 
   test('collapses and expands the transfer queue', async ({ page, shell }) => {
     await expect(shell.heading).toBeVisible()
-    await expect(page.getByText('No transfers')).toBeVisible()
+    const body = page.locator('#queue-body')
+    await expect(body).toBeVisible()
 
     await page.getByRole('button', { name: 'Hide transfers' }).click()
-    await expect(page.getByText('No transfers')).toBeHidden()
+    await expect(body).toBeHidden()
 
     await page.getByRole('button', { name: 'Show transfers' }).click()
-    await expect(page.getByText('No transfers')).toBeVisible()
+    await expect(body).toBeVisible()
   })
 })

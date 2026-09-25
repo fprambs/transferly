@@ -32,6 +32,8 @@ export interface EntryTableProps {
   selectedPath: string | null
   /** Called when the selection moves to an entry. */
   onSelect: (entry: RemoteEntry) => void
+  /** Called to download a file from the context menu. */
+  onDownload: (entry: RemoteEntry) => void
   /** Called to rename an entry: F2 or the context menu. */
   onRename: (entry: RemoteEntry) => void
   /** Called to delete an entry: Delete or the context menu. */
@@ -78,7 +80,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, selectedPath, onSelect, onRename, onDelete, onNewFolder }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, selectedPath, onSelect, onDownload, onRename, onDelete, onNewFolder }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -182,6 +184,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, selectedPa
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={t(($) => $.menu.label)} className="min-w-44">
         {active.type === 'directory' && <ContextMenuItem onClick={() => onOpen(active)}>{t(($) => $.menu.open)}</ContextMenuItem>}
+        {active.type === 'file' && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.download)}</ContextMenuItem>}
         <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>
         <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>
         <ContextMenuSeparator />

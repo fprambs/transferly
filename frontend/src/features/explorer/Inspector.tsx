@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react'
+import { Download, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ export interface InspectorProps {
   locale: string
   /** IANA time zone the date is shown in. */
   timeZone: string
+  /** Called to download the entry when it is a file. */
+  onDownload: (entry: RemoteEntry) => void
   /** Called to rename the entry. */
   onRename: (entry: RemoteEntry) => void
   /** Called to delete the entry. */
@@ -22,7 +24,7 @@ export interface InspectorProps {
 }
 
 /** Side panel with the details of the selected entry and its actions. */
-export function Inspector({ entry, locale, timeZone, onRename, onDelete }: InspectorProps) {
+export function Inspector({ entry, locale, timeZone, onDownload, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
 
   return (
@@ -41,7 +43,13 @@ export function Inspector({ entry, locale, timeZone, onRename, onDelete }: Inspe
         <dt className="text-muted-foreground">{t(($) => $.inspector.mode)}</dt>
         <dd className="font-mono">{entry.mode}</dd>
       </dl>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {entry.type === 'file' ? (
+          <Button variant="outline" size="sm" onClick={() => onDownload(entry)}>
+            <Download />
+            {t(($) => $.toolbar.download)}
+          </Button>
+        ) : null}
         <Button variant="outline" size="sm" onClick={() => onRename(entry)}>
           <Pencil />
           {t(($) => $.toolbar.rename)}

@@ -51,14 +51,17 @@
   "toolbar": {
     "newFolder": "New folder",
     "rename": "Rename",
-    "delete": "Delete"
+    "delete": "Delete",
+    "upload": "Upload",
+    "download": "Download"
   },
   "menu": {
     "label": "Actions for the selected item",
     "open": "Open",
     "rename": "Rename",
     "delete": "Delete",
-    "newFolder": "New folder"
+    "newFolder": "New folder",
+    "download": "Download"
   },
   "newFolder": {
     "title": "New folder",
@@ -86,5 +89,15 @@
     "modified": "Modified",
     "mode": "Permissions"
   },
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "upload": {
+    "dropHint": "Drop files to upload them here",
+    "failures": "Some files could not be uploaded",
+    "dismiss": "Dismiss",
+    "conflictTitle": "{{name}} already exists",
+    "conflictBody": "Overwrite the file on the server with the one you chose?",
+    "overwrite": "Overwrite",
+    "skip": "Skip",
+    "fileInput": "Choose files to upload"
+  }
 }

@@ -47,10 +47,10 @@ export function TransfersDock() {
           ) : (
             <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
               <TabsList className="mx-4 mt-2 self-start">
-                <TabsTrigger value="active">
+                <TabsTrigger value="active" className="text-foreground">
                   {transfers(($) => $.tabs.active)} ({active.length})
                 </TabsTrigger>
-                <TabsTrigger value="finished">
+                <TabsTrigger value="finished" className="text-foreground">
                   {transfers(($) => $.tabs.finished)} ({finished.length})
                 </TabsTrigger>
               </TabsList>
