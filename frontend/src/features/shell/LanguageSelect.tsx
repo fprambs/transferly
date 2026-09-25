@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
+import { NativeSelect } from '@/components/ui/native-select'
 import { supportedLanguages } from '@/i18n'
 
 /** Drop-down that switches the interface language; each language is named in itself. */
@@ -11,9 +12,9 @@ export function LanguageSelect() {
       <label htmlFor="language" className="text-sm">
         {t(($) => $.language.label)}
       </label>
-      <select
+      <NativeSelect
         id="language"
-        className="rounded-md border bg-background px-2 py-1 text-sm"
+        containerClassName="w-32"
         value={i18n.resolvedLanguage}
         onChange={(event) => void i18n.changeLanguage(event.target.value)}
       >
@@ -22,7 +23,7 @@ export function LanguageSelect() {
             {t(($) => $.language.names[code])}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </div>
   )
 }

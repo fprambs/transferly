@@ -13,6 +13,7 @@ const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
  * Visual regression of the application shell against versioned baselines.
  *
  * Scenarios:
+ * - the sites tree is masked because the tests that run beside this one fill it with their own collections
  * - the shell in the default theme in English and Spanish, and in the light, Monokai and Nord themes
  *
  * Baselines are generated and compared only inside the official Playwright container.
@@ -23,7 +24,10 @@ test.describe('visual', () => {
       await shell.setLanguage(language)
       await shell.setTheme(theme)
 
-      await expect(page).toHaveScreenshot(`shell-${language}-${theme}.png`, { animations: 'disabled' })
+      await expect(page).toHaveScreenshot(`shell-${language}-${theme}.png`, {
+        animations: 'disabled',
+        mask: [page.getByRole('tree')],
+      })
     })
   }
 })

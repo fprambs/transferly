@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import type { Collection } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -85,9 +86,8 @@ function CollectionForm({ target, workspaceId, collections, onClose }: Collectio
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="collection-parent">{t(($) => $.collection.parent)}</Label>
-        <select
+        <NativeSelect
           id="collection-parent"
-          className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30"
           {...register('parentId')}
         >
           <option value="">{t(($) => $.collection.top)}</option>
@@ -96,7 +96,7 @@ function CollectionForm({ target, workspaceId, collections, onClose }: Collectio
               {option.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       {failure !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

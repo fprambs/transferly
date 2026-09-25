@@ -20,8 +20,12 @@ import { useSitesData } from './use-sites-data'
 /** Indentation of each nesting level, in pixels. */
 const indentPerLevel = 14
 
-/** What can be done to a collection from its row. */
+/** What can be done to the rows of the tree. */
 interface CollectionActions {
+  /** Key of the row that is selected, if any. */
+  selected: string | null
+  /** Called when a row is selected. */
+  onSelect: (key: string) => void
   /** Called when a collection is opened or closed. */
   onToggle: (id: string) => void
   /** Called to create a collection inside another. */
@@ -46,6 +50,19 @@ interface RowProps {
   actions: CollectionActions
 }
 
+/** Returns the key that identifies a row in the selection. */
+function rowKey(node: TreeNode): string {
+  return `${node.kind}-${node.id}`
+}
+
+/** Selects a row with Enter or Space, when the row itself has focus. */
+function onSelectKey(event: KeyboardEvent<HTMLElement>, select: () => void): void {
+  if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+    event.preventDefault()
+    select()
+  }
+}
+
 /** Opens or closes a collection from the keyboard: Enter and Space toggle, the arrows open and close. Only for the row itself. */
 function onCollectionKey(event: KeyboardEvent<HTMLElement>, node: CollectionNode, onToggle: (id: string) => void): void {
   if (event.target !== event.currentTarget) {
@@ -66,8 +83,11 @@ function onCollectionKey(event: KeyboardEvent<HTMLElement>, node: CollectionNode
 function Row({ node, actions }: RowProps) {
   const { t } = useTranslation('shell')
   const { t: sites } = useTranslation('sites')
+  const selected = actions.selected === rowKey(node)
+  const select = () => actions.onSelect(rowKey(node))
   const style = { paddingInlineStart: `${node.depth * indentPerLevel + 8}px` }
-  const base = 'flex h-[30px] w-full items-center gap-2 rounded-md pe-2 text-start text-[13px] hover:bg-muted'
+  const base =
+    'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md pe-2 text-start text-[13px] outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-primary/15 aria-selected:font-medium'
 
   if (node.kind === 'collection') {
     return (
@@ -75,8 +95,12 @@ function Row({ node, actions }: RowProps) {
         role="treeitem"
         aria-expanded={node.expanded}
         aria-level={node.depth + 1}
+        aria-selected={selected}
         tabIndex={0}
-        onClick={() => actions.onToggle(node.id)}
+        onClick={() => {
+          select()
+          actions.onToggle(node.id)
+        }}
         onKeyDown={(event) => onCollectionKey(event, node, actions.onToggle)}
         className={cn(base, 'group cursor-pointer font-medium')}
         style={style}
@@ -84,12 +108,12 @@ function Row({ node, actions }: RowProps) {
         <ChevronRight className={cn('size-3 shrink-0 text-faint transition-transform rtl:-scale-x-100', node.expanded && 'rotate-90 rtl:rotate-90')} />
         <Folder className="size-[15px] shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
-        <span className="font-mono text-[11px] text-muted-foreground group-hover:hidden group-focus-within:hidden">{node.siteCount}</span>
+        <span className="font-mono text-[11px] text-muted-foreground">{node.siteCount}</span>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={sites(($) => $.collection.actions, { name: node.name })}
             onClick={(event) => event.stopPropagation()}
-            className="hidden size-5 items-center justify-center rounded text-muted-foreground hover:bg-background group-focus-within:flex group-hover:flex"
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background data-popup-open:bg-background data-popup-open:opacity-100"
           >
             <Ellipsis className="size-3.5" />
           </DropdownMenuTrigger>
@@ -105,7 +129,16 @@ function Row({ node, actions }: RowProps) {
   }
   if (node.kind === 'quick') {
     return (
-      <div role="treeitem" aria-level={1} tabIndex={0} className={cn(base, 'italic')} style={style}>
+      <div
+        role="treeitem"
+        aria-level={1}
+        aria-selected={selected}
+        tabIndex={0}
+        onClick={select}
+        onKeyDown={(event) => onSelectKey(event, select)}
+        className={cn(base, 'italic')}
+        style={style}
+      >
         <span className="w-3 shrink-0" />
         <Zap className="size-[15px] shrink-0 text-warn" />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
@@ -114,15 +147,24 @@ function Row({ node, actions }: RowProps) {
     )
   }
   return (
-    <div role="treeitem" aria-level={node.depth + 1} tabIndex={0} className={cn(base, 'group')} style={style}>
+    <div
+      role="treeitem"
+      aria-level={node.depth + 1}
+      aria-selected={selected}
+      tabIndex={0}
+      onClick={select}
+      onKeyDown={(event) => onSelectKey(event, select)}
+      className={cn(base, 'group')}
+      style={style}
+    >
       <span className="w-3 shrink-0" />
       <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />
       <span className="min-w-0 flex-1 truncate">{node.name}</span>
-      <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground group-hover:hidden group-focus-within:hidden">{node.host}</span>
+      <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={sites(($) => $.site.actions, { name: node.name })}
-          className="hidden size-5 items-center justify-center rounded text-muted-foreground hover:bg-background group-focus-within:flex group-hover:flex"
+          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background data-popup-open:bg-background data-popup-open:opacity-100"
         >
           <Ellipsis className="size-3.5" />
         </DropdownMenuTrigger>
@@ -152,7 +194,10 @@ export function SitesSidebar() {
   const [siteTarget, setSiteTarget] = useState<SiteTarget | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
+  const [selected, setSelected] = useState<string | null>(null)
   const actions: CollectionActions = {
+    selected,
+    onSelect: setSelected,
     onToggle: (id) => setExpanded((open) => toggled(open, id)),
     onCreateIn: (parentId) => {
       setExpanded((open) => new Set([...open, parentId]))

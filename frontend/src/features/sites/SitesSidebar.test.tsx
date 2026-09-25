@@ -33,6 +33,7 @@ function site(id: string, name: string, collectionId?: string): Site {
  * - a workspace without sites shows the empty message
  * - collections, sites and quick connections appear as a tree with counts and the "not saved" mark
  * - opening a collection reveals its children and closing it hides them again
+ * - clicking a row selects it and only one row is selected at a time; Enter and Space select the row with focus
  * - the toolbar offers quick connect and the create actions
  * - the labels follow the interface language
  */
@@ -80,6 +81,50 @@ describe('SitesSidebar', () => {
 
     await user.click(work)
     expect(within(tree).queryByText('Staging')).not.toBeInTheDocument()
+  })
+
+  it('selects one row at a time', async () => {
+    mockWorkspaceData({
+      collections: [{ id: 'c1', name: 'Work' }],
+      sites: [site('s2', 'Home')],
+      quick: [
+        {
+          id: 'q1',
+          name: '198.51.100.7',
+          protocol: 'sftp',
+          host: '198.51.100.7',
+          port: 22,
+          username: 'deploy',
+          authMethod: 'password',
+          listTimezone: 'UTC',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    await renderWithProviders(<SitesSidebar />)
+    const home = await screen.findByRole('treeitem', { name: /Home/ })
+    const work = screen.getByRole('treeitem', { name: /Work/ })
+    const quick = screen.getByRole('treeitem', { name: /198.51.100.7/ })
+
+    await user.click(home)
+    expect(home).toHaveAttribute('aria-selected', 'true')
+    expect(work).toHaveAttribute('aria-selected', 'false')
+
+    await user.click(work)
+    expect(work).toHaveAttribute('aria-selected', 'true')
+    expect(home).toHaveAttribute('aria-selected', 'false')
+
+    quick.focus()
+    await user.keyboard('x')
+    expect(quick).toHaveAttribute('aria-selected', 'false')
+    await user.keyboard('{Enter}')
+    expect(quick).toHaveAttribute('aria-selected', 'true')
+
+    home.focus()
+    await user.keyboard(' ')
+    expect(home).toHaveAttribute('aria-selected', 'true')
+    expect(quick).toHaveAttribute('aria-selected', 'false')
   })
 
   it('offers quick connect and the create actions', async () => {

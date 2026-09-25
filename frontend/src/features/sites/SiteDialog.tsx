@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -60,9 +61,6 @@ function Field({ id, label, error, className, children }: FieldProps) {
   )
 }
 
-/** Class of the native selects, matching the inputs. */
-const selectClass = 'h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30'
-
 /** Time zones the browser knows, offered as suggestions. */
 const timeZones = Intl.supportedValuesOf('timeZone')
 
@@ -111,21 +109,21 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
           <Input id="site-name" autoComplete="off" aria-invalid={errors.name !== undefined} {...register('name')} />
         </Field>
         <Field id="site-collection" label={t(($) => $.site.collection)} className="flex-1">
-          <select id="site-collection" className={selectClass} {...register('collectionId')}>
+          <NativeSelect id="site-collection" {...register('collectionId')}>
             <option value="">{t(($) => $.site.noCollection)}</option>
             {collectionOptions(collections).map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </Field>
       </div>
       <div className="flex gap-3">
         <Field id="site-protocol" label={t(($) => $.site.protocol)} className="w-28">
-          <select id="site-protocol" className={selectClass} disabled defaultValue="sftp">
+          <NativeSelect id="site-protocol" disabled defaultValue="sftp">
             <option value="sftp">SFTP</option>
-          </select>
+          </NativeSelect>
         </Field>
         <Field id="site-host" label={t(($) => $.site.host)} error={errors.host?.message} className="flex-1">
           <Input id="site-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
@@ -139,10 +137,10 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
           <Input id="site-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.username !== undefined} {...register('username')} />
         </Field>
         <Field id="site-auth" label={t(($) => $.site.authMethod)} className="w-44">
-          <select id="site-auth" className={selectClass} {...register('authMethod')}>
+          <NativeSelect id="site-auth" {...register('authMethod')}>
             <option value="password">{t(($) => $.site.password)}</option>
             <option value="key">{t(($) => $.site.key)}</option>
-          </select>
+          </NativeSelect>
         </Field>
       </div>
       {usesKey ? (

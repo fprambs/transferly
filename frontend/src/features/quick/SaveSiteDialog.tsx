@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import type { Collection, QuickConnection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -71,9 +72,8 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="save-collection">{t(($) => $.save.collection)}</Label>
-        <select
+        <NativeSelect
           id="save-collection"
-          className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30"
           {...register('collectionId')}
         >
           <option value="">{t(($) => $.save.noCollection)}</option>
@@ -82,7 +82,7 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
               {option.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       {failure !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

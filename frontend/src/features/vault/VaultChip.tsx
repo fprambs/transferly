@@ -38,11 +38,11 @@ export function VaultChip() {
           }
         }}
         className={cn(
-          'flex h-7 items-center gap-2 rounded-full px-2.5 text-[13px] font-medium',
-          unlocked ? 'bg-primary/15 text-primary' : 'bg-warn/15 text-warn',
+          'flex h-7 cursor-pointer items-center gap-2 rounded-full px-2.5 text-[13px] font-medium text-foreground hover:brightness-110',
+          unlocked ? 'bg-primary/15' : 'bg-warn/15',
         )}
       >
-        <Icon className="size-3.5" />
+        <Icon className={cn('size-3.5', unlocked ? 'text-accent-text' : 'text-warn')} />
         {label}
       </button>
       <VaultDialog mode={mode} onClose={() => setMode(null)} />

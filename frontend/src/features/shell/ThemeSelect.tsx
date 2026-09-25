@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
+import { Checkbox } from '@/components/ui/checkbox'
+import { NativeSelect } from '@/components/ui/native-select'
 import { themes } from '@/lib/theme'
 import { useUiStore } from '@/state/ui-store'
 
@@ -16,9 +18,9 @@ export function ThemeSelect() {
       <label htmlFor="theme" className="text-sm">
         {t(($) => $.theme.label)}
       </label>
-      <select
+      <NativeSelect
         id="theme"
-        className="rounded-md border bg-background px-2 py-1 text-sm disabled:opacity-60"
+        containerClassName="w-40"
         value={themeId}
         disabled={followSystem}
         onChange={(event) => setTheme(event.target.value)}
@@ -34,11 +36,11 @@ export function ThemeSelect() {
               ))}
           </optgroup>
         ))}
-      </select>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={followSystem} onChange={(event) => setFollowSystem(event.target.checked)} />
-        {t(($) => $.theme.followSystem)}
-      </label>
+      </NativeSelect>
+      <div className="flex items-center gap-2 text-sm">
+        <Checkbox id="follow-system" aria-labelledby="follow-system-label" checked={followSystem} onCheckedChange={setFollowSystem} />
+        <span id="follow-system-label">{t(($) => $.theme.followSystem)}</span>
+      </div>
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { expect, test } from '../fixtures.ts'
  * - the shell renders its landmark regions
  * - the liveness and readiness probes answer ok
  * - the response carries the security headers and an unknown API path is a problem document
- * - an application route that does not exist on the server still renders the shell
+ * - a signed-in user who opens the login route lands on the shell
  */
 test.describe('smoke', () => {
   test('renders the landmark regions', async ({ shell, page }) => {
@@ -40,9 +40,10 @@ test.describe('smoke', () => {
     expect(await missing.json()).toMatchObject({ code: 'not_found', status: 404 })
   })
 
-  test('renders the shell on a client-side route', async ({ page }) => {
-    await page.goto('/sites/42')
+  test('sends a signed-in user from the login route to the shell', async ({ page }) => {
+    await page.goto('/login')
 
     await expect(page.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeVisible()
+    await expect(page).toHaveURL(/\/$/)
   })
 })
