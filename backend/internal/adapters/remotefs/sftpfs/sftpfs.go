@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 )
 
@@ -103,7 +104,8 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 
 // Dial connects, checks the host key, authenticates and starts the SFTP subsystem.
 // Failures are [remotefs.ErrHostKeyUnknown] or [remotefs.ErrHostKeyMismatch] for host keys,
-// [remotefs.ErrAuth] for credentials, the context error when canceled and [remotefs.ErrConnectionLost] otherwise.
+// [remotefs.ErrAuth] for credentials, the context error when canceled, [netguard.ErrBlocked] for forbidden
+// destinations and [remotefs.ErrConnectionLost] otherwise. Only a lost connection is worth retrying.
 func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	if cfg.VerifyHostKey == nil {
 		return nil, fmt.Errorf("%w: host key verification is required", remotefs.ErrInvalid)
@@ -133,6 +135,9 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
+		}
+		if errors.Is(err, netguard.ErrBlocked) {
+			return nil, fmt.Errorf("connecting to %s: %w", cfg.Address, err)
 		}
 		return nil, fmt.Errorf("connecting to %s: %w: %w", cfg.Address, remotefs.ErrConnectionLost, err)
 	}

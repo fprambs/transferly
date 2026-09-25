@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
@@ -168,4 +171,51 @@ func TestVault_Protection(t *testing.T) {
 	expectProblem(t, a.vaultCall("/password", map[string]string{"currentPassword": "x", "newPassword": newMaster}, cookie, csrf), 429, "rate_limited")
 	expectProblem(t, a.vaultCall("/recover", map[string]string{"recoveryKit": "x", "newPassword": newMaster}, cookie, csrf), 429, "rate_limited")
 	expectProblem(t, a.vaultCall("/recovery-kit", guess, cookie, csrf), 429, "rate_limited")
+}
+
+// TestConnections_ClosedOnLockAndLogout verifies that a user's connections do not outlive their vault or session.
+//
+// Scenarios:
+//   - locking the vault closes the user's pooled connections
+//   - signing out closes them too
+//   - connections of other users are left alone
+func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
+	var pool *connections.Manager
+	a := newAPI(t, func(d *httpapi.Deps) { pool = d.Connections })
+	cookie, csrf := a.setup()
+	otherCookie, other := a.signIn("other@example.com")
+	_ = otherCookie
+	admin := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}).session(t).User.Id
+
+	pooled := func(user uuid.UUID) connections.Key {
+		key := connections.Key{UserID: user, WorkspaceID: uuid.New(), SiteID: uuid.New()}
+		lease, err := pool.Acquire(t.Context(), key, "s")
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease.Release(nil)
+		return key
+	}
+	mine, theirs := pooled(admin), pooled(other.ID)
+
+	if r := a.vaultCall("/lock", nil, cookie, csrf); r.Status != http.StatusNoContent {
+		t.Fatalf("lock = %d %s", r.Status, r.Body)
+	}
+	if _, total := pool.Stats(mine); total != 0 {
+		t.Error("locking the vault left the user's connections open")
+	}
+	if _, total := pool.Stats(theirs); total != 1 {
+		t.Error("locking the vault closed another user's connections")
+	}
+
+	mine = pooled(admin)
+	if r := a.do(request{method: http.MethodPost, path: "/api/v1/auth/logout", cookie: cookie, headers: map[string]string{"X-CSRF-Token": csrf}}); r.Status != http.StatusNoContent {
+		t.Fatalf("logout = %d", r.Status)
+	}
+	if _, total := pool.Stats(mine); total != 0 {
+		t.Error("signing out left the user's connections open")
+	}
+	if _, total := pool.Stats(theirs); total != 1 {
+		t.Error("signing out closed another user's connections")
+	}
 }

@@ -9,9 +9,11 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/clock"
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
+	"github.com/fprambs/sentinel/internal/adapters/remotefs/connect"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -21,7 +23,11 @@ import (
 	"github.com/fprambs/sentinel/internal/transport/webui"
 )
 
-const maxTrackedClients = 10000
+const (
+	maxTrackedClients = 10000
+	connectTimeout    = 15 * time.Second
+	poolSweepEvery    = 30 * time.Second
+)
 
 var (
 	setupRule        = ratelimit.Rule{Burst: 5, Every: time.Minute}
@@ -40,6 +46,7 @@ type janitorTask struct {
 type wiring struct {
 	deps    httpapi.Deps
 	janitor []janitorTask
+	pool    *connections.Manager
 }
 
 // newWiring composes the core services with the store and the configuration.
@@ -55,18 +62,22 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	vaults := vault.NewService(vault.NewDefault(kdf, rand.Reader), store, keyRing)
 
 	hostKeys := hostkey.NewService(store, workspaces, system)
-	sites := site.NewService(store, workspaces, vaults, netguard.NewPolicy(cfg.AllowedNetworks, nil), system, rand.Reader, nil)
+	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)
+	sites := site.NewService(store, workspaces, vaults, policy, system, rand.Reader, nil)
+	pool := connections.New(connect.New(sites, hostKeys, policy, connectTimeout), system, connections.Config{})
 
 	return wiring{
+		pool: pool,
 		deps: httpapi.Deps{
-			Logger:     logger,
-			Readiness:  store,
-			Web:        webui.Handler(),
-			Auth:       authService,
-			Workspaces: workspaces,
-			Vault:      vaults,
-			Sites:      sites,
-			HostKeys:   hostKeys,
+			Logger:      logger,
+			Readiness:   store,
+			Web:         webui.Handler(),
+			Auth:        authService,
+			Workspaces:  workspaces,
+			Vault:       vaults,
+			Sites:       sites,
+			HostKeys:    hostKeys,
+			Connections: pool,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

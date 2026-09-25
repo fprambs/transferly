@@ -69,10 +69,11 @@ func (s *server) UnlockVault(ctx context.Context, request UnlockVaultRequestObje
 	return UnlockVault204Response{}, nil
 }
 
-// LockVault removes the key of this session from memory.
+// LockVault removes the key of this session from memory and closes the user's connections to remote servers.
 func (s *server) LockVault(ctx context.Context, _ LockVaultRequestObject) (LockVaultResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	s.deps.Vault.Lock(vaultKey(p))
+	s.deps.Connections.CloseUser(p.User.ID)
 	return LockVault204Response{}, nil
 }
 

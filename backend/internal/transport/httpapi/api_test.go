@@ -17,10 +17,14 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
+	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
@@ -73,13 +77,14 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	deps := httpapi.Deps{
-		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Readiness:  store,
-		Auth:       service,
-		Workspaces: workspaces,
-		Vault:      vaults,
-		HostKeys:   hostkey.NewService(store, workspaces, clock),
-		Sites:      site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil),
+		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Readiness:   store,
+		Auth:        service,
+		Workspaces:  workspaces,
+		Vault:       vaults,
+		HostKeys:    hostkey.NewService(store, workspaces, clock),
+		Connections: connections.New(memConnector{clock: clock}, clock, connections.Config{}),
+		Sites:       site.NewService(store, workspaces, vaults, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil),
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
 			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
@@ -572,4 +577,12 @@ func mustDecode(t *testing.T, raw []byte, into any) {
 	if err := json.Unmarshal(raw, into); err != nil {
 		t.Fatalf("decoding %q: %v", raw, err)
 	}
+}
+
+// memConnector opens in-memory file systems, whatever the site.
+type memConnector struct{ clock ports.Clock }
+
+// Connect returns a new in-memory file system.
+func (c memConnector) Connect(context.Context, connections.Key, string) (remotefs.RemoteFS, error) {
+	return memfs.New(c.clock), nil
 }

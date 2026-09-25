@@ -18,6 +18,7 @@ Before using a library for the first time, read its official documentation and r
 | [goose](goose.md) | done |
 | [Production image and stack](production-image.md) | done |
 | [Playwright](playwright.md) | done |
+| [Connection pool](connection-pool.md) | done |
 | [Frontend tooling](frontend-tooling.md) | done |
 | [Dev environment (Compose, air, Toxiproxy)](dev-environment.md) | done |
 | [Go module layout](go-layout.md) | done |

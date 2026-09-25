@@ -49,6 +49,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	janitorCtx, stopJanitor := context.WithCancel(ctx)
 	defer stopJanitor()
 	go runJanitor(janitorCtx, cfg.JanitorInterval, logger, wired.janitor)
+	go wired.pool.Run(janitorCtx, poolSweepEvery)
 
 	srv := &http.Server{
 		Handler:           httpapi.NewRouter(wired.deps),

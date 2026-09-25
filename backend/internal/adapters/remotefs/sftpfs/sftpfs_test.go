@@ -222,7 +222,7 @@ func TestDial_HostKeys(t *testing.T) {
 // Scenarios:
 //   - a refused connection is a retryable ErrConnectionLost
 //   - a custom dial function is used, and its error is reported as a lost connection; a blocked destination
-//     keeps its own error
+//     keeps its own error and is never retried
 //   - a server that closes the connection during the handshake, or that refuses the sftp subsystem, is a lost connection
 //   - a context canceled before dialing or while the server stays silent returns the context error promptly
 //   - canceling the context from the host key callback stops the connection
@@ -261,8 +261,8 @@ func TestDial_ConnectionFailures(t *testing.T) {
 	if _, err := connect(t, server, func(c *sftpfs.Config) {
 		password(c)
 		c.DialContext = func(context.Context, string, string) (net.Conn, error) { return nil, netguard.ErrBlocked }
-	}); !errors.Is(err, netguard.ErrBlocked) {
-		t.Errorf("blocked destination = %v; want netguard.ErrBlocked", err)
+	}); !errors.Is(err, netguard.ErrBlocked) || remotefs.Retryable(err) {
+		t.Errorf("blocked destination = %v; want a non-retryable netguard.ErrBlocked", err)
 	}
 
 	hangup, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
