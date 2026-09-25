@@ -51,6 +51,7 @@ func (s *Store) CreateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	err = q.InsertSite(ctx, db.InsertSiteParams{
 		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Protocol: string(st.Protocol), Host: st.Host, Port: int32(st.Port),
 		Username: st.Username, AuthMethod: string(st.AuthMethod), ListTimezone: st.ListTimezone, CreatedAt: st.CreatedAt,
+		FolderID: folderID(st.CollectionID),
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -73,6 +74,7 @@ func (s *Store) UpdateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	rows, err := q.UpdateSite(ctx, db.UpdateSiteParams{
 		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Protocol: string(st.Protocol), Host: st.Host, Port: int32(st.Port),
 		Username: st.Username, AuthMethod: string(st.AuthMethod), ListTimezone: st.ListTimezone, UpdatedAt: st.UpdatedAt,
+		FolderID: folderID(st.CollectionID),
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -86,10 +88,15 @@ func (s *Store) UpdateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	return tx.Commit(ctx)
 }
 
+// folderID converts a collection identifier to the nullable column, the nil identifier being the top level.
+func folderID(id uuid.UUID) uuid.NullUUID {
+	return uuid.NullUUID{UUID: id, Valid: id != uuid.Nil}
+}
+
 // siteFrom converts a stored row and its secret kinds to a site.
 func siteFrom(r db.SiteByIDRow, secrets []site.SecretKind) site.Site {
 	return site.Site{
-		ID: r.ID, WorkspaceID: r.WorkspaceID, Name: r.Name, Protocol: site.Protocol(r.Protocol), Host: r.Host, Port: int(r.Port),
+		ID: r.ID, WorkspaceID: r.WorkspaceID, CollectionID: r.FolderID.UUID, Name: r.Name, Protocol: site.Protocol(r.Protocol), Host: r.Host, Port: int(r.Port),
 		Username: r.Username, AuthMethod: site.AuthMethod(r.AuthMethod), ListTimezone: r.ListTimezone, Secrets: secrets,
 		CreatedAt: r.CreatedAt.UTC(), UpdatedAt: r.UpdatedAt.UTC(),
 	}

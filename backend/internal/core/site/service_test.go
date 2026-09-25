@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -23,11 +24,17 @@ var errStore = errors.New("store failure")
 
 // memStore is an in-memory site.Store with switchable failures.
 type memStore struct {
-	sites      map[uuid.UUID]site.Site
-	secrets    map[string]site.Sealed
-	failCreate error
-	failUpdate error
-	failGet    error
+	sites       map[uuid.UUID]site.Site
+	secrets     map[string]site.Sealed
+	collections map[uuid.UUID]site.Collection
+	failCreate  error
+	failUpdate  error
+	failGet     error
+	failList    error
+	failCreateC error
+	failUpdateC error
+	failDeleteC error
+	failGetC    error
 }
 
 // CreateSite stores the site and its secrets.
@@ -98,6 +105,77 @@ func (m *memStore) Secret(_ context.Context, _, id uuid.UUID, kind site.SecretKi
 	return sealed, nil
 }
 
+// CreateCollection stores a collection unless its name is taken among its siblings.
+func (m *memStore) CreateCollection(_ context.Context, c site.Collection) error {
+	if m.failCreateC != nil {
+		return m.failCreateC
+	}
+	for _, other := range m.collections {
+		if other.WorkspaceID == c.WorkspaceID && other.ParentID == c.ParentID && strings.EqualFold(other.Name, c.Name) {
+			return site.ErrCollectionNameTaken
+		}
+	}
+	m.collections[c.ID] = c
+	return nil
+}
+
+// UpdateCollection replaces a collection.
+func (m *memStore) UpdateCollection(_ context.Context, c site.Collection) error {
+	if m.failUpdateC != nil {
+		return m.failUpdateC
+	}
+	m.collections[c.ID] = c
+	return nil
+}
+
+// Collection returns one collection.
+func (m *memStore) Collection(_ context.Context, ws, id uuid.UUID) (site.Collection, error) {
+	if m.failGetC != nil {
+		return site.Collection{}, m.failGetC
+	}
+	c, ok := m.collections[id]
+	if !ok || c.WorkspaceID != ws {
+		return site.Collection{}, site.ErrCollectionNotFound
+	}
+	return c, nil
+}
+
+// Collections lists the collections of a workspace.
+func (m *memStore) Collections(_ context.Context, ws uuid.UUID) ([]site.Collection, error) {
+	if m.failList != nil {
+		return nil, m.failList
+	}
+	var out []site.Collection
+	for _, c := range m.collections {
+		if c.WorkspaceID == ws {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
+// DeleteCollection removes an empty collection.
+func (m *memStore) DeleteCollection(_ context.Context, ws, id uuid.UUID) error {
+	if m.failDeleteC != nil {
+		return m.failDeleteC
+	}
+	if c, ok := m.collections[id]; !ok || c.WorkspaceID != ws {
+		return site.ErrCollectionNotFound
+	}
+	for _, c := range m.collections {
+		if c.ParentID == id {
+			return site.ErrCollectionNotEmpty
+		}
+	}
+	for _, s := range m.sites {
+		if s.CollectionID == id {
+			return site.ErrCollectionNotEmpty
+		}
+	}
+	delete(m.collections, id)
+	return nil
+}
+
 // roles is a fake authorizer answering from a table of roles by user.
 type roles map[uuid.UUID]workspace.Role
 
@@ -148,7 +226,7 @@ func newFixture(t *testing.T, random *switchable) *fixture {
 	if _, err := rand.Read(dek); err != nil {
 		t.Fatal(err)
 	}
-	f := &fixture{store: &memStore{sites: map[uuid.UUID]site.Site{}, secrets: map[string]site.Sealed{}}, ws: uuid.New(), editor: uuid.New(), viewer: uuid.New(), guard: netguard.NewPolicy(nil, resolver{})}
+	f := &fixture{store: &memStore{sites: map[uuid.UUID]site.Site{}, secrets: map[string]site.Sealed{}, collections: map[uuid.UUID]site.Collection{}}, ws: uuid.New(), editor: uuid.New(), viewer: uuid.New(), guard: netguard.NewPolicy(nil, resolver{})}
 	authz := roles{f.editor: workspace.RoleEditor, f.viewer: workspace.RoleViewer}
 	clock := testutil.NewFakeClock(time.Date(2026, 5, 6, 7, 8, 9, 0, time.UTC))
 	f.svc = site.NewService(f.store, authz, keys{dek: dek, session: "open"}, f.guard, clock, random, nil)
@@ -454,5 +532,168 @@ func TestService_KeyAndStoreFailures(t *testing.T) {
 	}
 	if err := f.svc.Delete(ctx, f.editor, f.ws, created.ID); err != nil {
 		t.Errorf("Delete() = %v", err)
+	}
+}
+
+// TestService_Collections verifies the tree of collections.
+//
+// Scenarios:
+//   - collections are created at the top level and inside others, trimmed, with names checked and unique among siblings
+//   - a missing parent is ErrCollectionNotFound, and nesting deeper than eight levels is ErrCollectionTooDeep
+//   - renaming and moving work, moving to the top level too; moves into the collection itself or its descendants
+//     are ErrCollectionCycle, moves that would exceed the depth are ErrCollectionTooDeep
+//   - only empty collections can be deleted
+//   - viewers may list but not change, strangers get workspace.ErrNotFound
+//   - sites can be placed in, and moved between, collections that exist in their workspace
+//   - failures of the store and of the identifier generator are returned
+func TestService_Collections(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	create := func(name string, parent uuid.UUID) site.Collection {
+		t.Helper()
+		c, err := f.svc.CreateCollection(ctx, f.editor, f.ws, name, parent)
+		if err != nil {
+			t.Fatalf("CreateCollection(%q) = %v", name, err)
+		}
+		return c
+	}
+
+	acme := create("  Acme  ", uuid.Nil)
+	if acme.Name != "Acme" || acme.WorkspaceID != f.ws || acme.ID == uuid.Nil {
+		t.Errorf("collection = %+v", acme)
+	}
+	prod := create("Production", acme.ID)
+	if _, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "acme", uuid.Nil); !errors.Is(err, site.ErrCollectionNameTaken) {
+		t.Errorf("duplicate name = %v; want ErrCollectionNameTaken", err)
+	}
+	create("Production", uuid.Nil)
+	for _, bad := range []string{" ", strings.Repeat("n", 101)} {
+		if _, err := f.svc.CreateCollection(ctx, f.editor, f.ws, bad, uuid.Nil); !errors.Is(err, site.ErrInvalidName) {
+			t.Errorf("name %q = %v; want ErrInvalidName", bad, err)
+		}
+	}
+	if _, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "Orphan", uuid.New()); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("missing parent = %v; want ErrCollectionNotFound", err)
+	}
+
+	deep := prod
+	for i := 3; i <= 8; i++ {
+		deep = create(fmt.Sprintf("Level %d", i), deep.ID)
+	}
+	if _, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "Too deep", deep.ID); !errors.Is(err, site.ErrCollectionTooDeep) {
+		t.Errorf("a ninth level = %v; want ErrCollectionTooDeep", err)
+	}
+
+	renamed := "Acme Inc"
+	if c, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{Name: &renamed}); err != nil || c.Name != renamed || c.ParentID != uuid.Nil {
+		t.Errorf("rename = %+v, %v", c, err)
+	}
+	other := create("Clients", uuid.Nil)
+	sub := create("Sub", other.ID)
+	if c, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, prod.ID, site.CollectionChanges{SetParent: true, ParentID: sub.ID}); err == nil {
+		t.Errorf("moving a subtree of seven levels under a second level succeeded: %+v", c)
+	} else if !errors.Is(err, site.ErrCollectionTooDeep) {
+		t.Errorf("moving a deep subtree = %v; want ErrCollectionTooDeep", err)
+	}
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{SetParent: true, ParentID: acme.ID}); !errors.Is(err, site.ErrCollectionCycle) {
+		t.Errorf("moving into itself = %v; want ErrCollectionCycle", err)
+	}
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{SetParent: true, ParentID: deep.ID}); !errors.Is(err, site.ErrCollectionCycle) {
+		t.Errorf("moving into a descendant = %v; want ErrCollectionCycle", err)
+	}
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{SetParent: true, ParentID: uuid.New()}); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("moving under a missing collection = %v; want ErrCollectionNotFound", err)
+	}
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, uuid.New(), site.CollectionChanges{Name: &renamed}); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("updating a missing collection = %v; want ErrCollectionNotFound", err)
+	}
+	blank := " "
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{Name: &blank}); !errors.Is(err, site.ErrInvalidName) {
+		t.Errorf("renaming to a blank = %v; want ErrInvalidName", err)
+	}
+	if c, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, other.ID, site.CollectionChanges{SetParent: true, ParentID: acme.ID}); err != nil || c.ParentID != acme.ID {
+		t.Errorf("move = %+v, %v", c, err)
+	}
+	if c, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, other.ID, site.CollectionChanges{SetParent: true}); err != nil || c.ParentID != uuid.Nil {
+		t.Errorf("move to the top level = %+v, %v", c, err)
+	}
+
+	if err := f.svc.DeleteCollection(ctx, f.editor, f.ws, acme.ID); !errors.Is(err, site.ErrCollectionNotEmpty) {
+		t.Errorf("deleting a non-empty collection = %v; want ErrCollectionNotEmpty", err)
+	}
+	if err := f.svc.DeleteCollection(ctx, f.editor, f.ws, sub.ID); err != nil {
+		t.Errorf("deleting an empty collection = %v", err)
+	}
+	if err := f.svc.DeleteCollection(ctx, f.editor, f.ws, other.ID); err != nil {
+		t.Errorf("deleting a collection that became empty = %v", err)
+	}
+
+	list, err := f.svc.ListCollections(ctx, f.viewer, f.ws)
+	if err != nil || len(list) < 3 {
+		t.Errorf("viewer ListCollections() = %d, %v", len(list), err)
+	}
+	stranger := uuid.New()
+	if _, err := f.svc.ListCollections(ctx, stranger, f.ws); !errors.Is(err, workspace.ErrNotFound) {
+		t.Errorf("stranger ListCollections() = %v", err)
+	}
+	if _, err := f.svc.CreateCollection(ctx, f.viewer, f.ws, "Nope", uuid.Nil); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("viewer CreateCollection() = %v; want ErrForbidden", err)
+	}
+	if _, err := f.svc.UpdateCollection(ctx, f.viewer, f.ws, acme.ID, site.CollectionChanges{Name: &renamed}); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("viewer UpdateCollection() = %v; want ErrForbidden", err)
+	}
+	if err := f.svc.DeleteCollection(ctx, f.viewer, f.ws, acme.ID); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("viewer DeleteCollection() = %v; want ErrForbidden", err)
+	}
+
+	in := valid()
+	in.CollectionID = prod.ID
+	placed, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{})
+	if err != nil || placed.CollectionID != prod.ID {
+		t.Fatalf("Create() in a collection = %+v, %v", placed, err)
+	}
+	if err := f.svc.DeleteCollection(ctx, f.editor, f.ws, deep.ID); err != nil {
+		t.Fatal(err)
+	}
+	in.Name, in.CollectionID = "Elsewhere", uuid.New()
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{}); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("Create() in a missing collection = %v; want ErrCollectionNotFound", err)
+	}
+	moved := valid()
+	if got, err := f.svc.Update(ctx, f.editor, f.ws, placed.ID, "open", moved, site.SecretChanges{}); err != nil || got.CollectionID != uuid.Nil {
+		t.Errorf("Update() to the top level = %+v, %v", got, err)
+	}
+	moved.CollectionID = uuid.New()
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, placed.ID, "open", moved, site.SecretChanges{}); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("Update() into a missing collection = %v; want ErrCollectionNotFound", err)
+	}
+
+	f.store.failList = errStore
+	if _, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "X", uuid.Nil); !errors.Is(err, errStore) {
+		t.Errorf("CreateCollection() with a failing list = %v", err)
+	}
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{}); !errors.Is(err, errStore) {
+		t.Errorf("UpdateCollection() with a failing list = %v", err)
+	}
+	f.store.failList = nil
+	f.store.failCreateC = errStore
+	if _, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "X", uuid.Nil); !errors.Is(err, errStore) {
+		t.Errorf("CreateCollection() with a failing create = %v", err)
+	}
+	f.store.failCreateC = nil
+	f.store.failUpdateC = errStore
+	if _, err := f.svc.UpdateCollection(ctx, f.editor, f.ws, acme.ID, site.CollectionChanges{Name: &renamed}); !errors.Is(err, errStore) {
+		t.Errorf("UpdateCollection() with a failing update = %v", err)
+	}
+	f.store.failUpdateC = nil
+	f.store.failGetC = errStore
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{}); !errors.Is(err, errStore) {
+		t.Errorf("Create() with a failing collection lookup = %v", err)
+	}
+	f.store.failGetC = nil
+
+	noID := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{}, f.guard, testutil.NewFakeClock(time.Now()), rand.Reader, func() (uuid.UUID, error) { return uuid.Nil, errStore })
+	if _, err := noID.CreateCollection(ctx, f.editor, f.ws, "Y", uuid.Nil); !errors.Is(err, errStore) {
+		t.Errorf("CreateCollection() with a failing generator = %v", err)
 	}
 }

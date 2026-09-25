@@ -14,15 +14,19 @@ func siteDTO(s site.Site) Site {
 	for _, kind := range s.Secrets {
 		secrets = append(secrets, SiteSecrets(kind))
 	}
-	return Site{
+	out := Site{
 		Id: s.ID, Name: s.Name, Protocol: SiteProtocol(s.Protocol), Host: s.Host, Port: s.Port, Username: s.Username,
 		AuthMethod: SiteAuthMethod(s.AuthMethod), ListTimezone: s.ListTimezone, Secrets: secrets, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
+	if s.CollectionID != uuid.Nil {
+		out.CollectionId = &s.CollectionID
+	}
+	return out
 }
 
 // siteInput converts the request body to the settings and secret changes of a site.
 func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
-	settings := site.Input{Name: in.Name, Protocol: site.Protocol(in.Protocol), Host: in.Host, Username: in.Username}
+	settings := site.Input{CollectionID: optionalID(in.CollectionId), Name: in.Name, Protocol: site.Protocol(in.Protocol), Host: in.Host, Username: in.Username}
 	if in.Port != nil {
 		settings.Port = *in.Port
 	}

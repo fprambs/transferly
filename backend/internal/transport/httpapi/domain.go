@@ -54,6 +54,18 @@ func (p domainProblem) VisitTrustHostKeyResponse(w http.ResponseWriter) error { 
 // VisitForgetHostKeyResponse implements [ForgetHostKeyResponseObject].
 func (p domainProblem) VisitForgetHostKeyResponse(w http.ResponseWriter) error { return p.write(w) }
 
+// VisitListCollectionsResponse implements [ListCollectionsResponseObject].
+func (p domainProblem) VisitListCollectionsResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCreateCollectionResponse implements [CreateCollectionResponseObject].
+func (p domainProblem) VisitCreateCollectionResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitUpdateCollectionResponse implements [UpdateCollectionResponseObject].
+func (p domainProblem) VisitUpdateCollectionResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitDeleteCollectionResponse implements [DeleteCollectionResponseObject].
+func (p domainProblem) VisitDeleteCollectionResponse(w http.ResponseWriter) error { return p.write(w) }
+
 // VisitGetTransferResponse implements [GetTransferResponseObject].
 func (p domainProblem) VisitGetTransferResponse(w http.ResponseWriter) error { return p.write(w) }
 
@@ -97,6 +109,11 @@ var domainProblems = []struct {
 	{workspace.ErrForbidden, http.StatusForbidden, "forbidden"},
 	{site.ErrNotFound, http.StatusNotFound, "site_not_found"},
 	{site.ErrNameTaken, http.StatusConflict, "site_name_taken"},
+	{site.ErrCollectionNotFound, http.StatusNotFound, "collection_not_found"},
+	{site.ErrCollectionNameTaken, http.StatusConflict, "collection_name_taken"},
+	{site.ErrCollectionNotEmpty, http.StatusConflict, "collection_not_empty"},
+	{site.ErrCollectionCycle, http.StatusUnprocessableEntity, "collection_cycle"},
+	{site.ErrCollectionTooDeep, http.StatusUnprocessableEntity, "collection_too_deep"},
 	{site.ErrLocked, http.StatusConflict, "vault_locked"},
 	{site.ErrSecretTooLarge, http.StatusUnprocessableEntity, "secret_too_large"},
 	{site.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_name"},

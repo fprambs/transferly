@@ -209,3 +209,79 @@ func TestSiteReads_ReportSecretKindFailures(t *testing.T) {
 		t.Errorf("Sites() = %v, want the secrets error", err)
 	}
 }
+
+// hooked is a database handle that fails or short-circuits chosen statements.
+type hooked struct {
+	db.DBTX
+	failContents bool
+	failDelete   bool
+	zeroDelete   bool
+}
+
+// QueryRow fails the contents check when configured to.
+func (h hooked) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if h.failContents && strings.Contains(sql, "has_contents") {
+		return scanRow{err: errStep}
+	}
+	return h.DBTX.QueryRow(ctx, sql, args...)
+}
+
+// Exec fails the deletion, or reports that it removed nothing, when configured to.
+func (h hooked) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	if strings.Contains(sql, "DELETE FROM site_folders") {
+		if h.failDelete {
+			return pgconn.CommandTag{}, errStep
+		}
+		if h.zeroDelete {
+			return pgconn.NewCommandTag("DELETE 0"), nil
+		}
+	}
+	return h.DBTX.Exec(ctx, sql, args...)
+}
+
+// TestDeleteCollection_ReportsFailuresAfterTheLookup verifies the steps of deleting a collection that follow finding it.
+//
+// Scenarios:
+//   - a failing contents check, a failing deletion and a deletion that removes nothing (the collection vanished
+//     meanwhile) are each reported
+func TestDeleteCollection_ReportsFailuresAfterTheLookup(t *testing.T) {
+	dbURL := testutil.NewDatabase(t)
+	if err := Migrate(t.Context(), dbURL); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(t.Context(), dbURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(store.Close)
+	at := time.Now().UTC()
+	owner := auth.User{ID: uuid.New(), Email: "a@example.com", PasswordHash: "h", Role: auth.RoleUser, Locale: "en", Timezone: "UTC", CreatedAt: at}
+	if err := store.CreateUser(t.Context(), owner); err != nil {
+		t.Fatal(err)
+	}
+	ws := workspace.Workspace{ID: uuid.New(), Name: "Personal", Kind: workspace.KindPersonal, OwnerID: owner.ID, CreatedAt: at}
+	if err := store.CreateWorkspace(t.Context(), ws); err != nil {
+		t.Fatal(err)
+	}
+	c := site.Collection{ID: uuid.New(), WorkspaceID: ws.ID, Name: "C"}
+	if err := store.CreateCollection(t.Context(), c); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		db   hooked
+		want error
+	}{
+		{"contents check", hooked{failContents: true}, errStep},
+		{"deletion", hooked{failDelete: true}, errStep},
+		{"vanished", hooked{zeroDelete: true}, site.ErrCollectionNotFound},
+	}
+	for _, tt := range tests {
+		tt.db.DBTX = store.pool
+		store.queries = db.New(tt.db)
+		if err := store.DeleteCollection(t.Context(), ws.ID, c.ID); !errors.Is(err, tt.want) {
+			t.Errorf("%s: DeleteCollection() = %v; want %v", tt.name, err, tt.want)
+		}
+	}
+}

@@ -387,3 +387,34 @@ func TestTransferFailures(t *testing.T) {
 	expectProblem(t, a.upload(ws, site, q("path", "/f"), "x", cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.do(request{method: http.MethodGet, path: filesPath(ws, site, "/content", q("path", "/f")), cookie: cookie}), 500, "internal_error")
 }
+
+// brokenCollections is a store whose collection reads and deletes fail.
+type brokenCollections struct{ *postgres.Store }
+
+// Collections always fails.
+func (brokenCollections) Collections(context.Context, uuid.UUID) ([]site.Collection, error) {
+	return nil, errInjected
+}
+
+// DeleteCollection always fails.
+func (brokenCollections) DeleteCollection(context.Context, uuid.UUID, uuid.UUID) error {
+	return errInjected
+}
+
+// TestCollectionFailures verifies that store failures inside the collection handlers are 500 problems.
+//
+// Scenarios:
+//   - listing, creating, updating and deleting answer 500 when the store fails
+func TestCollectionFailures(t *testing.T) {
+	a := newAPI(t, func(d *httpapi.Deps) {
+		d.Sites = site.NewService(brokenCollections{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Vault, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
+	})
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	id := uuid.NewString()
+
+	expectProblem(t, a.do(request{method: http.MethodGet, path: collectionsPath(ws), cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, collectionsPath(ws), map[string]any{"name": "X"}, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPatch, collectionsPath(ws, id), map[string]any{"name": "X"}, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodDelete, collectionsPath(ws, id), nil, cookie, csrf), 500, "internal_error")
+}

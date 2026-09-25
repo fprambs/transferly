@@ -70,6 +70,16 @@ var (
 	ErrInvalidUsername = errors.New("invalid username")
 	// ErrInvalidTimezone means the listing time zone is not an IANA name.
 	ErrInvalidTimezone = errors.New("invalid time zone")
+	// ErrCollectionNotFound means the collection does not exist in the workspace.
+	ErrCollectionNotFound = errors.New("collection not found")
+	// ErrCollectionNameTaken means the parent already has a collection with that name.
+	ErrCollectionNameTaken = errors.New("collection name already in use")
+	// ErrCollectionNotEmpty means the collection still holds sites or collections.
+	ErrCollectionNotEmpty = errors.New("collection is not empty")
+	// ErrCollectionCycle means a collection cannot move into itself or into one of its descendants.
+	ErrCollectionCycle = errors.New("a collection cannot move into itself")
+	// ErrCollectionTooDeep means the collections would nest deeper than the limit.
+	ErrCollectionTooDeep = errors.New("collections are nested too deeply")
 )
 
 // Site is a saved connection. It never holds secrets, only which kinds are stored.
@@ -78,6 +88,8 @@ type Site struct {
 	ID uuid.UUID
 	// WorkspaceID is the workspace that owns the site.
 	WorkspaceID uuid.UUID
+	// CollectionID is the collection that holds the site, or the nil identifier for the top level.
+	CollectionID uuid.UUID
 	// Name is the display name, unique in the workspace regardless of case.
 	Name string
 	// Protocol is the transfer protocol.
@@ -126,4 +138,30 @@ type Store interface {
 	DeleteSite(ctx context.Context, workspaceID, id uuid.UUID) error
 	// Secret returns one sealed secret of a site, or [ErrNoSecret].
 	Secret(ctx context.Context, workspaceID, siteID uuid.UUID, kind SecretKind) (Sealed, error)
+}
+
+// Collection groups sites and other collections into a tree.
+type Collection struct {
+	// ID identifies the collection.
+	ID uuid.UUID
+	// WorkspaceID is the workspace that owns the collection.
+	WorkspaceID uuid.UUID
+	// ParentID is the collection that holds this one, or the nil identifier for the top level.
+	ParentID uuid.UUID
+	// Name is the display name, unique among the collections of the same parent regardless of case.
+	Name string
+}
+
+// CollectionStore persists collections. Every lookup is scoped by workspace.
+type CollectionStore interface {
+	// CreateCollection stores a collection, or returns [ErrCollectionNameTaken].
+	CreateCollection(ctx context.Context, c Collection) error
+	// UpdateCollection replaces the name and parent of a collection, or returns [ErrCollectionNotFound] or [ErrCollectionNameTaken].
+	UpdateCollection(ctx context.Context, c Collection) error
+	// Collection returns one collection, or [ErrCollectionNotFound].
+	Collection(ctx context.Context, workspaceID, id uuid.UUID) (Collection, error)
+	// Collections lists every collection of a workspace by name.
+	Collections(ctx context.Context, workspaceID uuid.UUID) ([]Collection, error)
+	// DeleteCollection removes an empty collection, or returns [ErrCollectionNotFound] or [ErrCollectionNotEmpty].
+	DeleteCollection(ctx context.Context, workspaceID, id uuid.UUID) error
 }

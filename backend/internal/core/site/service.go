@@ -64,6 +64,8 @@ type Input struct {
 	Port int
 	// Username is the account name.
 	Username string
+	// CollectionID is the collection to keep the site in; the nil identifier keeps it at the top level.
+	CollectionID uuid.UUID
 	// AuthMethod is how the account authenticates; empty selects password.
 	AuthMethod AuthMethod
 	// ListTimezone is the IANA zone of listing times; empty selects UTC.
@@ -84,7 +86,10 @@ type SecretChanges struct {
 // Service implements the site use cases. Secrets are sealed with the vault key of the user who saves them;
 // sharing keys among the members of a team workspace belongs to a later phase.
 type Service struct {
-	store  Store
+	store interface {
+		Store
+		CollectionStore
+	}
 	authz  Authorizer
 	keys   Keys
 	guard  Guard
@@ -94,7 +99,10 @@ type Service struct {
 }
 
 // NewService returns a service. newID may be nil to use UUIDv7.
-func NewService(store Store, authz Authorizer, keys Keys, guard Guard, clock ports.Clock, random io.Reader, newID func() (uuid.UUID, error)) *Service {
+func NewService(store interface {
+	Store
+	CollectionStore
+}, authz Authorizer, keys Keys, guard Guard, clock ports.Clock, random io.Reader, newID func() (uuid.UUID, error)) *Service {
 	if newID == nil {
 		newID = uuid.NewV7
 	}
@@ -215,6 +223,9 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
 		return Site{}, err
 	}
+	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {
+		return Site{}, err
+	}
 	id, err := s.newID()
 	if err != nil {
 		return Site{}, fmt.Errorf("generating site id: %w", err)
@@ -235,7 +246,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 // build assembles a site from validated input.
 func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) Site {
 	return Site{
-		ID: id, WorkspaceID: workspaceID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port,
+		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port,
 		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 }
@@ -259,6 +270,9 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 		return Site{}, err
 	}
 	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
+		return Site{}, err
+	}
+	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {
 		return Site{}, err
 	}
 	existing, err := s.store.Site(ctx, workspaceID, id)

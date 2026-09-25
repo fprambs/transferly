@@ -260,3 +260,31 @@ func TestTransferStore_ReportsDatabaseFailures(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectionStore_Conformance runs the shared collection store suite against Postgres.
+func TestCollectionStore_Conformance(t *testing.T) {
+	storetest.RunCollection(t, func(t *testing.T) storetest.SiteStore { return openMigrated(t) })
+}
+
+// TestCollectionStore_ReportsDatabaseFailures verifies that every collection operation returns the database error
+// instead of hiding it, using a store whose connection pool is closed.
+func TestCollectionStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+	c := site.Collection{ID: id, WorkspaceID: id, Name: "x"}
+
+	calls := map[string]error{
+		"CreateCollection": store.CreateCollection(ctx, c),
+		"UpdateCollection": store.UpdateCollection(ctx, c),
+		"Collection":       second(store.Collection(ctx, id, id)),
+		"Collections":      second(store.Collections(ctx, id)),
+		"DeleteCollection": store.DeleteCollection(ctx, id, id),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, site.ErrCollectionNotFound) || errors.Is(err, site.ErrCollectionNameTaken) || errors.Is(err, site.ErrCollectionNotEmpty) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
