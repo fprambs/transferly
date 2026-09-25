@@ -38,6 +38,7 @@ services:
       SENTINEL_LOG_LEVEL: debug
       SENTINEL_DATA_DIR: /cache/sentinel
       SENTINEL_ALLOWED_ORIGINS: http://localhost:${SENTINEL_WEB_PORT:-5173}
+      SENTINEL_ALLOWED_NETWORKS: ${SENTINEL_ALLOWED_NETWORKS:-172.16.0.0/12}
     ports:
       - "127.0.0.1:${SENTINEL_HTTP_PORT:-8080}:8080"
     depends_on:

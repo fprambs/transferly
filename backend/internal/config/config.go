@@ -47,6 +47,8 @@ type Config struct {
 	SessionIdle time.Duration
 	// SessionMax ends a session this long after it started.
 	SessionMax time.Duration
+	// AllowedNetworks lists the private networks sites may point to; public addresses are always allowed.
+	AllowedNetworks []netip.Prefix
 	// TrustedProxies lists the IP addresses or networks whose X-Forwarded-For header is believed.
 	TrustedProxies []string
 	// JanitorInterval is how often expired sessions and keys are purged.
@@ -126,6 +128,19 @@ func Load(getenv func(string) string) (Config, error) {
 			}
 		}
 		cfg.TrustedProxies = append(cfg.TrustedProxies, proxy)
+	}
+
+	for _, network := range splitList(getenv("SENTINEL_ALLOWED_NETWORKS")) {
+		prefix, err := netip.ParsePrefix(network)
+		if err != nil {
+			addr, addrErr := netip.ParseAddr(network)
+			if addrErr != nil {
+				errs = append(errs, fmt.Errorf("invalid SENTINEL_ALLOWED_NETWORKS entry %q (want an IP address or CIDR)", network))
+				continue
+			}
+			prefix = netip.PrefixFrom(addr, addr.BitLen())
+		}
+		cfg.AllowedNetworks = append(cfg.AllowedNetworks, prefix.Masked())
 	}
 
 	if v := getenv("SENTINEL_AUTO_MIGRATE"); v != "" {

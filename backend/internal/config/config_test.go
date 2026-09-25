@@ -152,7 +152,7 @@ func TestLoad_WebSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.BaseURL != "http://localhost:8080" || cfg.CookieSecure() || cfg.SessionIdle != 30*time.Minute ||
-		cfg.SessionMax != 8*time.Hour || cfg.JanitorInterval != 10*time.Minute || len(cfg.TrustedProxies) != 0 ||
+		cfg.SessionMax != 8*time.Hour || cfg.JanitorInterval != 10*time.Minute || len(cfg.TrustedProxies) != 0 || len(cfg.AllowedNetworks) != 0 ||
 		len(cfg.AllowedOrigins) != 1 || cfg.AllowedOrigins[0] != "http://localhost:8080" {
 		t.Errorf("defaults = %+v", cfg)
 	}
@@ -160,6 +160,7 @@ func TestLoad_WebSettings(t *testing.T) {
 	base["SENTINEL_BASE_URL"] = "https://files.example.com/"
 	base["SENTINEL_ALLOWED_ORIGINS"] = " http://localhost:5173 , ,https://other.example.com"
 	base["SENTINEL_TRUSTED_PROXIES"] = "10.0.0.0/8, 192.168.1.5, ::1"
+	base["SENTINEL_ALLOWED_NETWORKS"] = "192.168.1.7/24, 10.0.0.9"
 	base["SENTINEL_SESSION_IDLE"] = "10m"
 	base["SENTINEL_SESSION_MAX"] = "2h"
 	base["SENTINEL_JANITOR_INTERVAL"] = "1m"
@@ -169,6 +170,7 @@ func TestLoad_WebSettings(t *testing.T) {
 	}
 	if cfg.BaseURL != "https://files.example.com" || !cfg.CookieSecure() || len(cfg.AllowedOrigins) != 3 ||
 		cfg.AllowedOrigins[1] != "http://localhost:5173" || len(cfg.TrustedProxies) != 3 ||
+		len(cfg.AllowedNetworks) != 2 || cfg.AllowedNetworks[0].String() != "192.168.1.0/24" || cfg.AllowedNetworks[1].String() != "10.0.0.9/32" ||
 		cfg.SessionIdle != 10*time.Minute || cfg.SessionMax != 2*time.Hour || cfg.JanitorInterval != time.Minute {
 		t.Errorf("overrides = %+v", cfg)
 	}
@@ -180,6 +182,7 @@ func TestLoad_WebSettings(t *testing.T) {
 		"base url not parsable":    {"SENTINEL_BASE_URL": "http://[::1"},
 		"origin with a query":      {"SENTINEL_ALLOWED_ORIGINS": "https://x.example.com?a=1"},
 		"proxy not an address":     {"SENTINEL_TRUSTED_PROXIES": "not-an-ip"},
+		"network not an address":   {"SENTINEL_ALLOWED_NETWORKS": "lan"},
 		"idle above maximum":       {"SENTINEL_SESSION_IDLE": "10h"},
 		"session idle not a time":  {"SENTINEL_SESSION_IDLE": "soon"},
 		"janitor interval not set": {"SENTINEL_JANITOR_INTERVAL": "0s"},

@@ -146,6 +146,7 @@ DEK --AES-256-GCM(nonce, AAD=site_id|kind|dek_version)--> site_secrets
 - Email y contraseña (Argon2id, PHC), TOTP y passkeys; OIDC más adelante. Detalle en [ADR-0005](adr/0005-authentication.md).
 - Cookie de sesión opaca (`HttpOnly`, `SameSite=Lax`, `Secure` con https; solo se guarda el hash del token), token CSRF firmado con la clave de instancia y ligado a la sesión, guarda de `Sec-Fetch-Site` y `Origin`, rate limit en login y setup.
 - La IP del cliente sale de la conexión, o de `X-Forwarded-For` solo detrás de proxies de confianza configurados (`SENTINEL_TRUSTED_PROXIES`).
+- Los sitios solo pueden apuntar a direcciones públicas; las redes privadas, loopback, link-local y metadatos de nube se rechazan salvo las listadas en `SENTINEL_ALLOWED_NETWORKS`. La comprobación ocurre al conectar (`net.Dialer.Control`), por lo que resiste DNS rebinding (`core/netguard`).
 - Qué operaciones exigen sesión sale del contrato OpenAPI.
 
 | Acción | viewer | editor | admin | owner |
