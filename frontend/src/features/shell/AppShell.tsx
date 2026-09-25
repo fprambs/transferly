@@ -1,11 +1,10 @@
 import { useTranslation } from 'react-i18next'
 
 import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
+import { TopBar } from '@/features/topbar/TopBar'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 
-import { LanguageSelect } from './LanguageSelect'
 import { QueuePanel } from './QueuePanel'
-import { ThemeSelect } from './ThemeSelect'
 
 /** Props of {@link Pane}. */
 interface PaneProps {
@@ -29,21 +28,11 @@ function Pane({ kind }: PaneProps) {
 
 /** Application layout: top bar, sites sidebar, dual file pane and transfer queue. */
 export function AppShell() {
-  const { t } = useTranslation()
   const shell = useTranslation('shell').t
 
   return (
     <div className="flex min-h-svh flex-col">
-      <header
-        aria-label={shell(($) => $.topbar.label)}
-        className="flex flex-wrap items-center justify-between gap-4 border-b px-4 py-2"
-      >
-        <h1 className="text-lg font-semibold">{t(($) => $.app.name)}</h1>
-        <div className="flex items-center gap-4">
-          <ThemeSelect />
-          <LanguageSelect />
-        </div>
-      </header>
+      <TopBar />
       <div className="flex min-h-0 flex-1">
         <SitesSidebar />
         <main aria-label={shell(($) => $.panes.label)} className="grid flex-1 grid-cols-2 gap-px bg-border">

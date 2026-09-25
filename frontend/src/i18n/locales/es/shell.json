@@ -1,6 +1,10 @@
 {
   "topbar": {
-    "label": "Barra principal"
+    "label": "Barra principal",
+    "workspace": "Espacio de trabajo",
+    "account": "Cuenta",
+    "signOut": "Cerrar sesión",
+    "brand": "Sentinel"
   },
   "sidebar": {
     "label": "Sitios",

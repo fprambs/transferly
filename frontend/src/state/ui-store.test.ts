@@ -12,8 +12,8 @@ function store(state: object): void {
  *
  * Scenarios:
  * - starts with the default dark theme, not following the system, and an open queue
- * - chooses a theme, turns following the system on and toggles the queue
- * - persists only the theme, the follow-system flag and the queue state
+ * - chooses a theme, turns following the system on, toggles the queue and chooses a workspace
+ * - persists only the theme, the follow-system flag, the queue state and the workspace
  * - restores valid persisted values
  * - ignores persisted values of the wrong type, unknown themes, and works with nothing stored
  * - upgrades documents written by earlier versions, which stored a color scheme instead of a theme
@@ -21,7 +21,7 @@ function store(state: object): void {
 describe('useUiStore', () => {
   beforeEach(() => {
     localStorage.clear()
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
+    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null })
   })
 
   it('starts with the default theme and an open queue', () => {
@@ -34,31 +34,32 @@ describe('useUiStore', () => {
     useUiStore.getState().setTheme('monokai')
     useUiStore.getState().setFollowSystem(true)
     useUiStore.getState().toggleQueue()
+    useUiStore.getState().setWorkspace('w1')
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'monokai', followSystem: true, queueOpen: false })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'monokai', followSystem: true, queueOpen: false, workspaceId: 'w1' })
   })
 
-  it('persists only the theme, the follow-system flag and the queue state', () => {
+  it('persists only the theme, the follow-system flag, the queue state and the workspace', () => {
     useUiStore.getState().setTheme('nord')
 
     const stored = JSON.parse(localStorage.getItem('sentinel-ui') ?? '{}') as { state: object }
-    expect(Object.keys(stored.state).sort()).toEqual(['followSystem', 'queueOpen', 'themeId'])
+    expect(Object.keys(stored.state).sort()).toEqual(['followSystem', 'queueOpen', 'themeId', 'workspaceId'])
   })
 
   it('restores valid persisted values', async () => {
-    store({ themeId: 'dracula', followSystem: true, queueOpen: false })
+    store({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2' })
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'dracula', followSystem: true, queueOpen: false })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2' })
   })
 
   it('ignores values of the wrong type and unknown themes', async () => {
-    store({ themeId: 'no-such-theme', followSystem: 'yes', queueOpen: 'no' })
+    store({ themeId: 'no-such-theme', followSystem: 'yes', queueOpen: 'no', workspaceId: 7 })
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null })
   })
 
   it('works with nothing stored', async () => {

@@ -5,10 +5,12 @@ import { initReactI18next } from 'react-i18next'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enQuick from './locales/en/quick.json'
+import enVault from './locales/en/vault.json'
 import enShell from './locales/en/shell.json'
 import esAuth from './locales/es/auth.json'
 import esCommon from './locales/es/common.json'
 import esQuick from './locales/es/quick.json'
+import esVault from './locales/es/vault.json'
 import esShell from './locales/es/shell.json'
 
 /** Languages the interface is translated into. English is the source language. */
@@ -22,8 +24,8 @@ export const defaultNS = 'common'
 
 /** Translation resources by language and namespace. */
 export const resources = {
-  en: { auth: enAuth, common: enCommon, quick: enQuick, shell: enShell },
-  es: { auth: esAuth, common: esCommon, quick: esQuick, shell: esShell },
+  en: { auth: enAuth, common: enCommon, quick: enQuick, shell: enShell, vault: enVault },
+  es: { auth: esAuth, common: esCommon, quick: esQuick, shell: esShell, vault: esVault },
 } as const
 
 /** Subset of an i18next instance needed to describe the document language. */

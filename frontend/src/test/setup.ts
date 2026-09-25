@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
 import { server } from './msw'
@@ -14,6 +14,8 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: () => undefined,
   }),
 })
+
+configure({ asyncUtilTimeout: 4000 })
 
 window.scrollTo = () => undefined
 

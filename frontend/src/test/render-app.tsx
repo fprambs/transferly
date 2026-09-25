@@ -1,5 +1,6 @@
 import { createMemoryHistory } from '@tanstack/react-router'
 import { render } from '@testing-library/react'
+import type { i18n as I18n } from 'i18next'
 import { I18nextProvider } from 'react-i18next'
 
 import App from '@/App'
@@ -12,6 +13,8 @@ export interface RenderAppOptions {
   path?: string
   /** Interface language. */
   language?: SupportedLanguage
+  /** An i18n instance to use instead of creating one for the language. */
+  i18n?: I18n
 }
 
 /**
@@ -19,8 +22,8 @@ export interface RenderAppOptions {
  *
  * @returns The router history, to assert the final location, and the transport in use.
  */
-export async function renderApp({ path = '/', language = 'en' }: RenderAppOptions = {}) {
-  const i18n = await createI18n(language)
+export async function renderApp({ path = '/', language = 'en', i18n: given }: RenderAppOptions = {}) {
+  const i18n = given ?? (await createI18n(language))
   const history = createMemoryHistory({ initialEntries: [path] })
   const transport = new HttpTransport()
   render(

@@ -11,16 +11,20 @@ export interface UiState {
   followSystem: boolean
   /** Whether the transfer queue panel is expanded. */
   queueOpen: boolean
+  /** Identifier of the workspace the user chose, or `null` to use the personal one. */
+  workspaceId: string | null
   /** Chooses a theme. */
   setTheme: (themeId: string) => void
   /** Turns following the operating system on or off. */
   setFollowSystem: (followSystem: boolean) => void
   /** Expands or collapses the transfer queue panel. */
   toggleQueue: () => void
+  /** Chooses the workspace to work in. */
+  setWorkspace: (workspaceId: string) => void
 }
 
 /** The subset of {@link UiState} that is persisted. */
-type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen'>
+type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId'>
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
@@ -46,6 +50,9 @@ function sanitize(raw: unknown): Partial<PersistedUi> {
   if (typeof value.queueOpen === 'boolean') {
     clean.queueOpen = value.queueOpen
   }
+  if (typeof value.workspaceId === 'string') {
+    clean.workspaceId = value.workspaceId
+  }
   return clean
 }
 
@@ -56,13 +63,20 @@ export const useUiStore = create<UiState>()(
       themeId: defaultThemeId,
       followSystem: false,
       queueOpen: true,
+      workspaceId: null,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen })),
+      setWorkspace: (workspaceId) => set({ workspaceId }),
     }),
     {
       name: 'sentinel-ui',
-      partialize: ({ themeId, followSystem, queueOpen }): PersistedUi => ({ themeId, followSystem, queueOpen }),
+      partialize: ({ themeId, followSystem, queueOpen, workspaceId }): PersistedUi => ({
+        themeId,
+        followSystem,
+        queueOpen,
+        workspaceId,
+      }),
       merge: (persisted, current) => ({ ...current, ...sanitize(persisted) }),
     },
   ),

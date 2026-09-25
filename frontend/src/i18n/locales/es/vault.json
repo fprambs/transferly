@@ -1,0 +1,43 @@
+{
+  "chip": {
+    "unlocked": "Vault desbloqueado",
+    "locked": "Vault bloqueado",
+    "notSet": "Configurar el vault",
+    "lockAction": "Bloquear el vault",
+    "unlockAction": "Desbloquear el vault"
+  },
+  "setup": {
+    "title": "Configura el vault",
+    "description": "El vault cifra las contraseñas y claves de tus sitios. Elige una contraseña maestra que recuerdes: no se puede restablecer sin el kit de recuperación.",
+    "submit": "Crear vault"
+  },
+  "unlock": {
+    "title": "Desbloquea el vault",
+    "description": "Escribe tu contraseña maestra para usar las credenciales guardadas en esta sesión.",
+    "submit": "Desbloquear"
+  },
+  "fields": {
+    "password": "Contraseña maestra",
+    "confirm": "Repite la contraseña maestra"
+  },
+  "kit": {
+    "title": "Guarda tu kit de recuperación",
+    "description": "Es la única forma de volver a entrar si olvidas la contraseña maestra. Se muestra una sola vez: guárdalo en un lugar seguro y sin conexión.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "done": "Ya lo guardé"
+  },
+  "cancel": "Cancelar",
+  "errors": {
+    "passwordRequired": "Escribe la contraseña maestra.",
+    "passwordShort": "Usa al menos 12 caracteres.",
+    "confirmMismatch": "Las contraseñas no coinciden.",
+    "invalid_secret": "La contraseña maestra no es correcta.",
+    "weak_password": "Usa al menos 12 caracteres.",
+    "vault_exists": "El vault ya existe.",
+    "vault_not_initialized": "El vault aún no está configurado.",
+    "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

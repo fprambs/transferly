@@ -1,17 +1,20 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createInstance } from 'i18next'
-import { I18nextProvider, initReactI18next } from 'react-i18next'
+import { initReactI18next } from 'react-i18next'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { bindDocumentLanguage, defaultNS, resources } from '@/i18n'
-import { mockWorkspaceData } from '@/test/handlers'
-import { HttpTransport, TransportProvider } from '@/lib/transport'
+import { adminSession, mockSession, mockWorkspaceData } from '@/test/handlers'
 import { useUiStore } from '@/state/ui-store'
-import { renderWithProviders } from '@/test/render'
+import { renderApp } from '@/test/render-app'
 
-import { AppShell } from './AppShell'
+
+/** Renders the application signed in and waits for the shell. */
+async function renderShell() {
+  await renderApp()
+  await screen.findByRole('main', { name: 'File panes' })
+}
 
 /**
  * Covers {@link AppShell} and the panels it composes.
@@ -26,12 +29,13 @@ import { AppShell } from './AppShell'
  */
 describe('AppShell', () => {
   beforeEach(() => {
+    mockSession(adminSession)
     mockWorkspaceData()
     useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
   })
 
   it('exposes the landmark regions', async () => {
-    await renderWithProviders(<AppShell />)
+    await renderShell()
 
     expect(screen.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
     expect(screen.getByRole('banner', { name: 'Main toolbar' })).toBeInTheDocument()
@@ -43,7 +47,7 @@ describe('AppShell', () => {
   })
 
   it('lists the themes by scheme and changes the chosen one', async () => {
-    await renderWithProviders(<AppShell />)
+    await renderShell()
     const select = screen.getByRole('combobox', { name: 'Theme' })
 
     expect(select).toHaveValue('sentinel-dark')
@@ -58,7 +62,7 @@ describe('AppShell', () => {
   })
 
   it('follows the system instead of the chosen theme when asked to', async () => {
-    await renderWithProviders(<AppShell />)
+    await renderShell()
     const select = screen.getByRole('combobox', { name: 'Theme' })
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Follow the system' }))
@@ -68,7 +72,7 @@ describe('AppShell', () => {
   })
 
   it('collapses and expands the transfer queue', async () => {
-    await renderWithProviders(<AppShell />)
+    await renderShell()
     expect(screen.getByText('No transfers')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide transfers' }))
@@ -80,7 +84,7 @@ describe('AppShell', () => {
   })
 
   it('switches the interface to Spanish from the selector', async () => {
-    await renderWithProviders(<AppShell />)
+    await renderShell()
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Language' }), 'es')
 
@@ -99,18 +103,10 @@ describe('AppShell', () => {
     })
     const unbind = bindDocumentLanguage(i18n)
 
-    render(
-      <I18nextProvider i18n={i18n}>
-        <TransportProvider transport={new HttpTransport()}>
-          <QueryClientProvider client={new QueryClient()}>
-            <AppShell />
-          </QueryClientProvider>
-        </TransportProvider>
-      </I18nextProvider>,
-    )
+    await renderApp({ i18n })
+    await screen.findByRole('main', { name: 'File panes' })
 
     expect(document.documentElement.dir).toBe('rtl')
-    expect(screen.getByRole('main', { name: 'File panes' })).toBeInTheDocument()
     unbind()
   })
 })

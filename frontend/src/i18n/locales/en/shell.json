@@ -1,6 +1,10 @@
 {
   "topbar": {
-    "label": "Main toolbar"
+    "label": "Main toolbar",
+    "workspace": "Workspace",
+    "account": "Account",
+    "signOut": "Sign out",
+    "brand": "Sentinel"
   },
   "sidebar": {
     "label": "Sites",

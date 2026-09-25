@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
+import type { VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
 import { server } from './msw'
 
 /** A signed-in administrator with an anti-CSRF token. */
@@ -57,10 +57,16 @@ export interface WorkspaceData {
 
 /** Answers the workspace, collection, site and quick connection lists; whatever is not given is empty. */
 export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [] }: WorkspaceData = {}): void {
+  mockVault()
   server.use(
     http.get('/api/v1/workspaces', () => HttpResponse.json(workspaces)),
     http.get('/api/v1/workspaces/:id/collections', () => HttpResponse.json(collections)),
     http.get('/api/v1/workspaces/:id/sites', () => HttpResponse.json(sites)),
     http.get('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(quick)),
   )
+}
+
+/** Answers the vault state endpoint. */
+export function mockVault(status: VaultStatus = { initialized: true, unlocked: true }): void {
+  server.use(http.get('/api/v1/vault', () => HttpResponse.json(status)))
 }

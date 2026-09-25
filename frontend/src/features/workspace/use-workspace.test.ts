@@ -15,6 +15,7 @@ function workspace(id: string, kind: Workspace['kind']): Workspace {
  * Scenarios:
  * - the personal workspace wins even when it is not the first
  * - without a personal workspace the first one is used
+ * - the chosen workspace wins while it exists, and is ignored once it is gone
  * - no workspaces means nothing to pick
  */
 describe('pickWorkspace', () => {
@@ -24,6 +25,13 @@ describe('pickWorkspace', () => {
 
   it('falls back to the first workspace', () => {
     expect(pickWorkspace([workspace('a', 'team'), workspace('b', 'team')])?.id).toBe('a')
+  })
+
+  it('prefers the chosen workspace while it exists', () => {
+    const list = [workspace('me', 'personal'), workspace('team', 'team')]
+
+    expect(pickWorkspace(list, 'team')?.id).toBe('team')
+    expect(pickWorkspace(list, 'gone')?.id).toBe('me')
   })
 
   it('returns undefined when there are none', () => {

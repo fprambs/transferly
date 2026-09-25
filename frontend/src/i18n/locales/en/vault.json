@@ -1,0 +1,43 @@
+{
+  "chip": {
+    "unlocked": "Vault unlocked",
+    "locked": "Vault locked",
+    "notSet": "Set up the vault",
+    "lockAction": "Lock the vault",
+    "unlockAction": "Unlock the vault"
+  },
+  "setup": {
+    "title": "Set up the vault",
+    "description": "The vault encrypts the passwords and keys of your sites. Choose a master password you will remember: it cannot be reset without the recovery kit.",
+    "submit": "Create vault"
+  },
+  "unlock": {
+    "title": "Unlock the vault",
+    "description": "Enter your master password to use the saved credentials in this session.",
+    "submit": "Unlock"
+  },
+  "fields": {
+    "password": "Master password",
+    "confirm": "Repeat the master password"
+  },
+  "kit": {
+    "title": "Save your recovery kit",
+    "description": "This is the only way back in if you forget the master password. It is shown once: store it somewhere safe and offline.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "I have stored it"
+  },
+  "cancel": "Cancel",
+  "errors": {
+    "passwordRequired": "Enter the master password.",
+    "passwordShort": "Use at least 12 characters.",
+    "confirmMismatch": "The passwords do not match.",
+    "invalid_secret": "The master password is not right.",
+    "weak_password": "Use at least 12 characters.",
+    "vault_exists": "The vault already exists.",
+    "vault_not_initialized": "The vault is not set up yet.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again."
+  }
+}
