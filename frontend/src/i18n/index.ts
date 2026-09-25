@@ -2,8 +2,10 @@ import { createInstance, type i18n as I18n } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
+import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enShell from './locales/en/shell.json'
+import esAuth from './locales/es/auth.json'
 import esCommon from './locales/es/common.json'
 import esShell from './locales/es/shell.json'
 
@@ -18,8 +20,8 @@ export const defaultNS = 'common'
 
 /** Translation resources by language and namespace. */
 export const resources = {
-  en: { common: enCommon, shell: enShell },
-  es: { common: esCommon, shell: esShell },
+  en: { auth: enAuth, common: enCommon, shell: enShell },
+  es: { auth: esAuth, common: esCommon, shell: esShell },
 } as const
 
 /** Subset of an i18next instance needed to describe the document language. */

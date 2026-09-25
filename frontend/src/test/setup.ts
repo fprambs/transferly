@@ -15,6 +15,8 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
+window.scrollTo = () => undefined
+
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 
 afterEach(() => {

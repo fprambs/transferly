@@ -41,12 +41,10 @@
             "patterns": [
               {
                 "group": [
-                  "@/lib/api",
-                  "@/lib/api/*",
                   "@/lib/ws",
                   "@/lib/ws/*"
                 ],
-                "message": "Use the Transport interface instead of the HTTP or WebSocket clients."
+                "message": "Use the Transport interface instead of the WebSocket client."
               }
             ]
           }
