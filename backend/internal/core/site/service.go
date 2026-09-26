@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -70,6 +71,8 @@ type Input struct {
 	AuthMethod AuthMethod
 	// ListTimezone is the IANA zone of listing times; empty selects UTC.
 	ListTimezone string
+	// Charset is the character set of file names; empty selects UTF-8. Only FTP and FTPS accept another one.
+	Charset string
 }
 
 // SecretChanges tells which secrets to write. A nil field leaves the secret as it is, an empty string
@@ -138,6 +141,13 @@ func Normalize(in Input) (Input, error) {
 	}
 	if in.AuthMethod != AuthPassword && (in.AuthMethod != AuthKey || in.Protocol != SFTP) {
 		return in, ErrInvalidAuthMethod
+	}
+	if in.Charset == "" {
+		in.Charset = "utf-8"
+	}
+	in.Charset = strings.ToLower(strings.TrimSpace(in.Charset))
+	if !slices.Contains(Charsets, in.Charset) || (in.Protocol == SFTP && in.Charset != "utf-8") {
+		return in, ErrInvalidCharset
 	}
 	if in.ListTimezone == "" {
 		in.ListTimezone = "UTC"
@@ -255,7 +265,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) Site {
 	return Site{
 		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port,
-		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, CreatedAt: createdAt, UpdatedAt: updatedAt,
+		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 }
 

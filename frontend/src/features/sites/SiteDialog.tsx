@@ -16,7 +16,7 @@ import { useApi } from '@/lib/api/use-api'
 import { collectionOptions } from './collection-paths'
 import { ConnectionTest } from './ConnectionTest'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
-import { defaultPorts, siteDefaults, siteSchema, toSiteInput, type SiteValues } from './site-form'
+import { charsetOptions, defaultPorts, siteDefaults, siteSchema, toSiteInput, type SiteValues } from './site-form'
 import { sitesKeys } from './use-sites-data'
 
 /** What the site dialog does. */
@@ -170,6 +170,18 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         </Field>
       )}
       {editing !== undefined && <p className="text-xs text-muted-foreground">{t(($) => $.site.secretHint)}</p>}
+      {protocol === 'sftp' ? null : (
+        <Field id="site-charset" label={t(($) => $.site.charset)} className="">
+          <NativeSelect id="site-charset" {...register('charset')}>
+            {charsetOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">{t(($) => $.site.charsetHint)}</p>
+        </Field>
+      )}
       <Field id="site-timezone" label={t(($) => $.site.timezone)} className="">
         <Input id="site-timezone" className="font-mono" list="site-timezones" autoComplete="off" {...register('listTimezone')} />
         <datalist id="site-timezones">

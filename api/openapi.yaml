@@ -2676,9 +2676,13 @@ components:
         recoveryKit:
           type: string
           description: Key that recovers the vault when the master password is lost. Shown once.
+    Charset:
+      type: string
+      enum: [utf-8, iso-8859-1, iso-8859-2, iso-8859-15, windows-1250, windows-1251, windows-1252, koi8-r, shift_jis, euc-jp, gbk, big5, euc-kr]
+      description: Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
     Site:
       type: object
-      required: [id, name, protocol, host, port, username, authMethod, listTimezone, secrets, createdAt, updatedAt]
+      required: [id, name, protocol, host, port, username, authMethod, listTimezone, charset, secrets, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -2704,6 +2708,8 @@ components:
         listTimezone:
           type: string
           description: IANA zone in which the server prints listing times.
+        charset:
+          $ref: "#/components/schemas/Charset"
         secrets:
           type: array
           description: Kinds of secret stored for the site. The secrets themselves are never returned.
@@ -2743,6 +2749,8 @@ components:
         listTimezone:
           type: string
           description: IANA zone of the server's listing times; defaults to UTC.
+        charset:
+          $ref: "#/components/schemas/Charset"
         password:
           type: string
           description: Write only. Left out keeps the stored one; an empty string removes it.
@@ -3056,6 +3064,8 @@ components:
           enum: [password, key]
         listTimezone:
           type: string
+        charset:
+          $ref: "#/components/schemas/Charset"
         password:
           type: string
           description: Write only; kept in memory until the connection ends.
@@ -3067,7 +3077,7 @@ components:
           description: Write only; kept in memory until the connection ends.
     QuickConnection:
       type: object
-      required: [id, name, protocol, host, port, username, authMethod, listTimezone, createdAt]
+      required: [id, name, protocol, host, port, username, authMethod, listTimezone, charset, createdAt]
       properties:
         id:
           type: string
@@ -3089,6 +3099,8 @@ components:
           enum: [password, key]
         listTimezone:
           type: string
+        charset:
+          $ref: "#/components/schemas/Charset"
         createdAt:
           type: string
           format: date-time

@@ -154,6 +154,7 @@ func TestQuickConnections_Rules(t *testing.T) {
 		"invalid_username":    func(b map[string]any) { b["username"] = "" },
 		"invalid_auth_method": func(b map[string]any) { b["authMethod"], b["protocol"] = "key", "ftp" },
 		"invalid_timezone":    func(b map[string]any) { b["listTimezone"] = "Mars/Base" },
+		"invalid_charset":     func(b map[string]any) { b["charset"] = "klingon" },
 		"destination_blocked": func(b map[string]any) { b["host"] = "169.254.169.254" },
 	}
 	for code, mutate := range bad {

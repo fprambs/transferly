@@ -1,18 +1,18 @@
 -- name: InsertSite :exec
-INSERT INTO sites (id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, created_at, updated_at, folder_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11);
+INSERT INTO sites (id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11);
 
 -- name: UpdateSite :execrows
 UPDATE sites
-SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, updated_at = $10, folder_id = $11
+SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11
 WHERE id = $1 AND workspace_id = $2;
 
 -- name: SiteByID :one
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, created_at, updated_at, folder_id
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id
 FROM sites WHERE id = $1 AND workspace_id = $2;
 
 -- name: SitesByWorkspace :many
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, created_at, updated_at, folder_id
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id
 FROM sites WHERE workspace_id = $1 ORDER BY lower(name), id;
 
 -- name: DeleteSite :execrows

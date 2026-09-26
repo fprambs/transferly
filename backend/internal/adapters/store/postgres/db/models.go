@@ -65,6 +65,7 @@ type Site struct {
 	Options      []byte
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	Charset      string
 }
 
 type SiteFolder struct {

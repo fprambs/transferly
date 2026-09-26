@@ -29,7 +29,8 @@
     "host_unresolvable": "No se pudo resolver el nombre del host.",
     "site_not_found": "Este sitio ya no existe.",
     "invalid_import_file": "Este no es un archivo del gestor de sitios de FileZilla.",
-    "import_file_too_large": "El archivo es demasiado grande para importarlo."
+    "import_file_too_large": "El archivo es demasiado grande para importarlo.",
+    "invalid_charset": "El juego de caracteres no es válido aquí."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -86,7 +87,9 @@
     "deleteBody": "Se eliminarán {{name}} y sus credenciales guardadas.",
     "deleteConfirm": "Eliminar",
     "ftpWarning": "FTP envía la contraseña y los archivos sin cifrar. Usa FTPS si el servidor lo ofrece.",
-    "ftpsHint": "El puerto 990 empieza con TLS; en cualquier otro puerto la conexión se actualiza con AUTH TLS. La primera vez se muestra el certificado del servidor para que lo confirmes."
+    "ftpsHint": "El puerto 990 empieza con TLS; en cualquier otro puerto la conexión se actualiza con AUTH TLS. La primera vez se muestra el certificado del servidor para que lo confirmes.",
+    "charset": "Juego de caracteres de los nombres",
+    "charsetHint": "Cámbialo solo con servidores antiguos que muestran mal las tildes; la mayoría usa UTF-8."
   },
   "import": {
     "open": "Importar de FileZilla",

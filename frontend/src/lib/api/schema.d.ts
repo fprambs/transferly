@@ -840,6 +840,11 @@ export interface components {
             /** @description Key that recovers the vault when the master password is lost. Shown once. */
             recoveryKit: string;
         };
+        /**
+         * @description Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
+         * @enum {string}
+         */
+        Charset: "utf-8" | "iso-8859-1" | "iso-8859-2" | "iso-8859-15" | "windows-1250" | "windows-1251" | "windows-1252" | "koi8-r" | "shift_jis" | "euc-jp" | "gbk" | "big5" | "euc-kr";
         Site: {
             /** Format: uuid */
             id: string;
@@ -858,6 +863,7 @@ export interface components {
             authMethod: "password" | "key";
             /** @description IANA zone in which the server prints listing times. */
             listTimezone: string;
+            charset: components["schemas"]["Charset"];
             /** @description Kinds of secret stored for the site. The secrets themselves are never returned. */
             secrets: ("password" | "private_key" | "passphrase")[];
             /** Format: date-time */
@@ -885,6 +891,7 @@ export interface components {
             authMethod?: "password" | "key";
             /** @description IANA zone of the server's listing times; defaults to UTC. */
             listTimezone?: string;
+            charset?: components["schemas"]["Charset"];
             /** @description Write only. Left out keeps the stored one; an empty string removes it. */
             password?: string;
             /** @description Write only. Same rules as the password. */
@@ -1104,6 +1111,7 @@ export interface components {
             /** @enum {string} */
             authMethod?: "password" | "key";
             listTimezone?: string;
+            charset?: components["schemas"]["Charset"];
             /** @description Write only; kept in memory until the connection ends. */
             password?: string;
             /** @description Write only; kept in memory until the connection ends. */
@@ -1124,6 +1132,7 @@ export interface components {
             /** @enum {string} */
             authMethod: "password" | "key";
             listTimezone: string;
+            charset: components["schemas"]["Charset"];
             /** Format: date-time */
             createdAt: string;
         };

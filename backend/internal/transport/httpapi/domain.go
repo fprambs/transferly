@@ -155,6 +155,7 @@ var domainProblems = []struct {
 	{site.ErrInvalidPort, http.StatusUnprocessableEntity, "invalid_port"},
 	{site.ErrInvalidUsername, http.StatusUnprocessableEntity, "invalid_username"},
 	{site.ErrInvalidAuthMethod, http.StatusUnprocessableEntity, "invalid_auth_method"},
+	{site.ErrInvalidCharset, http.StatusUnprocessableEntity, "invalid_charset"},
 	{site.ErrInvalidTimezone, http.StatusUnprocessableEntity, "invalid_timezone"},
 	{hostkey.ErrNotFound, http.StatusNotFound, "host_key_not_found"},
 	{hostkey.ErrChanged, http.StatusConflict, "host_key_changed"},

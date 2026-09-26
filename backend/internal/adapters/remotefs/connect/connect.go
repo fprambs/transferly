@@ -4,6 +4,13 @@
 package connect
 
 import (
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/encoding/korean"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/traditionalchinese"
+
 	"context"
 	"errors"
 	"fmt"
@@ -108,12 +115,44 @@ func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target sit
 		Password:    string(s.password),
 		TLS:         mode,
 		Location:    location(target.ListTimezone),
+		Charset:     charsetOf(target.Charset),
 		DialContext: c.policy.Dialer(c.timeout).DialContext,
 		Timeout:     c.timeout,
 		VerifyHostKey: func(keyType, fingerprint string) error {
 			return c.verify(ctx, key, target, keyType, fingerprint)
 		},
 	})
+}
+
+// charsetOf returns the character set named by a site for its file names; UTF-8, and any name that is not known, need no conversion.
+func charsetOf(name string) encoding.Encoding {
+	switch name {
+	case "iso-8859-1":
+		return charmap.ISO8859_1
+	case "iso-8859-2":
+		return charmap.ISO8859_2
+	case "iso-8859-15":
+		return charmap.ISO8859_15
+	case "windows-1250":
+		return charmap.Windows1250
+	case "windows-1251":
+		return charmap.Windows1251
+	case "windows-1252":
+		return charmap.Windows1252
+	case "koi8-r":
+		return charmap.KOI8R
+	case "shift_jis":
+		return japanese.ShiftJIS
+	case "euc-jp":
+		return japanese.EUCJP
+	case "gbk":
+		return simplifiedchinese.GBK
+	case "big5":
+		return traditionalchinese.Big5
+	case "euc-kr":
+		return korean.EUCKR
+	}
+	return nil
 }
 
 // location returns the zone named by a site for the times of its listings; a name that cannot be loaded means UTC.

@@ -12,6 +12,8 @@
 package ftpfs
 
 import (
+	"golang.org/x/text/encoding"
+
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -73,6 +75,9 @@ type Config struct {
 	VerifyHostKey func(keyType, fingerprint string) error
 	// Location is the time zone of the times in LIST replies, which carry none; nil means UTC. MLSD needs no zone.
 	Location *time.Location
+	// Charset is the character set of the file names of the server; nil means UTF-8. Names are converted at the boundary, so callers
+	// always see UTF-8. Legacy character sets also switch off the UTF8 option of the server.
+	Charset encoding.Encoding
 	// DisableEPSV skips EPSV and uses PASV, for servers that announce EPSV but do not honor it.
 	DisableEPSV bool
 	// DialContext opens every TCP connection; nil uses a plain dialer. Give the dialer of the network guard here.
@@ -90,6 +95,7 @@ type FS struct {
 	closed  atomic.Bool
 	broken  atomic.Bool
 	chtimes bool
+	codec   codec
 }
 
 var _ remotefs.RemoteFS = (*FS)(nil)
@@ -220,6 +226,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		ftp.DialWithDialFunc(session.open),
 		ftp.DialWithLocation(location(cfg.Location)),
 		ftp.DialWithDisabledEPSV(cfg.DisableEPSV),
+		ftp.DialWithDisabledUTF8(cfg.Charset != nil),
 		ftp.DialWithShutTimeout(cfg.Timeout),
 	}
 	if cfg.TLS != TLSNone {
@@ -267,7 +274,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		return nil, dialError(cfg.Address, session.verifier, err)
 	}
 	session.ctx.Store(&parent)
-	return &FS{turn: make(chan struct{}, 1), conn: conn, link: session, chtimes: conn.IsSetTimeSupported()}, nil
+	return &FS{turn: make(chan struct{}, 1), conn: conn, link: session, chtimes: conn.IsSetTimeSupported(), codec: codec{encoding: cfg.Charset}}, nil
 }
 
 // location returns the zone of LIST times, UTC when none is given.
@@ -355,6 +362,9 @@ func (f *FS) do(ctx context.Context, op, p string, fn func() error) error {
 	if err := validPath(p); err != nil {
 		return fmt.Errorf("%s %q: %w", op, p, err)
 	}
+	if err := f.representable(p); err != nil {
+		return fmt.Errorf("%s %q: %w", op, p, err)
+	}
 	if err := f.run(ctx, fn); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
@@ -362,6 +372,25 @@ func (f *FS) do(ctx context.Context, op, p string, fn func() error) error {
 		return wrap(op, p, err)
 	}
 	return nil
+}
+
+// representable checks that a path can be written in the character set of the server, and that what is written is still safe on the
+// control connection.
+func (f *FS) representable(p string) error {
+	converted, err := f.codec.server(p)
+	if err != nil {
+		return err
+	}
+	if converted != p {
+		return validPath(converted)
+	}
+	return nil
+}
+
+// sp converts a path to what the server expects; the operations have checked that it can be converted.
+func (f *FS) sp(p string) string {
+	converted, _ := f.codec.server(p)
+	return converted
 }
 
 // wrap names the operation and path in an error that is already classified.
@@ -422,20 +451,21 @@ const (
 
 // listing lists a directory, mapping the entries; the caller holds the connection.
 func (f *FS) listing(dir string) ([]remotefs.Entry, error) {
-	raw, err := f.conn.List(dir)
+	raw, err := f.conn.List(f.sp(dir))
 	if err != nil {
 		return nil, err
 	}
-	return convert(dir, raw, f.conn.IsTimePreciseInList()), nil
+	return convert(dir, raw, f.conn.IsTimePreciseInList(), f.codec), nil
 }
 
 // convert maps the entries of a listing, leaving out the entries that stand for the directory itself and its parent.
-func convert(dir string, raw []*ftp.Entry, precise bool) []remotefs.Entry {
+func convert(dir string, raw []*ftp.Entry, precise bool, c codec) []remotefs.Entry {
 	entries := make([]remotefs.Entry, 0, len(raw))
 	for _, e := range raw {
 		if e.Name == "" || e.Name == "." || e.Name == ".." {
 			continue
 		}
+		e.Name = c.client(e.Name)
 		entries = append(entries, toEntry(dir, e, precise))
 	}
 	return entries
@@ -447,7 +477,7 @@ func (f *FS) lookup(p string) (remotefs.Entry, error) {
 		return rootEntry(), nil
 	}
 	if f.conn.IsTimePreciseInList() {
-		e, err := f.conn.GetEntry(p)
+		e, err := f.conn.GetEntry(f.sp(p))
 		if err != nil {
 			return remotefs.Entry{}, classify(err)
 		}
@@ -560,7 +590,7 @@ func (f *FS) Stat(ctx context.Context, p string) (remotefs.Entry, error) {
 // Mkdir creates one directory.
 func (f *FS) Mkdir(ctx context.Context, p string) error {
 	return f.do(ctx, "mkdir", p, func() error {
-		err := f.conn.MakeDir(p)
+		err := f.conn.MakeDir(f.sp(p))
 		if err == nil {
 			return nil
 		}
@@ -587,9 +617,9 @@ func (f *FS) Remove(ctx context.Context, p string) error {
 		case st == stateMissing:
 			return fmt.Errorf("%w: %s", remotefs.ErrNotFound, p)
 		case st == stateFile:
-			return classify(f.conn.Delete(p))
+			return classify(f.conn.Delete(f.sp(p)))
 		}
-		if err := f.conn.RemoveDir(p); err != nil {
+		if err := f.conn.RemoveDir(f.sp(p)); err != nil {
 			if children, listErr := f.listing(p); listErr == nil && len(children) > 0 {
 				return fmt.Errorf("%w: %s", remotefs.ErrNotEmpty, p)
 			}
@@ -612,15 +642,18 @@ func (f *FS) RemoveAll(ctx context.Context, p string) error {
 		case st == stateMissing:
 			return nil
 		case st == stateFile:
-			return classify(f.conn.Delete(p))
+			return classify(f.conn.Delete(f.sp(p)))
 		}
-		return classify(f.conn.RemoveDirRecur(p))
+		return classify(f.conn.RemoveDirRecur(f.sp(p)))
 	})
 }
 
 // Rename moves a path; the target must not exist.
 func (f *FS) Rename(ctx context.Context, from, to string) error {
 	if err := validPath(to); err != nil {
+		return fmt.Errorf("rename to %q: %w", to, err)
+	}
+	if err := f.representable(to); err != nil {
 		return fmt.Errorf("rename to %q: %w", to, err)
 	}
 	if strings.HasPrefix(to+"/", from+"/") {
@@ -637,7 +670,7 @@ func (f *FS) Rename(ctx context.Context, from, to string) error {
 		} else if st != stateMissing {
 			return fmt.Errorf("%w: %s", remotefs.ErrExists, to)
 		}
-		if err := f.conn.Rename(from, to); err != nil {
+		if err := f.conn.Rename(f.sp(from), f.sp(to)); err != nil {
 			if problem := f.parentProblem(to); problem != nil && !errors.Is(problem, remotefs.ErrPermission) {
 				return problem
 			}
@@ -664,7 +697,7 @@ func (f *FS) Chtimes(ctx context.Context, p string, mtime time.Time) error {
 		return fmt.Errorf("chtimes %s: %w: the server does not support MFMT", p, remotefs.ErrInvalid)
 	}
 	return f.do(ctx, "chtimes", p, func() error {
-		return f.refine(p, f.conn.SetTime(p, mtime.UTC()))
+		return f.refine(p, f.conn.SetTime(f.sp(p), mtime.UTC()))
 	})
 }
 
@@ -768,7 +801,7 @@ func (f *FS) OpenRead(ctx context.Context, p string, offset int64) (io.ReadClose
 	case offset > entry.Size:
 		return fail(fmt.Errorf("%w: offset %d is past the %d bytes of %s", remotefs.ErrInvalid, offset, entry.Size, p))
 	}
-	response, err := f.conn.RetrFrom(p, uint64(offset)) //nolint:gosec // checked not to be negative
+	response, err := f.conn.RetrFrom(f.sp(p), uint64(offset)) //nolint:gosec // checked not to be negative
 	if err != nil {
 		return fail(classify(err))
 	}
@@ -858,9 +891,9 @@ func (f *FS) OpenWrite(ctx context.Context, p string, offset int64, mode remotef
 	go func() {
 		var err error
 		if mode == remotefs.WriteResume {
-			err = f.conn.Append(p, reader)
+			err = f.conn.Append(f.sp(p), reader)
 		} else {
-			err = f.conn.Stor(p, reader)
+			err = f.conn.Stor(f.sp(p), reader)
 		}
 		_ = reader.CloseWithError(err)
 		result <- err

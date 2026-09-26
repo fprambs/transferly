@@ -51,3 +51,30 @@ func TestLocation(t *testing.T) {
 		t.Errorf("location(empty) = %v; want UTC", got)
 	}
 }
+
+// TestCharsetOf verifies the character sets a site can name.
+//
+// Scenarios:
+//   - every character set of the site settings maps to an encoding that turns an accent into what that set writes
+//   - UTF-8, an empty name and an unknown one need no conversion
+func TestCharsetOf(t *testing.T) {
+	for _, name := range site.Charsets {
+		enc := charsetOf(name)
+		if name == "utf-8" {
+			if enc != nil {
+				t.Errorf("charsetOf(%q) converts; UTF-8 needs no conversion", name)
+			}
+			continue
+		}
+		if enc == nil {
+			t.Errorf("charsetOf(%q) = nil; want an encoding", name)
+			continue
+		}
+		if _, err := enc.NewEncoder().String("a"); err != nil {
+			t.Errorf("the encoding of %q cannot write a letter: %v", name, err)
+		}
+	}
+	if charsetOf("") != nil || charsetOf("klingon") != nil {
+		t.Error("an empty or unknown name must need no conversion")
+	}
+}

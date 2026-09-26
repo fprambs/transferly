@@ -272,6 +272,7 @@ func text(s string) *string { return &s }
 //   - valid input is stored with defaults: port by protocol, password authentication, UTC listings, trimmed fields
 //   - empty or oversized names, unknown protocols, malformed hosts, ports out of range, empty user names,
 //     unknown or protocol-incompatible authentication methods and unknown time zones are each refused with their error
+//   - the character set defaults to UTF-8, is case insensitive, and only UTF-8 is accepted for SFTP
 //   - key authentication is accepted for SFTP only
 //   - hosts that resolve to private addresses are refused with ErrBlocked, unresolvable ones with ErrUnresolvable
 func TestService_CreateValidation(t *testing.T) {
@@ -286,6 +287,12 @@ func TestService_CreateValidation(t *testing.T) {
 		created.AuthMethod != site.AuthPassword || created.ListTimezone != "UTC" || created.CreatedAt.Location() != time.UTC || created.ID == uuid.Nil {
 		t.Errorf("Create() = %+v", created)
 	}
+	if created.Charset != "utf-8" {
+		t.Errorf("default charset = %q", created.Charset)
+	}
+	if legacy, err := f.svc.Create(ctx, f.editor, f.ws, "open", site.Input{Name: "Legacy", Protocol: site.FTP, Host: "public.example", Username: "me", Charset: " ISO-8859-1 "}, site.SecretChanges{}); err != nil || legacy.Charset != "iso-8859-1" {
+		t.Errorf("legacy charset = %+v, %v", legacy, err)
+	}
 	if sftp, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Key"; in.AuthMethod = site.AuthKey; return in }(), site.SecretChanges{}); err != nil || sftp.Port != 22 {
 		t.Errorf("SFTP with key = %+v, %v", sftp, err)
 	}
@@ -298,6 +305,8 @@ func TestService_CreateValidation(t *testing.T) {
 		{"empty name", func(in *site.Input) { in.Name = "  " }, site.ErrInvalidName},
 		{"long name", func(in *site.Input) { in.Name = strings.Repeat("n", 101) }, site.ErrInvalidName},
 		{"unknown protocol", func(in *site.Input) { in.Protocol = "gopher" }, site.ErrInvalidProtocol},
+		{"unknown charset", func(in *site.Input) { in.Protocol = site.FTP; in.Charset = "klingon" }, site.ErrInvalidCharset},
+		{"legacy charset on SFTP", func(in *site.Input) { in.Charset = "iso-8859-1" }, site.ErrInvalidCharset},
 		{"empty host", func(in *site.Input) { in.Host = "" }, site.ErrInvalidHost},
 		{"host with scheme", func(in *site.Input) { in.Host = "ftp://public.example" }, site.ErrInvalidHost},
 		{"host with port", func(in *site.Input) { in.Host = "public.example:22" }, site.ErrInvalidHost},

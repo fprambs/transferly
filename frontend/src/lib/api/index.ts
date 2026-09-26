@@ -36,6 +36,9 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** A character set of file names. */
+export type Charset = Schemas['Charset']
+
 /** What a probe learned about the time zone of a server's listings. */
 export type TimeZoneProbe = Schemas['TimeZoneProbe']
 

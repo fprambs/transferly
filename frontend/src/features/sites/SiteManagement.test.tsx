@@ -20,6 +20,7 @@ const prod: Site = {
   username: 'deploy',
   authMethod: 'password',
   listTimezone: 'Europe/Madrid',
+  charset: 'utf-8',
   secrets: ['password'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -53,6 +54,7 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  *
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
+ * - the character set of file names is offered for FTP and FTPS only, is UTF-8 by default and is sent with the site
  * - FTP and FTPS are offered next to SFTP, with their own default port; FTP warns about clear text, FTPS explains its ports, and neither offers keys
  * - key authentication swaps the password for the key fields
  * - a site can be started inside a collection from its menu
@@ -103,6 +105,7 @@ describe('site management', () => {
       username: 'deploy',
       authMethod: 'password',
       listTimezone: 'UTC',
+      charset: 'utf-8',
       password: 'secret',
     })
   })
@@ -118,6 +121,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByLabelText('Character set of file names')).not.toBeInTheDocument()
     expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(expect.arrayContaining(['SFTP', 'FTPS', 'FTP']))
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
@@ -126,6 +130,8 @@ describe('site management', () => {
     expect(within(dialog).getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
     expect(within(dialog).queryByLabelText('Sign in with')).not.toBeInTheDocument()
 
+    expect(within(dialog).getByLabelText('Character set of file names')).toHaveValue('utf-8')
+    await user.selectOptions(within(dialog).getByLabelText('Character set of file names'), 'windows-1252')
     await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftps')
     expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
     expect(within(dialog).getByText(/Port 990 starts with TLS/)).toBeInTheDocument()
@@ -137,7 +143,7 @@ describe('site management', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
     await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(bodies[0]).toMatchObject({ protocol: 'ftps', port: 21, authMethod: 'password', password: 'pw' })
+    expect(bodies[0]).toMatchObject({ protocol: 'ftps', port: 21, authMethod: 'password', password: 'pw', charset: 'windows-1252' })
   })
 
   it('swaps the password for the key fields', async () => {

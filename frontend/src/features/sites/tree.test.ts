@@ -21,6 +21,7 @@ function site(id: string, name: string, collectionId?: string): Site {
     username: 'u',
     authMethod: 'password',
     listTimezone: 'UTC',
+    charset: 'utf-8',
     secrets: [],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
@@ -38,6 +39,7 @@ function quick(id: string, name: string): QuickConnection {
     username: 'u',
     authMethod: 'password',
     listTimezone: 'UTC',
+    charset: 'utf-8',
     createdAt: '2026-01-01T00:00:00Z',
   }
 }

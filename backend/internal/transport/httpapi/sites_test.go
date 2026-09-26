@@ -121,6 +121,7 @@ func TestSites_Lifecycle(t *testing.T) {
 		"invalid_username":    func(b map[string]any) { b["username"] = "" },
 		"invalid_auth_method": func(b map[string]any) { b["authMethod"], b["protocol"] = "key", "ftp" },
 		"invalid_timezone":    func(b map[string]any) { b["listTimezone"] = "Mars/Base" },
+		"invalid_charset":     func(b map[string]any) { b["charset"] = "klingon" },
 		"destination_blocked": func(b map[string]any) { b["host"] = "169.254.169.254" },
 		"secret_too_large":    func(b map[string]any) { b["password"] = strings.Repeat("p", 2000) },
 	}
@@ -215,4 +216,34 @@ func TestSites_AuthorizationMatrix(t *testing.T) {
 	if r := a.do(request{method: http.MethodGet, path: sitesPath(ws, survivor), cookie: ownerCookie}); r.Status != http.StatusOK {
 		t.Errorf("the survivor was affected by another workspace: %d", r.Status)
 	}
+}
+
+// TestSites_Charset verifies the character set of the file names of a site.
+//
+// Scenarios:
+//   - a site is UTF-8 unless told otherwise, an FTP site can use a legacy character set, which is kept when the site is changed, and the name of the
+//     character set is not case sensitive
+//   - SFTP sites only use UTF-8
+func TestSites_Charset(t *testing.T) {
+	a := newAPI(t)
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+
+	plain := a.send(http.MethodPost, sitesPath(ws), siteBody("Plain"), cookie, csrf)
+	if got := plain.site(t).Charset; plain.Status != http.StatusCreated || got != "utf-8" {
+		t.Errorf("default charset = %q (%d)", got, plain.Status)
+	}
+	legacy := siteBody("Legacy")
+	legacy["protocol"], legacy["charset"] = "ftp", "Windows-1252"
+	made := a.send(http.MethodPost, sitesPath(ws), legacy, cookie, csrf)
+	if made.Status != http.StatusCreated || made.site(t).Charset != "windows-1252" {
+		t.Fatalf("legacy site = %d %s", made.Status, made.Body)
+	}
+	legacy["charset"] = "koi8-r"
+	if r := a.send(http.MethodPut, sitesPath(ws, made.site(t).Id.String()), legacy, cookie, csrf); r.Status != http.StatusOK || r.site(t).Charset != "koi8-r" {
+		t.Errorf("update = %d %s", r.Status, r.Body)
+	}
+	sftp := siteBody("Secure")
+	sftp["charset"] = "iso-8859-1"
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), sftp, cookie, csrf), 422, "invalid_charset")
 }

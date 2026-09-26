@@ -1,6 +1,9 @@
 package ftpfs
 
 import (
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/japanese"
+
 	"context"
 	"errors"
 	"net"
@@ -108,7 +111,7 @@ func TestToEntry(t *testing.T) {
 func TestConvert(t *testing.T) {
 	raw := []*ftp.Entry{{Name: "."}, {Name: ".."}, {Name: ""}, {Name: "kept", Type: ftp.EntryTypeFile}}
 
-	entries := convert("/", raw, true)
+	entries := convert("/", raw, true, codec{})
 
 	if len(entries) != 1 || entries[0].Name != "kept" {
 		t.Errorf("convert() = %+v; want only kept", entries)
@@ -190,3 +193,31 @@ func TestDialError(t *testing.T) {
 
 // isErr reports whether err matches target, for the tests of this package.
 func isErr(err, target error) bool { return errors.Is(err, target) }
+
+// TestCodec verifies the conversion of names.
+//
+// Scenarios:
+//   - without a character set names pass unchanged in both directions
+//   - with one, UTF-8 names become the bytes of the character set and back, names it cannot hold are ErrInvalid and bytes it does not define become the replacement character
+//   - what is written for a multi-byte character set holds no control character
+func TestCodec(t *testing.T) {
+	var none codec
+	if got, err := none.server("/café"); err != nil || got != "/café" || none.client("café") != "café" {
+		t.Errorf("identity codec = %q, %v", got, err)
+	}
+	latin := codec{encoding: charmap.ISO8859_1}
+	if got, err := latin.server("/café"); err != nil || got != "/caf\xe9" || latin.client("caf\xe9") != "café" {
+		t.Errorf("ISO-8859-1 codec = %q, %v", got, err)
+	}
+	if _, err := latin.server("/日本"); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("unrepresentable name = %v; want ErrInvalid", err)
+	}
+	if got := (codec{encoding: charmap.Windows1252}).client("\x81"); got == "" {
+		t.Error("an undefined byte was dropped")
+	}
+	sjis := codec{encoding: japanese.ShiftJIS}
+	converted, err := sjis.server("/日本語/ファイル")
+	if err != nil || validPath(converted) != nil || sjis.client(converted) != "/日本語/ファイル" {
+		t.Errorf("Shift_JIS round trip = %q, %v", converted, err)
+	}
+}

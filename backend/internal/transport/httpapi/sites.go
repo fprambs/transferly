@@ -17,7 +17,7 @@ func siteDTO(s site.Site) Site {
 	}
 	out := Site{
 		Id: s.ID, Name: s.Name, Protocol: SiteProtocol(s.Protocol), Host: s.Host, Port: s.Port, Username: s.Username,
-		AuthMethod: SiteAuthMethod(s.AuthMethod), ListTimezone: s.ListTimezone, Secrets: secrets, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
+		AuthMethod: SiteAuthMethod(s.AuthMethod), ListTimezone: s.ListTimezone, Charset: Charset(s.Charset), Secrets: secrets, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
 	if s.CollectionID != uuid.Nil {
 		out.CollectionId = &s.CollectionID
@@ -36,6 +36,9 @@ func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	}
 	if in.ListTimezone != nil {
 		settings.ListTimezone = *in.ListTimezone
+	}
+	if in.Charset != nil {
+		settings.Charset = string(*in.Charset)
 	}
 	return settings, site.SecretChanges{Password: in.Password, PrivateKey: in.PrivateKey, Passphrase: in.Passphrase}
 }

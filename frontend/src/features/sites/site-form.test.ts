@@ -15,6 +15,7 @@ const stored: Site = {
   username: 'deploy',
   authMethod: 'key',
   listTimezone: 'Europe/Madrid',
+  charset: 'utf-8',
   secrets: ['private_key'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -27,6 +28,7 @@ const stored: Site = {
  * - a new site starts empty on the given collection, an existing one is prefilled without secrets
  * - the schema accepts empty or in-range ports and rejects anything else
  * - the request trims text, defaults port and time zone, and files the site in its collection
+ * - the character set is kept for FTP and FTPS and is UTF-8 for SFTP
  * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
  */
@@ -49,8 +51,18 @@ describe('site form', () => {
       privateKey: '',
       passphrase: '',
       listTimezone: 'Europe/Madrid',
+      charset: 'utf-8',
     })
     expect(siteDefaults({ ...stored, collectionId: undefined }, 'c2').collectionId).toBe('c2')
+  })
+
+  it('sends the character set of FTP sites and UTF-8 for SFTP ones', () => {
+    const values = { ...siteDefaults(stored, undefined), charset: 'shift_jis' }
+
+    expect(toSiteInput({ ...values, protocol: 'ftp' }).charset).toBe('shift_jis')
+    expect(toSiteInput({ ...values, protocol: 'ftps' }).charset).toBe('shift_jis')
+    expect(toSiteInput({ ...values, protocol: 'sftp' }).charset).toBe('utf-8')
+    expect(siteDefaults(undefined, undefined).charset).toBe('utf-8')
   })
 
   it.each(['', '22', '65535'])('accepts port %j', (port) => {
@@ -90,6 +102,7 @@ describe('site form', () => {
       username: 'u',
       authMethod: 'password',
       listTimezone: 'UTC',
+      charset: 'utf-8',
       password: 'pw',
       privateKey: undefined,
       passphrase: undefined,

@@ -28,7 +28,7 @@ type SiteFactory func(t *testing.T) SiteStore
 func newSite(workspaceID uuid.UUID, name string) site.Site {
 	return site.Site{
 		ID: uuid.New(), WorkspaceID: workspaceID, Name: name, Protocol: site.SFTP, Host: "files.example.com", Port: 2222,
-		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", CreatedAt: now, UpdatedAt: now,
+		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", Charset: "koi8-r", CreatedAt: now, UpdatedAt: now,
 	}
 }
 

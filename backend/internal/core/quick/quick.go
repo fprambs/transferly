@@ -123,7 +123,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in s
 		lastUsed: now,
 		Site: site.Site{
 			ID: id, WorkspaceID: workspaceID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port, Username: in.Username,
-			AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, CreatedAt: now, UpdatedAt: now,
+			AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, CreatedAt: now, UpdatedAt: now,
 		},
 	}
 
@@ -246,7 +246,7 @@ func (s *Service) Save(ctx context.Context, userID, workspaceID, id uuid.UUID, s
 	defer c.Secrets.wipe()
 	in := site.Input{
 		Name: name, CollectionID: collectionID, Protocol: c.Site.Protocol, Host: c.Site.Host, Port: c.Site.Port, Username: c.Site.Username,
-		AuthMethod: c.Site.AuthMethod, ListTimezone: c.Site.ListTimezone,
+		AuthMethod: c.Site.AuthMethod, ListTimezone: c.Site.ListTimezone, Charset: c.Site.Charset,
 	}
 	saved, err := s.saver.Create(ctx, userID, workspaceID, session, in, changesFor(c.Secrets))
 	if err != nil {

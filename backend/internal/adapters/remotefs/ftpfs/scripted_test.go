@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/text/encoding/charmap"
+
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 )
 
@@ -137,5 +139,43 @@ func TestList_CheckFailure(t *testing.T) {
 
 	if _, err := fsys.List(t.Context(), "/dir"); !isErr(err, remotefs.ErrPermission) {
 		t.Errorf("List with a failing check = %v; want ErrPermission", err)
+	}
+}
+
+// TestCharset_Names verifies that names travel in the character set of the server.
+//
+// Scenarios:
+//   - a path with an accent is sent to an ISO-8859-1 server as one byte, and the name in the listing that answers is read back as UTF-8
+//   - a name the character set cannot hold is refused before anything is sent, also as the target of a rename
+//   - without a character set names travel as UTF-8, and names that are not valid UTF-8 are passed on as they are
+func TestCharset_Names(t *testing.T) {
+	address := scripted(t, map[string]answer{
+		"/caf\xe9": {listing: "-rw-r--r-- 1 u g 5 Jan  1 12:00 caf\xe9.txt\r\n"},
+		"/café":    {listing: "-rw-r--r-- 1 u g 5 Jan  1 12:00 utf8.txt\r\n"},
+	})
+	legacy, err := Dial(t.Context(), Config{Address: address, Username: "u", Password: "p", Timeout: 5 * time.Second, Charset: charmap.ISO8859_1})
+	if err != nil {
+		t.Fatalf("Dial() = %v", err)
+	}
+	t.Cleanup(func() { _ = legacy.Close() })
+
+	entries, err := legacy.List(t.Context(), "/café")
+	if err != nil || len(entries) != 1 || entries[0].Name != "café.txt" || entries[0].Path != "/café/café.txt" {
+		t.Fatalf("List() with ISO-8859-1 = %+v, %v; want café.txt", entries, err)
+	}
+	if _, err := legacy.List(t.Context(), "/日本"); !isErr(err, remotefs.ErrInvalid) {
+		t.Errorf("List() of a name the character set cannot hold = %v; want ErrInvalid", err)
+	}
+	if err := legacy.Rename(t.Context(), "/café", "/日本"); !isErr(err, remotefs.ErrInvalid) {
+		t.Errorf("Rename() to a name the character set cannot hold = %v; want ErrInvalid", err)
+	}
+
+	plain, err := Dial(t.Context(), Config{Address: address, Username: "u", Password: "p", Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("Dial() = %v", err)
+	}
+	t.Cleanup(func() { _ = plain.Close() })
+	if entries, err := plain.List(t.Context(), "/café"); err != nil || len(entries) != 1 || entries[0].Name != "utf8.txt" {
+		t.Errorf("List() without a character set = %+v, %v", entries, err)
 	}
 }

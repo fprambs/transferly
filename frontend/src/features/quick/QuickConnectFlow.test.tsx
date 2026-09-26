@@ -22,6 +22,7 @@ const opened: QuickConnection = {
   username: 'deploy',
   authMethod: 'password',
   listTimezone: 'UTC',
+  charset: 'utf-8',
   createdAt: '2026-01-01T00:00:00Z',
 }
 

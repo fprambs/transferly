@@ -13,7 +13,7 @@ import (
 func quickDTO(c quick.Connection) QuickConnection {
 	return QuickConnection{
 		Id: c.Site.ID, Name: c.Site.Name, Protocol: QuickConnectionProtocol(c.Site.Protocol), Host: c.Site.Host, Port: c.Site.Port,
-		Username: c.Site.Username, AuthMethod: QuickConnectionAuthMethod(c.Site.AuthMethod), ListTimezone: c.Site.ListTimezone, CreatedAt: c.Site.CreatedAt,
+		Username: c.Site.Username, AuthMethod: QuickConnectionAuthMethod(c.Site.AuthMethod), ListTimezone: c.Site.ListTimezone, Charset: Charset(c.Site.Charset), CreatedAt: c.Site.CreatedAt,
 	}
 }
 
@@ -58,6 +58,9 @@ func (s *server) CreateQuickConnection(ctx context.Context, request CreateQuickC
 	}
 	if b.ListTimezone != nil {
 		in.ListTimezone = *b.ListTimezone
+	}
+	if b.Charset != nil {
+		in.Charset = string(*b.Charset)
 	}
 	secrets := quick.Secrets{Password: secretBytes(b.Password), PrivateKey: secretBytes(b.PrivateKey), Passphrase: secretBytes(b.Passphrase)}
 	created, err := s.deps.Quick.Create(ctx, p.User.ID, request.WorkspaceId, in, secrets)

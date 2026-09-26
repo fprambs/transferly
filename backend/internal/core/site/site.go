@@ -22,6 +22,11 @@ const (
 	FTPS Protocol = "ftps"
 )
 
+// Charsets lists the character sets a site may use for file names, by their lower case IANA names; UTF-8 is the default.
+var Charsets = []string{
+	"utf-8", "iso-8859-1", "iso-8859-2", "iso-8859-15", "windows-1250", "windows-1251", "windows-1252", "koi8-r", "shift_jis", "euc-jp", "gbk", "big5", "euc-kr",
+}
+
 // AuthMethod is how the user proves their identity to the remote server.
 type AuthMethod string
 
@@ -68,6 +73,8 @@ var (
 	ErrInvalidAuthMethod = errors.New("invalid authentication method")
 	// ErrInvalidUsername means the user name is empty or too long.
 	ErrInvalidUsername = errors.New("invalid username")
+	// ErrInvalidCharset means the character set is not one of the supported ones, or is not UTF-8 for a protocol that only uses UTF-8.
+	ErrInvalidCharset = errors.New("invalid character set")
 	// ErrInvalidTimezone means the listing time zone is not an IANA name.
 	ErrInvalidTimezone = errors.New("invalid time zone")
 	// ErrCollectionNotFound means the collection does not exist in the workspace.
@@ -104,6 +111,8 @@ type Site struct {
 	AuthMethod AuthMethod
 	// ListTimezone is the IANA zone in which the server prints listing times, for FTP servers without MLSD.
 	ListTimezone string
+	// Charset is the character set the server uses for file names; FTP servers that do not speak UTF-8 need another one.
+	Charset string
 	// Secrets lists the kinds of secret stored for the site.
 	Secrets []SecretKind
 	// CreatedAt is when the site was created, in UTC.
