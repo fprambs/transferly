@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -40,6 +40,9 @@ function record(id: string, overrides: Partial<TransferRecord> = {}): TransferRe
  * - the finished tab lists done, failed and canceled transfers with their status and error code
  * - each tab says when it is empty
  * - cancelling calls the server, and removing calls it and forgets the transfer; failures are ignored
+ * - a queued transfer says it waits for a slot, offers a priority and a pause, and a running one offers neither
+ * - pausing, continuing and changing the priority call the server, and the row follows the state event that comes back; failures are ignored
+ * - a paused transfer says so and offers to continue
  * - the tabs switch both ways and the choice is kept in the interface state
  * - the panel collapses and the texts follow the interface language
  */
@@ -154,6 +157,65 @@ describe('TransfersDock', () => {
     expect(useTransfersStore.getState().items['2']).toBeDefined()
   })
 
+  it('offers to prioritize and pause only the transfers that wait', async () => {
+    useTransfersStore.getState().upsert([record('1', { name: 'run.bin' }), record('2', { name: 'wait.bin', status: 'queued', bytesDone: 0, priority: 1 })])
+    await renderWithProviders(<TransfersDock />)
+
+    const [waiting, running] = screen.getAllByRole('listitem')
+    expect(waiting).toHaveTextContent('Waiting for a free slot')
+    expect(within(waiting).getByRole('combobox', { name: 'Priority of wait.bin' })).toHaveValue('1')
+    expect(within(waiting).getByRole('button', { name: 'Pause wait.bin' })).toBeInTheDocument()
+    expect(within(running).queryByRole('combobox')).not.toBeInTheDocument()
+    expect(within(running).queryByRole('button', { name: /Pause/ })).not.toBeInTheDocument()
+    expect(within(running).getByRole('button', { name: 'Cancel run.bin' })).toBeInTheDocument()
+  })
+
+  it('pauses and continues a waiting transfer, and ignores a failure', async () => {
+    const queued = record('1', { name: 'a.bin', status: 'queued', bytesDone: 0 })
+    const calls: string[] = []
+    server.use(
+      http.post('/api/v1/transfers/1/pause', () => (calls.push('pause'), HttpResponse.json({ ...queued, paused: true, priority: 0 }))),
+      http.post('/api/v1/transfers/1/resume', () => (calls.push('resume'), HttpResponse.json({ ...queued, paused: false, priority: 0 }))),
+      http.post('/api/v1/transfers/2/pause', () => problem(409, 'transfer_not_queued')),
+    )
+    useTransfersStore.getState().upsert([queued, record('2', { name: 'b.bin', status: 'queued', bytesDone: 0 })])
+    const user = userEvent.setup()
+    await renderWithProviders(<TransfersDock />)
+
+    await user.click(screen.getByRole('button', { name: 'Pause b.bin' }))
+    await user.click(screen.getByRole('button', { name: 'Pause a.bin' }))
+    await waitFor(() => expect(calls).toEqual(['pause']))
+    act(() => useTransfersStore.getState().upsert([{ ...queued, paused: true }]))
+    const resume = await screen.findByRole('button', { name: 'Let a.bin start' })
+    expect(screen.getAllByRole('listitem')[1]).toHaveTextContent('Paused')
+    expect(screen.getByRole('button', { name: 'Pause b.bin' })).toBeInTheDocument()
+
+    await user.click(resume)
+    await waitFor(() => expect(calls).toEqual(['pause', 'resume']))
+    act(() => useTransfersStore.getState().upsert([{ ...queued, paused: false }]))
+    expect(await screen.findByRole('button', { name: 'Pause a.bin' })).toBeInTheDocument()
+  })
+
+  it('changes the priority of a waiting transfer', async () => {
+    const bodies: unknown[] = []
+    const queued = record('1', { name: 'a.bin', status: 'queued', bytesDone: 0 })
+    server.use(
+      http.patch('/api/v1/transfers/1', async ({ request }) => {
+        bodies.push(await request.json())
+        return HttpResponse.json({ ...queued, priority: -1 })
+      }),
+    )
+    useTransfersStore.getState().upsert([queued])
+    const user = userEvent.setup()
+    await renderWithProviders(<TransfersDock />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Priority of a.bin' }), 'Low')
+
+    await waitFor(() => expect(bodies).toEqual([{ priority: -1 }]))
+    act(() => useTransfersStore.getState().upsert([{ ...queued, priority: -1 }]))
+    expect(screen.getByRole('combobox', { name: 'Priority of a.bin' })).toHaveValue('-1')
+  })
+
   it('switches between the tabs', async () => {
     useTransfersStore.getState().upsert([record('1'), record('2', { status: 'done' })])
     const user = userEvent.setup()
@@ -179,9 +241,12 @@ describe('TransfersDock', () => {
   })
 
   it('speaks Spanish', async () => {
-    useTransfersStore.getState().upsert([record('1', { status: 'interrupted' })])
+    useTransfersStore.getState().upsert([record('1', { status: 'interrupted' }), record('2', { status: 'queued', paused: true })])
     const user = userEvent.setup()
     await renderWithProviders(<TransfersDock />, 'es')
+
+    expect(screen.getByRole('listitem')).toHaveTextContent('En pausa')
+    expect(screen.getByRole('combobox', { name: 'Prioridad de 2.bin' })).toHaveValue('0')
 
     await user.click(screen.getByRole('tab', { name: 'Terminadas (1)' }))
 

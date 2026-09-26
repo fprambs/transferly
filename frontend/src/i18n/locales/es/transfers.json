@@ -31,5 +31,17 @@
     "unknown": "No se pudo reanudar la subida. Inténtalo de nuevo.",
     "dismiss": "Cerrar"
   },
-  "fileInput": "Elegir el archivo para reanudar la subida"
+  "fileInput": "Elegir el archivo para reanudar la subida",
+  "waiting": "Esperando un turno libre",
+  "paused": "En pausa",
+  "pause": "Pausar",
+  "pauseLabel": "Pausar {{name}}",
+  "resumeQueued": "Continuar",
+  "resumeQueuedLabel": "Dejar que {{name}} comience",
+  "priority": {
+    "label": "Prioridad de {{name}}",
+    "low": "Baja",
+    "normal": "Normal",
+    "high": "Alta"
+  }
 }

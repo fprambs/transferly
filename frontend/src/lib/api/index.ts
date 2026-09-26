@@ -36,6 +36,9 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** Where a waiting transfer stands in the queue: -1 low, 0 normal, 1 high. */
+export type TransferPriority = Schemas['TransferPriorityInput']['priority']
+
 /** What to do when an uploaded file exists. */
 export type UploadMode = 'create' | 'overwrite' | 'resume'
 
@@ -160,6 +163,10 @@ export function createApi(transport: Transport) {
       get: (transferId: string) => transport.request<Transfer>({ method: 'GET', path: `${root}/transfers/${transferId}` }),
       remove: (transferId: string) => transport.request<void>({ method: 'DELETE', path: `${root}/transfers/${transferId}` }),
       cancel: (transferId: string) => transport.request<void>({ method: 'POST', path: `${root}/transfers/${transferId}/cancel` }),
+      pause: (transferId: string) => transport.request<Transfer>({ method: 'POST', path: `${root}/transfers/${transferId}/pause` }),
+      resume: (transferId: string) => transport.request<Transfer>({ method: 'POST', path: `${root}/transfers/${transferId}/resume` }),
+      setPriority: (transferId: string, priority: TransferPriority) =>
+        transport.request<Transfer>({ method: 'PATCH', path: `${root}/transfers/${transferId}`, body: { priority } }),
     },
   }
 }

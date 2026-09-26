@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { Transfer, TransferPriority } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
 
@@ -38,6 +39,10 @@ export function TransfersDock() {
   }
 
   const cancel = (id: string): void => void api.transfers.cancel(id).catch(() => undefined)
+  const apply = (change: Promise<Transfer>): void => void change.catch(() => undefined)
+  const pause = (id: string): void => apply(api.transfers.pause(id))
+  const proceed = (id: string): void => apply(api.transfers.resume(id))
+  const prioritize = (id: string, priority: TransferPriority): void => apply(api.transfers.setPriority(id, priority))
   const remove = (id: string): void => void api.transfers.remove(id).then(() => forget(id)).catch(() => undefined)
 
   return (
@@ -91,7 +96,7 @@ export function TransfersDock() {
                 ) : (
                   <ul>
                     {active.map((item) => (
-                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} />
+                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
                     ))}
                   </ul>
                 )}
@@ -102,7 +107,7 @@ export function TransfersDock() {
                 ) : (
                   <ul>
                     {finished.map((item) => (
-                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} />
+                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
                     ))}
                   </ul>
                 )}

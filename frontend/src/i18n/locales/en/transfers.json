@@ -31,5 +31,17 @@
     "unknown": "The upload could not be resumed. Try again.",
     "dismiss": "Dismiss"
   },
-  "fileInput": "Choose the file to resume the upload"
+  "fileInput": "Choose the file to resume the upload",
+  "waiting": "Waiting for a free slot",
+  "paused": "Paused",
+  "pause": "Pause",
+  "pauseLabel": "Pause {{name}}",
+  "resumeQueued": "Continue",
+  "resumeQueuedLabel": "Let {{name}} start",
+  "priority": {
+    "label": "Priority of {{name}}",
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High"
+  }
 }

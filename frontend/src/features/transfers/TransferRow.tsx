@@ -1,7 +1,9 @@
-import { ArrowDown, ArrowUp, RotateCw, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Pause, Play, RotateCw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { NativeSelect } from '@/components/ui/native-select'
+import type { TransferPriority } from '@/lib/api'
 import { formatSize } from '../explorer/entries'
 
 import { canResume } from './use-resume'
@@ -19,15 +21,30 @@ export interface TransferRowProps {
   onRemove: (id: string) => void
   /** Called to resume an upload that stopped. */
   onResume: (item: TransferItem) => void
+  /** Called to hold a queued transfer back until it is continued. */
+  onPause: (id: string) => void
+  /** Called to let a paused, queued transfer start when a slot is free. */
+  onContinue: (id: string) => void
+  /** Called to change the place of a queued transfer in the line. */
+  onPriority: (id: string, priority: TransferPriority) => void
 }
 
+/** The priorities a queued transfer can be given, in the order they are offered. */
+const priorities = [
+  { value: 1, key: 'high' },
+  { value: 0, key: 'normal' },
+  { value: -1, key: 'low' },
+] as const
+
 /** One transfer of the dock: what it moves, how far it got, how fast, and the action that fits its state. */
-export function TransferRow({ item, onCancel, onRemove, onResume }: TransferRowProps) {
+export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onContinue, onPriority }: TransferRowProps) {
   const { t } = useTranslation('transfers')
   const { record } = item
   const active = isActive(item)
   const percent = percentDone(record.bytesDone, record.totalBytes)
   const eta = etaSeconds(item)
+  const queued = record.status === 'queued'
+  const paused = record.paused === true
   const Icon = record.direction === 'upload' ? ArrowUp : ArrowDown
 
   return (
@@ -58,6 +75,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume }: TransferRowP
           </span>
           {record.status === 'running' && item.speed > 0 ? <span>{formatSpeed(item.speed)}</span> : null}
           {record.status === 'running' && eta !== undefined ? <span>{t(($) => $.left, { time: formatDuration(eta) })}</span> : null}
+          {queued ? <span>{paused ? t(($) => $.paused) : t(($) => $.waiting)}</span> : null}
           {active ? null : (
             <span>
               {t(($) => $.status[record.status])}
@@ -67,9 +85,37 @@ export function TransferRow({ item, onCancel, onRemove, onResume }: TransferRowP
         </div>
       </div>
       {active ? (
-        <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.cancelLabel, { name: record.name })} onClick={() => onCancel(record.id)}>
-          <X />
-        </Button>
+        <div className="flex items-center gap-1">
+          {queued ? (
+            <>
+              <NativeSelect
+                aria-label={t(($) => $.priority.label, { name: record.name })}
+                containerClassName="w-28"
+                className="h-7 text-xs"
+                value={record.priority ?? 0}
+                onChange={(event) => onPriority(record.id, Number(event.target.value) as TransferPriority)}
+              >
+                {priorities.map((priority) => (
+                  <option key={priority.value} value={priority.value}>
+                    {t(($) => $.priority[priority.key])}
+                  </option>
+                ))}
+              </NativeSelect>
+              {paused ? (
+                <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.resumeQueuedLabel, { name: record.name })} onClick={() => onContinue(record.id)}>
+                  <Play />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.pauseLabel, { name: record.name })} onClick={() => onPause(record.id)}>
+                  <Pause />
+                </Button>
+              )}
+            </>
+          ) : null}
+          <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.cancelLabel, { name: record.name })} onClick={() => onCancel(record.id)}>
+            <X />
+          </Button>
+        </div>
       ) : (
         <div className="flex items-center gap-1">
           {isStoppedUpload(record) && canResume(record) ? (

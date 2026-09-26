@@ -119,6 +119,9 @@ describe('createApi', () => {
     { name: 'transfers.get', call: (a) => a.transfers.get('t1'), method: 'GET', path: '/api/v1/transfers/t1' },
     { name: 'transfers.remove', call: (a) => a.transfers.remove('t1'), method: 'DELETE', path: '/api/v1/transfers/t1' },
     { name: 'transfers.cancel', call: (a) => a.transfers.cancel('t1'), method: 'POST', path: '/api/v1/transfers/t1/cancel' },
+    { name: 'transfers.pause', call: (a) => a.transfers.pause('t1'), method: 'POST', path: '/api/v1/transfers/t1/pause' },
+    { name: 'transfers.resume', call: (a) => a.transfers.resume('t1'), method: 'POST', path: '/api/v1/transfers/t1/resume' },
+    { name: 'transfers.setPriority', call: (a) => a.transfers.setPriority('t1', 1), method: 'PATCH', path: '/api/v1/transfers/t1', body: { priority: 1 } },
   ]
 
   it.each(cases)('calls $name', async ({ call, method, path, query, body }) => {
