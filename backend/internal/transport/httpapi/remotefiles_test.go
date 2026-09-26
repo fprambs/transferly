@@ -82,7 +82,7 @@ func (e *fileEnv) get(endpoint string, query url.Values, headers map[string]stri
 //   - entries carry type, size, mode, UTC time and precision
 //   - duplicate creation is 409 path_exists, missing paths are 404 path_not_found, listing a file is 422 not_a_directory
 //   - deleting a non-empty directory is 409 directory_not_empty unless recursive is set
-//   - invalid paths, modes and offsets are 422, malformed bodies are 400
+//   - invalid paths, modes, offsets (also negative ones) and sizes (negative ones) are 422, malformed bodies are 400
 func TestRemoteFiles_Lifecycle(t *testing.T) {
 	e := newFileEnv(t)
 	a := e.a
@@ -152,6 +152,8 @@ func TestRemoteFiles_Lifecycle(t *testing.T) {
 	}
 	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "mode", "sideways"), "x", e.cookie, e.csrf), 422, "invalid_mode")
 	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "offset", "5"), "x", e.cookie, e.csrf), 422, "invalid_path")
+	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "mode", "resume", "offset", "-1"), "x", e.cookie, e.csrf), 422, "invalid_offset")
+	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "size", "-5"), "x", e.cookie, e.csrf), 422, "invalid_size")
 	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/c.txt", "mode", "resume", "offset", "99"), "x", e.cookie, e.csrf), 422, "invalid_path")
 	expectProblem(t, e.get("", nil, nil), 400, "invalid_request")
 	expectProblem(t, a.send(http.MethodPost, filesPath(e.ws, e.site, "/directories", nil), "{not json", e.cookie, e.csrf), 400, "invalid_request")

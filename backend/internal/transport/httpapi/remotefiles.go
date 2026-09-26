@@ -279,6 +279,12 @@ func (s *server) UploadFile(ctx context.Context, request UploadFileRequestObject
 	if request.Params.Size != nil {
 		size = *request.Params.Size
 	}
+	if offset < 0 {
+		return domainProblem{status: http.StatusUnprocessableEntity, code: "invalid_offset"}, nil
+	}
+	if request.Params.Size != nil && size < 0 {
+		return domainProblem{status: http.StatusUnprocessableEntity, code: "invalid_size"}, nil
+	}
 	t := target(ctx, request.WorkspaceId, request.SiteId)
 	if err := s.deps.Files.Check(ctx, t, workspace.ActionUpload, request.Params.Path); err != nil {
 		return uploadFailure(err)
