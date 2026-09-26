@@ -57,6 +57,7 @@ func (f *fixture) begin(t *testing.T, path string) (*transfer.Tracker, context.C
 //
 // Scenarios:
 //   - with one slot per site the second transfer waits, with normal priority and not paused, and the first one is not waiting
+//   - a snapshot of a tracker returns its record
 //   - pausing a waiting transfer shows in Get and List, tells the clients, and keeps it from starting when the slot frees
 //   - resuming a paused transfer lets it start once a slot is free, and finishing a transfer frees its slot
 //   - a priority is applied to a waiting transfer and an unknown priority is ErrInvalidPriority
@@ -76,6 +77,9 @@ func TestService_Queue(t *testing.T) {
 	wait := admitAsync(second, secondCtx)
 	waitQueued(t, f, second.ID())
 
+	if snap := second.Snapshot(); snap.ID != second.ID() || snap.Status != transfer.Queued {
+		t.Errorf("Snapshot() = %+v; want the queued transfer", snap)
+	}
 	got, err := f.svc.Get(ctx, f.user, second.ID())
 	if err != nil || got.Paused || got.Priority != 0 || got.Status != transfer.Queued {
 		t.Errorf("Get() = %+v, %v; want queued, not paused, normal priority", got, err)

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Pause, Play, RotateCw, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Pause, Play, RotateCw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,9 @@ const priorities = [
   { value: -1, key: 'low' },
 ] as const
 
+/** The icon of each direction of a transfer. */
+const directionIcons = { upload: ArrowUp, download: ArrowDown, copy: ArrowLeftRight } as const
+
 /** One transfer of the dock: what it moves, how far it got, how fast, and the action that fits its state. */
 export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onContinue, onPriority }: TransferRowProps) {
   const { t } = useTranslation('transfers')
@@ -45,7 +48,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
   const eta = etaSeconds(item)
   const queued = record.status === 'queued'
   const paused = record.paused === true
-  const Icon = record.direction === 'upload' ? ArrowUp : ArrowDown
+  const Icon = directionIcons[record.direction]
 
   return (
     <li className="flex items-center gap-3 border-b px-4 py-2 text-[13px] last:border-b-0">

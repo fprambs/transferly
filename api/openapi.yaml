@@ -1450,6 +1450,80 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/copies:
+    post:
+      operationId: createCopy
+      security:
+        - sessionCookie: []
+      summary: Copy a file from one site to another through the server
+      description: >-
+        The server streams the file between the two sites without it reaching the browser and answers at once with the
+        transfer, which reports its progress like any other. Both sites belong to the workspace of the path. Only files
+        are copied; an existing destination is refused unless overwrite is set.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CopyInput"
+      responses:
+        "202":
+          description: The copy was accepted and is queued or running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "507":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/transfers:
     get:
       operationId: listTransfers
@@ -2403,6 +2477,30 @@ components:
           type: string
         to:
           type: string
+    CopyInput:
+      type: object
+      required: [sourceSiteId, sourcePath, targetSiteId, targetPath]
+      properties:
+        sourceSiteId:
+          type: string
+          format: uuid
+          description: Saved site or quick connection to read from.
+        sourcePath:
+          type: string
+        targetSiteId:
+          type: string
+          format: uuid
+          description: Saved site or quick connection to write to.
+        targetPath:
+          type: string
+          description: Full path of the copy, including its name.
+        overwrite:
+          type: boolean
+          description: Replace the destination when it exists. Defaults to false.
+        transferId:
+          type: string
+          format: uuid
+          description: Identifier for the transfer, chosen by the client. The server picks one when left out.
     Transfer:
       type: object
       required: [id, workspaceId, siteName, direction, path, name, status, bytesDone, attempts, createdAt, updatedAt]
@@ -2421,7 +2519,7 @@ components:
           type: string
         direction:
           type: string
-          enum: [upload, download]
+          enum: [upload, download, copy]
         path:
           type: string
         name:

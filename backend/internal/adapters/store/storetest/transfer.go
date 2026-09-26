@@ -103,6 +103,20 @@ func RunTransfer(t *testing.T, newStore TransferFactory) {
 		}
 	})
 
+	t.Run("every direction is stored", func(t *testing.T) {
+		w := setup(t)
+		for _, direction := range []transfer.Direction{transfer.Upload, transfer.Download, transfer.Copy} {
+			tr := newTransfer(w, now, transfer.Queued)
+			tr.Direction = direction
+			if err := w.store.CreateTransfer(ctx, tr); err != nil {
+				t.Fatalf("Create() of a %s = %v", direction, err)
+			}
+			if got, err := w.store.TransferByID(ctx, w.alice.ID, tr.ID); err != nil || got.Direction != direction {
+				t.Errorf("Get() = %+v, %v; want direction %s", got, err, direction)
+			}
+		}
+	})
+
 	t.Run("identifiers are unique", func(t *testing.T) {
 		w := setup(t)
 		first := newTransfer(w, now, transfer.Queued)

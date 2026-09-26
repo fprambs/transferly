@@ -2,9 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"path"
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/files"
+	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 )
 
@@ -123,4 +126,57 @@ func (s *server) SetTransferPriority(ctx context.Context, request SetTransferPri
 		return nil, err
 	}
 	return SetTransferPriority200JSONResponse(transferDTO(t)), nil
+}
+
+// CreateCopy starts the copy of a file from one site to another and answers with its transfer. The data moves in the
+// background, out of the request, so that closing the browser does not stop it; the user can cancel it as any transfer.
+func (s *server) CreateCopy(ctx context.Context, request CreateCopyRequestObject) (CreateCopyResponseObject, error) {
+	body := request.Body
+	source := target(ctx, request.WorkspaceId, body.SourceSiteId)
+	destination := target(ctx, request.WorkspaceId, body.TargetSiteId)
+	location := files.CopyLocation{Source: source, SourcePath: body.SourcePath, Destination: destination, DestinationPath: body.TargetPath}
+	if err := s.deps.Files.CheckCopy(ctx, location); err != nil {
+		return copyFailure(err)
+	}
+	_, sourceName, err := s.siteOf(ctx, source)
+	if err != nil {
+		return copyFailure(err)
+	}
+	targetID, targetName, err := s.siteOf(ctx, destination)
+	if err != nil {
+		return copyFailure(err)
+	}
+	in := transfer.BeginInput{
+		UserID: destination.Actor, WorkspaceID: request.WorkspaceId, SiteID: targetID, Route: body.TargetSiteId,
+		SiteName: sourceName + " → " + targetName, Direction: transfer.Copy, Path: body.TargetPath, Name: path.Base(body.TargetPath), Total: -1,
+	}
+	if body.TransferId != nil {
+		in.ID = *body.TransferId
+	}
+	tracker, runCtx, err := s.deps.Transfers.Begin(context.WithoutCancel(ctx), in)
+	if err != nil {
+		return copyFailure(err)
+	}
+	mode := remotefs.WriteCreate
+	if body.Overwrite != nil && *body.Overwrite {
+		mode = remotefs.WriteOverwrite
+	}
+	location.Destination.Observer = tracker
+	record := tracker.Snapshot()
+	go func() {
+		err := tracker.Admit(runCtx)
+		if err == nil {
+			_, err = s.deps.Files.Copy(runCtx, location, mode)
+		}
+		tracker.Finish(err, problemCode(err))
+	}()
+	return CreateCopy202JSONResponse(transferDTO(record)), nil
+}
+
+// copyFailure turns an error of a copy into its problem response, or returns it when it is unexpected.
+func copyFailure(err error) (CreateCopyResponseObject, error) {
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	return nil, err
 }

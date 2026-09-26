@@ -22,6 +22,8 @@ const (
 	Upload Direction = "upload"
 	// Download brings a file from a remote server.
 	Download Direction = "download"
+	// Copy moves a file from one remote server to another without it reaching the browser.
+	Copy Direction = "copy"
 )
 
 // Status is the state of a transfer.
@@ -74,7 +76,7 @@ type Transfer struct {
 	SiteID uuid.UUID
 	// SiteName is the name of the site when the transfer started, kept for the history.
 	SiteName string
-	// Direction is upload or download.
+	// Direction is upload, download or copy.
 	Direction Direction
 	// Path is the remote path.
 	Path string

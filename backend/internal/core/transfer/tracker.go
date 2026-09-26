@@ -55,7 +55,7 @@ type BeginInput struct {
 	Route uuid.UUID
 	// SiteName is the name of the site, kept in the history.
 	SiteName string
-	// Direction is upload or download.
+	// Direction is upload, download or copy.
 	Direction Direction
 	// Path is the remote path.
 	Path string
@@ -147,6 +147,14 @@ type Tracker struct {
 
 // ID returns the identifier of the transfer.
 func (k *Tracker) ID() uuid.UUID { return k.t.ID }
+
+// Snapshot returns the record of the transfer as it is now.
+func (k *Tracker) Snapshot() Transfer {
+	k.mu.Lock()
+	t := k.t
+	k.mu.Unlock()
+	return k.s.decorate(t)
+}
 
 // save writes the current record to the store; the caller holds the lock.
 func (k *Tracker) save() {

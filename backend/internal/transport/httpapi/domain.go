@@ -202,3 +202,6 @@ func asProblem(err error) (domainProblem, bool) {
 	}
 	return domainProblem{}, false
 }
+
+// VisitCreateCopyResponse implements [CreateCopyResponseObject].
+func (p domainProblem) VisitCreateCopyResponse(w http.ResponseWriter) error { return p.write(w) }

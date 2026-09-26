@@ -368,6 +368,7 @@ func (brokenTransfers) TransferByID(context.Context, uuid.UUID, uuid.UUID) (tran
 //
 // Scenarios:
 //   - listing, reading, deleting, canceling, pausing, resuming and reprioritizing answer 500 when the store fails
+//   - a copy whose record cannot be created answers 500 and moves no data
 //   - an upload or a download whose record cannot be created answers 500 and moves no data
 func TestTransferFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
@@ -387,6 +388,8 @@ func TestTransferFailures(t *testing.T) {
 	expectProblem(t, a.send(http.MethodPatch, "/api/v1/transfers/"+id, map[string]int{"priority": 1}, cookie, csrf), 500, "internal_error")
 
 	site := created.site(t).Id
+	copyBody := map[string]any{"sourceSiteId": site, "sourcePath": "/a", "targetSiteId": site, "targetPath": "/b", "transferId": id}
+	expectProblem(t, a.send(http.MethodPost, "/api/v1/workspaces/"+ws.String()+"/copies", copyBody, cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.upload(ws, site, q("path", "/f"), "x", cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.do(request{method: http.MethodGet, path: filesPath(ws, site, "/content", q("path", "/f")), cookie: cookie}), 500, "internal_error")
 }

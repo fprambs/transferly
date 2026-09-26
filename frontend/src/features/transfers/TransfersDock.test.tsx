@@ -40,6 +40,7 @@ function record(id: string, overrides: Partial<TransferRecord> = {}): TransferRe
  * - the finished tab lists done, failed and canceled transfers with their status and error code
  * - each tab says when it is empty
  * - cancelling calls the server, and removing calls it and forgets the transfer; failures are ignored
+ * - a copy between sites shows its own icon and the two sites
  * - a queued transfer says it waits for a slot, offers a priority and a pause, and a running one offers neither
  * - pausing, continuing and changing the priority call the server, and the row follows the state event that comes back; failures are ignored
  * - a paused transfer says so and offers to continue
@@ -155,6 +156,14 @@ describe('TransfersDock', () => {
     await user.click(screen.getByRole('button', { name: 'Remove b.bin from the list' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Remove b.bin from the list' })).toBeInTheDocument())
     expect(useTransfersStore.getState().items['2']).toBeDefined()
+  })
+
+  it('shows a copy between sites with its own icon', async () => {
+    useTransfersStore.getState().upsert([record('1', { direction: 'copy', siteName: 'Prod → Backup' })])
+    await renderWithProviders(<TransfersDock />)
+
+    expect(screen.getByLabelText('Copy')).toBeInTheDocument()
+    expect(screen.getByRole('listitem')).toHaveTextContent('Prod → Backup')
   })
 
   it('offers to prioritize and pause only the transfers that wait', async () => {

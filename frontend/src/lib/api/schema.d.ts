@@ -468,6 +468,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a file from one site to another through the server
+         * @description The server streams the file between the two sites without it reaching the browser and answers at once with the transfer, which reports its progress like any other. Both sites belong to the workspace of the path. Only files are copied; an existing destination is refused unless overwrite is set.
+         */
+        post: operations["createCopy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transfers": {
         parameters: {
             query?: never;
@@ -814,6 +834,28 @@ export interface components {
             from: string;
             to: string;
         };
+        CopyInput: {
+            /**
+             * Format: uuid
+             * @description Saved site or quick connection to read from.
+             */
+            sourceSiteId: string;
+            sourcePath: string;
+            /**
+             * Format: uuid
+             * @description Saved site or quick connection to write to.
+             */
+            targetSiteId: string;
+            /** @description Full path of the copy, including its name. */
+            targetPath: string;
+            /** @description Replace the destination when it exists. Defaults to false. */
+            overwrite?: boolean;
+            /**
+             * Format: uuid
+             * @description Identifier for the transfer, chosen by the client. The server picks one when left out.
+             */
+            transferId?: string;
+        };
         Transfer: {
             /** Format: uuid */
             id: string;
@@ -826,7 +868,7 @@ export interface components {
             siteId?: string;
             siteName: string;
             /** @enum {string} */
-            direction: "upload" | "download";
+            direction: "upload" | "download" | "copy";
             path: string;
             name: string;
             /** @enum {string} */
@@ -2944,6 +2986,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RemoteEntry"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createCopy: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyInput"];
+            };
+        };
+        responses: {
+            /** @description The copy was accepted and is queued or running. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transfer"];
                 };
             };
             /** @description An error. The stable code tells the client what happened. */
