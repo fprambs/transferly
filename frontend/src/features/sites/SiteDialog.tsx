@@ -13,6 +13,9 @@ import { Textarea } from '@/components/ui/textarea'
 import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
+import { useVaultStatus } from '../vault/use-vault'
+import { VaultLockedNotice } from '../vault/VaultLockedNotice'
+
 import { collectionOptions } from './collection-paths'
 import { ConnectionTest } from './ConnectionTest'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
@@ -89,6 +92,9 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
   const protocol = useWatch({ control, name: 'protocol' })
   const method = useWatch({ control, name: 'authMethod' })
   const usesKey = protocol === 'sftp' && method === 'key'
+  const secrets = useWatch({ control, name: ['password', 'privateKey', 'passphrase'] })
+  const vault = useVaultStatus()
+  const needsVault = vault !== undefined && !(vault.initialized && vault.unlocked) && secrets.some(Boolean)
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -191,10 +197,14 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         </datalist>
       </Field>
       {editing !== undefined && <ConnectionTest workspaceId={workspaceId} site={editing} />}
-      {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {t(($) => $.errors[failure])}
-        </p>
+      {needsVault || failure === 'vault_locked' ? (
+        <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
+      ) : (
+        failure !== null && (
+          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {t(($) => $.errors[failure])}
+          </p>
+        )
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>

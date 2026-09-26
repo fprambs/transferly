@@ -8,6 +8,8 @@ import { NativeSelect } from '@/components/ui/native-select'
 import type { ImportOptions, ImportResult } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
+import { VaultLockedNotice } from '../vault/VaultLockedNotice'
+
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
 import { sitesKeys } from './use-sites-data'
 
@@ -115,7 +117,9 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
             </NativeSelect>
           </label>
           {working ? <p role="status">{t(($) => $.import.working)}</p> : null}
-          {failure === null ? null : (
+          {failure === 'vault_locked' ? (
+            <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
+          ) : failure === null ? null : (
             <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive">
               {t(($) => $.errors[failure])}
             </p>

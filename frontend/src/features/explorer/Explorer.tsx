@@ -28,6 +28,8 @@ import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { EntryNameDialog } from './EntryNameDialog'
 import { ConnectingState } from './ExplorerLoading'
+import { VaultLockedNotice } from '../vault/VaultLockedNotice'
+
 import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
@@ -361,7 +363,12 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
           </Button>
         </div>
       )}
-      {failure !== null && (hostKey === undefined || target === undefined) && (
+      {failure === 'vault_locked' && (
+        <div className="m-4 max-w-xl">
+          <VaultLockedNotice need="connect" onUnlocked={() => void listing.refetch()} />
+        </div>
+      )}
+      {failure !== null && failure !== 'vault_locked' && (hostKey === undefined || target === undefined) && (
         <div role="alert" className="m-4 flex max-w-xl flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
           <p className="text-destructive">{t(($) => $.errors[failure])}</p>
           <Button variant="outline" className="self-start" onClick={() => void listing.refetch()}>

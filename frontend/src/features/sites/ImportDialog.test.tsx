@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
+import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 import { renderWithProviders } from '@/test/render'
@@ -137,7 +137,15 @@ describe('ImportDialog', () => {
 
     server.use(http.post('/api/v1/workspaces/:id/imports/filezilla', () => problem(409, 'vault_locked')))
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
-    await waitFor(() => expect(dialog.getByRole('alert')).toHaveTextContent('Unlock the vault to save credentials.'))
+    await waitFor(() => expect(dialog.getByRole('status')).toHaveTextContent('Your vault is locked'))
+
+    const unlocking = mockUnlocking()
+    await user.click(within(dialog.getByRole('status')).getByRole('button', { name: 'Unlock the vault' }))
+    const unlock = await screen.findByRole('dialog', { name: 'Unlock the vault' })
+    await user.type(within(unlock).getByLabelText('Master password'), 'correct horse battery')
+    await user.click(within(unlock).getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(unlocking.unlocked()).toBe(true))
+    await waitFor(() => expect(dialog.queryByRole('status')).not.toBeInTheDocument())
 
     fireEvent.change(dialog.getByLabelText('Site manager file'), { target: { files: [] } })
     expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled()

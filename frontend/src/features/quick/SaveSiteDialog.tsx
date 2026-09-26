@@ -13,6 +13,7 @@ import type { Collection, QuickConnection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
 import { collectionOptions } from '../sites/collection-paths'
+import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
 import { quickErrorKeyOf, type QuickErrorKey } from './errors'
 
@@ -84,10 +85,14 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
           ))}
         </NativeSelect>
       </div>
-      {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {t(($) => $.errors[failure])}
-        </p>
+      {failure === 'vault_locked' ? (
+        <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
+      ) : (
+        failure !== null && (
+          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {t(($) => $.errors[failure])}
+          </p>
+        )
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>

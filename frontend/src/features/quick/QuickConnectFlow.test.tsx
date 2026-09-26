@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import type { QuickConnection } from '@/lib/api'
-import { mockWorkspaceData, problem } from '@/test/handlers'
+import { mockUnlocking, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 import { useDialogsStore } from '@/state/dialogs-store'
@@ -72,6 +72,7 @@ async function fillAndConnect(user: ReturnType<typeof userEvent.setup>, port = '
  * - the form validates before calling the server and Cancel closes it
  * - the FTPS and FTP tabs send their protocol and default port, FTP warns that it is not encrypted, and the port hint follows the tab
  * - connecting sends the values with the default or the typed port, closes the dialog and offers to keep the server
+ * - a quick connection opens with the vault locked, and only saving it as a site asks to unlock, in place
  * - "Not now" dismisses the offer
  * - connecting proves the server answers by listing its root; a server that does not is closed again and explained
  * - a server key that is not known yet asks for trust, going back returns to the form and trusting connects
@@ -349,6 +350,32 @@ describe('quick connect', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(saved).toEqual({ name: 'Prod', collectionId: 'c2' })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('connects without the vault and asks for it only to save', async () => {
+    const vault = mockUnlocking()
+    server.use(
+      http.post('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(opened, { status: 201 })),
+      http.post('/api/v1/workspaces/:id/quick-connections/q1/save', () => (vault.unlocked() ? HttpResponse.json({ id: 's1', name: 'Prod' }, { status: 201 }) : problem(409, 'vault_locked'))),
+    )
+    const user = await renderFlow()
+    await openDialog(user)
+    await fillAndConnect(user)
+
+    await user.click(await screen.findByRole('button', { name: 'Save as site…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Save as site' })
+    await user.click(within(dialog).getByRole('button', { name: 'Save site' }))
+    const notice = await within(dialog).findByRole('status')
+    expect(notice).toHaveTextContent('Your vault is locked')
+
+    await user.click(within(notice).getByRole('button', { name: 'Unlock the vault' }))
+    const unlock = await screen.findByRole('dialog', { name: 'Unlock the vault' })
+    await user.type(within(unlock).getByLabelText('Master password'), 'correct horse battery')
+    await user.click(within(unlock).getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(within(dialog).queryByRole('status')).not.toBeInTheDocument())
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save site' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('saves at the top level when no collection is chosen', async () => {

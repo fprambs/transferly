@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useUiStore } from '@/state/ui-store'
-import { adminSession, mockSession, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
+import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 import { failTeam, meId, member, mockTeam, teamId } from '@/test/teams'
@@ -87,7 +87,14 @@ describe('members page', () => {
     await user.type(within(dialog).getByLabelText('Name'), 'Acme')
     await user.click(within(dialog).getByRole('button', { name: 'Create' }))
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Unlock your vault first')
+    const notice = await within(dialog).findByRole('status')
+    expect(notice).toHaveTextContent('Your vault is locked')
+    mockUnlocking()
+    await user.click(within(notice).getByRole('button', { name: 'Unlock the vault' }))
+    const unlock = await screen.findByRole('dialog', { name: 'Unlock the vault' })
+    await user.type(within(unlock).getByLabelText('Master password'), 'correct horse battery')
+    await user.click(within(unlock).getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(within(dialog).queryByRole('status')).not.toBeInTheDocument())
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })

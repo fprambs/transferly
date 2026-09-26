@@ -12,6 +12,8 @@ import { useUiStore } from '@/state/ui-store'
 
 import { workspacesKey } from '../workspace/use-workspace'
 
+import { VaultLockedNotice } from '../vault/VaultLockedNotice'
+
 import { teamErrorKeyOf, type TeamErrorKey } from './errors'
 import { TeamFailure } from './TeamMessage'
 
@@ -63,7 +65,7 @@ function NewTeamForm({ onClose }: Pick<NewTeamDialogProps, 'onClose'>) {
         <Label htmlFor="team-name">{t(($) => $.newTeam.name)}</Label>
         <Input id="team-name" value={name} maxLength={80} autoFocus onChange={(event) => setName(event.target.value)} />
       </div>
-      <TeamFailure failure={failure} />
+      {failure === 'vault_locked' ? <VaultLockedNotice need="team" onUnlocked={() => setFailure(null)} /> : <TeamFailure failure={failure} />}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>
           {t(($) => $.newTeam.cancel)}

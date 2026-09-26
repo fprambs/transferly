@@ -3,6 +3,15 @@ import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
 
+/** Chooses the team in the workspace switcher of a page and opens its members. */
+async function openTeamMembers(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name: 'Workspace' }).click()
+  await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click()
+  await page.getByRole('button', { name: 'Workspace' }).click()
+  await page.getByRole('menuitem', { name: 'Members', exact: true }).click()
+  await expect(page).toHaveURL(/\/members$/)
+}
+
 /**
  * Teams against the production image: a team workspace, an invitation, a new account that joins through it, and removing them.
  *
@@ -14,18 +23,9 @@ import { expect, test } from '../fixtures.ts'
  * - a revoked invitation and a made up token show the same page, which does not say why
  * - the members page, with its dialogs, and the invitation page have no WCAG violations in the light and dark themes
  */
-test.describe.configure({ mode: 'serial' })
-
-/** Chooses the team in the workspace switcher of a page and opens its members. */
-async function openTeamMembers(page: Page, name: string): Promise<void> {
-  await page.getByRole('button', { name: 'Workspace' }).click()
-  await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click()
-  await page.getByRole('button', { name: 'Workspace' }).click()
-  await page.getByRole('menuitem', { name: 'Members', exact: true }).click()
-  await expect(page).toHaveURL(/\/members$/)
-}
-
 test.describe('teams', () => {
+  test.describe.configure({ mode: 'serial' })
+
   const stamp = Date.now()
   const team = `e2e-team-${stamp}`
   const invitee = `e2e-invitee-${stamp}@example.com`

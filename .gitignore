@@ -24,3 +24,4 @@ backend/internal/transport/webui/dist/*
 # Playwright
 frontend/blob-report/
 frontend/e2e/.auth/
+frontend/shots/

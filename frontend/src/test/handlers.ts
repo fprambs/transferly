@@ -83,3 +83,19 @@ export function mockUpdateMe(): unknown[] {
   )
   return received
 }
+
+/**
+ * Answers the vault state as locked, or as missing when `initialized` is false, and switches it to unlocked once the master password
+ * is sent. The returned function tells whether that happened.
+ */
+export function mockUnlocking(initialized = true): { unlocked: () => boolean } {
+  let unlocked = false
+  server.use(
+    http.get('/api/v1/vault', () => HttpResponse.json({ initialized, unlocked })),
+    http.post('/api/v1/vault/unlock', () => {
+      unlocked = true
+      return new HttpResponse(null, { status: 204 })
+    }),
+  )
+  return { unlocked: () => unlocked }
+}

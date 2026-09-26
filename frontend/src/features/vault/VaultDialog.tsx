@@ -34,6 +34,8 @@ export interface VaultDialogProps {
   mode: VaultMode | null
   /** Called when the dialog is dismissed. */
   onClose: () => void
+  /** Called after the vault was unlocked, or created and its recovery kit stored, so the caller can carry on with what needed it. */
+  onUnlocked?: () => void
 }
 
 /** Props of {@link RecoveryKit}. */
@@ -80,10 +82,12 @@ interface PasswordFormProps {
   onClose: () => void
   /** Called with the recovery kit when a new vault was created. */
   onKit: (kit: string) => void
+  /** Called after the vault was unlocked. */
+  onUnlocked?: () => void
 }
 
 /** Master password form of the vault dialog. */
-function PasswordForm({ mode, onClose, onKit }: PasswordFormProps) {
+function PasswordForm({ mode, onClose, onKit, onUnlocked }: PasswordFormProps) {
   const { t } = useTranslation('vault')
   const api = useApi()
   const queryClient = useQueryClient()
@@ -103,7 +107,10 @@ function PasswordForm({ mode, onClose, onKit }: PasswordFormProps) {
         onKit(recoveryKit)
       } else {
         await api.vault.unlock(password)
+        await queryClient.invalidateQueries({ queryKey: vaultKey })
         onClose()
+        onUnlocked?.()
+        return
       }
       await queryClient.invalidateQueries({ queryKey: vaultKey })
     } catch (error) {
@@ -156,7 +163,7 @@ function PasswordForm({ mode, onClose, onKit }: PasswordFormProps) {
 }
 
 /** Dialog to create or unlock the vault; a new vault ends with its recovery kit. */
-export function VaultDialog({ mode, onClose }: VaultDialogProps) {
+export function VaultDialog({ mode, onClose, onUnlocked }: VaultDialogProps) {
   const [kit, setKit] = useState<string | null>(null)
 
   return (
@@ -168,10 +175,11 @@ export function VaultDialog({ mode, onClose }: VaultDialogProps) {
             onDone={() => {
               setKit(null)
               onClose()
+              onUnlocked?.()
             }}
           />
         ) : (
-          mode !== null && <PasswordForm key={mode} mode={mode} onClose={onClose} onKit={setKit} />
+          mode !== null && <PasswordForm key={mode} mode={mode} onClose={onClose} onKit={setKit} onUnlocked={onUnlocked} />
         )}
       </DialogContent>
     </Dialog>

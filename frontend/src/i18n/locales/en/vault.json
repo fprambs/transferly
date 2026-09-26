@@ -39,5 +39,21 @@
     "rate_limited": "Too many attempts. Wait a moment and try again.",
     "network_error": "Could not reach the server.",
     "unknown": "Something went wrong. Try again."
+  },
+  "notice": {
+    "locked": {
+      "title": "Your vault is locked",
+      "action": "Unlock the vault",
+      "save": "Passwords and keys are sealed with the vault, so it has to be unlocked to save them. Editing other settings and quick connections do not need it.",
+      "connect": "The password of this site is sealed in your vault. Unlock it to connect. Quick connections do not need the vault.",
+      "team": "The key of a team is sealed with your vault. Unlock it to create the team."
+    },
+    "missing": {
+      "title": "Set up your vault",
+      "action": "Set up the vault",
+      "save": "Passwords and keys are sealed with a vault protected by a master password. Create it to save them; quick connections do not need it.",
+      "connect": "This site has a saved password, but you have no vault yet. Create one to connect.",
+      "team": "The key of a team is sealed with your vault. Create your vault to start a team."
+    }
   }
 }

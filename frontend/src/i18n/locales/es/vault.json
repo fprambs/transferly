@@ -39,5 +39,21 @@
     "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
     "network_error": "No se pudo contactar con el servidor.",
     "unknown": "Algo salió mal. Inténtalo de nuevo."
+  },
+  "notice": {
+    "locked": {
+      "title": "Tu vault está bloqueado",
+      "action": "Desbloquear el vault",
+      "save": "Las contraseñas y claves se sellan con el vault, así que debe estar desbloqueado para guardarlas. Editar otros ajustes y las conexiones rápidas no lo necesitan.",
+      "connect": "La contraseña de este sitio está sellada en tu vault. Desbloquéalo para conectar. Las conexiones rápidas no necesitan el vault.",
+      "team": "La clave de un equipo se sella con tu vault. Desbloquéalo para crear el equipo."
+    },
+    "missing": {
+      "title": "Configura tu vault",
+      "action": "Configurar el vault",
+      "save": "Las contraseñas y claves se sellan con un vault protegido por una contraseña maestra. Créalo para guardarlas; las conexiones rápidas no lo necesitan.",
+      "connect": "Este sitio tiene una contraseña guardada, pero aún no tienes vault. Crea uno para conectar.",
+      "team": "La clave de un equipo se sella con tu vault. Crea tu vault para empezar un equipo."
+    }
   }
 }
