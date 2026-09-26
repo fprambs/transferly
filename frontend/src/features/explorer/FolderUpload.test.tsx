@@ -145,6 +145,7 @@ describe('folder uploads', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Copy site' })
     const select = within(dialog).getByRole('combobox', { name: 'If a file exists' })
     expect(select).toHaveValue('skip')
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
     expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Skip it', 'Keep both, renaming the copy', 'Overwrite it', 'Stop with an error'])
     await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
 

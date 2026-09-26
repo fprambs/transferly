@@ -209,7 +209,7 @@ Aceptación: desplegar con `docker compose up`, crear un vault, guardar un sitio
 - [x] Descarga de carpetas como ZIP en streaming (`GET /files/archive`, por defecto) o archivo por archivo desde el navegador (hasta 500 archivos)
 - [x] Copia de carpetas entre sitios con políticas de sobrescritura (omitir, sobrescribir, solo si es más nuevo, conservar ambos, detenerse); arrastrar una carpeta de un panel al otro pregunta la política
 - [x] Subida de carpetas desde el navegador (arrastrar una carpeta, botón «Subir carpeta» o desde la carpeta local) y descarga de carpetas a la carpeta local, con política para los archivos que existen (omitir, conservar ambos, sobrescribir, detenerse); cada archivo es una transferencia propia
-- [ ] Resume FTP, checksums
+- [x] Resume FTP (subidas con `REST`/`APPE`, comprobado con vsftpd en el test de conformidad y en un E2E de cancelar y reanudar) y checksums (MD5, SHA-1, SHA-256 y SHA-512 de un archivo remoto desde el inspector; las copias entre sitios pueden verificarse leyendo de vuelta cada archivo)
 - [x] Panel de carpeta local: el segundo panel puede mostrar una carpeta del equipo del usuario con la File System Access API (navegadores Chromium, en `localhost` o HTTPS); arrastrar de un servidor a la carpeta guarda el archivo sin sobrescribir nada y arrastrar de la carpeta a un servidor lo sube. El acceso completo al disco queda para la versión de escritorio (Wails)
 - [x] Transferencias servidor a servidor de archivos (`POST /workspaces/{id}/copies`, dirección `copy`; las carpetas llegan con la transferencia de carpetas)
 - [ ] Log de actividad por conexión sin secretos

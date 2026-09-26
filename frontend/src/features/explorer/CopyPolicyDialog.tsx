@@ -18,16 +18,19 @@ export interface CopyPolicyDialogProps {
   allowed?: readonly CopyPolicy[]
   /** Name of the file or folder being copied. */
   name: string
-  /** Called with the policy the user chose. */
-  onConfirm: (policy: CopyPolicy) => void
+  /** Whether to offer to verify the copy by reading it back; uploads and downloads to the local folder cannot. */
+  verifiable?: boolean
+  /** Called with the policy the user chose and whether the copy is to be verified. */
+  onConfirm: (policy: CopyPolicy, verify: boolean) => void
   /** Called when the user gives up. */
   onCancel: () => void
 }
 
 /** Asks what to do with the files that already exist at the destination of a copy. */
-export function CopyPolicyDialog({ allowed = policies, name, onConfirm, onCancel }: CopyPolicyDialogProps) {
+export function CopyPolicyDialog({ allowed = policies, verifiable = false, name, onConfirm, onCancel }: CopyPolicyDialogProps) {
   const { t } = useTranslation('explorer')
   const [policy, setPolicy] = useState<CopyPolicy>(allowed[0])
+  const [verify, setVerify] = useState(false)
 
   return (
     <Dialog open onOpenChange={onCancel}>
@@ -43,11 +46,20 @@ export function CopyPolicyDialog({ allowed = policies, name, onConfirm, onCancel
             </option>
           ))}
         </NativeSelect>
+        {verifiable ? (
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={verify} onChange={(event) => setVerify(event.target.checked)} />
+            <span>
+              {t(($) => $.policy.verify)}
+              <span className="block text-xs text-muted-foreground">{t(($) => $.policy.verifyHint)}</span>
+            </span>
+          </label>
+        ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>
             {t(($) => $.policy.cancel)}
           </Button>
-          <Button onClick={() => onConfirm(policy)}>{t(($) => $.policy.confirm)}</Button>
+          <Button onClick={() => onConfirm(policy, verify)}>{t(($) => $.policy.confirm)}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

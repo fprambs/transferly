@@ -4,8 +4,8 @@ import { expect, test } from '../fixtures.ts'
  * The second pane and the copy between panes against the SFTP server of the isolated test stack.
  *
  * Scenarios:
- * - a folder dragged onto the second pane asks what to do with files that exist, and after choosing the default it is copied whole and
- *   listed there
+ * - a folder dragged onto the second pane asks what to do with files that exist, and after choosing the default and asking to verify
+ *   the copy it is copied whole, read back and listed there
  * - the split button opens a second pane on a saved site; a file dragged from the quick connection in the first pane onto
  *   the second pane is copied through the server, shows in the transfers dock as a finished copy, appears in the listing of
  *   the second pane, inside a folder made for it, and holds the same content
@@ -66,7 +66,9 @@ test.describe('split view', () => {
     expect(await copy.text()).toBe(content)
 
     await page.getByRole('grid', { name: 'Files' }).first().getByRole('row', { name: new RegExp(pack) }).dragTo(second.locator('section'))
-    await page.getByRole('dialog', { name: `Copy ${pack}` }).getByRole('button', { name: 'Copy' }).click()
+    const copyDialog = page.getByRole('dialog', { name: `Copy ${pack}` })
+    await copyDialog.getByRole('checkbox', { name: /Verify the copy/ }).check()
+    await copyDialog.getByRole('button', { name: 'Copy' }).click()
     await expect(dock.getByRole('listitem').filter({ hasText: pack }).filter({ has: page.getByRole('img', { name: 'Copy' }) })).toContainText('Done', { timeout: 30_000 })
     await expect(secondGrid.getByRole('row', { name: new RegExp(pack) })).toBeVisible()
     const inside = await request.get(`${savedFiles}/content`, { params: { path: `/upload/${folder}/${pack}/in-pack.txt` } })

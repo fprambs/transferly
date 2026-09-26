@@ -50,6 +50,8 @@ async function renderExplorer() {
  * - a folder downloads as a ZIP by default, from the inspector and from the context menu, through the archive address with a transfer identifier
  * - the context menu and the inspector also offer to download the files one by one, which start a download per file of the tree, in order
  * - a folder with more files than the limit, and a folder that cannot be read, are explained and the message can be dismissed
+ * - a file can have its checksum computed with the algorithm chosen, shown and copied, a failure is reported, changing the algorithm or the file
+ *   clears it, and folders offer none
  * - files keep offering their plain download and no folder items
  */
 describe('folder downloads', () => {
@@ -110,6 +112,53 @@ describe('folder downloads', () => {
     await each()
     expect(await screen.findByRole('alert')).toHaveTextContent('The files could not be downloaded: This folder does not exist.')
     expect(links).toEqual([])
+  })
+
+  it('computes and copies the checksum of a file', async () => {
+    mockListings()
+    const sums: Array<string | null> = []
+    let answer: () => Response = () => HttpResponse.json({ algorithm: 'sha256', checksum: 'abc123', size: 10 })
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files/checksum', ({ request }) => {
+        sums.push(new URL(request.url).searchParams.get('algorithm'))
+        return answer()
+      }),
+    )
+    const written: string[] = []
+    const { user, grid } = await renderExplorer()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (text: string) => (written.push(text), Promise.resolve()) } })
+    await user.click(within(grid).getByText('readme.txt'))
+    const inspector = within(screen.getByRole('complementary'))
+
+    await user.click(inspector.getByRole('button', { name: 'Checksum' }))
+    expect(await inspector.findByLabelText('Checksum value')).toHaveTextContent('abc123')
+    await user.click(inspector.getByRole('button', { name: 'Copy the checksum' }))
+    expect(written).toEqual(['abc123'])
+    expect(await inspector.findByRole('button', { name: 'Checksum copied' })).toBeInTheDocument()
+
+    await user.selectOptions(inspector.getByRole('combobox', { name: 'Checksum algorithm' }), 'MD5')
+    expect(inspector.queryByLabelText('Checksum value')).not.toBeInTheDocument()
+    answer = () => problem(502, 'remote_unavailable')
+    await user.click(inspector.getByRole('button', { name: 'Checksum' }))
+    expect(await inspector.findByRole('alert')).toHaveTextContent('The checksum could not be computed.')
+    expect(sums).toEqual(['sha256', 'md5'])
+
+    await user.click(within(grid).getByText('docs'))
+    expect(within(screen.getByRole('complementary')).queryByRole('button', { name: 'Checksum' })).not.toBeInTheDocument()
+  })
+
+  it('shows that the checksum is being read', async () => {
+    mockListings()
+    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files/checksum', async () => (await new Promise((resolve) => setTimeout(resolve, 200)), HttpResponse.json({ algorithm: 'sha256', checksum: 'late', size: 1 }))))
+    const { user, grid } = await renderExplorer()
+    await user.click(within(grid).getByText('readme.txt'))
+    const inspector = within(screen.getByRole('complementary'))
+
+    await user.click(inspector.getByRole('button', { name: 'Checksum' }))
+
+    expect(inspector.getByRole('status')).toHaveTextContent('Reading the file…')
+    expect(inspector.getByRole('button', { name: 'Checksum' })).toBeDisabled()
+    expect(await inspector.findByLabelText('Checksum value')).toHaveTextContent('late')
   })
 
   it('keeps the plain download for files and offers no folder items there', async () => {

@@ -97,6 +97,7 @@ services:
       SENTINEL_ALLOWED_ORIGINS: http://sentinel:8080
       SENTINEL_ALLOWED_NETWORKS: 172.16.0.0/12
       SENTINEL_TRANSFER_LIMIT_PER_SITE: "2"
+      SENTINEL_QUICK_CONNECT_BURST: "40"
     tmpfs:
       - /data:mode=0700,uid=65532,gid=65532
     read_only: true

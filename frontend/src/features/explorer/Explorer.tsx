@@ -115,7 +115,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
     }
   }
 
-  const copyWith = async (source: DraggedEntry, policy: CopyPolicy): Promise<void> => {
+  const copyWith = async (source: DraggedEntry, policy: CopyPolicy, verify: boolean): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
     try {
       await api.copies.create(workspaceId, {
@@ -124,6 +124,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         targetSiteId: siteId,
         targetPath: joinPath(path, name),
         policy,
+        verify,
         transferId: uuid(),
       })
       setCopyFailure(null)
@@ -156,7 +157,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       setAsking({ source, name })
       return
     }
-    await copyWith(source, 'fail')
+    await copyWith(source, 'fail', false)
   }
 
   const drop = (event: DragEvent<HTMLElement>): void => {
@@ -317,9 +318,10 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         <CopyPolicyDialog
           name={asking.name}
           onCancel={() => setAsking(null)}
-          onConfirm={(policy) => {
+          verifiable
+          onConfirm={(policy, verify) => {
             setAsking(null)
-            void copyWith(asking.source, policy)
+            void copyWith(asking.source, policy, verify)
           }}
         />
       )}
@@ -380,6 +382,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             timeZone={timeZone}
             onDownload={download}
             onDownloadEach={(entry) => void downloadEach(entry)}
+            onChecksum={(entry, algorithm) => api.files.checksum(workspaceId, siteId, entry.path, algorithm)}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
           />

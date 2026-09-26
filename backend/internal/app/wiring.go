@@ -40,7 +40,6 @@ var (
 	loginIPRule      = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
 	loginAccountRule = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 	vaultRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
-	quickRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 )
 
 // janitorTask is a periodic cleanup that reports how many items it removed.
@@ -103,7 +102,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),
 				LoginAccount:  ratelimit.New(system, loginAccountRule, maxTrackedClients),
-				QuickConnect:  ratelimit.New(system, quickRule, maxTrackedClients),
+				QuickConnect:  ratelimit.New(system, ratelimit.Rule{Burst: cfg.QuickConnectBurst, Every: 12 * time.Second}, maxTrackedClients),
 				VaultAttempts: ratelimit.New(system, vaultRule, maxTrackedClients),
 			},
 			InstanceKey:    instanceKey,

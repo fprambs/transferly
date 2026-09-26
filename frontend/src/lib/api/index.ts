@@ -36,6 +36,12 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** The digest of a remote file. */
+export type Checksum = Schemas['Checksum']
+
+/** Algorithms a checksum can be computed with. */
+export type ChecksumAlgorithm = Checksum['algorithm']
+
 /** What the server needs to copy a file from one site to another. */
 export type CopyInput = Schemas['CopyInput']
 
@@ -151,6 +157,8 @@ export function createApi(transport: Transport) {
         transport.request<void>({ method: 'DELETE', path: filesPath(workspaceId, siteId), query: { path, recursive: recursive || undefined } }),
       downloadUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/content`, { path, transferId }),
+      checksum: (workspaceId: string, siteId: string, path: string, algorithm: ChecksumAlgorithm) =>
+        transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
       archiveUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/archive`, { path, transferId }),
       download: (workspaceId: string, siteId: string, path: string, transferId?: string) =>

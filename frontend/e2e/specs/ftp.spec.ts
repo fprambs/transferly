@@ -37,7 +37,7 @@ test.describe('ftp and ftps', () => {
 
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
-    await page.getByRole('treeitem', { name: /^ftp not saved/ }).click()
+    await page.getByRole('treeitem', { name: /^ftp not saved/ }).first().click()
     const grid = page.getByRole('grid', { name: 'Files' })
     const upload = grid.getByRole('row', { name: /upload/ })
     await expect(upload).toBeVisible()

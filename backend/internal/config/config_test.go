@@ -200,6 +200,7 @@ func TestLoad_WebSettings(t *testing.T) {
 //   - defaults are 32 in total, 16 per workspace, 8 per user and 4 per site
 //   - each cap can be set, and zero means no cap
 //   - negative and non-numeric values are reported
+//   - the burst of quick connections defaults to 5, can be raised, and must be a positive number
 func TestLoad_TransferLimits(t *testing.T) {
 	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
 	cfg, err := config.Load(env(base))
@@ -214,6 +215,20 @@ func TestLoad_TransferLimits(t *testing.T) {
 	if err != nil || cfg.TransferLimits != (config.TransferLimits{Global: 0, PerWorkspace: 5, PerUser: 3, PerSite: 2}) {
 		t.Fatalf("overrides = %+v, %v", cfg.TransferLimits, err)
 	}
+	if cfg.QuickConnectBurst != 5 {
+		t.Errorf("default burst = %d; want 5", cfg.QuickConnectBurst)
+	}
+	base["SENTINEL_QUICK_CONNECT_BURST"] = "30"
+	if cfg, err = config.Load(env(base)); err != nil || cfg.QuickConnectBurst != 30 {
+		t.Errorf("burst = %d, %v; want 30", cfg.QuickConnectBurst, err)
+	}
+	for _, value := range []string{"0", "-2", "lots"} {
+		base["SENTINEL_QUICK_CONNECT_BURST"] = value
+		if _, err := config.Load(env(base)); err == nil {
+			t.Errorf("Load() with a quick connect burst of %q = nil error", value)
+		}
+	}
+	delete(base, "SENTINEL_QUICK_CONNECT_BURST")
 	for _, value := range []string{"-1", "many", "1.5"} {
 		base["SENTINEL_TRANSFER_LIMIT_PER_SITE"] = value
 		if _, err := config.Load(env(base)); err == nil {

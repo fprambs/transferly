@@ -20,6 +20,10 @@ Endpoints live under `/api/v1/workspaces/{workspaceId}/sites/{siteId}/files`. Ev
 
 `GET /files/archive?path=&transferId=` streams a folder and its subfolders as a ZIP attachment named after the folder, written as the files are read, so memory does not grow with the tree. It is recorded as a download named `<folder>.zip` with an unknown size; the transfer is done once the client read the end of the stream. Links, devices and names with a separator, `..` or a control character are left out, so unpacking the ZIP cannot write outside its folder. A tree deeper than 64 levels or with more than 100,000 entries fails with `tree_too_large`, which after the stream started leaves the ZIP incomplete and the transfer failed. The explorer downloads folders this way by default and also offers to download the files one by one (up to 500), each as its own transfer.
 
+## Checksums
+
+`GET /files/checksum?path=&algorithm=` reads a file through the server and answers `{algorithm, checksum, size}` with the digest in lower case hexadecimal; the algorithms are `sha256` (default), `sha512`, `sha1` and `md5`, the last two only to compare with published sums. Nothing is stored, and the cost is reading the whole file. A copy with `verify: true` hashes the bytes it sends, reads the destination back and fails with `checksum_mismatch` when they differ; a folder verifies every file.
+
 ## Rules
 
 - Downloads are always `Content-Disposition: attachment` with `Content-Type: application/octet-stream` and `nosniff`; what a remote server holds is never rendered as a page of this origin. File names are encoded as RFC 2231 parameters, so they cannot inject headers.

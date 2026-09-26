@@ -16,6 +16,7 @@ const (
 	defaultHTTPAddr        = ":8080"
 	defaultLogLevel        = "info"
 	defaultShutdownTimeout = 15 * time.Second
+	defaultQuickBurst      = 5
 	defaultDataDir         = "/data"
 	defaultBaseURL         = "http://localhost:8080"
 	defaultSessionIdle     = 30 * time.Minute
@@ -56,6 +57,8 @@ type Config struct {
 	JanitorInterval time.Duration
 	// TransferLimits caps how many transfers run at once; the rest wait in the queue.
 	TransferLimits TransferLimits
+	// QuickConnectBurst is how many quick connections one client may open in a burst; afterwards one more every 12 seconds.
+	QuickConnectBurst int
 }
 
 // TransferLimits are the caps of concurrent transfers; zero means no cap.
@@ -80,17 +83,18 @@ func (c Config) CookieSecure() bool {
 // All validation errors are returned joined.
 func Load(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		HTTPAddr:        valueOr(getenv("SENTINEL_HTTP_ADDR"), defaultHTTPAddr),
-		DatabaseURL:     getenv("SENTINEL_DATABASE_URL"),
-		LogLevel:        strings.ToLower(valueOr(getenv("SENTINEL_LOG_LEVEL"), defaultLogLevel)),
-		ShutdownTimeout: defaultShutdownTimeout,
-		AutoMigrate:     true,
-		DataDir:         valueOr(getenv("SENTINEL_DATA_DIR"), defaultDataDir),
-		BaseURL:         valueOr(getenv("SENTINEL_BASE_URL"), defaultBaseURL),
-		SessionIdle:     defaultSessionIdle,
-		SessionMax:      defaultSessionMax,
-		JanitorInterval: defaultJanitor,
-		TransferLimits:  TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4},
+		HTTPAddr:          valueOr(getenv("SENTINEL_HTTP_ADDR"), defaultHTTPAddr),
+		DatabaseURL:       getenv("SENTINEL_DATABASE_URL"),
+		LogLevel:          strings.ToLower(valueOr(getenv("SENTINEL_LOG_LEVEL"), defaultLogLevel)),
+		ShutdownTimeout:   defaultShutdownTimeout,
+		AutoMigrate:       true,
+		DataDir:           valueOr(getenv("SENTINEL_DATA_DIR"), defaultDataDir),
+		BaseURL:           valueOr(getenv("SENTINEL_BASE_URL"), defaultBaseURL),
+		SessionIdle:       defaultSessionIdle,
+		SessionMax:        defaultSessionMax,
+		JanitorInterval:   defaultJanitor,
+		TransferLimits:    TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4},
+		QuickConnectBurst: defaultQuickBurst,
 	}
 
 	var errs []error
@@ -130,6 +134,11 @@ func Load(getenv func(string) string) (Config, error) {
 		if err := parseLimit(getenv(l.name), l.name, l.into); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if err := parseLimit(getenv("SENTINEL_QUICK_CONNECT_BURST"), "SENTINEL_QUICK_CONNECT_BURST", &cfg.QuickConnectBurst); err != nil {
+		errs = append(errs, err)
+	} else if cfg.QuickConnectBurst < 1 {
+		errs = append(errs, errors.New("SENTINEL_QUICK_CONNECT_BURST must be at least 1"))
 	}
 	if cfg.SessionIdle > cfg.SessionMax {
 		errs = append(errs, errors.New("SENTINEL_SESSION_IDLE must not exceed SENTINEL_SESSION_MAX"))

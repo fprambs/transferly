@@ -70,7 +70,7 @@ function mockServer(copyReply: () => Response = () => HttpResponse.json({}, { st
  * - the split button opens a second pane on the same site, the address records it, and the button closes it again
  * - the second pane changes site with its selector and moves through its own folders without touching the first pane
  * - dragging a file of one pane onto the other asks the server to copy it into the folder in view, with a hint while over it
- * - dragging a folder, or a file whose name exists in the target folder, asks what to do with files that exist there, and the copy follows the choice or does not start when the user gives up
+ * - dragging a folder, or a file whose name exists in the target folder, asks what to do with files that exist there and whether to verify the copy, and the copy follows the choice or does not start when the user gives up
  * - dropping a file on its own folder, a file of another workspace or data that is not a file does nothing
  * - a copy the server refuses is explained and can be dismissed, and a later copy clears the message
  */
@@ -160,9 +160,10 @@ describe('split view', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Copy docs' })
     expect(within(dialog).getByRole('combobox', { name: 'If a file exists' })).toHaveValue('skip')
     await user.selectOptions(within(dialog).getByRole('combobox', { name: 'If a file exists' }), 'Keep both, renaming the copy')
+    await user.click(within(dialog).getByRole('checkbox', { name: /Verify the copy/ }))
     await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(copies).toHaveLength(1))
-    expect(copies[0]).toMatchObject({ sourcePath: '/docs', targetPath: '/docs', policy: 'rename' })
+    expect(copies[0]).toMatchObject({ sourcePath: '/docs', targetPath: '/docs', policy: 'rename', verify: true })
 
     dragTo(await rowOf('shared.txt'))
     await user.click(within(await screen.findByRole('dialog', { name: 'Copy shared.txt' })).getByRole('button', { name: 'Cancel' }))
@@ -173,7 +174,7 @@ describe('split view', () => {
     dragTo(await rowOf('shared.txt'))
     await user.click(within(await screen.findByRole('dialog', { name: 'Copy shared.txt' })).getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(copies).toHaveLength(2))
-    expect(copies[1]).toMatchObject({ sourcePath: '/shared.txt', policy: 'skip' })
+    expect(copies[1]).toMatchObject({ sourcePath: '/shared.txt', policy: 'skip', verify: false })
   })
 
   it('ignores drops that are not a copy to another folder', async () => {

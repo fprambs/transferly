@@ -151,6 +151,17 @@
     "rename": "Conservar ambos, renombrando la copia",
     "fail": "Detenerse con un error",
     "confirm": "Copiar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "verify": "Verificar la copia",
+    "verifyHint": "Lee de vuelta cada archivo copiado y lo compara con los bytes que se enviaron. Tarda más."
+  },
+  "checksum": {
+    "algorithm": "Algoritmo del checksum",
+    "compute": "Checksum",
+    "working": "Leyendo el archivo…",
+    "failed": "No se pudo calcular el checksum.",
+    "value": "Valor del checksum",
+    "copy": "Copiar el checksum",
+    "copied": "Checksum copiado"
   }
 }
