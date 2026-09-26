@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { FakeDir, handleOf, offerPicker, withdrawPicker } from '@/test/fake-local'
 
-import { freeLocalName, listLocal, LocalNameTaken, localNameExists, makeLocalDirectory, localSupported, openLocalDirectory, pickLocalDirectory, readLocalFile, saveToLocal } from './local-fs'
+import { freeLocalName, listLocal, LocalNameTaken, localNameExists, makeLocalDirectory, localSupported, openLocalDirectory, pickLocalDirectory, readLocalFile, saveToLocal, UnsafeLocalName } from './local-fs'
 
 /** A stream that delivers text. */
 function streamOf(text: string): ReadableStream<Uint8Array> {
@@ -38,6 +38,7 @@ function brokenStream(): ReadableStream<Uint8Array> {
  * - names are checked against a folder, the first free numbered name is found with or without an extension, and folders are created or reused but never over a file
  * - a file is read by its path, and a missing one fails
  * - a stream is saved as a new file, an existing file or folder of that name is refused and left alone, and a failing stream leaves no partial file
+ * - names that are empty, `.`, `..` or hold a separator or NUL, and paths with `..`, are refused before anything is written
  */
 describe('local folder access', () => {
   afterEach(() => withdrawPicker())
@@ -119,6 +120,15 @@ describe('local folder access', () => {
     await makeLocalDirectory(handleOf(root), '/', 'docs')
     expect(root.children.has('fresh')).toBe(true)
     await expect(makeLocalDirectory(handleOf(root), '/', 'a.txt')).rejects.toBeInstanceOf(LocalNameTaken)
+  })
+
+  it('refuses names and paths that would climb out of the folder', async () => {
+    const root = handleOf(new FakeDir('root'))
+    for (const name of ['..', '.', '', 'a/b', '..\\evil', 'nul\0']) {
+      await expect(saveToLocal(root, '/', name, streamOf('x'))).rejects.toBeInstanceOf(UnsafeLocalName)
+      await expect(makeLocalDirectory(root, '/', name)).rejects.toBeInstanceOf(UnsafeLocalName)
+    }
+    await expect(openLocalDirectory(root, '/a/../..')).rejects.toBeInstanceOf(UnsafeLocalName)
   })
 
   it('overwrites an existing file only when asked to', async () => {

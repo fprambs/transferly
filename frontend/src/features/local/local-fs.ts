@@ -31,9 +31,20 @@ export async function pickLocalDirectory(): Promise<FileSystemDirectoryHandle | 
   }
 }
 
-/** Splits an absolute path into its names. */
+/** Raised when a name would leave the folder it is written in, as a remote server could send to trick a download. */
+export class UnsafeLocalName extends Error {}
+
+/** Refuses the names that are empty, point at the folder itself or its parent, or hold a separator or a NUL character. */
+function checkName(name: string): string {
+  if (name === '' || name === '.' || name === '..' || /[/\\\0]/.test(name)) {
+    throw new UnsafeLocalName(name)
+  }
+  return name
+}
+
+/** Splits an absolute path into its names, refusing the ones that would climb out of the root. */
 function names(path: string): string[] {
-  return path.split('/').filter((name) => name !== '')
+  return path.split('/').filter((name) => name !== '').map(checkName)
 }
 
 /** Opens the folder at an absolute path below the root the user chose. */
@@ -90,6 +101,7 @@ export async function freeLocalName(root: FileSystemDirectoryHandle, path: strin
 /** Creates a folder below the root, or uses the one that exists; a file with that name is refused. */
 export async function makeLocalDirectory(root: FileSystemDirectoryHandle, path: string, name: string): Promise<void> {
   const directory = await openLocalDirectory(root, path)
+  checkName(name)
   try {
     await directory.getDirectoryHandle(name, { create: true })
   } catch {
@@ -116,6 +128,7 @@ export class LocalNameTaken extends Error {}
 /** Writes a stream to a file in a folder below the root; an existing name is refused unless overwriting was asked for, and a failure leaves no partial file. */
 export async function saveToLocal(root: FileSystemDirectoryHandle, path: string, name: string, data: ReadableStream<Uint8Array>, overwrite = false): Promise<void> {
   const directory = await openLocalDirectory(root, path)
+  checkName(name)
   if (!overwrite && (await exists(directory, name))) {
     throw new LocalNameTaken(name)
   }
