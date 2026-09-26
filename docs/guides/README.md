@@ -21,6 +21,7 @@ Before using a library for the first time, read its official documentation and r
 | [Connection pool](connection-pool.md) | done |
 | [Transfer scheduler](transfer-scheduler.md) | done |
 | [Character sets of file names](charset.md) | done |
+| [Workspace keys](workspace-keys.md) | done |
 | [Remote files API](remote-files-api.md) | done |
 | [coder/websocket](websocket.md) | done |
 | [Theming](theming.md) | done |
