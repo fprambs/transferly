@@ -19,6 +19,7 @@ Before using a library for the first time, read its official documentation and r
 | [Production image and stack](production-image.md) | done |
 | [Playwright](playwright.md) | done |
 | [Connection pool](connection-pool.md) | done |
+| [Transfer scheduler](transfer-scheduler.md) | done |
 | [Remote files API](remote-files-api.md) | done |
 | [coder/websocket](websocket.md) | done |
 | [Theming](theming.md) | done |

@@ -220,7 +220,7 @@ Idle -> Connecting -> Ready -> Reconnecting -> Ready
 - Un job se expande de forma perezosa en items; el recorrido de directorios es en streaming.
 - Estados de item: `queued`, `running`, `done`, `failed`, `skipped`, `paused`, `canceled`.
 - Persistente en Postgres; tras un reinicio los items `running` vuelven a `queued` y siguen desde `bytes_done`.
-- Scheduler: `SELECT ... FOR UPDATE SKIP LOCKED`; límites global, por workspace, por usuario y por sitio destino; prioridades; equidad round-robin; ancho de banda con token bucket.
+- Scheduler (`core/scheduler`, en memoria): límites global, por workspace, por usuario y por sitio o conexión rápida, configurables con `SENTINEL_TRANSFER_LIMIT_GLOBAL`, `_PER_WORKSPACE`, `_PER_USER` y `_PER_SITE` (32, 16, 8 y 4 por defecto; 0 = sin límite). Las transferencias esperan en cola (`queued`) hasta que caben en todos los límites; el orden es prioridad (alta, normal, baja) y luego llegada, sin bloqueo de cabeza de línea. Una transferencia en cola se pausa, reanuda, prioriza o cancela; una en curso solo se cancela. Pendiente: reparto equitativo entre usuarios, ancho de banda con token bucket y planificación dirigida por el servidor (`SELECT ... FOR UPDATE SKIP LOCKED`) cuando existan carpetas y transferencias servidor a servidor.
 - Resume: offsets en SFTP, `REST` en FTP; verificación de tamaño o checksum cuando el servidor lo soporta.
 - Políticas de sobrescritura: preguntar, sobrescribir, solo si es más nuevo, si difiere el tamaño, renombrar, omitir; archivo `.part` y renombrado opcionales.
 - Rutas de datos: remoto a navegador (streaming con `Range`, carpetas como ZIP en streaming), navegador a remoto (subida por chunks reanudable), remoto a remoto (sin pasar por el navegador).

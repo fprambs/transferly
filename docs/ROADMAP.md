@@ -205,7 +205,7 @@ Aceptación: desplegar con `docker compose up`, crear un vault, guardar un sitio
 - [ ] Zona horaria de `LIST` por sitio con autodetección
 - [ ] Doble panel con drag and drop entre paneles
 - [ ] Pool de conexiones por sitio
-- [ ] Scheduler con límites global, por workspace, por usuario y por sitio; prioridades; pausar, reanudar, cancelar
+- [x] Scheduler con límites global, por workspace, por usuario y por sitio; prioridades; pausar, reanudar, cancelar (las transferencias en cola se pausan, reanudan y priorizan; una en curso solo se cancela hasta que las transferencias las dirija el servidor)
 - [ ] Transferencia de carpetas, descarga ZIP, políticas de sobrescritura, resume FTP, checksums
 - [ ] Transferencias servidor a servidor
 - [ ] Log de actividad por conexión sin secretos
