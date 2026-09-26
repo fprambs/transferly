@@ -224,14 +224,17 @@ Aceptación: 10 transferencias simultáneas entre 3 servidores dentro de los lí
 
 ## Fase 3: Equipos multiusuario
 
-- [ ] Workspaces de equipo, invitaciones, roles
-- [ ] Claves X25519 por usuario y DEK de workspace compartida; rotación al quitar un miembro
-- [ ] RBAC en API y UI
-- [ ] Vista de auditoría
-- [ ] TOTP y passkeys
-- [ ] Panel de administración de la instancia y política de red
-- [ ] Cuotas y límites de ancho de banda
-- [ ] Revisión de seguridad de la fase: IDOR y acceso entre workspaces, escalada de privilegios entre roles, sellado y rotación de claves, abuso de invitaciones, bypass de 2FA, enumeración de usuarios
+Decisiones de diseño en [ADR-0006](adr/0006-teams-and-invitations.md).
+
+- [ ] 3.1 Workspaces de equipo: crear, listar miembros, cambiar rol, salir, transferir propiedad
+- [ ] 3.2 Invitaciones de un solo uso ligadas al email, registro solo por invitación
+- [ ] 3.3 Claves X25519 por usuario y DEK de workspace compartida; rotación al quitar un miembro
+- [ ] 3.4 RBAC en API y UI (miembros, invitaciones, roles)
+- [ ] 3.5 Vista de auditoría
+- [ ] 3.6 TOTP y passkeys
+- [ ] 3.7 Panel de administración de la instancia y política de red
+- [ ] 3.8 Cuotas y límites de ancho de banda
+- [ ] 3.9 Revisión de seguridad de la fase: IDOR y acceso entre workspaces, escalada de privilegios entre roles, sellado y rotación de claves, abuso de invitaciones, bypass de 2FA, enumeración de usuarios
 
 Tests obligatorios: aislamiento entre workspaces, sellado y rotación de DEK, matriz de autorización completa, TOTP y passkeys, cobertura de auditoría.
 
@@ -296,5 +299,5 @@ Ver [ADR-0001](adr/0001-web-first-desktop-ready.md).
 
 ## Decisiones abiertas
 
-- Registro abierto o solo por invitación (recomendado: invitación).
+- Registro solo por invitación (decidido en ADR-0006).
 - Contraseña maestra opcional (recomendado: obligatoria en v1).
