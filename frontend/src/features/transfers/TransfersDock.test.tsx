@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TransferRecord } from '@/lib/transport'
 import { problem } from '@/test/handlers'
@@ -40,6 +40,7 @@ function record(id: string, overrides: Partial<TransferRecord> = {}): TransferRe
  * - the finished tab lists done, failed and canceled transfers with their status and error code
  * - each tab says when it is empty
  * - cancelling calls the server, and removing calls it and forgets the transfer; failures are ignored
+ * - a transfer that just ended stays on the active tab with its result for a while and then leaves it, while older ones only show under finished
  * - a copy between sites shows its own icon and the two sites
  * - a queued transfer says it waits for a slot, offers a priority and a pause, and a running one offers neither
  * - pausing, continuing and changing the priority call the server, and the row follows the state event that comes back; failures are ignored
@@ -156,6 +157,28 @@ describe('TransfersDock', () => {
     await user.click(screen.getByRole('button', { name: 'Remove b.bin from the list' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Remove b.bin from the list' })).toBeInTheDocument())
     expect(useTransfersStore.getState().items['2']).toBeDefined()
+  })
+
+  it('keeps a transfer that just ended on the active tab for a while', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const ended = new Date(Date.now() - 2000).toISOString()
+    const old = new Date(Date.now() - 60_000).toISOString()
+    useTransfersStore.getState().upsert([
+      record('1', { name: 'new.bin', status: 'done', finishedAt: ended }),
+      record('2', { name: 'old.bin', status: 'done', finishedAt: old }),
+    ])
+    await renderWithProviders(<TransfersDock />)
+
+    const rows = screen.getAllByRole('listitem')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('new.bin')
+    expect(rows[0]).toHaveTextContent('Done')
+    expect(screen.getByRole('tab', { name: 'Active (0)' })).toBeInTheDocument()
+
+    await act(() => vi.advanceTimersByTimeAsync(20_000))
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    expect(screen.getByText('Nothing is transferring.')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('shows a copy between sites with its own icon', async () => {

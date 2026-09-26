@@ -2,8 +2,11 @@ import { expect, test } from '../fixtures.ts'
 
 /** What the page offers the test to reach the folder that the picker answers with. */
 interface FolderTools {
+  /** Reads the text of a file of the folder. */
   read: (name: string) => Promise<string>
+  /** Creates or replaces a file of the folder. */
   write: (name: string, text: string) => void
+  /** Removes a file of the folder. */
   remove: (name: string) => void
 }
 

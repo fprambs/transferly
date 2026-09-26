@@ -8,6 +8,7 @@ import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
 
 import { TransferRow } from './TransferRow'
+import { endedRecently, useNow } from './recent'
 import { useResume } from './use-resume'
 import { isActive, newestFirst, useTransfersStore, type TransferItem } from './transfers-store'
 
@@ -25,10 +26,11 @@ export function TransfersDock() {
   const picker = useRef<HTMLInputElement>(null)
   const resumer = useResume()
   const failure = resumer.failure
-  const { active, finished } = useMemo(() => {
+  const clock = useNow(items)
+  const { active, finished, shown } = useMemo(() => {
     const all = newestFirst(items)
-    return { active: all.filter(isActive), finished: all.filter((item) => !isActive(item)) }
-  }, [items])
+    return { active: all.filter(isActive), finished: all.filter((item) => !isActive(item)), shown: all.filter((item) => isActive(item) || endedRecently(item, clock)) }
+  }, [items, clock])
 
   const resume = (item: TransferItem): void => {
     const needsFile = resumer.resume(item.record)
@@ -91,11 +93,11 @@ export function TransfersDock() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="active" className="max-h-60 overflow-y-auto">
-                {active.length === 0 ? (
+                {shown.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
                 ) : (
                   <ul>
-                    {active.map((item) => (
+                    {shown.map((item) => (
                       <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
                     ))}
                   </ul>

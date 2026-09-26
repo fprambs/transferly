@@ -13,14 +13,19 @@ const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
  * Visual regression of the application shell against versioned baselines.
  *
  * Scenarios:
- * - the sites sidebar and the transfers dock are masked because the tests that run beside this one fill them with their own
- *   collections and transfers
+ * - the sites sidebar is masked because the tests that run beside this one fill it with their own collections, and the event
+ *   stream and the transfer history are replaced by empty ones so their transfers do not change the dock
  * - the settings page in the default dark theme and the default light theme
  * - the shell in the default theme in English and Spanish, and in the light, Monokai and Nord themes
  *
  * Baselines are generated and compared only inside the official Playwright container.
  */
 test.describe('visual', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.routeWebSocket(/\/api\/v1\/ws/, (socket) => socket.send(JSON.stringify({ type: 'snapshot', data: { transfers: [] } })))
+    await page.route('**/api/v1/transfers*', (route) => route.fulfill({ json: [] }))
+  })
+
   for (const { language, theme } of cases) {
     test(`shell in ${language} with the ${theme} theme`, async ({ shell, page }) => {
       await shell.setLanguage(language)
@@ -31,7 +36,7 @@ test.describe('visual', () => {
 
       await expect(page).toHaveScreenshot(`shell-${language}-${theme}.png`, {
         animations: 'disabled',
-        mask: [page.getByRole('navigation', { name: 'Sites' }), dock],
+        mask: [page.getByRole('navigation', { name: 'Sites' })],
       })
     })
   }
