@@ -167,6 +167,8 @@ var domainProblems = []struct {
 	{transfer.ErrNotQueued, http.StatusConflict, "transfer_not_queued"},
 	{transfer.ErrInvalidPriority, http.StatusUnprocessableEntity, "invalid_priority"},
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
+	{files.ErrUnsupportedAlgorithm, http.StatusUnprocessableEntity, "unsupported_algorithm"},
+	{files.ErrChecksumMismatch, http.StatusBadGateway, "checksum_mismatch"},
 	{files.ErrTreeTooLarge, http.StatusUnprocessableEntity, "tree_too_large"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
@@ -209,3 +211,6 @@ func (p domainProblem) VisitCreateCopyResponse(w http.ResponseWriter) error { re
 
 // VisitDownloadArchiveResponse implements [DownloadArchiveResponseObject].
 func (p domainProblem) VisitDownloadArchiveResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitGetChecksumResponse implements [GetChecksumResponseObject].
+func (p domainProblem) VisitGetChecksumResponse(w http.ResponseWriter) error { return p.write(w) }

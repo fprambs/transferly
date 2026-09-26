@@ -31,6 +31,7 @@ func (e *fileEnv) copyBody(target uuid.UUID, from, to string, extra map[string]a
 // Scenarios:
 //   - a copy answers 202 with a transfer that runs in the background, ends done with the size, and leaves the same content at the target
 //   - a copy onto an existing file fails as a transfer with path_exists unless the policy says otherwise, and the skip policy leaves it and still finishes
+//   - a copy asked to verify reads the destination back and still finishes when the bytes match
 //   - a folder is copied whole with its subfolders, whatever the size of its files
 //   - a missing source fails as a transfer with path_not_found
 //   - copying onto itself, an empty path, an unknown source or target site and a taken transfer identifier are refused at once
@@ -97,6 +98,10 @@ func TestTransfers_Copy(t *testing.T) {
 	if leaf.Status != http.StatusOK || string(leaf.Body) != "leaf" {
 		t.Errorf("the copied folder holds %d %q", leaf.Status, leaf.Body)
 	}
+
+	verified := a.send(http.MethodPost, path, e.copyBody(other, "/a.txt", "/verified.txt", map[string]any{"verify": true}), e.cookie, e.csrf)
+	mustDecode(t, verified.Body, &second)
+	waitFor(t, "the verified copy to finish", func() bool { return a.transferState(e.cookie, second.ID) == "done" })
 
 	missing := a.send(http.MethodPost, path, e.copyBody(other, "/nothing", "/c.txt", nil), e.cookie, e.csrf)
 	mustDecode(t, missing.Body, &second)

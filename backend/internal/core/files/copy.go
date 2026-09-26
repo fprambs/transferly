@@ -2,8 +2,10 @@ package files
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"path"
 	"sort"
 	"strings"
@@ -41,6 +43,9 @@ type CopyLocation struct {
 	Destination Target
 	// DestinationPath is the path of the copy, including its name.
 	DestinationPath string
+	// Verify reads every copied file back and compares its SHA-256 with the bytes that were sent; a difference fails the copy
+	// with [ErrChecksumMismatch].
+	Verify bool
 }
 
 // sameFile reports whether both ends of a copy name the same file.
@@ -200,5 +205,14 @@ func (s *Service) copyFile(ctx context.Context, l CopyLocation, source remotefs.
 	defer func() { _ = d.Body.Close() }()
 	to := l.Destination
 	to.Observer = fileObserver{inner: obs, total: d.Length(), announce: whole}
-	return s.Upload(ctx, to, destination, mode, 0, d.Body)
+	body := io.Reader(d.Body)
+	sent := sha256.New()
+	if l.Verify {
+		body = io.TeeReader(d.Body, sent)
+	}
+	entry, err := s.Upload(ctx, to, destination, mode, 0, body)
+	if err == nil && l.Verify {
+		err = s.verifyCopy(ctx, l.Destination, destination, sent)
+	}
+	return entry, err
 }

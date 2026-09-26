@@ -1160,6 +1160,75 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/checksum:
+    get:
+      operationId: getChecksum
+      security:
+        - sessionCookie: []
+      summary: Compute the checksum of a remote file
+      description: >-
+        Reads the whole file through the server and answers with its digest. The cost is reading the file, so large files take
+        as long as a download; the request can be abandoned at any time.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/RemotePath"
+        - name: algorithm
+          in: query
+          required: false
+          description: Algorithm of the digest. Defaults to sha256.
+          schema:
+            type: string
+            enum: [md5, sha1, sha256, sha512]
+      responses:
+        "200":
+          description: The digest of the file.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checksum"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/content:
     get:
       operationId: downloadFile
@@ -2551,6 +2620,20 @@ components:
           type: string
         to:
           type: string
+    Checksum:
+      type: object
+      required: [algorithm, checksum, size]
+      properties:
+        algorithm:
+          type: string
+          enum: [md5, sha1, sha256, sha512]
+        checksum:
+          type: string
+          description: The digest in lower case hexadecimal.
+        size:
+          type: integer
+          format: int64
+          description: Number of bytes that were read.
     CopyInput:
       type: object
       required: [sourceSiteId, sourcePath, targetSiteId, targetPath]
@@ -2575,6 +2658,11 @@ components:
             What to do with a file that already exists at the destination: fail the copy (the default), overwrite it,
             skip it, overwrite it only when the source is newer, or keep both by giving the copy a free name such as
             "report (1).txt". Folders that exist are merged into.
+        verify:
+          type: boolean
+          description: >-
+            Read every copied file back and compare its SHA-256 with the bytes that were sent; a difference fails the transfer with
+            checksum_mismatch. Defaults to false.
         transferId:
           type: string
           format: uuid

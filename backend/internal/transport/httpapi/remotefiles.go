@@ -342,3 +342,19 @@ func archiveFailure(err error) (DownloadArchiveResponseObject, error) {
 	}
 	return nil, err
 }
+
+// GetChecksum computes the digest of a remote file.
+func (s *server) GetChecksum(ctx context.Context, request GetChecksumRequestObject) (GetChecksumResponseObject, error) {
+	algorithm := "sha256"
+	if request.Params.Algorithm != nil {
+		algorithm = string(*request.Params.Algorithm)
+	}
+	sum, err := s.deps.Files.Checksum(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Params.Path, algorithm)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return GetChecksum200JSONResponse{Algorithm: ChecksumAlgorithm(sum.Algorithm), Checksum: sum.Sum, Size: sum.Size}, nil
+}

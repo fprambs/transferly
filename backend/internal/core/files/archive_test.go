@@ -119,7 +119,7 @@ func unzip(t *testing.T, data []byte) map[string]string {
 //   - links, devices and names that could climb out of the folder or hide in another one are left out
 //   - a viewer may archive, a file, a missing folder, an empty path and an unknown user are refused
 //   - a tree that goes deeper or holds more entries than the limits of the service fails with ErrTreeTooLarge
-//   - a file that cannot be opened or fails to read fails the archive, and closing early or with a canceled context stops it and returns the connection
+//   - a folder that cannot be listed, a file that cannot be opened or fails to read fails the archive, and closing early or with a canceled context stops it and returns the connection
 func TestService_Archive(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
@@ -206,6 +206,15 @@ func TestService_Archive(t *testing.T) {
 			t.Errorf("Archive() of %s = %v; want ErrTreeTooLarge", dir, err)
 		}
 	}
+
+	unlisted, err := odd.Archive(ctx, f.editor, "/listfail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadAll(unlisted.Body); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("reading an archive whose folder cannot be listed = %v; want ErrConnectionLost", err)
+	}
+	_ = unlisted.Body.Close()
 
 	f.fs.failOpen = true
 	unopened, err := f.svc.Archive(ctx, f.editor, "/site")

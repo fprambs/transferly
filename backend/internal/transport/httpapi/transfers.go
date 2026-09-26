@@ -139,7 +139,10 @@ func (s *server) CreateCopy(ctx context.Context, request CreateCopyRequestObject
 	body := request.Body
 	source := target(ctx, request.WorkspaceId, body.SourceSiteId)
 	destination := target(ctx, request.WorkspaceId, body.TargetSiteId)
-	location := files.CopyLocation{Source: source, SourcePath: body.SourcePath, Destination: destination, DestinationPath: body.TargetPath}
+	location := files.CopyLocation{
+		Source: source, SourcePath: body.SourcePath, Destination: destination, DestinationPath: body.TargetPath,
+		Verify: body.Verify != nil && *body.Verify,
+	}
 	if err := s.deps.Files.CheckCopy(ctx, location); err != nil {
 		return copyFailure(err)
 	}

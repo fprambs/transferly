@@ -427,6 +427,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/checksum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compute the checksum of a remote file
+         * @description Reads the whole file through the server and answers with its digest. The cost is reading the file, so large files take as long as a download; the request can be abandoned at any time.
+         */
+        get: operations["getChecksum"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/content": {
         parameters: {
             query?: never;
@@ -854,6 +874,17 @@ export interface components {
             from: string;
             to: string;
         };
+        Checksum: {
+            /** @enum {string} */
+            algorithm: "md5" | "sha1" | "sha256" | "sha512";
+            /** @description The digest in lower case hexadecimal. */
+            checksum: string;
+            /**
+             * Format: int64
+             * @description Number of bytes that were read.
+             */
+            size: number;
+        };
         CopyInput: {
             /**
              * Format: uuid
@@ -873,6 +904,8 @@ export interface components {
              * @enum {string}
              */
             policy?: "fail" | "overwrite" | "skip" | "newer" | "rename";
+            /** @description Read every copied file back and compare its SHA-256 with the bytes that were sent; a difference fails the transfer with checksum_mismatch. Defaults to false. */
+            verify?: boolean;
             /**
              * Format: uuid
              * @description Identifier for the transfer, chosen by the client. The server picks one when left out.
@@ -2664,6 +2697,99 @@ export interface operations {
                 };
                 content: {
                     "application/zip": string;
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getChecksum: {
+        parameters: {
+            query: {
+                /** @description Path on the remote server. */
+                path: components["parameters"]["RemotePath"];
+                /** @description Algorithm of the digest. Defaults to sha256. */
+                algorithm?: "md5" | "sha1" | "sha256" | "sha512";
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+                /** @description Identifier of the site. */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The digest of the file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Checksum"];
                 };
             };
             /** @description An error. The stable code tells the client what happened. */
