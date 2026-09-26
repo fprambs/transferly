@@ -250,14 +250,19 @@ Un WebSocket por pestaña (`/api/v1/ws`), con validación de `Origin`:
 
 ## 13. Frontend
 
-- Layout: barra superior (workspace, conexión rápida), sidebar con gestor de sitios, doble panel redimensionable (árbol, lista, breadcrumbs), cola de transferencias y log de actividad plegables.
-- Interacción: drag and drop entre paneles y desde el escritorio, menús contextuales, selección múltiple, atajos (F2, Supr, F5, Ctrl+L, Enter), paleta de comandos (Ctrl+K).
-- Listas virtualizadas; actualizaciones optimistas; render de progreso con throttling.
-- Estado: datos del servidor en TanStack Query, estado de UI en Zustand, los eventos WebSocket actualizan la caché de Query.
-- Los componentes nunca llaman a `fetch` ni a `WebSocket`; usan la interfaz `Transport` (`HttpTransport` hoy, `WailsTransport` después).
+Diseño objetivo (la fase 1 entrega una sola vista con panel de detalles; el doble panel llega en la fase 2 y reutiliza filas, barra y dock):
+
+- Layout: barra superior (espacio de trabajo, vault, cuenta), barra lateral con el árbol de sitios y colecciones y la conexión rápida, explorador, panel de detalles y dock de transferencias plegable.
+- Interacción: menús contextuales, teclado completo en la tabla (flechas, Inicio, Fin, Enter, Retroceso, F2, Supr), arrastrar y soltar desde el escritorio para subir, ⌘⇧K para la conexión rápida. Pendientes para la fase 2: arrastrar entre paneles, selección múltiple, F5, Ctrl+L y la paleta de comandos.
+- Listas virtualizadas con TanStack Virtual (filas de 32 px); el progreso se recibe por WebSocket, con velocidad suavizada en el cliente.
+- Estado: datos del servidor en TanStack Query (la caché es la fuente de verdad de sesión, sitios, colecciones, listados y vault); estado de UI en Zustand (`ui-store` persistido con tema, seguir al sistema, cola abierta y espacio elegido; `dialogs-store` y `transfers-store` en memoria). Los eventos del WebSocket alimentan el `transfers-store` y refrescan el estado del vault.
+- Enrutado con TanStack Router por código: una ruta de estructura `shell` con guarda de sesión (redirige a `/setup` o `/login`), y `/`, `/sites/$siteId?path=`, `/settings` y `/servers` dentro; `/login` y `/setup` fuera. El contexto del router lleva la caché, el cliente de la API y el `Transport`.
+- Los componentes nunca llaman a `fetch` ni a `WebSocket`; usan la interfaz `Transport` (`HttpTransport` hoy, `WailsTransport` después), que ofrece `request`, `url`, `events` y `setCsrfToken`. El cliente tipado (`lib/api`) se construye sobre `Transport` a partir del contrato OpenAPI.
+- Formularios con react-hook-form y zod; los mensajes de validación son claves de traducción. Diseño con tokens: un tema es un conjunto de tokens que se aplica como variables CSS.
 - `usePlatform()` expone las capacidades del entorno (`hasLocalFs`, `canPickFolders`).
-- Los nombres remotos son entrada no confiable: siempre se renderizan como texto, nunca como HTML.
-- Accesibilidad: foco visible, ARIA, teclado completo.
+- Los nombres remotos son entrada no confiable: siempre se renderizan como texto, nunca como HTML (con un E2E que lo comprueba).
+- Subidas: los archivos elegidos se suben en secuencia con un identificador de transferencia; el archivo se conserva en memoria (hasta 50) mientras la subida no termine, para poder reanudarla; tras recargar la página se vuelve a elegir el archivo y se comprueba su nombre y tamaño. Las descargas las hace el navegador con un enlace al endpoint (adjunto inerte).
+- Accesibilidad: foco visible, ARIA (árbol, tabla como `grid`, diálogos, `progressbar`), teclado completo y escaneo axe de los 12 temas en el E2E.
 
 ## 14. Internacionalización
 
