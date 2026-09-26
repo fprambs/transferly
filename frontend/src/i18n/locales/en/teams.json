@@ -165,5 +165,48 @@
     "signedInAs": "You are signed in as {{email}}.",
     "signOut": "Sign out",
     "sameHint": "If the link was used, expired or was sent to another address, this page cannot tell you which."
+  },
+  "audit": {
+    "label": "Audit log",
+    "title": "Audit log",
+    "subtitle": "What changed in {{name}} and who did it. Only admins and the owner can read it.",
+    "filter": "Show",
+    "categories": {
+      "all": "Everything",
+      "members": "Members",
+      "invitations": "Invitations",
+      "sites": "Sites",
+      "keys": "Keys",
+      "servers": "Trusted servers",
+      "workspace": "Workspace"
+    },
+    "time": "When",
+    "actor": "Who",
+    "what": "What",
+    "ip": "Address",
+    "deletedAccount": "Deleted account",
+    "loading": "Loading the audit log…",
+    "empty": "Nothing has been recorded yet.",
+    "more": "Load more",
+    "noAccess": "Only admins and the owner can read the audit log.",
+    "personal": "Personal workspaces have no team audit log.",
+    "actions": {
+      "workspaceCreated": "created the workspace {{target}}",
+      "workspaceOwnershipTransferred": "handed the workspace to {{target}}",
+      "memberJoined": "{{target}} joined as {{role}}",
+      "memberRoleChanged": "made {{target}} {{role}}",
+      "memberRemoved": "removed {{target}}",
+      "memberLeft": "{{target}} left",
+      "invitationCreated": "invited {{target}} as {{role}}",
+      "invitationRevoked": "revoked the invitation of {{target}}",
+      "keyRotated": "rotated the workspace key (version {{version}})",
+      "siteCreated": "created the site {{target}}",
+      "siteUpdated": "changed the site {{target}}",
+      "siteDeleted": "deleted the site {{target}}",
+      "sitesImported": "imported {{sites}} sites from FileZilla",
+      "hostKeyTrusted": "trusted the server {{target}}",
+      "hostKeyForgotten": "forgot the server {{target}}",
+      "unknown": "{{action}} {{target}}"
+    }
   }
 }

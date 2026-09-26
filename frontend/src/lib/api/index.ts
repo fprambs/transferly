@@ -27,6 +27,8 @@ export type Invitation = Schemas['Invitation']
 export type InvitationCreated = Schemas['InvitationCreated']
 /** What an invitation offers, for whoever holds its token. */
 export type InvitationPreview = Schemas['InvitationPreview']
+/** One line of the audit trail of a workspace. */
+export type AuditEvent = Schemas['AuditEvent']
 /** A collection that groups sites. */
 export type Collection = Schemas['Collection']
 /** What to change in a collection. */
@@ -147,6 +149,10 @@ export function createApi(transport: Transport) {
       leave: (workspaceId: string) => transport.request<void>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/leave` }),
       transfer: (workspaceId: string, userId: string) =>
         transport.request<void>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/transfer`, body: { userId } }),
+    },
+    audit: {
+      list: (workspaceId: string, query: { action?: string; before?: number; limit?: number } = {}) =>
+        transport.request<AuditEvent[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/audit`, query }),
     },
     invitations: {
       list: (workspaceId: string) => transport.request<Invitation[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/invitations` }),

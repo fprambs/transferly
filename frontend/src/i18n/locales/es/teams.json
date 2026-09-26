@@ -165,5 +165,48 @@
     "signedInAs": "Has entrado como {{email}}.",
     "signOut": "Cerrar sesión",
     "sameHint": "Si el enlace se usó, venció o se envió a otra dirección, esta página no puede decirte cuál."
+  },
+  "audit": {
+    "label": "Auditoría",
+    "title": "Registro de auditoría",
+    "subtitle": "Qué cambió en {{name}} y quién lo hizo. Solo lo leen los administradores y el propietario.",
+    "filter": "Mostrar",
+    "categories": {
+      "all": "Todo",
+      "members": "Miembros",
+      "invitations": "Invitaciones",
+      "sites": "Sitios",
+      "keys": "Claves",
+      "servers": "Servidores de confianza",
+      "workspace": "Workspace"
+    },
+    "time": "Cuándo",
+    "actor": "Quién",
+    "what": "Qué",
+    "ip": "Dirección",
+    "deletedAccount": "Cuenta eliminada",
+    "loading": "Cargando la auditoría…",
+    "empty": "Aún no se ha registrado nada.",
+    "more": "Cargar más",
+    "noAccess": "Solo los administradores y el propietario pueden leer la auditoría.",
+    "personal": "Los workspaces personales no tienen auditoría de equipo.",
+    "actions": {
+      "workspaceCreated": "creó el workspace {{target}}",
+      "workspaceOwnershipTransferred": "entregó el workspace a {{target}}",
+      "memberJoined": "{{target}} se unió como {{role}}",
+      "memberRoleChanged": "dejó a {{target}} como {{role}}",
+      "memberRemoved": "quitó a {{target}}",
+      "memberLeft": "{{target}} salió",
+      "invitationCreated": "invitó a {{target}} como {{role}}",
+      "invitationRevoked": "revocó la invitación de {{target}}",
+      "keyRotated": "rotó la clave del workspace (versión {{version}})",
+      "siteCreated": "creó el sitio {{target}}",
+      "siteUpdated": "cambió el sitio {{target}}",
+      "siteDeleted": "eliminó el sitio {{target}}",
+      "sitesImported": "importó {{sites}} sitios de FileZilla",
+      "hostKeyTrusted": "confió en el servidor {{target}}",
+      "hostKeyForgotten": "olvidó el servidor {{target}}",
+      "unknown": "{{action}} {{target}}"
+    }
   }
 }

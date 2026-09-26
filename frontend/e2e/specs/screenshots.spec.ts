@@ -91,6 +91,11 @@ test.describe('screenshots', () => {
     await shoot(page, '11-remove-dialog')
     await page.getByRole('button', { name: 'Cancel' }).click()
 
+    await page.getByRole('button', { name: 'Workspace' }).click()
+    await page.getByRole('menuitem', { name: 'Audit log' }).click()
+    await expect(page.getByRole('list', { name: 'Audit log' })).toContainText(`invited ${invitee}`)
+    await shoot(page, '11b-audit-log')
+
     const csrf = await csrfOf(page)
     const workspaces = (await (await page.request.get('/api/v1/workspaces')).json()) as Array<{ id: string; kind: string }>
     const personal = workspaces.find((workspace) => workspace.kind === 'personal')?.id as string

@@ -20,8 +20,9 @@ async function openTeamMembers(page: Page, name: string): Promise<void> {
  * - somebody without an account opens the link in a clean browser, sees what it offers, creates their account and lands on the members
  *   page as a viewer whose key waits for their vault, and cannot invite or change anyone
  * - the owner sees the new member, removes them, and the link no longer works
+ * - the audit log words the creation, the invitation, the join and the removal, and narrows by group
  * - a revoked invitation and a made up token show the same page, which does not say why
- * - the members page, with its dialogs, and the invitation page have no WCAG violations in the light and dark themes
+ * - the members page, with its dialogs, the audit log and the invitation page have no WCAG violations in the light and dark themes
  */
 test.describe('teams', () => {
   test.describe.configure({ mode: 'serial' })
@@ -96,6 +97,24 @@ test.describe('teams', () => {
     await expect(list.getByRole('listitem')).toHaveCount(1)
   })
 
+  test('records what happened in the audit log', async ({ shell, page }) => {
+    void shell
+    await openTeamMembers(page, team)
+    await page.getByRole('button', { name: 'Workspace' }).click()
+    await page.getByRole('menuitem', { name: 'Audit log' }).click()
+
+    const log = page.getByRole('list', { name: 'Audit log' })
+    await expect(log).toContainText(`created the workspace ${team}`)
+    await expect(log).toContainText(`invited ${invitee} as Viewer`)
+    await expect(log).toContainText(`${invitee} joined as Viewer`)
+    await expect(log).toContainText(`removed ${invitee}`)
+    await expect(log.getByRole('listitem').first()).toContainText('e2e@example.com')
+
+    await page.getByLabel('Show').selectOption({ label: 'Invitations' })
+    await expect(log).not.toContainText('created the workspace')
+    await expect(log).toContainText(`invited ${invitee}`)
+  })
+
   test('shows the same page for a revoked invitation and a made up token', async ({ shell, page, browser, baseURL }) => {
     void shell
     await openTeamMembers(page, team)
@@ -133,6 +152,12 @@ test.describe('teams', () => {
       await page.keyboard.press('Escape')
       const members = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(members.violations, `${theme} members`).toEqual([])
+      await page.getByRole('button', { name: 'Workspace' }).click()
+      await page.getByRole('menuitem', { name: 'Audit log' }).click()
+      await expect(page.getByRole('list', { name: 'Audit log' })).toBeVisible()
+      const trail = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+      expect(trail.violations, `${theme} audit`).toEqual([])
+      await openTeamMembers(page, team)
     }
 
     await page.getByRole('button', { name: 'Invite member' }).click()

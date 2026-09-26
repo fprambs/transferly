@@ -98,6 +98,7 @@ describe('createApi', () => {
     { name: 'workspaces.removeMember', call: (a) => a.workspaces.removeMember(ws, 'u1'), method: 'DELETE', path: `/api/v1/workspaces/${ws}/members/u1` },
     { name: 'workspaces.leave', call: (a) => a.workspaces.leave(ws), method: 'POST', path: `/api/v1/workspaces/${ws}/leave` },
     { name: 'workspaces.transfer', call: (a) => a.workspaces.transfer(ws, 'u1'), method: 'POST', path: `/api/v1/workspaces/${ws}/transfer`, body: { userId: 'u1' } },
+    { name: 'audit.list', call: (a) => a.audit.list(ws, { action: 'member.', before: 9, limit: 20 }), method: 'GET', path: `/api/v1/workspaces/${ws}/audit`, query: '?action=member.&before=9&limit=20' },
     { name: 'invitations.list', call: (a) => a.invitations.list(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/invitations` },
     { name: 'invitations.create', call: (a) => a.invitations.create(ws, { email: 'a@b.co', role: 'viewer' }), method: 'POST', path: `/api/v1/workspaces/${ws}/invitations`, body: { email: 'a@b.co', role: 'viewer' } },
     { name: 'invitations.revoke', call: (a) => a.invitations.revoke(ws, 'i1'), method: 'DELETE', path: `/api/v1/workspaces/${ws}/invitations/i1` },

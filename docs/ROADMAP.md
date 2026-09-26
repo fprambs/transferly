@@ -230,7 +230,7 @@ Decisiones de diseño en [ADR-0006](adr/0006-teams-and-invitations.md).
 - [x] 3.2 Invitaciones de un solo uso ligadas al email, registro solo por invitación (el token viaja en el fragmento de la URL y en cuerpos de petición, nunca en la ruta)
 - [x] 3.3 Claves X25519 por usuario y clave de workspace compartida; rotación al quitar un miembro o salir (guía [workspace-keys](guides/workspace-keys.md))
 - [x] 3.4 RBAC en API y UI (miembros, invitaciones, roles, transferencia, salida)
-- [ ] 3.5 Vista de auditoría
+- [x] 3.5 Vista de auditoría (eventos de miembros, invitaciones, sitios, claves y servidores de confianza; solo la leen admins y propietario)
 - [ ] 3.6 TOTP y passkeys
 - [ ] 3.7 Panel de administración de la instancia y política de red
 - [ ] 3.8 Cuotas y límites de ancho de banda

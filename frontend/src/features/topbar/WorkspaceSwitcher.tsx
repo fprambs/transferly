@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useUiStore } from '@/state/ui-store'
 
+import { canManageMembers } from '../teams/roles'
 import { NewTeamDialog } from '../teams/NewTeamDialog'
 import { useWorkspace, useWorkspaces } from '../workspace/use-workspace'
 
@@ -42,6 +43,9 @@ export function WorkspaceSwitcher() {
           ))}
           <DropdownMenuSeparator />
           {current.kind === 'team' && <DropdownMenuItem onClick={() => void navigate({ to: '/members' })}>{teams(($) => $.page.label)}</DropdownMenuItem>}
+          {current.kind === 'team' && canManageMembers(current.role) && (
+            <DropdownMenuItem onClick={() => void navigate({ to: '/audit' })}>{teams(($) => $.audit.label)}</DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => setCreating(true)}>{teams(($) => $.page.createTeam)}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
