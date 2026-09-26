@@ -82,6 +82,8 @@
     },
     "deleteTitle": "Delete this site?",
     "deleteBody": "{{name}} and its stored credentials will be removed.",
-    "deleteConfirm": "Delete"
+    "deleteConfirm": "Delete",
+    "ftpWarning": "FTP sends the password and the files without encryption. Use FTPS when the server offers it.",
+    "ftpsHint": "Port 990 starts with TLS; any other port upgrades the connection with AUTH TLS. The server certificate is shown for you to confirm the first time."
   }
 }

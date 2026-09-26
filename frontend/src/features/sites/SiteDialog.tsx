@@ -16,7 +16,7 @@ import { useApi } from '@/lib/api/use-api'
 import { collectionOptions } from './collection-paths'
 import { ConnectionTest } from './ConnectionTest'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
-import { siteDefaults, siteSchema, toSiteInput, type SiteValues } from './site-form'
+import { defaultPorts, siteDefaults, siteSchema, toSiteInput, type SiteValues } from './site-form'
 import { sitesKeys } from './use-sites-data'
 
 /** What the site dialog does. */
@@ -86,7 +86,9 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
     resolver: zodResolver(siteSchema),
     defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined),
   })
-  const usesKey = useWatch({ control, name: 'authMethod' }) === 'key'
+  const protocol = useWatch({ control, name: 'protocol' })
+  const method = useWatch({ control, name: 'authMethod' })
+  const usesKey = protocol === 'sftp' && method === 'key'
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -121,28 +123,38 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
       </div>
       <div className="flex gap-3">
         <Field id="site-protocol" label={t(($) => $.site.protocol)} className="w-28">
-          <NativeSelect id="site-protocol" disabled defaultValue="sftp">
+          <NativeSelect id="site-protocol" {...register('protocol')}>
             <option value="sftp">SFTP</option>
+            <option value="ftps">FTPS</option>
+            <option value="ftp">FTP</option>
           </NativeSelect>
         </Field>
         <Field id="site-host" label={t(($) => $.site.host)} error={errors.host?.message} className="flex-1">
           <Input id="site-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
         </Field>
         <Field id="site-port" label={t(($) => $.site.port)} error={errors.port?.message} className="w-24">
-          <Input id="site-port" className="font-mono" inputMode="numeric" placeholder="22" aria-invalid={errors.port !== undefined} {...register('port')} />
+          <Input id="site-port" className="font-mono" inputMode="numeric" placeholder={String(defaultPorts[protocol])} aria-invalid={errors.port !== undefined} {...register('port')} />
         </Field>
       </div>
       <div className="flex gap-3">
         <Field id="site-username" label={t(($) => $.site.username)} error={errors.username?.message} className="flex-1">
           <Input id="site-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.username !== undefined} {...register('username')} />
         </Field>
-        <Field id="site-auth" label={t(($) => $.site.authMethod)} className="w-44">
-          <NativeSelect id="site-auth" {...register('authMethod')}>
-            <option value="password">{t(($) => $.site.password)}</option>
-            <option value="key">{t(($) => $.site.key)}</option>
-          </NativeSelect>
-        </Field>
+        {protocol === 'sftp' ? (
+          <Field id="site-auth" label={t(($) => $.site.authMethod)} className="w-44">
+            <NativeSelect id="site-auth" {...register('authMethod')}>
+              <option value="password">{t(($) => $.site.password)}</option>
+              <option value="key">{t(($) => $.site.key)}</option>
+            </NativeSelect>
+          </Field>
+        ) : null}
       </div>
+      {protocol === 'ftp' ? (
+        <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-xs">
+          {t(($) => $.site.ftpWarning)}
+        </p>
+      ) : null}
+      {protocol === 'ftps' ? <p className="text-xs text-muted-foreground">{t(($) => $.site.ftpsHint)}</p> : null}
       {usesKey ? (
         <>
           <Field id="site-key" label={t(($) => $.site.privateKey)} className="">

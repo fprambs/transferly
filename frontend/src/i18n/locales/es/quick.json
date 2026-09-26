@@ -59,5 +59,6 @@
     "vault_locked": "Desbloquea el vault para guardar sitios.",
     "network_error": "No se pudo contactar con el servidor.",
     "unknown": "Algo salió mal. Inténtalo de nuevo."
-  }
+  },
+  "ftpWarning": "FTP envía la contraseña y los archivos sin cifrar. Usa FTPS si el servidor lo ofrece."
 }

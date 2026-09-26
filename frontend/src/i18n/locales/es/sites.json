@@ -82,6 +82,8 @@
     },
     "deleteTitle": "¿Eliminar este sitio?",
     "deleteBody": "Se eliminarán {{name}} y sus credenciales guardadas.",
-    "deleteConfirm": "Eliminar"
+    "deleteConfirm": "Eliminar",
+    "ftpWarning": "FTP envía la contraseña y los archivos sin cifrar. Usa FTPS si el servidor lo ofrece.",
+    "ftpsHint": "El puerto 990 empieza con TLS; en cualquier otro puerto la conexión se actualiza con AUTH TLS. La primera vez se muestra el certificado del servidor para que lo confirmes."
   }
 }

@@ -11,6 +11,8 @@ import { formatSize } from './entries'
 export interface InspectorProps {
   /** The selected entry. */
   entry: RemoteEntry
+  /** Whether the server reports permissions; FTP does not, and the field shows a dash. */
+  showPermissions: boolean
   /** Locale used to format the date. */
   locale: string
   /** IANA time zone the date is shown in. */
@@ -24,7 +26,7 @@ export interface InspectorProps {
 }
 
 /** Side panel with the details of the selected entry and its actions. */
-export function Inspector({ entry, locale, timeZone, onDownload, onRename, onDelete }: InspectorProps) {
+export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
 
   return (
@@ -41,7 +43,7 @@ export function Inspector({ entry, locale, timeZone, onDownload, onRename, onDel
         <dt className="text-muted-foreground">{t(($) => $.inspector.modified)}</dt>
         <dd>{formatInstant(entry.modifiedAt, { locale, timeZone, dateStyle: 'medium', timeStyle: 'medium' })}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.mode)}</dt>
-        <dd className="font-mono">{entry.mode}</dd>
+        <dd className="font-mono">{showPermissions ? entry.mode : '—'}</dd>
       </dl>
       <div className="flex flex-wrap gap-2">
         {entry.type === 'file' ? (

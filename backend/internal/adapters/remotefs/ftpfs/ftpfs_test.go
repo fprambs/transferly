@@ -123,6 +123,43 @@ func TestDial_Validation(t *testing.T) {
 	}
 }
 
+// TestDial_Silence verifies that a server that accepts the connection and says nothing cannot hang the connection.
+//
+// Scenarios:
+//   - a listener that never greets makes Dial fail with a retryable lost connection when the timeout ends
+//   - a TLS handshake that gets plain text instead, as explicit FTPS against an implicit server, fails the same way
+func TestDial_Silence(t *testing.T) {
+	silent, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = silent.Close() })
+	go func() {
+		for {
+			conn, err := silent.Accept()
+			if err != nil {
+				return
+			}
+			t.Cleanup(func() { _ = conn.Close() })
+		}
+	}()
+
+	start := time.Now()
+	_, err = ftpfs.Dial(t.Context(), ftpfs.Config{Address: silent.Addr().String(), Username: testUser, Password: testPassword, Timeout: 300 * time.Millisecond})
+	if !errors.Is(err, remotefs.ErrConnectionLost) || !remotefs.Retryable(err) {
+		t.Errorf("Dial() to a silent server = %v; want a retryable ErrConnectionLost", err)
+	}
+	if elapsed := time.Since(start); elapsed > 3*time.Second {
+		t.Errorf("Dial() took %v; the timeout is 300ms", elapsed)
+	}
+
+	implicit := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Implicit})
+	_, err = connect(t, implicit, ftptest.Explicit, func(c *ftpfs.Config) { c.Timeout = 300 * time.Millisecond })
+	if !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("explicit FTPS against an implicit server = %v; want ErrConnectionLost", err)
+	}
+}
+
 // TestDial_Authentication verifies how credentials are judged.
 //
 // Scenarios:

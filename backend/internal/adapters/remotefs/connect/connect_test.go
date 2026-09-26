@@ -122,7 +122,13 @@ func newEnv(t *testing.T) *env {
 // addSite saves a site that points at a test server.
 func (e *env) addSite(s *sftptest.Server, in site.Input, secrets site.SecretChanges) site.Site {
 	e.t.Helper()
-	host, port, err := splitAddr(s.Addr)
+	return e.addSiteAt(s.Addr, in, secrets)
+}
+
+// addSiteAt saves a site that points at the given host:port.
+func (e *env) addSiteAt(address string, in site.Input, secrets site.SecretChanges) site.Site {
+	e.t.Helper()
+	host, port, err := splitAddr(address)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -284,7 +290,6 @@ func TestConnector_Key(t *testing.T) {
 // Scenarios:
 //   - a locked vault is site.ErrLocked and is not retried
 //   - a site of another workspace or user is not found, and a stranger cannot connect to it
-//   - FTP sites are refused as not supported yet
 //   - a destination that the network guard forbids is refused when dialing, even though the site was saved
 //   - a failing secret read other than a missing secret is returned
 func TestConnector_Refusals(t *testing.T) {
@@ -306,11 +311,6 @@ func TestConnector_Refusals(t *testing.T) {
 	missing.SiteID = uuid.New()
 	if _, err := c.Connect(t.Context(), missing, session); !errors.Is(err, site.ErrNotFound) {
 		t.Errorf("Connect() for a missing site = %v; want site.ErrNotFound", err)
-	}
-
-	ftp := e.addSite(server, site.Input{Name: "Plain FTP", Protocol: site.FTP}, site.SecretChanges{})
-	if _, err := c.Connect(t.Context(), e.key(ftp), session); !errors.Is(err, remotefs.ErrInvalid) {
-		t.Errorf("Connect() to an FTP site = %v; want ErrInvalid", err)
 	}
 
 	strict := e.connector(netguard.NewPolicy(nil, nil))
@@ -379,7 +379,7 @@ func TestConnector_StoreFailures(t *testing.T) {
 // Scenarios:
 //   - a quick connection with a password connects after its host key is trusted, without touching the vault
 //   - one with a private key and its passphrase connects
-//   - a quick connection without the credential its method needs is ErrAuth, and an FTP one is refused as unsupported
+//   - a quick connection without the credential its method needs is ErrAuth,
 //   - an unknown host key is reported with its fingerprint, as for saved sites
 //   - quick connections of another user are not found, and the wiped secrets of an ended connection are gone
 func TestConnector_QuickConnections(t *testing.T) {
@@ -431,13 +431,6 @@ func TestConnector_QuickConnections(t *testing.T) {
 		_ = fsys.Close()
 	}
 
-	plainFTP, err := e.quick.Create(t.Context(), e.user, e.workspace, site.Input{Protocol: site.FTP, Host: host, Username: sshUser}, quick.Secrets{Password: []byte("x")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: plainFTP.Site.ID}, "s"); !errors.Is(err, remotefs.ErrInvalid) {
-		t.Errorf("Connect() to an FTP quick connection = %v; want ErrInvalid", err)
-	}
 	keyless := start(site.Input{AuthMethod: site.AuthKey}, quick.Secrets{})
 	passwordless := start(site.Input{}, quick.Secrets{})
 	for _, id := range []uuid.UUID{keyless, passwordless} {

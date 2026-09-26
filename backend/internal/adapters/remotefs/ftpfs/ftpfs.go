@@ -73,7 +73,8 @@ type Config struct {
 	DisableEPSV bool
 	// DialContext opens every TCP connection; nil uses a plain dialer. Give the dialer of the network guard here.
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
-	// Timeout bounds establishing each TCP connection; zero means no limit.
+	// Timeout bounds establishing each TCP connection and, as a whole, connecting: the greeting and the login too, so a
+	// server that accepts the connection and never answers, or answers in another dialect of TLS, cannot hang it. Zero means no limit.
 	Timeout time.Duration
 }
 
@@ -234,6 +235,13 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		}
 	}
 
+	parent := ctx
+	if cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+		session.ctx.Store(&ctx)
+	}
 	stop := context.AfterFunc(ctx, session.shutdown)
 	conn, err := ftp.Dial(cfg.Address, options...)
 	if err == nil {
@@ -244,12 +252,16 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	}
 	if !stop() {
 		session.shutdown()
-		return nil, ctx.Err()
+		if parent.Err() != nil {
+			return nil, parent.Err()
+		}
+		return nil, fmt.Errorf("connecting to %s: %w: no answer within %v", cfg.Address, remotefs.ErrConnectionLost, cfg.Timeout)
 	}
 	if err != nil {
 		session.shutdown()
 		return nil, dialError(cfg.Address, session.verifier, err)
 	}
+	session.ctx.Store(&parent)
 	return &FS{turn: make(chan struct{}, 1), conn: conn, link: session, chtimes: conn.IsSetTimeSupported()}, nil
 }
 

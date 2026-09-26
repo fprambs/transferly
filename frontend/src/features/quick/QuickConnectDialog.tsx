@@ -13,7 +13,7 @@ import type { QuickConnectInput, QuickConnection } from '@/lib/api'
 import { useApi, type Api } from '@/lib/api/use-api'
 
 import { quickErrorKeyOf, unknownHostKeyOf, type QuickErrorKey, type UnknownHostKey } from './errors'
-import { quickSchema, toQuickInput, type QuickValues } from './schema'
+import { defaultPorts, quickSchema, toQuickInput, type QuickValues } from './schema'
 import { TrustPanel } from './TrustPanel'
 
 /** A connection attempt waiting for the user to trust the server key. */
@@ -24,6 +24,11 @@ interface PendingTrust {
   hostKey: UnknownHostKey
   /** Workspace the connection belongs to. */
   workspaceId: string
+}
+
+/** Reads the protocol of a tab, which is one of the three the tabs offer. */
+function toProtocol(value: unknown): QuickConnectInput['protocol'] {
+  return value === 'ftps' || value === 'ftp' ? value : 'sftp'
 }
 
 /** Runs a call and reports how long it took, in milliseconds. */
@@ -63,6 +68,7 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
   const api = useApi()
   const [pending, setPending] = useState<PendingTrust | null>(null)
   const [failure, setFailure] = useState<QuickErrorKey | null>(null)
+  const [protocol, setProtocol] = useState<QuickConnectInput['protocol']>('sftp')
   const {
     register,
     handleSubmit,
@@ -87,7 +93,7 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
     }
   }
 
-  const submit = handleSubmit((values) => attempt(toQuickInput('sftp', values)))
+  const submit = handleSubmit((values) => attempt(toQuickInput(protocol, values)))
 
   const trust = async ({ input, hostKey, workspaceId: owner }: PendingTrust): Promise<void> => {
     try {
@@ -119,23 +125,24 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
               </DialogTitle>
               <DialogDescription>{t(($) => $.description)}</DialogDescription>
             </DialogHeader>
-            <Tabs value="sftp" aria-label={t(($) => $.protocol.label)}>
+            <Tabs value={protocol} onValueChange={(value) => setProtocol(toProtocol(value))} aria-label={t(($) => $.protocol.label)}>
               <TabsList className="w-full">
                 <TabsTrigger value="sftp">{t(($) => $.protocol.sftp)}</TabsTrigger>
-                <TabsTrigger value="ftps" disabled>
-                  {t(($) => $.protocol.ftps)}
-                </TabsTrigger>
-                <TabsTrigger value="ftp" disabled>
-                  {t(($) => $.protocol.ftp)}
-                </TabsTrigger>
+                <TabsTrigger value="ftps">{t(($) => $.protocol.ftps)}</TabsTrigger>
+                <TabsTrigger value="ftp">{t(($) => $.protocol.ftp)}</TabsTrigger>
               </TabsList>
             </Tabs>
+            {protocol === 'ftp' ? (
+              <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-xs">
+                {t(($) => $.ftpWarning)}
+              </p>
+            ) : null}
             <div className="flex gap-3">
               <Field id="quick-host" label={t(($) => $.fields.host)} error={errors.host?.message} className="flex-1">
                 <Input id="quick-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
               </Field>
               <Field id="quick-port" label={t(($) => $.fields.port)} error={errors.port?.message} className="w-24">
-                <Input id="quick-port" className="font-mono" inputMode="numeric" placeholder="22" aria-invalid={errors.port !== undefined} {...register('port')} />
+                <Input id="quick-port" className="font-mono" inputMode="numeric" placeholder={String(defaultPorts[protocol])} aria-invalid={errors.port !== undefined} {...register('port')} />
               </Field>
             </div>
             <div className="flex gap-3">

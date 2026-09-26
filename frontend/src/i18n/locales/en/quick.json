@@ -59,5 +59,6 @@
     "vault_locked": "Unlock the vault to save sites.",
     "network_error": "Could not reach the server.",
     "unknown": "Something went wrong. Try again."
-  }
+  },
+  "ftpWarning": "FTP sends the password and the files without encryption. Use FTPS when the server offers it."
 }

@@ -200,7 +200,8 @@ Aceptación: desplegar con `docker compose up`, crear un vault, guardar un sitio
 ## Fase 2: Núcleo FileZilla
 
 - [x] Adaptador FTP y FTPS (`ftpfs`): pasivo, explícito e implícito, MLSD con respaldo a LIST, certificado fijado por huella (como una host key), reutilización de sesión TLS, rutas con CRLF rechazadas, IP de PASV ignorada; suite de conformidad contra un servidor en proceso y contra vsftpd real ([guía](guides/ftp.md)); nueva capacidad `Rewrite` del puerto
-- [ ] Conectar FTP y FTPS a sitios y conexión rápida (conector, API, formularios), modo activo opt-in y charset configurable
+- [x] FTP y FTPS conectados a sitios y a la conexión rápida: el conector elige el adaptador por protocolo (FTPS implícito en el puerto 990, explícito en los demás), la huella del certificado se confirma como una host key, la zona horaria de LIST viene del sitio, una cuenta FTP puede tener contraseña vacía; formularios con las tres pestañas, aviso de texto claro para FTP y guion en lugar de permisos; E2E contra vsftpd real (FTP y FTPS)
+- [ ] Modo activo opt-in y charset configurable
 - [ ] Zona horaria de `LIST` por sitio con autodetección
 - [ ] Doble panel con drag and drop entre paneles
 - [ ] Pool de conexiones por sitio

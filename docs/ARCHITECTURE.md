@@ -198,7 +198,7 @@ FTP y FTPS:
 - Modo pasivo primero (EPSV, luego PASV); activo opcional.
 - FTPS explícito (AUTH TLS) e implícito (990), con reutilización de sesión TLS en el canal de datos: `tls.Config` con `ClientSessionCache` compartida y `ServerName` siempre no vacío (con IP como host la reutilización falla). Ver [spikes](spikes/ftps-session-reuse.md).
 - `MLSD` con fallback a `LIST`, `MDTM`, `SIZE`, `REST`, `UTF8`, charset configurable.
-- El certificado del servidor no se valida contra autoridades: su huella SHA-256 se fija como una host key (tipo `tls-certificate`) y el usuario decide si confiar. La IP anunciada en PASV se ignora siempre. Sin `Rewrite` (FTP), una escritura reanudada solo puede empezar al final del archivo. Estado actual y reglas en [guides/ftp.md](guides/ftp.md).
+- El certificado del servidor no se valida contra autoridades: su huella SHA-256 se fija como una host key (tipo `tls-certificate`) y el usuario decide si confiar. La IP anunciada en PASV se ignora siempre. Sin `Rewrite` (FTP), una escritura reanudada solo puede empezar al final del archivo. El conector elige FTPS implícito solo en el puerto 990 (configurable en el conector) y explícito en los demás; FTP no informa permisos y la interfaz muestra un guion. Estado actual y reglas en [guides/ftp.md](guides/ftp.md).
 
 ## 10. Sesiones y conexiones
 

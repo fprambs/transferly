@@ -63,6 +63,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
   const opening = listing.isFetching && listing.isPlaceholderData
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
+  const showPermissions = target === undefined || target.protocol === 'sftp'
   const hostKey = unknownHostKeyOf(listing.error)
   const timeZone = session?.user.timezone ?? resolveTimeZone()
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
@@ -201,6 +202,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
             timeZone={timeZone}
             onOpen={open}
             onUp={() => onNavigate(parentPath(path))}
+            showPermissions={showPermissions}
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
             onDownload={download}
@@ -210,6 +212,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
           />
           <Inspector
             entry={entries[resolveSelection(entries, selectedPath)]}
+            showPermissions={showPermissions}
             locale={i18n.language}
             timeZone={timeZone}
             onDownload={download}

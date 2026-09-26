@@ -27,6 +27,7 @@ const stored: Site = {
  * - a new site starts empty on the given collection, an existing one is prefilled without secrets
  * - the schema accepts empty or in-range ports and rejects anything else
  * - the request trims text, defaults port and time zone, and files the site in its collection
+ * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
  */
 describe('site form', () => {
@@ -39,6 +40,7 @@ describe('site form', () => {
     expect(siteDefaults(stored, undefined)).toEqual({
       name: 'Prod',
       collectionId: 'c1',
+      protocol: 'sftp',
       host: 'prod.example.com',
       port: '2222',
       username: 'deploy',
@@ -57,6 +59,23 @@ describe('site form', () => {
 
   it.each(['0', '65536', 'ssh'])('rejects port %j', (port) => {
     expect(siteSchema.safeParse({ ...siteDefaults(stored, undefined), port }).success).toBe(false)
+  })
+
+  it('builds FTP and FTPS sites: their own port, always a password', () => {
+    const base = { ...siteDefaults(undefined, undefined), name: 'F', host: 'h', username: 'u', authMethod: 'key' as const, password: 'pw', privateKey: 'KEY', passphrase: 'ph' }
+
+    for (const protocol of ['ftp', 'ftps'] as const) {
+      expect(toSiteInput({ ...base, protocol })).toMatchObject({
+        protocol,
+        port: 21,
+        authMethod: 'password',
+        password: 'pw',
+        privateKey: undefined,
+        passphrase: undefined,
+      })
+    }
+    expect(toSiteInput({ ...base, protocol: 'ftps', port: '990' }).port).toBe(990)
+    expect(siteDefaults({ ...stored, protocol: 'ftps' }, undefined).protocol).toBe('ftps')
   })
 
   it('builds a password site', () => {

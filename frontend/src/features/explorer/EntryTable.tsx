@@ -28,6 +28,8 @@ export interface EntryTableProps {
   onOpen: (entry: RemoteEntry) => void
   /** Called when the user asks to go up one level with Backspace. */
   onUp: () => void
+  /** Whether the server reports permissions; FTP does not, and its entries show a dash. */
+  showPermissions: boolean
   /** Path of the selected entry; the first entry is selected when it is `null` or gone. */
   selectedPath: string | null
   /** Called when the selection moves to an entry. */
@@ -80,7 +82,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, selectedPath, onSelect, onDownload, onRename, onDelete, onNewFolder }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onRename, onDelete, onNewFolder }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -175,7 +177,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, selectedPa
                 {modified(entry, locale, timeZone)}
               </span>
               <span role="gridcell" className="font-mono text-xs text-muted-foreground">
-                {entry.mode}
+                {showPermissions ? entry.mode : '—'}
               </span>
             </div>
           )

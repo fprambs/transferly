@@ -79,6 +79,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - only the rows near the window are drawn in a long folder
  * - failures are explained and can be retried
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
+ * - FTP and FTPS report no permissions, so their entries and details show a dash instead of nominal ones
  * - the dates follow the interface language
  */
 describe('explorer', () => {
@@ -282,6 +283,18 @@ describe('explorer', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong. Try again.')
     expect(screen.queryByRole('button', { name: 'Trust and connect' })).not.toBeInTheDocument()
+  })
+
+  it('shows a dash instead of permissions on an FTP site', async () => {
+    mockWorkspaceData({ sites: [{ ...prod, protocol: 'ftp' }] })
+    mockListing([entry('a.txt')])
+
+    await renderExplorer()
+
+    const grid = await screen.findByRole('grid')
+    await waitFor(() => expect(within(grid).queryByText('-rw-r--r--')).not.toBeInTheDocument())
+    expect(within(grid).getAllByText('—').length).toBeGreaterThan(0)
+    expect(within(screen.getByRole('complementary')).queryByText('-rw-r--r--')).not.toBeInTheDocument()
   })
 
   it('formats dates in the interface language', async () => {

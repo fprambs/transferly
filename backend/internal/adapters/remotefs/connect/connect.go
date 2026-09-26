@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -36,26 +37,96 @@ type Connector struct {
 	hostKeys *hostkey.Service
 	policy   *netguard.Policy
 	timeout  time.Duration
+	implicit map[int]bool
+}
+
+// Option adjusts a [Connector].
+type Option func(*Connector)
+
+// ImplicitFTPSPorts sets the ports whose FTPS sites start with TLS instead of upgrading with AUTH TLS. The default is 990.
+func ImplicitFTPSPorts(ports ...int) Option {
+	return func(c *Connector) {
+		c.implicit = make(map[int]bool, len(ports))
+		for _, port := range ports {
+			c.implicit[port] = true
+		}
+	}
 }
 
 var _ connections.Connector = (*Connector)(nil)
 
 // New returns a connector. timeout bounds establishing each TCP connection.
-func New(sites *site.Service, quick QuickConnections, hostKeys *hostkey.Service, policy *netguard.Policy, timeout time.Duration) *Connector {
-	return &Connector{sites: sites, quick: quick, hostKeys: hostKeys, policy: policy, timeout: timeout}
+func New(sites *site.Service, quick QuickConnections, hostKeys *hostkey.Service, policy *netguard.Policy, timeout time.Duration, options ...Option) *Connector {
+	c := &Connector{sites: sites, quick: quick, hostKeys: hostKeys, policy: policy, timeout: timeout, implicit: map[int]bool{implicitFTPSPort: true}}
+	for _, option := range options {
+		option(c)
+	}
+	return c
 }
+
+// implicitFTPSPort is the port of implicit FTPS; FTPS on any other port starts in clear text and upgrades with AUTH TLS.
+const implicitFTPSPort = 990
 
 // Connect implements [connections.Connector].
 //
 // A server key that is not trusted yet fails with a [remotefs.HostKeyError] that carries its fingerprint, for the
-// user to confirm; a changed key fails the same way and is never accepted. Secrets are wiped after use.
+// user to confirm; a changed key fails the same way and is never accepted. For FTPS the "key" is the certificate of the
+// server, under the key type [ftpfs.CertificateKeyType]. Secrets are wiped after use.
 func (c *Connector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
 	target, secrets, err := c.resolve(ctx, key, session)
 	if err != nil {
 		return nil, err
 	}
 	defer secrets.wipe()
+	return c.dial(ctx, key, target, secrets)
+}
 
+// dial connects with the protocol of the site.
+func (c *Connector) dial(ctx context.Context, key connections.Key, target site.Site, secrets secrets) (remotefs.RemoteFS, error) {
+	switch target.Protocol {
+	case site.SFTP:
+		return c.dialSFTP(ctx, key, target, secrets)
+	case site.FTP, site.FTPS:
+		return c.dialFTP(ctx, key, target, secrets)
+	}
+	return nil, fmt.Errorf("%w: %s sites cannot be connected", remotefs.ErrInvalid, target.Protocol)
+}
+
+// dialFTP connects to an FTP or FTPS server. FTP sends everything in clear text; FTPS on an implicit port (990 by default)
+// starts with TLS, on any other port it upgrades with AUTH TLS. An FTP account may have an empty password.
+func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target site.Site, s secrets) (remotefs.RemoteFS, error) {
+	mode := ftpfs.TLSNone
+	if target.Protocol == site.FTPS {
+		mode = ftpfs.TLSExplicit
+		if c.implicit[target.Port] {
+			mode = ftpfs.TLSImplicit
+		}
+	}
+	return ftpfs.Dial(ctx, ftpfs.Config{
+		Address:     net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
+		Username:    target.Username,
+		Password:    string(s.password),
+		TLS:         mode,
+		Location:    location(target.ListTimezone),
+		DialContext: c.policy.Dialer(c.timeout).DialContext,
+		Timeout:     c.timeout,
+		VerifyHostKey: func(keyType, fingerprint string) error {
+			return c.verify(ctx, key, target, keyType, fingerprint)
+		},
+	})
+}
+
+// location returns the zone named by a site for the times of its listings; a name that cannot be loaded means UTC.
+func location(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}
+
+// dialSFTP connects to an SFTP server with the password or the key of the site.
+func (c *Connector) dialSFTP(ctx context.Context, key connections.Key, target site.Site, secrets secrets) (remotefs.RemoteFS, error) {
 	cfg := sftpfs.Config{
 		Address:     net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
 		Username:    target.Username,
@@ -80,12 +151,8 @@ func (c *Connector) Connect(ctx context.Context, key connections.Key, session st
 // site whose secrets are opened with the vault key of the session.
 func (c *Connector) resolve(ctx context.Context, key connections.Key, session string) (site.Site, secrets, error) {
 	if q, ok := c.quick.Lookup(key.UserID, key.WorkspaceID, key.SiteID); ok {
-		if err := supported(q.Site); err != nil {
-			wipeAll(q.Secrets)
-			return site.Site{}, secrets{}, err
-		}
 		s := secrets{password: q.Secrets.Password, privateKey: q.Secrets.PrivateKey, passphrase: q.Secrets.Passphrase}
-		if err := s.require(q.Site.AuthMethod); err != nil {
+		if err := s.require(q.Site); err != nil {
 			s.wipe()
 			return site.Site{}, secrets{}, err
 		}
@@ -95,32 +162,16 @@ func (c *Connector) resolve(ctx context.Context, key connections.Key, session st
 	if err != nil {
 		return site.Site{}, secrets{}, err
 	}
-	if err := supported(target); err != nil {
-		return site.Site{}, secrets{}, err
-	}
 	s, err := c.open(ctx, key, session, target)
 	return target, s, err
 }
 
-// supported refuses the protocols that cannot be connected yet.
-func supported(target site.Site) error {
-	if target.Protocol != site.SFTP {
-		return fmt.Errorf("%w: %s sites cannot be connected yet", remotefs.ErrInvalid, target.Protocol)
-	}
-	return nil
-}
-
-// wipeAll overwrites the credentials of a quick connection copy.
-func wipeAll(q quick.Secrets) {
-	secrets{password: q.Password, privateKey: q.PrivateKey, passphrase: q.Passphrase}.wipe()
-}
-
-// require checks that the credentials the authentication method needs are there.
-func (s secrets) require(method site.AuthMethod) error {
+// require checks that the credentials the site needs are there: a private key, or a password unless the account is an FTP one.
+func (s secrets) require(target site.Site) error {
 	switch {
-	case method == site.AuthKey && len(s.privateKey) == 0:
+	case target.AuthMethod == site.AuthKey && len(s.privateKey) == 0:
 		return fmt.Errorf("%w: no private key was given", remotefs.ErrAuth)
-	case method != site.AuthKey && len(s.password) == 0:
+	case target.AuthMethod != site.AuthKey && target.Protocol == site.SFTP && len(s.password) == 0:
 		return fmt.Errorf("%w: no password was given", remotefs.ErrAuth)
 	}
 	return nil
@@ -167,7 +218,11 @@ func (c *Connector) open(ctx context.Context, key connections.Key, session strin
 		}
 		return s, nil
 	}
-	if s.password, err = read(site.SecretPassword); err != nil {
+	s.password, err = read(site.SecretPassword)
+	if errors.Is(err, site.ErrNoSecret) && target.Protocol != site.SFTP {
+		err = nil
+	}
+	if err != nil {
 		return secrets{}, missing(err, "password")
 	}
 	return s, nil

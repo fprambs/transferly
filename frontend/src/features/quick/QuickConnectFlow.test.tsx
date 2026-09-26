@@ -69,6 +69,7 @@ async function fillAndConnect(user: ReturnType<typeof userEvent.setup>, port = '
  * Scenarios:
  * - the sidebar button and the Ctrl+Shift+K shortcut open the dialog; other keys do not
  * - the form validates before calling the server and Cancel closes it
+ * - the FTPS and FTP tabs send their protocol and default port, FTP warns that it is not encrypted, and the port hint follows the tab
  * - connecting sends the values with the default or the typed port, closes the dialog and offers to keep the server
  * - "Not now" dismisses the offer
  * - connecting proves the server answers by listing its root; a server that does not is closed again and explained
@@ -146,6 +147,33 @@ describe('quick connect', () => {
 
     await user.click(screen.getByRole('button', { name: 'Not now' }))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('connects with FTPS or FTP when their tab is chosen', async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    server.use(
+      http.post('/api/v1/workspaces/:id/quick-connections', async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>)
+        return HttpResponse.json(opened, { status: 201 })
+      }),
+    )
+    const user = await renderFlow()
+    await openDialog(user)
+    expect(screen.getByLabelText('Port')).toHaveAttribute('placeholder', '22')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'FTP' }))
+    expect(screen.getByLabelText('Port')).toHaveAttribute('placeholder', '21')
+    expect(screen.getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
+    await user.click(screen.getByRole('tab', { name: 'SFTP' }))
+    expect(screen.getByLabelText('Port')).toHaveAttribute('placeholder', '22')
+    await user.click(screen.getByRole('tab', { name: 'FTPS' }))
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+
+    await fillAndConnect(user)
+
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toMatchObject({ protocol: 'ftps', port: 21 })
   })
 
   it('sends the port that was typed', async () => {
