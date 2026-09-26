@@ -498,8 +498,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Copy a file from one site to another through the server
-         * @description The server streams the file between the two sites without it reaching the browser and answers at once with the transfer, which reports its progress like any other. Both sites belong to the workspace of the path. Only files are copied; an existing destination is refused unless overwrite is set.
+         * Copy a file or a folder from one site to another through the server
+         * @description The server streams the file between the two sites without it reaching the browser and answers at once with the transfer, which reports its progress like any other. Both sites belong to the workspace of the path. A file, or a folder with everything below it, can be copied; what happens to files that already exist follows the policy.
          */
         post: operations["createCopy"];
         delete?: never;
@@ -868,8 +868,11 @@ export interface components {
             targetSiteId: string;
             /** @description Full path of the copy, including its name. */
             targetPath: string;
-            /** @description Replace the destination when it exists. Defaults to false. */
-            overwrite?: boolean;
+            /**
+             * @description What to do with a file that already exists at the destination: fail the copy (the default), overwrite it, skip it, overwrite it only when the source is newer, or keep both by giving the copy a free name such as "report (1).txt". Folders that exist are merged into.
+             * @enum {string}
+             */
+            policy?: "fail" | "overwrite" | "skip" | "newer" | "rename";
             /**
              * Format: uuid
              * @description Identifier for the transfer, chosen by the client. The server picks one when left out.

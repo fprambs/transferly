@@ -19,7 +19,8 @@ import { Breadcrumbs } from './Breadcrumbs'
 import { localSiteId, readLocalFile } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
 import { collectFiles, eachDelayMs, maxEachFiles, startDownload, TooManyFiles } from './download'
-import { isEntryDrag, readDrag, writeDrag } from './entry-drag'
+import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from './entry-drag'
+import { CopyPolicyDialog, type CopyPolicy } from './CopyPolicyDialog'
 import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
@@ -60,6 +61,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [dragging, setDragging] = useState<'upload' | 'copy' | null>(null)
   const [each, setEach] = useState<{ count: number } | ExplorerErrorKey | 'tooMany' | null>(null)
+  const [asking, setAsking] = useState<{ source: DraggedEntry; name: string } | null>(null)
   const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
   const picker = useRef<HTMLInputElement>(null)
   const listing = useQuery({
@@ -109,14 +111,31 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
     }
   }
 
-  const copyHere = async (source: { workspaceId: string; siteId: string; path: string }): Promise<void> => {
+  const copyWith = async (source: DraggedEntry, policy: CopyPolicy): Promise<void> => {
+    const name = source.path.slice(source.path.lastIndexOf('/') + 1)
+    try {
+      await api.copies.create(workspaceId, {
+        sourceSiteId: source.siteId,
+        sourcePath: source.path,
+        targetSiteId: siteId,
+        targetPath: joinPath(path, name),
+        policy,
+        transferId: uuid(),
+      })
+      setCopyFailure(null)
+    } catch (error) {
+      setCopyFailure(explorerErrorKeyOf(error))
+    }
+  }
+
+  const copyHere = async (source: DraggedEntry): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
     if (source.workspaceId !== workspaceId || (source.siteId === siteId && parentPath(source.path) === path)) {
       return
     }
     const local = useLocalRoot.getState().root
     if (source.siteId === localSiteId) {
-      if (local !== null) {
+      if (local !== null && !source.isFolder) {
         try {
           await uploads.upload([await readLocalFile(local, source.path)])
         } catch {
@@ -125,18 +144,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       }
       return
     }
-    try {
-      await api.copies.create(workspaceId, {
-        sourceSiteId: source.siteId,
-        sourcePath: source.path,
-        targetSiteId: siteId,
-        targetPath: joinPath(path, name),
-        transferId: uuid(),
-      })
-      setCopyFailure(null)
-    } catch (error) {
-      setCopyFailure(explorerErrorKeyOf(error))
+    if (source.isFolder || entries.some((existing) => existing.name === name)) {
+      setAsking({ source, name })
+      return
     }
+    await copyWith(source, 'fail')
   }
 
   const drop = (event: DragEvent<HTMLElement>): void => {
@@ -152,7 +164,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
     void uploads.upload(Array.from(event.dataTransfer.files))
   }
 
-  const dragEntry = (entry: RemoteEntry, data: DataTransfer): void => writeDrag(data, { workspaceId, siteId, path: entry.path })
+  const dragEntry = (entry: RemoteEntry, data: DataTransfer): void =>
+    writeDrag(data, { workspaceId, siteId, path: entry.path, isFolder: entry.type === 'directory' })
 
   const open = (entry: { type: string; path: string }): void => {
     if (entry.type === 'directory') {
@@ -249,6 +262,16 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         </div>
       ) : null}
       {uploads.conflict === null ? null : <UploadConflictDialog conflict={uploads.conflict} />}
+      {asking === null ? null : (
+        <CopyPolicyDialog
+          name={asking.name}
+          onCancel={() => setAsking(null)}
+          onConfirm={(policy) => {
+            setAsking(null)
+            void copyWith(asking.source, policy)
+          }}
+        />
+      )}
       <LoadingBar active={listing.isFetching} label={t(($) => $.opening, { path })} />
       {listing.isPending && <ConnectingState name={target?.name ?? siteId} />}
       {failure !== null && hostKey !== undefined && target !== undefined && (
@@ -296,6 +319,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
             onNewFolder={() => setDialog({ kind: 'newFolder' })}
+            dragFolders
             onDragEntry={dragEntry}
           />
           <Inspector

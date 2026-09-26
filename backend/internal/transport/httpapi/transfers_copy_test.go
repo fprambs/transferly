@@ -30,7 +30,8 @@ func (e *fileEnv) copyBody(target uuid.UUID, from, to string, extra map[string]a
 //
 // Scenarios:
 //   - a copy answers 202 with a transfer that runs in the background, ends done with the size, and leaves the same content at the target
-//   - a copy onto an existing file fails as a transfer with path_exists unless overwrite is set
+//   - a copy onto an existing file fails as a transfer with path_exists unless the policy says otherwise, and the skip policy leaves it and still finishes
+//   - a folder is copied whole with its subfolders, whatever the size of its files
 //   - a missing source fails as a transfer with path_not_found
 //   - copying onto itself, an empty path, an unknown source or target site and a taken transfer identifier are refused at once
 //   - the request needs a session and the anti-CSRF token
@@ -75,9 +76,27 @@ func TestTransfers_Copy(t *testing.T) {
 	if got := e.transferRecord(second.ID); got.ErrorCode == nil || *got.ErrorCode != "path_exists" {
 		t.Errorf("error code = %v; want path_exists", got.ErrorCode)
 	}
-	forced := a.send(http.MethodPost, path, e.copyBody(other, "/a.txt", "/b.txt", map[string]any{"overwrite": true}), e.cookie, e.csrf)
+	forced := a.send(http.MethodPost, path, e.copyBody(other, "/a.txt", "/b.txt", map[string]any{"policy": "overwrite"}), e.cookie, e.csrf)
 	mustDecode(t, forced.Body, &second)
 	waitFor(t, "the overwriting copy to finish", func() bool { return a.transferState(e.cookie, second.ID) == "done" })
+
+	skipped := a.send(http.MethodPost, path, e.copyBody(other, "/a.txt", "/b.txt", map[string]any{"policy": "skip"}), e.cookie, e.csrf)
+	mustDecode(t, skipped.Body, &second)
+	waitFor(t, "the skipping copy to finish", func() bool { return a.transferState(e.cookie, second.ID) == "done" })
+
+	if r := a.send(http.MethodPost, filesPath(e.ws, e.site, "/directories", nil), map[string]string{"path": "/tree"}, e.cookie, e.csrf); r.Status != http.StatusCreated {
+		t.Fatalf("mkdir = %d %s", r.Status, r.Body)
+	}
+	if r := a.upload(e.ws, e.site, q("path", "/tree/leaf.txt"), "leaf", e.cookie, e.csrf); r.Status != http.StatusCreated {
+		t.Fatalf("upload = %d %s", r.Status, r.Body)
+	}
+	folder := a.send(http.MethodPost, path, e.copyBody(other, "/tree", "/tree-copy", nil), e.cookie, e.csrf)
+	mustDecode(t, folder.Body, &second)
+	waitFor(t, "the folder copy to finish", func() bool { return a.transferState(e.cookie, second.ID) == "done" })
+	leaf := a.do(request{method: http.MethodGet, path: filesPath(e.ws, other, "/content", q("path", "/tree-copy/leaf.txt")), cookie: e.cookie})
+	if leaf.Status != http.StatusOK || string(leaf.Body) != "leaf" {
+		t.Errorf("the copied folder holds %d %q", leaf.Status, leaf.Body)
+	}
 
 	missing := a.send(http.MethodPost, path, e.copyBody(other, "/nothing", "/c.txt", nil), e.cookie, e.csrf)
 	mustDecode(t, missing.Body, &second)

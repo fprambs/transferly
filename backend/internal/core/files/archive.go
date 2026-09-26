@@ -16,14 +16,49 @@ import (
 )
 
 const (
-	// maxArchiveDepth is how deep a tree may go before the archive is refused; it also stops loops through links.
-	maxArchiveDepth = 64
-	// maxArchiveEntries is how many files and folders one archive may hold.
-	maxArchiveEntries = 100_000
+	// defaultTreeDepth is how deep a tree may go before an archive or a copy of it is refused; it also stops loops through links.
+	defaultTreeDepth = 64
+	// defaultTreeEntries is how many files and folders an archive or a copy of a tree may hold.
+	defaultTreeEntries = 100_000
 )
 
-// ErrArchiveTooLarge means a tree holds more entries, or goes deeper, than an archive may.
-var ErrArchiveTooLarge = errors.New("archive too large")
+// ErrTreeTooLarge means a tree holds more entries, or goes deeper, than an archive or a copy may handle.
+var ErrTreeTooLarge = errors.New("tree too large")
+
+// treeLimits are the bounds of a walk over a remote tree.
+type treeLimits struct {
+	depth   int
+	entries int
+}
+
+// WithTreeLimits returns the service with other bounds for the trees it archives and copies: how many levels deep and how
+// many entries in total. It exists for tests and for installations with unusual trees.
+func (s *Service) WithTreeLimits(depth, entries int) *Service {
+	s.limits = treeLimits{depth: depth, entries: entries}
+	return s
+}
+
+// treeWalk counts what a walk over a tree visited and stops it at the bounds.
+type treeWalk struct {
+	limits treeLimits
+	count  int
+}
+
+// enter checks that a folder at a depth may be entered.
+func (w *treeWalk) enter(depth int) error {
+	if depth > w.limits.depth {
+		return fmt.Errorf("%w: deeper than %d levels", ErrTreeTooLarge, w.limits.depth)
+	}
+	return nil
+}
+
+// add counts one more entry and checks the total.
+func (w *treeWalk) add() error {
+	if w.count++; w.count > w.limits.entries {
+		return fmt.Errorf("%w: more than %d entries", ErrTreeTooLarge, w.limits.entries)
+	}
+	return nil
+}
 
 // Archive is a folder of a remote site streamed as a ZIP file.
 type Archive struct {
@@ -61,7 +96,7 @@ func (a *archiveBody) Close() error {
 
 // Archive streams the files of a folder and of its subfolders as a ZIP. Links and other special files are left out, names
 // that could climb out of the folder when unpacked are refused, and a tree beyond the limits fails with
-// [ErrArchiveTooLarge]. The observer follows the bytes read from the server.
+// [ErrTreeTooLarge]. The observer follows the bytes read from the server.
 func (s *Service) Archive(ctx context.Context, t Target, dir string) (*Archive, error) {
 	lease, err := s.begin(ctx, t, workspace.ActionDownload, dir)
 	if err != nil {
@@ -79,7 +114,7 @@ func (s *Service) Archive(ctx context.Context, t Target, dir string) (*Archive, 
 	reader, writer := io.Pipe()
 	done := make(chan error, 1)
 	go func() {
-		err := writeArchive(ctx, lease.FS(), dir, writer, t.Observer)
+		err := writeArchive(ctx, lease.FS(), dir, writer, t.Observer, s.limits)
 		_ = writer.CloseWithError(err)
 		done <- err
 	}()
@@ -91,10 +126,9 @@ func (s *Service) Archive(ctx context.Context, t Target, dir string) (*Archive, 
 }
 
 // writeArchive writes the tree below dir as a ZIP.
-func writeArchive(ctx context.Context, fsys remotefs.RemoteFS, dir string, out io.Writer, obs Observer) error {
+func writeArchive(ctx context.Context, fsys remotefs.RemoteFS, dir string, out io.Writer, obs Observer, limits treeLimits) error {
 	w := zip.NewWriter(out)
-	count := 0
-	if err := addTree(ctx, fsys, w, dir, "", 0, &count, obs); err != nil {
+	if err := addTree(ctx, fsys, w, dir, "", 0, &treeWalk{limits: limits}, obs); err != nil {
 		return err
 	}
 	return w.Close()
@@ -106,9 +140,9 @@ func safeName(name string) bool {
 }
 
 // addTree adds the entries of a folder to the archive under a prefix.
-func addTree(ctx context.Context, fsys remotefs.RemoteFS, w *zip.Writer, dir, prefix string, depth int, count *int, obs Observer) error {
-	if depth > maxArchiveDepth {
-		return fmt.Errorf("%w: deeper than %d levels", ErrArchiveTooLarge, maxArchiveDepth)
+func addTree(ctx context.Context, fsys remotefs.RemoteFS, w *zip.Writer, dir, prefix string, depth int, walk *treeWalk, obs Observer) error {
+	if err := walk.enter(depth); err != nil {
+		return err
 	}
 	entries, err := fsys.List(ctx, dir)
 	if err != nil {
@@ -119,8 +153,8 @@ func addTree(ctx context.Context, fsys remotefs.RemoteFS, w *zip.Writer, dir, pr
 		if !safeName(entry.Name) || (!entry.Mode.IsDir() && !entry.Mode.IsRegular()) {
 			continue
 		}
-		if *count++; *count > maxArchiveEntries {
-			return fmt.Errorf("%w: more than %d entries", ErrArchiveTooLarge, maxArchiveEntries)
+		if err := walk.add(); err != nil {
+			return err
 		}
 		child := path.Join(dir, entry.Name)
 		if entry.IsDir() {
@@ -128,7 +162,7 @@ func addTree(ctx context.Context, fsys remotefs.RemoteFS, w *zip.Writer, dir, pr
 			if _, err := w.CreateHeader(header); err != nil {
 				return err
 			}
-			if err := addTree(ctx, fsys, w, child, prefix+entry.Name+"/", depth+1, count, obs); err != nil {
+			if err := addTree(ctx, fsys, w, child, prefix+entry.Name+"/", depth+1, walk, obs); err != nil {
 				return err
 			}
 			continue

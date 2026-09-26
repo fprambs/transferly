@@ -39,8 +39,10 @@ func (o oddFS) List(ctx context.Context, dir string) ([]remotefs.Entry, error) {
 		return entries, err
 	case dir == "/deep" || strings.HasPrefix(dir, "/deep/"):
 		return []remotefs.Entry{{Name: "d", Mode: fs.ModeDir | 0o755}}, nil
+	case dir == "/listfail":
+		return nil, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
 	case dir == "/many":
-		entries := make([]remotefs.Entry, 100_001)
+		entries := make([]remotefs.Entry, 200)
 		for i := range entries {
 			entries[i] = remotefs.Entry{Name: fmt.Sprintf("d%d", i), Mode: fs.ModeDir | 0o755}
 		}
@@ -53,8 +55,13 @@ func (o oddFS) List(ctx context.Context, dir string) ([]remotefs.Entry, error) {
 
 // Stat describes the folders of the odd tree as folders.
 func (o oddFS) Stat(ctx context.Context, p string) (remotefs.Entry, error) {
-	if p == "/deep" || p == "/many" {
+	switch {
+	case p == "/deep" || p == "/many" || p == "/listfail":
 		return remotefs.Entry{Name: p[1:], Path: p, Mode: fs.ModeDir | 0o755}, nil
+	case strings.HasPrefix(p, "/statfail"), p == "/renamefail/a (1).txt":
+		return remotefs.Entry{}, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+	case p == "/renamefail/a.txt":
+		return remotefs.Entry{Name: "a.txt", Path: p, Mode: 0o644}, nil
 	}
 	return o.flakyFS.Stat(ctx, p)
 }
@@ -111,7 +118,7 @@ func unzip(t *testing.T, data []byte) map[string]string {
 //   - the root of a site is named archive and any other folder by its own name
 //   - links, devices and names that could climb out of the folder or hide in another one are left out
 //   - a viewer may archive, a file, a missing folder, an empty path and an unknown user are refused
-//   - a tree that goes too deep or holds too many entries fails with ErrArchiveTooLarge
+//   - a tree that goes deeper or holds more entries than the limits of the service fails with ErrTreeTooLarge
 //   - a file that cannot be opened or fails to read fails the archive, and closing early or with a canceled context stops it and returns the connection
 func TestService_Archive(t *testing.T) {
 	ctx := context.Background()
@@ -158,7 +165,7 @@ func TestService_Archive(t *testing.T) {
 	_, _ = io.Copy(io.Discard, root.Body)
 	_ = root.Body.Close()
 
-	odd := oddService(t, f)
+	odd := oddService(t, f).WithTreeLimits(5, 4)
 	f.put(t, "/odd/fine.txt", "ok")
 	fromOdd, err := odd.Archive(ctx, f.editor, "/odd")
 	if err != nil {
@@ -187,15 +194,16 @@ func TestService_Archive(t *testing.T) {
 		t.Errorf("Archive() by an unknown user = %v; want ErrNotFound", err)
 	}
 
-	for _, dir := range []string{"/deep", "/many"} {
-		big, err := odd.Archive(ctx, f.editor, dir)
+	shallow := oddService(t, f).WithTreeLimits(3, 100)
+	for dir, service := range map[string]*files.Service{"/deep": shallow, "/many": odd} {
+		big, err := service.Archive(ctx, f.editor, dir)
 		if err != nil {
 			t.Fatal(err)
 		}
 		_, err = io.ReadAll(big.Body)
 		_ = big.Body.Close()
-		if !errors.Is(err, files.ErrArchiveTooLarge) {
-			t.Errorf("Archive() of %s = %v; want ErrArchiveTooLarge", dir, err)
+		if !errors.Is(err, files.ErrTreeTooLarge) {
+			t.Errorf("Archive() of %s = %v; want ErrTreeTooLarge", dir, err)
 		}
 	}
 
@@ -210,7 +218,7 @@ func TestService_Archive(t *testing.T) {
 	_ = unopened.Body.Close()
 	f.fs.failOpen = false
 
-	folders, err := odd.Archive(ctx, f.editor, "/many")
+	folders, err := oddService(t, f).Archive(ctx, f.editor, "/many")
 	if err != nil {
 		t.Fatal(err)
 	}

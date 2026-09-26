@@ -167,7 +167,7 @@ var domainProblems = []struct {
 	{transfer.ErrNotQueued, http.StatusConflict, "transfer_not_queued"},
 	{transfer.ErrInvalidPriority, http.StatusUnprocessableEntity, "invalid_priority"},
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
-	{files.ErrArchiveTooLarge, http.StatusUnprocessableEntity, "archive_too_large"},
+	{files.ErrTreeTooLarge, http.StatusUnprocessableEntity, "tree_too_large"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
 	{remotefs.ErrNotEmpty, http.StatusConflict, "directory_not_empty"},

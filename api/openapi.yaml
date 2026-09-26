@@ -1529,11 +1529,11 @@ paths:
       operationId: createCopy
       security:
         - sessionCookie: []
-      summary: Copy a file from one site to another through the server
+      summary: Copy a file or a folder from one site to another through the server
       description: >-
         The server streams the file between the two sites without it reaching the browser and answers at once with the
-        transfer, which reports its progress like any other. Both sites belong to the workspace of the path. Only files
-        are copied; an existing destination is refused unless overwrite is set.
+        transfer, which reports its progress like any other. Both sites belong to the workspace of the path. A file, or a
+        folder with everything below it, can be copied; what happens to files that already exist follows the policy.
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/CsrfToken"
@@ -2568,9 +2568,13 @@ components:
         targetPath:
           type: string
           description: Full path of the copy, including its name.
-        overwrite:
-          type: boolean
-          description: Replace the destination when it exists. Defaults to false.
+        policy:
+          type: string
+          enum: [fail, overwrite, skip, newer, rename]
+          description: >-
+            What to do with a file that already exists at the destination: fail the copy (the default), overwrite it,
+            skip it, overwrite it only when the source is newer, or keep both by giving the copy a free name such as
+            "report (1).txt". Folders that exist are merged into.
         transferId:
           type: string
           format: uuid

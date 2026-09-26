@@ -108,6 +108,7 @@ func (r roles) Authorize(_ context.Context, user, _ uuid.UUID, action workspace.
 
 // fixture is a service over an in-memory file system, with one user per role.
 type fixture struct {
+	clock  *testutil.FakeClock
 	svc    *files.Service
 	fs     *flakyFS
 	pool   *connections.Manager
@@ -125,7 +126,8 @@ func newFixture(t *testing.T) *fixture {
 	ws, site := uuid.New(), uuid.New()
 	editor, viewer := uuid.New(), uuid.New()
 	return &fixture{
-		svc: files.NewService(roles{editor: workspace.RoleEditor, viewer: workspace.RoleViewer}, pool), fs: fsys, pool: pool,
+		clock: clock,
+		svc:   files.NewService(roles{editor: workspace.RoleEditor, viewer: workspace.RoleViewer}, pool), fs: fsys, pool: pool,
 		editor: files.Target{Actor: editor, Workspace: ws, Site: site, Session: "s"},
 		viewer: files.Target{Actor: viewer, Workspace: ws, Site: site, Session: "s"},
 	}

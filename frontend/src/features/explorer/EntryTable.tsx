@@ -44,7 +44,9 @@ export interface EntryTableProps {
   onDelete?: (entry: RemoteEntry) => void
   /** Called to create a folder from the context menu; the item is left out without it. */
   onNewFolder?: () => void
-  /** Called when the user starts dragging a file, to put what it carries in the drag data. */
+  /** Whether folders can be dragged too; files always can. */
+  dragFolders?: boolean
+  /** Called when the user starts dragging an entry, to put what it carries in the drag data. */
   onDragEntry: (entry: RemoteEntry, data: DataTransfer) => void
 }
 
@@ -86,7 +88,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onRename, onDelete, onNewFolder, onDragEntry }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -165,7 +167,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
               onClick={() => onSelect(entry)}
               onContextMenu={() => onSelect(entry)}
               onDoubleClick={() => onOpen(entry)}
-              draggable={entry.type === 'file'}
+              draggable={entry.type === 'file' || (dragFolders === true && entry.type === 'directory')}
               onDragStart={(event) => onDragEntry(entry, event.dataTransfer)}
               style={{ height: rowHeight, transform: `translateY(${item.start - rowHeight}px)` }}
               className={cn(

@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 )
 
@@ -128,6 +127,12 @@ func (s *server) SetTransferPriority(ctx context.Context, request SetTransferPri
 	return SetTransferPriority200JSONResponse(transferDTO(t)), nil
 }
 
+// copyPolicies maps the public policies of a copy to the ones of the file service.
+var copyPolicies = map[CopyInputPolicy]files.Policy{
+	CopyInputPolicyFail: files.PolicyFail, CopyInputPolicyOverwrite: files.PolicyOverwrite, CopyInputPolicySkip: files.PolicySkip,
+	CopyInputPolicyNewer: files.PolicyNewer, CopyInputPolicyRename: files.PolicyRename,
+}
+
 // CreateCopy starts the copy of a file from one site to another and answers with its transfer. The data moves in the
 // background, out of the request, so that closing the browser does not stop it; the user can cancel it as any transfer.
 func (s *server) CreateCopy(ctx context.Context, request CreateCopyRequestObject) (CreateCopyResponseObject, error) {
@@ -157,16 +162,16 @@ func (s *server) CreateCopy(ctx context.Context, request CreateCopyRequestObject
 	if err != nil {
 		return copyFailure(err)
 	}
-	mode := remotefs.WriteCreate
-	if body.Overwrite != nil && *body.Overwrite {
-		mode = remotefs.WriteOverwrite
+	policy := copyPolicies[CopyInputPolicyFail]
+	if body.Policy != nil {
+		policy = copyPolicies[*body.Policy]
 	}
 	location.Destination.Observer = tracker
 	record := tracker.Snapshot()
 	go func() {
 		err := tracker.Admit(runCtx)
 		if err == nil {
-			_, err = s.deps.Files.Copy(runCtx, location, mode)
+			_, err = s.deps.Files.Copy(runCtx, location, policy)
 		}
 		tracker.Finish(err, problemCode(err))
 	}()

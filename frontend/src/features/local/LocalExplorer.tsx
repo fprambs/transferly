@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 
 import { Breadcrumbs } from '../explorer/Breadcrumbs'
 import { EntryTable } from '../explorer/EntryTable'
-import { isEntryDrag, readDrag, writeDrag } from '../explorer/entry-drag'
+import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from '../explorer/entry-drag'
 import { parentPath, sortEntries } from '../explorer/entries'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from '../explorer/errors'
 import { resolveTimeZone } from '@/lib/datetime'
@@ -66,9 +66,9 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
 
   const reload = (): Promise<void> => queryClient.invalidateQueries({ queryKey: ['local', version, path] })
 
-  const save = async (source: { workspaceId: string; siteId: string; path: string }): Promise<void> => {
+  const save = async (source: DraggedEntry): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
-    if (root === null || source.siteId === localSiteId || source.workspaceId !== workspaceId) {
+    if (root === null || source.isFolder || source.siteId === localSiteId || source.workspaceId !== workspaceId) {
       return
     }
     try {
@@ -152,7 +152,7 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
             showPermissions={false}
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
-            onDragEntry={(entry, data) => writeDrag(data, { workspaceId, siteId: localSiteId, path: entry.path })}
+            onDragEntry={(entry, data) => writeDrag(data, { workspaceId, siteId: localSiteId, path: entry.path, isFolder: false })}
           />
         </div>
       )}

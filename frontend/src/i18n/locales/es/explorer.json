@@ -45,7 +45,8 @@
     "network_error": "No se pudo contactar con el servidor.",
     "unknown": "Algo salió mal. Inténtalo de nuevo.",
     "nameRequired": "Escribe un nombre.",
-    "nameInvalid": "El nombre no puede contener una barra ni ser . o .."
+    "nameInvalid": "El nombre no puede contener una barra ni ser . o ..",
+    "tree_too_large": "Esta carpeta es demasiado grande para copiarla o archivarla: tiene demasiados elementos o es demasiado profunda."
   },
   "toolbar": {
     "newFolder": "Nueva carpeta",
@@ -136,5 +137,17 @@
     "failure": "No se pudieron descargar los archivos",
     "tooMany": "Esta carpeta tiene más de {{limit}} archivos. Descárgala como ZIP.",
     "dismiss": "Cerrar"
+  },
+  "policy": {
+    "title": "Copiar {{name}}",
+    "body": "Elige qué pasa con los archivos que ya existen en la carpeta de destino.",
+    "label": "Si el archivo existe",
+    "skip": "Omitirlo",
+    "overwrite": "Sobrescribirlo",
+    "newer": "Sobrescribir solo si el origen es más nuevo",
+    "rename": "Conservar ambos, renombrando la copia",
+    "fail": "Detenerse con un error",
+    "confirm": "Copiar",
+    "cancel": "Cancelar"
   }
 }

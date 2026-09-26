@@ -4,6 +4,8 @@ import { expect, test } from '../fixtures.ts'
  * The second pane and the copy between panes against the SFTP server of the isolated test stack.
  *
  * Scenarios:
+ * - a folder dragged onto the second pane asks what to do with files that exist, and after choosing the default it is copied whole and
+ *   listed there
  * - the split button opens a second pane on a saved site; a file dragged from the quick connection in the first pane onto
  *   the second pane is copied through the server, shows in the transfers dock as a finished copy, appears in the listing of
  *   the second pane, inside a folder made for it, and holds the same content
@@ -32,6 +34,9 @@ test.describe('split view', () => {
     const content = 'copied between panes\n'
     const source = `e2e-source-${stamp}`
     expect((await request.post(`${quickFiles}/directories`, { headers, data: { path: `/upload/${source}` } })).ok()).toBe(true)
+    const pack = `pack-${stamp}`
+    expect((await request.post(`${quickFiles}/directories`, { headers, data: { path: `/upload/${source}/${pack}` } })).ok()).toBe(true)
+    expect((await request.put(`${quickFiles}/content`, { params: { path: `/upload/${source}/${pack}/in-pack.txt`, mode: 'overwrite' }, data: Buffer.from('inside the pack\n'), headers: { ...headers, 'Content-Type': 'application/octet-stream' } })).ok()).toBe(true)
     const upload = await request.put(`${quickFiles}/content`, {
       params: { path: `/upload/${source}/${name}`, mode: 'overwrite' },
       data: Buffer.from(content),
@@ -59,6 +64,13 @@ test.describe('split view', () => {
     await expect(secondGrid.getByRole('row', { name: new RegExp(name) })).toBeVisible()
     const copy = await request.get(`${savedFiles}/content`, { params: { path: `/upload/${folder}/${name}` } })
     expect(await copy.text()).toBe(content)
+
+    await page.getByRole('grid', { name: 'Files' }).first().getByRole('row', { name: new RegExp(pack) }).dragTo(second.locator('section'))
+    await page.getByRole('dialog', { name: `Copy ${pack}` }).getByRole('button', { name: 'Copy' }).click()
+    await expect(dock.getByRole('listitem').filter({ hasText: pack }).filter({ has: page.getByRole('img', { name: 'Copy' }) })).toContainText('Done', { timeout: 30_000 })
+    await expect(secondGrid.getByRole('row', { name: new RegExp(pack) })).toBeVisible()
+    const inside = await request.get(`${savedFiles}/content`, { params: { path: `/upload/${folder}/${pack}/in-pack.txt` } })
+    expect(await inside.text()).toBe('inside the pack\n')
 
     for (const [files, path] of [[quickFiles, `/upload/${source}`], [savedFiles, `/upload/${folder}`]] as const) {
       await request.delete(files, { params: { path, recursive: true }, headers })

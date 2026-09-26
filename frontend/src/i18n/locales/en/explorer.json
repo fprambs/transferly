@@ -45,7 +45,8 @@
     "network_error": "Could not reach the server.",
     "unknown": "Something went wrong. Try again.",
     "nameRequired": "Enter a name.",
-    "nameInvalid": "The name cannot contain a slash or be . or .."
+    "nameInvalid": "The name cannot contain a slash or be . or ..",
+    "tree_too_large": "This folder is too big to copy or archive: it holds too many items or goes too deep."
   },
   "toolbar": {
     "newFolder": "New folder",
@@ -136,5 +137,17 @@
     "failure": "The files could not be downloaded",
     "tooMany": "This folder holds more than {{limit}} files. Download it as a ZIP instead.",
     "dismiss": "Dismiss"
+  },
+  "policy": {
+    "title": "Copy {{name}}",
+    "body": "Choose what happens to files that already exist in the destination folder.",
+    "label": "If a file exists",
+    "skip": "Skip it",
+    "overwrite": "Overwrite it",
+    "newer": "Overwrite only if the source is newer",
+    "rename": "Keep both, renaming the copy",
+    "fail": "Stop with an error",
+    "confirm": "Copy",
+    "cancel": "Cancel"
   }
 }
