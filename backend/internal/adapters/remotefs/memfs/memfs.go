@@ -357,7 +357,7 @@ func (f *FS) Chtimes(ctx context.Context, p string, mtime time.Time) error {
 
 // Capabilities implements [remotefs.RemoteFS]; every optional feature is supported.
 func (f *FS) Capabilities() remotefs.Capabilities {
-	return remotefs.Capabilities{Resume: true, Chmod: true, Chtimes: true}
+	return remotefs.Capabilities{Resume: true, Rewrite: true, Chmod: true, Chtimes: true}
 }
 
 // Ping implements [remotefs.RemoteFS].

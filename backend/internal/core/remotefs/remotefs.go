@@ -57,6 +57,9 @@ func (e Entry) IsDir() bool { return e.Mode.IsDir() }
 type Capabilities struct {
 	// Resume is true when transfers can continue from an offset.
 	Resume bool
+	// Rewrite is true when a resumed write may start before the end of the file and leave the bytes after it untouched.
+	// Without it a resumed write must start exactly at the end of the file, as with FTP.
+	Rewrite bool
 	// Chmod is true when permissions can be changed.
 	Chmod bool
 	// Chtimes is true when modification times can be changed.

@@ -251,14 +251,19 @@ func testResume(t *testing.T, fsys remotefs.RemoteFS) {
 		t.Errorf("after resume = %q, want hello world", got)
 	}
 
-	w, err = fsys.OpenWrite(t.Context(), "/f", 0, remotefs.WriteResume)
-	if err != nil {
-		t.Fatalf("OpenWrite resume at 0 = %v", err)
-	}
-	_, _ = io.WriteString(w, "J")
-	_ = w.Close()
-	if got := get(t, fsys, "/f", 0); got != "Jello world" {
-		t.Errorf("after partial rewrite = %q, want Jello world", got)
+	if fsys.Capabilities().Rewrite {
+		w, err = fsys.OpenWrite(t.Context(), "/f", 0, remotefs.WriteResume)
+		if err != nil {
+			t.Fatalf("OpenWrite resume at 0 = %v", err)
+		}
+		_, _ = io.WriteString(w, "J")
+		_ = w.Close()
+		if got := get(t, fsys, "/f", 0); got != "Jello world" {
+			t.Errorf("after partial rewrite = %q, want Jello world", got)
+		}
+	} else {
+		_, err = fsys.OpenWrite(t.Context(), "/f", 0, remotefs.WriteResume)
+		wantErr(t, "resume before the end of the file without Rewrite", err, remotefs.ErrInvalid)
 	}
 
 	_, err = fsys.OpenWrite(t.Context(), "/missing", 0, remotefs.WriteResume)
@@ -363,11 +368,23 @@ func testMetadata(t *testing.T, fsys remotefs.RemoteFS) {
 		if err := fsys.Chtimes(t.Context(), "/f", want.In(time.FixedZone("UTC-3", -3*3600))); err != nil {
 			t.Fatalf("Chtimes = %v", err)
 		}
-		if e, _ := fsys.Stat(t.Context(), "/f"); !e.ModTime.Equal(want) || e.ModTime.Location() != time.UTC {
-			t.Errorf("ModTime after Chtimes = %v, want %v in UTC", e.ModTime, want)
+		e, _ := fsys.Stat(t.Context(), "/f")
+		if !e.ModTime.Equal(truncate(want, e.ModTimePrecision)) || e.ModTime.Location() != time.UTC {
+			t.Errorf("ModTime after Chtimes = %v, want %v in UTC (precision %v)", e.ModTime, truncate(want, e.ModTimePrecision), e.ModTimePrecision)
 		}
 		wantErr(t, "Chtimes of a missing path", fsys.Chtimes(t.Context(), "/nope", want), remotefs.ErrNotFound)
 	}
+}
+
+// truncate rounds a time down to the precision an entry reports, since some protocols only list minutes or days.
+func truncate(t time.Time, precision remotefs.Precision) time.Time {
+	switch precision {
+	case remotefs.PrecisionMinute:
+		return t.Truncate(time.Minute)
+	case remotefs.PrecisionDay:
+		return t.Truncate(24 * time.Hour)
+	}
+	return t
 }
 
 // testUTC checks that modification times are reported in UTC.
