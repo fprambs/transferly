@@ -13,7 +13,8 @@ const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
  * Visual regression of the application shell against versioned baselines.
  *
  * Scenarios:
- * - the sites sidebar is masked because the tests that run beside this one fill it with their own collections
+ * - the sites sidebar and the transfers dock are masked because the tests that run beside this one fill them with their own
+ *   collections and transfers
  * - the settings page in the default dark theme and the default light theme
  * - the shell in the default theme in English and Spanish, and in the light, Monokai and Nord themes
  *
@@ -24,10 +25,13 @@ test.describe('visual', () => {
     test(`shell in ${language} with the ${theme} theme`, async ({ shell, page }) => {
       await shell.setLanguage(language)
       await shell.setTheme(theme)
+      const dock = page.getByRole('region', { name: /^(Transfers|Transferencias)$/ })
+      await expect(dock).toBeVisible()
+      await expect(page.getByRole('heading', { level: 2, name: /^(Pick a site to start|Elige un sitio para empezar)$/ })).toBeVisible()
 
       await expect(page).toHaveScreenshot(`shell-${language}-${theme}.png`, {
         animations: 'disabled',
-        mask: [page.getByRole('navigation', { name: 'Sites' })],
+        mask: [page.getByRole('navigation', { name: 'Sites' }), dock],
       })
     })
   }
