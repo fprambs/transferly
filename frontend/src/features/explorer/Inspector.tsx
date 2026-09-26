@@ -1,4 +1,4 @@
-import { Download, Pencil, Trash2 } from 'lucide-react'
+import { Download, Files, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -17,8 +17,10 @@ export interface InspectorProps {
   locale: string
   /** IANA time zone the date is shown in. */
   timeZone: string
-  /** Called to download the entry when it is a file. */
+  /** Called to download the entry: a file as it is, a folder as a ZIP. */
   onDownload: (entry: RemoteEntry) => void
+  /** Called to download the files of the entry one by one when it is a folder. */
+  onDownloadEach: (entry: RemoteEntry) => void
   /** Called to rename the entry. */
   onRename: (entry: RemoteEntry) => void
   /** Called to delete the entry. */
@@ -26,7 +28,7 @@ export interface InspectorProps {
 }
 
 /** Side panel with the details of the selected entry and its actions. */
-export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onRename, onDelete }: InspectorProps) {
+export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
 
   return (
@@ -46,10 +48,16 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
         <dd className="font-mono">{showPermissions ? entry.mode : '—'}</dd>
       </dl>
       <div className="flex flex-wrap gap-2">
-        {entry.type === 'file' ? (
+        {entry.type === 'file' || entry.type === 'directory' ? (
           <Button variant="outline" size="sm" onClick={() => onDownload(entry)}>
             <Download />
-            {t(($) => $.toolbar.download)}
+            {entry.type === 'file' ? t(($) => $.toolbar.download) : t(($) => $.toolbar.downloadZip)}
+          </Button>
+        ) : null}
+        {entry.type === 'directory' ? (
+          <Button variant="outline" size="sm" onClick={() => onDownloadEach(entry)}>
+            <Files />
+            {t(($) => $.toolbar.downloadEach)}
           </Button>
         ) : null}
         <Button variant="outline" size="sm" onClick={() => onRename(entry)}>

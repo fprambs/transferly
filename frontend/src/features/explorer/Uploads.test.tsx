@@ -92,7 +92,7 @@ async function renderExplorer() {
  * - the source of a failed upload is kept so it can be resumed, and the source of a finished, skipped or overwritten one is not
  * - failures are listed by file and can be dismissed, and the other files still upload
  * - dropping files uploads them, and dragging over the folder shows a hint that goes away
- * - files download from the inspector and the context menu, folders do not offer it
+ * - files download from the inspector and the context menu (folders are covered by the folder download tests)
  */
 describe('uploads and downloads', () => {
   beforeEach(() => {
@@ -240,16 +240,5 @@ describe('uploads and downloads', () => {
       expect(url.searchParams.get('transferId')).toMatch(/^[0-9a-f-]{36}$/)
     }
     expect(links[0]).not.toBe(links[1])
-  })
-
-  it('does not offer to download a folder', async () => {
-    mockServer()
-    const { user, grid } = await renderExplorer()
-
-    expect(within(screen.getByRole('complementary')).queryByRole('button', { name: 'Download' })).not.toBeInTheDocument()
-    fireEvent.contextMenu(within(grid).getByText('assets'))
-    await screen.findByRole('menuitem', { name: 'Rename' })
-    expect(screen.queryByRole('menuitem', { name: 'Download' })).not.toBeInTheDocument()
-    await user.keyboard('{Escape}')
   })
 })

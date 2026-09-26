@@ -172,6 +172,8 @@ describe('createApi', () => {
 
     expect(api.files.downloadUrl(ws, site, '/a/b.txt')).toBe(`${files}/content?path=%2Fa%2Fb.txt`)
     expect(api.files.downloadUrl(ws, site, '/f', 't1')).toBe(`${files}/content?path=%2Ff&transferId=t1`)
+    expect(api.files.archiveUrl(ws, site, '/d e')).toBe(`${files}/archive?path=%2Fd+e`)
+    expect(api.files.archiveUrl(ws, site, '/d', 't1')).toBe(`${files}/archive?path=%2Fd&transferId=t1`)
     expect(seen).toHaveLength(0)
   })
 

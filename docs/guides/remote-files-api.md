@@ -16,6 +16,10 @@ Endpoints live under `/api/v1/workspaces/{workspaceId}/sites/{siteId}/files`. Ev
 
 `POST /workspaces/{id}/copies` with `{sourceSiteId, sourcePath, targetSiteId, targetPath, overwrite?, transferId?}` copies one file from a site to another (or to another folder of the same one) through the server. It answers `202` with a transfer of direction `copy` and keeps working after the request ends, so closing the browser does not stop it; the user cancels it like any transfer. The two authorizations (download on the source, upload on the target), the paths and copying a file onto itself are checked before the answer; what fails later (missing source, existing target without `overwrite`) ends the transfer as `failed` with its code. The scheduler limits count the target site. Only files are copied.
 
+## Folders as ZIP
+
+`GET /files/archive?path=&transferId=` streams a folder and its subfolders as a ZIP attachment named after the folder, written as the files are read, so memory does not grow with the tree. It is recorded as a download named `<folder>.zip` with an unknown size; the transfer is done once the client read the end of the stream. Links, devices and names with a separator, `..` or a control character are left out, so unpacking the ZIP cannot write outside its folder. A tree deeper than 64 levels or with more than 100,000 entries fails with `archive_too_large`, which after the stream started leaves the ZIP incomplete and the transfer failed. The explorer downloads folders this way by default and also offers to download the files one by one (up to 500), each as its own transfer.
+
 ## Rules
 
 - Downloads are always `Content-Disposition: attachment` with `Content-Type: application/octet-stream` and `nosniff`; what a remote server holds is never rendered as a page of this origin. File names are encoded as RFC 2231 parameters, so they cannot inject headers.

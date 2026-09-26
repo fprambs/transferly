@@ -34,8 +34,10 @@ export interface EntryTableProps {
   selectedPath: string | null
   /** Called when the selection moves to an entry. */
   onSelect: (entry: RemoteEntry) => void
-  /** Called to download a file from the context menu; the item is left out without it. */
+  /** Called to download a file, or a folder as a ZIP, from the context menu; the item is left out without it. */
   onDownload?: (entry: RemoteEntry) => void
+  /** Called to download the files of a folder one by one from the context menu; the item is left out without it. */
+  onDownloadEach?: (entry: RemoteEntry) => void
   /** Called to rename an entry: F2 or the context menu; both are left out without it. */
   onRename?: (entry: RemoteEntry) => void
   /** Called to delete an entry: Delete or the context menu; both are left out without it. */
@@ -84,7 +86,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onRename, onDelete, onNewFolder, onDragEntry }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onRename, onDelete, onNewFolder, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -193,6 +195,8 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
         <ContextMenuContent aria-label={t(($) => $.menu.label)} className="min-w-44">
           {active.type === 'directory' && <ContextMenuItem onClick={() => onOpen(active)}>{t(($) => $.menu.open)}</ContextMenuItem>}
           {active.type === 'file' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.download)}</ContextMenuItem>}
+          {active.type === 'directory' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.downloadZip)}</ContextMenuItem>}
+          {active.type === 'directory' && onDownloadEach && <ContextMenuItem onClick={() => onDownloadEach(active)}>{t(($) => $.menu.downloadEach)}</ContextMenuItem>}
           {onRename && <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>}
           {onDelete && <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>}
           {onNewFolder && <ContextMenuSeparator />}

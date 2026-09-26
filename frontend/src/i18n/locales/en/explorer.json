@@ -52,7 +52,9 @@
     "rename": "Rename",
     "delete": "Delete",
     "upload": "Upload",
-    "download": "Download"
+    "download": "Download",
+    "downloadZip": "Download as ZIP",
+    "downloadEach": "One by one"
   },
   "menu": {
     "label": "Actions for the selected item",
@@ -60,7 +62,9 @@
     "rename": "Rename",
     "delete": "Delete",
     "newFolder": "New folder",
-    "download": "Download"
+    "download": "Download",
+    "downloadZip": "Download as ZIP",
+    "downloadEach": "Download files one by one"
   },
   "newFolder": {
     "title": "New folder",
@@ -126,5 +130,11 @@
     "empty": "This folder is empty.",
     "readFailure": "The folder could not be read.",
     "dropHint": "Drop here to save the file in this folder"
+  },
+  "archive": {
+    "working": "Starting the download of {{count}} files…",
+    "failure": "The files could not be downloaded",
+    "tooMany": "This folder holds more than {{limit}} files. Download it as a ZIP instead.",
+    "dismiss": "Dismiss"
   }
 }

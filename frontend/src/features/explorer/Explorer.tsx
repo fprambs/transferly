@@ -18,7 +18,7 @@ import { useSitesData } from '../sites/use-sites-data'
 import { Breadcrumbs } from './Breadcrumbs'
 import { localSiteId, readLocalFile } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
-import { startDownload } from './download'
+import { collectFiles, eachDelayMs, maxEachFiles, startDownload, TooManyFiles } from './download'
 import { isEntryDrag, readDrag, writeDrag } from './entry-drag'
 import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
@@ -59,6 +59,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [dragging, setDragging] = useState<'upload' | 'copy' | null>(null)
+  const [each, setEach] = useState<{ count: number } | ExplorerErrorKey | 'tooMany' | null>(null)
   const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
   const picker = useRef<HTMLInputElement>(null)
   const listing = useQuery({
@@ -89,7 +90,24 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
 
   const uploads = useUploads({ api, workspaceId, siteId, path, onUploaded: reload })
 
-  const download = (entry: RemoteEntry): void => startDownload(api.files.downloadUrl(workspaceId, siteId, entry.path, uuid()))
+  const download = (entry: RemoteEntry): void =>
+    startDownload(
+      entry.type === 'directory' ? api.files.archiveUrl(workspaceId, siteId, entry.path, uuid()) : api.files.downloadUrl(workspaceId, siteId, entry.path, uuid()),
+    )
+
+  const downloadEach = async (folder: RemoteEntry): Promise<void> => {
+    try {
+      const found = await collectFiles((dir) => api.files.list(workspaceId, siteId, dir), folder.path, maxEachFiles)
+      setEach({ count: found.length })
+      for (const file of found) {
+        startDownload(api.files.downloadUrl(workspaceId, siteId, file.path, uuid()))
+        await new Promise((resolve) => setTimeout(resolve, eachDelayMs))
+      }
+      setEach(null)
+    } catch (error) {
+      setEach(error instanceof TooManyFiles ? 'tooMany' : explorerErrorKeyOf(error))
+    }
+  }
 
   const copyHere = async (source: { workspaceId: string; siteId: string; path: string }): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
@@ -193,6 +211,18 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         </Button>
         {actions}
       </div>
+      {each === null ? null : typeof each === 'object' ? (
+        <p role="status" className="mx-3 mt-3 rounded-lg border bg-card p-3 text-sm">
+          {t(($) => $.archive.working, { count: each.count })}
+        </p>
+      ) : (
+        <div role="alert" className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <span>{each === 'tooMany' ? t(($) => $.archive.tooMany, { limit: maxEachFiles }) : `${t(($) => $.archive.failure)}: ${t(($) => $.errors[each])}`}</span>
+          <Button variant="outline" size="sm" onClick={() => setEach(null)}>
+            {t(($) => $.archive.dismiss)}
+          </Button>
+        </div>
+      )}
       {copyFailure === null ? null : (
         <div role="alert" className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
           <span>
@@ -262,6 +292,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
             onDownload={download}
+            onDownloadEach={(entry) => void downloadEach(entry)}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
             onNewFolder={() => setDialog({ kind: 'newFolder' })}
@@ -273,6 +304,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             locale={i18n.language}
             timeZone={timeZone}
             onDownload={download}
+            onDownloadEach={(entry) => void downloadEach(entry)}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
           />

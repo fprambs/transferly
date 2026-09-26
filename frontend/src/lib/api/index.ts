@@ -151,6 +151,8 @@ export function createApi(transport: Transport) {
         transport.request<void>({ method: 'DELETE', path: filesPath(workspaceId, siteId), query: { path, recursive: recursive || undefined } }),
       downloadUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/content`, { path, transferId }),
+      archiveUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
+        transport.url(`${filesPath(workspaceId, siteId)}/archive`, { path, transferId }),
       download: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/content`, query: { path, transferId } }),
       upload: (workspaceId: string, siteId: string, path: string, body: Blob | Uint8Array, options: UploadOptions = {}) =>

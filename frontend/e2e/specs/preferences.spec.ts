@@ -68,6 +68,8 @@ test.describe('preferences', () => {
   })
 
   test('collapses and expands the transfer queue', async ({ page, shell }) => {
+    await page.routeWebSocket(/\/api\/v1\/ws/, (socket) => socket.send(JSON.stringify({ type: 'snapshot', data: { transfers: [] } })))
+    await page.reload()
     await expect(shell.heading).toBeVisible()
     const body = page.locator('#queue-body')
     await expect(body).toBeVisible()

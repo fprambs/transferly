@@ -52,7 +52,9 @@
     "rename": "Renombrar",
     "delete": "Eliminar",
     "upload": "Subir",
-    "download": "Descargar"
+    "download": "Descargar",
+    "downloadZip": "Descargar como ZIP",
+    "downloadEach": "Uno por uno"
   },
   "menu": {
     "label": "Acciones del elemento seleccionado",
@@ -60,7 +62,9 @@
     "rename": "Renombrar",
     "delete": "Eliminar",
     "newFolder": "Nueva carpeta",
-    "download": "Descargar"
+    "download": "Descargar",
+    "downloadZip": "Descargar como ZIP",
+    "downloadEach": "Descargar los archivos uno por uno"
   },
   "newFolder": {
     "title": "Nueva carpeta",
@@ -126,5 +130,11 @@
     "empty": "Esta carpeta está vacía.",
     "readFailure": "No se pudo leer la carpeta.",
     "dropHint": "Suelta aquí para guardar el archivo en esta carpeta"
+  },
+  "archive": {
+    "working": "Iniciando la descarga de {{count}} archivos…",
+    "failure": "No se pudieron descargar los archivos",
+    "tooMany": "Esta carpeta tiene más de {{limit}} archivos. Descárgala como ZIP.",
+    "dismiss": "Cerrar"
   }
 }
