@@ -1,0 +1,169 @@
+{
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "editor": "Editor",
+    "viewer": "Viewer"
+  },
+  "roleHelp": {
+    "admin": "Manages members and the audit log, plus everything an editor does.",
+    "editor": "Creates and edits sites and secrets, uploads, renames and deletes files.",
+    "viewer": "Browses and downloads only. Cannot see or change secrets."
+  },
+  "errors": {
+    "forbidden": "Your role does not allow this.",
+    "invalid_name": "Enter a name of up to 80 characters.",
+    "invalid_role": "This role cannot be given.",
+    "invalid_email": "Enter a valid email address.",
+    "member_not_found": "This person is no longer a member.",
+    "owner_bound": "The owner cannot be changed, removed or leave. Transfer ownership first.",
+    "personal_workspace": "Personal workspaces have no other members.",
+    "already_member": "This person is already a member.",
+    "too_many_invitations": "This workspace has too many pending invitations. Revoke some first.",
+    "vault_locked": "Unlock your vault first: the workspace key is sealed with it.",
+    "workspace_not_found": "This workspace no longer exists.",
+    "invitation_not_found": "This invitation is not valid. It may be used, revoked, expired or meant for another address.",
+    "account_exists": "This address already has an account. Sign in instead.",
+    "weak_password": "The password must have at least 12 characters.",
+    "invalid_credentials": "The email or password is wrong.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again.",
+    "nameRequired": "Enter a name.",
+    "emailRequired": "Enter an email address.",
+    "passwordShort": "Use at least 12 characters.",
+    "passwordMismatch": "The passwords do not match."
+  },
+  "page": {
+    "label": "Members",
+    "title": "Members",
+    "subtitle": "People who can open the sites of {{name}}. Roles decide what each one can do.",
+    "invite": "Invite member",
+    "members": "Members",
+    "invitations": "Invitations",
+    "filter": "Filter by email or role",
+    "loading": "Loading members…",
+    "empty": "No one matches.",
+    "personalTitle": "Personal workspaces have no other members",
+    "personalBody": "Create a team workspace to share sites with other people.",
+    "createTeam": "New team workspace"
+  },
+  "table": {
+    "member": "Member",
+    "role": "Role",
+    "key": "Access key",
+    "joined": "Joined"
+  },
+  "member": {
+    "you": "You",
+    "roleOf": "Role of {{email}}",
+    "actions": "Actions for {{email}}",
+    "remove": "Remove from team",
+    "transfer": "Transfer ownership",
+    "leave": "Leave team"
+  },
+  "key": {
+    "sealed": "Sealed for this member",
+    "waiting": "Waiting for vault"
+  },
+  "matrix": {
+    "title": "What each role can do",
+    "action": "Action",
+    "browse": "Browse and download",
+    "upload": "Upload, rename, delete",
+    "sites": "Create and edit sites and secrets",
+    "members": "Manage members and read the audit log",
+    "workspace": "Delete workspace, transfer ownership"
+  },
+  "keysNote": {
+    "title": "Keys and membership",
+    "body": "Every member gets their own sealed copy of the workspace key. A member marked Waiting for vault has not set up their vault yet: someone with an unlocked vault hands the key over when they do. Removing someone rotates the key and seals every stored secret again."
+  },
+  "invite": {
+    "title": "Invite to {{name}}",
+    "step1": "Step 1 of 2. The invitation only works for this email address.",
+    "email": "Email",
+    "role": "Role",
+    "cancel": "Cancel",
+    "create": "Create invitation",
+    "creating": "Creating…",
+    "readyTitle": "Invitation ready",
+    "step2": "Step 2 of 2. Sentinel sends no email: share this link yourself.",
+    "link": "One-time link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "for": "For",
+    "roleLabel": "Role",
+    "expires": "Expires",
+    "onlyOnce": "The link is shown once and cannot be recovered. Anyone holding it who signs in as {{email}} can join. You can revoke it from the Invitations tab.",
+    "done": "Done"
+  },
+  "invitations": {
+    "empty": "No invitations are waiting.",
+    "email": "Invited",
+    "role": "Role",
+    "by": "Invited by",
+    "expires": "Expires",
+    "revoke": "Revoke",
+    "revokeOf": "Revoke the invitation of {{email}}",
+    "loading": "Loading invitations…"
+  },
+  "remove": {
+    "title": "Remove {{email}}?",
+    "body": "{{email}} loses access to {{name}} right away.",
+    "rotation": "The workspace key will be rotated",
+    "rotationBody": "A new key is created and sealed for the members that stay. The stored secrets are sealed again with it.",
+    "change": "This person could have copied credentials while they were a member. Change the passwords of the sites of this workspace at their servers.",
+    "cancel": "Cancel",
+    "confirm": "Remove and rotate key"
+  },
+  "transfer": {
+    "title": "Transfer ownership",
+    "body": "A workspace has one owner. After the transfer you become an admin and cannot undo it yourself.",
+    "newOwner": "New owner",
+    "onlySealed": "Only members whose key is sealed can be chosen.",
+    "confirmLabel": "Type the workspace name to confirm",
+    "cancel": "Cancel",
+    "confirm": "Transfer",
+    "noCandidates": "No member can receive the workspace yet."
+  },
+  "leave": {
+    "title": "Leave {{name}}?",
+    "body": "You lose access to its sites and files. An admin can invite you again.",
+    "cancel": "Cancel",
+    "confirm": "Leave"
+  },
+  "newTeam": {
+    "title": "New team workspace",
+    "body": "You become its owner. Its key is sealed with your vault, so it has to be unlocked.",
+    "name": "Name",
+    "cancel": "Cancel",
+    "create": "Create"
+  },
+  "accept": {
+    "label": "Invitation",
+    "loading": "Checking the invitation…",
+    "invalidTitle": "This invitation cannot be used",
+    "missing": "The link has no invitation token.",
+    "title": "You were invited to {{name}}",
+    "by": "Invited by {{email}}.",
+    "asRole": "You will join as {{role}}. Your personal workspace stays private.",
+    "for": "Invitation for",
+    "expires": "Expires",
+    "createTab": "Create account",
+    "signInTab": "I already have one",
+    "email": "Email",
+    "fixed": "fixed by the invitation",
+    "password": "Account password",
+    "passwordHint": "At least 12 characters.",
+    "repeat": "Repeat password",
+    "vaultNote": "Next you will create a master password for your vault. It is a different secret from this one and protects the credentials of every workspace you use.",
+    "join": "Create account and join",
+    "signIn": "Sign in and join",
+    "accept": "Join {{name}}",
+    "wrongAccount": "This invitation is for {{email}}, but you are signed in as {{current}}. Sign out and open the link again.",
+    "signedInAs": "You are signed in as {{email}}.",
+    "signOut": "Sign out",
+    "sameHint": "If the link was used, expired or was sent to another address, this page cannot tell you which."
+  }
+}

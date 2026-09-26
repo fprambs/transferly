@@ -40,6 +40,13 @@ describe('useUiStore', () => {
     expect(useUiStore.getState()).toMatchObject({ themeId: 'monokai', followSystem: true, queueOpen: false, workspaceId: 'w1' })
   })
 
+  it('goes back to the personal workspace', () => {
+    useUiStore.getState().setWorkspace('w1')
+    useUiStore.getState().clearWorkspace()
+
+    expect(useUiStore.getState().workspaceId).toBeNull()
+  })
+
   it('chooses the queue tab and shows the active transfers', () => {
     useUiStore.setState({ queueOpen: false, queueTab: 'active' })
 

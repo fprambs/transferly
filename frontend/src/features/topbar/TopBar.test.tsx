@@ -65,7 +65,7 @@ describe('top bar', () => {
     expect(switcher).toHaveTextContent('Personal')
 
     await user.click(switcher)
-    await user.click(await screen.findByRole('menuitem', { name: 'Team' }))
+    await user.click(await screen.findByRole('menuitem', { name: /^Team/ }))
 
     await waitFor(() => expect(switcher).toHaveTextContent('Team'))
     expect(useUiStore.getState().workspaceId).toBe('team-1')

@@ -30,6 +30,8 @@ export interface UiState {
   showActiveTransfers: () => void
   /** Chooses the workspace to work in. */
   setWorkspace: (workspaceId: string) => void
+  /** Goes back to the personal workspace. */
+  clearWorkspace: () => void
 }
 
 /** The subset of {@link UiState} that is persisted. */
@@ -80,6 +82,7 @@ export const useUiStore = create<UiState>()(
       setQueueTab: (queueTab) => set({ queueTab }),
       showActiveTransfers: () => set((state) => ({ queueOpen: true, queueTab: state.queueOpen ? state.queueTab : 'active' })),
       setWorkspace: (workspaceId) => set({ workspaceId }),
+      clearWorkspace: () => set({ workspaceId: null }),
     }),
     {
       name: 'sentinel-ui',

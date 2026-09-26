@@ -17,6 +17,16 @@ export type Preferences = Schemas['Preferences']
 export type VaultStatus = Schemas['VaultStatus']
 /** A workspace with the role of the signed-in user in it. */
 export type Workspace = Schemas['Workspace']
+/** A member of a team workspace with their role and the state of their copy of the workspace key. */
+export type Member = Schemas['Member']
+/** A role a member can be given. Owners come only from transferring ownership. */
+export type GrantableRole = Schemas['MemberRoleInput']['role']
+/** An offer to join a team workspace, as its admins see it. */
+export type Invitation = Schemas['Invitation']
+/** A new invitation with its secret, shown only once. */
+export type InvitationCreated = Schemas['InvitationCreated']
+/** What an invitation offers, for whoever holds its token. */
+export type InvitationPreview = Schemas['InvitationPreview']
 /** A collection that groups sites. */
 export type Collection = Schemas['Collection']
 /** What to change in a collection. */
@@ -128,6 +138,26 @@ export function createApi(transport: Transport) {
     workspaces: {
       list: () => transport.request<Workspace[]>({ method: 'GET', path: `${root}/workspaces` }),
       get: (workspaceId: string) => transport.request<Workspace>({ method: 'GET', path: `${root}/workspaces/${workspaceId}` }),
+      create: (name: string) => transport.request<Workspace>({ method: 'POST', path: `${root}/workspaces`, body: { name } }),
+      members: (workspaceId: string) => transport.request<Member[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/members` }),
+      setRole: (workspaceId: string, userId: string, role: GrantableRole) =>
+        transport.request<void>({ method: 'PATCH', path: `${root}/workspaces/${workspaceId}/members/${userId}`, body: { role } }),
+      removeMember: (workspaceId: string, userId: string) =>
+        transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/members/${userId}` }),
+      leave: (workspaceId: string) => transport.request<void>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/leave` }),
+      transfer: (workspaceId: string, userId: string) =>
+        transport.request<void>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/transfer`, body: { userId } }),
+    },
+    invitations: {
+      list: (workspaceId: string) => transport.request<Invitation[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/invitations` }),
+      create: (workspaceId: string, input: { email: string; role: GrantableRole }) =>
+        transport.request<InvitationCreated>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/invitations`, body: input }),
+      revoke: (workspaceId: string, invitationId: string) =>
+        transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/invitations/${invitationId}` }),
+      preview: (token: string) => transport.request<InvitationPreview>({ method: 'POST', path: `${root}/invitations/preview`, body: { token } }),
+      accept: (token: string) => transport.request<Workspace>({ method: 'POST', path: `${root}/invitations/accept`, body: { token } }),
+      join: (token: string, password: string) =>
+        transport.request<SessionInfo>({ method: 'POST', path: `${root}/invitations/join`, body: { token, password } }),
     },
     collections: {
       list: (workspaceId: string) => transport.request<Collection[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/collections` }),

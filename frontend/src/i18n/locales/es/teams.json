@@ -1,0 +1,169 @@
+{
+  "roles": {
+    "owner": "Propietario",
+    "admin": "Administrador",
+    "editor": "Editor",
+    "viewer": "Lector"
+  },
+  "roleHelp": {
+    "admin": "Gestiona miembros y el registro de auditoría, además de todo lo que hace un editor.",
+    "editor": "Crea y edita sitios y secretos; sube, renombra y borra archivos.",
+    "viewer": "Solo navega y descarga. No ve ni cambia secretos."
+  },
+  "errors": {
+    "forbidden": "Tu rol no permite esto.",
+    "invalid_name": "Escribe un nombre de hasta 80 caracteres.",
+    "invalid_role": "No se puede dar este rol.",
+    "invalid_email": "Escribe un correo válido.",
+    "member_not_found": "Esta persona ya no es miembro.",
+    "owner_bound": "El propietario no se puede cambiar, quitar ni puede salir. Transfiere primero la propiedad.",
+    "personal_workspace": "Los workspaces personales no tienen más miembros.",
+    "already_member": "Esta persona ya es miembro.",
+    "too_many_invitations": "Este workspace tiene demasiadas invitaciones pendientes. Revoca algunas primero.",
+    "vault_locked": "Desbloquea antes tu vault: la clave del workspace se sella con él.",
+    "workspace_not_found": "Este workspace ya no existe.",
+    "invitation_not_found": "Esta invitación no es válida. Puede estar usada, revocada, vencida o ser para otra dirección.",
+    "account_exists": "Esta dirección ya tiene una cuenta. Inicia sesión.",
+    "weak_password": "La contraseña debe tener al menos 12 caracteres.",
+    "invalid_credentials": "El correo o la contraseña no son correctos.",
+    "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "nameRequired": "Escribe un nombre.",
+    "emailRequired": "Escribe un correo.",
+    "passwordShort": "Usa al menos 12 caracteres.",
+    "passwordMismatch": "Las contraseñas no coinciden."
+  },
+  "page": {
+    "label": "Miembros",
+    "title": "Miembros",
+    "subtitle": "Personas que pueden abrir los sitios de {{name}}. Los roles deciden qué puede hacer cada una.",
+    "invite": "Invitar miembro",
+    "members": "Miembros",
+    "invitations": "Invitaciones",
+    "filter": "Filtrar por correo o rol",
+    "loading": "Cargando miembros…",
+    "empty": "Nadie coincide.",
+    "personalTitle": "Los workspaces personales no tienen más miembros",
+    "personalBody": "Crea un workspace de equipo para compartir sitios con otras personas.",
+    "createTeam": "Nuevo workspace de equipo"
+  },
+  "table": {
+    "member": "Miembro",
+    "role": "Rol",
+    "key": "Clave de acceso",
+    "joined": "Se unió"
+  },
+  "member": {
+    "you": "Tú",
+    "roleOf": "Rol de {{email}}",
+    "actions": "Acciones para {{email}}",
+    "remove": "Quitar del equipo",
+    "transfer": "Transferir propiedad",
+    "leave": "Salir del equipo"
+  },
+  "key": {
+    "sealed": "Sellada para este miembro",
+    "waiting": "Esperando el vault"
+  },
+  "matrix": {
+    "title": "Qué puede hacer cada rol",
+    "action": "Acción",
+    "browse": "Navegar y descargar",
+    "upload": "Subir, renombrar, borrar",
+    "sites": "Crear y editar sitios y secretos",
+    "members": "Gestionar miembros y leer la auditoría",
+    "workspace": "Borrar el workspace, transferir la propiedad"
+  },
+  "keysNote": {
+    "title": "Claves y pertenencia",
+    "body": "Cada miembro recibe su propia copia sellada de la clave del workspace. Un miembro marcado como Esperando el vault aún no configuró su vault: alguien con el vault desbloqueado le entrega la clave cuando lo haga. Quitar a alguien rota la clave y vuelve a sellar todos los secretos guardados."
+  },
+  "invite": {
+    "title": "Invitar a {{name}}",
+    "step1": "Paso 1 de 2. La invitación solo sirve para este correo.",
+    "email": "Correo",
+    "role": "Rol",
+    "cancel": "Cancelar",
+    "create": "Crear invitación",
+    "creating": "Creando…",
+    "readyTitle": "Invitación lista",
+    "step2": "Paso 2 de 2. Sentinel no envía correos: comparte tú este enlace.",
+    "link": "Enlace de un solo uso",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "for": "Para",
+    "roleLabel": "Rol",
+    "expires": "Vence",
+    "onlyOnce": "El enlace se muestra una sola vez y no se puede recuperar. Quien lo tenga y entre como {{email}} puede unirse. Puedes revocarlo en la pestaña Invitaciones.",
+    "done": "Listo"
+  },
+  "invitations": {
+    "empty": "No hay invitaciones pendientes.",
+    "email": "Invitado",
+    "role": "Rol",
+    "by": "Invitó",
+    "expires": "Vence",
+    "revoke": "Revocar",
+    "revokeOf": "Revocar la invitación de {{email}}",
+    "loading": "Cargando invitaciones…"
+  },
+  "remove": {
+    "title": "¿Quitar a {{email}}?",
+    "body": "{{email}} pierde el acceso a {{name}} de inmediato.",
+    "rotation": "Se rotará la clave del workspace",
+    "rotationBody": "Se crea una clave nueva y se sella para los miembros que se quedan. Los secretos guardados se sellan de nuevo con ella.",
+    "change": "Esta persona pudo copiar credenciales mientras era miembro. Cambia las contraseñas de los sitios de este workspace en sus servidores.",
+    "cancel": "Cancelar",
+    "confirm": "Quitar y rotar la clave"
+  },
+  "transfer": {
+    "title": "Transferir la propiedad",
+    "body": "Un workspace tiene un solo propietario. Tras la transferencia pasas a ser administrador y no puedes deshacerlo tú.",
+    "newOwner": "Nuevo propietario",
+    "onlySealed": "Solo se puede elegir a miembros con la clave sellada.",
+    "confirmLabel": "Escribe el nombre del workspace para confirmar",
+    "cancel": "Cancelar",
+    "confirm": "Transferir",
+    "noCandidates": "Ningún miembro puede recibir aún el workspace."
+  },
+  "leave": {
+    "title": "¿Salir de {{name}}?",
+    "body": "Pierdes el acceso a sus sitios y archivos. Un administrador puede volver a invitarte.",
+    "cancel": "Cancelar",
+    "confirm": "Salir"
+  },
+  "newTeam": {
+    "title": "Nuevo workspace de equipo",
+    "body": "Serás su propietario. Su clave se sella con tu vault, así que debe estar desbloqueado.",
+    "name": "Nombre",
+    "cancel": "Cancelar",
+    "create": "Crear"
+  },
+  "accept": {
+    "label": "Invitación",
+    "loading": "Comprobando la invitación…",
+    "invalidTitle": "Esta invitación no se puede usar",
+    "missing": "El enlace no trae ninguna invitación.",
+    "title": "Te invitaron a {{name}}",
+    "by": "Te invitó {{email}}.",
+    "asRole": "Te unirás como {{role}}. Tu workspace personal sigue siendo privado.",
+    "for": "Invitación para",
+    "expires": "Vence",
+    "createTab": "Crear cuenta",
+    "signInTab": "Ya tengo una",
+    "email": "Correo",
+    "fixed": "fijado por la invitación",
+    "password": "Contraseña de la cuenta",
+    "passwordHint": "Al menos 12 caracteres.",
+    "repeat": "Repite la contraseña",
+    "vaultNote": "A continuación crearás una contraseña maestra para tu vault. Es un secreto distinto de este y protege las credenciales de todos los workspaces que uses.",
+    "join": "Crear cuenta y unirme",
+    "signIn": "Entrar y unirme",
+    "accept": "Unirme a {{name}}",
+    "wrongAccount": "Esta invitación es para {{email}}, pero has entrado como {{current}}. Cierra la sesión y abre el enlace de nuevo.",
+    "signedInAs": "Has entrado como {{email}}.",
+    "signOut": "Cerrar sesión",
+    "sameHint": "Si el enlace se usó, venció o se envió a otra dirección, esta página no puede decirte cuál."
+  }
+}

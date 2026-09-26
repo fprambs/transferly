@@ -10,6 +10,8 @@ import type { RouterHistory } from '@tanstack/react-router'
 import { z } from 'zod'
 
 import { TrustedServers } from '@/features/servers/TrustedServers'
+import { AcceptInvitationPage } from '@/features/teams/AcceptInvitationPage'
+import { MembersPage } from '@/features/teams/MembersPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { NotFound } from '@/features/shell/NotFound'
 import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
@@ -55,6 +57,9 @@ const homeRoute = createRoute({ getParentRoute: () => shellRoute, path: '/', com
 /** Settings of the interface. */
 const settingsRoute = createRoute({ getParentRoute: () => shellRoute, path: '/settings', component: SettingsPage })
 
+/** Members and invitations of the team workspace in use. */
+const membersRoute = createRoute({ getParentRoute: () => shellRoute, path: '/members', component: MembersPage })
+
 /** Servers whose key the user trusted. */
 const serversRoute = createRoute({ getParentRoute: () => shellRoute, path: '/servers', component: TrustedServers })
 
@@ -76,6 +81,9 @@ async function redirectHomeWhenSignedIn(context: RouterContext): Promise<void> {
     throw redirect({ to: '/' })
   }
 }
+
+/** Where an invitation link lands: open to everybody, because whoever holds the link may not have an account yet. */
+const inviteRoute = createRoute({ getParentRoute: () => rootRoute, path: '/invite', component: AcceptInvitationPage })
 
 /** Login screen. */
 const loginRoute = createRoute({
@@ -99,7 +107,7 @@ const setupRoute = createRoute({
 })
 
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, settingsRoute, serversRoute]), loginRoute, setupRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

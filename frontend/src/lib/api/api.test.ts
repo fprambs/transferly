@@ -58,7 +58,7 @@ const files = `/api/v1/workspaces/${ws}/sites/${site}/files`
  * Covers {@link createApi}: every endpoint sends the method, path, query and body the OpenAPI contract defines.
  *
  * Scenarios:
- * - each endpoint of authentication, the vault, workspaces, collections, sites, host keys, quick connections, files
+ * - each endpoint of authentication, the vault, workspaces, members, invitations, collections, sites, host keys, quick connections, files
  *   and transfers is called with the documented method and path
  * - bodies are JSON, query parameters are encoded and left-out ones are not sent
  * - state-changing calls carry the anti-CSRF token and reads do not
@@ -92,6 +92,18 @@ describe('createApi', () => {
     { name: 'vault.regenerateRecoveryKit', call: (a) => a.vault.regenerateRecoveryKit('m'), method: 'POST', path: '/api/v1/vault/recovery-kit', body: { masterPassword: 'm' } },
     { name: 'workspaces.list', call: (a) => a.workspaces.list(), method: 'GET', path: '/api/v1/workspaces' },
     { name: 'workspaces.get', call: (a) => a.workspaces.get(ws), method: 'GET', path: `/api/v1/workspaces/${ws}` },
+    { name: 'workspaces.create', call: (a) => a.workspaces.create('Acme'), method: 'POST', path: '/api/v1/workspaces', body: { name: 'Acme' } },
+    { name: 'workspaces.members', call: (a) => a.workspaces.members(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/members` },
+    { name: 'workspaces.setRole', call: (a) => a.workspaces.setRole(ws, 'u1', 'editor'), method: 'PATCH', path: `/api/v1/workspaces/${ws}/members/u1`, body: { role: 'editor' } },
+    { name: 'workspaces.removeMember', call: (a) => a.workspaces.removeMember(ws, 'u1'), method: 'DELETE', path: `/api/v1/workspaces/${ws}/members/u1` },
+    { name: 'workspaces.leave', call: (a) => a.workspaces.leave(ws), method: 'POST', path: `/api/v1/workspaces/${ws}/leave` },
+    { name: 'workspaces.transfer', call: (a) => a.workspaces.transfer(ws, 'u1'), method: 'POST', path: `/api/v1/workspaces/${ws}/transfer`, body: { userId: 'u1' } },
+    { name: 'invitations.list', call: (a) => a.invitations.list(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/invitations` },
+    { name: 'invitations.create', call: (a) => a.invitations.create(ws, { email: 'a@b.co', role: 'viewer' }), method: 'POST', path: `/api/v1/workspaces/${ws}/invitations`, body: { email: 'a@b.co', role: 'viewer' } },
+    { name: 'invitations.revoke', call: (a) => a.invitations.revoke(ws, 'i1'), method: 'DELETE', path: `/api/v1/workspaces/${ws}/invitations/i1` },
+    { name: 'invitations.preview', call: (a) => a.invitations.preview('tok'), method: 'POST', path: '/api/v1/invitations/preview', body: { token: 'tok' } },
+    { name: 'invitations.accept', call: (a) => a.invitations.accept('tok'), method: 'POST', path: '/api/v1/invitations/accept', body: { token: 'tok' } },
+    { name: 'invitations.join', call: (a) => a.invitations.join('tok', 'pw'), method: 'POST', path: '/api/v1/invitations/join', body: { token: 'tok', password: 'pw' } },
     { name: 'collections.list', call: (a) => a.collections.list(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/collections` },
     { name: 'collections.create', call: (a) => a.collections.create(ws, { name: 'Acme' }), method: 'POST', path: `/api/v1/workspaces/${ws}/collections`, body: { name: 'Acme' } },
     { name: 'collections.update', call: (a) => a.collections.update(ws, 'c1', { moveToTop: true }), method: 'PATCH', path: `/api/v1/workspaces/${ws}/collections/c1`, body: { moveToTop: true } },
