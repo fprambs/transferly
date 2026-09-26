@@ -276,6 +276,41 @@ Ver [ADR-0001](adr/0001-web-first-desktop-ready.md).
 - [ ] Instaladores, firma de código y auto actualización
 - [ ] Revisión de seguridad de la fase: superficie de los bindings de Wails, actualizaciones firmadas, almacenamiento local de la base y del vault
 
+## Pendientes al final: diferenciadores (anotados el 2026-09-26)
+
+Tres funciones que distinguen a Sentinel de un cliente FTP clásico. Se hacen después de las fases 3 a 5, porque se apoyan en ellas (permisos por rol, auditoría, tokens de API) y no deben adelantarse.
+
+### D1. Auditoría de acceso a los sitios
+
+Un admin puede ver qué hizo cada usuario en cada servidor: quién se conectó a qué sitio y cuándo, quién descargó, subió, borró o renombró y qué archivo. Es distinta de la auditoría de administración de la fase 3 (miembros, claves, sitios).
+
+- [ ] Registrar por workspace los eventos de acceso: conexión abierta y cerrada, listado, descarga, subida, borrado, renombrado, suma de comprobación, ZIP y copia entre sitios, con usuario, sitio, ruta, tamaño, resultado y dirección IP. Parte del registro de actividad que ya existe (hoy privado por usuario)
+- [ ] Vista para admins y propietario con filtros por usuario, sitio, acción y fechas; exportación CSV
+- [ ] Retención configurable y purga; límite de volumen (las listados son ruidosos: agrupar o muestrear)
+- [ ] Decisión de privacidad: qué ve cada miembro de su propia actividad frente a lo que ve el admin, y aviso visible a los miembros de que el equipo audita el acceso
+- [ ] Sin contenidos ni credenciales en el registro; solo metadatos
+
+### D2. Vista previa de archivos sin descargarlos
+
+Abrir el archivo desde el explorador y verlo en Sentinel, sin bajarlo al equipo del usuario.
+
+- [ ] Imágenes, texto y código con resaltado, Markdown, JSON, CSV y TSV como tabla, PDF, audio y vídeo con reproducción por rangos (`Range`), ZIP/TAR/GZ como árbol navegable y con vista previa de sus archivos, hojas de cálculo y documentos de oficina en modo lectura
+- [ ] Lectura por rangos y en flujo desde el servidor remoto: nunca traer el archivo entero para mostrar el principio; límite de tamaño por tipo
+- [ ] Seguridad: renderizar contenido remoto es la superficie más peligrosa del producto; visores en `iframe` con `sandbox` sin permisos, origen distinto y CSP propia, sin ejecutar scripts de PDF ni HTML ni SVG del servidor remoto; límites contra bombas de descompresión y archivos malformados
+- [ ] Respeta permisos: previsualizar equivale a descargar (un viewer puede) y se audita como tal (D1)
+- [ ] Abrir con un atajo (barra espaciadora) y navegar entre archivos de la carpeta desde el visor
+
+### D3. Conexiones y archivos por API
+
+Usar Sentinel desde cualquier parte y con cualquier herramienta: con tu usuario y los mismos permisos, abrir conexiones a los sitios del workspace y operar sobre ellos por API.
+
+- [ ] Tokens de API personales con alcance (workspace, sitios, lectura o escritura), caducidad y revocación; heredan el rol del usuario y nunca lo superan; se listan y se auditan (fase 5: tokens de API)
+- [ ] Contrato público documentado (OpenAPI ya existe) con ejemplos y una CLI de referencia
+- [ ] Operaciones con token: listar, descargar, subir con reanudación, copiar entre sitios, transferencias en cola y consulta de su estado
+- [ ] Los secretos de los sitios siguen sin salir nunca por la API; conectar con un token necesita el vault del usuario desbloqueado o una clave de servicio del workspace, a decidir en un ADR (hoy las claves viven solo en la sesión desbloqueada)
+- [ ] Límites por token y por usuario, detección de abuso y todo el acceso auditado (D1)
+- [ ] Revisión de seguridad: alcance y revocación de tokens, fuga de tokens en registros, CSRF no aplicable a tokens, SSRF por sitios
+
 ## Métricas
 
 - Listado de 50k entradas: primer render bajo 1 s tras recibir los datos.
