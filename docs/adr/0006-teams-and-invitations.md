@@ -11,9 +11,9 @@ Phase 3 lets several people work in one workspace. Three things need a decision:
 
 Joining:
 
-- Registration stays closed. A member with `manage_members` creates an **invitation** for an email address and a role (`admin`, `editor` or `viewer`; never `owner`). The reply shows a one-time link; the server sends no email.
+- Registration stays closed. A member with `manage_members` creates an **invitation** for an email address and a role (`admin`, `editor` or `viewer`; never `owner`). The reply shows a one-time link; the server sends no email. The token sits in the URL fragment (`/invite#token`), so it reaches neither access logs nor `Referer`, and the app sends it in request bodies.
 - The token is 256 random bits, stored only as a SHA-256 hash, valid for 7 days and single use. It is bound to the normalized email: accepting requires an account with that email, which the invitee signs in to or creates from the link (sign-up is allowed only with a valid invitation, and only for its email).
-- Every failure of the accept call (unknown, expired, used, revoked or foreign token) answers the same 404, so tokens and accounts cannot be probed. Creating an invitation never tells whether the email already has an account.
+- Every failure of the accept call (unknown, expired, used, revoked or foreign token) answers the same 404, so tokens and accounts cannot be probed. Creating an invitation never tells whether the email already has an account; the holder of the token can learn it, because the page must offer sign-in or sign-up.
 - Pending invitations can be listed and revoked, and each creation, acceptance and revocation goes to the audit log.
 
 Roles and ownership:

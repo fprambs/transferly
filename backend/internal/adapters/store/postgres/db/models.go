@@ -34,6 +34,17 @@ type AuditEvent struct {
 	At          time.Time
 }
 
+type Invitation struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Email       string
+	Role        string
+	TokenHash   []byte
+	InvitedBy   uuid.NullUUID
+	CreatedAt   time.Time
+	ExpiresAt   time.Time
+}
+
 type KnownHost struct {
 	WorkspaceID       uuid.UUID
 	Host              string

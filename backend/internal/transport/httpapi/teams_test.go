@@ -21,10 +21,10 @@ type teamEnv struct {
 	user   map[string]uuid.UUID
 }
 
-// newTeamEnv creates the team through the API as its owner and adds the other members.
-func newTeamEnv(t *testing.T) *teamEnv {
+// newTeamEnv creates the team through the API as its owner and adds the other members. Tweaks change the dependencies of the server.
+func newTeamEnv(t *testing.T, tweaks ...func(*httpapi.Deps)) *teamEnv {
 	t.Helper()
-	a := newAPI(t)
+	a := newAPI(t, tweaks...)
 	e := &teamEnv{a: a, cookie: map[string]*http.Cookie{}, csrf: map[string]string{}, user: map[string]uuid.UUID{}}
 	for _, role := range []string{"owner", "admin", "editor", "viewer", "stranger"} {
 		cookie, user := a.signIn(role + "@example.com")

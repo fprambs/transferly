@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
+	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
@@ -145,6 +147,11 @@ var domainProblems = []struct {
 	{workspace.ErrMemberNotFound, http.StatusNotFound, "member_not_found"},
 	{workspace.ErrInvalidRole, http.StatusUnprocessableEntity, "invalid_role"},
 	{workspace.ErrOwnerBound, http.StatusConflict, "owner_bound"},
+	{workspace.ErrAlreadyMember, http.StatusConflict, "already_member"},
+	{invite.ErrNotFound, http.StatusNotFound, "invitation_not_found"},
+	{invite.ErrTooMany, http.StatusConflict, "too_many_invitations"},
+	{auth.ErrInvalidEmail, http.StatusUnprocessableEntity, "invalid_email"},
+	{auth.ErrEmailTaken, http.StatusConflict, "account_exists"},
 	{site.ErrNotFound, http.StatusNotFound, "site_not_found"},
 	{site.ErrNameTaken, http.StatusConflict, "site_name_taken"},
 	{site.ErrCollectionNotFound, http.StatusNotFound, "collection_not_found"},
@@ -248,5 +255,25 @@ func (p domainProblem) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error 
 
 // VisitTransferOwnershipResponse implements [TransferOwnershipResponseObject].
 func (p domainProblem) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
+
+// VisitListInvitationsResponse implements [ListInvitationsResponseObject].
+func (p domainProblem) VisitListInvitationsResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCreateInvitationResponse implements [CreateInvitationResponseObject].
+func (p domainProblem) VisitCreateInvitationResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitRevokeInvitationResponse implements [RevokeInvitationResponseObject].
+func (p domainProblem) VisitRevokeInvitationResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitPreviewInvitationResponse implements [PreviewInvitationResponseObject].
+func (p domainProblem) VisitPreviewInvitationResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitAcceptInvitationResponse implements [AcceptInvitationResponseObject].
+func (p domainProblem) VisitAcceptInvitationResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitJoinWithInvitationResponse implements [JoinWithInvitationResponseObject].
+func (p domainProblem) VisitJoinWithInvitationResponse(w http.ResponseWriter) error {
 	return p.write(w)
 }

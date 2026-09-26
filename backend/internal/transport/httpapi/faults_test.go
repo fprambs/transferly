@@ -18,6 +18,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
+	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -463,4 +464,58 @@ func TestCollectionFailures(t *testing.T) {
 	expectProblem(t, a.send(http.MethodPost, collectionsPath(ws), map[string]any{"name": "X"}, cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodPatch, collectionsPath(ws, id), map[string]any{"name": "X"}, cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodDelete, collectionsPath(ws, id), nil, cookie, csrf), 500, "internal_error")
+}
+
+// brokenInvites is a store whose invitation reads and writes fail.
+type brokenInvites struct{ *postgres.Store }
+
+// ByTokenHash always fails.
+func (brokenInvites) ByTokenHash(context.Context, []byte, time.Time) (invite.Invitation, error) {
+	return invite.Invitation{}, errInjected
+}
+
+// Pending always fails.
+func (brokenInvites) Pending(context.Context, uuid.UUID, time.Time) ([]invite.Invitation, error) {
+	return nil, errInjected
+}
+
+// CountPending always fails.
+func (brokenInvites) CountPending(context.Context, uuid.UUID, time.Time) (int, error) {
+	return 0, errInjected
+}
+
+// Revoke always fails.
+func (brokenInvites) Revoke(context.Context, uuid.UUID, uuid.UUID) error { return errInjected }
+
+// TestInvitationFailures verifies that store failures inside the invitation handlers are 500 problems.
+//
+// Scenarios:
+//   - listing, creating, revoking, previewing, accepting and joining each answer 500 when the store fails
+//   - joining answers 500 when the personal workspace cannot be created or the session cannot be started
+func TestInvitationFailures(t *testing.T) {
+	e := newTeamEnv(t, func(d *httpapi.Deps) {
+		d.Invites = invite.NewService(brokenInvites{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Readiness.(*postgres.Store), d.Auth, realClock{}, rand.Reader, 0, nil)
+	})
+	expectProblem(t, e.call("owner", http.MethodGet, "/invitations", nil), 500, "internal_error")
+	expectProblem(t, e.call("owner", http.MethodPost, "/invitations", map[string]string{"email": "a@example.com", "role": "viewer"}), 500, "internal_error")
+	expectProblem(t, e.call("owner", http.MethodDelete, "/invitations/"+uuid.NewString(), nil), 500, "internal_error")
+	token := map[string]string{"token": "x", "password": adminPassword}
+	expectProblem(t, e.anonymous("/api/v1/invitations/preview", token), 500, "internal_error")
+	expectProblem(t, e.a.send(http.MethodPost, "/api/v1/invitations/accept", token, e.cookie["viewer"], e.csrf["viewer"]), 500, "internal_error")
+	expectProblem(t, e.anonymous("/api/v1/invitations/join", token), 500, "internal_error")
+
+	var toggle *failingWorkspaces
+	var flaky *flakyStore
+	joining := newTeamEnv(t, withFailingWorkspaces(func(f *failingWorkspaces) { toggle = f }), func(d *httpapi.Deps) {
+		withFlaky(func(f *flakyStore) { flaky = f })(d)
+		store := d.Readiness.(*postgres.Store)
+		d.Invites = invite.NewService(store, d.Workspaces, store, d.Auth, realClock{}, rand.Reader, 0, nil)
+	})
+	first, _ := joining.invite("owner", "first@example.com", "viewer")
+	toggle.failCreate = true
+	expectProblem(t, joining.anonymous("/api/v1/invitations/join", map[string]string{"token": first.Token, "password": adminPassword}), 500, "internal_error")
+	toggle.failCreate = false
+	second, _ := joining.invite("owner", "second@example.com", "viewer")
+	flaky.failCreateSession = true
+	expectProblem(t, joining.anonymous("/api/v1/invitations/join", map[string]string{"token": second.Token, "password": adminPassword}), 500, "internal_error")
 }

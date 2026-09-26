@@ -14,6 +14,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
+	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -130,6 +131,35 @@ func second[T any](_ T, err error) error { return err }
 // TestWorkspaceStore_Conformance runs the shared workspace store suite against Postgres.
 func TestWorkspaceStore_Conformance(t *testing.T) {
 	storetest.RunWorkspace(t, func(t *testing.T) storetest.WorkspaceStore { return openMigrated(t) })
+}
+
+// TestInviteStore_Conformance runs the shared invitation store suite against Postgres.
+func TestInviteStore_Conformance(t *testing.T) {
+	storetest.RunInvite(t, func(t *testing.T) storetest.InviteStore { return openMigrated(t) })
+}
+
+// TestInviteStore_ReportsDatabaseFailures verifies that every invitation operation returns the database error instead of hiding
+// it, using a store whose connection pool is closed.
+func TestInviteStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id, at := uuid.New(), time.Now()
+
+	calls := map[string]error{
+		"Create":       store.Create(ctx, invite.Invitation{ID: id, WorkspaceID: id}, []byte("h")),
+		"ByTokenHash":  second(store.ByTokenHash(ctx, []byte("h"), at)),
+		"Pending":      second(store.Pending(ctx, id, at)),
+		"CountPending": second(store.CountPending(ctx, id, at)),
+		"Revoke":       store.Revoke(ctx, id, id),
+		"Accept":       second(store.Accept(ctx, id, id, at)),
+		"PurgeExpired": second(store.PurgeExpired(ctx, at)),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, invite.ErrNotFound) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
 }
 
 // TestWorkspaceStore_ReportsDatabaseFailures verifies that every workspace operation returns the database

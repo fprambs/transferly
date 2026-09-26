@@ -522,6 +522,260 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/invitations:
+    get:
+      operationId: listInvitations
+      security:
+        - sessionCookie: []
+      summary: Invitations waiting in a team workspace
+      description: Needs manage_members. Used, revoked and expired invitations are not listed.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: The pending invitations, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: createInvitation
+      security:
+        - sessionCookie: []
+      summary: Invite an email address to a team workspace
+      description: >-
+        Needs manage_members and a role above the invited one. The reply carries the token once; only its hash is stored.
+        Inviting an address that already has a pending invitation replaces it. Sentinel sends no email: the caller shares the link.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationInput"
+      responses:
+        "201":
+          description: The invitation and its token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationCreated"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/invitations/{invitationId}:
+    delete:
+      operationId: revokeInvitation
+      security:
+        - sessionCookie: []
+      summary: Revoke an invitation
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/InvitationId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: The invitation no longer works.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/invitations/preview:
+    post:
+      operationId: previewInvitation
+      security: []
+      summary: See what an invitation offers
+      description: >-
+        For the holder of a token, before signing in. Every failure (unknown, used, revoked or expired) is the same 404 invitation_not_found.
+        Rate limited per client address. The token travels in the body so it never reaches an access log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationToken"
+      responses:
+        "200":
+          description: The invitation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationPreview"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/invitations/accept:
+    post:
+      operationId: acceptInvitation
+      security:
+        - sessionCookie: []
+      summary: Join a team workspace with the signed-in account
+      description: The account must have the invited email address; any other account gets 404 invitation_not_found. Rate limited per client address.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationToken"
+      responses:
+        "200":
+          description: The caller is a member; the workspace is returned with their role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/invitations/join:
+    post:
+      operationId: joinWithInvitation
+      security: []
+      summary: Create the invited account and join
+      description: >-
+        The only way to sign up: it needs a valid invitation and creates the account with its email address. An address that already has
+        an account answers 409 account_exists and the invitee signs in and accepts instead. Rate limited per client address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationJoinInput"
+      responses:
+        "201":
+          description: Account created, member of the workspace and signed in.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /api/v1/vault:
     get:
       operationId: getVault
@@ -2777,6 +3031,14 @@ components:
       schema:
         type: string
         format: uuid
+    InvitationId:
+      name: invitationId
+      in: path
+      required: true
+      description: Identifier of the invitation.
+      schema:
+        type: string
+        format: uuid
     UserId:
       name: userId
       in: path
@@ -3427,6 +3689,78 @@ components:
           type: string
           format: uuid
           description: Member who becomes the owner.
+    InvitationInput:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+    Invitation:
+      type: object
+      required: [id, email, role, createdAt, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+        invitedBy:
+          type: string
+          description: Email of the member who invited; left out when that account no longer exists.
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+    InvitationCreated:
+      type: object
+      required: [invitation, token]
+      properties:
+        invitation:
+          $ref: "#/components/schemas/Invitation"
+        token:
+          type: string
+          description: Secret of the invitation, shown only here. The link is the app address with /invite#token.
+    InvitationToken:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    InvitationJoinInput:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+    InvitationPreview:
+      type: object
+      required: [workspaceName, email, role, expiresAt, accountExists]
+      properties:
+        workspaceName:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+        invitedBy:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        accountExists:
+          type: boolean
+          description: Whether the invited address already has an account, so the client offers sign-in or sign-up.
     Preferences:
       type: object
       properties:

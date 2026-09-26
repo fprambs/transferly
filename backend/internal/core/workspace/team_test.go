@@ -255,3 +255,38 @@ func TestService_TransferOwnership(t *testing.T) {
 		t.Errorf("write failure = %v", err)
 	}
 }
+
+// TestService_Invitable verifies who may invite with which role.
+//
+// Scenarios:
+//   - the owner may invite admins, editors and viewers, and an admin may invite editors and viewers
+//   - nobody may invite an owner, an unknown role or a role that does not rank below their own
+//   - editors, viewers and strangers cannot invite, and a personal workspace cannot be invited to
+func TestService_Invitable(t *testing.T) {
+	ctx := context.Background()
+	tm := newTeam(t)
+	for _, c := range []struct {
+		actor uuid.UUID
+		role  workspace.Role
+		want  error
+	}{
+		{tm.owner, workspace.RoleAdmin, nil},
+		{tm.owner, workspace.RoleViewer, nil},
+		{tm.admin, workspace.RoleEditor, nil},
+		{tm.admin, workspace.RoleAdmin, workspace.ErrInvalidRole},
+		{tm.owner, workspace.RoleOwner, workspace.ErrInvalidRole},
+		{tm.owner, "boss", workspace.ErrInvalidRole},
+		{tm.editor, workspace.RoleViewer, workspace.ErrForbidden},
+		{tm.viewer, workspace.RoleViewer, workspace.ErrForbidden},
+		{tm.other, workspace.RoleViewer, workspace.ErrNotFound},
+	} {
+		w, err := tm.svc.Invitable(ctx, c.actor, tm.id, c.role)
+		if !errors.Is(err, c.want) || (err == nil && w.ID != tm.id) {
+			t.Errorf("Invitable(%s) = %+v, %v; want %v", c.role, w, err, c.want)
+		}
+	}
+	personal, _ := tm.svc.EnsurePersonal(ctx, tm.other)
+	if _, err := tm.svc.Invitable(ctx, tm.other, personal.ID, workspace.RoleViewer); !errors.Is(err, workspace.ErrPersonal) {
+		t.Errorf("personal = %v; want ErrPersonal", err)
+	}
+}

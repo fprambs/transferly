@@ -17,6 +17,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
+	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -35,6 +36,8 @@ type Limits struct {
 	LoginAccount ports.RateLimiter
 	// QuickConnect limits how often a user starts quick connections.
 	QuickConnect ports.RateLimiter
+	// Invitations limits the endpoints that take an invitation token, per client address.
+	Invitations ports.RateLimiter
 	// VaultAttempts limits attempts to prove a vault secret, per signed-in account.
 	VaultAttempts ports.RateLimiter
 }
@@ -67,6 +70,8 @@ type Deps struct {
 	Quick *quick.Service
 	// Transfers records uploads and downloads.
 	Transfers *transfer.Service
+	// Invites is the invitation service.
+	Invites *invite.Service
 	// Import creates the sites of a FileZilla site manager file.
 	Import *fzimport.Service
 	// Activity keeps the log of what users did on their connections.

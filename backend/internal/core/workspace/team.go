@@ -18,6 +18,9 @@ const maxNameLength = 80
 // rank orders the roles: a member may act only on members ranked below them.
 var rank = map[Role]int{RoleViewer: 1, RoleEditor: 2, RoleAdmin: 3, RoleOwner: 4}
 
+// grantable tells whether someone with the role mine may hand out role: it must be a known role ranked below their own.
+func grantable(role, mine Role) bool { return rank[role] > 0 && rank[role] < rank[mine] }
+
 // Member is a user of a workspace together with their role.
 type Member struct {
 	// UserID identifies the user.
@@ -86,7 +89,7 @@ func (s *Service) SetRole(ctx context.Context, actor, workspaceID, userID uuid.U
 	if err != nil {
 		return err
 	}
-	if rank[role] == 0 || rank[role] >= rank[mine] {
+	if !grantable(role, mine) {
 		return ErrInvalidRole
 	}
 	current, err := s.target(ctx, actor, workspaceID, userID, mine)
@@ -159,4 +162,17 @@ func (s *Service) TransferOwnership(ctx context.Context, actor, workspaceID, to 
 		return err
 	}
 	return s.store.TransferOwnership(ctx, workspaceID, actor, to)
+}
+
+// Invitable checks that the actor may bring people into a team workspace with a role: they need the permission to manage
+// members and the role must rank below their own. It returns the workspace.
+func (s *Service) Invitable(ctx context.Context, actor, workspaceID uuid.UUID, role Role) (Workspace, error) {
+	w, mine, err := s.team(ctx, actor, workspaceID, ActionManageMembers)
+	if err != nil {
+		return Workspace{}, err
+	}
+	if !grantable(role, mine) {
+		return Workspace{}, ErrInvalidRole
+	}
+	return w, nil
 }

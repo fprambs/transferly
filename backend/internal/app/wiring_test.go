@@ -82,8 +82,8 @@ func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 		}
 		names[task.name]++
 	}
-	if names["old activity"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 {
-		t.Errorf("janitor tasks = %v; want sessions, quick connections, vault keys and old activity once each", names)
+	if names["old activity"] != 1 || names["expired invitations"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 {
+		t.Errorf("janitor tasks = %v; want sessions, quick connections, vault keys, old activity and invitations once each", names)
 	}
 }
 

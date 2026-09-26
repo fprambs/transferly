@@ -13,6 +13,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -34,18 +35,57 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 		(f.failAt == "workspace" && strings.Contains(sql, "INSERT INTO workspaces")) || (f.failAt == "membership" && strings.Contains(sql, "INSERT INTO memberships")) ||
 		(f.failAt == "site" && strings.Contains(sql, "INSERT INTO sites")) || (f.failAt == "update-site" && strings.HasPrefix(sql, "-- name: UpdateSite")) ||
 		(f.failAt == "transfer-role" && strings.Contains(sql, "-- name: SetMembershipRole")) || (f.failAt == "transfer-owner" && strings.Contains(sql, "UPDATE workspaces SET owner_id")) ||
+		(f.failAt == "invite-delete" && strings.Contains(sql, "DELETE FROM invitations")) || (f.failAt == "invite-insert" && strings.Contains(sql, "INSERT INTO invitations")) ||
+		(f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
 		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
 	return pgconn.NewCommandTag("UPDATE 1"), nil
 }
 
-// QueryRow returns the user count, or a failing row when the count step is selected.
-func (f fakeTx) QueryRow(context.Context, string, ...any) pgx.Row {
-	if f.failAt == "count" {
+// QueryRow returns the user count, a consumed invitation or a workspace, or a failing row when the step is selected.
+func (f fakeTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
+	switch {
+	case f.failAt == "count":
 		return scanRow{err: errStep}
+	case strings.Contains(sql, "DELETE FROM invitations"):
+		return invitationRow{err: f.stepError("invite-consume")}
+	case strings.Contains(sql, "FROM workspaces WHERE id"):
+		return invitationRow{err: f.stepError("invite-workspace"), workspace: true}
 	}
 	return scanRow{n: f.users}
+}
+
+// stepError returns the injected error when the step is the selected one.
+func (f fakeTx) stepError(step string) error {
+	if f.failAt == step {
+		return errStep
+	}
+	return nil
+}
+
+// invitationRow is the result of consuming an invitation or reading its workspace.
+type invitationRow struct {
+	err       error
+	workspace bool
+}
+
+// Scan fills the columns of the consumed invitation, or of the workspace.
+func (r invitationRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	if r.workspace {
+		*(dest[0].(*uuid.UUID)) = uuid.New()
+		*(dest[1].(*string)) = "Ops"
+		*(dest[2].(*string)) = "team"
+		*(dest[3].(*uuid.UUID)) = uuid.New()
+		*(dest[4].(*time.Time)) = time.Now()
+		return nil
+	}
+	*(dest[0].(*uuid.UUID)) = uuid.New()
+	*(dest[1].(*string)) = "viewer"
+	return nil
 }
 
 // Commit fails when the commit step is selected.
@@ -122,6 +162,39 @@ func TestCreateWorkspace_ReportsFailuresInsideTheTransaction(t *testing.T) {
 	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
 	if err := failing.CreateWorkspace(context.Background(), workspace.Workspace{}); !errors.Is(err, errStep) {
 		t.Errorf("failure to start = %v, want the injected error", err)
+	}
+}
+
+// TestInvitationWrites_ReportFailuresInsideTheTransaction verifies that a failure at any step of creating or accepting an
+// invitation is returned to the caller.
+//
+// Scenarios:
+//   - creating fails when the transaction cannot start, when replacing the previous invitation fails, when inserting fails and when committing fails
+//   - accepting fails when the transaction cannot start, when consuming, adding the membership, reading the workspace and committing fail
+func TestInvitationWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	for _, step := range []string{"invite-delete", "invite-insert", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.Create(ctx, invite.Invitation{ID: id, WorkspaceID: id}, []byte("h")); !errors.Is(err, errStep) {
+			t.Errorf("Create failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	for _, step := range []string{"invite-consume", "member-if-missing", "invite-workspace", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if _, err := store.Accept(ctx, id, id, time.Now()); !errors.Is(err, errStep) {
+			t.Errorf("Accept failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	failing := &Store{queries: db.New(nil)}
+	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+	if err := failing.Create(ctx, invite.Invitation{}, nil); !errors.Is(err, errStep) {
+		t.Errorf("Create failure to start = %v, want the injected error", err)
+	}
+	if _, err := failing.Accept(ctx, id, id, time.Now()); !errors.Is(err, errStep) {
+		t.Errorf("Accept failure to start = %v, want the injected error", err)
 	}
 }
 
