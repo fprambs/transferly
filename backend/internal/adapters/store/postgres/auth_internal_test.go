@@ -40,7 +40,9 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 		(f.failAt == "team-key" && strings.Contains(sql, "INSERT INTO workspace_key_grants")) || (f.failAt == "delete-member" && strings.Contains(sql, "DELETE FROM memberships")) || (f.failAt == "remove-grants" && strings.Contains(sql, "DELETE FROM workspace_key_grants WHERE workspace_id = $1 AND user_id")) ||
 		(f.failAt == "stale-grants" && strings.Contains(sql, "USING workspaces")) || (f.failAt == "rekey" && strings.Contains(sql, "SET rekey_pending = true")) ||
 		(f.failAt == "bump" && strings.Contains(sql, "SET key_version")) || (f.failAt == "rotate-grant" && strings.Contains(sql, "INSERT INTO workspace_key_grants")) ||
-		(f.failAt == "reseal" && strings.Contains(sql, "UPDATE site_secrets")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
+		(f.failAt == "reseal" && strings.Contains(sql, "UPDATE site_secrets")) || (f.failAt == "totp-upsert" && strings.Contains(sql, "INSERT INTO user_totp")) || (f.failAt == "totp-confirm" && strings.Contains(sql, "SET confirmed = true")) ||
+		(f.failAt == "totp-delete" && strings.Contains(sql, "DELETE FROM user_totp")) || (f.failAt == "recovery-delete" && strings.Contains(sql, "DELETE FROM user_recovery_codes")) ||
+		(f.failAt == "recovery-insert" && strings.Contains(sql, "INSERT INTO user_recovery_codes")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
 		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
@@ -285,6 +287,42 @@ func TestKeyWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 	}
 	if err := failing.Reseal(ctx, id, nil); !errors.Is(err, errStep) {
 		t.Errorf("Reseal failure to start = %v, want the injected error", err)
+	}
+}
+
+// TestFactorWrites_ReportFailuresInsideTheTransaction verifies that a failure at any step of a second factor change is returned.
+//
+// Scenarios:
+//   - saving fails when the transaction cannot start, when storing the secret, deleting the recovery codes and committing fail
+//   - confirming fails on the confirmation, on deleting the old codes, on inserting a new one and on committing
+//   - replacing the recovery codes fails on deleting, on inserting and on committing
+//   - deleting the factor fails on the secret, on the recovery codes and on committing
+func TestFactorWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	codes := [][]byte{[]byte("a")}
+	cases := map[string]struct {
+		steps []string
+		run   func(*Store) error
+	}{
+		"save":    {[]string{"totp-upsert", "recovery-delete", "commit"}, func(s *Store) error { return s.SaveFactor(ctx, id, nil) }},
+		"confirm": {[]string{"totp-confirm", "recovery-delete", "recovery-insert", "commit"}, func(s *Store) error { return s.ConfirmFactor(ctx, id, 1, codes) }},
+		"replace": {[]string{"recovery-delete", "recovery-insert", "commit"}, func(s *Store) error { return s.ReplaceRecovery(ctx, id, codes) }},
+		"delete":  {[]string{"totp-delete", "recovery-delete", "commit"}, func(s *Store) error { return s.DeleteFactor(ctx, id) }},
+	}
+	for name, c := range cases {
+		for _, step := range c.steps {
+			store := &Store{queries: db.New(nil)}
+			store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+			if err := c.run(store); !errors.Is(err, errStep) {
+				t.Errorf("%s failure at %s = %v, want the injected error", name, step, err)
+			}
+		}
+		failing := &Store{queries: db.New(nil)}
+		failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+		if err := c.run(failing); !errors.Is(err, errStep) {
+			t.Errorf("%s failure to start = %v, want the injected error", name, err)
+		}
 	}
 }
 

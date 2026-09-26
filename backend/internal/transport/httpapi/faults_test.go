@@ -38,6 +38,7 @@ type flakyStore struct {
 	failCreateSession bool
 	failPreferences   bool
 	failLookupAfter   int64
+	failUserByID      bool
 	lookups           atomic.Int64
 }
 
@@ -55,6 +56,14 @@ func (f *flakyStore) UpdatePreferences(ctx context.Context, id uuid.UUID, locale
 		return errInjected
 	}
 	return f.Store.UpdatePreferences(ctx, id, locale, timezone, theme)
+}
+
+// UserByID fails when configured to.
+func (f *flakyStore) UserByID(ctx context.Context, id uuid.UUID) (auth.User, error) {
+	if f.failUserByID {
+		return auth.User{}, errInjected
+	}
+	return f.Store.UserByID(ctx, id)
 }
 
 // SessionByTokenHash fails once the configured number of lookups has been served.
@@ -129,6 +138,15 @@ type failingWorkspaces struct {
 	failList      bool
 	failCreate    bool
 	failWorkspace bool
+	failPersonal  bool
+}
+
+// PersonalWorkspace fails when configured to.
+func (f *failingWorkspaces) PersonalWorkspace(ctx context.Context, id uuid.UUID) (workspace.Workspace, error) {
+	if f.failPersonal {
+		return workspace.Workspace{}, errInjected
+	}
+	return f.Store.PersonalWorkspace(ctx, id)
 }
 
 // Workspace fails when configured to.

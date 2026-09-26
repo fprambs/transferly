@@ -124,30 +124,57 @@ func (s *Service) newUser(ctx context.Context, email, password string, role Role
 // It returns the session token, which is shown to the client once, and the principal.
 // Unknown accounts and wrong passwords are indistinguishable, in the error and in the time taken.
 func (s *Service) Login(ctx context.Context, email, password string, client ClientInfo) (string, Principal, error) {
+	user, err := s.CheckPassword(ctx, email, password)
+	if err != nil {
+		return "", Principal{}, err
+	}
+	return s.StartSession(ctx, user, client)
+}
+
+// CheckPassword verifies the credentials of a sign-in and returns the account without opening a session, for sign-ins that need a second
+// step. Unknown accounts and wrong passwords are indistinguishable, in the error and in the time taken.
+func (s *Service) CheckPassword(ctx context.Context, email, password string) (User, error) {
 	user, err := s.users.UserByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
 	stored := s.placeholder
 	if err == nil {
 		stored = user.PasswordHash
 	} else if !errors.Is(err, ErrNotFound) {
-		return "", Principal{}, err
+		return User{}, err
 	}
 
 	ok, rehash, verifyErr := s.hasher.Verify(ctx, password, stored)
 	if verifyErr != nil {
-		return "", Principal{}, verifyErr
+		return User{}, verifyErr
 	}
 	if err != nil || !ok {
-		return "", Principal{}, ErrInvalidCredentials
+		return User{}, ErrInvalidCredentials
 	}
 	if user.Disabled {
-		return "", Principal{}, ErrUserDisabled
+		return User{}, ErrUserDisabled
 	}
 	if rehash {
 		if err := s.upgradeHash(ctx, user, password); err != nil {
-			return "", Principal{}, err
+			return User{}, err
 		}
 	}
-	return s.StartSession(ctx, user, client)
+	return user, nil
+}
+
+// UserByID returns the account with an identifier, or [ErrNotFound].
+func (s *Service) UserByID(ctx context.Context, id uuid.UUID) (User, error) {
+	return s.users.UserByID(ctx, id)
+}
+
+// VerifyPassword asks a signed-in user for their password again before a sensitive change. It returns [ErrInvalidCredentials] when it is wrong.
+func (s *Service) VerifyPassword(ctx context.Context, user User, password string) error {
+	ok, _, err := s.hasher.Verify(ctx, password, user.PasswordHash)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInvalidCredentials
+	}
+	return nil
 }
 
 // upgradeHash re-hashes the password under the current parameters after a successful sign-in.

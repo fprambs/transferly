@@ -24,6 +24,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/scheduler"
@@ -49,6 +50,7 @@ var (
 	loginIPRule      = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
 	loginAccountRule = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 	vaultRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
+	mfaRule          = ratelimit.Rule{Burst: 5, Every: 30 * time.Second}
 	invitationRule   = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
 )
 
@@ -90,6 +92,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		PerUser: cfg.TransferLimits.PerUser, PerSite: cfg.TransferLimits.PerSite,
 	}}, nil)
 	invites := invite.NewService(store, workspaces, store, authService, system, rand.Reader, 0, nil)
+	second := mfa.NewService(store, instanceKey, rand.Reader, system)
 	auditTrail := audit.NewService(store, workspaces, system)
 	keys.OnRotate(rotationLogger(auditTrail, logger))
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
@@ -116,6 +119,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Import:      fzimport.NewService(workspaces, sites),
 			Invites:     invites,
 			Audit:       auditTrail,
+			MFA:         second,
 			Quick:       quickConnections,
 			Events:      hub,
 			Limits: httpapi.Limits{
@@ -125,6 +129,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 				QuickConnect:  ratelimit.New(system, ratelimit.Rule{Burst: cfg.QuickConnectBurst, Every: 12 * time.Second}, maxTrackedClients),
 				VaultAttempts: ratelimit.New(system, vaultRule, maxTrackedClients),
 				Invitations:   ratelimit.New(system, invitationRule, maxTrackedClients),
+				MFA:           ratelimit.New(system, mfaRule, maxTrackedClients),
 			},
 			InstanceKey:    instanceKey,
 			Cookie:         httpapi.CookieConfig{Secure: cfg.CookieSecure(), MaxAge: cfg.SessionMax},

@@ -122,6 +122,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionInfo"
+        "202":
+          description: The password was right but the account has a second factor. No session exists yet; the challenge goes to /auth/mfa with a code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
         "401":
           description: An error. The stable code tells the client what happened.
           content:
@@ -844,6 +850,219 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/auth/mfa:
+    post:
+      operationId: verifyMfa
+      security: []
+      summary: Finish signing in with the second factor
+      description: >-
+        Takes the challenge of the password step and a code from the authenticator app, or a recovery code, and opens the session.
+        Rate limited per account and per client address. An expired or forged challenge is 401 invalid_challenge.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaInput"
+      responses:
+        "200":
+          description: Signed in.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/me/security:
+    get:
+      operationId: getSecurity
+      security:
+        - sessionCookie: []
+      summary: The second factor of the signed-in account
+      responses:
+        "200":
+          description: What is enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityStatus"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/totp:
+    post:
+      operationId: beginTotp
+      security:
+        - sessionCookie: []
+      summary: Start enrolling an authenticator app
+      description: Creates a secret and returns it with the address an authenticator app scans. It is not active until confirmed with a code; starting again replaces it.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: The secret to add to the app.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpSetup"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/totp/confirm:
+    post:
+      operationId: confirmTotp
+      security:
+        - sessionCookie: []
+      summary: Activate the authenticator app with a code
+      description: Proves the secret was scanned, turns the second factor on and returns ten recovery codes, shown only here.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodeInput"
+      responses:
+        "200":
+          description: The second factor is on.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodes"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/me/totp/disable:
+    post:
+      operationId: disableTotp
+      security:
+        - sessionCookie: []
+      summary: Turn the second factor off
+      description: Needs the account password again.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordInput"
+      responses:
+        "204":
+          description: The second factor and its recovery codes are gone.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/me/recovery-codes:
+    post:
+      operationId: regenerateRecoveryCodes
+      security:
+        - sessionCookie: []
+      summary: Replace the recovery codes
+      description: Needs the account password again. The old codes stop working.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordInput"
+      responses:
+        "200":
+          description: The new codes, shown only here.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodes"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /api/v1/vault:
     get:
       operationId: getVault
@@ -3859,6 +4078,65 @@ components:
         at:
           type: string
           format: date-time
+    MfaChallenge:
+      type: object
+      required: [challenge, methods]
+      properties:
+        challenge:
+          type: string
+          description: Proof of the password step, valid for five minutes.
+        methods:
+          type: array
+          items:
+            type: string
+            enum: [totp, recovery]
+    MfaInput:
+      type: object
+      required: [challenge, code]
+      properties:
+        challenge:
+          type: string
+        code:
+          type: string
+          description: A six digit code of the authenticator app, or a recovery code.
+    CodeInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+    PasswordInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+    SecurityStatus:
+      type: object
+      required: [totp, recoveryCodesLeft]
+      properties:
+        totp:
+          type: boolean
+        recoveryCodesLeft:
+          type: integer
+    TotpSetup:
+      type: object
+      required: [secret, uri]
+      properties:
+        secret:
+          type: string
+          description: The secret in base32, to type into an app that cannot scan.
+        uri:
+          type: string
+          description: The otpauth address to show as a QR code.
+    RecoveryCodes:
+      type: object
+      required: [codes]
+      properties:
+        codes:
+          type: array
+          items:
+            type: string
     Preferences:
       type: object
       properties:

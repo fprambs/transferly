@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -133,6 +134,34 @@ func second[T any](_ T, err error) error { return err }
 // TestWorkspaceStore_Conformance runs the shared workspace store suite against Postgres.
 func TestWorkspaceStore_Conformance(t *testing.T) {
 	storetest.RunWorkspace(t, func(t *testing.T) storetest.WorkspaceStore { return openMigrated(t) })
+}
+
+// TestFactorStore_Conformance runs the shared second factor store suite against Postgres.
+func TestFactorStore_Conformance(t *testing.T) {
+	storetest.RunFactor(t, func(t *testing.T) storetest.FactorStore { return openMigrated(t) })
+}
+
+// TestFactorStore_ReportsDatabaseFailures verifies that every second factor operation returns the database error, using a closed pool.
+func TestFactorStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+	calls := map[string]error{
+		"Factor":          second(store.Factor(ctx, id)),
+		"SaveFactor":      store.SaveFactor(ctx, id, nil),
+		"ConfirmFactor":   store.ConfirmFactor(ctx, id, 1, nil),
+		"AdvanceStep":     second(store.AdvanceStep(ctx, id, 1)),
+		"DeleteFactor":    store.DeleteFactor(ctx, id),
+		"ReplaceRecovery": store.ReplaceRecovery(ctx, id, nil),
+		"UseRecovery":     second(store.UseRecovery(ctx, id, nil)),
+		"RecoveryLeft":    second(store.RecoveryLeft(ctx, id)),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, mfa.ErrNotEnrolled) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
 }
 
 // TestAuditStore_Conformance runs the shared audit store suite against Postgres.

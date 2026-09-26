@@ -30,6 +30,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/quick"
@@ -130,6 +131,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Activity:    activityLog,
 		Import:      fzimport.NewService(workspaces, sites),
 		Audit:       auditTrail,
+		MFA:         mfa.NewService(store, instanceKey, rand.Reader, clock),
 		Invites:     invite.NewService(store, workspaces, store, service, clock, rand.Reader, 0, nil),
 		Quick:       quickConnections,
 		Events:      hub,
@@ -140,6 +142,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 			LoginAccount:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
 			VaultAttempts: ratelimit.New(clock, ratelimit.Rule{Burst: 4, Every: 10 * time.Second}, 100),
 			QuickConnect:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
+			MFA:           ratelimit.New(clock, ratelimit.Rule{Burst: 6, Every: 10 * time.Second}, 100),
 			Invitations:   ratelimit.New(clock, ratelimit.Rule{Burst: 20, Every: 10 * time.Second}, 100),
 		},
 		InstanceKey:    instanceKey,

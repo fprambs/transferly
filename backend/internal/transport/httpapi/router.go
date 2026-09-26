@@ -19,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -40,6 +41,8 @@ type Limits struct {
 	QuickConnect ports.RateLimiter
 	// Invitations limits the endpoints that take an invitation token, per client address.
 	Invitations ports.RateLimiter
+	// MFA limits the attempts to give a second factor, per client address and per account.
+	MFA ports.RateLimiter
 	// VaultAttempts limits attempts to prove a vault secret, per signed-in account.
 	VaultAttempts ports.RateLimiter
 }
@@ -72,6 +75,8 @@ type Deps struct {
 	Quick *quick.Service
 	// Transfers records uploads and downloads.
 	Transfers *transfer.Service
+	// MFA is the second factor service.
+	MFA *mfa.Service
 	// Audit is the audit trail of the workspaces.
 	Audit *audit.Service
 	// Invites is the invitation service.

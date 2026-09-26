@@ -126,6 +126,12 @@ type User struct {
 	Theme        string
 }
 
+type UserRecoveryCode struct {
+	UserID   uuid.UUID
+	CodeHash []byte
+	UsedAt   *time.Time
+}
+
 type UserSession struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
@@ -135,6 +141,14 @@ type UserSession struct {
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	ExpiresAt  time.Time
+}
+
+type UserTotp struct {
+	UserID    uuid.UUID
+	Sealed    []byte
+	Confirmed bool
+	LastStep  int64
+	CreatedAt time.Time
 }
 
 type UserVault struct {

@@ -493,3 +493,41 @@ func TestVerify(t *testing.T) {
 		t.Errorf("Verify() of a disabled account = %v", err)
 	}
 }
+
+// TestCheckPasswordAndVerify verifies the password checks that do not open a session.
+//
+// Scenarios:
+//   - correct credentials return the account and store no session, and wrong ones and unknown accounts are the same refusal
+//   - a signed-in user is asked for their password again: the right one passes, a wrong one is refused
+//   - accounts are found by identifier, and unknown ones are ErrNotFound
+func TestCheckPasswordAndVerify(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	_, principal := signedIn(t, h)
+	sessions := len(h.store.sessions)
+
+	user, err := h.svc.CheckPassword(ctx, testEmail, testPassword)
+	if err != nil || user.ID != principal.User.ID || len(h.store.sessions) != sessions {
+		t.Fatalf("CheckPassword() = %+v, %v with %d sessions; want the account and no new session", user, err, len(h.store.sessions))
+	}
+	if _, err := h.svc.CheckPassword(ctx, testEmail, "not the password!!"); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Errorf("wrong password = %v; want ErrInvalidCredentials", err)
+	}
+	if err := h.svc.VerifyPassword(ctx, user, testPassword); err != nil {
+		t.Errorf("VerifyPassword() = %v", err)
+	}
+	if err := h.svc.VerifyPassword(ctx, user, "not the password!!"); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Errorf("VerifyPassword() with a wrong password = %v; want ErrInvalidCredentials", err)
+	}
+	broken := user
+	broken.PasswordHash = "not a hash"
+	if err := h.svc.VerifyPassword(ctx, broken, testPassword); err == nil || errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Errorf("VerifyPassword() with a corrupt hash = %v; want the error of the hasher", err)
+	}
+	if found, err := h.svc.UserByID(ctx, user.ID); err != nil || found.Email != testEmail {
+		t.Errorf("UserByID() = %+v, %v", found, err)
+	}
+	if _, err := h.svc.UserByID(ctx, uuid.New()); !errors.Is(err, auth.ErrNotFound) {
+		t.Errorf("UserByID(unknown) = %v; want ErrNotFound", err)
+	}
+}

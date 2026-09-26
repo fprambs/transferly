@@ -61,7 +61,7 @@ func (s *server) Login(ctx context.Context, request LoginRequestObject) (LoginRe
 		}}, nil
 	}
 
-	token, principal, err := s.deps.Auth.Login(ctx, request.Body.Email, request.Body.Password, client)
+	user, err := s.deps.Auth.CheckPassword(ctx, request.Body.Email, request.Body.Password)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
 		return Login401ApplicationProblemPlusJSONResponse(problemBody(401, "invalid_credentials", nil)), nil
 	}
@@ -71,7 +71,18 @@ func (s *server) Login(ctx context.Context, request LoginRequestObject) (LoginRe
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.deps.Workspaces.EnsurePersonal(ctx, principal.User.ID); err != nil {
+	second, err := s.deps.MFA.Enabled(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if second {
+		return Login202JSONResponse{Challenge: s.deps.MFA.Challenge(user.ID), Methods: mfaMethods}, nil
+	}
+	if _, err := s.deps.Workspaces.EnsurePersonal(ctx, user.ID); err != nil {
+		return nil, err
+	}
+	token, principal, err := s.deps.Auth.StartSession(ctx, user, client)
+	if err != nil {
 		return nil, err
 	}
 	cookie := newSessionCookie(token, s.deps.Cookie)
