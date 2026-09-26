@@ -29,9 +29,11 @@ unit:
 	$(TEST) run --rm unit
 
 e2e:
+	$(TEST) up -d --force-recreate --wait sentinel
 	$(TEST) run --rm e2e
 
 e2e-update:
+	$(TEST) up -d --force-recreate --wait sentinel
 	$(TEST) run --rm e2e node_modules/.bin/playwright test --update-snapshots
 
 lint:

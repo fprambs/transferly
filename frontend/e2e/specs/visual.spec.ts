@@ -13,7 +13,7 @@ const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
  * Visual regression of the application shell against versioned baselines.
  *
  * Scenarios:
- * - the sites tree is masked because the tests that run beside this one fill it with their own collections
+ * - the sites sidebar is masked because the tests that run beside this one fill it with their own collections
  * - the settings page in the default dark theme and the default light theme
  * - the shell in the default theme in English and Spanish, and in the light, Monokai and Nord themes
  *
@@ -27,7 +27,7 @@ test.describe('visual', () => {
 
       await expect(page).toHaveScreenshot(`shell-${language}-${theme}.png`, {
         animations: 'disabled',
-        mask: [page.getByRole('tree')],
+        mask: [page.getByRole('navigation', { name: 'Sites' })],
       })
     })
   }
@@ -38,7 +38,7 @@ test.describe('visual', () => {
       await page.goto('/settings')
       await expect(page.getByRole('radiogroup')).toBeVisible()
 
-      await expect(page).toHaveScreenshot(`settings-en-${theme}.png`, { animations: 'disabled', mask: [page.getByRole('tree')] })
+      await expect(page).toHaveScreenshot(`settings-en-${theme}.png`, { animations: 'disabled', mask: [page.getByRole('navigation', { name: 'Sites' })] })
     })
   }
 })
