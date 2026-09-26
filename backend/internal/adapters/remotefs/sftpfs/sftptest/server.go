@@ -31,6 +31,10 @@ type Options struct {
 	KeyboardOnly bool
 	// NoSFTP makes the server refuse the sftp subsystem.
 	NoSFTP bool
+	// Ciphers restricts the ciphers the server offers; nil keeps the library defaults.
+	Ciphers []string
+	// KeyExchanges restricts the key exchange algorithms the server offers; nil keeps the library defaults.
+	KeyExchanges []string
 	// Fault returns an error to answer an operation with instead of performing it; nil performs it.
 	// The method is the SFTP request method, such as Get, Put, List, Mkdir or Rename.
 	Fault func(method, path string) error
@@ -73,6 +77,7 @@ func Start(t testing.TB, opt Options) *Server {
 		hostKey = NewSigner(t)
 	}
 	config := &ssh.ServerConfig{
+		Config: ssh.Config{Ciphers: opt.Ciphers, KeyExchanges: opt.KeyExchanges},
 		PasswordCallback: func(c ssh.ConnMetadata, pw []byte) (*ssh.Permissions, error) {
 			if want, ok := opt.Users[c.User()]; ok && want == string(pw) {
 				return nil, nil

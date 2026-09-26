@@ -102,6 +102,20 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 	return methods, nil
 }
 
+// keyExchanges are the key exchange algorithms offered to servers, best first. They all use SHA-2 or elliptic curves: the
+// SHA-1 Diffie-Hellman groups that the library still offers by default are left out, so a server that only speaks them is
+// refused instead of negotiating a weaker session.
+var keyExchanges = []string{
+	"mlkem768x25519-sha256",
+	"curve25519-sha256",
+	"curve25519-sha256@libssh.org",
+	"ecdh-sha2-nistp256",
+	"ecdh-sha2-nistp384",
+	"ecdh-sha2-nistp521",
+	"diffie-hellman-group14-sha256",
+	"diffie-hellman-group16-sha512",
+}
+
 // Dial connects, checks the host key, authenticates and starts the SFTP subsystem.
 // Failures are [remotefs.ErrHostKeyUnknown] or [remotefs.ErrHostKeyMismatch] for host keys,
 // [remotefs.ErrAuth] for credentials, the context error when canceled, [netguard.ErrBlocked] for forbidden
@@ -117,8 +131,9 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 
 	var rejected error
 	clientConfig := &ssh.ClientConfig{
-		User: cfg.Username,
-		Auth: methods,
+		Config: ssh.Config{KeyExchanges: keyExchanges},
+		User:   cfg.Username,
+		Auth:   methods,
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 			rejected = cfg.VerifyHostKey(key.Type(), ssh.FingerprintSHA256(key))
 			return rejected

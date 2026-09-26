@@ -670,3 +670,33 @@ func TestFS_WriteToDirectory(t *testing.T) {
 		t.Errorf("overwrite of a directory = %v; want ErrInvalid", err)
 	}
 }
+
+// TestDial_RefusesLegacyCryptography verifies that a server that only speaks broken algorithms is not talked to.
+//
+// Scenarios:
+//   - a server offering only CBC ciphers cannot be connected to, though its password is right
+//   - a server offering only the SHA-1 Diffie-Hellman group 1 key exchange cannot be connected to
+//   - a server offering only ciphers that the client also offers, as OpenSSH does, still works, so the refusal is about
+//     the algorithms and not about the test server
+func TestDial_RefusesLegacyCryptography(t *testing.T) {
+	password := func(c *sftpfs.Config) { c.Password = testPassword }
+
+	for name, opt := range map[string]sftptest.Options{
+		"cbc cipher":        {Ciphers: []string{"aes128-cbc"}},
+		"3des cipher":       {Ciphers: []string{"3des-cbc"}},
+		"sha1 group 1 kex":  {KeyExchanges: []string{"diffie-hellman-group1-sha1"}},
+		"sha1 group 14 kex": {KeyExchanges: []string{"diffie-hellman-group14-sha1"}},
+		"rc4 stream cipher": {Ciphers: []string{"arcfour256"}},
+	} {
+		server := startServer(t, opt)
+		if fsys, err := connect(t, server, password); err == nil {
+			_ = fsys.Close()
+			t.Errorf("%s: connected to a server that only offers a legacy algorithm", name)
+		}
+	}
+
+	modern := startServer(t, sftptest.Options{Ciphers: []string{"aes128-gcm@openssh.com"}, KeyExchanges: []string{"curve25519-sha256"}})
+	if _, err := connect(t, modern, password); err != nil {
+		t.Errorf("modern algorithms: Dial() = %v", err)
+	}
+}
