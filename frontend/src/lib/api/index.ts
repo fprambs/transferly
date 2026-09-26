@@ -36,6 +36,9 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** One line of the activity log. */
+export type ActivityEntry = Schemas['ActivityEntry']
+
 /** The digest of a remote file. */
 export type Checksum = Schemas['Checksum']
 
@@ -171,6 +174,10 @@ export function createApi(transport: Transport) {
           body,
           signal: options.signal,
         }),
+    },
+    activity: {
+      list: (workspaceId: string, query: { siteId?: string; limit?: number } = {}) =>
+        transport.request<ActivityEntry[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/activity`, query }),
     },
     copies: {
       create: (workspaceId: string, input: CopyInput) =>

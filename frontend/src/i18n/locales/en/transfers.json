@@ -1,7 +1,8 @@
 {
   "tabs": {
     "active": "Active",
-    "finished": "Finished"
+    "finished": "Finished",
+    "activity": "Activity"
   },
   "emptyActive": "Nothing is transferring.",
   "emptyFinished": "No finished transfers.",
@@ -44,5 +45,15 @@
     "normal": "Normal",
     "high": "High"
   },
-  "copy": "Copy"
+  "copy": "Copy",
+  "activity": {
+    "empty": "No activity yet.",
+    "mkdir": "Created a folder",
+    "rename": "Renamed to {{to}}",
+    "delete": "Deleted",
+    "checksum": "Checksum ({{algorithm}})",
+    "transfer": "{{direction}} {{status}}",
+    "failed": "Could not load the activity.",
+    "list": "Activity log"
+  }
 }

@@ -7,11 +7,10 @@ import { Button } from '@/components/ui/button'
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { cn } from '@/lib/utils'
 import type { RemoteEntry } from '@/lib/api'
-import { resolveTimeZone } from '@/lib/datetime'
 import { useApi } from '@/lib/api/use-api'
 import { uuid } from '@/lib/uuid'
 
-import { useSession } from '../auth/use-session'
+import { useTimeZone } from '../auth/use-time-zone'
 import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
@@ -56,7 +55,6 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const { t, i18n } = useTranslation('explorer')
   const api = useApi()
   const queryClient = useQueryClient()
-  const session = useSession()
   const { sites, quick } = useSitesData(workspaceId)
   const [trustFailure, setTrustFailure] = useState<ExplorerErrorKey | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
@@ -78,7 +76,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const showPermissions = target === undefined || target.protocol === 'sftp'
   const hostKey = unknownHostKeyOf(listing.error)
-  const timeZone = session?.user.timezone ?? resolveTimeZone()
+  const timeZone = useTimeZone()
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
 
   const trust = async (key: UnknownHostKey, connection: { host: string; port: number }): Promise<void> => {

@@ -45,14 +45,14 @@ describe('AppShell', () => {
 
   it('collapses and expands the transfer queue', async () => {
     await renderShell()
-    expect(screen.getByText('No transfers')).toBeInTheDocument()
+    expect(screen.getByText('Nothing is transferring.')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide transfers' }))
-    expect(screen.queryByText('No transfers')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nothing is transferring.')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show transfers' })).toHaveAttribute('aria-expanded', 'false')
 
     await userEvent.click(screen.getByRole('button', { name: 'Show transfers' }))
-    expect(screen.getByText('No transfers')).toBeInTheDocument()
+    expect(screen.getByText('Nothing is transferring.')).toBeInTheDocument()
   })
 
   it('sets a right-to-left document direction for a right-to-left language', async () => {

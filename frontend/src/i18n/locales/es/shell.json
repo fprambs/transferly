@@ -19,7 +19,6 @@
   },
   "queue": {
     "title": "Transferencias",
-    "empty": "No hay transferencias",
     "show": "Mostrar transferencias",
     "hide": "Ocultar transferencias"
   }

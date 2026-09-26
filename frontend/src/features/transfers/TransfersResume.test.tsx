@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TransferRecord } from '@/lib/transport'
-import { problem } from '@/test/handlers'
+import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 import { useUiStore } from '@/state/ui-store'
@@ -90,6 +90,8 @@ describe('resuming uploads', () => {
     clearUploadSources()
     useTransfersStore.getState().reset()
     useUiStore.setState({ queueOpen: true, queueTab: 'active' })
+    mockSession(adminSession)
+    mockWorkspaceData()
   })
 
   it('offers to resume only what can be resumed', async () => {

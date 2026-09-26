@@ -232,7 +232,7 @@ test.describe('explorer', () => {
     const name = `e2e-download-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
     await request.put(`${files}/content`, {
       params: { path: `/upload/${name}`, mode: 'overwrite' },
-      data: Buffer.alloc(4 * 1024 * 1024, 7),
+      data: Buffer.alloc(24 * 1024 * 1024, 7),
       headers: { 'X-CSRF-Token': me.csrfToken, 'Content-Type': 'application/octet-stream' },
     })
 

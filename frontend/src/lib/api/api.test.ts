@@ -115,6 +115,8 @@ describe('createApi', () => {
     { name: 'files.rename', call: (a) => a.files.rename(ws, site, '/a', '/b'), method: 'POST', path: `${files}/rename`, body: { from: '/a', to: '/b' } },
     { name: 'files.remove', call: (a) => a.files.remove(ws, site, '/d'), method: 'DELETE', path: files, query: '?path=%2Fd' },
     { name: 'files.remove recursive', call: (a) => a.files.remove(ws, site, '/d', true), method: 'DELETE', path: files, query: '?path=%2Fd&recursive=true' },
+    { name: 'activity.list', call: (a) => a.activity.list(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/activity` },
+    { name: 'activity.list filtered', call: (a) => a.activity.list(ws, { siteId: 's1', limit: 20 }), method: 'GET', path: `/api/v1/workspaces/${ws}/activity`, query: '?siteId=s1&limit=20' },
     { name: 'copies.create', call: (a) => a.copies.create(ws, { sourceSiteId: 's1', sourcePath: '/a', targetSiteId: 's2', targetPath: '/b', policy: 'overwrite', verify: true }), method: 'POST', path: `/api/v1/workspaces/${ws}/copies`, body: { sourceSiteId: 's1', sourcePath: '/a', targetSiteId: 's2', targetPath: '/b', policy: 'overwrite', verify: true } },
     { name: 'transfers.list', call: (a) => a.transfers.list(), method: 'GET', path: '/api/v1/transfers' },
     { name: 'transfers.list filtered', call: (a) => a.transfers.list({ workspaceId: ws, limit: 5 }), method: 'GET', path: '/api/v1/transfers', query: '?workspaceId=w1&limit=5' },

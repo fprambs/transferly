@@ -7,6 +7,9 @@ import type { Transfer, TransferPriority } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
 
+import { useWorkspace } from '../workspace/use-workspace'
+import { useTimeZone } from '../auth/use-time-zone'
+import { ActivityList } from './ActivityList'
 import { TransferRow } from './TransferRow'
 import { endedRecently, useNow } from './recent'
 import { useResume } from './use-resume'
@@ -15,7 +18,9 @@ import { isActive, newestFirst, useTransfersStore, type TransferItem } from './t
 /** Bottom panel that lists the transfers, active ones and finished ones, with their progress and actions. */
 export function TransfersDock() {
   const { t } = useTranslation('shell')
-  const { t: transfers } = useTranslation('transfers')
+  const { t: transfers, i18n } = useTranslation('transfers')
+  const workspace = useWorkspace()
+  const timeZone = useTimeZone()
   const api = useApi()
   const open = useUiStore((state) => state.queueOpen)
   const toggle = useUiStore((state) => state.toggleQueue)
@@ -80,42 +85,46 @@ export function TransfersDock() {
       )}
       {open ? (
         <div id="queue-body" className="border-t">
-          {Object.keys(items).length === 0 ? (
-            <p className="px-4 py-3 text-sm text-muted-foreground">{t(($) => $.queue.empty)}</p>
-          ) : (
-            <Tabs value={tab} onValueChange={(value) => setTab(value === 'finished' ? 'finished' : 'active')}>
-              <TabsList className="mx-4 mt-2 self-start">
-                <TabsTrigger value="active" className="text-foreground">
-                  {transfers(($) => $.tabs.active)} ({active.length})
-                </TabsTrigger>
-                <TabsTrigger value="finished" className="text-foreground">
-                  {transfers(($) => $.tabs.finished)} ({finished.length})
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="active" className="max-h-60 overflow-y-auto">
-                {shown.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
-                ) : (
-                  <ul>
-                    {shown.map((item) => (
-                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
-              <TabsContent value="finished" className="max-h-60 overflow-y-auto">
-                {finished.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyFinished)}</p>
-                ) : (
-                  <ul>
-                    {finished.map((item) => (
-                      <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
-            </Tabs>
-          )}
+          <Tabs value={tab} onValueChange={(value) => setTab(value === 'finished' || value === 'activity' ? value : 'active')}>
+            <TabsList className="mx-4 mt-2 self-start">
+              <TabsTrigger value="active" className="text-foreground">
+                {transfers(($) => $.tabs.active)} ({active.length})
+              </TabsTrigger>
+              <TabsTrigger value="finished" className="text-foreground">
+                {transfers(($) => $.tabs.finished)} ({finished.length})
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="text-foreground">
+                {transfers(($) => $.tabs.activity)}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="active" className="max-h-60 overflow-y-auto">
+              {shown.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
+              ) : (
+                <ul>
+                  {shown.map((item) => (
+                    <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+            <TabsContent value="finished" className="max-h-60 overflow-y-auto">
+              {finished.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyFinished)}</p>
+              ) : (
+                <ul>
+                  {finished.map((item) => (
+                    <TransferRow key={item.record.id} item={item} onCancel={cancel} onRemove={remove} onResume={resume} onPause={pause} onContinue={proceed} onPriority={prioritize} />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+            <TabsContent value="activity" className="max-h-60 overflow-y-auto">
+              {workspace !== undefined ? (
+                <ActivityList workspaceId={workspace.id} locale={i18n.language} timeZone={timeZone} />
+              ) : null}
+            </TabsContent>
+          </Tabs>
         </div>
       ) : null}
     </section>

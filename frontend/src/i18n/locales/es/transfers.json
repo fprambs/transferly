@@ -1,7 +1,8 @@
 {
   "tabs": {
     "active": "Activas",
-    "finished": "Terminadas"
+    "finished": "Terminadas",
+    "activity": "Actividad"
   },
   "emptyActive": "No se está transfiriendo nada.",
   "emptyFinished": "No hay transferencias terminadas.",
@@ -44,5 +45,15 @@
     "normal": "Normal",
     "high": "Alta"
   },
-  "copy": "Copia"
+  "copy": "Copia",
+  "activity": {
+    "empty": "Todavía no hay actividad.",
+    "mkdir": "Creó una carpeta",
+    "rename": "Renombró a {{to}}",
+    "delete": "Eliminó",
+    "checksum": "Checksum ({{algorithm}})",
+    "transfer": "{{direction}}: {{status}}",
+    "failed": "No se pudo cargar la actividad.",
+    "list": "Registro de actividad"
+  }
 }

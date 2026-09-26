@@ -19,7 +19,6 @@
   },
   "queue": {
     "title": "Transfers",
-    "empty": "No transfers",
     "show": "Show transfers",
     "hide": "Hide transfers"
   }

@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TransferRecord } from '@/lib/transport'
-import { problem } from '@/test/handlers'
+import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 import { useUiStore } from '@/state/ui-store'
@@ -45,6 +45,8 @@ function record(id: string, overrides: Partial<TransferRecord> = {}): TransferRe
  * - a queued transfer says it waits for a slot, offers a priority and a pause, and a running one offers neither
  * - pausing, continuing and changing the priority call the server, and the row follows the state event that comes back; failures are ignored
  * - a paused transfer says so and offers to continue
+ * - the activity tab lists what the user did with its time, kind, path, site and outcome, says when there is none or it cannot be loaded, keeps
+ *   itself up to date while it is on show, and follows the interface language
  * - the tabs switch both ways and the choice is kept in the interface state
  * - the panel collapses and the texts follow the interface language
  */
@@ -52,12 +54,14 @@ describe('TransfersDock', () => {
   beforeEach(() => {
     useTransfersStore.getState().reset()
     useUiStore.setState({ queueOpen: true, queueTab: 'active' })
+    mockSession(adminSession)
+    mockWorkspaceData()
   })
 
   it('says when there are no transfers', async () => {
     await renderWithProviders(<TransfersDock />)
 
-    expect(screen.getByText('No transfers')).toBeInTheDocument()
+    expect(screen.getByText('Nothing is transferring.')).toBeInTheDocument()
   })
 
   it('shows progress, speed and time left of a running upload', async () => {
@@ -259,6 +263,64 @@ describe('TransfersDock', () => {
 
     expect(useUiStore.getState().queueTab).toBe('active')
     expect(screen.getByRole('listitem')).toHaveTextContent('1.bin')
+  })
+
+  it('lists the activity log and keeps it up to date', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let reads = 0
+    const entry = (id: string, kind: string, extra: Record<string, unknown> = {}) => ({ id, siteName: 'Prod', kind, path: `/${id}`, at: '2026-03-08T07:30:00Z', ...extra })
+    server.use(
+      http.get('/api/v1/workspaces/:id/activity', () => {
+        reads++
+        return HttpResponse.json([
+          entry('a', 'mkdir'),
+          entry('b', 'rename', { detail: '/b2' }),
+          entry('c', 'delete', { errorCode: 'path_not_found' }),
+          entry('d', 'checksum', { detail: 'sha256' }),
+          entry('e', 'transfer', { detail: 'download:failed', errorCode: 'remote_unavailable' }),
+          entry('f', 'transfer', { detail: 'copy:done' }),
+          entry('g', 'transfer', { detail: 'odd' }),
+        ])
+      }),
+    )
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    await renderWithProviders(<TransfersDock />)
+
+    expect(reads).toBe(0)
+    await user.click(screen.getByRole('tab', { name: 'Activity' }))
+    const log = await screen.findByRole('list', { name: 'Activity log' })
+    const rows = within(log).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('Created a folder')
+    expect(rows[1]).toHaveTextContent('Renamed to /b2')
+    expect(rows[2]).toHaveTextContent('Deleted')
+    expect(rows[2]).toHaveTextContent('path_not_found')
+    expect(rows[3]).toHaveTextContent('Checksum (sha256)')
+    expect(rows[4]).toHaveTextContent('Download Failed')
+    expect(rows[4]).toHaveTextContent('remote_unavailable')
+    expect(rows[5]).toHaveTextContent('Copy Done')
+    expect(rows[6]).toHaveTextContent('Upload Done')
+    expect(rows[0]).toHaveTextContent('Prod')
+    expect(rows[0]).toHaveTextContent('/a')
+    expect(rows[0]).toHaveTextContent('2026')
+
+    const before = reads
+    await act(() => vi.advanceTimersByTimeAsync(5500))
+    expect(reads).toBeGreaterThan(before)
+    vi.useRealTimers()
+  })
+
+  it('says when there is no activity or it cannot be loaded, in the interface language', async () => {
+    server.use(http.get('/api/v1/workspaces/:id/activity', () => HttpResponse.json([])))
+    const user = userEvent.setup()
+    await renderWithProviders(<TransfersDock />, 'es')
+
+    await user.click(screen.getByRole('tab', { name: 'Actividad' }))
+    expect(await screen.findByText('Todavía no hay actividad.')).toBeInTheDocument()
+
+    server.use(http.get('/api/v1/workspaces/:id/activity', () => problem(500, 'internal_error')))
+    await user.click(screen.getByRole('tab', { name: /Terminadas/ }))
+    await user.click(screen.getByRole('tab', { name: 'Actividad' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No se pudo cargar la actividad.'), { timeout: 3000 })
   })
 
   it('collapses', async () => {

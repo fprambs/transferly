@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware'
 
 import { defaultThemeId, findTheme } from '@/lib/theme'
 
+/** The tabs of the transfer queue panel. */
+export type QueueTab = 'active' | 'finished' | 'activity'
+
 /** Interface preferences kept across sessions. */
 export interface UiState {
   /** Identifier of the chosen theme. */
@@ -12,7 +15,7 @@ export interface UiState {
   /** Whether the transfer queue panel is expanded. */
   queueOpen: boolean
   /** Tab of the transfer queue that is showing; it is not kept across sessions. */
-  queueTab: 'active' | 'finished'
+  queueTab: QueueTab
   /** Identifier of the workspace the user chose, or `null` to use the personal one. */
   workspaceId: string | null
   /** Chooses a theme. */
@@ -22,7 +25,7 @@ export interface UiState {
   /** Expands or collapses the transfer queue panel. */
   toggleQueue: () => void
   /** Shows one tab of the transfer queue. */
-  setQueueTab: (tab: 'active' | 'finished') => void
+  setQueueTab: (tab: QueueTab) => void
   /** Opens the transfer queue on its active tab so a transfer that just started is seen; an open queue keeps its tab. */
   showActiveTransfers: () => void
   /** Chooses the workspace to work in. */
