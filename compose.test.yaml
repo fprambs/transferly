@@ -6,6 +6,13 @@ name: sentinel-test
 x-user: &user
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
+# vsftpd servers of the testenv profile, for the tests that need a real FTP server (profile ftp).
+x-vsftpd: &vsftpd
+  init: true
+  build:
+    context: testenv/vsftpd
+  image: sentinel-testenv-vsftpd
+
 services:
   postgres:
     image: postgres:17-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
@@ -41,6 +48,35 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  ftp:
+    profiles: ["ftp"]
+    <<: *vsftpd
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/21'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ftps:
+    profiles: ["ftp"]
+    <<: *vsftpd
+    command: ["/etc/vsftpd/explicit-ftps.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/21'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ftps-implicit:
+    profiles: ["ftp"]
+    <<: *vsftpd
+    command: ["/etc/vsftpd/implicit-ftps.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/990'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   sftp:
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5

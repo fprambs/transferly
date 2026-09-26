@@ -3,6 +3,8 @@ module github.com/fprambs/sentinel
 go 1.27.1
 
 require (
+	github.com/coder/websocket v1.8.15
+	github.com/fclairamb/ftpserverlib v0.32.4
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/google/uuid v1.6.0
@@ -11,13 +13,13 @@ require (
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/pkg/sftp v1.13.11
 	github.com/pressly/goose/v3 v3.28.0
+	github.com/spf13/afero v1.15.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/text v0.42.0
 )
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
