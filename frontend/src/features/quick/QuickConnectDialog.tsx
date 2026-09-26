@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Lock, Zap } from 'lucide-react'
+import { LoaderCircle, Lock, Zap } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -160,7 +160,14 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
                 {t(($) => $.cancel)}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? t(($) => $.connecting) : t(($) => $.connect)}
+                {isSubmitting ? (
+                  <>
+                    <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+                    {t(($) => $.connecting)}
+                  </>
+                ) : (
+                  t(($) => $.connect)
+                )}
               </Button>
             </DialogFooter>
           </form>

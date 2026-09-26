@@ -13,7 +13,6 @@
   },
   "list": "Files",
   "emptyDir": "This folder is empty.",
-  "loading": "Loading…",
   "retry": "Try again",
   "up": "Up one level",
   "refresh": "Refresh",
@@ -99,5 +98,10 @@
     "overwrite": "Overwrite",
     "skip": "Skip",
     "fileInput": "Choose files to upload"
-  }
+  },
+  "connecting": {
+    "title": "Connecting to {{name}}…",
+    "hint": "Opening the connection and reading the first folder"
+  },
+  "opening": "Opening {{path}}…"
 }

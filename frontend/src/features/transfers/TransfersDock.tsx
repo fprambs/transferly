@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,8 @@ export function TransfersDock() {
   const toggle = useUiStore((state) => state.toggleQueue)
   const items = useTransfersStore((state) => state.items)
   const forget = useTransfersStore((state) => state.forget)
-  const [tab, setTab] = useState('active')
+  const tab = useUiStore((state) => state.queueTab)
+  const setTab = useUiStore((state) => state.setQueueTab)
   const picker = useRef<HTMLInputElement>(null)
   const resumer = useResume()
   const failure = resumer.failure
@@ -75,7 +76,7 @@ export function TransfersDock() {
           {Object.keys(items).length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{t(($) => $.queue.empty)}</p>
           ) : (
-            <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
+            <Tabs value={tab} onValueChange={(value) => setTab(value === 'finished' ? 'finished' : 'active')}>
               <TabsList className="mx-4 mt-2 self-start">
                 <TabsTrigger value="active" className="text-foreground">
                   {transfers(($) => $.tabs.active)} ({active.length})

@@ -37,6 +37,8 @@ async function openQuickConnection(page: Page, quickId: string): Promise<void> {
  * - a folder is created, renamed and deleted on the server with the toolbar, F2, Delete and the context menu
  * - a file is uploaded to the server, appears in the folder and in the transfers dock as done, downloads back with the same
  *   content, and is deleted
+ * - opening a connection and moving between folders show a connecting state and a loading bar, and never a blank page
+ * - a download shows its progress in the transfers dock, which opens on its own, and ends as done
  * - an upload canceled half way leaves a partial file, and resuming it from the dock sends only the rest, so the file that
  *   comes back is identical to the one that went out
  * - the explorer has no WCAG violations in any of the twelve themes
@@ -175,12 +177,15 @@ test.describe('explorer', () => {
 
     await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
     const resumed = page.waitForRequest((request) => request.method() === 'PUT' && request.url().includes('/files/content'))
+    const finished = page.waitForResponse((response) => response.request().method() === 'PUT' && response.url().includes('/files/content'))
     await stopped.getByRole('button', { name: `Resume ${name}` }).click()
     const url = new URL((await resumed).url())
     expect(url.searchParams.get('mode')).toBe('resume')
     expect(Number(url.searchParams.get('offset'))).toBeGreaterThan(0)
     expect(Number(url.searchParams.get('offset'))).toBeLessThan(content.length)
     expect(url.searchParams.get('size')).toBe(String(content.length))
+    await finished
+    await dock.getByRole('tab', { name: /Finished/ }).click()
     await expect(stopped).toContainText('Done', { timeout: 30_000 })
     await expect(stopped).toContainText('3.0 MB of 3.0 MB')
 
@@ -194,6 +199,68 @@ test.describe('explorer', () => {
     await grid.press('Delete')
     await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
     await expect(row).toBeHidden()
+  })
+
+  test('shows loading states while connecting and moving between folders', async ({ shell, quickId }) => {
+    const { page } = shell
+    await page.route('**/files?**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      await route.continue()
+    })
+
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    await expect(page.getByRole('status')).toContainText('Connecting to')
+    await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible()
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await expect(grid).toBeVisible()
+    await expect(page.getByRole('status')).toHaveCount(0)
+
+    const bar = page.getByLabel(/^Opening/)
+    await grid.getByRole('row', { name: /upload/ }).dblclick()
+    await expect(bar).toHaveAttribute('aria-busy', 'true')
+    await expect(page.getByRole('button', { name: 'upload', exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(grid.getByRole('row', { name: /upload/ })).toBeVisible()
+    await expect(bar).toHaveAttribute('aria-busy', 'false')
+  })
+
+  test('shows the progress of a download in the transfers dock', async ({ shell, quickId, request }) => {
+    test.setTimeout(120_000)
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const files = `/api/v1/workspaces/${workspaces[0].id}/sites/${quickId}/files`
+    const name = `e2e-download-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
+    await request.put(`${files}/content`, {
+      params: { path: `/upload/${name}`, mode: 'overwrite' },
+      data: Buffer.alloc(4 * 1024 * 1024, 7),
+      headers: { 'X-CSRF-Token': me.csrfToken, 'Content-Type': 'application/octet-stream' },
+    })
+
+    await page.goto(`/sites/${quickId}?path=%2Fupload`)
+    const row = page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(name) })
+    await row.click()
+    await page.getByRole('button', { name: 'Hide transfers' }).click()
+    await expect(page.locator('#queue-body')).toBeHidden()
+    const client = await page.context().newCDPSession(page)
+    await client.send('Network.enable')
+    await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: 400 * 1024, uploadThroughput: -1 })
+
+    const download = page.waitForEvent('download')
+    await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Download' }).click()
+
+    const dock = page.getByRole('region', { name: 'Transfers' })
+    const active = dock.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByRole('img', { name: 'Download' }) })
+    await expect(dock.getByRole('tab', { name: /Active/ })).toHaveAttribute('aria-selected', 'true')
+    await expect(active.getByRole('img', { name: 'Download' })).toBeVisible()
+    await expect.poll(async () => Number(await active.getByRole('progressbar').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(5)
+    await expect(active).toContainText('/s')
+
+    await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
+    await (await download).path()
+    await dock.getByRole('tab', { name: /Finished/ }).click()
+    await expect(dock.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByRole('img', { name: 'Download' }) })).toContainText('Done', { timeout: 30_000 })
+
+    await request.delete(files, { params: { path: `/upload/${name}` }, headers: { 'X-CSRF-Token': me.csrfToken } })
   })
 
   test('has no WCAG violations in any theme', async ({ shell, quickId }) => {

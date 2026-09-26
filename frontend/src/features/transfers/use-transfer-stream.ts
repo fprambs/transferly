@@ -2,11 +2,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { useApi } from '@/lib/api/use-api'
-import { useTransport, type ServerEvent } from '@/lib/transport'
+import { useTransport, type ServerEvent, type TransferRecord } from '@/lib/transport'
 
 import { vaultKey } from '../vault/use-vault'
 
-import { useTransfersStore } from './transfers-store'
+import { useUiStore } from '@/state/ui-store'
+
+import { activeStatuses, useTransfersStore } from './transfers-store'
 
 /** Waits, in milliseconds, before each reconnection attempt; the last one repeats. */
 const retryDelays = [1000, 2000, 5000, 10_000, 30_000]
@@ -24,13 +26,27 @@ function nowMs(): number {
   return Date.now()
 }
 
+/** Tells whether a record is a transfer that just became active: it was unknown or not running before. */
+function startedNow(record: TransferRecord): boolean {
+  const known = useTransfersStore.getState().items[record.id] as { record: TransferRecord } | undefined
+  return activeStatuses.includes(record.status) && (known === undefined || !activeStatuses.includes(known.record.status))
+}
+
 /** Applies an event of the stream to the transfer list; a vault lock is reported through `onVaultLocked`. */
 export function applyEvent(event: ServerEvent, onVaultLocked: () => void): void {
   const store = useTransfersStore.getState()
   if (event.type === 'snapshot') {
+    const started = event.data.transfers.some(startedNow)
     store.upsert(event.data.transfers)
+    if (started) {
+      useUiStore.getState().showActiveTransfers()
+    }
   } else if (event.type === 'transfer.state') {
+    const started = startedNow(event.data)
     store.upsert([event.data])
+    if (started) {
+      useUiStore.getState().showActiveTransfers()
+    }
   } else if (event.type === 'transfer.progress') {
     store.progress(event.data.id, event.data.bytesDone, event.data.totalBytes, nowMs())
   } else {

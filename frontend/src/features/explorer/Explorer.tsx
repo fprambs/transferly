@@ -4,6 +4,8 @@ import { useMemo, useRef, useState, type DragEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { LoadingBar } from '@/components/ui/loading-bar'
+import { cn } from '@/lib/utils'
 import type { RemoteEntry } from '@/lib/api'
 import { resolveTimeZone } from '@/lib/datetime'
 import { useApi } from '@/lib/api/use-api'
@@ -19,6 +21,7 @@ import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { EntryNameDialog } from './EntryNameDialog'
+import { ConnectingState } from './ExplorerLoading'
 import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
@@ -52,7 +55,12 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [dragging, setDragging] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
-  const listing = useQuery({ queryKey: filesKey(workspaceId, siteId, path), queryFn: () => api.files.list(workspaceId, siteId, path) })
+  const listing = useQuery({
+    queryKey: filesKey(workspaceId, siteId, path),
+    queryFn: () => api.files.list(workspaceId, siteId, path),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[3] === siteId ? previous : undefined),
+  })
+  const opening = listing.isFetching && listing.isPlaceholderData
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const hostKey = unknownHostKeyOf(listing.error)
@@ -121,11 +129,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
             event.target.value = ''
           }}
         />
-        <Button variant="ghost" size="sm" disabled={!listing.isSuccess} onClick={() => (picker.current as HTMLInputElement).click()}>
+        <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
           <Upload />
           {t(($) => $.toolbar.upload)}
         </Button>
-        <Button variant="ghost" size="sm" disabled={!listing.isSuccess} onClick={() => setDialog({ kind: 'newFolder' })}>
+        <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
           <FolderPlus />
           {t(($) => $.toolbar.newFolder)}
         </Button>
@@ -154,7 +162,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
         </div>
       ) : null}
       {uploads.conflict === null ? null : <UploadConflictDialog conflict={uploads.conflict} />}
-      {listing.isPending && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.loading)}</p>}
+      <LoadingBar active={listing.isFetching} label={t(($) => $.opening, { path })} />
+      {listing.isPending && <ConnectingState name={target?.name ?? siteId} />}
       {failure !== null && hostKey !== undefined && target !== undefined && (
         <div role="alert" className="m-4 flex max-w-xl flex-col gap-3 rounded-xl border bg-card p-4 text-sm">
           <p className="flex items-center gap-2 font-medium">
@@ -182,9 +191,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
           </Button>
         </div>
       )}
-      {listing.isSuccess && entries.length === 0 && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.emptyDir)}</p>}
+      {listing.isSuccess && !opening && entries.length === 0 && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.emptyDir)}</p>}
       {listing.isSuccess && entries.length > 0 && (
-        <div className="flex min-h-0 flex-1">
+        <div aria-busy={opening} className={cn('flex min-h-0 flex-1 transition-opacity', opening && 'pointer-events-none opacity-50')}>
           <EntryTable
             key={path}
             entries={entries}

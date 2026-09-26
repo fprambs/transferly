@@ -1,4 +1,4 @@
-import { CircleCheck, PlugZap } from 'lucide-react'
+import { CircleCheck, LoaderCircle, PlugZap } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -57,7 +57,7 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
     <div className="flex flex-col gap-2 rounded-lg border p-3">
       <div className="flex items-center gap-3">
         <Button type="button" variant="outline" size="sm" onClick={run} disabled={state.step === 'running'}>
-          <PlugZap />
+          {state.step === 'running' ? <LoaderCircle className="animate-spin motion-reduce:animate-none" /> : <PlugZap />}
           {state.step === 'running' ? t(($) => $.site.test.running) : t(($) => $.site.test.run)}
         </Button>
         {state.step === 'ok' && (

@@ -7,6 +7,7 @@ import { mockVault } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 
+import { useUiStore } from '@/state/ui-store'
 import { useVaultStatus } from '../vault/use-vault'
 
 import { useTransfersStore } from './transfers-store'
@@ -48,6 +49,7 @@ async function renderProbe() {
  * - opening the stream loads the history, and a failing history load is ignored
  * - snapshots and state events add transfers and progress events update them
  * - a vault lock event refreshes the vault state
+ * - a transfer that starts opens a closed queue on its active tab, while updates of a running one, finished ones and progress leave it as the user set it
  * - a dropped stream reconnects after a growing wait that is capped, and the wait starts again after a successful open
  * - unmounting closes the stream and cancels a pending reconnection
  */
@@ -95,6 +97,31 @@ describe('useTransferStream', () => {
 
     act(() => socket.emit('transfer.progress', { id: 't1', bytesDone: 500, totalBytes: 1000 }))
     expect(useTransfersStore.getState().items.t1.record.bytesDone).toBe(500)
+  })
+
+  it('opens the queue when a transfer starts and leaves it alone otherwise', async () => {
+    await renderProbe()
+    const socket = FakeSocket.opened[0]
+    const closed = () => useUiStore.setState({ queueOpen: false, queueTab: 'finished' })
+
+    closed()
+    act(() => socket.emit('transfer.state', { ...record, status: 'done' }))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: false, queueTab: 'finished' })
+
+    act(() => socket.emit('transfer.state', { ...record, id: 't2', status: 'queued' }))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueTab: 'active' })
+
+    closed()
+    act(() => socket.emit('transfer.state', { ...record, id: 't2', status: 'running' }))
+    act(() => socket.emit('transfer.progress', { id: 't2', bytesDone: 5, totalBytes: 10 }))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: false, queueTab: 'finished' })
+
+    act(() => socket.emit('snapshot', { transfers: [{ ...record, id: 't3', status: 'running' }] }))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueTab: 'active' })
+
+    closed()
+    act(() => socket.emit('snapshot', { transfers: [{ ...record, id: 't3', status: 'running' }, { ...record, id: 't1', status: 'done' }] }))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: false, queueTab: 'finished' })
   })
 
   it('refreshes the vault state when the vault is locked', async () => {

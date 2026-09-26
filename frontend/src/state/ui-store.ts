@@ -11,6 +11,8 @@ export interface UiState {
   followSystem: boolean
   /** Whether the transfer queue panel is expanded. */
   queueOpen: boolean
+  /** Tab of the transfer queue that is showing; it is not kept across sessions. */
+  queueTab: 'active' | 'finished'
   /** Identifier of the workspace the user chose, or `null` to use the personal one. */
   workspaceId: string | null
   /** Chooses a theme. */
@@ -19,6 +21,10 @@ export interface UiState {
   setFollowSystem: (followSystem: boolean) => void
   /** Expands or collapses the transfer queue panel. */
   toggleQueue: () => void
+  /** Shows one tab of the transfer queue. */
+  setQueueTab: (tab: 'active' | 'finished') => void
+  /** Opens the transfer queue on its active tab so a transfer that just started is seen; an open queue keeps its tab. */
+  showActiveTransfers: () => void
   /** Chooses the workspace to work in. */
   setWorkspace: (workspaceId: string) => void
 }
@@ -63,10 +69,13 @@ export const useUiStore = create<UiState>()(
       themeId: defaultThemeId,
       followSystem: false,
       queueOpen: true,
+      queueTab: 'active',
       workspaceId: null,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen })),
+      setQueueTab: (queueTab) => set({ queueTab }),
+      showActiveTransfers: () => set((state) => ({ queueOpen: true, queueTab: state.queueOpen ? state.queueTab : 'active' })),
       setWorkspace: (workspaceId) => set({ workspaceId }),
     }),
     {

@@ -128,12 +128,12 @@ describe('explorer', () => {
     expect(await screen.findByText('Mar 8, 2026, 4:30 PM')).toBeInTheDocument()
   })
 
-  it('says when a folder is empty and while it loads', async () => {
+  it('says when a folder is empty and, while it loads, that it is connecting', async () => {
     mockListing([])
 
     await renderExplorer()
 
-    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Connecting to')
     expect(await screen.findByText('This folder is empty.')).toBeInTheDocument()
   })
 

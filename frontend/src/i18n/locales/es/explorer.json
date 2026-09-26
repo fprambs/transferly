@@ -13,7 +13,6 @@
   },
   "list": "Archivos",
   "emptyDir": "Esta carpeta está vacía.",
-  "loading": "Cargando…",
   "retry": "Reintentar",
   "up": "Subir un nivel",
   "refresh": "Actualizar",
@@ -99,5 +98,10 @@
     "overwrite": "Sobrescribir",
     "skip": "Omitir",
     "fileInput": "Elegir archivos para subir"
-  }
+  },
+  "connecting": {
+    "title": "Conectando con {{name}}…",
+    "hint": "Abriendo la conexión y leyendo la primera carpeta"
+  },
+  "opening": "Abriendo {{path}}…"
 }

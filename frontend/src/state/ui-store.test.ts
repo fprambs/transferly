@@ -13,6 +13,7 @@ function store(state: object): void {
  * Scenarios:
  * - starts with the default dark theme, not following the system, and an open queue
  * - chooses a theme, turns following the system on, toggles the queue and chooses a workspace
+ * - the queue tab is chosen and opening the active transfers shows a closed queue on its active tab and leaves an open queue on the tab it has, without being kept across sessions
  * - persists only the theme, the follow-system flag, the queue state and the workspace
  * - restores valid persisted values
  * - ignores persisted values of the wrong type, unknown themes, and works with nothing stored
@@ -37,6 +38,22 @@ describe('useUiStore', () => {
     useUiStore.getState().setWorkspace('w1')
 
     expect(useUiStore.getState()).toMatchObject({ themeId: 'monokai', followSystem: true, queueOpen: false, workspaceId: 'w1' })
+  })
+
+  it('chooses the queue tab and shows the active transfers', () => {
+    useUiStore.setState({ queueOpen: false, queueTab: 'active' })
+
+    useUiStore.getState().setQueueTab('finished')
+    expect(useUiStore.getState().queueTab).toBe('finished')
+
+    useUiStore.getState().showActiveTransfers()
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueTab: 'active' })
+
+    useUiStore.getState().setQueueTab('finished')
+    useUiStore.getState().showActiveTransfers()
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueTab: 'finished' })
+    const stored = JSON.parse(localStorage.getItem('sentinel-ui') ?? '{}') as { state: object }
+    expect(Object.keys(stored.state)).not.toContain('queueTab')
   })
 
   it('persists only the theme, the follow-system flag, the queue state and the workspace', () => {

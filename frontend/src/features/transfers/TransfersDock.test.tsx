@@ -40,12 +40,13 @@ function record(id: string, overrides: Partial<TransferRecord> = {}): TransferRe
  * - the finished tab lists done, failed and canceled transfers with their status and error code
  * - each tab says when it is empty
  * - cancelling calls the server, and removing calls it and forgets the transfer; failures are ignored
+ * - the tabs switch both ways and the choice is kept in the interface state
  * - the panel collapses and the texts follow the interface language
  */
 describe('TransfersDock', () => {
   beforeEach(() => {
     useTransfersStore.getState().reset()
-    useUiStore.setState({ queueOpen: true })
+    useUiStore.setState({ queueOpen: true, queueTab: 'active' })
   })
 
   it('says when there are no transfers', async () => {
@@ -151,6 +152,19 @@ describe('TransfersDock', () => {
     await user.click(screen.getByRole('button', { name: 'Remove b.bin from the list' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Remove b.bin from the list' })).toBeInTheDocument())
     expect(useTransfersStore.getState().items['2']).toBeDefined()
+  })
+
+  it('switches between the tabs', async () => {
+    useTransfersStore.getState().upsert([record('1'), record('2', { status: 'done' })])
+    const user = userEvent.setup()
+    await renderWithProviders(<TransfersDock />)
+
+    await user.click(screen.getByRole('tab', { name: 'Finished (1)' }))
+    expect(useUiStore.getState().queueTab).toBe('finished')
+    await user.click(screen.getByRole('tab', { name: 'Active (1)' }))
+
+    expect(useUiStore.getState().queueTab).toBe('active')
+    expect(screen.getByRole('listitem')).toHaveTextContent('1.bin')
   })
 
   it('collapses', async () => {

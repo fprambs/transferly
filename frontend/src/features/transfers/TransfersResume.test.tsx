@@ -89,7 +89,7 @@ describe('resuming uploads', () => {
   beforeEach(() => {
     clearUploadSources()
     useTransfersStore.getState().reset()
-    useUiStore.setState({ queueOpen: true })
+    useUiStore.setState({ queueOpen: true, queueTab: 'active' })
   })
 
   it('offers to resume only what can be resumed', async () => {
