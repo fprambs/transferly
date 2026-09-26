@@ -86,6 +86,18 @@ var (
 	ErrForbidden = errors.New("action not allowed for this role")
 	// ErrExists means the user already has a personal workspace.
 	ErrExists = errors.New("personal workspace already exists")
+	// ErrInvalidName means a workspace name is empty, too long or holds control characters.
+	ErrInvalidName = errors.New("invalid workspace name")
+	// ErrPersonal means the action only makes sense in a team workspace.
+	ErrPersonal = errors.New("personal workspaces have no other members")
+	// ErrMemberNotFound means the user is not a member of the workspace.
+	ErrMemberNotFound = errors.New("member not found")
+	// ErrInvalidRole means a role cannot be granted: it is unknown, it is owner, or it is not below the role of the caller.
+	ErrInvalidRole = errors.New("invalid role")
+	// ErrAlreadyMember means the user already belongs to the workspace.
+	ErrAlreadyMember = errors.New("already a member")
+	// ErrOwnerBound means the owner cannot be changed, removed or leave: ownership must be transferred first.
+	ErrOwnerBound = errors.New("the owner cannot be changed, removed or leave")
 )
 
 // Workspace is a space that groups sites, credentials and transfers.
@@ -120,6 +132,18 @@ type Store interface {
 	WorkspacesForUser(ctx context.Context, userID uuid.UUID) ([]Summary, error)
 	// RoleOf returns the role of a user in a workspace, or [ErrNotFound] when they are not a member.
 	RoleOf(ctx context.Context, workspaceID, userID uuid.UUID) (Role, error)
+	// Workspace returns a workspace, or [ErrNotFound].
+	Workspace(ctx context.Context, workspaceID uuid.UUID) (Workspace, error)
+	// Members lists the members of a workspace, the owner first.
+	Members(ctx context.Context, workspaceID uuid.UUID) ([]Member, error)
+	// AddMember stores a membership, or returns [ErrAlreadyMember].
+	AddMember(ctx context.Context, workspaceID, userID uuid.UUID, role Role) error
+	// SetRole changes the role of a member, or returns [ErrMemberNotFound].
+	SetRole(ctx context.Context, workspaceID, userID uuid.UUID, role Role) error
+	// RemoveMember deletes a membership, or returns [ErrMemberNotFound].
+	RemoveMember(ctx context.Context, workspaceID, userID uuid.UUID) error
+	// TransferOwnership makes to the owner and from an admin in one step, or returns [ErrMemberNotFound].
+	TransferOwnership(ctx context.Context, workspaceID, from, to uuid.UUID) error
 }
 
 // Service implements workspace use cases.

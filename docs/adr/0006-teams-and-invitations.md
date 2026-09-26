@@ -19,7 +19,7 @@ Joining:
 Roles and ownership:
 
 - Team workspaces use the matrix of the architecture document. A workspace always has exactly one owner; ownership moves only through an explicit transfer by the owner. Personal workspaces have one member and cannot be shared.
-- An admin cannot change or remove the owner, nor grant a role above their own. A member may leave a team unless they are its owner.
+- A member can change or remove only members ranked below them, and grant only roles below their own: an admin manages editors and viewers, the owner also manages admins, and nobody changes the owner or their own role. A member may leave a team unless they are its owner.
 
 Keys:
 

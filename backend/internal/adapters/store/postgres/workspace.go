@@ -78,3 +78,86 @@ func workspaceNotFound(err error) error {
 	}
 	return err
 }
+
+// Workspace implements [workspace.Store].
+func (s *Store) Workspace(ctx context.Context, workspaceID uuid.UUID) (workspace.Workspace, error) {
+	r, err := s.queries.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return workspace.Workspace{}, workspaceNotFound(err)
+	}
+	return workspace.Workspace{ID: r.ID, Name: r.Name, Kind: workspace.Kind(r.Kind), OwnerID: r.OwnerID, CreatedAt: r.CreatedAt.UTC()}, nil
+}
+
+// Members implements [workspace.Store].
+func (s *Store) Members(ctx context.Context, workspaceID uuid.UUID) ([]workspace.Member, error) {
+	rows, err := s.queries.WorkspaceMembers(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]workspace.Member, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, workspace.Member{UserID: r.UserID, Email: r.Email, Role: workspace.Role(r.Role), JoinedAt: r.CreatedAt.UTC()})
+	}
+	return out, nil
+}
+
+// SetRole implements [workspace.Store]; the owner's membership is never touched.
+func (s *Store) SetRole(ctx context.Context, workspaceID, userID uuid.UUID, role workspace.Role) error {
+	n, err := s.queries.UpdateMembershipRole(ctx, db.UpdateMembershipRoleParams{WorkspaceID: workspaceID, UserID: userID, Role: string(role)})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return workspace.ErrMemberNotFound
+	}
+	return nil
+}
+
+// RemoveMember implements [workspace.Store]; the owner's membership is never deleted.
+func (s *Store) RemoveMember(ctx context.Context, workspaceID, userID uuid.UUID) error {
+	n, err := s.queries.DeleteMembership(ctx, db.DeleteMembershipParams{WorkspaceID: workspaceID, UserID: userID})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return workspace.ErrMemberNotFound
+	}
+	return nil
+}
+
+// TransferOwnership implements [workspace.Store]: the three writes happen in one transaction.
+func (s *Store) TransferOwnership(ctx context.Context, workspaceID, from, to uuid.UUID) error {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := s.queries.WithTx(tx)
+	for _, change := range []struct {
+		user uuid.UUID
+		role workspace.Role
+	}{{to, workspace.RoleOwner}, {from, workspace.RoleAdmin}} {
+		n, err := q.SetMembershipRole(ctx, db.SetMembershipRoleParams{WorkspaceID: workspaceID, UserID: change.user, Role: string(change.role)})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return workspace.ErrMemberNotFound
+		}
+	}
+	if err := q.SetWorkspaceOwner(ctx, db.SetWorkspaceOwnerParams{ID: workspaceID, OwnerID: to}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// AddMember implements [workspace.Store].
+func (s *Store) AddMember(ctx context.Context, workspaceID, userID uuid.UUID, role workspace.Role) error {
+	err := s.queries.InsertMembership(ctx, db.InsertMembershipParams{WorkspaceID: workspaceID, UserID: userID, Role: string(role)})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+		return workspace.ErrAlreadyMember
+	}
+	return err
+}

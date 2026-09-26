@@ -145,6 +145,12 @@ func TestWorkspaceStore_ReportsDatabaseFailures(t *testing.T) {
 		"PersonalWorkspace": second(store.PersonalWorkspace(ctx, id)),
 		"WorkspacesForUser": second(store.WorkspacesForUser(ctx, id)),
 		"RoleOf":            second(store.RoleOf(ctx, id, id)),
+		"Workspace":         second(store.Workspace(ctx, id)),
+		"Members":           second(store.Members(ctx, id)),
+		"AddMember":         store.AddMember(ctx, id, id, workspace.RoleViewer),
+		"SetRole":           store.SetRole(ctx, id, id, workspace.RoleViewer),
+		"RemoveMember":      store.RemoveMember(ctx, id, id),
+		"TransferOwnership": store.TransferOwnership(ctx, id, id, id),
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, workspace.ErrNotFound) {

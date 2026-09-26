@@ -124,8 +124,17 @@ func TestClientInfoIsSanitized(t *testing.T) {
 // failingWorkspaces is a workspace store whose selected operations fail.
 type failingWorkspaces struct {
 	*postgres.Store
-	failList   bool
-	failCreate bool
+	failList      bool
+	failCreate    bool
+	failWorkspace bool
+}
+
+// Workspace fails when configured to.
+func (f *failingWorkspaces) Workspace(ctx context.Context, id uuid.UUID) (workspace.Workspace, error) {
+	if f.failWorkspace {
+		return workspace.Workspace{}, errInjected
+	}
+	return f.Store.Workspace(ctx, id)
 }
 
 // WorkspacesForUser fails when configured to.
@@ -158,6 +167,7 @@ func withFailingWorkspaces(configure func(*failingWorkspaces)) func(*httpapi.Dep
 // Scenarios:
 //   - a personal workspace that cannot be created fails setup and login
 //   - a workspace listing that fails fails the list and get endpoints
+//   - a team that cannot be created, and a workspace that cannot be read, fail creating, listing, changing, removing, leaving and transferring
 func TestWorkspaceFailures(t *testing.T) {
 	create := newAPI(t, withFailingWorkspaces(func(f *failingWorkspaces) { f.failCreate = true }))
 	expectProblem(t, create.do(request{method: http.MethodPost, path: "/api/v1/setup", body: map[string]string{"email": adminEmail, "password": adminPassword}}), 500, "internal_error")
@@ -172,6 +182,31 @@ func TestWorkspaceFailures(t *testing.T) {
 	toggle.failList = true
 	expectProblem(t, list.do(request{method: http.MethodGet, path: "/api/v1/workspaces", cookie: cookie}), 500, "internal_error")
 	expectProblem(t, list.do(request{method: http.MethodGet, path: "/api/v1/workspaces/" + uuid.NewString(), cookie: cookie}), 500, "internal_error")
+
+	toggle.failList = false
+	personal := list.personal(cookie)
+	toggle.failCreate = true
+	expectProblem(t, list.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "Team"}, cookie, csrf(list, cookie)), 500, "internal_error")
+	toggle.failWorkspace = true
+	base := "/api/v1/workspaces/" + personal.String()
+	user := uuid.NewString()
+	for _, c := range []struct {
+		method, path string
+		body         any
+	}{
+		{http.MethodGet, "/members", nil},
+		{http.MethodPatch, "/members/" + user, map[string]string{"role": "viewer"}},
+		{http.MethodDelete, "/members/" + user, nil},
+		{http.MethodPost, "/leave", nil},
+		{http.MethodPost, "/transfer", map[string]string{"userId": user}},
+	} {
+		expectProblem(t, list.send(c.method, base+c.path, c.body, cookie, csrf(list, cookie)), 500, "internal_error")
+	}
+}
+
+// csrf returns the anti-CSRF token of a session.
+func csrf(a *api, cookie *http.Cookie) string {
+	return a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}).session(a.t).CsrfToken
 }
 
 // brokenVaults is a store whose vault reads fail.

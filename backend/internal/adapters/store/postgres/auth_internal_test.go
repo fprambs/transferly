@@ -33,6 +33,7 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 	if (f.failAt == "lock" && strings.Contains(sql, "pg_advisory")) || (f.failAt == "insert" && strings.Contains(sql, "INSERT INTO users")) ||
 		(f.failAt == "workspace" && strings.Contains(sql, "INSERT INTO workspaces")) || (f.failAt == "membership" && strings.Contains(sql, "INSERT INTO memberships")) ||
 		(f.failAt == "site" && strings.Contains(sql, "INSERT INTO sites")) || (f.failAt == "update-site" && strings.HasPrefix(sql, "-- name: UpdateSite")) ||
+		(f.failAt == "transfer-role" && strings.Contains(sql, "-- name: SetMembershipRole")) || (f.failAt == "transfer-owner" && strings.Contains(sql, "UPDATE workspaces SET owner_id")) ||
 		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
@@ -120,6 +121,28 @@ func TestCreateWorkspace_ReportsFailuresInsideTheTransaction(t *testing.T) {
 	failing := &Store{queries: db.New(nil)}
 	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
 	if err := failing.CreateWorkspace(context.Background(), workspace.Workspace{}); !errors.Is(err, errStep) {
+		t.Errorf("failure to start = %v, want the injected error", err)
+	}
+}
+
+// TestTransferOwnership_ReportsFailuresInsideTheTransaction verifies that a failure at any step of a transfer is
+// returned to the caller.
+//
+// Scenarios:
+//   - the transaction cannot start
+//   - changing a role, changing the owner of the workspace and committing each fail
+func TestTransferOwnership_ReportsFailuresInsideTheTransaction(t *testing.T) {
+	ids := [3]uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	for _, step := range []string{"transfer-role", "transfer-owner", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.TransferOwnership(context.Background(), ids[0], ids[1], ids[2]); !errors.Is(err, errStep) {
+			t.Errorf("failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	failing := &Store{queries: db.New(nil)}
+	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+	if err := failing.TransferOwnership(context.Background(), ids[0], ids[1], ids[2]); !errors.Is(err, errStep) {
 		t.Errorf("failure to start = %v, want the injected error", err)
 	}
 }

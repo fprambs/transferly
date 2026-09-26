@@ -41,3 +41,90 @@ func (s *server) GetWorkspace(ctx context.Context, request GetWorkspaceRequestOb
 	}
 	return GetWorkspace404ApplicationProblemPlusJSONResponse(problemBody(404, "workspace_not_found", nil)), nil
 }
+
+// memberDTO converts a member to its public representation.
+func memberDTO(m workspace.Member) Member {
+	return Member{UserId: m.UserID, Email: m.Email, Role: MemberRole(m.Role), JoinedAt: m.JoinedAt}
+}
+
+// CreateWorkspace creates a team workspace owned by the signed-in user.
+func (s *server) CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	created, err := s.deps.Workspaces.CreateTeam(ctx, p.User.ID, request.Body.Name)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return CreateWorkspace201JSONResponse(workspaceDTO(workspace.Summary{Workspace: created, Role: workspace.RoleOwner})), nil
+}
+
+// ListMembers lists the members of a team workspace.
+func (s *server) ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	list, err := s.deps.Workspaces.Members(ctx, p.User.ID, request.WorkspaceId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make(ListMembers200JSONResponse, 0, len(list))
+	for _, m := range list {
+		out = append(out, memberDTO(m))
+	}
+	return out, nil
+}
+
+// SetMemberRole changes the role of a member.
+func (s *server) SetMemberRole(ctx context.Context, request SetMemberRoleRequestObject) (SetMemberRoleResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	err := s.deps.Workspaces.SetRole(ctx, p.User.ID, request.WorkspaceId, request.UserId, workspace.Role(request.Body.Role))
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return SetMemberRole204Response{}, nil
+}
+
+// RemoveMember removes a member from a team workspace.
+func (s *server) RemoveMember(ctx context.Context, request RemoveMemberRequestObject) (RemoveMemberResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	err := s.deps.Workspaces.RemoveMember(ctx, p.User.ID, request.WorkspaceId, request.UserId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return RemoveMember204Response{}, nil
+}
+
+// LeaveWorkspace removes the signed-in user from a team workspace.
+func (s *server) LeaveWorkspace(ctx context.Context, request LeaveWorkspaceRequestObject) (LeaveWorkspaceResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	err := s.deps.Workspaces.Leave(ctx, p.User.ID, request.WorkspaceId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return LeaveWorkspace204Response{}, nil
+}
+
+// TransferOwnership hands a team workspace to another member.
+func (s *server) TransferOwnership(ctx context.Context, request TransferOwnershipRequestObject) (TransferOwnershipResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	err := s.deps.Workspaces.TransferOwnership(ctx, p.User.ID, request.WorkspaceId, request.Body.UserId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return TransferOwnership204Response{}, nil
+}

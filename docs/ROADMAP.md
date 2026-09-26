@@ -226,7 +226,7 @@ Aceptación: 10 transferencias simultáneas entre 3 servidores dentro de los lí
 
 Decisiones de diseño en [ADR-0006](adr/0006-teams-and-invitations.md).
 
-- [ ] 3.1 Workspaces de equipo: crear, listar miembros, cambiar rol, salir, transferir propiedad
+- [ ] 3.1 Workspaces de equipo: crear, listar miembros, cambiar rol, salir, transferir propiedad (API hecha; falta la interfaz, ver 3.4)
 - [ ] 3.2 Invitaciones de un solo uso ligadas al email, registro solo por invitación
 - [ ] 3.3 Claves X25519 por usuario y DEK de workspace compartida; rotación al quitar un miembro
 - [ ] 3.4 RBAC en API y UI (miembros, invitaciones, roles)

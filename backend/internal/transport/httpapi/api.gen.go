@@ -195,6 +195,51 @@ func (e ImportItemStatus) Valid() bool {
 	}
 }
 
+// Defines values for MemberRole.
+const (
+	MemberRoleAdmin  MemberRole = "admin"
+	MemberRoleEditor MemberRole = "editor"
+	MemberRoleOwner  MemberRole = "owner"
+	MemberRoleViewer MemberRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the MemberRole enum.
+func (e MemberRole) Valid() bool {
+	switch e {
+	case MemberRoleAdmin:
+		return true
+	case MemberRoleEditor:
+		return true
+	case MemberRoleOwner:
+		return true
+	case MemberRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MemberRoleInputRole.
+const (
+	MemberRoleInputRoleAdmin  MemberRoleInputRole = "admin"
+	MemberRoleInputRoleEditor MemberRoleInputRole = "editor"
+	MemberRoleInputRoleViewer MemberRoleInputRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the MemberRoleInputRole enum.
+func (e MemberRoleInputRole) Valid() bool {
+	switch e {
+	case MemberRoleInputRoleAdmin:
+		return true
+	case MemberRoleInputRoleEditor:
+		return true
+	case MemberRoleInputRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QuickConnectInputAuthMethod.
 const (
 	QuickConnectInputAuthMethodKey      QuickConnectInputAuthMethod = "key"
@@ -731,6 +776,12 @@ type CopyInput struct {
 // CopyInputPolicy What to do with a file that already exists at the destination: fail the copy (the default), overwrite it, skip it, overwrite it only when the source is newer, or keep both by giving the copy a free name such as "report (1).txt". Folders that exist are merged into.
 type CopyInputPolicy string
 
+// CreateWorkspaceInput defines model for CreateWorkspaceInput.
+type CreateWorkspaceInput struct {
+	// Name Display name, 1 to 80 characters.
+	Name string `json:"name"`
+}
+
 // Credentials defines model for Credentials.
 type Credentials struct {
 	Email string `json:"email"`
@@ -795,6 +846,25 @@ type MasterPasswordRequest struct {
 	// MasterPassword Sent to the server only; never returned.
 	MasterPassword string `json:"masterPassword"`
 }
+
+// Member defines model for Member.
+type Member struct {
+	Email    string             `json:"email"`
+	JoinedAt time.Time          `json:"joinedAt"`
+	Role     MemberRole         `json:"role"`
+	UserId   openapi_types.UUID `json:"userId"`
+}
+
+// MemberRole defines model for Member.Role.
+type MemberRole string
+
+// MemberRoleInput defines model for MemberRoleInput.
+type MemberRoleInput struct {
+	Role MemberRoleInputRole `json:"role"`
+}
+
+// MemberRoleInputRole defines model for MemberRoleInput.Role.
+type MemberRoleInputRole string
 
 // PathInput defines model for PathInput.
 type PathInput struct {
@@ -1071,6 +1141,12 @@ type TransferPriority int
 // TransferStatus defines model for Transfer.Status.
 type TransferStatus string
 
+// TransferInput defines model for TransferInput.
+type TransferInput struct {
+	// UserId Member who becomes the owner.
+	UserId openapi_types.UUID `json:"userId"`
+}
+
 // TransferPriorityInput defines model for TransferPriorityInput.
 type TransferPriorityInput struct {
 	Priority TransferPriorityInputPriority `json:"priority"`
@@ -1135,6 +1211,9 @@ type TransferId = openapi_types.UUID
 
 // TransferIdQuery defines model for TransferIdQuery.
 type TransferIdQuery = openapi_types.UUID
+
+// UserId defines model for UserId.
+type UserId = openapi_types.UUID
 
 // WorkspaceId defines model for WorkspaceId.
 type WorkspaceId = openapi_types.UUID
@@ -1229,6 +1308,12 @@ type UnlockVaultParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// CreateWorkspaceParams defines parameters for CreateWorkspace.
+type CreateWorkspaceParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // ListActivityParams defines parameters for ListActivity.
 type ListActivityParams struct {
 	// SiteId Only the entries of this connection.
@@ -1300,6 +1385,24 @@ type ForgetHostKeyParams struct {
 
 // TrustHostKeyParams defines parameters for TrustHostKey.
 type TrustHostKeyParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// LeaveWorkspaceParams defines parameters for LeaveWorkspace.
+type LeaveWorkspaceParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// RemoveMemberParams defines parameters for RemoveMember.
+type RemoveMemberParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// SetMemberRoleParams defines parameters for SetMemberRole.
+type SetMemberRoleParams struct {
 	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
@@ -1442,6 +1545,12 @@ type ProbeTimeZoneParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// TransferOwnershipParams defines parameters for TransferOwnership.
+type TransferOwnershipParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = Credentials
 
@@ -1469,6 +1578,9 @@ type SetupVaultJSONRequestBody = MasterPasswordRequest
 // UnlockVaultJSONRequestBody defines body for UnlockVault for application/json ContentType.
 type UnlockVaultJSONRequestBody = MasterPasswordRequest
 
+// CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
+type CreateWorkspaceJSONRequestBody = CreateWorkspaceInput
+
 // CreateCollectionJSONRequestBody defines body for CreateCollection for application/json ContentType.
 type CreateCollectionJSONRequestBody = CollectionInput
 
@@ -1480,6 +1592,9 @@ type CreateCopyJSONRequestBody = CopyInput
 
 // TrustHostKeyJSONRequestBody defines body for TrustHostKey for application/json ContentType.
 type TrustHostKeyJSONRequestBody = HostKeyInput
+
+// SetMemberRoleJSONRequestBody defines body for SetMemberRole for application/json ContentType.
+type SetMemberRoleJSONRequestBody = MemberRoleInput
 
 // CreateQuickConnectionJSONRequestBody defines body for CreateQuickConnection for application/json ContentType.
 type CreateQuickConnectionJSONRequestBody = QuickConnectInput
@@ -1498,6 +1613,9 @@ type CreateDirectoryJSONRequestBody = PathInput
 
 // RenameFileJSONRequestBody defines body for RenameFile for application/json ContentType.
 type RenameFileJSONRequestBody = RenameInput
+
+// TransferOwnershipJSONRequestBody defines body for TransferOwnership for application/json ContentType.
+type TransferOwnershipJSONRequestBody = TransferInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -1564,6 +1682,9 @@ type ServerInterface interface {
 	// ListWorkspaces Workspaces the signed-in user belongs to, with their role in each
 	// (GET /api/v1/workspaces)
 	ListWorkspaces(w http.ResponseWriter, r *http.Request)
+	// CreateWorkspace Create a team workspace owned by the signed-in user
+	// (POST /api/v1/workspaces)
+	CreateWorkspace(w http.ResponseWriter, r *http.Request, params CreateWorkspaceParams)
 	// GetWorkspace One workspace of the signed-in user
 	// (GET /api/v1/workspaces/{workspaceId})
 	GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -1597,6 +1718,18 @@ type ServerInterface interface {
 	// TrustHostKey Trust a server key
 	// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
 	TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams)
+	// LeaveWorkspace Leave a team workspace
+	// (POST /api/v1/workspaces/{workspaceId}/leave)
+	LeaveWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params LeaveWorkspaceParams)
+	// ListMembers Members of a team workspace
+	// (GET /api/v1/workspaces/{workspaceId}/members)
+	ListMembers(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// RemoveMember Remove a member from a team workspace
+	// (DELETE /api/v1/workspaces/{workspaceId}/members/{userId})
+	RemoveMember(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, userId UserId, params RemoveMemberParams)
+	// SetMemberRole Change the role of a member
+	// (PATCH /api/v1/workspaces/{workspaceId}/members/{userId})
+	SetMemberRole(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, userId UserId, params SetMemberRoleParams)
 	// ListQuickConnections The signed-in user's quick connections in a workspace
 	// (GET /api/v1/workspaces/{workspaceId}/quick-connections)
 	ListQuickConnections(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -1654,6 +1787,9 @@ type ServerInterface interface {
 	// ProbeTimeZone Find the time zone in which an FTP server prints file times
 	// (POST /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/timezone-probe)
 	ProbeTimeZone(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params ProbeTimeZoneParams)
+	// TransferOwnership Hand a team workspace to another member
+	// (POST /api/v1/workspaces/{workspaceId}/transfer)
+	TransferOwnership(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TransferOwnershipParams)
 	// GetHealth Liveness probe
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -1792,6 +1928,12 @@ func (_ Unimplemented) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// CreateWorkspace Create a team workspace owned by the signed-in user
+// (POST /api/v1/workspaces)
+func (_ Unimplemented) CreateWorkspace(w http.ResponseWriter, r *http.Request, params CreateWorkspaceParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetWorkspace One workspace of the signed-in user
 // (GET /api/v1/workspaces/{workspaceId})
 func (_ Unimplemented) GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
@@ -1855,6 +1997,30 @@ func (_ Unimplemented) ListKnownHosts(w http.ResponseWriter, r *http.Request, wo
 // TrustHostKey Trust a server key
 // (POST /api/v1/workspaces/{workspaceId}/known-hosts)
 func (_ Unimplemented) TrustHostKey(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TrustHostKeyParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// LeaveWorkspace Leave a team workspace
+// (POST /api/v1/workspaces/{workspaceId}/leave)
+func (_ Unimplemented) LeaveWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params LeaveWorkspaceParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMembers Members of a team workspace
+// (GET /api/v1/workspaces/{workspaceId}/members)
+func (_ Unimplemented) ListMembers(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RemoveMember Remove a member from a team workspace
+// (DELETE /api/v1/workspaces/{workspaceId}/members/{userId})
+func (_ Unimplemented) RemoveMember(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, userId UserId, params RemoveMemberParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetMemberRole Change the role of a member
+// (PATCH /api/v1/workspaces/{workspaceId}/members/{userId})
+func (_ Unimplemented) SetMemberRole(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, userId UserId, params SetMemberRoleParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1969,6 +2135,12 @@ func (_ Unimplemented) RenameFile(w http.ResponseWriter, r *http.Request, worksp
 // ProbeTimeZone Find the time zone in which an FTP server prints file times
 // (POST /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/timezone-probe)
 func (_ Unimplemented) ProbeTimeZone(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, siteId SiteId, params ProbeTimeZoneParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// TransferOwnership Hand a team workspace to another member
+// (POST /api/v1/workspaces/{workspaceId}/transfer)
+func (_ Unimplemented) TransferOwnership(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TransferOwnershipParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2727,6 +2899,47 @@ func (siw *ServerInterfaceWrapper) ListWorkspaces(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// CreateWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateWorkspaceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWorkspace(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetWorkspace operation middleware
 func (siw *ServerInterfaceWrapper) GetWorkspace(w http.ResponseWriter, r *http.Request) {
 
@@ -3310,6 +3523,200 @@ func (siw *ServerInterfaceWrapper) TrustHostKey(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TrustHostKey(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LeaveWorkspace operation middleware
+func (siw *ServerInterfaceWrapper) LeaveWorkspace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LeaveWorkspaceParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LeaveWorkspace(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMembers(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveMember operation middleware
+func (siw *ServerInterfaceWrapper) RemoveMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "userId" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveMemberParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveMember(w, r, workspaceId, userId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetMemberRole operation middleware
+func (siw *ServerInterfaceWrapper) SetMemberRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "userId" -------------
+	var userId UserId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", chi.URLParam(r, "userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetMemberRoleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetMemberRole(w, r, workspaceId, userId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4456,6 +4863,56 @@ func (siw *ServerInterfaceWrapper) ProbeTimeZone(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// TransferOwnership operation middleware
+func (siw *ServerInterfaceWrapper) TransferOwnership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", chi.URLParam(r, "workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TransferOwnershipParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TransferOwnership(w, r, workspaceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
 
@@ -4625,7 +5082,25 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/api/v1/workspaces", wrapper.ListWorkspaces)
 	})
 	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces", wrapper.CreateWorkspace)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}", wrapper.GetWorkspace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/workspaces/{workspaceId}/members", wrapper.ListMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/v1/workspaces/{workspaceId}/members/{userId}", wrapper.RemoveMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/api/v1/workspaces/{workspaceId}/members/{userId}", wrapper.SetMemberRole)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/leave", wrapper.LeaveWorkspace)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/transfer", wrapper.TransferOwnership)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/vault", wrapper.GetVault)
@@ -6249,6 +6724,71 @@ func (response ListWorkspaces401ApplicationProblemPlusJSONResponse) VisitListWor
 	return err
 }
 
+type CreateWorkspaceRequestObject struct {
+	Params CreateWorkspaceParams
+	Body   *CreateWorkspaceJSONRequestBody
+}
+
+type CreateWorkspaceResponseObject interface {
+	VisitCreateWorkspaceResponse(w http.ResponseWriter) error
+}
+
+type CreateWorkspace201JSONResponse Workspace
+
+func (response CreateWorkspace201JSONResponse) VisitCreateWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateWorkspace401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateWorkspace401ApplicationProblemPlusJSONResponse) VisitCreateWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateWorkspace403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateWorkspace403ApplicationProblemPlusJSONResponse) VisitCreateWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateWorkspace422ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateWorkspace422ApplicationProblemPlusJSONResponse) VisitCreateWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetWorkspaceRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -7141,6 +7681,320 @@ func (response TrustHostKey409ApplicationProblemPlusJSONResponse) VisitTrustHost
 type TrustHostKey422ApplicationProblemPlusJSONResponse Problem
 
 func (response TrustHostKey422ApplicationProblemPlusJSONResponse) VisitTrustHostKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveWorkspaceRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Params      LeaveWorkspaceParams
+}
+
+type LeaveWorkspaceResponseObject interface {
+	VisitLeaveWorkspaceResponse(w http.ResponseWriter) error
+}
+
+type LeaveWorkspace204Response struct {
+}
+
+func (response LeaveWorkspace204Response) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type LeaveWorkspace401ApplicationProblemPlusJSONResponse Problem
+
+func (response LeaveWorkspace401ApplicationProblemPlusJSONResponse) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveWorkspace403ApplicationProblemPlusJSONResponse Problem
+
+func (response LeaveWorkspace403ApplicationProblemPlusJSONResponse) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveWorkspace404ApplicationProblemPlusJSONResponse Problem
+
+func (response LeaveWorkspace404ApplicationProblemPlusJSONResponse) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LeaveWorkspace409ApplicationProblemPlusJSONResponse Problem
+
+func (response LeaveWorkspace409ApplicationProblemPlusJSONResponse) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembersRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListMembersResponseObject interface {
+	VisitListMembersResponse(w http.ResponseWriter) error
+}
+
+type ListMembers200JSONResponse []Member
+
+func (response ListMembers200JSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMembers401ApplicationProblemPlusJSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMembers404ApplicationProblemPlusJSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers409ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMembers409ApplicationProblemPlusJSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveMemberRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	UserId      UserId      `json:"userId"`
+	Params      RemoveMemberParams
+}
+
+type RemoveMemberResponseObject interface {
+	VisitRemoveMemberResponse(w http.ResponseWriter) error
+}
+
+type RemoveMember204Response struct {
+}
+
+func (response RemoveMember204Response) VisitRemoveMemberResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveMember401ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveMember401ApplicationProblemPlusJSONResponse) VisitRemoveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveMember403ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveMember403ApplicationProblemPlusJSONResponse) VisitRemoveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveMember404ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveMember404ApplicationProblemPlusJSONResponse) VisitRemoveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveMember409ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveMember409ApplicationProblemPlusJSONResponse) VisitRemoveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveMember422ApplicationProblemPlusJSONResponse Problem
+
+func (response RemoveMember422ApplicationProblemPlusJSONResponse) VisitRemoveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetMemberRoleRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	UserId      UserId      `json:"userId"`
+	Params      SetMemberRoleParams
+	Body        *SetMemberRoleJSONRequestBody
+}
+
+type SetMemberRoleResponseObject interface {
+	VisitSetMemberRoleResponse(w http.ResponseWriter) error
+}
+
+type SetMemberRole204Response struct {
+}
+
+func (response SetMemberRole204Response) VisitSetMemberRoleResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type SetMemberRole401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetMemberRole401ApplicationProblemPlusJSONResponse) VisitSetMemberRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetMemberRole403ApplicationProblemPlusJSONResponse Problem
+
+func (response SetMemberRole403ApplicationProblemPlusJSONResponse) VisitSetMemberRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetMemberRole404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetMemberRole404ApplicationProblemPlusJSONResponse) VisitSetMemberRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetMemberRole409ApplicationProblemPlusJSONResponse Problem
+
+func (response SetMemberRole409ApplicationProblemPlusJSONResponse) VisitSetMemberRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetMemberRole422ApplicationProblemPlusJSONResponse Problem
+
+func (response SetMemberRole422ApplicationProblemPlusJSONResponse) VisitSetMemberRoleResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -9271,6 +10125,80 @@ func (response ProbeTimeZone507ApplicationProblemPlusJSONResponse) VisitProbeTim
 	return err
 }
 
+type TransferOwnershipRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Params      TransferOwnershipParams
+	Body        *TransferOwnershipJSONRequestBody
+}
+
+type TransferOwnershipResponseObject interface {
+	VisitTransferOwnershipResponse(w http.ResponseWriter) error
+}
+
+type TransferOwnership204Response struct {
+}
+
+func (response TransferOwnership204Response) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type TransferOwnership401ApplicationProblemPlusJSONResponse Problem
+
+func (response TransferOwnership401ApplicationProblemPlusJSONResponse) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TransferOwnership403ApplicationProblemPlusJSONResponse Problem
+
+func (response TransferOwnership403ApplicationProblemPlusJSONResponse) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TransferOwnership404ApplicationProblemPlusJSONResponse Problem
+
+func (response TransferOwnership404ApplicationProblemPlusJSONResponse) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TransferOwnership409ApplicationProblemPlusJSONResponse Problem
+
+func (response TransferOwnership409ApplicationProblemPlusJSONResponse) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetHealthRequestObject struct {
 }
 
@@ -9392,6 +10320,9 @@ type StrictServerInterface interface {
 	// ListWorkspaces Workspaces the signed-in user belongs to, with their role in each
 	// (GET /api/v1/workspaces)
 	ListWorkspaces(ctx context.Context, request ListWorkspacesRequestObject) (ListWorkspacesResponseObject, error)
+	// CreateWorkspace Create a team workspace owned by the signed-in user
+	// (POST /api/v1/workspaces)
+	CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error)
 	// GetWorkspace One workspace of the signed-in user
 	// (GET /api/v1/workspaces/{workspaceId})
 	GetWorkspace(ctx context.Context, request GetWorkspaceRequestObject) (GetWorkspaceResponseObject, error)
@@ -9425,6 +10356,18 @@ type StrictServerInterface interface {
 	// TrustHostKey Trust a server key
 	// (POST /api/v1/workspaces/{workspaceId}/known-hosts)
 	TrustHostKey(ctx context.Context, request TrustHostKeyRequestObject) (TrustHostKeyResponseObject, error)
+	// LeaveWorkspace Leave a team workspace
+	// (POST /api/v1/workspaces/{workspaceId}/leave)
+	LeaveWorkspace(ctx context.Context, request LeaveWorkspaceRequestObject) (LeaveWorkspaceResponseObject, error)
+	// ListMembers Members of a team workspace
+	// (GET /api/v1/workspaces/{workspaceId}/members)
+	ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error)
+	// RemoveMember Remove a member from a team workspace
+	// (DELETE /api/v1/workspaces/{workspaceId}/members/{userId})
+	RemoveMember(ctx context.Context, request RemoveMemberRequestObject) (RemoveMemberResponseObject, error)
+	// SetMemberRole Change the role of a member
+	// (PATCH /api/v1/workspaces/{workspaceId}/members/{userId})
+	SetMemberRole(ctx context.Context, request SetMemberRoleRequestObject) (SetMemberRoleResponseObject, error)
 	// ListQuickConnections The signed-in user's quick connections in a workspace
 	// (GET /api/v1/workspaces/{workspaceId}/quick-connections)
 	ListQuickConnections(ctx context.Context, request ListQuickConnectionsRequestObject) (ListQuickConnectionsResponseObject, error)
@@ -9482,6 +10425,9 @@ type StrictServerInterface interface {
 	// ProbeTimeZone Find the time zone in which an FTP server prints file times
 	// (POST /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/timezone-probe)
 	ProbeTimeZone(ctx context.Context, request ProbeTimeZoneRequestObject) (ProbeTimeZoneResponseObject, error)
+	// TransferOwnership Hand a team workspace to another member
+	// (POST /api/v1/workspaces/{workspaceId}/transfer)
+	TransferOwnership(ctx context.Context, request TransferOwnershipRequestObject) (TransferOwnershipResponseObject, error)
 	// GetHealth Liveness probe
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -10131,6 +11077,39 @@ func (sh *strictHandler) ListWorkspaces(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// CreateWorkspace operation middleware
+func (sh *strictHandler) CreateWorkspace(w http.ResponseWriter, r *http.Request, params CreateWorkspaceParams) {
+	var request CreateWorkspaceRequestObject
+
+	request.Params = params
+
+	var body CreateWorkspaceJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateWorkspace(ctx, request.(CreateWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateWorkspace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateWorkspaceResponseObject); ok {
+		if err := validResponse.VisitCreateWorkspaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetWorkspace operation middleware
 func (sh *strictHandler) GetWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
 	var request GetWorkspaceRequestObject
@@ -10450,6 +11429,122 @@ func (sh *strictHandler) TrustHostKey(w http.ResponseWriter, r *http.Request, wo
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TrustHostKeyResponseObject); ok {
 		if err := validResponse.VisitTrustHostKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LeaveWorkspace operation middleware
+func (sh *strictHandler) LeaveWorkspace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params LeaveWorkspaceParams) {
+	var request LeaveWorkspaceRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LeaveWorkspace(ctx, request.(LeaveWorkspaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LeaveWorkspace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LeaveWorkspaceResponseObject); ok {
+		if err := validResponse.VisitLeaveWorkspaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMembers operation middleware
+func (sh *strictHandler) ListMembers(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListMembersRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMembers(ctx, request.(ListMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMembersResponseObject); ok {
+		if err := validResponse.VisitListMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveMember operation middleware
+func (sh *strictHandler) RemoveMember(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, userId UserId, params RemoveMemberParams) {
+	var request RemoveMemberRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.UserId = userId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveMember(ctx, request.(RemoveMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveMemberResponseObject); ok {
+		if err := validResponse.VisitRemoveMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetMemberRole operation middleware
+func (sh *strictHandler) SetMemberRole(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, userId UserId, params SetMemberRoleParams) {
+	var request SetMemberRoleRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.UserId = userId
+	request.Params = params
+
+	var body SetMemberRoleJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetMemberRole(ctx, request.(SetMemberRoleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetMemberRole")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetMemberRoleResponseObject); ok {
+		if err := validResponse.VisitSetMemberRoleResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -11026,6 +12121,40 @@ func (sh *strictHandler) ProbeTimeZone(w http.ResponseWriter, r *http.Request, w
 	}
 }
 
+// TransferOwnership operation middleware
+func (sh *strictHandler) TransferOwnership(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params TransferOwnershipParams) {
+	var request TransferOwnershipRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.Params = params
+
+	var body TransferOwnershipJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TransferOwnership(ctx, request.(TransferOwnershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TransferOwnership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TransferOwnershipResponseObject); ok {
+		if err := validResponse.VisitTransferOwnershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetHealth operation middleware
 func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	var request GetHealthRequestObject
@@ -11079,163 +12208,174 @@ func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"Xv3/AQA=",
+	"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",
+	"TtmmByqdR0+jg+jj24//fwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -22,7 +22,12 @@ type fakeStore struct {
 	failFind   bool
 	failCreate error
 	racing     *workspace.Workspace
+	emails     map[uuid.UUID]string
+	fail       map[string]error
 }
+
+// failure returns the error injected for an operation, if any.
+func (f *fakeStore) failure(op string) error { return f.fail[op] }
 
 // CreateWorkspace stores the workspace or returns the injected error.
 func (f *fakeStore) CreateWorkspace(_ context.Context, w workspace.Workspace) error {
@@ -65,6 +70,9 @@ func (f *fakeStore) WorkspacesForUser(_ context.Context, userID uuid.UUID) ([]wo
 
 // RoleOf returns the role of a user in a workspace.
 func (f *fakeStore) RoleOf(_ context.Context, workspaceID, userID uuid.UUID) (workspace.Role, error) {
+	if err := f.failure("roleOf:" + userID.String()); err != nil {
+		return "", err
+	}
 	role, ok := f.roles[[2]uuid.UUID{workspaceID, userID}]
 	if !ok {
 		return "", workspace.ErrNotFound
@@ -200,4 +208,65 @@ func TestService_AuthorizeAndList(t *testing.T) {
 	if err != nil || len(list) != 1 || list[0].Role != workspace.RoleOwner {
 		t.Errorf("List() = %+v, %v", list, err)
 	}
+}
+
+// Workspace returns a workspace by identifier.
+func (f *fakeStore) Workspace(_ context.Context, workspaceID uuid.UUID) (workspace.Workspace, error) {
+	if err := f.failure("workspace"); err != nil {
+		return workspace.Workspace{}, err
+	}
+	for _, w := range f.workspaces {
+		if w.ID == workspaceID {
+			return w, nil
+		}
+	}
+	return workspace.Workspace{}, workspace.ErrNotFound
+}
+
+// Members lists the memberships of a workspace.
+func (f *fakeStore) Members(_ context.Context, workspaceID uuid.UUID) ([]workspace.Member, error) {
+	if err := f.failure("members"); err != nil {
+		return nil, err
+	}
+	var out []workspace.Member
+	for key, role := range f.roles {
+		if key[0] == workspaceID {
+			out = append(out, workspace.Member{UserID: key[1], Email: f.emails[key[1]], Role: role})
+		}
+	}
+	return out, nil
+}
+
+// SetRole changes a role in the map.
+func (f *fakeStore) SetRole(_ context.Context, workspaceID, userID uuid.UUID, role workspace.Role) error {
+	if err := f.failure("setRole"); err != nil {
+		return err
+	}
+	f.roles[[2]uuid.UUID{workspaceID, userID}] = role
+	return nil
+}
+
+// RemoveMember deletes a role from the map.
+func (f *fakeStore) RemoveMember(_ context.Context, workspaceID, userID uuid.UUID) error {
+	if err := f.failure("remove"); err != nil {
+		return err
+	}
+	delete(f.roles, [2]uuid.UUID{workspaceID, userID})
+	return nil
+}
+
+// TransferOwnership swaps the roles of two members.
+func (f *fakeStore) TransferOwnership(_ context.Context, workspaceID, from, to uuid.UUID) error {
+	if err := f.failure("transfer"); err != nil {
+		return err
+	}
+	f.roles[[2]uuid.UUID{workspaceID, from}] = workspace.RoleAdmin
+	f.roles[[2]uuid.UUID{workspaceID, to}] = workspace.RoleOwner
+	return nil
+}
+
+// AddMember stores a role in the map.
+func (f *fakeStore) AddMember(_ context.Context, workspaceID, userID uuid.UUID, role workspace.Role) error {
+	f.roles[[2]uuid.UUID{workspaceID, userID}] = role
+	return nil
 }

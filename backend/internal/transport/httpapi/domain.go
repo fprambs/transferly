@@ -140,6 +140,11 @@ var domainProblems = []struct {
 }{
 	{workspace.ErrNotFound, http.StatusNotFound, "workspace_not_found"},
 	{workspace.ErrForbidden, http.StatusForbidden, "forbidden"},
+	{workspace.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_name"},
+	{workspace.ErrPersonal, http.StatusConflict, "personal_workspace"},
+	{workspace.ErrMemberNotFound, http.StatusNotFound, "member_not_found"},
+	{workspace.ErrInvalidRole, http.StatusUnprocessableEntity, "invalid_role"},
+	{workspace.ErrOwnerBound, http.StatusConflict, "owner_bound"},
 	{site.ErrNotFound, http.StatusNotFound, "site_not_found"},
 	{site.ErrNameTaken, http.StatusConflict, "site_name_taken"},
 	{site.ErrCollectionNotFound, http.StatusNotFound, "collection_not_found"},
@@ -225,3 +230,23 @@ func (p domainProblem) VisitImportFilezillaResponse(w http.ResponseWriter) error
 
 // VisitProbeTimeZoneResponse implements [ProbeTimeZoneResponseObject].
 func (p domainProblem) VisitProbeTimeZoneResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCreateWorkspaceResponse implements [CreateWorkspaceResponseObject].
+func (p domainProblem) VisitCreateWorkspaceResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListMembersResponse implements [ListMembersResponseObject].
+func (p domainProblem) VisitListMembersResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitSetMemberRoleResponse implements [SetMemberRoleResponseObject].
+func (p domainProblem) VisitSetMemberRoleResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitRemoveMemberResponse implements [RemoveMemberResponseObject].
+func (p domainProblem) VisitRemoveMemberResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitLeaveWorkspaceResponse implements [LeaveWorkspaceResponseObject].
+func (p domainProblem) VisitLeaveWorkspaceResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitTransferOwnershipResponse implements [TransferOwnershipResponseObject].
+func (p domainProblem) VisitTransferOwnershipResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
