@@ -103,5 +103,16 @@
     "title": "Connecting to {{name}}…",
     "hint": "Opening the connection and reading the first folder"
   },
-  "opening": "Opening {{path}}…"
+  "opening": "Opening {{path}}…",
+  "split": {
+    "open": "Split view",
+    "close": "Close the second pane",
+    "site": "Site of the second pane",
+    "pane": "Second pane"
+  },
+  "copy": {
+    "failure": "The copy could not start",
+    "dismiss": "Dismiss",
+    "dropHint": "Drop here to copy the file"
+  }
 }

@@ -58,7 +58,7 @@ export function applyEvent(event: ServerEvent, onVaultLocked: () => void): void 
  * Keeps the transfer list in step with the server for as long as the component that calls it is mounted.
  *
  * It opens the event stream, loads the history whenever the stream opens, reconnects with growing waits when it drops,
- * and refreshes the vault state when the server reports a lock.
+ * refreshes the vault state when the server reports a lock, and reloads the folder listings when a copy between sites ends.
  */
 export function useTransferStream(): void {
   const transport = useTransport()
@@ -70,7 +70,12 @@ export function useTransferStream(): void {
     let timer: ReturnType<typeof setTimeout> | undefined
     const connect = (): (() => void) =>
       transport.events({
-        onEvent: (event) => applyEvent(event, () => void queryClient.invalidateQueries({ queryKey: vaultKey })),
+        onEvent: (event) => {
+          applyEvent(event, () => void queryClient.invalidateQueries({ queryKey: vaultKey }))
+          if (event.type === 'transfer.state' && event.data.direction === 'copy' && event.data.status === 'done') {
+            void queryClient.invalidateQueries({ queryKey: ['workspaces', event.data.workspaceId, 'files'] })
+          }
+        },
         onOpen: () => {
           failures = 0
           void api.transfers

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, FolderPlus, RefreshCw, ShieldQuestion, Upload } from 'lucide-react'
-import { useMemo, useRef, useState, type DragEvent } from 'react'
+import { useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { useSitesData } from '../sites/use-sites-data'
 
 import { Breadcrumbs } from './Breadcrumbs'
 import { startDownload } from './download'
+import { isEntryDrag, readDrag, writeDrag } from './entry-drag'
 import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
@@ -41,10 +42,12 @@ export interface ExplorerProps {
   path: string
   /** Called with the folder the user moves to. */
   onNavigate: (path: string) => void
+  /** Extra controls shown at the end of the toolbar. */
+  actions?: ReactNode
 }
 
 /** Browser of the files of one connection: path, toolbar and a table of the folder in view. */
-export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProps) {
+export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: ExplorerProps) {
   const { t, i18n } = useTranslation('explorer')
   const api = useApi()
   const queryClient = useQueryClient()
@@ -53,7 +56,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
   const [trustFailure, setTrustFailure] = useState<ExplorerErrorKey | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [dialog, setDialog] = useState<Dialog | null>(null)
-  const [dragging, setDragging] = useState(false)
+  const [dragging, setDragging] = useState<'upload' | 'copy' | null>(null)
+  const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
   const picker = useRef<HTMLInputElement>(null)
   const listing = useQuery({
     queryKey: filesKey(workspaceId, siteId, path),
@@ -85,11 +89,39 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
 
   const download = (entry: RemoteEntry): void => startDownload(api.files.downloadUrl(workspaceId, siteId, entry.path, uuid()))
 
+  const copyHere = async (source: { workspaceId: string; siteId: string; path: string }): Promise<void> => {
+    const name = source.path.slice(source.path.lastIndexOf('/') + 1)
+    if (source.workspaceId !== workspaceId || (source.siteId === siteId && parentPath(source.path) === path)) {
+      return
+    }
+    try {
+      await api.copies.create(workspaceId, {
+        sourceSiteId: source.siteId,
+        sourcePath: source.path,
+        targetSiteId: siteId,
+        targetPath: joinPath(path, name),
+        transferId: uuid(),
+      })
+      setCopyFailure(null)
+    } catch (error) {
+      setCopyFailure(explorerErrorKeyOf(error))
+    }
+  }
+
   const drop = (event: DragEvent<HTMLElement>): void => {
     event.preventDefault()
-    setDragging(false)
+    setDragging(null)
+    if (isEntryDrag(event.dataTransfer)) {
+      const source = readDrag(event.dataTransfer)
+      if (source !== null) {
+        void copyHere(source)
+      }
+      return
+    }
     void uploads.upload(Array.from(event.dataTransfer.files))
   }
+
+  const dragEntry = (entry: RemoteEntry, data: DataTransfer): void => writeDrag(data, { workspaceId, siteId, path: entry.path })
 
   const open = (entry: { type: string; path: string }): void => {
     if (entry.type === 'directory') {
@@ -102,15 +134,15 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
       aria-label={t(($) => $.list)}
       onDragOver={(event) => {
         event.preventDefault()
-        setDragging(true)
+        setDragging(isEntryDrag(event.dataTransfer) ? 'copy' : 'upload')
       }}
-      onDragLeave={() => setDragging(false)}
+      onDragLeave={() => setDragging(null)}
       onDrop={drop}
       className="relative flex min-h-0 flex-1 flex-col"
     >
-      {dragging ? (
+      {dragging !== null ? (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
-          {t(($) => $.upload.dropHint)}
+          {dragging === 'copy' ? t(($) => $.copy.dropHint) : t(($) => $.upload.dropHint)}
         </div>
       ) : null}
       <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
@@ -146,7 +178,18 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
         >
           <RefreshCw />
         </Button>
+        {actions}
       </div>
+      {copyFailure === null ? null : (
+        <div role="alert" className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <span>
+            {t(($) => $.copy.failure)}: {t(($) => $.errors[copyFailure])}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setCopyFailure(null)}>
+            {t(($) => $.copy.dismiss)}
+          </Button>
+        </div>
+      )}
       {uploads.failures.length > 0 ? (
         <div role="alert" className="mx-3 mt-3 flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
           <p className="font-medium text-destructive">{t(($) => $.upload.failures)}</p>
@@ -209,6 +252,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate }: ExplorerProp
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
             onNewFolder={() => setDialog({ kind: 'newFolder' })}
+            onDragEntry={dragEntry}
           />
           <Inspector
             entry={entries[resolveSelection(entries, selectedPath)]}

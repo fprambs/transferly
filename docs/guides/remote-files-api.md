@@ -12,6 +12,10 @@ Endpoints live under `/api/v1/workspaces/{workspaceId}/sites/{siteId}/files`. Ev
 | `POST /files/rename` | modify | never replaces an existing destination |
 | `DELETE /files?path=&recursive=` | modify | a non-empty directory needs `recursive=true` |
 
+## Copies between sites
+
+`POST /workspaces/{id}/copies` with `{sourceSiteId, sourcePath, targetSiteId, targetPath, overwrite?, transferId?}` copies one file from a site to another (or to another folder of the same one) through the server. It answers `202` with a transfer of direction `copy` and keeps working after the request ends, so closing the browser does not stop it; the user cancels it like any transfer. The two authorizations (download on the source, upload on the target), the paths and copying a file onto itself are checked before the answer; what fails later (missing source, existing target without `overwrite`) ends the transfer as `failed` with its code. The scheduler limits count the target site. Only files are copied.
+
 ## Rules
 
 - Downloads are always `Content-Disposition: attachment` with `Content-Type: application/octet-stream` and `nosniff`; what a remote server holds is never rendered as a page of this origin. File names are encoded as RFC 2231 parameters, so they cannot inject headers.

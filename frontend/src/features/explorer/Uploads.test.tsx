@@ -213,7 +213,7 @@ describe('uploads and downloads', () => {
     expect(screen.queryByText('Drop files to upload them here')).not.toBeInTheDocument()
 
     fireEvent.dragOver(region)
-    fireEvent.drop(region, { dataTransfer: { files: [file('dropped.txt', 'drop')] } })
+    fireEvent.drop(region, { dataTransfer: { files: [file('dropped.txt', 'drop')], types: ['Files'] } })
 
     await waitFor(() => expect(uploads.map((upload) => upload.path)).toEqual(['/www/dropped.txt']))
     expect(screen.queryByText('Drop files to upload them here')).not.toBeInTheDocument()

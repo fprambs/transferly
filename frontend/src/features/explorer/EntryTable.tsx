@@ -42,6 +42,8 @@ export interface EntryTableProps {
   onDelete: (entry: RemoteEntry) => void
   /** Called to create a folder from the context menu. */
   onNewFolder: () => void
+  /** Called when the user starts dragging a file, to put what it carries in the drag data. */
+  onDragEntry: (entry: RemoteEntry, data: DataTransfer) => void
 }
 
 /** Icon that tells the kind of an entry. */
@@ -82,7 +84,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onRename, onDelete, onNewFolder }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onRename, onDelete, onNewFolder, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -160,6 +162,8 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
               onClick={() => onSelect(entry)}
               onContextMenu={() => onSelect(entry)}
               onDoubleClick={() => onOpen(entry)}
+              draggable={entry.type === 'file'}
+              onDragStart={(event) => onDragEntry(entry, event.dataTransfer)}
               style={{ height: rowHeight, transform: `translateY(${item.start - rowHeight}px)` }}
               className={cn(
                 columns,

@@ -36,6 +36,9 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** What the server needs to copy a file from one site to another. */
+export type CopyInput = Schemas['CopyInput']
+
 /** Where a waiting transfer stands in the queue: -1 low, 0 normal, 1 high. */
 export type TransferPriority = Schemas['TransferPriorityInput']['priority']
 
@@ -156,6 +159,10 @@ export function createApi(transport: Transport) {
           body,
           signal: options.signal,
         }),
+    },
+    copies: {
+      create: (workspaceId: string, input: CopyInput) =>
+        transport.request<Transfer>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/copies`, body: input }),
     },
     transfers: {
       list: (query: { workspaceId?: string; limit?: number } = {}) =>

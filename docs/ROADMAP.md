@@ -203,11 +203,11 @@ Aceptación: desplegar con `docker compose up`, crear un vault, guardar un sitio
 - [x] FTP y FTPS conectados a sitios y a la conexión rápida: el conector elige el adaptador por protocolo (FTPS implícito en el puerto 990, explícito en los demás), la huella del certificado se confirma como una host key, la zona horaria de LIST viene del sitio, una cuenta FTP puede tener contraseña vacía; formularios con las tres pestañas, aviso de texto claro para FTP y guion en lugar de permisos; E2E contra vsftpd real (FTP y FTPS)
 - [ ] Modo activo opt-in y charset configurable
 - [ ] Zona horaria de `LIST` por sitio con autodetección
-- [ ] Doble panel con drag and drop entre paneles
+- [x] Doble panel con drag and drop entre paneles (el segundo panel se abre con `?split=` y elige su sitio; arrastrar un archivo de un panel al otro lo copia; las carpetas y la selección múltiple llegan con la transferencia de carpetas)
 - [ ] Pool de conexiones por sitio
 - [x] Scheduler con límites global, por workspace, por usuario y por sitio; prioridades; pausar, reanudar, cancelar (las transferencias en cola se pausan, reanudan y priorizan; una en curso solo se cancela hasta que las transferencias las dirija el servidor)
 - [ ] Transferencia de carpetas, descarga ZIP, políticas de sobrescritura, resume FTP, checksums
-- [ ] Transferencias servidor a servidor
+- [x] Transferencias servidor a servidor de archivos (`POST /workspaces/{id}/copies`, dirección `copy`; las carpetas llegan con la transferencia de carpetas)
 - [ ] Log de actividad por conexión sin secretos
 - [ ] Caché de listados con refresco en segundo plano
 - [ ] Importación de `sitemanager.xml` de FileZilla

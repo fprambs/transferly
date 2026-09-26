@@ -58,11 +58,14 @@ const settingsRoute = createRoute({ getParentRoute: () => shellRoute, path: '/se
 /** Servers whose key the user trusted. */
 const serversRoute = createRoute({ getParentRoute: () => shellRoute, path: '/servers', component: TrustedServers })
 
-/** A saved site or quick connection, browsed at the folder given by the `path` search parameter. */
+/**
+ * A saved site or quick connection, browsed at the folder given by the `path` search parameter. The `split` parameter opens a
+ * second pane on another connection, at the folder of `splitPath`.
+ */
 const siteRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/sites/$siteId',
-  validateSearch: z.object({ path: z.string().catch('/') }),
+  validateSearch: z.object({ path: z.string().catch('/'), split: z.string().optional().catch(undefined), splitPath: z.string().optional().catch(undefined) }),
   component: SiteExplorer,
 })
 

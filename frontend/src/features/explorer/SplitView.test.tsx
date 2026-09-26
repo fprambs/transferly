@@ -1,0 +1,183 @@
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import type { RemoteEntry, Site } from '@/lib/api'
+import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
+import { server } from '@/test/msw'
+import { renderApp } from '@/test/render-app'
+
+import { entryDragType } from './entry-drag'
+
+/** Builds a saved site. */
+function site(id: string, name: string): Site {
+  return {
+    id,
+    name,
+    protocol: 'sftp',
+    host: `${id}.example.com`,
+    port: 22,
+    username: 'deploy',
+    authMethod: 'password',
+    listTimezone: 'UTC',
+    secrets: [],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  }
+}
+
+/** Builds an entry of a folder. */
+function entry(name: string, type: RemoteEntry['type'], folder: string): RemoteEntry {
+  return { name, path: `${folder === '/' ? '' : folder}/${name}`, type, size: 10, mode: '-rw-r--r--', modifiedAt: '2026-03-08T07:30:00Z', modifiedPrecision: 'minute' }
+}
+
+/** A stand-in for the data of a drag, which jsdom does not provide. */
+function drag(initial: Record<string, string> = {}) {
+  const store = new Map(Object.entries(initial))
+  return {
+    get types() {
+      return [...store.keys()]
+    },
+    setData: (type: string, value: string) => void store.set(type, value),
+    getData: (type: string) => store.get(type) ?? '',
+    files: [] as File[],
+    effectAllowed: 'none',
+  }
+}
+
+/** Answers the listings of the two sites and records the copies the browser asks for. */
+function mockServer(copyReply: () => Response = () => HttpResponse.json({}, { status: 202 })): unknown[] {
+  const copies: unknown[] = []
+  server.use(
+    http.get('/api/v1/workspaces/:id/sites/:siteId/files', ({ params, request }) => {
+      const folder = new URL(request.url).searchParams.get('path') ?? '/'
+      const name = params.siteId === 's1' ? 'left.txt' : 'right.txt'
+      return HttpResponse.json(folder === '/' ? [entry('docs', 'directory', '/'), entry(name, 'file', '/')] : [entry(`in-${name}`, 'file', folder)])
+    }),
+    http.post('/api/v1/workspaces/:id/copies', async ({ request }) => {
+      copies.push(await request.json())
+      return copyReply()
+    }),
+  )
+  return copies
+}
+
+/**
+ * Covers the second pane of {@link SiteExplorer} and the drag and drop between panes of {@link Explorer}.
+ *
+ * Scenarios:
+ * - the split button opens a second pane on the same site, the address records it, and the button closes it again
+ * - the second pane changes site with its selector and moves through its own folders without touching the first pane
+ * - dragging a file of one pane onto the other asks the server to copy it into the folder in view, with a hint while over it
+ * - dropping a file on its own folder, a file of another workspace or data that is not a file does nothing
+ * - a copy the server refuses is explained and can be dismissed, and a later copy clears the message
+ */
+describe('split view', () => {
+  beforeEach(() => {
+    mockSession(adminSession)
+    mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Backup')] })
+  })
+
+  it('opens and closes the second pane', async () => {
+    mockServer()
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/sites/s1?path=%2F' })
+
+    await screen.findAllByRole('grid')
+    expect(screen.queryByRole('group', { name: 'Second pane' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Split view' }))
+
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+    expect(history.location.search).toContain('split=s1')
+    expect(await within(pane).findByText('left.txt')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Split view' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(within(pane).getByRole('button', { name: 'Close the second pane' }))
+    expect(screen.queryByRole('group', { name: 'Second pane' })).not.toBeInTheDocument()
+    expect(history.location.search).not.toContain('split')
+
+    await user.click(screen.getByRole('button', { name: 'Split view' }))
+    await screen.findByRole('group', { name: 'Second pane' })
+    await user.click(screen.getByRole('button', { name: 'Split view' }))
+    expect(screen.queryByRole('group', { name: 'Second pane' })).not.toBeInTheDocument()
+  })
+
+  it('changes the site and the folder of the second pane on its own', async () => {
+    mockServer()
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/sites/s1?path=%2F&split=s1' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+
+    await within(pane).findByRole('option', { name: 'Backup' })
+    await user.selectOptions(within(pane).getByRole('combobox', { name: 'Site of the second pane' }), 'Backup')
+    expect(await within(within(pane).getByRole('grid')).findByText('right.txt')).toBeInTheDocument()
+    expect(history.location.search).toContain('split=s2')
+
+    await user.dblClick(within(within(pane).getByRole('grid')).getByText('docs'))
+    expect(await within(within(pane).getByRole('grid')).findByText('in-right.txt')).toBeInTheDocument()
+    expect(history.location.search).toContain('splitPath=%2Fdocs')
+    expect(history.location.search).toContain('path=%2F&')
+    expect(screen.getAllByText('left.txt')).toHaveLength(1)
+  })
+
+  it('copies a file dragged from one pane into the folder of the other', async () => {
+    const copies = mockServer()
+    await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+    const leftRow = (await screen.findAllByText('left.txt'))[0].closest('[role="row"]') as HTMLElement
+    const data = drag()
+
+    expect(leftRow).toHaveAttribute('draggable', 'true')
+    expect((await screen.findAllByText('docs'))[0].closest('[role="row"]')).toHaveAttribute('draggable', 'false')
+    fireEvent.dragStart(leftRow, { dataTransfer: data })
+    const target = pane.querySelector('section') as HTMLElement
+    fireEvent.dragOver(target, { dataTransfer: data })
+    expect(screen.getByText('Drop here to copy the file')).toBeInTheDocument()
+    fireEvent.drop(target, { dataTransfer: data })
+
+    await waitFor(() => expect(copies).toHaveLength(1))
+    expect(copies[0]).toMatchObject({ sourceSiteId: 's1', sourcePath: '/left.txt', targetSiteId: 's2', targetPath: '/left.txt' })
+    expect(screen.queryByText('Drop here to copy the file')).not.toBeInTheDocument()
+  })
+
+  it('ignores drops that are not a copy to another folder', async () => {
+    const copies = mockServer()
+    await renderApp({ path: '/sites/s1?path=%2F&split=s1' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+    await within(pane).findByText('left.txt')
+    const target = pane.querySelector('section') as HTMLElement
+    const workspace = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
+
+    fireEvent.drop(target, { dataTransfer: drag({ [entryDragType]: JSON.stringify({ workspaceId: workspace, siteId: 's1', path: '/left.txt' }) }) })
+    fireEvent.drop(target, { dataTransfer: drag({ [entryDragType]: JSON.stringify({ workspaceId: 'other', siteId: 's2', path: '/x.txt' }) }) })
+    fireEvent.drop(target, { dataTransfer: drag({ [entryDragType]: 'garbage' }) })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(copies).toEqual([])
+  })
+
+  it('explains a refused copy and clears the message after the next one', async () => {
+    let refuse = true
+    const copies = mockServer(() => (refuse ? problem(404, 'site_not_found') : HttpResponse.json({}, { status: 202 })))
+    const user = userEvent.setup()
+    await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+    await within(pane).findByText('right.txt')
+    const target = pane.querySelector('section') as HTMLElement
+    const data = drag({ [entryDragType]: JSON.stringify({ workspaceId: '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10', siteId: 's1', path: '/left.txt' }) })
+
+    fireEvent.drop(target, { dataTransfer: data })
+    const alert = await within(pane).findByRole('alert')
+    expect(alert).toHaveTextContent('The copy could not start: This site no longer exists.')
+    await user.click(within(alert).getByRole('button', { name: 'Dismiss' }))
+    expect(within(pane).queryByRole('alert')).not.toBeInTheDocument()
+
+    fireEvent.drop(target, { dataTransfer: data })
+    await within(pane).findByRole('alert')
+    refuse = false
+    fireEvent.drop(target, { dataTransfer: data })
+    await waitFor(() => expect(within(pane).queryByRole('alert')).not.toBeInTheDocument())
+    expect(copies).toHaveLength(3)
+  })
+})

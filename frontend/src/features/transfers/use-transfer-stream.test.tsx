@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,6 +38,13 @@ function Probe() {
   return <p>{count} transfers</p>
 }
 
+/** Lists a folder the way the explorer does, and shows how many times it was read. */
+function Listing({ reads }: { reads: () => number }) {
+  useTransferStream()
+  const listing = useQuery({ queryKey: ['workspaces', 'w1', 'files', 's1', '/'], queryFn: () => reads() })
+  return <p>read {listing.data ?? 0} times</p>
+}
+
 /** Renders the probe with a transport that opens fake sockets. */
 async function renderProbe() {
   await renderWithProviders(<Probe />, 'en', fakeSocketTransport())
@@ -48,6 +56,7 @@ async function renderProbe() {
  * Scenarios:
  * - opening the stream loads the history, and a failing history load is ignored
  * - snapshots and state events add transfers and progress events update them
+ * - a copy between sites that ends reloads the folder listings of its workspace, and other transfers and states do not
  * - a vault lock event refreshes the vault state
  * - a transfer that starts opens a closed queue on its active tab, while updates of a running one, finished ones and progress leave it as the user set it
  * - a dropped stream reconnects after a growing wait that is capped, and the wait starts again after a successful open
@@ -122,6 +131,21 @@ describe('useTransferStream', () => {
     closed()
     act(() => socket.emit('snapshot', { transfers: [{ ...record, id: 't3', status: 'running' }, { ...record, id: 't1', status: 'done' }] }))
     expect(useUiStore.getState()).toMatchObject({ queueOpen: false, queueTab: 'finished' })
+  })
+
+  it('reloads the listings when a copy ends', async () => {
+    let reads = 0
+    await renderWithProviders(<Listing reads={() => ++reads} />, 'en', fakeSocketTransport())
+    await screen.findByText('read 1 times')
+    const socket = FakeSocket.opened[0]
+
+    act(() => socket.emit('transfer.state', { ...record, direction: 'upload', status: 'done' }))
+    act(() => socket.emit('transfer.state', { ...record, direction: 'copy', status: 'running' }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(reads).toBe(1)
+
+    act(() => socket.emit('transfer.state', { ...record, direction: 'copy', status: 'done' }))
+    expect(await screen.findByText('read 2 times')).toBeInTheDocument()
   })
 
   it('refreshes the vault state when the vault is locked', async () => {

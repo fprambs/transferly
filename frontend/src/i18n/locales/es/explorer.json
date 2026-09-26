@@ -103,5 +103,16 @@
     "title": "Conectando con {{name}}…",
     "hint": "Abriendo la conexión y leyendo la primera carpeta"
   },
-  "opening": "Abriendo {{path}}…"
+  "opening": "Abriendo {{path}}…",
+  "split": {
+    "open": "Vista dividida",
+    "close": "Cerrar el segundo panel",
+    "site": "Sitio del segundo panel",
+    "pane": "Segundo panel"
+  },
+  "copy": {
+    "failure": "No se pudo iniciar la copia",
+    "dismiss": "Cerrar",
+    "dropHint": "Suelta aquí para copiar el archivo"
+  }
 }
