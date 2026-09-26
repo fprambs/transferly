@@ -52,6 +52,8 @@ services:
   ftp:
     profiles: ["ftp"]
     <<: *vsftpd
+    environment:
+      TZ: America/Santiago
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/21'"]
       interval: 3s

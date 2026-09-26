@@ -37,7 +37,7 @@ func (s *Service) WithClock(now func() time.Time) *Service {
 	return s
 }
 
-// ProbeTimeOffset finds the time zone offset of a server that lists files without a zone: it writes a small file of its own in dir, reads
+// ProbeTimeOffset finds the time zone offset of a server that lists files without a zone: it writes a small file of its own in dir (not a hidden one, which listings leave out), reads
 // the time the listing prints for it, compares it with the clock and removes it again. The file is removed even when the probe fails.
 // The listing is parsed with the zone the site has now, so `current` is added back to get the offset of the server itself.
 func (s *Service) ProbeTimeOffset(ctx context.Context, t Target, dir string, current time.Duration) (TimeProbe, error) {
@@ -52,7 +52,7 @@ func (s *Service) ProbeTimeOffset(ctx context.Context, t Target, dir string, cur
 
 // probeOnce writes the probe file, measures it and removes it.
 func probeOnce(ctx context.Context, fsys remotefs.RemoteFS, dir string, now func() time.Time, current time.Duration) (TimeProbe, error) {
-	name := ".sentinel-probe-" + strings.ToLower(rand.Text()[:12])
+	name := "sentinel-time-probe-" + strings.ToLower(rand.Text()[:12])
 	file := path.Join(dir, name)
 	w, err := fsys.OpenWrite(ctx, file, 0, remotefs.WriteCreate)
 	if err != nil {

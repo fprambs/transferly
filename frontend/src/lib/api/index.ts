@@ -36,6 +36,9 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** What a probe learned about the time zone of a server's listings. */
+export type TimeZoneProbe = Schemas['TimeZoneProbe']
+
 /** What happened, or would happen, to the sites of an imported file. */
 export type ImportResult = Schemas['ImportResult']
 
@@ -173,6 +176,8 @@ export function createApi(transport: Transport) {
         transport.request<void>({ method: 'DELETE', path: filesPath(workspaceId, siteId), query: { path, recursive: recursive || undefined } }),
       downloadUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/content`, { path, transferId }),
+      probeTimeZone: (workspaceId: string, siteId: string, path: string) =>
+        transport.request<TimeZoneProbe>({ method: 'POST', path: `${filesPath(workspaceId, siteId)}/timezone-probe`, query: { path } }),
       checksum: (workspaceId: string, siteId: string, path: string, algorithm: ChecksumAlgorithm) =>
         transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
       archiveUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>

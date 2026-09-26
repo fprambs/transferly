@@ -109,6 +109,7 @@ describe('createApi', () => {
     { name: 'quick.close', call: (a) => a.quick.close(ws, 'q1'), method: 'DELETE', path: `/api/v1/workspaces/${ws}/quick-connections/q1` },
     { name: 'quick.save', call: (a) => a.quick.save(ws, 'q1', { name: 'N', collectionId: 'c1' }), method: 'POST', path: `/api/v1/workspaces/${ws}/quick-connections/q1/save`, body: { name: 'N', collectionId: 'c1' } },
     { name: 'files.list', call: (a) => a.files.list(ws, site, '/a b'), method: 'GET', path: files, query: '?path=%2Fa+b' },
+    { name: 'files.probeTimeZone', call: (a) => a.files.probeTimeZone(ws, site, '/dir'), method: 'POST', path: `${files}/timezone-probe`, query: '?path=%2Fdir' },
     { name: 'files.checksum', call: (a) => a.files.checksum(ws, site, '/f', 'md5'), method: 'GET', path: `${files}/checksum`, query: '?path=%2Ff&algorithm=md5' },
     { name: 'files.stat', call: (a) => a.files.stat(ws, site, '/f'), method: 'GET', path: `${files}/entry`, query: '?path=%2Ff' },
     { name: 'files.mkdir', call: (a) => a.files.mkdir(ws, site, '/d'), method: 'POST', path: `${files}/directories`, body: { path: '/d' } },

@@ -16,6 +16,7 @@ const explorerErrorKeys = [
   'site_not_found',
   'quick_connection_not_found',
   'tree_too_large',
+  'time_zone_inconclusive',
   'network_error',
 ] as const
 

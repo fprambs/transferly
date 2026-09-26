@@ -24,6 +24,7 @@ async function quickConnect(page: Page, protocol: 'SFTP' | 'FTPS' | 'FTP', host:
  *   show a dash where permissions would be, since FTP reports none
  * - an upload to a plain FTP server that is canceled half way leaves a partial file, resuming it from the dock sends only the rest with the
  *   resume mode, and the file that arrives is byte for byte the one that was chosen
+ * - the time zone probe finds that the plain FTP server, which prints its times in the local time of Santiago, is behind UTC by three or four hours
  * - an FTPS server with a self-signed certificate asks to trust the certificate first, then connects with TLS on the
  *   control and the data channels, uploads a file, hands it back with the same content, and deletes it
  */
@@ -137,6 +138,27 @@ test.describe('ftp and ftps', () => {
     expect(createHash('sha256').update(received).digest('hex')).toBe(createHash('sha256').update(content).digest('hex'))
 
     await request.delete(files, { params: { path: `/upload/${name}` }, headers })
+    await request.delete(`/api/v1/workspaces/${workspaces[0].id}/quick-connections/${quickId}`, { headers })
+  })
+
+  test('detects that the FTP server prints its times in another zone', async ({ shell, request }) => {
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const headers = { 'X-CSRF-Token': me.csrfToken }
+    const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
+      headers,
+      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+    })
+    expect(quick.ok()).toBe(true)
+    const { id: quickId } = (await quick.json()) as { id: string }
+
+    await page.goto(`/sites/${quickId}?path=%2Fupload`)
+    await expect(page.getByRole('grid', { name: 'Files' }).or(page.getByText('This folder is empty.'))).toBeVisible()
+    await page.getByRole('button', { name: 'Detect the time zone of the server' }).click()
+
+    await expect(page.getByRole('status')).toContainText(/The server prints times -0[34]:00 from UTC\./)
+    await expect(page.getByRole('status')).toContainText('Save this connection as a site to keep the time zone.')
     await request.delete(`/api/v1/workspaces/${workspaces[0].id}/quick-connections/${quickId}`, { headers })
   })
 })

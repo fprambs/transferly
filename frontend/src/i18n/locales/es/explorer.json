@@ -46,7 +46,8 @@
     "unknown": "Algo salió mal. Inténtalo de nuevo.",
     "nameRequired": "Escribe un nombre.",
     "nameInvalid": "El nombre no puede contener una barra ni ser . o ..",
-    "tree_too_large": "Esta carpeta es demasiado grande para copiarla o archivarla: tiene demasiados elementos o es demasiado profunda."
+    "tree_too_large": "Esta carpeta es demasiado grande para copiarla o archivarla: tiene demasiados elementos o es demasiado profunda.",
+    "time_zone_inconclusive": "Las horas del servidor no coinciden con el reloj, así que ninguna zona encaja."
   },
   "toolbar": {
     "newFolder": "Nueva carpeta",
@@ -163,5 +164,18 @@
     "value": "Valor del checksum",
     "copy": "Copiar el checksum",
     "copied": "Checksum copiado"
+  },
+  "timezone": {
+    "button": "Detectar la zona horaria del servidor",
+    "working": "Escribiendo un archivo pequeño para leer su hora…",
+    "exact": "Este servidor lista horas exactas en UTC. No hace falta zona horaria.",
+    "offset": "El servidor muestra horas {{offset}} respecto de UTC.",
+    "suggest": "Usar {{zone}} en este sitio",
+    "applied": "Guardado. El listado ahora usa {{zone}}.",
+    "manual": "Elige la zona horaria en los ajustes del sitio.",
+    "quick": "Guarda esta conexión como sitio para conservar la zona horaria.",
+    "failed": "No se pudo detectar la zona horaria.",
+    "dismiss": "Cerrar",
+    "inconclusive": "Las horas del servidor no coinciden con el reloj, así que ninguna zona encaja."
   }
 }

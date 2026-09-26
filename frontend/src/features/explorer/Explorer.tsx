@@ -15,6 +15,7 @@ import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { Breadcrumbs } from './Breadcrumbs'
+import { TimeZoneProbe } from './TimeZoneProbe'
 import { localSiteId, readLocalFile } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
 import { readDropped, treeFromHandle, treeFromInput, TreeTooLarge, type UploadTree } from '../local/tree'
@@ -277,6 +278,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         >
           <RefreshCw />
         </Button>
+        {target !== undefined && target.protocol !== 'sftp' ? (
+          <TimeZoneProbe workspaceId={workspaceId} siteId={siteId} path={path} site={sites.find((saved) => saved.id === siteId)} onApplied={() => void reload()} />
+        ) : null}
         {actions}
       </div>
       {each === null ? null : typeof each === 'object' ? (

@@ -46,7 +46,8 @@
     "unknown": "Something went wrong. Try again.",
     "nameRequired": "Enter a name.",
     "nameInvalid": "The name cannot contain a slash or be . or ..",
-    "tree_too_large": "This folder is too big to copy or archive: it holds too many items or goes too deep."
+    "tree_too_large": "This folder is too big to copy or archive: it holds too many items or goes too deep.",
+    "time_zone_inconclusive": "The times of the server do not match the clock, so no time zone fits."
   },
   "toolbar": {
     "newFolder": "New folder",
@@ -163,5 +164,18 @@
     "value": "Checksum value",
     "copy": "Copy the checksum",
     "copied": "Checksum copied"
+  },
+  "timezone": {
+    "button": "Detect the time zone of the server",
+    "working": "Writing a small file to read its time…",
+    "exact": "This server lists exact times in UTC. No time zone is needed.",
+    "offset": "The server prints times {{offset}} from UTC.",
+    "suggest": "Use {{zone}} for this site",
+    "applied": "Saved. The listing now uses {{zone}}.",
+    "manual": "Choose the time zone in the settings of the site.",
+    "quick": "Save this connection as a site to keep the time zone.",
+    "failed": "The time zone could not be detected.",
+    "dismiss": "Dismiss",
+    "inconclusive": "The times of the server do not match the clock, so no time zone fits."
   }
 }
