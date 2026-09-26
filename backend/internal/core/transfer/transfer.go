@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/scheduler"
 )
 
 // Direction says which way the data flows.
@@ -55,6 +56,10 @@ var (
 	ErrNotActive = errors.New("transfer is not active")
 	// ErrExists means a transfer with that identifier already exists.
 	ErrExists = errors.New("transfer already exists")
+	// ErrNotQueued means the operation needs a transfer that waits for a free slot: it already runs, or it is over.
+	ErrNotQueued = errors.New("transfer is not waiting in the queue")
+	// ErrInvalidPriority means the priority is not one of low, normal and high.
+	ErrInvalidPriority = errors.New("invalid priority")
 )
 
 // Transfer is the record of one file transfer.
@@ -93,6 +98,10 @@ type Transfer struct {
 	UpdatedAt time.Time
 	// FinishedAt is when the transfer ended, or nil while it is active.
 	FinishedAt *time.Time
+	// Paused is true while a waiting transfer is held back by its user. It lives in memory, not in the store.
+	Paused bool
+	// Priority is the place of a waiting transfer in the queue: -1 low, 0 normal, 1 high. It lives in memory, not in the store.
+	Priority int
 }
 
 // Store persists transfers. Every lookup is scoped by user.
@@ -119,6 +128,8 @@ type Config struct {
 	SaveEvery time.Duration
 	// MaxList caps the number of transfers a listing returns; 200 by default.
 	MaxList int
+	// Limits are the most transfers that run at once; the others wait in the queue. Zero means no limit.
+	Limits scheduler.Limits
 }
 
 // withDefaults fills in the zero values.
@@ -141,6 +152,7 @@ type Service struct {
 	sink  ports.EventSink
 	clock ports.Clock
 	cfg   Config
+	sched *scheduler.Scheduler
 	newID func() (uuid.UUID, error)
 
 	mu     sync.Mutex
@@ -152,7 +164,7 @@ func NewService(store Store, sink ports.EventSink, clock ports.Clock, cfg Config
 	if newID == nil {
 		newID = uuid.NewV7
 	}
-	return &Service{store: store, sink: sink, clock: clock, cfg: cfg.withDefaults(), newID: newID, active: map[uuid.UUID]*Tracker{}}
+	return &Service{store: store, sink: sink, clock: clock, cfg: cfg.withDefaults(), sched: scheduler.New(cfg.Limits), newID: newID, active: map[uuid.UUID]*Tracker{}}
 }
 
 // Recover marks the transfers that were in progress when the server stopped as interrupted. It runs once at startup.
@@ -165,12 +177,25 @@ func (s *Service) List(ctx context.Context, userID, workspaceID uuid.UUID, limit
 	if limit <= 0 || limit > s.cfg.MaxList {
 		limit = s.cfg.MaxList
 	}
-	return s.store.ListTransfers(ctx, userID, workspaceID, limit)
+	list, err := s.store.ListTransfers(ctx, userID, workspaceID, limit)
+	for i := range list {
+		list[i] = s.decorate(list[i])
+	}
+	return list, err
+}
+
+// decorate adds what only the queue knows to a transfer: whether it is paused and its priority.
+func (s *Service) decorate(t Transfer) Transfer {
+	if state, waiting := s.sched.StateOf(t.ID); waiting {
+		t.Paused, t.Priority = state.Paused, int(state.Priority)
+	}
+	return t
 }
 
 // Get returns one of the user's transfers.
 func (s *Service) Get(ctx context.Context, userID, id uuid.UUID) (Transfer, error) {
-	return s.store.TransferByID(ctx, userID, id)
+	t, err := s.store.TransferByID(ctx, userID, id)
+	return s.decorate(t), err
 }
 
 // Delete removes a finished transfer from the history.
@@ -199,4 +224,59 @@ func (s *Service) Cancel(ctx context.Context, userID, id uuid.UUID) error {
 	}
 	tracker.cancel(errCanceledByUser)
 	return nil
+}
+
+// waiting returns the transfer of a user that still waits for a slot; anything else is [ErrNotFound] or [ErrNotQueued].
+func (s *Service) waiting(ctx context.Context, userID, id uuid.UUID) (Transfer, error) {
+	t, err := s.store.TransferByID(ctx, userID, id)
+	if err != nil {
+		return Transfer{}, err
+	}
+	if _, waiting := s.sched.StateOf(id); !waiting {
+		return Transfer{}, ErrNotQueued
+	}
+	return t, nil
+}
+
+// Pause holds a waiting transfer back: it keeps its place in the queue but is not started until resumed. A transfer
+// that already runs cannot be paused, only canceled.
+func (s *Service) Pause(ctx context.Context, userID, id uuid.UUID) (Transfer, error) {
+	return s.change(ctx, userID, id, func() error { return s.sched.Pause(id) })
+}
+
+// Resume lets a paused transfer be started again.
+func (s *Service) Resume(ctx context.Context, userID, id uuid.UUID) (Transfer, error) {
+	return s.change(ctx, userID, id, func() error { return s.sched.Resume(id) })
+}
+
+// SetPriority changes where a waiting transfer stands in the queue: -1 low, 0 normal, 1 high.
+func (s *Service) SetPriority(ctx context.Context, userID, id uuid.UUID, priority int) (Transfer, error) {
+	p := scheduler.Priority(priority)
+	if !p.Valid() {
+		return Transfer{}, ErrInvalidPriority
+	}
+	return s.change(ctx, userID, id, func() error { return s.sched.SetPriority(id, p) })
+}
+
+// change applies a change to a waiting transfer and tells the user's clients.
+func (s *Service) change(ctx context.Context, userID, id uuid.UUID, apply func() error) (Transfer, error) {
+	t, err := s.waiting(ctx, userID, id)
+	if err != nil {
+		return Transfer{}, err
+	}
+	if err := apply(); err != nil {
+		return Transfer{}, mapNotQueued(err)
+	}
+	t = s.decorate(t)
+	s.publishState(t)
+	return t, nil
+}
+
+// mapNotQueued turns the scheduler's "not waiting" error into the one of this package: the transfer may have started
+// between the check and the change.
+func mapNotQueued(err error) error {
+	if errors.Is(err, scheduler.ErrNotQueued) {
+		return ErrNotQueued
+	}
+	return err
 }

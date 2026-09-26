@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/scheduler"
 )
 
 // saveTimeout bounds each write of a transfer to the store made after the request ended.
@@ -49,6 +50,9 @@ type BeginInput struct {
 	WorkspaceID uuid.UUID
 	// SiteID is the site.
 	SiteID uuid.UUID
+	// Route is the site or quick connection that carries the data, which the limits per site count; it differs from SiteID
+	// for a quick connection, which has no site record. The nil identifier means SiteID.
+	Route uuid.UUID
 	// SiteName is the name of the site, kept in the history.
 	SiteName string
 	// Direction is upload or download.
@@ -106,8 +110,12 @@ func (s *Service) Begin(ctx context.Context, in BeginInput) (*Tracker, context.C
 		}
 	}
 
+	route := in.Route
+	if route == uuid.Nil {
+		route = in.SiteID
+	}
 	runCtx, cancel := context.WithCancelCause(ctx)
-	k := &Tracker{s: s, t: t, ctx: runCtx, cancel: cancel, base: context.WithoutCancel(ctx), lastEvent: now, lastSave: now}
+	k := &Tracker{s: s, t: t, route: route, ctx: runCtx, cancel: cancel, base: context.WithoutCancel(ctx), lastEvent: now, lastSave: now}
 	s.mu.Lock()
 	s.active[id] = k
 	s.mu.Unlock()
@@ -117,12 +125,14 @@ func (s *Service) Begin(ctx context.Context, in BeginInput) (*Tracker, context.C
 
 // publishState tells the user's clients that a transfer changed state.
 func (s *Service) publishState(t Transfer) {
+	t = s.decorate(t)
 	s.sink.Publish(ports.Event{Type: EventState, UserID: t.UserID, Data: t})
 }
 
 // Tracker follows one transfer. It is safe for concurrent use.
 type Tracker struct {
 	s      *Service
+	route  uuid.UUID
 	ctx    context.Context
 	cancel context.CancelCauseFunc
 	base   context.Context
@@ -132,6 +142,7 @@ type Tracker struct {
 	lastEvent time.Time
 	lastSave  time.Time
 	finished  bool
+	release   func()
 }
 
 // ID returns the identifier of the transfer.
@@ -142,6 +153,27 @@ func (k *Tracker) save() {
 	ctx, cancel := context.WithTimeout(k.base, saveTimeout)
 	defer cancel()
 	_ = k.s.store.UpdateTransfer(ctx, k.t)
+}
+
+// Admit waits for the transfer's turn: it returns once the limits of the scheduler leave room for it, and the slot is
+// held until [Tracker.Finish]. While it waits the transfer is queued and its user can pause it, change its priority or
+// cancel it; a canceled transfer, or a context that ends, stops the wait with its error.
+func (k *Tracker) Admit(ctx context.Context) error {
+	k.mu.Lock()
+	t := k.t
+	k.mu.Unlock()
+	release, err := k.s.sched.Acquire(ctx, scheduler.Request{ID: t.ID, UserID: t.UserID, WorkspaceID: t.WorkspaceID, SiteID: k.route})
+	if err != nil {
+		return err
+	}
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.finished {
+		release()
+		return context.Canceled
+	}
+	k.release = release
+	return nil
 }
 
 // Started marks the transfer as running because a connection was obtained. A non-negative total is the number
@@ -199,6 +231,9 @@ func (k *Tracker) Finish(err error, code string) {
 		return
 	}
 	k.finished = true
+	if k.release != nil {
+		k.release()
+	}
 	now := k.s.clock.Now().UTC()
 	switch {
 	case err == nil:

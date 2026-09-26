@@ -93,6 +93,17 @@ func (p domainProblem) VisitGetTransferResponse(w http.ResponseWriter) error { r
 // VisitDeleteTransferResponse implements [DeleteTransferResponseObject].
 func (p domainProblem) VisitDeleteTransferResponse(w http.ResponseWriter) error { return p.write(w) }
 
+// VisitPauseTransferResponse implements [PauseTransferResponseObject].
+func (p domainProblem) VisitPauseTransferResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitResumeTransferResponse implements [ResumeTransferResponseObject].
+func (p domainProblem) VisitResumeTransferResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitSetTransferPriorityResponse implements [SetTransferPriorityResponseObject].
+func (p domainProblem) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
+
 // VisitCancelTransferResponse implements [CancelTransferResponseObject].
 func (p domainProblem) VisitCancelTransferResponse(w http.ResponseWriter) error { return p.write(w) }
 
@@ -153,6 +164,8 @@ var domainProblems = []struct {
 	{transfer.ErrNotFound, http.StatusNotFound, "transfer_not_found"},
 	{transfer.ErrActive, http.StatusConflict, "transfer_active"},
 	{transfer.ErrNotActive, http.StatusConflict, "transfer_not_active"},
+	{transfer.ErrNotQueued, http.StatusConflict, "transfer_not_queued"},
+	{transfer.ErrInvalidPriority, http.StatusUnprocessableEntity, "invalid_priority"},
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},

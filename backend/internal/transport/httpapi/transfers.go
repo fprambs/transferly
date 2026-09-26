@@ -21,6 +21,8 @@ func transferDTO(t transfer.Transfer) Transfer {
 	if t.ErrorCode != "" {
 		out.ErrorCode = &t.ErrorCode
 	}
+	priority := TransferPriority(t.Priority)
+	out.Paused, out.Priority = &t.Paused, &priority
 	return out
 }
 
@@ -82,4 +84,43 @@ func (s *server) CancelTransfer(ctx context.Context, request CancelTransferReque
 		return nil, err
 	}
 	return CancelTransfer204Response{}, nil
+}
+
+// PauseTransfer holds a waiting transfer back.
+func (s *server) PauseTransfer(ctx context.Context, request PauseTransferRequestObject) (PauseTransferResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	t, err := s.deps.Transfers.Pause(ctx, p.User.ID, request.TransferId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return PauseTransfer200JSONResponse(transferDTO(t)), nil
+}
+
+// ResumeTransfer lets a paused transfer start.
+func (s *server) ResumeTransfer(ctx context.Context, request ResumeTransferRequestObject) (ResumeTransferResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	t, err := s.deps.Transfers.Resume(ctx, p.User.ID, request.TransferId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ResumeTransfer200JSONResponse(transferDTO(t)), nil
+}
+
+// SetTransferPriority changes the place of a waiting transfer in the queue.
+func (s *server) SetTransferPriority(ctx context.Context, request SetTransferPriorityRequestObject) (SetTransferPriorityResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	t, err := s.deps.Transfers.SetPriority(ctx, p.User.ID, request.TransferId, int(request.Body.Priority))
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return SetTransferPriority200JSONResponse(transferDTO(t)), nil
 }

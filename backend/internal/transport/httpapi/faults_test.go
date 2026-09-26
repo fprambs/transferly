@@ -367,7 +367,7 @@ func (brokenTransfers) TransferByID(context.Context, uuid.UUID, uuid.UUID) (tran
 // TestTransferFailures verifies that store failures inside the transfer handlers are 500 problems.
 //
 // Scenarios:
-//   - listing, reading, deleting and canceling answer 500 when the store fails
+//   - listing, reading, deleting, canceling, pausing, resuming and reprioritizing answer 500 when the store fails
 //   - an upload or a download whose record cannot be created answers 500 and moves no data
 func TestTransferFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
@@ -382,6 +382,9 @@ func TestTransferFailures(t *testing.T) {
 	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/transfers/" + id, cookie: cookie}), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodDelete, "/api/v1/transfers/"+id, nil, cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodPost, "/api/v1/transfers/"+id+"/cancel", nil, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, "/api/v1/transfers/"+id+"/pause", nil, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, "/api/v1/transfers/"+id+"/resume", nil, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPatch, "/api/v1/transfers/"+id, map[string]int{"priority": 1}, cookie, csrf), 500, "internal_error")
 
 	site := created.site(t).Id
 	expectProblem(t, a.upload(ws, site, q("path", "/f"), "x", cookie, csrf), 500, "internal_error")

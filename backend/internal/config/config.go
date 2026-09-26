@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -53,6 +54,20 @@ type Config struct {
 	TrustedProxies []string
 	// JanitorInterval is how often expired sessions and keys are purged.
 	JanitorInterval time.Duration
+	// TransferLimits caps how many transfers run at once; the rest wait in the queue.
+	TransferLimits TransferLimits
+}
+
+// TransferLimits are the caps of concurrent transfers; zero means no cap.
+type TransferLimits struct {
+	// Global caps the transfers of the whole instance.
+	Global int
+	// PerWorkspace caps the transfers of one workspace.
+	PerWorkspace int
+	// PerUser caps the transfers of one user.
+	PerUser int
+	// PerSite caps the transfers that use one site or quick connection.
+	PerSite int
 }
 
 // CookieSecure reports whether cookies must be marked Secure, which is the case for an https base URL.
@@ -75,6 +90,7 @@ func Load(getenv func(string) string) (Config, error) {
 		SessionIdle:     defaultSessionIdle,
 		SessionMax:      defaultSessionMax,
 		JanitorInterval: defaultJanitor,
+		TransferLimits:  TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4},
 	}
 
 	var errs []error
@@ -99,6 +115,19 @@ func Load(getenv func(string) string) (Config, error) {
 		{"SENTINEL_JANITOR_INTERVAL", &cfg.JanitorInterval},
 	} {
 		if err := parseDuration(getenv(d.name), d.name, d.into); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for _, l := range []struct {
+		name string
+		into *int
+	}{
+		{"SENTINEL_TRANSFER_LIMIT_GLOBAL", &cfg.TransferLimits.Global},
+		{"SENTINEL_TRANSFER_LIMIT_PER_WORKSPACE", &cfg.TransferLimits.PerWorkspace},
+		{"SENTINEL_TRANSFER_LIMIT_PER_USER", &cfg.TransferLimits.PerUser},
+		{"SENTINEL_TRANSFER_LIMIT_PER_SITE", &cfg.TransferLimits.PerSite},
+	} {
+		if err := parseLimit(getenv(l.name), l.name, l.into); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -179,6 +208,19 @@ func parseDuration(raw, name string, into *time.Duration) error {
 		return fmt.Errorf("invalid %s %q (want a positive duration such as 15s)", name, raw)
 	}
 	*into = d
+	return nil
+}
+
+// parseLimit sets into from a non-negative whole number in raw, leaving it unchanged when raw is empty.
+func parseLimit(raw, name string, into *int) error {
+	if raw == "" {
+		return nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		return fmt.Errorf("invalid %s %q (want a whole number, 0 for no limit)", name, raw)
+	}
+	*into = n
 	return nil
 }
 

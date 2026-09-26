@@ -193,3 +193,31 @@ func TestLoad_WebSettings(t *testing.T) {
 		}
 	}
 }
+
+// TestLoad_TransferLimits verifies the caps of concurrent transfers.
+//
+// Scenarios:
+//   - defaults are 32 in total, 16 per workspace, 8 per user and 4 per site
+//   - each cap can be set, and zero means no cap
+//   - negative and non-numeric values are reported
+func TestLoad_TransferLimits(t *testing.T) {
+	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+	cfg, err := config.Load(env(base))
+	if err != nil || cfg.TransferLimits != (config.TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4}) {
+		t.Fatalf("defaults = %+v, %v", cfg.TransferLimits, err)
+	}
+	base["SENTINEL_TRANSFER_LIMIT_GLOBAL"] = "0"
+	base["SENTINEL_TRANSFER_LIMIT_PER_WORKSPACE"] = "5"
+	base["SENTINEL_TRANSFER_LIMIT_PER_USER"] = "3"
+	base["SENTINEL_TRANSFER_LIMIT_PER_SITE"] = "2"
+	cfg, err = config.Load(env(base))
+	if err != nil || cfg.TransferLimits != (config.TransferLimits{Global: 0, PerWorkspace: 5, PerUser: 3, PerSite: 2}) {
+		t.Fatalf("overrides = %+v, %v", cfg.TransferLimits, err)
+	}
+	for _, value := range []string{"-1", "many", "1.5"} {
+		base["SENTINEL_TRANSFER_LIMIT_PER_SITE"] = value
+		if _, err := config.Load(env(base)); err == nil {
+			t.Errorf("Load() with a per-site limit of %q = nil error", value)
+		}
+	}
+}

@@ -282,6 +282,27 @@ func (e TransferDirection) Valid() bool {
 	}
 }
 
+// Defines values for TransferPriority.
+const (
+	TransferPriorityMinus1 TransferPriority = -1
+	TransferPriorityN0     TransferPriority = 0
+	TransferPriorityN1     TransferPriority = 1
+)
+
+// Valid indicates whether the value is a known member of the TransferPriority enum.
+func (e TransferPriority) Valid() bool {
+	switch e {
+	case TransferPriorityMinus1:
+		return true
+	case TransferPriorityN0:
+		return true
+	case TransferPriorityN1:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TransferStatus.
 const (
 	Canceled    TransferStatus = "canceled"
@@ -306,6 +327,27 @@ func (e TransferStatus) Valid() bool {
 	case Queued:
 		return true
 	case Running:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransferPriorityInputPriority.
+const (
+	TransferPriorityInputPriorityMinus1 TransferPriorityInputPriority = -1
+	TransferPriorityInputPriorityN0     TransferPriorityInputPriority = 0
+	TransferPriorityInputPriorityN1     TransferPriorityInputPriority = 1
+)
+
+// Valid indicates whether the value is a known member of the TransferPriorityInputPriority enum.
+func (e TransferPriorityInputPriority) Valid() bool {
+	switch e {
+	case TransferPriorityInputPriorityMinus1:
+		return true
+	case TransferPriorityInputPriorityN0:
+		return true
+	case TransferPriorityInputPriorityN1:
 		return true
 	default:
 		return false
@@ -690,6 +732,12 @@ type Transfer struct {
 	Name       string             `json:"name"`
 	Path       string             `json:"path"`
 
+	// Paused True while a waiting transfer is held back by its user.
+	Paused *bool `json:"paused,omitempty"`
+
+	// Priority Place in the queue of a waiting transfer, from low (-1) to high (1).
+	Priority *TransferPriority `json:"priority,omitempty"`
+
 	// SiteId Left out once the site was deleted.
 	SiteId    *openapi_types.UUID `json:"siteId,omitempty"`
 	SiteName  string              `json:"siteName"`
@@ -705,8 +753,19 @@ type Transfer struct {
 // TransferDirection defines model for Transfer.Direction.
 type TransferDirection string
 
+// TransferPriority Place in the queue of a waiting transfer, from low (-1) to high (1).
+type TransferPriority int
+
 // TransferStatus defines model for Transfer.Status.
 type TransferStatus string
+
+// TransferPriorityInput defines model for TransferPriorityInput.
+type TransferPriorityInput struct {
+	Priority TransferPriorityInputPriority `json:"priority"`
+}
+
+// TransferPriorityInputPriority defines model for TransferPriorityInput.Priority.
+type TransferPriorityInputPriority int
 
 // User defines model for User.
 type User struct {
@@ -798,8 +857,26 @@ type DeleteTransferParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// SetTransferPriorityParams defines parameters for SetTransferPriority.
+type SetTransferPriorityParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // CancelTransferParams defines parameters for CancelTransfer.
 type CancelTransferParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// PauseTransferParams defines parameters for PauseTransfer.
+type PauseTransferParams struct {
+	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
+// ResumeTransferParams defines parameters for ResumeTransfer.
+type ResumeTransferParams struct {
 	// XCSRFToken Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
@@ -996,6 +1073,9 @@ type UpdateMeJSONRequestBody = Preferences
 // SetupJSONRequestBody defines body for Setup for application/json ContentType.
 type SetupJSONRequestBody = Credentials
 
+// SetTransferPriorityJSONRequestBody defines body for SetTransferPriority for application/json ContentType.
+type SetTransferPriorityJSONRequestBody = TransferPriorityInput
+
 // ChangeMasterPasswordJSONRequestBody defines body for ChangeMasterPassword for application/json ContentType.
 type ChangeMasterPasswordJSONRequestBody = ChangeMasterPasswordRequest
 
@@ -1067,9 +1147,18 @@ type ServerInterface interface {
 	// GetTransfer One transfer
 	// (GET /api/v1/transfers/{transferId})
 	GetTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId)
+	// SetTransferPriority Change the priority of a waiting transfer
+	// (PATCH /api/v1/transfers/{transferId})
+	SetTransferPriority(w http.ResponseWriter, r *http.Request, transferId TransferId, params SetTransferPriorityParams)
 	// CancelTransfer Stop a transfer in progress
 	// (POST /api/v1/transfers/{transferId}/cancel)
 	CancelTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params CancelTransferParams)
+	// PauseTransfer Hold a waiting transfer back
+	// (POST /api/v1/transfers/{transferId}/pause)
+	PauseTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params PauseTransferParams)
+	// ResumeTransfer Let a paused transfer start
+	// (POST /api/v1/transfers/{transferId}/resume)
+	ResumeTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params ResumeTransferParams)
 	// GetVault State of the vault in this session
 	// (GET /api/v1/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
@@ -1232,9 +1321,27 @@ func (_ Unimplemented) GetTransfer(w http.ResponseWriter, r *http.Request, trans
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// SetTransferPriority Change the priority of a waiting transfer
+// (PATCH /api/v1/transfers/{transferId})
+func (_ Unimplemented) SetTransferPriority(w http.ResponseWriter, r *http.Request, transferId TransferId, params SetTransferPriorityParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // CancelTransfer Stop a transfer in progress
 // (POST /api/v1/transfers/{transferId}/cancel)
 func (_ Unimplemented) CancelTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params CancelTransferParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PauseTransfer Hold a waiting transfer back
+// (POST /api/v1/transfers/{transferId}/pause)
+func (_ Unimplemented) PauseTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params PauseTransferParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ResumeTransfer Let a paused transfer start
+// (POST /api/v1/transfers/{transferId}/resume)
+func (_ Unimplemented) ResumeTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params ResumeTransferParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1711,6 +1818,56 @@ func (siw *ServerInterfaceWrapper) GetTransfer(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// SetTransferPriority operation middleware
+func (siw *ServerInterfaceWrapper) SetTransferPriority(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "transferId" -------------
+	var transferId TransferId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transferId", chi.URLParam(r, "transferId"), &transferId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "transferId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetTransferPriorityParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetTransferPriority(w, r, transferId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CancelTransfer operation middleware
 func (siw *ServerInterfaceWrapper) CancelTransfer(w http.ResponseWriter, r *http.Request) {
 
@@ -1752,6 +1909,106 @@ func (siw *ServerInterfaceWrapper) CancelTransfer(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CancelTransfer(w, r, transferId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PauseTransfer operation middleware
+func (siw *ServerInterfaceWrapper) PauseTransfer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "transferId" -------------
+	var transferId TransferId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transferId", chi.URLParam(r, "transferId"), &transferId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "transferId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PauseTransferParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PauseTransfer(w, r, transferId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResumeTransfer operation middleware
+func (siw *ServerInterfaceWrapper) ResumeTransfer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "transferId" -------------
+	var transferId TransferId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transferId", chi.URLParam(r, "transferId"), &transferId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "transferId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResumeTransferParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResumeTransfer(w, r, transferId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3604,6 +3861,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/api/v1/transfers/{transferId}", wrapper.GetTransfer)
 	})
 	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/api/v1/transfers/{transferId}", wrapper.SetTransferPriority)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/transfers/{transferId}/pause", wrapper.PauseTransfer)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/transfers/{transferId}/resume", wrapper.ResumeTransfer)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/v1/transfers/{transferId}/cancel", wrapper.CancelTransfer)
 	})
 	r.Group(func(r chi.Router) {
@@ -4175,6 +4441,114 @@ func (response GetTransfer404ApplicationProblemPlusJSONResponse) VisitGetTransfe
 	return err
 }
 
+type SetTransferPriorityRequestObject struct {
+	TransferId TransferId `json:"transferId"`
+	Params     SetTransferPriorityParams
+	Body       *SetTransferPriorityJSONRequestBody
+}
+
+type SetTransferPriorityResponseObject interface {
+	VisitSetTransferPriorityResponse(w http.ResponseWriter) error
+}
+
+type SetTransferPriority200JSONResponse Transfer
+
+func (response SetTransferPriority200JSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTransferPriority400ApplicationProblemPlusJSONResponse Problem
+
+func (response SetTransferPriority400ApplicationProblemPlusJSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTransferPriority401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetTransferPriority401ApplicationProblemPlusJSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTransferPriority403ApplicationProblemPlusJSONResponse Problem
+
+func (response SetTransferPriority403ApplicationProblemPlusJSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTransferPriority404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetTransferPriority404ApplicationProblemPlusJSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTransferPriority409ApplicationProblemPlusJSONResponse Problem
+
+func (response SetTransferPriority409ApplicationProblemPlusJSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTransferPriority422ApplicationProblemPlusJSONResponse Problem
+
+func (response SetTransferPriority422ApplicationProblemPlusJSONResponse) VisitSetTransferPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CancelTransferRequestObject struct {
 	TransferId TransferId `json:"transferId"`
 	Params     CancelTransferParams
@@ -4237,6 +4611,164 @@ func (response CancelTransfer404ApplicationProblemPlusJSONResponse) VisitCancelT
 type CancelTransfer409ApplicationProblemPlusJSONResponse Problem
 
 func (response CancelTransfer409ApplicationProblemPlusJSONResponse) VisitCancelTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTransferRequestObject struct {
+	TransferId TransferId `json:"transferId"`
+	Params     PauseTransferParams
+}
+
+type PauseTransferResponseObject interface {
+	VisitPauseTransferResponse(w http.ResponseWriter) error
+}
+
+type PauseTransfer200JSONResponse Transfer
+
+func (response PauseTransfer200JSONResponse) VisitPauseTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTransfer401ApplicationProblemPlusJSONResponse Problem
+
+func (response PauseTransfer401ApplicationProblemPlusJSONResponse) VisitPauseTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTransfer403ApplicationProblemPlusJSONResponse Problem
+
+func (response PauseTransfer403ApplicationProblemPlusJSONResponse) VisitPauseTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTransfer404ApplicationProblemPlusJSONResponse Problem
+
+func (response PauseTransfer404ApplicationProblemPlusJSONResponse) VisitPauseTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTransfer409ApplicationProblemPlusJSONResponse Problem
+
+func (response PauseTransfer409ApplicationProblemPlusJSONResponse) VisitPauseTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTransferRequestObject struct {
+	TransferId TransferId `json:"transferId"`
+	Params     ResumeTransferParams
+}
+
+type ResumeTransferResponseObject interface {
+	VisitResumeTransferResponse(w http.ResponseWriter) error
+}
+
+type ResumeTransfer200JSONResponse Transfer
+
+func (response ResumeTransfer200JSONResponse) VisitResumeTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTransfer401ApplicationProblemPlusJSONResponse Problem
+
+func (response ResumeTransfer401ApplicationProblemPlusJSONResponse) VisitResumeTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTransfer403ApplicationProblemPlusJSONResponse Problem
+
+func (response ResumeTransfer403ApplicationProblemPlusJSONResponse) VisitResumeTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTransfer404ApplicationProblemPlusJSONResponse Problem
+
+func (response ResumeTransfer404ApplicationProblemPlusJSONResponse) VisitResumeTransferResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTransfer409ApplicationProblemPlusJSONResponse Problem
+
+func (response ResumeTransfer409ApplicationProblemPlusJSONResponse) VisitResumeTransferResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -7285,9 +7817,18 @@ type StrictServerInterface interface {
 	// GetTransfer One transfer
 	// (GET /api/v1/transfers/{transferId})
 	GetTransfer(ctx context.Context, request GetTransferRequestObject) (GetTransferResponseObject, error)
+	// SetTransferPriority Change the priority of a waiting transfer
+	// (PATCH /api/v1/transfers/{transferId})
+	SetTransferPriority(ctx context.Context, request SetTransferPriorityRequestObject) (SetTransferPriorityResponseObject, error)
 	// CancelTransfer Stop a transfer in progress
 	// (POST /api/v1/transfers/{transferId}/cancel)
 	CancelTransfer(ctx context.Context, request CancelTransferRequestObject) (CancelTransferResponseObject, error)
+	// PauseTransfer Hold a waiting transfer back
+	// (POST /api/v1/transfers/{transferId}/pause)
+	PauseTransfer(ctx context.Context, request PauseTransferRequestObject) (PauseTransferResponseObject, error)
+	// ResumeTransfer Let a paused transfer start
+	// (POST /api/v1/transfers/{transferId}/resume)
+	ResumeTransfer(ctx context.Context, request ResumeTransferRequestObject) (ResumeTransferResponseObject, error)
 	// GetVault State of the vault in this session
 	// (GET /api/v1/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
@@ -7679,6 +8220,40 @@ func (sh *strictHandler) GetTransfer(w http.ResponseWriter, r *http.Request, tra
 	}
 }
 
+// SetTransferPriority operation middleware
+func (sh *strictHandler) SetTransferPriority(w http.ResponseWriter, r *http.Request, transferId TransferId, params SetTransferPriorityParams) {
+	var request SetTransferPriorityRequestObject
+
+	request.TransferId = transferId
+	request.Params = params
+
+	var body SetTransferPriorityJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetTransferPriority(ctx, request.(SetTransferPriorityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetTransferPriority")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetTransferPriorityResponseObject); ok {
+		if err := validResponse.VisitSetTransferPriorityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CancelTransfer operation middleware
 func (sh *strictHandler) CancelTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params CancelTransferParams) {
 	var request CancelTransferRequestObject
@@ -7699,6 +8274,60 @@ func (sh *strictHandler) CancelTransfer(w http.ResponseWriter, r *http.Request, 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CancelTransferResponseObject); ok {
 		if err := validResponse.VisitCancelTransferResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PauseTransfer operation middleware
+func (sh *strictHandler) PauseTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params PauseTransferParams) {
+	var request PauseTransferRequestObject
+
+	request.TransferId = transferId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PauseTransfer(ctx, request.(PauseTransferRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PauseTransfer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PauseTransferResponseObject); ok {
+		if err := validResponse.VisitPauseTransferResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResumeTransfer operation middleware
+func (sh *strictHandler) ResumeTransfer(w http.ResponseWriter, r *http.Request, transferId TransferId, params ResumeTransferParams) {
+	var request ResumeTransferRequestObject
+
+	request.TransferId = transferId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResumeTransfer(ctx, request.(ResumeTransferRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResumeTransfer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResumeTransferResponseObject); ok {
+		if err := validResponse.VisitResumeTransferResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8719,117 +9348,123 @@ func (sh *strictHandler) GetReadiness(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -1515,6 +1515,64 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: setTransferPriority
+      security:
+        - sessionCookie: []
+      summary: Change the priority of a waiting transfer
+      description: Waiting transfers start by priority, then by arrival.
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferPriorityInput"
+      responses:
+        "200":
+          description: The transfer after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
     delete:
       operationId: deleteTransfer
       security:
@@ -1526,6 +1584,87 @@ paths:
       responses:
         "204":
           description: Removed.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/transfers/{transferId}/pause:
+    post:
+      operationId: pauseTransfer
+      security:
+        - sessionCookie: []
+      summary: Hold a waiting transfer back
+      description: A transfer waits in the queue while its site, workspace, user or the server is at its limit of running transfers. A paused one keeps its place but is not started until it is resumed. A transfer that already runs cannot be paused; cancel it instead.
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: The transfer after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/transfers/{transferId}/resume:
+    post:
+      operationId: resumeTransfer
+      security:
+        - sessionCookie: []
+      summary: Let a paused transfer start
+      parameters:
+        - $ref: "#/components/parameters/TransferId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: The transfer after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transfer"
         "401":
           description: An error. The stable code tells the client what happened.
           content:
@@ -2315,6 +2454,20 @@ components:
         finishedAt:
           type: string
           format: date-time
+        paused:
+          type: boolean
+          description: True while a waiting transfer is held back by its user.
+        priority:
+          type: integer
+          enum: [-1, 0, 1]
+          description: Place in the queue of a waiting transfer, from low (-1) to high (1).
+    TransferPriorityInput:
+      type: object
+      required: [priority]
+      properties:
+        priority:
+          type: integer
+          enum: [-1, 0, 1]
     Collection:
       type: object
       required: [id, name]

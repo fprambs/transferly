@@ -19,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
+	"github.com/fprambs/sentinel/internal/core/scheduler"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -73,7 +74,10 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)
 	sites := site.NewService(store, workspaces, vaults, policy, system, rand.Reader, nil)
 	hub := events.New(eventBuffer)
-	transfers := transfer.NewService(store, hub, system, transfer.Config{}, nil)
+	transfers := transfer.NewService(store, hub, system, transfer.Config{Limits: scheduler.Limits{
+		Global: cfg.TransferLimits.Global, PerWorkspace: cfg.TransferLimits.PerWorkspace,
+		PerUser: cfg.TransferLimits.PerUser, PerSite: cfg.TransferLimits.PerSite,
+	}}, nil)
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
 	pool := connections.New(connect.New(sites, quickConnections, hostKeys, policy, connectTimeout), system, connections.Config{})
 

@@ -68,6 +68,12 @@ type reply struct {
 // newAPI starts the router with tight rate limits, adjusting the dependencies with tweaks.
 func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	t.Helper()
+	return newAPIWithTransfers(t, transfer.Config{EventEvery: time.Millisecond}, tweaks...)
+}
+
+// newAPIWithTransfers is newAPI with the configuration of the transfer service, for tests that need limits.
+func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func(*httpapi.Deps)) *api {
+	t.Helper()
 	dbURL := testutil.NewDatabase(t)
 	if err := postgres.Migrate(t.Context(), dbURL); err != nil {
 		t.Fatal(err)
@@ -88,7 +94,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 	pool := connections.New(newMemConnector(clock, sites, quickConnections), clock, connections.Config{Attempts: 1})
 	recorded := &recordedEvents{}
 	hub := events.New(64)
-	transfers := transfer.NewService(store, fanout{recorded, hub}, clock, transfer.Config{EventEvery: time.Millisecond}, nil)
+	transferService := transfer.NewService(store, fanout{recorded, hub}, clock, transfers, nil)
 	deps := httpapi.Deps{
 		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Readiness:   store,
@@ -99,7 +105,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 		Connections: pool,
 		Sites:       sites,
 		Files:       files.NewService(workspaces, pool),
-		Transfers:   transfers,
+		Transfers:   transferService,
 		Quick:       quickConnections,
 		Events:      hub,
 		WebSocket:   httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},

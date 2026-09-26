@@ -184,13 +184,21 @@ func (s *server) track(ctx context.Context, t files.Target, direction transfer.D
 		return nil, nil, err
 	}
 	in := transfer.BeginInput{
-		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, SiteName: name, Direction: direction,
+		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, Route: t.Site, SiteName: name, Direction: direction,
 		Path: p, Name: path.Base(p), Total: total, Offset: offset,
 	}
 	if id != nil {
 		in.ID = uuid.UUID(*id)
 	}
-	return s.deps.Transfers.Begin(ctx, in)
+	tracker, runCtx, err := s.deps.Transfers.Begin(ctx, in)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := tracker.Admit(runCtx); err != nil {
+		tracker.Finish(err, problemCode(err))
+		return nil, nil, err
+	}
+	return tracker, runCtx, nil
 }
 
 // DownloadFile streams a remote file, or a range of it. Whole downloads, and ranges that name a transfer, are
