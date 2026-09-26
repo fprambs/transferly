@@ -203,3 +203,31 @@ func TestService_Queue(t *testing.T) {
 	a.Finish(nil, "")
 	b.Finish(nil, "")
 }
+
+// TestService_OnFinish verifies the hook for transfers that end.
+//
+// Scenarios:
+//   - the hook receives the final record of a done, a failed and a canceled transfer, once each, and only when the transfer ends
+func TestService_OnFinish(t *testing.T) {
+	f := newFixture()
+	var ended []transfer.Transfer
+	f.svc = transfer.NewService(f.store, f.sink, f.clock, transfer.Config{OnFinish: func(t transfer.Transfer) { ended = append(ended, t) }}, nil)
+
+	done, _ := f.begin(t, "/done")
+	if len(ended) != 0 {
+		t.Fatal("the hook ran before the transfer ended")
+	}
+	done.Finish(nil, "")
+	done.Finish(nil, "")
+	failed, _ := f.begin(t, "/failed")
+	failed.Finish(errStore, "remote_unavailable")
+	canceled, _ := f.begin(t, "/canceled")
+	if err := f.svc.Cancel(context.Background(), f.user, canceled.ID()); err != nil {
+		t.Fatal(err)
+	}
+	canceled.Finish(context.Canceled, "")
+
+	if len(ended) != 3 || ended[0].Status != transfer.Done || ended[1].Status != transfer.Failed || ended[1].ErrorCode != "remote_unavailable" || ended[2].Status != transfer.Canceled {
+		t.Errorf("hook saw %+v", ended)
+	}
+}

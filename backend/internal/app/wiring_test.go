@@ -10,7 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/fprambs/sentinel/internal/config"
+	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/sentinel/internal/testutil"
 )
 
 // TestRunJanitor verifies the periodic cleanup loop.
@@ -77,7 +82,51 @@ func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 		}
 		names[task.name]++
 	}
-	if names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 {
-		t.Errorf("janitor tasks = %v; want sessions and vault keys once each", names)
+	if names["old activity"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 {
+		t.Errorf("janitor tasks = %v; want sessions, quick connections, vault keys and old activity once each", names)
+	}
+}
+
+// logStore is an activity store that keeps what it is given, or fails.
+type logStore struct {
+	entries []activity.Entry
+	fail    error
+}
+
+// InsertActivity keeps the entry or fails.
+func (l *logStore) InsertActivity(_ context.Context, e activity.Entry) error {
+	l.entries = append(l.entries, e)
+	return l.fail
+}
+
+// ActivityByUser is not used here.
+func (l *logStore) ActivityByUser(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, int) ([]activity.Entry, error) {
+	return nil, nil
+}
+
+// PurgeActivity is not used here.
+func (l *logStore) PurgeActivity(context.Context, time.Time) (int, error) { return 0, nil }
+
+// TestTransferLogger verifies the hook that logs the transfers that end.
+//
+// Scenarios:
+//   - an ended transfer becomes an activity entry with its site, path, direction, state and error code
+//   - a log that cannot be written is reported as a warning and does not panic or fail the transfer
+func TestTransferLogger(t *testing.T) {
+	store := &logStore{}
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	log := activity.NewService(store, testutil.NewFakeClock(time.Now()), time.Hour, nil)
+	ended := transfer.Transfer{UserID: uuid.New(), WorkspaceID: uuid.New(), SiteName: "Files", Direction: transfer.Upload, Path: "/a", Status: transfer.Failed, ErrorCode: "remote_unavailable"}
+
+	transferLogger(log, logger)(ended)
+	if len(store.entries) != 1 || store.entries[0].Kind != activity.Transfer || store.entries[0].Detail != "upload:failed" || store.entries[0].ErrorCode != "remote_unavailable" || store.entries[0].Path != "/a" {
+		t.Errorf("entries = %+v", store.entries)
+	}
+
+	store.fail = errors.New("disk on fire")
+	transferLogger(log, logger)(ended)
+	if !strings.Contains(logs.String(), "activity entry not written") || !strings.Contains(logs.String(), "disk on fire") {
+		t.Errorf("log = %q; want a warning", logs.String())
 	}
 }

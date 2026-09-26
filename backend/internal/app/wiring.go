@@ -13,6 +13,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/connect"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
+	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -33,6 +34,7 @@ const (
 	connectTimeout    = 15 * time.Second
 	poolSweepEvery    = 30 * time.Second
 	eventBuffer       = 256
+	logTimeout        = 5 * time.Second
 )
 
 var (
@@ -73,7 +75,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)
 	sites := site.NewService(store, workspaces, vaults, policy, system, rand.Reader, nil)
 	hub := events.New(eventBuffer)
-	transfers := transfer.NewService(store, hub, system, transfer.Config{Limits: scheduler.Limits{
+	activityLog := activity.NewService(store, system, cfg.ActivityRetention, nil)
+	transfers := transfer.NewService(store, hub, system, transfer.Config{OnFinish: transferLogger(activityLog, logger), Limits: scheduler.Limits{
 		Global: cfg.TransferLimits.Global, PerWorkspace: cfg.TransferLimits.PerWorkspace,
 		PerUser: cfg.TransferLimits.PerUser, PerSite: cfg.TransferLimits.PerSite,
 	}}, nil)
@@ -96,6 +99,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Connections: pool,
 			Files:       files.NewService(workspaces, pool),
 			Transfers:   transfers,
+			Activity:    activityLog,
 			Quick:       quickConnections,
 			Events:      hub,
 			Limits: httpapi.Limits{
@@ -113,8 +117,25 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		janitor: []janitorTask{
 			{name: "expired sessions", run: authService.PurgeExpired},
 			{name: "idle quick connections", run: func(context.Context) (int, error) { return quickConnections.Sweep(cfg.SessionIdle), nil }},
+			{name: "old activity", run: activityLog.PurgeExpired},
 			{name: "expired vault keys", run: func(context.Context) (int, error) { return keyRing.Sweep(), nil }},
 		},
+	}
+}
+
+// transferLogger returns the hook that adds every transfer that ended to the activity log; a failure to log is reported but never
+// fails the transfer.
+func transferLogger(log *activity.Service, logger *slog.Logger) func(transfer.Transfer) {
+	return func(t transfer.Transfer) {
+		ctx, cancel := context.WithTimeout(context.Background(), logTimeout)
+		defer cancel()
+		err := log.Record(ctx, activity.Entry{
+			UserID: t.UserID, WorkspaceID: t.WorkspaceID, SiteID: t.SiteID, SiteName: t.SiteName, Kind: activity.Transfer,
+			Path: t.Path, Detail: string(t.Direction) + ":" + string(t.Status), ErrorCode: t.ErrorCode,
+		})
+		if err != nil {
+			logger.WarnContext(ctx, "activity entry not written", "error", err)
+		}
 	}
 }
 

@@ -152,7 +152,7 @@ func TestLoad_WebSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.BaseURL != "http://localhost:8080" || cfg.CookieSecure() || cfg.SessionIdle != 30*time.Minute ||
-		cfg.SessionMax != 8*time.Hour || cfg.JanitorInterval != 10*time.Minute || len(cfg.TrustedProxies) != 0 || len(cfg.AllowedNetworks) != 0 ||
+		cfg.SessionMax != 8*time.Hour || cfg.JanitorInterval != 10*time.Minute || cfg.ActivityRetention != 30*24*time.Hour || len(cfg.TrustedProxies) != 0 || len(cfg.AllowedNetworks) != 0 ||
 		len(cfg.AllowedOrigins) != 1 || cfg.AllowedOrigins[0] != "http://localhost:8080" {
 		t.Errorf("defaults = %+v", cfg)
 	}
@@ -164,6 +164,7 @@ func TestLoad_WebSettings(t *testing.T) {
 	base["SENTINEL_SESSION_IDLE"] = "10m"
 	base["SENTINEL_SESSION_MAX"] = "2h"
 	base["SENTINEL_JANITOR_INTERVAL"] = "1m"
+	base["SENTINEL_ACTIVITY_RETENTION"] = "72h"
 	cfg, err = config.Load(env(base))
 	if err != nil {
 		t.Fatal(err)
@@ -171,7 +172,7 @@ func TestLoad_WebSettings(t *testing.T) {
 	if cfg.BaseURL != "https://files.example.com" || !cfg.CookieSecure() || len(cfg.AllowedOrigins) != 3 ||
 		cfg.AllowedOrigins[1] != "http://localhost:5173" || len(cfg.TrustedProxies) != 3 ||
 		len(cfg.AllowedNetworks) != 2 || cfg.AllowedNetworks[0].String() != "192.168.1.0/24" || cfg.AllowedNetworks[1].String() != "10.0.0.9/32" ||
-		cfg.SessionIdle != 10*time.Minute || cfg.SessionMax != 2*time.Hour || cfg.JanitorInterval != time.Minute {
+		cfg.SessionIdle != 10*time.Minute || cfg.SessionMax != 2*time.Hour || cfg.JanitorInterval != time.Minute || cfg.ActivityRetention != 72*time.Hour {
 		t.Errorf("overrides = %+v", cfg)
 	}
 
@@ -186,6 +187,7 @@ func TestLoad_WebSettings(t *testing.T) {
 		"idle above maximum":       {"SENTINEL_SESSION_IDLE": "10h"},
 		"session idle not a time":  {"SENTINEL_SESSION_IDLE": "soon"},
 		"janitor interval not set": {"SENTINEL_JANITOR_INTERVAL": "0s"},
+		"retention not a time":     {"SENTINEL_ACTIVITY_RETENTION": "forever"},
 	} {
 		vars["SENTINEL_DATABASE_URL"] = "postgres://x"
 		if _, err := config.Load(env(vars)); err == nil {

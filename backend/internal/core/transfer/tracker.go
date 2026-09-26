@@ -260,6 +260,9 @@ func (k *Tracker) Finish(err error, code string) {
 	delete(k.s.active, k.t.ID)
 	k.s.mu.Unlock()
 	k.s.publishState(k.t)
+	if k.s.cfg.OnFinish != nil {
+		k.s.cfg.OnFinish(k.t)
+	}
 }
 
 // finishingBody ends the transfer when a download stream is closed.

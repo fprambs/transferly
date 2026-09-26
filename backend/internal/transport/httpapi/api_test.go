@@ -21,6 +21,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
+	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -94,6 +95,15 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	pool := connections.New(newMemConnector(clock, sites, quickConnections), clock, connections.Config{Attempts: 1})
 	recorded := &recordedEvents{}
 	hub := events.New(64)
+	activityLog := activity.NewService(store, clock, 30*24*time.Hour, nil)
+	if transfers.OnFinish == nil {
+		transfers.OnFinish = func(t transfer.Transfer) {
+			_ = activityLog.Record(context.Background(), activity.Entry{
+				UserID: t.UserID, WorkspaceID: t.WorkspaceID, SiteID: t.SiteID, SiteName: t.SiteName, Kind: activity.Transfer,
+				Path: t.Path, Detail: string(t.Direction) + ":" + string(t.Status), ErrorCode: t.ErrorCode,
+			})
+		}
+	}
 	transferService := transfer.NewService(store, fanout{recorded, hub}, clock, transfers, nil)
 	deps := httpapi.Deps{
 		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -106,6 +116,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Sites:       sites,
 		Files:       files.NewService(workspaces, pool),
 		Transfers:   transferService,
+		Activity:    activityLog,
 		Quick:       quickConnections,
 		Events:      hub,
 		WebSocket:   httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},

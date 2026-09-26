@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/transfer"
@@ -79,9 +80,27 @@ func (s *server) StatFile(ctx context.Context, request StatFileRequestObject) (S
 	return StatFile200JSONResponse(remoteEntryDTO(entry)), nil
 }
 
+// audit adds what the user did on a connection to the activity log, with the outcome as a stable code. A connection that cannot
+// be described, and a log that cannot be written, leave no entry: they must not fail what was done.
+func (s *server) audit(ctx context.Context, t files.Target, kind activity.Kind, p, detail string, err error) {
+	siteID, name, siteErr := s.siteOf(ctx, t)
+	if siteErr != nil {
+		return
+	}
+	code := ""
+	if err != nil {
+		code = problemCode(err)
+	}
+	_ = s.deps.Activity.Record(ctx, activity.Entry{
+		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, SiteName: name, Kind: kind, Path: p, Detail: detail, ErrorCode: code,
+	})
+}
+
 // CreateDirectory creates a remote directory.
 func (s *server) CreateDirectory(ctx context.Context, request CreateDirectoryRequestObject) (CreateDirectoryResponseObject, error) {
-	entry, err := s.deps.Files.Mkdir(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Body.Path)
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	entry, err := s.deps.Files.Mkdir(ctx, t, request.Body.Path)
+	s.audit(ctx, t, activity.Mkdir, request.Body.Path, "", err)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
@@ -93,7 +112,9 @@ func (s *server) CreateDirectory(ctx context.Context, request CreateDirectoryReq
 
 // RenameFile moves a remote file or directory.
 func (s *server) RenameFile(ctx context.Context, request RenameFileRequestObject) (RenameFileResponseObject, error) {
-	entry, err := s.deps.Files.Rename(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Body.From, request.Body.To)
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	entry, err := s.deps.Files.Rename(ctx, t, request.Body.From, request.Body.To)
+	s.audit(ctx, t, activity.Rename, request.Body.From, request.Body.To, err)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
@@ -106,7 +127,9 @@ func (s *server) RenameFile(ctx context.Context, request RenameFileRequestObject
 // DeleteFile removes a remote file or directory.
 func (s *server) DeleteFile(ctx context.Context, request DeleteFileRequestObject) (DeleteFileResponseObject, error) {
 	recursive := request.Params.Recursive != nil && *request.Params.Recursive
-	err := s.deps.Files.Delete(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Params.Path, recursive)
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	err := s.deps.Files.Delete(ctx, t, request.Params.Path, recursive)
+	s.audit(ctx, t, activity.Delete, request.Params.Path, "", err)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
@@ -349,7 +372,9 @@ func (s *server) GetChecksum(ctx context.Context, request GetChecksumRequestObje
 	if request.Params.Algorithm != nil {
 		algorithm = string(*request.Params.Algorithm)
 	}
-	sum, err := s.deps.Files.Checksum(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Params.Path, algorithm)
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	sum, err := s.deps.Files.Checksum(ctx, t, request.Params.Path, algorithm)
+	s.audit(ctx, t, activity.Checksum, request.Params.Path, algorithm, err)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}

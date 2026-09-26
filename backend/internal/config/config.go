@@ -13,16 +13,17 @@ import (
 )
 
 const (
-	defaultHTTPAddr        = ":8080"
-	defaultLogLevel        = "info"
-	defaultShutdownTimeout = 15 * time.Second
-	defaultQuickBurst      = 5
-	defaultDataDir         = "/data"
-	defaultBaseURL         = "http://localhost:8080"
-	defaultSessionIdle     = 30 * time.Minute
-	defaultSessionMax      = 8 * time.Hour
-	defaultJanitor         = 10 * time.Minute
-	instanceKeyLength      = 32
+	defaultHTTPAddr          = ":8080"
+	defaultLogLevel          = "info"
+	defaultShutdownTimeout   = 15 * time.Second
+	defaultQuickBurst        = 5
+	defaultDataDir           = "/data"
+	defaultBaseURL           = "http://localhost:8080"
+	defaultSessionIdle       = 30 * time.Minute
+	defaultSessionMax        = 8 * time.Hour
+	defaultJanitor           = 10 * time.Minute
+	defaultActivityRetention = 30 * 24 * time.Hour
+	instanceKeyLength        = 32
 )
 
 // Config holds the instance configuration.
@@ -57,6 +58,8 @@ type Config struct {
 	JanitorInterval time.Duration
 	// TransferLimits caps how many transfers run at once; the rest wait in the queue.
 	TransferLimits TransferLimits
+	// ActivityRetention is how long the activity log keeps its entries.
+	ActivityRetention time.Duration
 	// QuickConnectBurst is how many quick connections one client may open in a burst; afterwards one more every 12 seconds.
 	QuickConnectBurst int
 }
@@ -93,6 +96,7 @@ func Load(getenv func(string) string) (Config, error) {
 		SessionIdle:       defaultSessionIdle,
 		SessionMax:        defaultSessionMax,
 		JanitorInterval:   defaultJanitor,
+		ActivityRetention: defaultActivityRetention,
 		TransferLimits:    TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4},
 		QuickConnectBurst: defaultQuickBurst,
 	}
@@ -117,6 +121,7 @@ func Load(getenv func(string) string) (Config, error) {
 		{"SENTINEL_SESSION_IDLE", &cfg.SessionIdle},
 		{"SENTINEL_SESSION_MAX", &cfg.SessionMax},
 		{"SENTINEL_JANITOR_INTERVAL", &cfg.JanitorInterval},
+		{"SENTINEL_ACTIVITY_RETENTION", &cfg.ActivityRetention},
 	} {
 		if err := parseDuration(getenv(d.name), d.name, d.into); err != nil {
 			errs = append(errs, err)

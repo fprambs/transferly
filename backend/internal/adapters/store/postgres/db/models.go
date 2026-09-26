@@ -10,6 +10,19 @@ import (
 	"github.com/google/uuid"
 )
 
+type Activity struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	SiteID      uuid.NullUUID
+	SiteName    string
+	Kind        string
+	Path        string
+	Detail      string
+	ErrorCode   string
+	CreatedAt   time.Time
+}
+
 type AuditEvent struct {
 	ID          int64
 	WorkspaceID uuid.NullUUID

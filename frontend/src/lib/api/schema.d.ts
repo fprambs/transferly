@@ -528,6 +528,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the signed-in user did on the connections of a workspace, newest first
+         * @description The log names paths and outcomes, never credentials or file contents, and is private to the user who acted. Old entries are removed after the retention time of the server.
+         */
+        get: operations["listActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transfers": {
         parameters: {
             query?: never;
@@ -873,6 +893,26 @@ export interface components {
         RenameInput: {
             from: string;
             to: string;
+        };
+        ActivityEntry: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Left out for a quick connection and once the site was deleted.
+             */
+            siteId?: string;
+            /** @description Name of the connection when it happened. */
+            siteName: string;
+            /** @enum {string} */
+            kind: "mkdir" | "rename" | "delete" | "checksum" | "transfer";
+            path: string;
+            /** @description The new path of a rename, the algorithm of a checksum, or the direction and final state of a transfer. */
+            detail?: string;
+            /** @description Stable code of the failure; left out when the action worked. */
+            errorCode?: string;
+            /** Format: date-time */
+            at: string;
         };
         Checksum: {
             /** @enum {string} */
@@ -3399,6 +3439,43 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listActivity: {
+        parameters: {
+            query?: {
+                /** @description Only the entries of this connection. */
+                siteId?: string;
+                /** @description How many to return, 100 by default and at most 500. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityEntry"][];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -132,6 +132,9 @@ type Config struct {
 	MaxList int
 	// Limits are the most transfers that run at once; the others wait in the queue. Zero means no limit.
 	Limits scheduler.Limits
+	// OnFinish, when set, is called with the record of every transfer that ends, whatever its outcome. It must be quick and must not
+	// call back into the transfer service.
+	OnFinish func(Transfer)
 }
 
 // withDefaults fills in the zero values.

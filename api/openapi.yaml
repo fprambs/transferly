@@ -1667,6 +1667,47 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/activity:
+    get:
+      operationId: listActivity
+      security:
+        - sessionCookie: []
+      summary: What the signed-in user did on the connections of a workspace, newest first
+      description: >-
+        The log names paths and outcomes, never credentials or file contents, and is private to the user who acted. Old entries
+        are removed after the retention time of the server.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - name: siteId
+          in: query
+          required: false
+          description: Only the entries of this connection.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: How many to return, 100 by default and at most 500.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        "200":
+          description: The entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEntry"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/transfers:
     get:
       operationId: listTransfers
@@ -2620,6 +2661,34 @@ components:
           type: string
         to:
           type: string
+    ActivityEntry:
+      type: object
+      required: [id, siteName, kind, path, at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        siteId:
+          type: string
+          format: uuid
+          description: Left out for a quick connection and once the site was deleted.
+        siteName:
+          type: string
+          description: Name of the connection when it happened.
+        kind:
+          type: string
+          enum: [mkdir, rename, delete, checksum, transfer]
+        path:
+          type: string
+        detail:
+          type: string
+          description: The new path of a rename, the algorithm of a checksum, or the direction and final state of a transfer.
+        errorCode:
+          type: string
+          description: Stable code of the failure; left out when the action worked.
+        at:
+          type: string
+          format: date-time
     Checksum:
       type: object
       required: [algorithm, checksum, size]

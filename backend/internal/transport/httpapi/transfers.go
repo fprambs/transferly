@@ -188,3 +188,34 @@ func copyFailure(err error) (CreateCopyResponseObject, error) {
 	}
 	return nil, err
 }
+
+// ListActivity returns the signed-in user's activity log of a workspace.
+func (s *server) ListActivity(ctx context.Context, request ListActivityRequestObject) (ListActivityResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	siteID, limit := uuid.Nil, 0
+	if request.Params.SiteId != nil {
+		siteID = *request.Params.SiteId
+	}
+	if request.Params.Limit != nil {
+		limit = *request.Params.Limit
+	}
+	list, err := s.deps.Activity.List(ctx, p.User.ID, request.WorkspaceId, siteID, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make(ListActivity200JSONResponse, 0, len(list))
+	for _, e := range list {
+		entry := ActivityEntry{Id: e.ID, SiteName: e.SiteName, Kind: ActivityEntryKind(e.Kind), Path: e.Path, At: e.At}
+		if e.SiteID != uuid.Nil {
+			entry.SiteId = &e.SiteID
+		}
+		if e.Detail != "" {
+			entry.Detail = &e.Detail
+		}
+		if e.ErrorCode != "" {
+			entry.ErrorCode = &e.ErrorCode
+		}
+		out = append(out, entry)
+	}
+	return out, nil
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
+	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -257,6 +258,31 @@ func TestTransferStore_ReportsDatabaseFailures(t *testing.T) {
 	for name, err := range calls {
 		if err == nil || errors.Is(err, transfer.ErrNotFound) || errors.Is(err, transfer.ErrExists) {
 			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestActivityStore_Conformance runs the shared activity store suite against Postgres.
+func TestActivityStore_Conformance(t *testing.T) {
+	storetest.RunActivity(t, func(t *testing.T) storetest.ActivityStore { return openMigrated(t) })
+}
+
+// TestActivityStore_ReportsDatabaseFailures verifies that every activity operation returns the database error instead of hiding it,
+// using a store whose connection pool is closed.
+func TestActivityStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"Insert": store.InsertActivity(ctx, activity.Entry{ID: id}),
+		"List":   second(store.ActivityByUser(ctx, id, id, uuid.Nil, 5)),
+		"Purge":  second(store.PurgeActivity(ctx, time.Now())),
+	}
+	for name, err := range calls {
+		if err == nil {
+			t.Errorf("%s = nil; want a database error", name)
 		}
 	}
 }

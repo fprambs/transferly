@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/fprambs/sentinel/internal/adapters/events"
+	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -65,6 +66,8 @@ type Deps struct {
 	Quick *quick.Service
 	// Transfers records uploads and downloads.
 	Transfers *transfer.Service
+	// Activity keeps the log of what users did on their connections.
+	Activity *activity.Service
 	// Files performs operations on the files of remote sites.
 	Files *files.Service
 	// Connections pools the connections to remote servers; the vault lock and sign-out close a user's connections.
