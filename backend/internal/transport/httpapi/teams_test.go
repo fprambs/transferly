@@ -300,3 +300,93 @@ func TestTeams_SharedKeys(t *testing.T) {
 		t.Errorf("personal secret = %q, %v", got, err)
 	}
 }
+
+// keyState reads the version of the key of the team and whether a rotation waits, straight from the database.
+func (e *teamEnv) keyState() (int, bool) {
+	e.a.t.Helper()
+	var version int
+	var pending bool
+	err := e.a.store.DB().QueryRow(e.a.t.Context(), "SELECT key_version, rekey_pending FROM workspaces WHERE id = $1", e.ws).Scan(&version, &pending)
+	if err != nil {
+		e.a.t.Fatal(err)
+	}
+	return version, pending
+}
+
+// TestTeams_KeyRotation verifies that removing a member replaces the key of the team.
+//
+// Scenarios:
+//   - removing a member as somebody with the key and an unlocked vault rotates the key at once: the version grows, the secrets are sealed again
+//     and the members that stay still open them, while the removed member has no access
+//   - removing a member as somebody whose vault is locked leaves the rotation waiting, and it happens when that member unlocks
+//   - a member who leaves also makes the next member with the key rotate it
+func TestTeams_KeyRotation(t *testing.T) {
+	e := newTeamEnv(t)
+	body := siteBody("Production")
+	body["password"] = "hunter2-hunter2"
+	created := e.call("owner", http.MethodPost, "/sites", body)
+	if created.Status != http.StatusCreated {
+		t.Fatalf("create site = %d %s", created.Status, created.Body)
+	}
+	id := created.site(t).Id
+	for _, as := range []string{"admin", "editor", "viewer"} {
+		if r := e.a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, e.cookie[as], e.csrf[as]); r.Status != http.StatusCreated {
+			t.Fatalf("vault setup as %s = %d %s", as, r.Status, r.Body)
+		}
+	}
+	if r := e.call("owner", http.MethodGet, "/members", nil); r.Status != http.StatusOK {
+		t.Fatalf("list = %d", r.Status)
+	}
+	if version, pending := e.keyState(); version != 1 || pending {
+		t.Fatalf("key state = %d, %v; want version 1", version, pending)
+	}
+
+	if r := e.call("owner", http.MethodDelete, "/members/"+e.user["editor"].String(), nil); r.Status != http.StatusNoContent {
+		t.Fatalf("remove = %d %s", r.Status, r.Body)
+	}
+	if version, pending := e.keyState(); version != 2 || pending {
+		t.Fatalf("key state after the removal = %d, %v; want version 2 with nothing waiting", version, pending)
+	}
+	var stored, sealedWith int
+	if err := e.a.store.DB().QueryRow(t.Context(), "SELECT count(*), count(*) FILTER (WHERE dek_version = 2) FROM site_secrets WHERE site_id = $1", id).Scan(&stored, &sealedWith); err != nil || stored != 1 || sealedWith != 1 {
+		t.Fatalf("secrets = %d, %d at version 2, %v; want the one secret sealed again", stored, sealedWith, err)
+	}
+	for _, as := range []string{"owner", "admin", "viewer"} {
+		if got, err := e.openSecret(as, id); err != nil || got != "hunter2-hunter2" {
+			t.Errorf("%s after the rotation = %q, %v", as, got, err)
+		}
+	}
+	if _, err := e.sites.OpenSecret(t.Context(), e.user["editor"], e.ws, id, e.session("editor"), site.SecretPassword); !errors.Is(err, workspace.ErrNotFound) {
+		t.Errorf("the removed member opens = %v; want ErrNotFound", err)
+	}
+
+	e.a.vaultCall("/lock", nil, e.cookie["owner"], e.csrf["owner"])
+	if r := e.call("owner", http.MethodDelete, "/members/"+e.user["viewer"].String(), nil); r.Status != http.StatusNoContent {
+		t.Fatalf("remove with a locked vault = %d %s", r.Status, r.Body)
+	}
+	if version, pending := e.keyState(); version != 2 || !pending {
+		t.Fatalf("key state = %d, %v; want the rotation waiting", version, pending)
+	}
+	if r := e.a.vaultCall("/unlock", map[string]string{"masterPassword": masterPassword}, e.cookie["owner"], e.csrf["owner"]); r.Status != http.StatusNoContent {
+		t.Fatalf("unlock = %d %s", r.Status, r.Body)
+	}
+	if version, pending := e.keyState(); version != 3 || pending {
+		t.Fatalf("key state after unlocking = %d, %v; want version 3", version, pending)
+	}
+
+	if r := e.call("admin", http.MethodPost, "/leave", nil); r.Status != http.StatusNoContent {
+		t.Fatalf("leave = %d %s", r.Status, r.Body)
+	}
+	if version, pending := e.keyState(); version != 3 || !pending {
+		t.Fatalf("key state after leaving = %d, %v; want the rotation waiting", version, pending)
+	}
+	if r := e.call("owner", http.MethodGet, "/members", nil); r.Status != http.StatusOK {
+		t.Fatalf("list = %d", r.Status)
+	}
+	if version, pending := e.keyState(); version != 4 || pending {
+		t.Fatalf("key state after listing = %d, %v; want version 4", version, pending)
+	}
+	if got, err := e.openSecret("owner", id); err != nil || got != "hunter2-hunter2" {
+		t.Errorf("owner at the end = %q, %v", got, err)
+	}
+}

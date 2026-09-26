@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
 
@@ -36,7 +37,10 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 		(f.failAt == "site" && strings.Contains(sql, "INSERT INTO sites")) || (f.failAt == "update-site" && strings.HasPrefix(sql, "-- name: UpdateSite")) ||
 		(f.failAt == "transfer-role" && strings.Contains(sql, "-- name: SetMembershipRole")) || (f.failAt == "transfer-owner" && strings.Contains(sql, "UPDATE workspaces SET owner_id")) ||
 		(f.failAt == "invite-delete" && strings.Contains(sql, "DELETE FROM invitations")) || (f.failAt == "invite-insert" && strings.Contains(sql, "INSERT INTO invitations")) ||
-		(f.failAt == "team-key" && strings.Contains(sql, "INSERT INTO workspace_key_grants")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
+		(f.failAt == "team-key" && strings.Contains(sql, "INSERT INTO workspace_key_grants")) || (f.failAt == "delete-member" && strings.Contains(sql, "DELETE FROM memberships")) || (f.failAt == "remove-grants" && strings.Contains(sql, "DELETE FROM workspace_key_grants WHERE workspace_id = $1 AND user_id")) ||
+		(f.failAt == "stale-grants" && strings.Contains(sql, "USING workspaces")) || (f.failAt == "rekey" && strings.Contains(sql, "SET rekey_pending = true")) ||
+		(f.failAt == "bump" && strings.Contains(sql, "SET key_version")) || (f.failAt == "rotate-grant" && strings.Contains(sql, "INSERT INTO workspace_key_grants")) ||
+		(f.failAt == "reseal" && strings.Contains(sql, "UPDATE site_secrets")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
 		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
@@ -50,6 +54,8 @@ func (f fakeTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
 		return scanRow{err: errStep}
 	case strings.Contains(sql, "DELETE FROM invitations"):
 		return invitationRow{err: f.stepError("invite-consume")}
+	case strings.Contains(sql, "FOR UPDATE"):
+		return keyRow{err: f.stepError("rotate-lock"), version: f.users}
 	case strings.Contains(sql, "FROM workspaces WHERE id"):
 		return invitationRow{err: f.stepError("invite-workspace"), workspace: true}
 	}
@@ -61,6 +67,21 @@ func (f fakeTx) stepError(step string) error {
 	if f.failAt == step {
 		return errStep
 	}
+	return nil
+}
+
+// keyRow is the result of locking the key version of a workspace.
+type keyRow struct {
+	err     error
+	version int64
+}
+
+// Scan copies the version, or returns the injected error.
+func (r keyRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	*(dest[0].(*int32)) = int32(r.version)
 	return nil
 }
 
@@ -215,6 +236,55 @@ func TestCreateTeam_ReportsFailuresInsideTheTransaction(t *testing.T) {
 	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
 	if err := failing.CreateTeam(context.Background(), workspace.Workspace{}, nil); !errors.Is(err, errStep) {
 		t.Errorf("failure to start = %v, want the injected error", err)
+	}
+}
+
+// TestKeyWrites_ReportFailuresInsideTheTransaction verifies that a failure at any step of removing a member, rotating a key or sealing
+// secrets again is returned to the caller.
+//
+// Scenarios:
+//   - removing fails when the transaction cannot start, when deleting the membership, deleting the copies, marking the rotation and committing fail
+//   - rotating fails when the transaction cannot start, when locking, bumping the version, storing the copy and committing fail, and a version that is not the old one is a conflict
+//   - sealing again fails when the transaction cannot start, when updating a secret, deleting stale copies and committing fail
+func TestKeyWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	for _, step := range []string{"delete-member", "remove-grants", "rekey", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.RemoveMember(ctx, id, id); !errors.Is(err, errStep) {
+			t.Errorf("RemoveMember failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	for _, step := range []string{"rotate-lock", "bump", "rotate-grant", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step, users: 1}, nil }
+		if err := store.Rotate(ctx, id, 1, 2, id, nil); !errors.Is(err, errStep) {
+			t.Errorf("Rotate failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	clash := &Store{queries: db.New(nil)}
+	clash.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{users: 3}, nil }
+	if err := clash.Rotate(ctx, id, 1, 2, id, nil); !errors.Is(err, wskey.ErrConflict) {
+		t.Errorf("Rotate from another version = %v, want ErrConflict", err)
+	}
+	for _, step := range []string{"reseal", "stale-grants", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.Reseal(ctx, id, []wskey.Resealed{{}}); !errors.Is(err, errStep) {
+			t.Errorf("Reseal failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	failing := &Store{queries: db.New(nil)}
+	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+	if err := failing.RemoveMember(ctx, id, id); !errors.Is(err, errStep) {
+		t.Errorf("RemoveMember failure to start = %v, want the injected error", err)
+	}
+	if err := failing.Rotate(ctx, id, 1, 2, id, nil); !errors.Is(err, errStep) {
+		t.Errorf("Rotate failure to start = %v, want the injected error", err)
+	}
+	if err := failing.Reseal(ctx, id, nil); !errors.Is(err, errStep) {
+		t.Errorf("Reseal failure to start = %v, want the injected error", err)
 	}
 }
 

@@ -24,6 +24,8 @@ const personalVersion = 1
 var (
 	// ErrNoKeys means the user has no key pair yet: their vault has never been unlocked since it was set up.
 	ErrNoKeys = errors.New("the user has no key pair")
+	// ErrConflict means another member rotated the workspace key first.
+	ErrConflict = errors.New("the workspace key was rotated by someone else")
 	// ErrPending means the workspace key has not been sealed for the user yet. An admin with an unlocked vault does it the next time
 	// they open the workspace.
 	ErrPending = errors.New("the workspace key has not been shared with the user yet")
@@ -35,6 +37,27 @@ type UserKeys struct {
 	Public []byte
 	// SealedPrivate is the private key sealed with the user's DEK.
 	SealedPrivate []byte
+}
+
+// StoredSecret is a sealed secret of a site of a workspace.
+type StoredSecret struct {
+	// Site is the identifier of the site.
+	Site uuid.UUID
+	// Kind is the kind of secret.
+	Kind string
+	// Version is the version of the key that seals it.
+	Version int
+	// Sealed is the ciphertext.
+	Sealed []byte
+}
+
+// Resealed is a secret sealed again with a newer key.
+type Resealed struct {
+	StoredSecret
+	// NewVersion is the version of the key that seals it now.
+	NewVersion int
+	// NewSealed is the new ciphertext.
+	NewSealed []byte
 }
 
 // Recipient is a member a workspace key has to be sealed for.
@@ -61,6 +84,14 @@ type Store interface {
 	Ungranted(ctx context.Context, workspaceID uuid.UUID, version int) ([]Recipient, error)
 	// Granted lists the members with a copy of the workspace key at a version.
 	Granted(ctx context.Context, workspaceID uuid.UUID, version int) ([]uuid.UUID, error)
+	// Rotate makes version the current key of a workspace and stores the copy sealed for the member who did it, in one step. It returns
+	// [ErrConflict] when the current version is no longer old.
+	Rotate(ctx context.Context, workspaceID uuid.UUID, old, version int, userID uuid.UUID, sealed []byte) error
+	// Secrets lists the secrets of the sites of a workspace that are sealed with a key older than version.
+	Secrets(ctx context.Context, workspaceID uuid.UUID, version int) ([]StoredSecret, error)
+	// Reseal replaces secrets with copies sealed with a newer key, skipping the ones changed meanwhile, and deletes the copies of keys
+	// that no secret uses any more.
+	Reseal(ctx context.Context, workspaceID uuid.UUID, secrets []Resealed) error
 	// CreateTeam stores a team workspace, its owner membership and the first copy of its key in one step.
 	CreateTeam(ctx context.Context, w workspace.Workspace, sealed []byte) error
 }
@@ -226,8 +257,10 @@ func (s *Service) open(ctx context.Context, actor, workspaceID uuid.UUID, sessio
 	return vault.OpenGrant(private, vault.GrantRef{Workspace: workspaceID.String(), User: actor.String(), Version: version}, sealed)
 }
 
-// Complete seals the current key of a team workspace for the members that have none yet and can receive one. The actor must hold
-// the key and have the vault unlocked; a workspace whose key the actor lacks is left alone and reported as [ErrPending].
+// Complete brings the keys of a team workspace up to date for whoever holds the current key with an unlocked vault: it rotates the key
+// when a member was removed since the last rotation, seals the current key for the members that have none yet and can receive one, and
+// seals again with the current key the secrets that still use an older one. A workspace whose key the actor lacks is left alone and
+// reported as [ErrPending].
 func (s *Service) Complete(ctx context.Context, actor, workspaceID uuid.UUID, session string) error {
 	w, err := s.workspaces.Get(ctx, actor, workspaceID)
 	if err != nil {
@@ -236,10 +269,55 @@ func (s *Service) Complete(ctx context.Context, actor, workspaceID uuid.UUID, se
 	if w.Kind == workspace.KindPersonal {
 		return nil
 	}
-	version, _, err := s.store.KeyState(ctx, workspaceID)
+	version, pending, err := s.store.KeyState(ctx, workspaceID)
 	if err != nil {
 		return err
 	}
+	if pending {
+		if version, err = s.rotate(ctx, actor, workspaceID, session, version); err != nil {
+			return err
+		}
+	}
+	if err := s.sealWaiting(ctx, actor, workspaceID, session, version); err != nil {
+		return err
+	}
+	return s.resealStale(ctx, actor, workspaceID, session, version, pending)
+}
+
+// rotate creates the next version of the workspace key, sealed for the actor, and returns the version that is current afterwards. Who
+// else gets a copy follows from [Service.sealWaiting]. Somebody rotating at the same time is not an error: their version is used.
+func (s *Service) rotate(ctx context.Context, actor, workspaceID uuid.UUID, session string, old int) (int, error) {
+	held, err := s.open(ctx, actor, workspaceID, session, old)
+	if err != nil {
+		return 0, err
+	}
+	vault.Wipe(held)
+	public, err := s.publicKey(ctx, actor, session)
+	if err != nil {
+		return 0, err
+	}
+	key := make([]byte, vault.KeyLength)
+	defer vault.Wipe(key)
+	if _, err := io.ReadFull(s.random, key); err != nil {
+		return 0, fmt.Errorf("generating the workspace key: %w", err)
+	}
+	sealed, err := vault.SealTo(s.random, public, vault.GrantRef{Workspace: workspaceID.String(), User: actor.String(), Version: old + 1}, key)
+	if err != nil {
+		return 0, err
+	}
+	err = s.store.Rotate(ctx, workspaceID, old, old+1, actor, sealed)
+	if errors.Is(err, ErrConflict) {
+		version, _, err := s.store.KeyState(ctx, workspaceID)
+		return version, err
+	}
+	if err != nil {
+		return 0, err
+	}
+	return old + 1, nil
+}
+
+// sealWaiting seals the key at a version for the members that have a public key and no copy.
+func (s *Service) sealWaiting(ctx context.Context, actor, workspaceID uuid.UUID, session string, version int) error {
 	waiting, err := s.store.Ungranted(ctx, workspaceID, version)
 	if err != nil || len(waiting) == 0 {
 		return err
@@ -259,6 +337,66 @@ func (s *Service) Complete(ctx context.Context, actor, workspaceID uuid.UUID, se
 		}
 	}
 	return nil
+}
+
+// resealStale seals again with the current key the secrets sealed with an older one, opening each with the copy of the old key the actor
+// holds; secrets whose old key the actor lacks are left for somebody else. Copies of keys nothing uses any more are then deleted, which
+// also happens after a rotation when there was nothing to seal again.
+func (s *Service) resealStale(ctx context.Context, actor, workspaceID uuid.UUID, session string, version int, rotated bool) error {
+	stale, err := s.store.Secrets(ctx, workspaceID, version)
+	if err != nil {
+		return err
+	}
+	if len(stale) == 0 && !rotated {
+		return nil
+	}
+	var done []Resealed
+	if len(stale) > 0 {
+		current, err := s.open(ctx, actor, workspaceID, session, version)
+		if err != nil {
+			return err
+		}
+		defer vault.Wipe(current)
+		older := map[int][]byte{}
+		defer func() {
+			for _, key := range older {
+				vault.Wipe(key)
+			}
+		}()
+		for _, secret := range stale {
+			key, ok := older[secret.Version]
+			if !ok {
+				if key, err = s.open(ctx, actor, workspaceID, session, secret.Version); errors.Is(err, ErrPending) {
+					continue
+				} else if err != nil {
+					return err
+				}
+				older[secret.Version] = key
+			}
+			moved, err := s.move(current, key, version, secret)
+			if err != nil {
+				return err
+			}
+			done = append(done, moved)
+		}
+	}
+	return s.store.Reseal(ctx, workspaceID, done)
+}
+
+// move seals a secret again: it opens it with its old key and seals it with the current one.
+func (s *Service) move(current, old []byte, version int, secret StoredSecret) (Resealed, error) {
+	ref := vault.SecretRef{Site: secret.Site.String(), Kind: secret.Kind, DEKVersion: secret.Version}
+	plaintext, err := vault.OpenSecret(old, ref, secret.Sealed)
+	if err != nil {
+		return Resealed{}, err
+	}
+	defer vault.Wipe(plaintext)
+	ref.DEKVersion = version
+	sealed, err := vault.SealSecret(s.random, current, ref, plaintext)
+	if err != nil {
+		return Resealed{}, err
+	}
+	return Resealed{StoredSecret: secret, NewVersion: version, NewSealed: sealed}, nil
 }
 
 // Refresh prepares the keys of a user whose vault has just been unlocked: their key pair is created when missing and every team they

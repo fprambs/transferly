@@ -113,16 +113,30 @@ func (s *Store) SetRole(ctx context.Context, workspaceID, userID uuid.UUID, role
 	return nil
 }
 
-// RemoveMember implements [workspace.Store]; the owner's membership is never deleted.
+// RemoveMember implements [workspace.Store]: the membership and the copies of the workspace key of the member are deleted and the
+// workspace is marked as needing a new key, in one transaction. The owner's membership is never deleted.
 func (s *Store) RemoveMember(ctx context.Context, workspaceID, userID uuid.UUID) error {
-	n, err := s.queries.DeleteMembership(ctx, db.DeleteMembershipParams{WorkspaceID: workspaceID, UserID: userID})
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := s.queries.WithTx(tx)
+	n, err := q.DeleteMembership(ctx, db.DeleteMembershipParams{WorkspaceID: workspaceID, UserID: userID})
 	if err != nil {
 		return err
 	}
 	if n == 0 {
 		return workspace.ErrMemberNotFound
 	}
-	return nil
+	if err := q.DeleteMemberGrants(ctx, db.DeleteMemberGrantsParams{WorkspaceID: workspaceID, UserID: userID}); err != nil {
+		return err
+	}
+	if err := q.MarkRekeyPending(ctx, workspaceID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // TransferOwnership implements [workspace.Store]: the three writes happen in one transaction.

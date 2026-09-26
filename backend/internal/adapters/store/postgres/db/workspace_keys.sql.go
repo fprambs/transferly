@@ -11,6 +11,48 @@ import (
 	"github.com/google/uuid"
 )
 
+const bumpWorkspaceKey = `-- name: BumpWorkspaceKey :exec
+UPDATE workspaces SET key_version = $2, rekey_pending = false WHERE id = $1
+`
+
+type BumpWorkspaceKeyParams struct {
+	ID         uuid.UUID
+	KeyVersion int32
+}
+
+func (q *Queries) BumpWorkspaceKey(ctx context.Context, arg BumpWorkspaceKeyParams) error {
+	_, err := q.db.Exec(ctx, bumpWorkspaceKey, arg.ID, arg.KeyVersion)
+	return err
+}
+
+const deleteMemberGrants = `-- name: DeleteMemberGrants :exec
+DELETE FROM workspace_key_grants WHERE workspace_id = $1 AND user_id = $2
+`
+
+type DeleteMemberGrantsParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) DeleteMemberGrants(ctx context.Context, arg DeleteMemberGrantsParams) error {
+	_, err := q.db.Exec(ctx, deleteMemberGrants, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
+const deleteStaleGrants = `-- name: DeleteStaleGrants :exec
+DELETE FROM workspace_key_grants g USING workspaces w
+WHERE g.workspace_id = $1 AND w.id = g.workspace_id AND g.version < w.key_version
+  AND NOT EXISTS (
+      SELECT 1 FROM site_secrets s JOIN sites st ON st.id = s.site_id
+      WHERE st.workspace_id = g.workspace_id AND s.dek_version = g.version
+  )
+`
+
+func (q *Queries) DeleteStaleGrants(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteStaleGrants, workspaceID)
+	return err
+}
+
 const grantedMembers = `-- name: GrantedMembers :many
 SELECT user_id FROM workspace_key_grants WHERE workspace_id = $1 AND version = $2
 `
@@ -78,6 +120,52 @@ func (q *Queries) KeyGrant(ctx context.Context, arg KeyGrantParams) ([]byte, err
 	return sealed, err
 }
 
+const lockWorkspaceKey = `-- name: LockWorkspaceKey :one
+SELECT key_version FROM workspaces WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockWorkspaceKey(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, lockWorkspaceKey, id)
+	var key_version int32
+	err := row.Scan(&key_version)
+	return key_version, err
+}
+
+const markRekeyPending = `-- name: MarkRekeyPending :exec
+UPDATE workspaces SET rekey_pending = true WHERE id = $1 AND kind = 'team'
+`
+
+func (q *Queries) MarkRekeyPending(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markRekeyPending, id)
+	return err
+}
+
+const resealSecret = `-- name: ResealSecret :execrows
+UPDATE site_secrets SET sealed = $4, dek_version = $5 WHERE site_id = $1 AND kind = $2 AND dek_version = $3
+`
+
+type ResealSecretParams struct {
+	SiteID       uuid.UUID
+	Kind         string
+	DekVersion   int32
+	Sealed       []byte
+	DekVersion_2 int32
+}
+
+func (q *Queries) ResealSecret(ctx context.Context, arg ResealSecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resealSecret,
+		arg.SiteID,
+		arg.Kind,
+		arg.DekVersion,
+		arg.Sealed,
+		arg.DekVersion_2,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setUserKeys = `-- name: SetUserKeys :execrows
 UPDATE user_vaults SET public_key = $2, sealed_private_key = $3 WHERE user_id = $1 AND public_key IS NULL
 `
@@ -94,6 +182,43 @@ func (q *Queries) SetUserKeys(ctx context.Context, arg SetUserKeysParams) (int64
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const staleSecrets = `-- name: StaleSecrets :many
+SELECT s.site_id, s.kind, s.dek_version, s.sealed
+FROM site_secrets s JOIN sites st ON st.id = s.site_id
+WHERE st.workspace_id = $1 AND s.dek_version < $2
+ORDER BY s.site_id, s.kind
+`
+
+type StaleSecretsParams struct {
+	WorkspaceID uuid.UUID
+	DekVersion  int32
+}
+
+func (q *Queries) StaleSecrets(ctx context.Context, arg StaleSecretsParams) ([]SiteSecret, error) {
+	rows, err := q.db.Query(ctx, staleSecrets, arg.WorkspaceID, arg.DekVersion)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SiteSecret
+	for rows.Next() {
+		var i SiteSecret
+		if err := rows.Scan(
+			&i.SiteID,
+			&i.Kind,
+			&i.DekVersion,
+			&i.Sealed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const ungrantedMembers = `-- name: UngrantedMembers :many

@@ -74,10 +74,7 @@ func (s *server) ListMembers(ctx context.Context, request ListMembersRequestObje
 	p, _ := principalFrom(ctx)
 	list, err := s.deps.Workspaces.Members(ctx, p.User.ID, request.WorkspaceId)
 	if err == nil {
-		err = s.deps.Keys.Complete(ctx, p.User.ID, request.WorkspaceId, vaultKey(p))
-	}
-	if errors.Is(err, vault.ErrLocked) || errors.Is(err, wskey.ErrPending) {
-		err = nil
+		err = s.completeKeys(ctx, p, request.WorkspaceId)
 	}
 	var sealed map[uuid.UUID]bool
 	if err == nil {
@@ -94,6 +91,16 @@ func (s *server) ListMembers(ctx context.Context, request ListMembersRequestObje
 		out = append(out, memberDTO(m, sealed[m.UserID]))
 	}
 	return out, nil
+}
+
+// completeKeys brings the keys of a team up to date for the caller: it seals the key for members who have set up their vault and rotates
+// it after a removal. It needs the vault unlocked and the key in the caller's hands; when either is missing there is nothing to do.
+func (s *server) completeKeys(ctx context.Context, p authenticated, workspaceID uuid.UUID) error {
+	err := s.deps.Keys.Complete(ctx, p.User.ID, workspaceID, vaultKey(p))
+	if errors.Is(err, vault.ErrLocked) || errors.Is(err, wskey.ErrPending) {
+		return nil
+	}
+	return err
 }
 
 // SetMemberRole changes the role of a member.
@@ -113,6 +120,9 @@ func (s *server) SetMemberRole(ctx context.Context, request SetMemberRoleRequest
 func (s *server) RemoveMember(ctx context.Context, request RemoveMemberRequestObject) (RemoveMemberResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	err := s.deps.Workspaces.RemoveMember(ctx, p.User.ID, request.WorkspaceId, request.UserId)
+	if err == nil {
+		err = s.completeKeys(ctx, p, request.WorkspaceId)
+	}
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}

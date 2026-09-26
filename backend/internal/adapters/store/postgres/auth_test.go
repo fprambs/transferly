@@ -156,6 +156,9 @@ func TestKeyStore_ReportsDatabaseFailures(t *testing.T) {
 		"Ungranted":   second(store.Ungranted(ctx, id, 1)),
 		"Granted":     second(store.Granted(ctx, id, 1)),
 		"CreateTeam":  store.CreateTeam(ctx, workspace.Workspace{ID: id, OwnerID: id}, nil),
+		"Rotate":      store.Rotate(ctx, id, 1, 2, id, nil),
+		"Secrets":     second(store.Secrets(ctx, id, 2)),
+		"Reseal":      store.Reseal(ctx, id, nil),
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, wskey.ErrNoKeys) || errors.Is(err, wskey.ErrPending) || errors.Is(err, workspace.ErrNotFound) {

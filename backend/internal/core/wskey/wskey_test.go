@@ -33,6 +33,9 @@ type fakeStore struct {
 	teams   []workspace.Workspace
 	fail    map[string]error
 	lose    bool
+	pending map[uuid.UUID]bool
+	secrets []wskey.StoredSecret
+	race    bool
 }
 
 // failure returns the error injected for an operation.
@@ -68,7 +71,7 @@ func (f *fakeStore) KeyState(_ context.Context, workspaceID uuid.UUID) (int, boo
 	if err := f.failure("keyState"); err != nil {
 		return 0, false, err
 	}
-	return f.version[workspaceID], false, nil
+	return f.version[workspaceID], f.pending[workspaceID], nil
 }
 
 // Grant returns a copy of a workspace key.
@@ -119,6 +122,67 @@ func (f *fakeStore) Granted(_ context.Context, workspaceID uuid.UUID, version in
 		}
 	}
 	return out, nil
+}
+
+// Rotate makes a new version current and stores the copy of the member who rotated; with race set, somebody else rotates first.
+func (f *fakeStore) Rotate(_ context.Context, workspaceID uuid.UUID, old, version int, userID uuid.UUID, sealed []byte) error {
+	if err := f.failure("rotate"); err != nil {
+		return err
+	}
+	if f.race {
+		f.race = false
+		f.version[workspaceID] = old + 1
+		f.pending[workspaceID] = false
+		return wskey.ErrConflict
+	}
+	if f.version[workspaceID] != old {
+		return wskey.ErrConflict
+	}
+	f.version[workspaceID] = version
+	f.pending[workspaceID] = false
+	f.grants[grantKey{workspaceID, userID, version}] = sealed
+	return nil
+}
+
+// Secrets lists the secrets sealed with a key older than a version.
+func (f *fakeStore) Secrets(_ context.Context, _ uuid.UUID, version int) ([]wskey.StoredSecret, error) {
+	if err := f.failure("secrets"); err != nil {
+		return nil, err
+	}
+	var out []wskey.StoredSecret
+	for _, secret := range f.secrets {
+		if secret.Version < version {
+			out = append(out, secret)
+		}
+	}
+	return out, nil
+}
+
+// Reseal replaces secrets and deletes the copies of keys nothing uses.
+func (f *fakeStore) Reseal(_ context.Context, workspaceID uuid.UUID, secrets []wskey.Resealed) error {
+	if err := f.failure("reseal"); err != nil {
+		return err
+	}
+	for _, moved := range secrets {
+		for i, secret := range f.secrets {
+			if secret.Site == moved.Site && secret.Kind == moved.Kind {
+				f.secrets[i] = wskey.StoredSecret{Site: moved.Site, Kind: moved.Kind, Version: moved.NewVersion, Sealed: moved.NewSealed}
+			}
+		}
+	}
+	for key := range f.grants {
+		if key.ws != workspaceID || key.version >= f.version[workspaceID] {
+			continue
+		}
+		used := false
+		for _, secret := range f.secrets {
+			used = used || secret.Version == key.version
+		}
+		if !used {
+			delete(f.grants, key)
+		}
+	}
+	return nil
 }
 
 // CreateTeam stores a team with its owner and the first grant.
@@ -215,7 +279,7 @@ type env struct {
 // newEnv builds the environment.
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	store := &fakeStore{users: map[uuid.UUID]wskey.UserKeys{}, version: map[uuid.UUID]int{}, grants: map[grantKey][]byte{}, members: map[uuid.UUID][]uuid.UUID{}, fail: map[string]error{}}
+	store := &fakeStore{users: map[uuid.UUID]wskey.UserKeys{}, version: map[uuid.UUID]int{}, grants: map[grantKey][]byte{}, members: map[uuid.UUID][]uuid.UUID{}, fail: map[string]error{}, pending: map[uuid.UUID]bool{}}
 	e := &env{store: store, alice: uuid.New(), bob: uuid.New(), carol: uuid.New(), personal: uuid.New()}
 	e.vault = fakeVault{deks: map[string][]byte{"alice": bytes.Repeat([]byte{1}, 32), "bob": bytes.Repeat([]byte{2}, 32), "carol": bytes.Repeat([]byte{3}, 32)}}
 	e.workspaces = &fakeWorkspaces{store: store, kinds: map[uuid.UUID]workspace.Kind{e.personal: workspace.KindPersonal}}
@@ -571,5 +635,301 @@ func TestService_Refresh(t *testing.T) {
 	e.store.fail["keyState"] = errBoom
 	if err := e.svc.Refresh(ctx, e.alice, "alice"); !errors.Is(err, errBoom) {
 		t.Errorf("completion failure = %v", err)
+	}
+}
+
+// sealSecret seals a password of a site with the current key of a team, the way the sites service does.
+func (e *env) sealSecret(t *testing.T, team, siteID uuid.UUID, text string) {
+	t.Helper()
+	key, version, err := e.svc.Current(context.Background(), e.alice, team, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer vault.Wipe(key)
+	sealed, err := vault.SealSecret(rand.Reader, key, vault.SecretRef{Site: siteID.String(), Kind: "password", DEKVersion: version}, []byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.store.secrets = append(e.store.secrets, wskey.StoredSecret{Site: siteID, Kind: "password", Version: version, Sealed: sealed})
+}
+
+// openStored opens the stored secret of a site with the key of a member.
+func (e *env) openStored(t *testing.T, user uuid.UUID, session string, team, siteID uuid.UUID) (string, error) {
+	t.Helper()
+	for _, secret := range e.store.secrets {
+		if secret.Site != siteID {
+			continue
+		}
+		key, err := e.svc.Version(context.Background(), user, team, session, secret.Version)
+		if err != nil {
+			return "", err
+		}
+		plaintext, err := vault.OpenSecret(key, vault.SecretRef{Site: siteID.String(), Kind: secret.Kind, DEKVersion: secret.Version}, secret.Sealed)
+		return string(plaintext), err
+	}
+	return "", errors.New("no such secret")
+}
+
+// removeMember mimics the store: the member loses their copies and the workspace waits for a rotation.
+func (e *env) removeMember(team, user uuid.UUID) {
+	var kept []uuid.UUID
+	for _, m := range e.store.members[team] {
+		if m != user {
+			kept = append(kept, m)
+		}
+	}
+	e.store.members[team] = kept
+	for key := range e.store.grants {
+		if key.ws == team && key.user == user {
+			delete(e.store.grants, key)
+		}
+	}
+	e.store.pending[team] = true
+}
+
+// TestService_Rotation verifies replacing the key of a team after a member left.
+//
+// Scenarios:
+//   - after a removal the next member with the key rotates it: the version grows, the remaining members with a public key receive
+//     a copy of the new key, secrets are sealed again with it and the copies of the old key are deleted
+//   - the removed member has no copy, and the secret opens for the members that stay
+//   - a member without the key cannot rotate, and rotating at the same time as somebody else is not an error
+//   - a rotation with nothing to seal again still deletes the old copies
+//   - secrets whose old key the actor lacks are skipped, and a tampered secret, and failures of the store, the sealing and the random source are returned
+func TestService_Rotation(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	team := e.team(t)
+	site := uuid.New()
+	e.sealSecret(t, team, site, "hunter2")
+	e.store.members[team] = append(e.store.members[team], e.bob, e.carol)
+	for _, u := range []uuid.UUID{e.bob, e.carol} {
+		if err := e.svc.Ensure(ctx, u, map[uuid.UUID]string{e.bob: "bob", e.carol: "carol"}[u]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.svc.Complete(ctx, e.alice, team, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.openStored(t, e.carol, "carol", team, site); err != nil || got != "hunter2" {
+		t.Fatalf("carol before the removal = %q, %v", got, err)
+	}
+
+	e.removeMember(team, e.carol)
+	if err := e.svc.Complete(ctx, e.alice, team, "alice"); err != nil {
+		t.Fatalf("Complete() after the removal = %v", err)
+	}
+	if e.store.version[team] != 2 || e.store.pending[team] {
+		t.Fatalf("version %d, pending %v; want 2 and nothing pending", e.store.version[team], e.store.pending[team])
+	}
+	for _, user := range []uuid.UUID{e.alice, e.bob} {
+		if _, ok := e.store.grants[grantKey{team, user, 2}]; !ok {
+			t.Errorf("%s has no copy of the new key", user)
+		}
+		if _, ok := e.store.grants[grantKey{team, user, 1}]; ok {
+			t.Errorf("%s still has a copy of the old key", user)
+		}
+	}
+	if _, ok := e.store.grants[grantKey{team, e.carol, 2}]; ok {
+		t.Error("the removed member received a copy of the new key")
+	}
+	if e.store.secrets[0].Version != 2 {
+		t.Errorf("the secret is at version %d; want 2", e.store.secrets[0].Version)
+	}
+	for user, session := range map[uuid.UUID]string{e.alice: "alice", e.bob: "bob"} {
+		if got, err := e.openStored(t, user, session, team, site); err != nil || got != "hunter2" {
+			t.Errorf("%s opens = %q, %v", session, got, err)
+		}
+	}
+	if _, err := e.openStored(t, e.carol, "carol", team, site); err == nil {
+		t.Error("the removed member opened the secret")
+	}
+}
+
+// TestService_RotationEdges verifies the unusual paths of a rotation.
+//
+// Scenarios:
+//   - a member without the key cannot rotate, a locked vault cannot, and rotating together with somebody else uses their version
+//   - a rotation with no secrets still runs, and a secret whose old key the actor lacks is left for somebody else
+//   - a tampered secret, a failing random source and failures of the store are returned
+func TestService_RotationEdges(t *testing.T) {
+	ctx := context.Background()
+
+	e := newEnv(t)
+	team := e.team(t)
+	e.store.members[team] = append(e.store.members[team], e.bob)
+	e.store.pending[team] = true
+	if err := e.svc.Ensure(ctx, e.bob, "bob"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Complete(ctx, e.bob, team, "bob"); !errors.Is(err, wskey.ErrPending) {
+		t.Errorf("a member without the key = %v; want ErrPending", err)
+	}
+	if err := e.svc.Complete(ctx, e.alice, team, "nobody"); !errors.Is(err, vault.ErrLocked) {
+		t.Errorf("locked = %v; want ErrLocked", err)
+	}
+	if err := e.svc.Complete(ctx, e.alice, team, "alice"); err != nil || e.store.version[team] != 2 {
+		t.Fatalf("a rotation without secrets = %v, version %d", err, e.store.version[team])
+	}
+
+	raced := newEnv(t)
+	rteam := raced.team(t)
+	raced.store.pending[rteam] = true
+	raced.store.race = true
+	if err := raced.svc.Complete(ctx, raced.alice, rteam, "alice"); err == nil || !errors.Is(err, wskey.ErrPending) {
+		t.Fatalf("Complete() when somebody else rotated = %v; want ErrPending: the actor has no copy of the version that won", err)
+	}
+
+	stale := newEnv(t)
+	steam := stale.team(t)
+	stale.sealSecret(t, steam, uuid.New(), "kept")
+	stale.store.members[steam] = append(stale.store.members[steam], stale.bob)
+	if err := stale.svc.Ensure(ctx, stale.bob, "bob"); err != nil {
+		t.Fatal(err)
+	}
+	stale.store.pending[steam] = true
+	if err := stale.svc.Complete(ctx, stale.alice, steam, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	stale.store.pending[steam] = true
+	delete(stale.store.grants, grantKey{steam, stale.alice, 1})
+	if err := stale.svc.Complete(ctx, stale.alice, steam, "alice"); err != nil {
+		t.Fatalf("Complete() with no copy of an old key = %v", err)
+	}
+
+	tamper := newEnv(t)
+	ttam := tamper.team(t)
+	tamper.sealSecret(t, ttam, uuid.New(), "x")
+	tamper.store.secrets[0].Sealed[len(tamper.store.secrets[0].Sealed)-1] ^= 1
+	tamper.store.pending[ttam] = true
+	if err := tamper.svc.Complete(ctx, tamper.alice, ttam, "alice"); !errors.Is(err, vault.ErrCorrupt) {
+		t.Errorf("a tampered secret = %v; want ErrCorrupt", err)
+	}
+
+	for _, op := range []string{"rotate", "secrets", "reseal"} {
+		failing := newEnv(t)
+		ftam := failing.team(t)
+		failing.sealSecret(t, ftam, uuid.New(), "x")
+		failing.store.pending[ftam] = true
+		failing.store.fail[op] = errBoom
+		if err := failing.svc.Complete(ctx, failing.alice, ftam, "alice"); !errors.Is(err, errBoom) {
+			t.Errorf("%s failure = %v", op, err)
+		}
+	}
+	conflict := newEnv(t)
+	ctam := conflict.team(t)
+	conflict.store.pending[ctam] = true
+	conflict.store.race = true
+	conflict.store.fail["keyState"] = nil
+	failState := &failAfter{fakeStore: conflict.store, after: 1}
+	svc := wskey.NewService(failState, conflict.vault, conflict.workspaces, rand.Reader)
+	if err := svc.Complete(ctx, conflict.alice, ctam, "alice"); !errors.Is(err, errBoom) {
+		t.Errorf("a failure reading the version that won = %v", err)
+	}
+
+	for name, reader := range map[string]*limited{"the key": {left: 0}, "the ephemeral key": {left: 32}, "the nonce": {left: 64}} {
+		e := newEnv(t)
+		id := e.team(t)
+		e.store.pending[id] = true
+		failing := wskey.NewService(e.store, e.vault, e.workspaces, reader)
+		if err := failing.Complete(ctx, e.alice, id, "alice"); err == nil {
+			t.Errorf("no random bytes for %s: the rotation worked", name)
+		}
+	}
+}
+
+// failAfter is a store whose key state fails from a given call on.
+type failAfter struct {
+	*fakeStore
+	after, calls int
+}
+
+// KeyState fails once the allowed calls were used.
+func (f *failAfter) KeyState(ctx context.Context, workspaceID uuid.UUID) (int, bool, error) {
+	f.calls++
+	if f.calls > f.after {
+		return 0, false, errBoom
+	}
+	return f.fakeStore.KeyState(ctx, workspaceID)
+}
+
+// keysFailAfter is a store whose key pair reads fail from a given call on.
+type keysFailAfter struct {
+	*fakeStore
+	after, calls int
+}
+
+// UserKeys fails once the allowed calls were used.
+func (k *keysFailAfter) UserKeys(ctx context.Context, userID uuid.UUID) (wskey.UserKeys, error) {
+	k.calls++
+	if k.calls > k.after {
+		return wskey.UserKeys{}, errBoom
+	}
+	return k.fakeStore.UserKeys(ctx, userID)
+}
+
+// grantsFailAt is a store whose copies of one key version cannot be read.
+type grantsFailAt struct {
+	*fakeStore
+	version int
+}
+
+// Grant fails for the chosen version.
+func (g grantsFailAt) Grant(ctx context.Context, workspaceID, userID uuid.UUID, version int) ([]byte, error) {
+	if version == g.version {
+		return nil, errBoom
+	}
+	return g.fakeStore.Grant(ctx, workspaceID, userID, version)
+}
+
+// TestService_RotationFailures verifies the failures inside a rotation and the sealing of old secrets again.
+//
+// Scenarios:
+//   - a key pair that cannot be read halfway through a rotation fails it
+//   - a member without a copy of the current key cannot seal old secrets again
+//   - a secret whose old key the actor lacks is skipped, and any other failure to open the old key is returned
+//   - a random source that runs out fails sealing a secret again
+func TestService_RotationFailures(t *testing.T) {
+	ctx := context.Background()
+
+	e := newEnv(t)
+	team := e.team(t)
+	e.store.pending[team] = true
+	halfway := wskey.NewService(&keysFailAfter{fakeStore: e.store, after: 1}, e.vault, e.workspaces, rand.Reader)
+	if err := halfway.Complete(ctx, e.alice, team, "alice"); !errors.Is(err, errBoom) {
+		t.Errorf("a key pair that fails halfway = %v", err)
+	}
+
+	lacking := newEnv(t)
+	lteam := lacking.team(t)
+	lacking.store.members[lteam] = append(lacking.store.members[lteam], lacking.bob)
+	lacking.store.secrets = append(lacking.store.secrets, wskey.StoredSecret{Site: uuid.New(), Kind: "password", Version: 0, Sealed: []byte("x")})
+	if err := lacking.svc.Complete(ctx, lacking.bob, lteam, "bob"); !errors.Is(err, wskey.ErrPending) {
+		t.Errorf("a member without the current key = %v; want ErrPending", err)
+	}
+
+	old := newEnv(t)
+	oteam := old.team(t)
+	old.store.secrets = append(old.store.secrets, wskey.StoredSecret{Site: uuid.New(), Kind: "password", Version: 0, Sealed: []byte("x")})
+	if err := old.svc.Complete(ctx, old.alice, oteam, "alice"); err != nil {
+		t.Errorf("a secret whose old key is missing = %v; want it skipped", err)
+	}
+	broken := wskey.NewService(grantsFailAt{old.store, 0}, old.vault, old.workspaces, rand.Reader)
+	if err := broken.Complete(ctx, old.alice, oteam, "alice"); !errors.Is(err, errBoom) {
+		t.Errorf("a failure opening the old key = %v", err)
+	}
+
+	dry := newEnv(t)
+	dteam := dry.team(t)
+	dry.sealSecret(t, dteam, uuid.New(), "x")
+	dry.store.pending[dteam] = true
+	dry.store.fail["reseal"] = errBoom
+	if err := dry.svc.Complete(ctx, dry.alice, dteam, "alice"); !errors.Is(err, errBoom) {
+		t.Fatalf("a rotation whose secrets could not be sealed again = %v", err)
+	}
+	delete(dry.store.fail, "reseal")
+	stale := wskey.NewService(dry.store, dry.vault, dry.workspaces, &limited{left: 0})
+	if err := stale.Complete(ctx, dry.alice, dteam, "alice"); err == nil {
+		t.Error("a random source that ran out sealed a secret again")
 	}
 }

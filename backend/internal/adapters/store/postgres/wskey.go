@@ -93,3 +93,68 @@ func (s *Store) CreateTeam(ctx context.Context, w workspace.Workspace, sealed []
 	}
 	return tx.Commit(ctx)
 }
+
+// Rotate implements [wskey.Store]: the row of the workspace is locked, so two members rotating at once cannot both win.
+func (s *Store) Rotate(ctx context.Context, workspaceID uuid.UUID, old, version int, userID uuid.UUID, sealed []byte) error {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := s.queries.WithTx(tx)
+	current, err := q.LockWorkspaceKey(ctx, workspaceID)
+	if errors.Is(err, errNoRows) {
+		return workspace.ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if int(current) != old {
+		return wskey.ErrConflict
+	}
+	if err := q.BumpWorkspaceKey(ctx, db.BumpWorkspaceKeyParams{ID: workspaceID, KeyVersion: int32(version)}); err != nil {
+		return err
+	}
+	if err := q.InsertKeyGrant(ctx, db.InsertKeyGrantParams{WorkspaceID: workspaceID, UserID: userID, Version: int32(version), Sealed: sealed}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// Secrets implements [wskey.Store].
+func (s *Store) Secrets(ctx context.Context, workspaceID uuid.UUID, version int) ([]wskey.StoredSecret, error) {
+	rows, err := s.queries.StaleSecrets(ctx, db.StaleSecretsParams{WorkspaceID: workspaceID, DekVersion: int32(version)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]wskey.StoredSecret, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, wskey.StoredSecret{Site: r.SiteID, Kind: r.Kind, Version: int(r.DekVersion), Sealed: r.Sealed})
+	}
+	return out, nil
+}
+
+// Reseal implements [wskey.Store]: every update is guarded by the version the secret had when it was read, so a secret that was
+// rewritten meanwhile keeps the newer value.
+func (s *Store) Reseal(ctx context.Context, workspaceID uuid.UUID, secrets []wskey.Resealed) error {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := s.queries.WithTx(tx)
+	for _, secret := range secrets {
+		_, err := q.ResealSecret(ctx, db.ResealSecretParams{
+			SiteID: secret.Site, Kind: secret.Kind, DekVersion: int32(secret.Version), Sealed: secret.NewSealed, DekVersion_2: int32(secret.NewVersion),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if err := q.DeleteStaleGrants(ctx, workspaceID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
