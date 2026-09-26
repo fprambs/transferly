@@ -4,7 +4,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"io"
+	"mime"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -103,4 +105,43 @@ func TestRemoteFiles_Checksum(t *testing.T) {
 	expectProblem(t, e.get("/checksum", q("path", "/dir"), nil), 422, "invalid_path")
 	expectProblem(t, e.get("/checksum", q("path", "/missing"), nil), 404, "path_not_found")
 	expectProblem(t, a.do(request{method: http.MethodGet, path: filesPath(e.ws, e.site, "/checksum", q("path", "/hello.txt"))}), 401, "unauthenticated")
+}
+
+// TestRemoteFiles_ArchiveHostileNames verifies that names chosen by a remote server cannot attack the client through a ZIP.
+//
+// Scenarios:
+//   - a folder whose name holds quotes, a semicolon, markup and non-ASCII text comes as an inert attachment whose file name is the folder name and nothing else
+//   - the entries inside the ZIP never hold an absolute path or a `..` part, whatever the names below the folder
+func TestRemoteFiles_ArchiveHostileNames(t *testing.T) {
+	e := newFileEnv(t)
+	a := e.a
+	folder := `/we"ird;<b>é`
+	for _, dir := range []string{folder, folder + "/..dots", folder + "/sub"} {
+		if r := a.send(http.MethodPost, filesPath(e.ws, e.site, "/directories", nil), map[string]string{"path": dir}, e.cookie, e.csrf); r.Status != http.StatusCreated {
+			t.Fatalf("mkdir %s = %d %s", dir, r.Status, r.Body)
+		}
+	}
+	if r := a.upload(e.ws, e.site, q("path", folder+"/sub/<script>.txt"), "x", e.cookie, e.csrf); r.Status != http.StatusCreated {
+		t.Fatalf("upload = %d %s", r.Status, r.Body)
+	}
+
+	r := e.get("/archive", q("path", folder, "transferId", uuid.NewString()), nil)
+	disposition, params, err := mime.ParseMediaType(r.Header.Get("Content-Disposition"))
+	if r.Status != http.StatusOK || err != nil || disposition != "attachment" || params["filename"] != `we"ird;<b>é.zip` {
+		t.Fatalf("archive = %d %v %v", r.Status, r.Header, err)
+	}
+	if r.Header.Get("Content-Type") != "application/zip" || r.Header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("headers = %v; want an inert ZIP", r.Header)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(r.Body), int64(len(r.Body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range reader.File {
+		for _, part := range strings.Split(file.Name, "/") {
+			if part == ".." || strings.HasPrefix(file.Name, "/") || strings.Contains(file.Name, `\`) {
+				t.Errorf("entry %q can leave the folder it is extracted to", file.Name)
+			}
+		}
+	}
 }

@@ -166,3 +166,30 @@ func TestParse_Refusals(t *testing.T) {
 		t.Errorf("file without servers = %v, %v, %v", servers, skipped, err)
 	}
 }
+
+// FuzzParse checks that no file, however hostile, makes the reader panic or exceed its limits.
+//
+// Scenarios:
+//   - any input either fails with one of the errors of the package or yields at most the allowed number of sites, each with a host
+func FuzzParse(f *testing.F) {
+	for _, seed := range []string{sample, "", "<FileZilla3/>", `<!DOCTYPE a [<!ENTITY x "y">]><FileZilla3/>`, "<FileZilla3><Servers><Server>", strings.Repeat("<Folder>", 30)} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, doc string) {
+		servers, skipped, err := fzimport.Parse(strings.NewReader(doc))
+		if err != nil {
+			if !errors.Is(err, fzimport.ErrInvalidFile) && !errors.Is(err, fzimport.ErrTooLarge) {
+				t.Fatalf("Parse() = %v; want one of the errors of the package", err)
+			}
+			return
+		}
+		if len(servers)+len(skipped) > 2000 {
+			t.Fatalf("%d sites read; want at most 2000", len(servers)+len(skipped))
+		}
+		for _, server := range servers {
+			if server.Host == "" || len([]rune(server.Name)) > 200 {
+				t.Fatalf("server %+v breaks the invariants", server)
+			}
+		}
+	})
+}

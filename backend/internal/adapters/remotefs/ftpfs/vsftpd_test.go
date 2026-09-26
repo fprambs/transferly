@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -164,4 +165,50 @@ func TestVsftpd_Charset(t *testing.T) {
 	if err := legacy.Remove(t.Context(), file); err != nil {
 		t.Errorf("Remove() = %v", err)
 	}
+}
+
+// TestVsftpd_ConcurrentSessions verifies that a busy server never makes a listing look empty.
+//
+// Scenarios:
+//   - eight sessions of the same user list the root, which is never empty, while the others upload and remove files, and no listing fails or comes back empty
+func TestVsftpd_ConcurrentSessions(t *testing.T) {
+	address := os.Getenv("SENTINEL_TEST_FTP_ADDR")
+	if address == "" {
+		t.Skip("SENTINEL_TEST_FTP_ADDR is not set; start the ftp profile of the test stack to run this test")
+	}
+	var wg sync.WaitGroup
+	for worker := 0; worker < 8; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{Address: address, Username: "sentinel", Password: "sentinel", Timeout: 10 * time.Second})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer func() { _ = fsys.Close() }()
+			for round := 0; round < 10; round++ {
+				if worker%2 == 0 {
+					if entries, err := fsys.List(t.Context(), "/"); err != nil || len(entries) == 0 {
+						t.Errorf("List(/) = %d entries, %v; want the upload folder", len(entries), err)
+					}
+					continue
+				}
+				name := "/upload/busy-" + uuid.NewString()
+				out, err := fsys.OpenWrite(t.Context(), name, 0, remotefs.WriteCreate)
+				if err != nil {
+					t.Errorf("OpenWrite() = %v", err)
+					continue
+				}
+				_, _ = out.Write(make([]byte, 100_000))
+				if err := out.Close(); err != nil {
+					t.Errorf("Close() = %v", err)
+				}
+				if err := fsys.Remove(t.Context(), name); err != nil {
+					t.Errorf("Remove() = %v", err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }

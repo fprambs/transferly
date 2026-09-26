@@ -1,6 +1,13 @@
 package ftpfs
 
 import (
+	"strings"
+
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/korean"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/encoding/traditionalchinese"
+
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/japanese"
 
@@ -220,4 +227,26 @@ func TestCodec(t *testing.T) {
 	if err != nil || validPath(converted) != nil || sjis.client(converted) != "/日本語/ファイル" {
 		t.Errorf("Shift_JIS round trip = %q, %v", converted, err)
 	}
+}
+
+// FuzzRepresentable checks that no path can smuggle a second command into the control connection through a character set.
+//
+// Scenarios:
+//   - for every supported character set and any text, a path that is accepted is written without carriage returns, line feeds or NUL bytes
+func FuzzRepresentable(f *testing.F) {
+	sets := []encoding.Encoding{
+		nil, charmap.ISO8859_1, charmap.Windows1252, charmap.KOI8R, japanese.ShiftJIS, japanese.EUCJP, simplifiedchinese.GBK, traditionalchinese.Big5, korean.EUCKR,
+	}
+	for _, seed := range []string{"/a", "/café", "/日本語", "/x\r\nDELE y", "/\x00", "/ｱｲｳ", "/　ÿ"} {
+		f.Add(seed, uint8(1))
+	}
+	f.Fuzz(func(t *testing.T, name string, which uint8) {
+		fsys := &FS{codec: codec{encoding: sets[int(which)%len(sets)]}}
+		if validPath(name) != nil || fsys.representable(name) != nil {
+			return
+		}
+		if strings.ContainsAny(fsys.sp(name), "\r\n\x00") {
+			t.Errorf("%q is accepted and written with a control character: %q", name, fsys.sp(name))
+		}
+	})
 }

@@ -69,6 +69,7 @@ function upgrade(cookie: string, origin: string | undefined): Promise<string> {
  * - unknown accounts and wrong passwords are indistinguishable at sign in
  * - a downloaded file is always an inert attachment, whatever its name and content
  * - a file or folder named as HTML is shown as text everywhere and runs nothing
+ * - a folder named as HTML is shown as text in the activity log too and runs nothing
  */
 test.describe('security', () => {
   test('sends security headers and keeps the API out of caches', async ({ request }) => {
@@ -225,5 +226,24 @@ test.describe('security', () => {
     for (const entry of uploaded.filter((item) => item.name.startsWith('e2e-') && item.name.includes('onerror'))) {
       await request.delete(files, { params: { path: entry.path }, headers: { 'X-CSRF-Token': csrf } })
     }
+  })
+
+  test('shows hostile names of the activity log as text', async ({ shell, quickId, request }) => {
+    const { page } = shell
+    const { csrf, workspaceId } = await caller(request)
+    const files = `/api/v1/workspaces/${workspaceId}/sites/${quickId}/files`
+    const hostile = '<img src=x onerror="window.__xss=2">'
+    const folder = `e2e-log-${Date.now()}-${hostile}`
+    await request.post(`${files}/directories`, { data: { path: `/upload/${folder}` }, headers: { 'X-CSRF-Token': csrf } })
+
+    await page.goto('/')
+    const dock = page.getByRole('region', { name: 'Transfers' })
+    await dock.getByRole('tab', { name: 'Activity' }).click()
+    const log = dock.getByRole('list', { name: 'Activity log' })
+    await expect(log.getByRole('listitem').filter({ hasText: folder })).toBeVisible()
+    await expect(log.locator('img')).toHaveCount(0)
+    expect(await page.evaluate(() => (globalThis as { __xss?: number }).__xss)).toBeUndefined()
+
+    await request.delete(files, { params: { path: `/upload/${folder}`, recursive: true }, headers: { 'X-CSRF-Token': csrf } })
   })
 })
