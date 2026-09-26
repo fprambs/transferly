@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/fprambs/sentinel/internal/core/files"
+	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
@@ -167,6 +168,8 @@ var domainProblems = []struct {
 	{transfer.ErrNotQueued, http.StatusConflict, "transfer_not_queued"},
 	{transfer.ErrInvalidPriority, http.StatusUnprocessableEntity, "invalid_priority"},
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
+	{fzimport.ErrInvalidFile, http.StatusUnprocessableEntity, "invalid_import_file"},
+	{fzimport.ErrTooLarge, http.StatusUnprocessableEntity, "import_file_too_large"},
 	{files.ErrUnsupportedAlgorithm, http.StatusUnprocessableEntity, "unsupported_algorithm"},
 	{files.ErrChecksumMismatch, http.StatusBadGateway, "checksum_mismatch"},
 	{files.ErrTreeTooLarge, http.StatusUnprocessableEntity, "tree_too_large"},
@@ -214,3 +217,6 @@ func (p domainProblem) VisitDownloadArchiveResponse(w http.ResponseWriter) error
 
 // VisitGetChecksumResponse implements [GetChecksumResponseObject].
 func (p domainProblem) VisitGetChecksumResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitImportFilezillaResponse implements [ImportFilezillaResponseObject].
+func (p domainProblem) VisitImportFilezillaResponse(w http.ResponseWriter) error { return p.write(w) }

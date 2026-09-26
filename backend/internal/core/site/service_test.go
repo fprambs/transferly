@@ -697,3 +697,21 @@ func TestService_Collections(t *testing.T) {
 		t.Errorf("CreateCollection() with a failing generator = %v", err)
 	}
 }
+
+// TestService_CanSeal verifies the check for a session that can store secrets.
+//
+// Scenarios:
+//   - a session with an unlocked vault can seal, a locked one and a failing key provider cannot
+func TestService_CanSeal(t *testing.T) {
+	f := newFixture(t, &switchable{})
+	if !f.svc.CanSeal("open") {
+		t.Error("CanSeal() of an unlocked session = false")
+	}
+	if f.svc.CanSeal("locked") {
+		t.Error("CanSeal() of a locked session = true")
+	}
+	broken := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{failure: errStore}, f.guard, testutil.NewFakeClock(time.Now()), rand.Reader, nil)
+	if broken.CanSeal("open") {
+		t.Error("CanSeal() with a failing key provider = true")
+	}
+}

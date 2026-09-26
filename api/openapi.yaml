@@ -1708,6 +1708,95 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/imports/filezilla:
+    post:
+      operationId: importFilezilla
+      security:
+        - sessionCookie: []
+      summary: Import the site manager of FileZilla
+      description: >-
+        Reads a sitemanager.xml sent as the body and creates its folders and sites. Sites are independent: one that cannot be created
+        does not stop the others. A dry run answers what would happen and writes nothing. Passwords are stored only when asked for and
+        need the vault to be unlocked. The file is limited to 4 MiB and may not carry a document type definition.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: dryRun
+          in: query
+          required: false
+          description: Only report what would happen.
+          schema:
+            type: boolean
+        - name: passwords
+          in: query
+          required: false
+          description: Store the passwords of the file in the vault.
+          schema:
+            type: boolean
+        - name: onConflict
+          in: query
+          required: false
+          description: What to do with a site whose name is taken. Skip by default.
+          schema:
+            type: string
+            enum: [skip, rename]
+        - name: collectionId
+          in: query
+          required: false
+          description: Collection that receives everything; the top level when left out.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: What happened, or would happen, to each site of the file.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/transfers:
     get:
       operationId: listTransfers
@@ -2661,6 +2750,36 @@ components:
           type: string
         to:
           type: string
+    ImportItem:
+      type: object
+      required: [name, path, status, passwordStored, passwordSkipped]
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+          description: The folders that hold the site, joined with slashes.
+        status:
+          type: string
+          enum: [created, would_create, skipped, failed]
+        reason:
+          type: string
+          description: Stable code that says why a site was skipped or failed.
+        passwordStored:
+          type: boolean
+        passwordSkipped:
+          type: boolean
+          description: The file had a password that was not stored.
+    ImportResult:
+      type: object
+      required: [dryRun, items]
+      properties:
+        dryRun:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportItem"
     ActivityEntry:
       type: object
       required: [id, siteName, kind, path, at]

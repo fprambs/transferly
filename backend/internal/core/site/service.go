@@ -212,6 +212,13 @@ func (s *Service) sealChanges(session string, siteID uuid.UUID, changes SecretCh
 	return p, nil
 }
 
+// CanSeal reports whether a session can store secrets, which needs its vault to be unlocked.
+func (s *Service) CanSeal(session string) bool {
+	key, err := s.keys.Key(session)
+	vault.Wipe(key)
+	return err == nil
+}
+
 // Create saves a new site and its secrets.
 func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, session string, in Input, changes SecretChanges) (Site, error) {
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
+	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/quick"
@@ -66,6 +67,8 @@ type Deps struct {
 	Quick *quick.Service
 	// Transfers records uploads and downloads.
 	Transfers *transfer.Service
+	// Import creates the sites of a FileZilla site manager file.
+	Import *fzimport.Service
 	// Activity keeps the log of what users did on their connections.
 	Activity *activity.Service
 	// Files performs operations on the files of remote sites.

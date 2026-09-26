@@ -17,6 +17,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
+	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
@@ -100,6 +101,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Files:       files.NewService(workspaces, pool),
 			Transfers:   transfers,
 			Activity:    activityLog,
+			Import:      fzimport.NewService(workspaces, sites),
 			Quick:       quickConnections,
 			Events:      hub,
 			Limits: httpapi.Limits{

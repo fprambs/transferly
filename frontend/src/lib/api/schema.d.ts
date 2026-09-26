@@ -548,6 +548,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/imports/filezilla": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import the site manager of FileZilla
+         * @description Reads a sitemanager.xml sent as the body and creates its folders and sites. Sites are independent: one that cannot be created does not stop the others. A dry run answers what would happen and writes nothing. Passwords are stored only when asked for and need the vault to be unlocked. The file is limited to 4 MiB and may not carry a document type definition.
+         */
+        post: operations["importFilezilla"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transfers": {
         parameters: {
             query?: never;
@@ -893,6 +913,22 @@ export interface components {
         RenameInput: {
             from: string;
             to: string;
+        };
+        ImportItem: {
+            name: string;
+            /** @description The folders that hold the site, joined with slashes. */
+            path: string;
+            /** @enum {string} */
+            status: "created" | "would_create" | "skipped" | "failed";
+            /** @description Stable code that says why a site was skipped or failed. */
+            reason?: string;
+            passwordStored: boolean;
+            /** @description The file had a password that was not stored. */
+            passwordSkipped: boolean;
+        };
+        ImportResult: {
+            dryRun: boolean;
+            items: components["schemas"]["ImportItem"][];
         };
         ActivityEntry: {
             /** Format: uuid */
@@ -3476,6 +3512,99 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    importFilezilla: {
+        parameters: {
+            query?: {
+                /** @description Only report what would happen. */
+                dryRun?: boolean;
+                /** @description Store the passwords of the file in the vault. */
+                passwords?: boolean;
+                /** @description What to do with a site whose name is taken. Skip by default. */
+                onConflict?: "skip" | "rename";
+                /** @description Collection that receives everything; the top level when left out. */
+                collectionId?: string;
+            };
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/xml": string;
+            };
+        };
+        responses: {
+            /** @description What happened, or would happen, to each site of the file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
