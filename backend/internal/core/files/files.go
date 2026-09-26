@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -97,11 +98,12 @@ type Service struct {
 	authz  Authorizer
 	pool   Pool
 	limits treeLimits
+	now    func() time.Time
 }
 
 // NewService returns a service that checks permissions with authz and borrows connections from pool.
 func NewService(authz Authorizer, pool Pool) *Service {
-	return &Service{authz: authz, pool: pool, limits: treeLimits{depth: defaultTreeDepth, entries: defaultTreeEntries}}
+	return &Service{authz: authz, pool: pool, limits: treeLimits{depth: defaultTreeDepth, entries: defaultTreeEntries}, now: time.Now}
 }
 
 // checkPath refuses paths that cannot be valid: empty, too long, or holding control characters.

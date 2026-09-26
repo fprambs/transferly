@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -382,4 +383,67 @@ func (s *server) GetChecksum(ctx context.Context, request GetChecksumRequestObje
 		return nil, err
 	}
 	return GetChecksum200JSONResponse{Algorithm: ChecksumAlgorithm(sum.Algorithm), Checksum: sum.Sum, Size: sum.Size}, nil
+}
+
+// listOffset returns how far from UTC the listing times of a connection are read today, from the zone it has.
+func (s *server) listOffset(ctx context.Context, t files.Target) (time.Duration, error) {
+	found, ok := s.deps.Quick.Describe(t.Actor, t.Workspace, t.Site)
+	if !ok {
+		var err error
+		if found, err = s.deps.Sites.Get(ctx, t.Actor, t.Workspace, t.Site); err != nil {
+			return 0, err
+		}
+	}
+	location := time.UTC
+	if loaded, err := time.LoadLocation(found.ListTimezone); err == nil {
+		location = loaded
+	}
+	_, seconds := time.Now().In(location).Zone()
+	return time.Duration(seconds) * time.Second, nil
+}
+
+// suggestedZone names an IANA zone with a whole number of hours as offset, or "" when there is none. The signs of the Etc zones are inverted.
+func suggestedZone(offset time.Duration) string {
+	hours := int(offset / time.Hour)
+	switch {
+	case offset%time.Hour != 0:
+		return ""
+	case hours == 0:
+		return "UTC"
+	case hours > 0:
+		return "Etc/GMT-" + strconv.Itoa(hours)
+	default:
+		return "Etc/GMT+" + strconv.Itoa(-hours)
+	}
+}
+
+// ProbeTimeZone finds the time zone of the listings of an FTP server by writing and reading back a small file.
+func (s *server) ProbeTimeZone(ctx context.Context, request ProbeTimeZoneRequestObject) (ProbeTimeZoneResponseObject, error) {
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	current, err := s.listOffset(ctx, t)
+	if err != nil {
+		return probeFailure(err)
+	}
+	probe, err := s.deps.Files.ProbeTimeOffset(ctx, t, request.Params.Path, current)
+	if err != nil {
+		return probeFailure(err)
+	}
+	return probeResponse(probe), nil
+}
+
+// probeFailure answers a probe that could not run: with its problem, or as an internal error.
+func probeFailure(err error) (ProbeTimeZoneResponseObject, error) {
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	return nil, err
+}
+
+// probeResponse describes what a probe learned, suggesting a zone only when the times are not exact.
+func probeResponse(probe files.TimeProbe) ProbeTimeZone200JSONResponse {
+	out := ProbeTimeZone200JSONResponse{Exact: probe.Exact, OffsetMinutes: int(probe.Offset / time.Minute)}
+	if zone := suggestedZone(probe.Offset); !probe.Exact && zone != "" {
+		out.SuggestedZone = &zone
+	}
+	return out
 }

@@ -170,6 +170,7 @@ var domainProblems = []struct {
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
 	{fzimport.ErrInvalidFile, http.StatusUnprocessableEntity, "invalid_import_file"},
 	{fzimport.ErrTooLarge, http.StatusUnprocessableEntity, "import_file_too_large"},
+	{files.ErrProbeInconclusive, http.StatusUnprocessableEntity, "time_zone_inconclusive"},
 	{files.ErrUnsupportedAlgorithm, http.StatusUnprocessableEntity, "unsupported_algorithm"},
 	{files.ErrChecksumMismatch, http.StatusBadGateway, "checksum_mismatch"},
 	{files.ErrTreeTooLarge, http.StatusUnprocessableEntity, "tree_too_large"},
@@ -220,3 +221,6 @@ func (p domainProblem) VisitGetChecksumResponse(w http.ResponseWriter) error { r
 
 // VisitImportFilezillaResponse implements [ImportFilezillaResponseObject].
 func (p domainProblem) VisitImportFilezillaResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitProbeTimeZoneResponse implements [ProbeTimeZoneResponseObject].
+func (p domainProblem) VisitProbeTimeZoneResponse(w http.ResponseWriter) error { return p.write(w) }

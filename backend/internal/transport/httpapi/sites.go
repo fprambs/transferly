@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/site"
 )
 
@@ -94,6 +95,7 @@ func (s *server) UpdateSite(ctx context.Context, request UpdateSiteRequestObject
 	if err != nil {
 		return nil, err
 	}
+	s.deps.Connections.CloseKey(connections.Key{UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId})
 	return UpdateSite200JSONResponse(siteDTO(updated)), nil
 }
 
@@ -107,5 +109,6 @@ func (s *server) DeleteSite(ctx context.Context, request DeleteSiteRequestObject
 	if err != nil {
 		return nil, err
 	}
+	s.deps.Connections.CloseKey(connections.Key{UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId})
 	return DeleteSite204Response{}, nil
 }

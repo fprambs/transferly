@@ -447,6 +447,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/timezone-probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find the time zone in which an FTP server prints file times
+         * @description FTP listings carry no time zone. The server writes a small file of its own in the folder, reads the time the listing prints for it, compares it with its clock and removes the file. Servers that list exact times need no zone.
+         */
+        post: operations["probeTimeZone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/content": {
         parameters: {
             query?: never;
@@ -913,6 +933,14 @@ export interface components {
         RenameInput: {
             from: string;
             to: string;
+        };
+        TimeZoneProbe: {
+            /** @description The listing gives exact times in UTC, so no zone is needed. */
+            exact: boolean;
+            /** @description How far the times the server prints are from UTC, in minutes, rounded to a quarter of an hour. */
+            offsetMinutes: number;
+            /** @description An IANA zone with that offset, when the offset is a whole number of hours. */
+            suggestedZone?: string;
         };
         ImportItem: {
             name: string;
@@ -2924,6 +2952,109 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    probeTimeZone: {
+        parameters: {
+            query: {
+                /** @description Path on the remote server. */
+                path: components["parameters"]["RemotePath"];
+            };
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+                /** @description Identifier of the site. */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the probe learned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeZoneProbe"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            507: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1229,6 +1229,75 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/timezone-probe:
+    post:
+      operationId: probeTimeZone
+      security:
+        - sessionCookie: []
+      summary: Find the time zone in which an FTP server prints file times
+      description: >-
+        FTP listings carry no time zone. The server writes a small file of its own in the folder, reads the time the listing prints for it,
+        compares it with its clock and removes the file. Servers that list exact times need no zone.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/RemotePath"
+      responses:
+        "200":
+          description: What the probe learned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeZoneProbe"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "507":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/content:
     get:
       operationId: downloadFile
@@ -2750,6 +2819,19 @@ components:
           type: string
         to:
           type: string
+    TimeZoneProbe:
+      type: object
+      required: [exact, offsetMinutes]
+      properties:
+        exact:
+          type: boolean
+          description: The listing gives exact times in UTC, so no zone is needed.
+        offsetMinutes:
+          type: integer
+          description: How far the times the server prints are from UTC, in minutes, rounded to a quarter of an hour.
+        suggestedZone:
+          type: string
+          description: An IANA zone with that offset, when the offset is a whole number of hours.
     ImportItem:
       type: object
       required: [name, path, status, passwordStored, passwordSkipped]

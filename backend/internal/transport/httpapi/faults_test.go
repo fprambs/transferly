@@ -300,6 +300,7 @@ func fileCalls(ws, siteID uuid.UUID) []request {
 		{method: http.MethodGet, path: filesPath(ws, siteID, "/content", q("path", "/f"))},
 		{method: http.MethodGet, path: filesPath(ws, siteID, "/archive", q("path", "/d"))},
 		{method: http.MethodGet, path: filesPath(ws, siteID, "/checksum", q("path", "/f"))},
+		{method: http.MethodPost, path: filesPath(ws, siteID, "/timezone-probe", q("path", "/d"))},
 		{method: http.MethodPut, path: filesPath(ws, siteID, "/content", q("path", "/f")), body: "x", headers: map[string]string{"Content-Type": "application/octet-stream"}},
 		{method: http.MethodPost, path: filesPath(ws, siteID, "/directories", nil), body: map[string]string{"path": "/d"}},
 		{method: http.MethodPost, path: filesPath(ws, siteID, "/rename", nil), body: map[string]string{"from": "/a", "to": "/b"}},

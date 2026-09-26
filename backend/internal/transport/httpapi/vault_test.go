@@ -221,3 +221,42 @@ func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
 		t.Error("signing out closed another user's connections")
 	}
 }
+
+// TestConnections_ClosedWhenTheSiteChanges verifies that a site does not keep connections made with settings it no longer has.
+//
+// Scenarios:
+//   - editing a site closes its pooled connections, so the next use connects with the new settings, and deleting it closes them too
+func TestConnections_ClosedWhenTheSiteChanges(t *testing.T) {
+	var pool *connections.Manager
+	a := newAPI(t, func(d *httpapi.Deps) { pool = d.Connections })
+	cookie, csrf := a.setup()
+	user := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}).session(t).User.Id
+	ws := a.personal(cookie)
+	created := a.send(http.MethodPost, sitesPath(ws), siteBody("Changing"), cookie, csrf)
+	id := created.site(t).Id
+	key := connections.Key{UserID: user, WorkspaceID: ws, SiteID: id}
+	pooled := func() {
+		lease, err := pool.Acquire(t.Context(), key, "s")
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease.Release(nil)
+	}
+
+	pooled()
+	body := siteBody("Changing")
+	body["listTimezone"] = "Etc/GMT+3"
+	if r := a.send(http.MethodPut, sitesPath(ws, id.String()), body, cookie, csrf); r.Status != http.StatusOK {
+		t.Fatalf("update = %d %s", r.Status, r.Body)
+	}
+	if _, total := pool.Stats(key); total != 0 {
+		t.Error("editing the site left its connections open")
+	}
+	pooled()
+	if r := a.send(http.MethodDelete, sitesPath(ws, id.String()), nil, cookie, csrf); r.Status != http.StatusNoContent {
+		t.Fatalf("delete = %d %s", r.Status, r.Body)
+	}
+	if _, total := pool.Stats(key); total != 0 {
+		t.Error("deleting the site left its connections open")
+	}
+}
