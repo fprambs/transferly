@@ -26,8 +26,11 @@ func newTeam(t *testing.T) team {
 	t.Helper()
 	svc, store := newService()
 	tm := team{svc: svc, store: store, owner: uuid.New(), admin: uuid.New(), editor: uuid.New(), viewer: uuid.New(), other: uuid.New()}
-	created, err := svc.CreateTeam(context.Background(), tm.owner, "  Acme Web  ")
+	created, err := svc.NewTeam(tm.owner, "  Acme Web  ")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateWorkspace(context.Background(), created); err != nil {
 		t.Fatal(err)
 	}
 	tm.id = created.ID
@@ -40,38 +43,50 @@ func newTeam(t *testing.T) team {
 // role reads the role of a user in the team.
 func (tm team) role(user uuid.UUID) workspace.Role { return tm.store.roles[[2]uuid.UUID{tm.id, user}] }
 
-// TestService_CreateTeam verifies creating team workspaces.
+// TestService_NewTeam verifies preparing team workspaces.
 //
 // Scenarios:
-//   - a team is created with a trimmed name, the team kind, the actor as owner and the clock time
-//   - empty, blank, too long and control-character names are refused
-//   - an identifier failure and a store failure are returned
-func TestService_CreateTeam(t *testing.T) {
-	ctx := context.Background()
+//   - a team is prepared with a trimmed name, the team kind, the actor as owner and the clock time
+//   - empty, blank, too long and control-character names are refused, and a name of 80 multibyte characters is accepted
+//   - an identifier failure is returned
+func TestService_NewTeam(t *testing.T) {
 	tm := newTeam(t)
-	got, err := tm.svc.Members(ctx, tm.owner, tm.id)
-	if err != nil || len(got) != 4 {
-		t.Fatalf("Members() = %+v, %v", got, err)
-	}
 	created := tm.store.workspaces[0]
 	if created.Name != "Acme Web" || created.Kind != workspace.KindTeam || created.OwnerID != tm.owner || created.CreatedAt.IsZero() {
 		t.Errorf("team = %+v", created)
 	}
 	for _, name := range []string{"", "   ", strings.Repeat("x", 81), "bad\x00name", "line\nbreak"} {
-		if _, err := tm.svc.CreateTeam(ctx, tm.owner, name); !errors.Is(err, workspace.ErrInvalidName) {
-			t.Errorf("CreateTeam(%q) = %v; want ErrInvalidName", name, err)
+		if _, err := tm.svc.NewTeam(tm.owner, name); !errors.Is(err, workspace.ErrInvalidName) {
+			t.Errorf("NewTeam(%q) = %v; want ErrInvalidName", name, err)
 		}
 	}
-	if _, err := tm.svc.CreateTeam(ctx, tm.owner, strings.Repeat("é", 80)); err != nil {
+	if _, err := tm.svc.NewTeam(tm.owner, strings.Repeat("é", 80)); err != nil {
 		t.Errorf("an 80 character name was refused: %v", err)
 	}
 	failing := workspace.NewService(tm.store, testutil.NewFakeClock(time.Now()), func() (uuid.UUID, error) { return uuid.Nil, errBoom })
-	if _, err := failing.CreateTeam(ctx, tm.owner, "x"); !errors.Is(err, errBoom) {
+	if _, err := failing.NewTeam(tm.owner, "x"); !errors.Is(err, errBoom) {
 		t.Errorf("id failure = %v", err)
 	}
-	tm.store.failCreate = errBoom
-	if _, err := tm.svc.CreateTeam(ctx, tm.owner, "x"); !errors.Is(err, errBoom) {
-		t.Errorf("store failure = %v", err)
+}
+
+// TestService_Get verifies reading one workspace.
+//
+// Scenarios:
+//   - a member gets the workspace with their role, and a stranger gets ErrNotFound
+//   - a store failure is returned
+func TestService_Get(t *testing.T) {
+	ctx := context.Background()
+	tm := newTeam(t)
+	got, err := tm.svc.Get(ctx, tm.viewer, tm.id)
+	if err != nil || got.ID != tm.id || got.Role != workspace.RoleViewer || got.Kind != workspace.KindTeam {
+		t.Fatalf("Get() = %+v, %v", got, err)
+	}
+	if _, err := tm.svc.Get(ctx, tm.other, tm.id); !errors.Is(err, workspace.ErrNotFound) {
+		t.Errorf("stranger = %v; want ErrNotFound", err)
+	}
+	tm.store.fail = map[string]error{"workspace": errBoom}
+	if _, err := tm.svc.Get(ctx, tm.owner, tm.id); !errors.Is(err, errBoom) {
+		t.Errorf("failure = %v", err)
 	}
 }
 

@@ -42,8 +42,8 @@ func cleanName(name string) (string, error) {
 	return name, nil
 }
 
-// CreateTeam creates a team workspace owned by the actor.
-func (s *Service) CreateTeam(ctx context.Context, actor uuid.UUID, name string) (Workspace, error) {
+// NewTeam validates the name of a team workspace and returns the workspace an actor would own, without storing it.
+func (s *Service) NewTeam(actor uuid.UUID, name string) (Workspace, error) {
 	name, err := cleanName(name)
 	if err != nil {
 		return Workspace{}, err
@@ -52,11 +52,20 @@ func (s *Service) CreateTeam(ctx context.Context, actor uuid.UUID, name string) 
 	if err != nil {
 		return Workspace{}, fmt.Errorf("generating workspace id: %w", err)
 	}
-	created := Workspace{ID: id, Name: name, Kind: KindTeam, OwnerID: actor, CreatedAt: s.clock.Now()}
-	if err := s.store.CreateWorkspace(ctx, created); err != nil {
-		return Workspace{}, err
+	return Workspace{ID: id, Name: name, Kind: KindTeam, OwnerID: actor, CreatedAt: s.clock.Now()}, nil
+}
+
+// Get returns a workspace the actor is a member of, with their role.
+func (s *Service) Get(ctx context.Context, actor, workspaceID uuid.UUID) (Summary, error) {
+	role, err := s.Authorize(ctx, actor, workspaceID, ActionBrowse)
+	if err != nil {
+		return Summary{}, err
 	}
-	return created, nil
+	w, err := s.store.Workspace(ctx, workspaceID)
+	if err != nil {
+		return Summary{}, err
+	}
+	return Summary{Workspace: w, Role: role}, nil
 }
 
 // team returns the workspace after checking that the actor may perform an action in it and that it is a team.

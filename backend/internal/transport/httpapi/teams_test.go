@@ -2,19 +2,23 @@ package httpapi_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 )
 
 // teamEnv is a team workspace with one member of every role, each with a session.
 type teamEnv struct {
-	a  *api
-	ws uuid.UUID
+	a     *api
+	sites *site.Service
+	ws    uuid.UUID
 	// cookies, tokens and users by role name: owner, admin, editor, viewer and stranger.
 	cookie map[string]*http.Cookie
 	csrf   map[string]string
@@ -24,12 +28,16 @@ type teamEnv struct {
 // newTeamEnv creates the team through the API as its owner and adds the other members. Tweaks change the dependencies of the server.
 func newTeamEnv(t *testing.T, tweaks ...func(*httpapi.Deps)) *teamEnv {
 	t.Helper()
-	a := newAPI(t, tweaks...)
-	e := &teamEnv{a: a, cookie: map[string]*http.Cookie{}, csrf: map[string]string{}, user: map[string]uuid.UUID{}}
+	e := &teamEnv{cookie: map[string]*http.Cookie{}, csrf: map[string]string{}, user: map[string]uuid.UUID{}}
+	a := newAPI(t, append(tweaks, func(d *httpapi.Deps) { e.sites = d.Sites })...)
+	e.a = a
 	for _, role := range []string{"owner", "admin", "editor", "viewer", "stranger"} {
 		cookie, user := a.signIn(role + "@example.com")
 		e.cookie[role], e.user[role] = cookie, user.ID
 		e.csrf[role] = a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}).session(t).CsrfToken
+	}
+	if r := a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, e.cookie["owner"], e.csrf["owner"]); r.Status != http.StatusCreated {
+		t.Fatalf("vault setup = %d %s", r.Status, r.Body)
 	}
 	created := a.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "  Acme Web  "}, e.cookie["owner"], e.csrf["owner"])
 	if created.Status != http.StatusCreated {
@@ -184,5 +192,111 @@ func TestTeams_AuthorizationMatrix(t *testing.T) {
 		if c.name == "leave" || c.name == "transfer" || c.name == "list" || c.name == "role" || c.name == "remove" {
 			expectProblem(t, r, 409, "personal_workspace")
 		}
+	}
+}
+
+// session returns the identifier of the session of a role, which keys the vault of that session.
+func (e *teamEnv) session(as string) string {
+	e.a.t.Helper()
+	p, err := e.a.auth.Authenticate(e.a.t.Context(), e.cookie[as].Value)
+	if err != nil {
+		e.a.t.Fatal(err)
+	}
+	return p.Session.ID.String()
+}
+
+// openSecret opens the password of a site as a role, the way a connection does.
+func (e *teamEnv) openSecret(as string, siteID uuid.UUID) (string, error) {
+	e.a.t.Helper()
+	secret, err := e.sites.OpenSecret(e.a.t.Context(), e.user[as], e.ws, siteID, e.session(as), site.SecretPassword)
+	return string(secret), err
+}
+
+// TestTeams_SharedKeys verifies that the members of a team share its secrets without sharing a password.
+//
+// Scenarios:
+//   - creating a team needs an unlocked vault, and the owner opens the secret they saved in it
+//   - a member who has not set up a vault is waiting, cannot open the secret and is told the key is pending
+//   - once they set up their vault they still wait until a member with the key unlocks or lists the members, and then they open the secret
+//   - the copy is made when the owner unlocks the vault, and also when a member lists the team
+//   - a member who never got a copy cannot open the secret, and personal workspaces keep using the vault of their owner
+func TestTeams_SharedKeys(t *testing.T) {
+	e := newTeamEnv(t)
+	expectProblem(t, e.a.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "No vault"}, e.cookie["stranger"], e.csrf["stranger"]), 409, "vault_locked")
+
+	body := siteBody("Production")
+	body["password"] = "hunter2-hunter2"
+	created := e.call("owner", http.MethodPost, "/sites", body)
+	if created.Status != http.StatusCreated {
+		t.Fatalf("create site = %d %s", created.Status, created.Body)
+	}
+	id := created.site(t).Id
+	if got, err := e.openSecret("owner", id); err != nil || got != "hunter2-hunter2" {
+		t.Fatalf("owner opens = %q, %v", got, err)
+	}
+
+	states := func() map[string]string {
+		r := e.call("viewer", http.MethodGet, "/members", nil)
+		var list []httpapi.Member
+		mustDecode(t, r.Body, &list)
+		out := map[string]string{}
+		for _, m := range list {
+			out[m.Email] = string(m.KeyState)
+		}
+		return out
+	}
+	if got := states(); got["owner@example.com"] != "sealed" || got["admin@example.com"] != "waiting" || got["editor@example.com"] != "waiting" {
+		t.Fatalf("key states = %v; want the owner sealed and the others waiting", got)
+	}
+	if _, err := e.openSecret("admin", id); err == nil {
+		t.Error("a member without a vault opened the secret")
+	}
+
+	for _, as := range []string{"admin", "editor"} {
+		if r := e.a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, e.cookie[as], e.csrf[as]); r.Status != http.StatusCreated {
+			t.Fatalf("vault setup as %s = %d %s", as, r.Status, r.Body)
+		}
+		if _, err := e.openSecret(as, id); !errors.Is(err, wskey.ErrPending) {
+			t.Errorf("%s before receiving a copy = %v; want ErrPending", as, err)
+		}
+	}
+	if got := states(); got["admin@example.com"] != "waiting" {
+		t.Fatalf("key states = %v; want the admin still waiting: a member without the key cannot hand it over", got)
+	}
+
+	e.a.vaultCall("/lock", nil, e.cookie["owner"], e.csrf["owner"])
+	if r := e.a.vaultCall("/unlock", map[string]string{"masterPassword": masterPassword}, e.cookie["owner"], e.csrf["owner"]); r.Status != http.StatusNoContent {
+		t.Fatalf("unlock = %d %s", r.Status, r.Body)
+	}
+	for _, as := range []string{"admin", "editor"} {
+		if got, err := e.openSecret(as, id); err != nil || got != "hunter2-hunter2" {
+			t.Errorf("%s after the owner unlocked = %q, %v; want the secret", as, got, err)
+		}
+	}
+	if got := states(); got["admin@example.com"] != "sealed" || got["editor@example.com"] != "sealed" || got["viewer@example.com"] != "waiting" {
+		t.Errorf("key states = %v; want everyone with a vault sealed and the viewer waiting", got)
+	}
+	if _, err := e.openSecret("viewer", id); err == nil {
+		t.Error("a member without a vault opened the secret")
+	}
+
+	late := e.a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, e.cookie["viewer"], e.csrf["viewer"])
+	if late.Status != http.StatusCreated {
+		t.Fatalf("vault setup as viewer = %d %s", late.Status, late.Body)
+	}
+	if r := e.call("owner", http.MethodGet, "/members", nil); r.Status != http.StatusOK {
+		t.Fatalf("list = %d", r.Status)
+	}
+	if got, err := e.openSecret("viewer", id); err != nil || got != "hunter2-hunter2" {
+		t.Errorf("viewer after the owner listed the members = %q, %v; want the secret", got, err)
+	}
+
+	personal := e.a.personal(e.cookie["owner"])
+	own := e.a.send(http.MethodPost, sitesPath(personal), body, e.cookie["owner"], e.csrf["owner"])
+	if own.Status != http.StatusCreated {
+		t.Fatalf("personal site = %d %s", own.Status, own.Body)
+	}
+	if got, err := e.sites.OpenSecret(t.Context(), e.user["owner"], personal, own.site(t).Id, e.session("owner"), site.SecretPassword); err != nil || string(got) != "hunter2-hunter2" {
+		t.Errorf("personal secret = %q, %v", got, err)
 	}
 }

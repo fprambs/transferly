@@ -113,7 +113,9 @@ users --< memberships >-- workspaces --< sites --< site_secrets
 | `users` | id (UUIDv7), email, password_hash (argon2id), locale (BCP 47), timezone (IANA), totp_secret_enc |
 | `user_keys` | user_id, kdf_params, kdf_salt, wrapped_user_dek, par de claves X25519 |
 | `workspaces` | id, name, kind (`personal`, `team`), owner_id, settings (jsonb) |
-| `memberships` | workspace_id, user_id, role, wrapped_workspace_dek |
+| `memberships` | workspace_id, user_id, role |
+| `workspace_key_grants` | workspace_id, user_id, version, sealed (la clave del workspace sellada con la clave pública X25519 del miembro) |
+| `invitations` | workspace_id, email, role, token_hash, invited_by, expires_at (una fila por invitación pendiente; se borra al aceptar, revocar o vencer) |
 | `sites` | id, workspace_id, folder_id, protocol, host, port, username, auth_method, list_timezone (IANA), options (jsonb) |
 | `site_secrets` | site_id, kind, nonce, ciphertext, dek_version |
 | `known_hosts` | workspace_id, host, port, key_type, fingerprint_sha256 |
@@ -128,7 +130,7 @@ Toda consulta de negocio filtra por `workspace_id` y pasa por RBAC.
 contraseña maestra --Argon2id(salt, m=64MiB, t=3, p=4; RFC 9106, poca memoria)--> KEK
 KEK --AES-256-GCM (wrap)--> DEK del usuario (workspace personal)
 DEK del usuario --wrap--> clave privada X25519
-DEK del workspace --sellada con la clave pública de cada miembro--> memberships.wrapped_workspace_dek
+clave del workspace --ECDH efímero + HKDF-SHA-256 + AES-256-GCM, con la clave pública de cada miembro--> workspace_key_grants
 DEK --AES-256-GCM(nonce, AAD=site_id|kind|dek_version)--> site_secrets
 ```
 

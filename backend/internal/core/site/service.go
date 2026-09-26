@@ -25,7 +25,6 @@ const (
 	maxHostLength    = 253
 	maxSecretBytes   = 1024
 	maxKeyBytes      = 64 * 1024
-	defaultDEKLevel  = 1
 )
 
 // labelPattern matches one label of a host name.
@@ -41,10 +40,14 @@ type Authorizer interface {
 	Authorize(ctx context.Context, userID, workspaceID uuid.UUID, action workspace.Action) (workspace.Role, error)
 }
 
-// Keys gives access to the decrypted vault key of a session.
+// Keys gives access to the keys that seal the secrets of a workspace, opened with the vault of a session.
 type Keys interface {
-	// Key returns a copy of the session's key, or [vault.ErrLocked]. The caller wipes it.
-	Key(session string) ([]byte, error)
+	// Current returns the key that seals new secrets of a workspace and its version, or [vault.ErrLocked]. The caller wipes the key.
+	Current(ctx context.Context, actor, workspaceID uuid.UUID, session string) ([]byte, int, error)
+	// Version returns the key that opens secrets sealed at a version, or [vault.ErrLocked]. The caller wipes it.
+	Version(ctx context.Context, actor, workspaceID uuid.UUID, session string, version int) ([]byte, error)
+	// Unlocked reports whether the session's vault is unlocked.
+	Unlocked(session string) bool
 }
 
 // Guard vets the hosts sites may point to.
@@ -86,8 +89,8 @@ type SecretChanges struct {
 	Passphrase *string
 }
 
-// Service implements the site use cases. Secrets are sealed with the vault key of the user who saves them;
-// sharing keys among the members of a team workspace belongs to a later phase.
+// Service implements the site use cases. Secrets are sealed with the key of their workspace: the DEK of the owner for a personal
+// workspace and the shared workspace key for a team.
 type Service struct {
 	store interface {
 		Store
@@ -181,7 +184,7 @@ type plan struct {
 }
 
 // sealChanges turns secret changes into writes for a site. Unlocking is needed only to write values.
-func (s *Service) sealChanges(session string, siteID uuid.UUID, changes SecretChanges) (plan, error) {
+func (s *Service) sealChanges(ctx context.Context, actor, workspaceID uuid.UUID, session string, siteID uuid.UUID, changes SecretChanges) (plan, error) {
 	var p plan
 	entries := []struct {
 		kind  SecretKind
@@ -193,6 +196,7 @@ func (s *Service) sealChanges(session string, siteID uuid.UUID, changes SecretCh
 		{SecretPassphrase, changes.Passphrase, maxSecretBytes},
 	}
 	var dek []byte
+	var version int
 	defer func() { vault.Wipe(dek) }()
 	for _, e := range entries {
 		switch {
@@ -203,20 +207,20 @@ func (s *Service) sealChanges(session string, siteID uuid.UUID, changes SecretCh
 			return plan{}, ErrSecretTooLarge
 		default:
 			if dek == nil {
-				key, err := s.keys.Key(session)
+				key, current, err := s.keys.Current(ctx, actor, workspaceID, session)
 				if errors.Is(err, vault.ErrLocked) {
 					return plan{}, ErrLocked
 				}
 				if err != nil {
 					return plan{}, err
 				}
-				dek = key
+				dek, version = key, current
 			}
-			sealed, err := vault.SealSecret(s.random, dek, vault.SecretRef{Site: siteID.String(), Kind: string(e.kind), DEKVersion: defaultDEKLevel}, []byte(*e.value))
+			sealed, err := vault.SealSecret(s.random, dek, vault.SecretRef{Site: siteID.String(), Kind: string(e.kind), DEKVersion: version}, []byte(*e.value))
 			if err != nil {
 				return plan{}, fmt.Errorf("sealing %s: %w", e.kind, err)
 			}
-			p.set = append(p.set, Sealed{Kind: e.kind, DEKVersion: defaultDEKLevel, Data: sealed})
+			p.set = append(p.set, Sealed{Kind: e.kind, DEKVersion: version, Data: sealed})
 		}
 	}
 	return p, nil
@@ -224,9 +228,7 @@ func (s *Service) sealChanges(session string, siteID uuid.UUID, changes SecretCh
 
 // CanSeal reports whether a session can store secrets, which needs its vault to be unlocked.
 func (s *Service) CanSeal(session string) bool {
-	key, err := s.keys.Key(session)
-	vault.Wipe(key)
-	return err == nil
+	return s.keys.Unlocked(session)
 }
 
 // Create saves a new site and its secrets.
@@ -248,7 +250,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err != nil {
 		return Site{}, fmt.Errorf("generating site id: %w", err)
 	}
-	p, err := s.sealChanges(session, id, changes)
+	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, changes)
 	if err != nil {
 		return Site{}, err
 	}
@@ -297,7 +299,7 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 	if err != nil {
 		return Site{}, err
 	}
-	p, err := s.sealChanges(session, id, changes)
+	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, changes)
 	if err != nil {
 		return Site{}, err
 	}
@@ -342,7 +344,7 @@ func (s *Service) OpenSecret(ctx context.Context, actor, workspaceID, id uuid.UU
 	if err != nil {
 		return nil, err
 	}
-	dek, err := s.keys.Key(session)
+	dek, err := s.keys.Version(ctx, actor, workspaceID, session, sealed.DEKVersion)
 	if errors.Is(err, vault.ErrLocked) {
 		return nil, ErrLocked
 	}

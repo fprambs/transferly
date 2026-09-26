@@ -251,6 +251,9 @@ paths:
       security:
         - sessionCookie: []
       summary: Create a team workspace owned by the signed-in user
+      description: >-
+        Needs the vault unlocked (409 vault_locked), because the workspace gets a key of its own sealed with the public key of its
+        owner, whose key pair is created on the way when it does not exist yet.
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -317,7 +320,9 @@ paths:
       security:
         - sessionCookie: []
       summary: Members of a team workspace
-      description: Any member may read the list. Personal workspaces have no members to list and answer 409 personal_workspace.
+      description: >-
+        Any member may read the list. Personal workspaces have no members to list and answer 409 personal_workspace. When the caller has
+        the vault unlocked and holds the workspace key, it is first sealed for the members that have set up their vault since.
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
       responses:
@@ -3661,8 +3666,14 @@ components:
           description: Display name, 1 to 80 characters.
     Member:
       type: object
-      required: [userId, email, role, joinedAt]
+      required: [userId, email, role, joinedAt, keyState]
       properties:
+        keyState:
+          type: string
+          enum: [sealed, waiting]
+          description: >-
+            sealed when the member holds a copy of the workspace key. waiting when they have none yet, because they have not set up
+            their vault; a member with an unlocked vault hands it over the next time they open the workspace.
         userId:
           type: string
           format: uuid

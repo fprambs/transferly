@@ -49,6 +49,9 @@ func (s *server) SetupVault(ctx context.Context, request SetupVaultRequestObject
 	case err != nil:
 		return nil, err
 	}
+	if err := s.deps.Keys.Refresh(ctx, p.User.ID, vaultKey(p)); err != nil {
+		return nil, err
+	}
 	return SetupVault201JSONResponse{RecoveryKit: kit}, nil
 }
 
@@ -65,6 +68,9 @@ func (s *server) UnlockVault(ctx context.Context, request UnlockVaultRequestObje
 	case errors.Is(err, vault.ErrNotInitialized):
 		return UnlockVault409ApplicationProblemPlusJSONResponse(problemBody(409, "vault_not_initialized", nil)), nil
 	case err != nil:
+		return nil, err
+	}
+	if err := s.deps.Keys.Refresh(ctx, p.User.ID, vaultKey(p)); err != nil {
 		return nil, err
 	}
 	return UnlockVault204Response{}, nil
@@ -114,6 +120,9 @@ func (s *server) RecoverVault(ctx context.Context, request RecoverVaultRequestOb
 	case errors.Is(err, vault.ErrNotInitialized):
 		return RecoverVault409ApplicationProblemPlusJSONResponse(problemBody(409, "vault_not_initialized", nil)), nil
 	case err != nil:
+		return nil, err
+	}
+	if err := s.deps.Keys.Refresh(ctx, p.User.ID, vaultKey(p)); err != nil {
 		return nil, err
 	}
 	return RecoverVault204Response{}, nil

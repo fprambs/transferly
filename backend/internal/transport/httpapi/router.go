@@ -24,6 +24,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 )
 
 // Limits are the rate limiters that protect the unauthenticated endpoints.
@@ -84,6 +85,8 @@ type Deps struct {
 	HostKeys *hostkey.Service
 	// Sites is the saved connections service.
 	Sites *site.Service
+	// Keys hands out the keys that seal the secrets of each workspace.
+	Keys *wskey.Service
 	// Vault is the credential vault service.
 	Vault *vault.Service
 	// Limits are the rate limiters of the unauthenticated endpoints.

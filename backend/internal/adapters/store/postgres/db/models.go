@@ -148,13 +148,25 @@ type UserVault struct {
 	DekVersion         int32
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+	PublicKey          []byte
+	SealedPrivateKey   []byte
 }
 
 type Workspace struct {
-	ID        uuid.UUID
-	Name      string
-	Kind      string
-	OwnerID   uuid.UUID
-	Settings  []byte
-	CreatedAt time.Time
+	ID           uuid.UUID
+	Name         string
+	Kind         string
+	OwnerID      uuid.UUID
+	Settings     []byte
+	CreatedAt    time.Time
+	KeyVersion   int32
+	RekeyPending bool
+}
+
+type WorkspaceKeyGrant struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Version     int32
+	Sealed      []byte
+	CreatedAt   time.Time
 }

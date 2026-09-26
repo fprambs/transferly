@@ -24,8 +24,8 @@ Roles and ownership:
 Keys:
 
 - Each user has an X25519 key pair created with the vault; the private key is sealed with the user's DEK. The public key is readable by workspace admins.
-- A team workspace has a random DEK. For every member it is sealed with ECDH between an ephemeral key and the member's public key, HKDF-SHA-256 and AES-256-GCM, bound to workspace, user and DEK version, and stored in `memberships.wrapped_workspace_dek`. The personal workspace keeps using the user DEK.
-- A member who has not set up a vault cannot receive the DEK; the invitation can be accepted, and the DEK is sealed for them the next time an admin session with an unlocked vault sees them as pending.
+- A team workspace has a random key. For every member it is sealed with ECDH between an ephemeral key and the member's public key, HKDF-SHA-256 and AES-256-GCM, bound to workspace, user and key version, and stored in `workspace_key_grants` (one row per member and version). The personal workspace keeps using the user DEK. Creating a team needs an unlocked vault, because the owner's copy is sealed at that moment.
+- A member who has not set up a vault cannot receive the key; the invitation can be accepted and the member shows as *waiting*. Whoever holds the key completes the copies of the waiting members when they unlock their vault or list the members of the team, so no admin has to be online when the invitee joins.
 - Removing a member (or a member leaving) rotates the workspace DEK: a new version is created, sealed for the remaining members, and secrets are re-sealed in the background under the new version. Until a secret is re-sealed its `dek_version` tells which key opens it, so nothing is lost if the process stops.
 - A viewer holds the DEK too, because the server needs it to connect on their behalf; the API still never returns secrets, and the role matrix decides what each member can do with a connection.
 

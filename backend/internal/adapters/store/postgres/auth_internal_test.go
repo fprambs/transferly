@@ -36,7 +36,7 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 		(f.failAt == "site" && strings.Contains(sql, "INSERT INTO sites")) || (f.failAt == "update-site" && strings.HasPrefix(sql, "-- name: UpdateSite")) ||
 		(f.failAt == "transfer-role" && strings.Contains(sql, "-- name: SetMembershipRole")) || (f.failAt == "transfer-owner" && strings.Contains(sql, "UPDATE workspaces SET owner_id")) ||
 		(f.failAt == "invite-delete" && strings.Contains(sql, "DELETE FROM invitations")) || (f.failAt == "invite-insert" && strings.Contains(sql, "INSERT INTO invitations")) ||
-		(f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
+		(f.failAt == "team-key" && strings.Contains(sql, "INSERT INTO workspace_key_grants")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
 		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
@@ -195,6 +195,26 @@ func TestInvitationWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 	}
 	if _, err := failing.Accept(ctx, id, id, time.Now()); !errors.Is(err, errStep) {
 		t.Errorf("Accept failure to start = %v, want the injected error", err)
+	}
+}
+
+// TestCreateTeam_ReportsFailuresInsideTheTransaction verifies that a failure at any step of creating a team is returned to the caller.
+//
+// Scenarios:
+//   - the transaction cannot start
+//   - inserting the workspace, inserting the owner membership, inserting the first copy of the key and committing each fail
+func TestCreateTeam_ReportsFailuresInsideTheTransaction(t *testing.T) {
+	for _, step := range []string{"workspace", "membership", "team-key", "commit"} {
+		store := &Store{queries: db.New(nil)}
+		store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+		if err := store.CreateTeam(context.Background(), workspace.Workspace{}, nil); !errors.Is(err, errStep) {
+			t.Errorf("failure at %s = %v, want the injected error", step, err)
+		}
+	}
+	failing := &Store{queries: db.New(nil)}
+	failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+	if err := failing.CreateTeam(context.Background(), workspace.Workspace{}, nil); !errors.Is(err, errStep) {
+		t.Errorf("failure to start = %v, want the injected error", err)
 	}
 }
 

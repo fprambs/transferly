@@ -26,6 +26,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
 
@@ -114,7 +115,7 @@ func newEnv(t *testing.T) *env {
 	return &env{
 		quick: quickConnections,
 		t:     t, store: store, flaky: unreliable, user: user.ID, workspace: personal.ID, vaults: vaults, allow: allow,
-		sites:    site.NewService(unreliable, workspaces, vaults, allow, clock, rand.Reader, nil),
+		sites:    site.NewService(unreliable, workspaces, wskey.NewService(store, vaults, workspaces, rand.Reader), allow, clock, rand.Reader, nil),
 		hostKeys: hostkey.NewService(unreliable, workspaces, clock),
 	}
 }

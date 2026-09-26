@@ -2,8 +2,13 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 
+	"github.com/google/uuid"
+
+	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 )
 
 // workspaceDTO converts a workspace and the caller's role to its public representation.
@@ -43,14 +48,18 @@ func (s *server) GetWorkspace(ctx context.Context, request GetWorkspaceRequestOb
 }
 
 // memberDTO converts a member to its public representation.
-func memberDTO(m workspace.Member) Member {
-	return Member{UserId: m.UserID, Email: m.Email, Role: MemberRole(m.Role), JoinedAt: m.JoinedAt}
+func memberDTO(m workspace.Member, sealed bool) Member {
+	state := Waiting
+	if sealed {
+		state = Sealed
+	}
+	return Member{UserId: m.UserID, Email: m.Email, Role: MemberRole(m.Role), JoinedAt: m.JoinedAt, KeyState: state}
 }
 
 // CreateWorkspace creates a team workspace owned by the signed-in user.
 func (s *server) CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error) {
 	p, _ := principalFrom(ctx)
-	created, err := s.deps.Workspaces.CreateTeam(ctx, p.User.ID, request.Body.Name)
+	created, err := s.deps.Keys.CreateTeam(ctx, p.User.ID, vaultKey(p), request.Body.Name)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
@@ -64,6 +73,16 @@ func (s *server) CreateWorkspace(ctx context.Context, request CreateWorkspaceReq
 func (s *server) ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	list, err := s.deps.Workspaces.Members(ctx, p.User.ID, request.WorkspaceId)
+	if err == nil {
+		err = s.deps.Keys.Complete(ctx, p.User.ID, request.WorkspaceId, vaultKey(p))
+	}
+	if errors.Is(err, vault.ErrLocked) || errors.Is(err, wskey.ErrPending) {
+		err = nil
+	}
+	var sealed map[uuid.UUID]bool
+	if err == nil {
+		sealed, err = s.deps.Keys.Sealed(ctx, p.User.ID, request.WorkspaceId)
+	}
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
@@ -72,7 +91,7 @@ func (s *server) ListMembers(ctx context.Context, request ListMembersRequestObje
 	}
 	out := make(ListMembers200JSONResponse, 0, len(list))
 	for _, m := range list {
-		out = append(out, memberDTO(m))
+		out = append(out, memberDTO(m, sealed[m.UserID]))
 	}
 	return out, nil
 }

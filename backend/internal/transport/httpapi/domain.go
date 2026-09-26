@@ -16,7 +16,9 @@ import (
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 )
 
 // domainProblem is the answer to a operation that failed for a reason the client can act on.
@@ -146,6 +148,8 @@ var domainProblems = []struct {
 	{workspace.ErrPersonal, http.StatusConflict, "personal_workspace"},
 	{workspace.ErrMemberNotFound, http.StatusNotFound, "member_not_found"},
 	{workspace.ErrInvalidRole, http.StatusUnprocessableEntity, "invalid_role"},
+	{vault.ErrLocked, http.StatusConflict, "vault_locked"},
+	{wskey.ErrPending, http.StatusConflict, "workspace_key_pending"},
 	{workspace.ErrOwnerBound, http.StatusConflict, "owner_bound"},
 	{workspace.ErrAlreadyMember, http.StatusConflict, "already_member"},
 	{invite.ErrNotFound, http.StatusNotFound, "invitation_not_found"},

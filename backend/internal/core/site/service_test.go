@@ -196,6 +196,7 @@ type keys struct {
 	dek     []byte
 	session string
 	failure error
+	version int
 }
 
 // Key returns the key of the unlocked session.
@@ -207,6 +208,24 @@ func (k keys) Key(session string) ([]byte, error) {
 		return nil, vault.ErrLocked
 	}
 	return append([]byte(nil), k.dek...), nil
+}
+
+// Current returns the key of the unlocked session at version 1, or at the configured version.
+func (k keys) Current(_ context.Context, _, _ uuid.UUID, session string) ([]byte, int, error) {
+	key, err := k.Key(session)
+	return key, max(k.version, 1), err
+}
+
+// Version returns the key of the unlocked session whatever the version.
+func (k keys) Version(_ context.Context, _, _ uuid.UUID, session string, _ int) ([]byte, error) {
+	return k.Key(session)
+}
+
+// Unlocked reports whether the session is the unlocked one and no failure is configured.
+func (k keys) Unlocked(session string) bool {
+	key, err := k.Key(session)
+	vault.Wipe(key)
+	return err == nil
 }
 
 // fixture bundles a service with its fakes and actors.

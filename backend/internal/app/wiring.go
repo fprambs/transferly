@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 	"github.com/fprambs/sentinel/internal/transport/webui"
 )
@@ -76,7 +77,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 
 	hostKeys := hostkey.NewService(store, workspaces, system)
 	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)
-	sites := site.NewService(store, workspaces, vaults, policy, system, rand.Reader, nil)
+	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
+	sites := site.NewService(store, workspaces, keys, policy, system, rand.Reader, nil)
 	hub := events.New(eventBuffer)
 	activityLog := activity.NewService(store, system, cfg.ActivityRetention, nil)
 	transfers := transfer.NewService(store, hub, system, transfer.Config{OnFinish: transferLogger(activityLog, logger), Limits: scheduler.Limits{
@@ -98,6 +100,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Auth:        authService,
 			Workspaces:  workspaces,
 			Vault:       vaults,
+			Keys:        keys,
 			Sites:       sites,
 			HostKeys:    hostKeys,
 			Connections: pool,

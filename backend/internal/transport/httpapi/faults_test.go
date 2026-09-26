@@ -25,6 +25,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
 )
 
@@ -154,12 +155,21 @@ func (f *failingWorkspaces) CreateWorkspace(ctx context.Context, w workspace.Wor
 	return f.Store.CreateWorkspace(ctx, w)
 }
 
+// CreateTeam fails when configured to.
+func (f *failingWorkspaces) CreateTeam(ctx context.Context, w workspace.Workspace, sealed []byte) error {
+	if f.failCreate {
+		return errInjected
+	}
+	return f.Store.CreateTeam(ctx, w, sealed)
+}
+
 // withFailingWorkspaces replaces the workspace service by one over a store with injected failures.
 func withFailingWorkspaces(configure func(*failingWorkspaces)) func(*httpapi.Deps) {
 	return func(d *httpapi.Deps) {
 		f := &failingWorkspaces{Store: d.Readiness.(*postgres.Store)}
 		configure(f)
 		d.Workspaces = workspace.NewService(f, realClock{}, nil)
+		d.Keys = wskey.NewService(f, d.Vault, d.Workspaces, rand.Reader)
 	}
 }
 
@@ -186,6 +196,9 @@ func TestWorkspaceFailures(t *testing.T) {
 
 	toggle.failList = false
 	personal := list.personal(cookie)
+	if r := list.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, csrf(list, cookie)); r.Status != http.StatusCreated {
+		t.Fatalf("vault setup = %d %s", r.Status, r.Body)
+	}
 	toggle.failCreate = true
 	expectProblem(t, list.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "Team"}, cookie, csrf(list, cookie)), 500, "internal_error")
 	toggle.failWorkspace = true
@@ -265,7 +278,7 @@ func (brokenSites) DeleteSite(context.Context, uuid.UUID, uuid.UUID) error { ret
 func TestSiteFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
 		store := brokenSites{d.Readiness.(*postgres.Store)}
-		d.Sites = site.NewService(store, d.Workspaces, d.Vault, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
+		d.Sites = site.NewService(store, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
 	})
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -454,7 +467,7 @@ func (brokenCollections) DeleteCollection(context.Context, uuid.UUID, uuid.UUID)
 //   - listing, creating, updating and deleting answer 500 when the store fails
 func TestCollectionFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
-		d.Sites = site.NewService(brokenCollections{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Vault, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
+		d.Sites = site.NewService(brokenCollections{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
 	})
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -518,4 +531,46 @@ func TestInvitationFailures(t *testing.T) {
 	second, _ := joining.invite("owner", "second@example.com", "viewer")
 	flaky.failCreateSession = true
 	expectProblem(t, joining.anonymous("/api/v1/invitations/join", map[string]string{"token": second.Token, "password": adminPassword}), 500, "internal_error")
+}
+
+// brokenKeys is a key store whose key pair reads fail on demand.
+type brokenKeys struct {
+	*postgres.Store
+	fail *atomic.Bool
+}
+
+// UserKeys fails when configured to.
+func (b brokenKeys) UserKeys(ctx context.Context, id uuid.UUID) (wskey.UserKeys, error) {
+	if b.fail.Load() {
+		return wskey.UserKeys{}, errInjected
+	}
+	return b.Store.UserKeys(ctx, id)
+}
+
+// TestVaultKeyFailures verifies that a failure to prepare the key pair after the vault opened is a 500 problem.
+//
+// Scenarios:
+//   - setting up, unlocking and recovering the vault each answer 500 when the key pair cannot be read
+func TestVaultKeyFailures(t *testing.T) {
+	broken := &atomic.Bool{}
+	a := newAPI(t, func(d *httpapi.Deps) {
+		d.Keys = wskey.NewService(brokenKeys{d.Readiness.(*postgres.Store), broken}, d.Vault, d.Workspaces, rand.Reader)
+	})
+	cookie, token := a.setup()
+	setup := a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, token)
+	var created struct {
+		RecoveryKit string `json:"recoveryKit"`
+	}
+	mustDecode(t, setup.Body, &created)
+	if setup.Status != http.StatusCreated || created.RecoveryKit == "" {
+		t.Fatalf("setup = %d %s", setup.Status, setup.Body)
+	}
+
+	broken.Store(true)
+	a.vaultCall("/lock", nil, cookie, token)
+	expectProblem(t, a.vaultCall("/unlock", map[string]string{"masterPassword": masterPassword}, cookie, token), 500, "internal_error")
+	expectProblem(t, a.vaultCall("/recover", map[string]string{"recoveryKit": created.RecoveryKit, "newPassword": newMaster}, cookie, token), 500, "internal_error")
+
+	other, _ := a.signIn("other@example.com")
+	expectProblem(t, a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, other, csrf(a, other)), 500, "internal_error")
 }

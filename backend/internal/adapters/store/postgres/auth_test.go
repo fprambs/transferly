@@ -19,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/sentinel/internal/core/wskey"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
 
@@ -132,6 +133,39 @@ func second[T any](_ T, err error) error { return err }
 func TestWorkspaceStore_Conformance(t *testing.T) {
 	storetest.RunWorkspace(t, func(t *testing.T) storetest.WorkspaceStore { return openMigrated(t) })
 }
+
+// TestKeyStore_Conformance runs the shared workspace key store suite against Postgres.
+func TestKeyStore_Conformance(t *testing.T) {
+	storetest.RunKeys(t, func(t *testing.T) storetest.KeyStore { return openMigrated(t) })
+}
+
+// TestKeyStore_ReportsDatabaseFailures verifies that every key operation returns the database error instead of hiding it, using a
+// store whose connection pool is closed.
+func TestKeyStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"UserKeys":    second(store.UserKeys(ctx, id)),
+		"SetUserKeys": second(store.SetUserKeys(ctx, id, wskey.UserKeys{})),
+		"KeyState":    second3(store.KeyState(ctx, id)),
+		"Grant":       second(store.Grant(ctx, id, id, 1)),
+		"AddGrant":    store.AddGrant(ctx, id, id, 1, nil),
+		"Ungranted":   second(store.Ungranted(ctx, id, 1)),
+		"Granted":     second(store.Granted(ctx, id, 1)),
+		"CreateTeam":  store.CreateTeam(ctx, workspace.Workspace{ID: id, OwnerID: id}, nil),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, wskey.ErrNoKeys) || errors.Is(err, wskey.ErrPending) || errors.Is(err, workspace.ErrNotFound) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// second3 returns the error of a call that also returns two values.
+func second3[A, B any](_ A, _ B, err error) error { return err }
 
 // TestInviteStore_Conformance runs the shared invitation store suite against Postgres.
 func TestInviteStore_Conformance(t *testing.T) {

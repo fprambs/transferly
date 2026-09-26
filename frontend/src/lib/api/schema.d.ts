@@ -146,7 +146,10 @@ export interface paths {
         /** Workspaces the signed-in user belongs to, with their role in each */
         get: operations["listWorkspaces"];
         put?: never;
-        /** Create a team workspace owned by the signed-in user */
+        /**
+         * Create a team workspace owned by the signed-in user
+         * @description Needs the vault unlocked (409 vault_locked), because the workspace gets a key of its own sealed with the public key of its owner, whose key pair is created on the way when it does not exist yet.
+         */
         post: operations["createWorkspace"];
         delete?: never;
         options?: never;
@@ -180,7 +183,7 @@ export interface paths {
         };
         /**
          * Members of a team workspace
-         * @description Any member may read the list. Personal workspaces have no members to list and answer 409 personal_workspace.
+         * @description Any member may read the list. Personal workspaces have no members to list and answer 409 personal_workspace. When the caller has the vault unlocked and holds the workspace key, it is first sealed for the members that have set up their vault since.
          */
         get: operations["listMembers"];
         put?: never;
@@ -1349,6 +1352,11 @@ export interface components {
             name: string;
         };
         Member: {
+            /**
+             * @description sealed when the member holds a copy of the workspace key. waiting when they have none yet, because they have not set up their vault; a member with an unlocked vault hands it over the next time they open the workspace.
+             * @enum {string}
+             */
+            keyState: "sealed" | "waiting";
             /** Format: uuid */
             userId: string;
             email: string;
