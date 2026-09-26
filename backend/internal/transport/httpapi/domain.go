@@ -167,6 +167,7 @@ var domainProblems = []struct {
 	{transfer.ErrNotQueued, http.StatusConflict, "transfer_not_queued"},
 	{transfer.ErrInvalidPriority, http.StatusUnprocessableEntity, "invalid_priority"},
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
+	{files.ErrArchiveTooLarge, http.StatusUnprocessableEntity, "archive_too_large"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
 	{remotefs.ErrNotEmpty, http.StatusConflict, "directory_not_empty"},
@@ -205,3 +206,6 @@ func asProblem(err error) (domainProblem, bool) {
 
 // VisitCreateCopyResponse implements [CreateCopyResponseObject].
 func (p domainProblem) VisitCreateCopyResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitDownloadArchiveResponse implements [DownloadArchiveResponseObject].
+func (p domainProblem) VisitDownloadArchiveResponse(w http.ResponseWriter) error { return p.write(w) }

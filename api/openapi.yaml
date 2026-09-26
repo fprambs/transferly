@@ -1086,6 +1086,80 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/archive:
+    get:
+      operationId: downloadArchive
+      security:
+        - sessionCookie: []
+      summary: Download a remote folder as a ZIP file
+      description: >-
+        Streams the files of the folder and its subfolders as a ZIP attachment, produced as it is read from the server.
+        Links and special files are left out. The size is not known in advance, so the answer has no length and cannot be
+        resumed; a folder beyond the limits of an archive fails once the stream started, which leaves the ZIP incomplete and
+        the transfer as failed.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/RemotePath"
+        - $ref: "#/components/parameters/TransferIdQuery"
+      responses:
+        "200":
+          description: The ZIP file.
+          headers:
+            X-Transfer-Id:
+              schema:
+                type: string
+                format: uuid
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/content:
     get:
       operationId: downloadFile

@@ -265,9 +265,11 @@ func (k *Tracker) Finish(err error, code string) {
 // finishingBody ends the transfer when a download stream is closed.
 type finishingBody struct {
 	io.ReadCloser
-	k       *Tracker
-	code    func(error) string
-	readErr error
+	k        *Tracker
+	code     func(error) string
+	untilEOF bool
+	readErr  error
+	eof      bool
 }
 
 // Read reads from the stream, stops when the transfer was canceled and remembers a failure.
@@ -277,20 +279,22 @@ func (b *finishingBody) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	n, err := b.ReadCloser.Read(p)
-	if err != nil && !errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) {
+		b.eof = true
+	} else if err != nil {
 		b.readErr = err
 	}
 	return n, err
 }
 
-// Close closes the stream and ends the transfer: done when every byte was read, failed when reading failed,
+// Close closes the stream and ends the transfer: done when every byte was read (or, for a stream of unknown size, when its end was reached), failed when reading failed,
 // interrupted when the reader stopped early.
 func (b *finishingBody) Close() error {
 	err := b.ReadCloser.Close()
 	switch {
 	case b.readErr != nil:
 		b.k.Finish(b.readErr, b.code(b.readErr))
-	case b.k.Complete():
+	case b.k.Complete() || (b.untilEOF && b.eof):
 		b.k.Finish(nil, "")
 	default:
 		b.k.Finish(ErrIncomplete, "")
@@ -301,4 +305,10 @@ func (b *finishingBody) Close() error {
 // Download wraps a download stream so that closing it ends the transfer. code turns a failure into its stable code.
 func (k *Tracker) Download(body io.ReadCloser, code func(error) string) io.ReadCloser {
 	return &finishingBody{ReadCloser: body, k: k, code: code}
+}
+
+// Stream is like [Tracker.Download] for a stream whose size is not known in advance, such as an archive: it is done when
+// the reader reached the end of the stream.
+func (k *Tracker) Stream(body io.ReadCloser, code func(error) string) io.ReadCloser {
+	return &finishingBody{ReadCloser: body, k: k, code: code, untilEOF: true}
 }

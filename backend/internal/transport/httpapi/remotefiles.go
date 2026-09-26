@@ -176,16 +176,16 @@ func (s *server) siteOf(ctx context.Context, t files.Target) (uuid.UUID, string,
 	return found.ID, found.Name, err
 }
 
-// track records a transfer of the site's file. The record is created only after the request was authorized, so
+// track records a transfer of the site's file, shown under label. The record is created only after the request was authorized, so
 // refused requests leave no trace.
-func (s *server) track(ctx context.Context, t files.Target, direction transfer.Direction, p string, id *TransferIdQuery, total, offset int64) (*transfer.Tracker, context.Context, error) {
+func (s *server) track(ctx context.Context, t files.Target, direction transfer.Direction, p, label string, id *TransferIdQuery, total, offset int64) (*transfer.Tracker, context.Context, error) {
 	siteID, name, err := s.siteOf(ctx, t)
 	if err != nil {
 		return nil, nil, err
 	}
 	in := transfer.BeginInput{
 		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, Route: t.Site, SiteName: name, Direction: direction,
-		Path: p, Name: path.Base(p), Total: total, Offset: offset,
+		Path: p, Name: label, Total: total, Offset: offset,
 	}
 	if id != nil {
 		in.ID = uuid.UUID(*id)
@@ -216,7 +216,7 @@ func (s *server) DownloadFile(ctx context.Context, request DownloadFileRequestOb
 			return downloadFailure(err)
 		}
 		var err error
-		if tracker, ctx, err = s.track(ctx, t, transfer.Download, request.Params.Path, request.Params.TransferId, -1, 0); err != nil {
+		if tracker, ctx, err = s.track(ctx, t, transfer.Download, request.Params.Path, path.Base(request.Params.Path), request.Params.TransferId, -1, 0); err != nil {
 			return downloadFailure(err)
 		}
 		t.Observer = tracker
@@ -297,7 +297,7 @@ func (s *server) UploadFile(ctx context.Context, request UploadFileRequestObject
 	if err := s.deps.Files.Check(ctx, t, workspace.ActionUpload, request.Params.Path); err != nil {
 		return uploadFailure(err)
 	}
-	tracker, runCtx, err := s.track(ctx, t, transfer.Upload, request.Params.Path, request.Params.TransferId, size, offset)
+	tracker, runCtx, err := s.track(ctx, t, transfer.Upload, request.Params.Path, path.Base(request.Params.Path), request.Params.TransferId, size, offset)
 	if err != nil {
 		return uploadFailure(err)
 	}
@@ -309,4 +309,36 @@ func (s *server) UploadFile(ctx context.Context, request UploadFileRequestObject
 	}
 	id := tracker.ID()
 	return UploadFile201JSONResponse{Body: remoteEntryDTO(entry), Headers: UploadFile201ResponseHeaders{XTransferId: &id}}, nil
+}
+
+// DownloadArchive streams a remote folder as a ZIP file and records the transfer.
+func (s *server) DownloadArchive(ctx context.Context, request DownloadArchiveRequestObject) (DownloadArchiveResponseObject, error) {
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	if err := s.deps.Files.Check(ctx, t, workspace.ActionDownload, request.Params.Path); err != nil {
+		return archiveFailure(err)
+	}
+	tracker, runCtx, err := s.track(ctx, t, transfer.Download, request.Params.Path, path.Base(request.Params.Path)+".zip", request.Params.TransferId, -1, 0)
+	if err != nil {
+		return archiveFailure(err)
+	}
+	t.Observer = tracker
+	archive, err := s.deps.Files.Archive(runCtx, t, request.Params.Path)
+	if err != nil {
+		tracker.Finish(err, problemCode(err))
+		return archiveFailure(err)
+	}
+	id := tracker.ID()
+	disposition := attachment(archive.Name + ".zip")
+	return DownloadArchive200ApplicationzipResponse{
+		Body:    tracker.Stream(archive.Body, problemCode),
+		Headers: DownloadArchive200ResponseHeaders{ContentDisposition: &disposition, XTransferId: &id},
+	}, nil
+}
+
+// archiveFailure answers an archive that could not start: with its problem, or as an internal error.
+func archiveFailure(err error) (DownloadArchiveResponseObject, error) {
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	return nil, err
 }

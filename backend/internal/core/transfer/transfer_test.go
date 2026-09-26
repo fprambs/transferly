@@ -525,6 +525,7 @@ func (f failingBody) Close() error { return f.closeErr }
 //   - closing early is interrupted, and a read error is failed with its code
 //   - a canceled transfer stops the reads with the cancellation and ends as canceled
 //   - the error of closing the stream is returned
+//   - a stream of unknown size is done once its end was read, interrupted when closed before it, and failed by a read error
 func TestTracker_Download(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture()
@@ -581,6 +582,27 @@ func TestTracker_Download(t *testing.T) {
 	_ = stream.Close()
 	if got := f.store.stored(canceled.ID()); got.Status != transfer.Canceled {
 		t.Errorf("canceled download = %+v", got)
+	}
+
+	for name, want := range map[string]transfer.Status{"/whole": transfer.Done, "/cut": transfer.Interrupted} {
+		unknown, _ := begin(name)
+		stream := unknown.Stream(failingBody{Reader: strings.NewReader("archive")}, code)
+		if want == transfer.Done {
+			_, _ = io.ReadAll(stream)
+		} else {
+			_, _ = stream.Read(make([]byte, 2))
+		}
+		_ = stream.Close()
+		if got := f.store.stored(unknown.ID()); got.Status != want {
+			t.Errorf("stream %s = %+v; want %s", name, got, want)
+		}
+	}
+	brokenStream, _ := begin("/broken-stream")
+	failedStream := brokenStream.Stream(failingBody{Reader: io.MultiReader(strings.NewReader("ar"), errReader{errStore})}, code)
+	_, _ = io.ReadAll(failedStream)
+	_ = failedStream.Close()
+	if got := f.store.stored(brokenStream.ID()); got.Status != transfer.Failed {
+		t.Errorf("stream with a read error = %+v", got)
 	}
 
 	closing, _ := begin("/closing")
