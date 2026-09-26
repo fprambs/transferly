@@ -14,6 +14,8 @@ const policies: readonly CopyPolicy[] = ['skip', 'rename', 'newer', 'overwrite',
 
 /** Props of {@link CopyPolicyDialog}. */
 export interface CopyPolicyDialogProps {
+  /** The policies to offer, best default first; all of them when left out. */
+  allowed?: readonly CopyPolicy[]
   /** Name of the file or folder being copied. */
   name: string
   /** Called with the policy the user chose. */
@@ -23,9 +25,9 @@ export interface CopyPolicyDialogProps {
 }
 
 /** Asks what to do with the files that already exist at the destination of a copy. */
-export function CopyPolicyDialog({ name, onConfirm, onCancel }: CopyPolicyDialogProps) {
+export function CopyPolicyDialog({ allowed = policies, name, onConfirm, onCancel }: CopyPolicyDialogProps) {
   const { t } = useTranslation('explorer')
-  const [policy, setPolicy] = useState<CopyPolicy>('skip')
+  const [policy, setPolicy] = useState<CopyPolicy>(allowed[0])
 
   return (
     <Dialog open onOpenChange={onCancel}>
@@ -35,7 +37,7 @@ export function CopyPolicyDialog({ name, onConfirm, onCancel }: CopyPolicyDialog
           <DialogDescription>{t(($) => $.policy.body)}</DialogDescription>
         </DialogHeader>
         <NativeSelect aria-label={t(($) => $.policy.label)} value={policy} onChange={(event) => setPolicy(event.target.value as CopyPolicy)}>
-          {policies.map((option) => (
+          {policies.filter((option) => allowed.includes(option)).map((option) => (
             <option key={option} value={option}>
               {t(($) => $.policy[option])}
             </option>

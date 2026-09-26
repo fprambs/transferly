@@ -239,8 +239,12 @@ test.describe('explorer', () => {
     await page.goto(`/sites/${quickId}?path=%2Fupload`)
     const row = page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(name) })
     await row.click()
-    await page.getByRole('button', { name: 'Hide transfers' }).click()
-    await expect(page.locator('#queue-body')).toBeHidden()
+    await expect(async () => {
+      if (await page.locator('#queue-body').isVisible()) {
+        await page.getByRole('button', { name: 'Hide transfers' }).click()
+      }
+      await expect(page.locator('#queue-body')).toBeHidden({ timeout: 1000 })
+    }).toPass()
     const client = await page.context().newCDPSession(page)
     await client.send('Network.enable')
     await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: 400 * 1024, uploadThroughput: -1 })

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { FakeDir, handleOf, offerPicker, withdrawPicker } from '@/test/fake-local'
 
-import { listLocal, LocalNameTaken, localSupported, openLocalDirectory, pickLocalDirectory, readLocalFile, saveToLocal } from './local-fs'
+import { freeLocalName, listLocal, LocalNameTaken, localNameExists, makeLocalDirectory, localSupported, openLocalDirectory, pickLocalDirectory, readLocalFile, saveToLocal } from './local-fs'
 
 /** A stream that delivers text. */
 function streamOf(text: string): ReadableStream<Uint8Array> {
@@ -35,6 +35,7 @@ function brokenStream(): ReadableStream<Uint8Array> {
  * Scenarios:
  * - the picker is detected, and a folder chosen by the user is returned, while a closed dialog gives `null` and other failures are thrown
  * - folders are opened below the root, files are listed with their kind, size and time, and paths are absolute below the root
+ * - names are checked against a folder, the first free numbered name is found with or without an extension, and folders are created or reused but never over a file
  * - a file is read by its path, and a missing one fails
  * - a stream is saved as a new file, an existing file or folder of that name is refused and left alone, and a failing stream leaves no partial file
  */
@@ -101,5 +102,30 @@ describe('local folder access', () => {
     await expect(saveToLocal(handleOf(root), '/', 'broken.txt', brokenStream())).rejects.toThrow()
 
     expect(root.children.has('broken.txt')).toBe(false)
+  })
+
+  it('checks names, finds free ones and makes folders', async () => {
+    const root = new FakeDir('root').withFile('a.txt').withFile('a (1).txt').withFile('plain').withFile('.hidden')
+    root.withDir('docs')
+
+    expect(await localNameExists(handleOf(root), '/', 'a.txt')).toBe(true)
+    expect(await localNameExists(handleOf(root), '/', 'docs')).toBe(true)
+    expect(await localNameExists(handleOf(root), '/', 'nothing')).toBe(false)
+    expect(await freeLocalName(handleOf(root), '/', 'a.txt')).toBe('a (2).txt')
+    expect(await freeLocalName(handleOf(root), '/', 'plain')).toBe('plain (1)')
+    expect(await freeLocalName(handleOf(root), '/', '.hidden')).toBe('.hidden (1)')
+
+    await makeLocalDirectory(handleOf(root), '/', 'fresh')
+    await makeLocalDirectory(handleOf(root), '/', 'docs')
+    expect(root.children.has('fresh')).toBe(true)
+    await expect(makeLocalDirectory(handleOf(root), '/', 'a.txt')).rejects.toBeInstanceOf(LocalNameTaken)
+  })
+
+  it('overwrites an existing file only when asked to', async () => {
+    const root = new FakeDir('root').withFile('a.txt', 'old')
+
+    await saveToLocal(handleOf(root), '/', 'a.txt', streamOf('new'), true)
+
+    expect(await (await readLocalFile(handleOf(root), '/a.txt')).text()).toBe('new')
   })
 })

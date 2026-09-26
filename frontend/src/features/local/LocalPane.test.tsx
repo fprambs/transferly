@@ -59,7 +59,17 @@ function payload(siteId: string, path: string, workspaceId = workspace): Record<
 function mockServer(download: () => Response = () => new HttpResponse('downloaded content')): string[] {
   const uploads: string[] = []
   server.use(
-    http.get('/api/v1/workspaces/:id/sites/s1/files', () => HttpResponse.json([remoteFile])),
+    http.get('/api/v1/workspaces/:id/sites/s1/files', ({ request }) => {
+      const path = new URL(request.url).searchParams.get('path')
+      if (path === '/docs') {
+        return HttpResponse.json([{ ...remoteFile, name: 'a.txt', path: '/docs/a.txt' }, { ...remoteFile, name: 'sub', path: '/docs/sub', type: 'directory' }])
+      }
+      return path === '/docs/sub' ? HttpResponse.json([{ ...remoteFile, name: 'b.txt', path: '/docs/sub/b.txt' }]) : HttpResponse.json([remoteFile])
+    }),
+    http.post('/api/v1/workspaces/:id/sites/s1/files/directories', async ({ request }) => {
+      uploads.push(`mkdir ${((await request.json()) as { path: string }).path}`)
+      return HttpResponse.json(remoteFile, { status: 201 })
+    }),
     http.get('/api/v1/workspaces/:id/sites/s1/files/content', () => download()),
     http.put('/api/v1/workspaces/:id/sites/s1/files/content', async ({ request }) => {
       uploads.push(new URL(request.url).searchParams.get('path') as string)
@@ -91,6 +101,8 @@ async function chooseFolder(user: ReturnType<typeof userEvent.setup>, pane: HTML
  * - a folder that cannot be read is reported
  * - a remote file dropped on the pane is downloaded into the folder in view, with a hint while over it, and the listing shows it
  * - a name already in the folder, a refusal of the server, a failing disk and a body that never comes are reported and can be dismissed
+ * - a remote folder dropped on the pane asks for a policy and is saved whole in the folder in view, and the files that could not be saved are listed
+ * - a local folder dragged onto the remote pane asks for a policy and is uploaded whole, and one that is too big is explained
  * - drops that carry a local file, another workspace, garbage or arrive before a folder was chosen do nothing
  * - a local file dragged onto the remote pane is uploaded, and one that cannot be read is reported
  */
@@ -140,7 +152,7 @@ describe('local folder pane', () => {
     const grid = await within(pane).findByRole('grid')
     expect(within(grid).getByText('notes.txt')).toBeInTheDocument()
     expect(within(pane).getByText('2 items')).toBeInTheDocument()
-    expect(within(grid).getByText('photos').closest('[role="row"]')).toHaveAttribute('draggable', 'false')
+    expect(within(grid).getByText('photos').closest('[role="row"]')).toHaveAttribute('draggable', 'true')
 
     await user.dblClick(within(grid).getByText('photos'))
     expect(await within(await within(pane).findByRole('grid')).findByText('cat.png')).toBeInTheDocument()
@@ -305,4 +317,75 @@ describe('local folder pane', () => {
     expect(await within(remote).findByRole('alert')).toHaveTextContent('The copy could not start: Something went wrong. Try again.')
     expect(uploads).toEqual([])
   })
+
+  it('saves a dropped remote folder whole and lists the files that could not be saved', async () => {
+    mockServer()
+    const root = new FakeDir('Documents')
+    root.withDir('docs').withFile('a.txt', 'mine')
+    offerPicker(root)
+    const user = userEvent.setup()
+    const { pane } = await openLocalPane()
+    await chooseFolder(user, pane)
+    await within(pane).findByText('docs')
+    const section = pane.querySelector('section') as HTMLElement
+    const folder = drag({ [entryDragType]: JSON.stringify({ workspaceId: workspace, siteId: 's1', path: '/docs', isFolder: true }) })
+
+    fireEvent.drop(section, { dataTransfer: folder })
+    const dialog = await screen.findByRole('dialog', { name: 'Copy docs' })
+    expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(['Skip it', 'Keep both, renaming the copy', 'Overwrite it', 'Stop with an error'])
+    await user.selectOptions(within(dialog).getByRole('combobox', { name: 'If a file exists' }), 'Stop with an error')
+    await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
+
+    const alert = await within(pane).findByRole('alert')
+    expect(alert).toHaveTextContent('Some files could not be saved')
+    expect(alert).toHaveTextContent('a.txt: An item with this name already exists.')
+    await user.click(within(alert).getByRole('button', { name: 'Dismiss' }))
+
+    fireEvent.drop(section, { dataTransfer: folder })
+    await user.click(within(await screen.findByRole('dialog', { name: 'Copy docs' })).getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(within(pane).queryByRole('alert')).not.toBeInTheDocument())
+    await waitFor(() => expect(((root.children.get('docs') as FakeDir).children.get('sub') as FakeDir | undefined)?.children.has('b.txt')).toBe(true))
+    expect(new TextDecoder().decode(((root.children.get('docs') as FakeDir).children.get('a.txt') as { content: Uint8Array }).content)).toBe('mine')
+
+    fireEvent.drop(section, { dataTransfer: folder })
+    await user.click(within(await screen.findByRole('dialog', { name: 'Copy docs' })).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    const full = root.withDir('docs')
+    full.failWrites = true
+    full.children.delete('a.txt')
+    fireEvent.drop(section, { dataTransfer: folder })
+    await user.click(within(await screen.findByRole('dialog', { name: 'Copy docs' })).getByRole('button', { name: 'Copy' }))
+    expect(await within(pane).findByRole('alert')).toHaveTextContent('a.txt: Something went wrong. Try again.')
+  })
+
+  it('uploads a local folder dragged onto the remote pane, and explains one that is too big', async () => {
+    const calls = mockServer()
+    const root = new FakeDir('Documents')
+    root.withDir('photos').withFile('cat.png', 'meow')
+    const big = root.withDir('big')
+    for (let index = 0; index <= 20_000; index++) {
+      big.withFile(`f${index}`)
+    }
+    offerPicker(root)
+    const user = userEvent.setup()
+    const { pane } = await openLocalPane()
+    await chooseFolder(user, pane)
+    const remote = screen.getAllByRole('region', { name: 'Files' })[0]
+    const rowOf = async (name: string) => (await within(pane).findByText(name)).closest('[role="row"]') as HTMLElement
+    const dragTo = (row: HTMLElement) => {
+      const data = drag()
+      fireEvent.dragStart(row, { dataTransfer: data })
+      fireEvent.drop(remote, { dataTransfer: data })
+    }
+
+    dragTo(await rowOf('photos'))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Copy photos' })).getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(calls).toContain('/photos/cat.png'))
+    expect(calls[0]).toBe('mkdir /photos')
+
+    dragTo(await rowOf('big'))
+    expect(await within(remote).findByRole('alert', undefined, { timeout: 10_000 })).toHaveTextContent('This folder is too big to copy or archive')
+  }, 20_000)
 })
+

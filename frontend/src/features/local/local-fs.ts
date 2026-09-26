@@ -71,6 +71,33 @@ export async function readLocalFile(root: FileSystemDirectoryHandle, path: strin
 }
 
 /** Tells whether a folder already holds a file or folder with a name. */
+export async function localNameExists(root: FileSystemDirectoryHandle, path: string, name: string): Promise<boolean> {
+  return exists(await openLocalDirectory(root, path), name)
+}
+
+/** Returns the first name of the form `name (n).ext` that the folder does not use. */
+export async function freeLocalName(root: FileSystemDirectoryHandle, path: string, name: string): Promise<string> {
+  const directory = await openLocalDirectory(root, path)
+  const dot = name.lastIndexOf('.') > 0 ? name.lastIndexOf('.') : name.length
+  for (let n = 1; ; n++) {
+    const candidate = `${name.slice(0, dot)} (${n})${name.slice(dot)}`
+    if (!(await exists(directory, candidate))) {
+      return candidate
+    }
+  }
+}
+
+/** Creates a folder below the root, or uses the one that exists; a file with that name is refused. */
+export async function makeLocalDirectory(root: FileSystemDirectoryHandle, path: string, name: string): Promise<void> {
+  const directory = await openLocalDirectory(root, path)
+  try {
+    await directory.getDirectoryHandle(name, { create: true })
+  } catch {
+    throw new LocalNameTaken(name)
+  }
+}
+
+/** Tells whether a folder already holds a file or folder with a name. */
 async function exists(directory: FileSystemDirectoryHandle, name: string): Promise<boolean> {
   for (const lookup of [() => directory.getFileHandle(name), () => directory.getDirectoryHandle(name)]) {
     try {
@@ -86,10 +113,10 @@ async function exists(directory: FileSystemDirectoryHandle, name: string): Promi
 /** The name the folder already uses, so nothing of the user's is overwritten. */
 export class LocalNameTaken extends Error {}
 
-/** Writes a stream to a new file in a folder below the root; an existing name is refused and a failure leaves no partial file. */
-export async function saveToLocal(root: FileSystemDirectoryHandle, path: string, name: string, data: ReadableStream<Uint8Array>): Promise<void> {
+/** Writes a stream to a file in a folder below the root; an existing name is refused unless overwriting was asked for, and a failure leaves no partial file. */
+export async function saveToLocal(root: FileSystemDirectoryHandle, path: string, name: string, data: ReadableStream<Uint8Array>, overwrite = false): Promise<void> {
   const directory = await openLocalDirectory(root, path)
-  if (await exists(directory, name)) {
+  if (!overwrite && (await exists(directory, name))) {
     throw new LocalNameTaken(name)
   }
   const writable = await (await directory.getFileHandle(name, { create: true })).createWritable()

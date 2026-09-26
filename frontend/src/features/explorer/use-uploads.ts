@@ -4,10 +4,15 @@ import type { Api } from '@/lib/api/use-api'
 import { ApiError } from '@/lib/transport'
 import { uuid } from '@/lib/uuid'
 
+import type { UploadTree } from '../local/tree'
 import { forgetUpload, rememberUpload } from '../transfers/upload-sources'
 
+import { freeName } from './free-name'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
 import { joinPath } from './entries'
+
+/** What to do with a file that already exists when a folder is uploaded. */
+export type TreePolicy = 'skip' | 'overwrite' | 'rename' | 'fail'
 
 /** A file that could not be uploaded, and why. */
 export interface UploadFailure {
@@ -29,6 +34,8 @@ export interface UploadConflict {
 export interface Uploads {
   /** Uploads files one after another into the folder in view. */
   upload: (files: readonly File[]) => Promise<void>
+  /** Uploads a folder, with everything below it, into the folder in view; the policy says what to do with files that exist. */
+  uploadFolder: (tree: UploadTree, policy: TreePolicy) => Promise<void>
   /** Files that failed since the list was last cleared. */
   failures: UploadFailure[]
   /** The file that needs an overwrite decision, if any. */
@@ -111,5 +118,74 @@ export function useUploads({ api, workspaceId, siteId, path, onUploaded }: Uploa
     }
   }
 
-  return { upload, failures, conflict, clearFailures: () => setFailures([]) }
+  const fail = (name: string, error: unknown): void => setFailures((current) => [...current, { name, key: explorerErrorKeyOf(error) }])
+
+  const exists = async (target: string): Promise<boolean> => {
+    try {
+      await api.files.stat(workspaceId, siteId, target)
+      return true
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'path_not_found') {
+        return false
+      }
+      throw error
+    }
+  }
+
+  const sendTo = async (file: File, target: string, mode: 'create' | 'overwrite'): Promise<void> => {
+    const transferId = uuid()
+    rememberUpload(transferId, { file, workspaceId, siteId })
+    await api.files.upload(workspaceId, siteId, target, file, { mode, transferId, size: file.size })
+    forgetUpload(transferId)
+  }
+
+  const ensureFolder = async (target: string): Promise<void> => {
+    try {
+      await api.files.mkdir(workspaceId, siteId, target)
+    } catch (error) {
+      if (!isExisting(error)) {
+        throw error
+      }
+    }
+  }
+
+  const uploadFolder = async (tree: UploadTree, policy: TreePolicy): Promise<void> => {
+    const base = joinPath(path, tree.name)
+    try {
+      await ensureFolder(base)
+      for (const dir of tree.dirs) {
+        await ensureFolder(joinPath(base, dir))
+      }
+    } catch (error) {
+      fail(tree.name, error)
+      return
+    }
+    for (const { path: relative, file } of tree.files) {
+      const target = joinPath(base, relative)
+      try {
+        try {
+          await sendTo(file, target, policy === 'overwrite' ? 'overwrite' : 'create')
+        } catch (error) {
+          if (!isExisting(error) || policy === 'fail') {
+            throw error
+          }
+          if (policy === 'rename') {
+            const renamed = await freeName(exists, target)
+            if (renamed === undefined) {
+              throw new ApiError({ type: 'about:blank', title: 'Conflict', status: 409, code: 'path_exists' })
+            }
+            await sendTo(file, renamed, 'create')
+          }
+        }
+      } catch (error) {
+        fail(relative, error)
+        if (policy === 'fail') {
+          break
+        }
+      }
+    }
+    await onUploaded()
+  }
+
+  return { upload, uploadFolder, failures, conflict, clearFailures: () => setFailures([]) }
 }

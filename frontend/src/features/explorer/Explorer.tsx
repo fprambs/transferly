@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, FolderPlus, RefreshCw, ShieldQuestion, Upload } from 'lucide-react'
+import { ArrowUp, FolderPlus, FolderUp, RefreshCw, ShieldQuestion, Upload } from 'lucide-react'
 import { useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -18,9 +18,11 @@ import { useSitesData } from '../sites/use-sites-data'
 import { Breadcrumbs } from './Breadcrumbs'
 import { localSiteId, readLocalFile } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
+import { readDropped, treeFromHandle, treeFromInput, TreeTooLarge, type UploadTree } from '../local/tree'
 import { collectFiles, eachDelayMs, maxEachFiles, startDownload, TooManyFiles } from './download'
 import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from './entry-drag'
 import { CopyPolicyDialog, type CopyPolicy } from './CopyPolicyDialog'
+import type { TreePolicy } from './use-uploads'
 import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
@@ -61,9 +63,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [dragging, setDragging] = useState<'upload' | 'copy' | null>(null)
   const [each, setEach] = useState<{ count: number } | ExplorerErrorKey | 'tooMany' | null>(null)
+  const [folders, setFolders] = useState<UploadTree[]>([])
   const [asking, setAsking] = useState<{ source: DraggedEntry; name: string } | null>(null)
   const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
   const picker = useRef<HTMLInputElement>(null)
+  const folderPicker = useRef<HTMLInputElement>(null)
   const listing = useQuery({
     queryKey: filesKey(workspaceId, siteId, path),
     queryFn: () => api.files.list(workspaceId, siteId, path),
@@ -135,11 +139,15 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
     }
     const local = useLocalRoot.getState().root
     if (source.siteId === localSiteId) {
-      if (local !== null && !source.isFolder) {
+      if (local !== null) {
         try {
-          await uploads.upload([await readLocalFile(local, source.path)])
-        } catch {
-          setCopyFailure('unknown')
+          if (source.isFolder) {
+            setFolders([await treeFromHandle(local, source.path)])
+          } else {
+            await uploads.upload([await readLocalFile(local, source.path)])
+          }
+        } catch (error) {
+          setCopyFailure(error instanceof TreeTooLarge ? 'tree_too_large' : 'unknown')
         }
       }
       return
@@ -161,7 +169,24 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       }
       return
     }
-    void uploads.upload(Array.from(event.dataTransfer.files))
+    void readDropped(event.dataTransfer)
+      .then((dropped) => {
+        if (dropped.folders.length > 0) {
+          setFolders(dropped.folders)
+        }
+        return uploads.upload(dropped.files)
+      })
+      .catch((error: unknown) => setCopyFailure(error instanceof TreeTooLarge ? 'tree_too_large' : 'unknown'))
+  }
+
+  const uploadFolders = (policy: TreePolicy): void => {
+    const pending = folders
+    setFolders([])
+    void (async () => {
+      for (const tree of pending) {
+        await uploads.uploadFolder(tree, policy)
+      }
+    })()
   }
 
   const dragEntry = (entry: RemoteEntry, data: DataTransfer): void =>
@@ -182,14 +207,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       }}
       onDragLeave={() => setDragging(null)}
       onDrop={drop}
-      className="relative flex min-h-0 flex-1 flex-col"
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col"
     >
       {dragging !== null ? (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
           {dragging === 'copy' ? t(($) => $.copy.dropHint) : t(($) => $.upload.dropHint)}
         </div>
       ) : null}
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b px-3">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={path === '/'} onClick={() => onNavigate(parentPath(path))}>
           <ArrowUp />
         </Button>
@@ -209,6 +234,24 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
           <Upload />
           {t(($) => $.toolbar.upload)}
+        </Button>
+        <input
+          ref={folderPicker}
+          type="file"
+          hidden
+          aria-label={t(($) => $.upload.folderInput)}
+          {...{ webkitdirectory: '' }}
+          onChange={(event) => {
+            const tree = treeFromInput(Array.from(event.target.files as FileList))
+            if (tree !== null) {
+              setFolders([tree])
+            }
+            event.target.value = ''
+          }}
+        />
+        <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (folderPicker.current as HTMLInputElement).click()}>
+          <FolderUp />
+          {t(($) => $.upload.folder)}
         </Button>
         <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
           <FolderPlus />
@@ -262,6 +305,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         </div>
       ) : null}
       {uploads.conflict === null ? null : <UploadConflictDialog conflict={uploads.conflict} />}
+      {folders.length === 0 ? null : (
+        <CopyPolicyDialog
+          allowed={['skip', 'rename', 'overwrite', 'fail']}
+          name={folders.map((tree) => tree.name).join(', ')}
+          onCancel={() => setFolders([])}
+          onConfirm={(policy) => uploadFolders(policy as TreePolicy)}
+        />
+      )}
       {asking === null ? null : (
         <CopyPolicyDialog
           name={asking.name}

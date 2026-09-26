@@ -102,7 +102,9 @@
     "conflictBody": "¿Sobrescribir el archivo del servidor con el que elegiste?",
     "overwrite": "Sobrescribir",
     "skip": "Omitir",
-    "fileInput": "Elegir archivos para subir"
+    "fileInput": "Elegir archivos para subir",
+    "folder": "Subir carpeta",
+    "folderInput": "Elige una carpeta para subir"
   },
   "connecting": {
     "title": "Conectando con {{name}}…",
@@ -130,7 +132,8 @@
     "failure": "No se pudo guardar el archivo",
     "empty": "Esta carpeta está vacía.",
     "readFailure": "No se pudo leer la carpeta.",
-    "dropHint": "Suelta aquí para guardar el archivo en esta carpeta"
+    "dropHint": "Suelta aquí para guardar el archivo en esta carpeta",
+    "saveFailures": "No se pudieron guardar algunos archivos"
   },
   "archive": {
     "working": "Iniciando la descarga de {{count}} archivos…",

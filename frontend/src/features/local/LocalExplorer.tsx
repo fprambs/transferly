@@ -12,11 +12,13 @@ import { cn } from '@/lib/utils'
 
 import { Breadcrumbs } from '../explorer/Breadcrumbs'
 import { EntryTable } from '../explorer/EntryTable'
+import { CopyPolicyDialog } from '../explorer/CopyPolicyDialog'
 import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from '../explorer/entry-drag'
 import { parentPath, sortEntries } from '../explorer/entries'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from '../explorer/errors'
 import { resolveTimeZone } from '@/lib/datetime'
 
+import { downloadFolderToLocal, type LocalPolicy, type SaveFailure } from './download-tree'
 import { listLocal, LocalNameTaken, localSiteId, localSupported, pickLocalDirectory, saveToLocal } from './local-fs'
 import { useLocalRoot } from './local-root-store'
 
@@ -47,6 +49,8 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
   const setRoot = useLocalRoot((state) => state.setRoot)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [asking, setAsking] = useState<DraggedEntry | null>(null)
+  const [folderFailures, setFolderFailures] = useState<SaveFailure[]>([])
   const [failure, setFailure] = useState<ExplorerErrorKey | 'localFailure' | null>(null)
   const listing = useQuery({
     queryKey: ['local', version, path],
@@ -68,7 +72,11 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
 
   const save = async (source: DraggedEntry): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
-    if (root === null || source.isFolder || source.siteId === localSiteId || source.workspaceId !== workspaceId) {
+    if (root === null || source.siteId === localSiteId || source.workspaceId !== workspaceId) {
+      return
+    }
+    if (source.isFolder) {
+      setAsking(source)
       return
     }
     try {
@@ -79,6 +87,20 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
     } catch (error) {
       setFailure(error instanceof LocalNameTaken ? 'path_exists' : error instanceof ApiError ? explorerErrorKeyOf(error) : 'localFailure')
     }
+  }
+
+  const saveFolder = async (source: DraggedEntry, policy: LocalPolicy): Promise<void> => {
+    const failures = await downloadFolderToLocal({
+      api,
+      workspaceId,
+      siteId: source.siteId,
+      source: source.path,
+      root: root as FileSystemDirectoryHandle,
+      destination: path,
+      policy,
+    })
+    setFolderFailures(failures)
+    await reload()
   }
 
   const drop = (event: DragEvent<HTMLElement>): void => {
@@ -99,14 +121,14 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={drop}
-      className="relative flex min-h-0 flex-1 flex-col"
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col"
     >
       {dragging ? (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
           {t(($) => $.local.dropHint)}
         </div>
       ) : null}
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b px-3">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={root === null || path === '/'} onClick={() => onNavigate(parentPath(path))}>
           <ArrowUp />
         </Button>
@@ -131,6 +153,35 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
           </Button>
         </div>
       )}
+      {folderFailures.length === 0 ? null : (
+        <div role="alert" className="mx-3 mt-3 flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <p className="font-medium text-destructive">{t(($) => $.local.saveFailures)}</p>
+          <ul className="list-disc ps-5">
+            {folderFailures.map((item, index) => {
+              const key = item.key === 'localFailure' ? 'unknown' : item.key
+              return (
+                <li key={`${item.name}-${index}`}>
+                  <span className="font-mono">{item.name}</span>: {t(($) => $.errors[key])}
+                </li>
+              )
+            })}
+          </ul>
+          <Button variant="outline" size="sm" className="self-start" onClick={() => setFolderFailures([])}>
+            {t(($) => $.copy.dismiss)}
+          </Button>
+        </div>
+      )}
+      {asking === null ? null : (
+        <CopyPolicyDialog
+          allowed={['skip', 'rename', 'overwrite', 'fail']}
+          name={asking.path.slice(asking.path.lastIndexOf('/') + 1)}
+          onCancel={() => setAsking(null)}
+          onConfirm={(policy) => {
+            setAsking(null)
+            void saveFolder(asking, policy as LocalPolicy)
+          }}
+        />
+      )}
       <LoadingBar active={listing.isFetching} label={t(($) => $.opening, { path })} />
       {!localSupported() && <p role="status" className="p-4 text-sm text-muted-foreground">{t(($) => $.local.unsupported)}</p>}
       {localSupported() && root === null && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.local.hint)}</p>}
@@ -152,7 +203,8 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
             showPermissions={false}
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
-            onDragEntry={(entry, data) => writeDrag(data, { workspaceId, siteId: localSiteId, path: entry.path, isFolder: false })}
+            dragFolders
+            onDragEntry={(entry, data) => writeDrag(data, { workspaceId, siteId: localSiteId, path: entry.path, isFolder: entry.type === 'directory' })}
           />
         </div>
       )}
