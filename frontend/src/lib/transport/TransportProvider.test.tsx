@@ -29,6 +29,7 @@ describe('TransportProvider', () => {
       health: () => Promise.resolve({ status: 'ok' }),
       ready: () => Promise.resolve({ status: 'ok' }),
       request: () => Promise.resolve(undefined as never),
+      stream: () => Promise.resolve(new ReadableStream<Uint8Array>()),
       url: (path) => path,
       events: () => () => undefined,
       setCsrfToken: () => undefined,

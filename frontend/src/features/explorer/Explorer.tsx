@@ -16,6 +16,8 @@ import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { Breadcrumbs } from './Breadcrumbs'
+import { localSiteId, readLocalFile } from '../local/local-fs'
+import { useLocalRoot } from '../local/local-root-store'
 import { startDownload } from './download'
 import { isEntryDrag, readDrag, writeDrag } from './entry-drag'
 import { UploadConflictDialog } from './UploadConflictDialog'
@@ -92,6 +94,17 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const copyHere = async (source: { workspaceId: string; siteId: string; path: string }): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
     if (source.workspaceId !== workspaceId || (source.siteId === siteId && parentPath(source.path) === path)) {
+      return
+    }
+    const local = useLocalRoot.getState().root
+    if (source.siteId === localSiteId) {
+      if (local !== null) {
+        try {
+          await uploads.upload([await readLocalFile(local, source.path)])
+        } catch {
+          setCopyFailure('unknown')
+        }
+      }
       return
     }
     try {

@@ -34,14 +34,14 @@ export interface EntryTableProps {
   selectedPath: string | null
   /** Called when the selection moves to an entry. */
   onSelect: (entry: RemoteEntry) => void
-  /** Called to download a file from the context menu. */
-  onDownload: (entry: RemoteEntry) => void
-  /** Called to rename an entry: F2 or the context menu. */
-  onRename: (entry: RemoteEntry) => void
-  /** Called to delete an entry: Delete or the context menu. */
-  onDelete: (entry: RemoteEntry) => void
-  /** Called to create a folder from the context menu. */
-  onNewFolder: () => void
+  /** Called to download a file from the context menu; the item is left out without it. */
+  onDownload?: (entry: RemoteEntry) => void
+  /** Called to rename an entry: F2 or the context menu; both are left out without it. */
+  onRename?: (entry: RemoteEntry) => void
+  /** Called to delete an entry: Delete or the context menu; both are left out without it. */
+  onDelete?: (entry: RemoteEntry) => void
+  /** Called to create a folder from the context menu; the item is left out without it. */
+  onNewFolder?: () => void
   /** Called when the user starts dragging a file, to put what it carries in the drag data. */
   onDragEntry: (entry: RemoteEntry, data: DataTransfer) => void
 }
@@ -96,6 +96,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
   })
   const current = resolveSelection(entries, selectedPath)
   const active = entries[current]
+  const menuItems = active.type === 'directory' || onDownload || onRename || onDelete || onNewFolder
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Enter') {
@@ -108,12 +109,12 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
       onUp()
       return
     }
-    if (event.key === 'F2') {
+    if (event.key === 'F2' && onRename) {
       event.preventDefault()
       onRename(active)
       return
     }
-    if (event.key === 'Delete') {
+    if (event.key === 'Delete' && onDelete) {
       event.preventDefault()
       onDelete(active)
       return
@@ -188,14 +189,16 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
         })}
       </div>
       </ContextMenuTrigger>
-      <ContextMenuContent aria-label={t(($) => $.menu.label)} className="min-w-44">
-        {active.type === 'directory' && <ContextMenuItem onClick={() => onOpen(active)}>{t(($) => $.menu.open)}</ContextMenuItem>}
-        {active.type === 'file' && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.download)}</ContextMenuItem>}
-        <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>
-        <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={onNewFolder}>{t(($) => $.menu.newFolder)}</ContextMenuItem>
-      </ContextMenuContent>
+      {menuItems ? (
+        <ContextMenuContent aria-label={t(($) => $.menu.label)} className="min-w-44">
+          {active.type === 'directory' && <ContextMenuItem onClick={() => onOpen(active)}>{t(($) => $.menu.open)}</ContextMenuItem>}
+          {active.type === 'file' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.download)}</ContextMenuItem>}
+          {onRename && <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>}
+          {onDelete && <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>}
+          {onNewFolder && <ContextMenuSeparator />}
+          {onNewFolder && <ContextMenuItem onClick={onNewFolder}>{t(($) => $.menu.newFolder)}</ContextMenuItem>}
+        </ContextMenuContent>
+      ) : null}
     </ContextMenu>
   )
 }

@@ -114,5 +114,17 @@
     "failure": "The copy could not start",
     "dismiss": "Dismiss",
     "dropHint": "Drop here to copy the file"
+  },
+  "local": {
+    "option": "Local folder",
+    "choose": "Choose a folder",
+    "change": "Change folder",
+    "hint": "Pick a folder of this computer to browse it here and drag files to and from your servers.",
+    "unsupported": "This browser cannot open folders of your computer. Use Chrome, Edge or another Chromium browser.",
+    "pane": "Local folder",
+    "failure": "The file could not be saved",
+    "empty": "This folder is empty.",
+    "readFailure": "The folder could not be read.",
+    "dropHint": "Drop here to save the file in this folder"
   }
 }

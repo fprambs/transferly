@@ -114,5 +114,17 @@
     "failure": "No se pudo iniciar la copia",
     "dismiss": "Cerrar",
     "dropHint": "Suelta aquí para copiar el archivo"
+  },
+  "local": {
+    "option": "Carpeta local",
+    "choose": "Elegir una carpeta",
+    "change": "Cambiar de carpeta",
+    "hint": "Elige una carpeta de este equipo para verla aquí y arrastrar archivos desde y hacia tus servidores.",
+    "unsupported": "Este navegador no puede abrir carpetas de tu equipo. Usa Chrome, Edge u otro navegador basado en Chromium.",
+    "pane": "Carpeta local",
+    "failure": "No se pudo guardar el archivo",
+    "empty": "Esta carpeta está vacía.",
+    "readFailure": "No se pudo leer la carpeta.",
+    "dropHint": "Suelta aquí para guardar el archivo en esta carpeta"
   }
 }

@@ -104,6 +104,23 @@ export class HttpTransport implements Transport {
     return (await this.parse(response)) as T
   }
 
+  /** Performs a GET call and returns the body as a stream, with the session cookie. */
+  async stream(request: ApiRequest): Promise<ReadableStream<Uint8Array>> {
+    let response: Response
+    try {
+      response = await this.send(this.url(request.path, request.query), { method: 'GET', signal: request.signal })
+    } catch {
+      throw new ApiError({ type: 'about:blank', title: 'Network Error', status: 0, code: 'network_error' })
+    }
+    if (!response.ok) {
+      throw new ApiError(await readProblem(response))
+    }
+    if (response.body === null) {
+      throw new ApiError({ type: 'about:blank', title: 'Invalid Response', status: response.status, code: 'invalid_response' })
+    }
+    return response.body
+  }
+
   /** Calls `GET /healthz`. */
   async health(): Promise<HealthStatus> {
     return this.readStatus(await this.get('/healthz'))

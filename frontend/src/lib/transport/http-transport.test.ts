@@ -147,17 +147,38 @@ function recorder(make: () => Response | Error) {
 }
 
 /**
- * Covers the `request`, `url` and `setCsrfToken` methods of {@link HttpTransport}.
+ * Covers the `request`, `stream`, `url` and `setCsrfToken` methods of {@link HttpTransport}.
  *
  * Scenarios:
  * - a JSON call sends the body as JSON, accepts JSON and returns the parsed answer
  * - the anti-CSRF token is sent with changes, never with reads, and can be forgotten
  * - binary bodies (blobs, buffers, typed arrays) are sent as they are, not as JSON
  * - problem documents become an ApiError, network failures a `network_error`, and answers without a body resolve empty
+ * - a stream call returns the body of the answer and reports problems, network failures and answers without a body
  * - the URL joins the base URL, the path and the encoded query, leaving out undefined values
  * - the abort signal is passed to fetch
  */
 describe('HttpTransport.request', () => {
+  it('streams the body of a GET answer', async () => {
+    const { fetchStub, inits, urls } = recorder(() => new Response('file bytes'))
+    const stream = await new HttpTransport({ baseUrl: 'http://api.test', fetch: fetchStub }).stream({ method: 'GET', path: '/f', query: { path: '/a' } })
+
+    expect(await new Response(stream).text()).toBe('file bytes')
+    expect(urls).toEqual(['http://api.test/f?path=%2Fa'])
+    expect(inits[0]).toMatchObject({ method: 'GET' })
+  })
+
+  it('reports the problem, the network failure and the missing body of a stream', async () => {
+    const failing = recorder(() => jsonResponse({ type: 'about:blank', title: 'Not found', status: 404, code: 'path_not_found' }, 404, 'application/problem+json'))
+    await expect(new HttpTransport({ fetch: failing.fetchStub }).stream({ method: 'GET', path: '/f' })).rejects.toMatchObject({ code: 'path_not_found' })
+
+    const offline = recorder(() => new TypeError('offline'))
+    await expect(new HttpTransport({ fetch: offline.fetchStub }).stream({ method: 'GET', path: '/f' })).rejects.toMatchObject({ code: 'network_error' })
+
+    const empty = recorder(() => new Response(null, { status: 204 }))
+    await expect(new HttpTransport({ fetch: empty.fetchStub }).stream({ method: 'GET', path: '/f' })).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
   it('sends JSON and returns the parsed answer', async () => {
     const { fetchStub, inits, urls } = recorder(() => jsonResponse({ id: 1 }, 200))
     const transport = new HttpTransport({ baseUrl: 'http://api.test', fetch: fetchStub })

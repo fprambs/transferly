@@ -30,14 +30,16 @@ test.describe('split view', () => {
     const made = await request.post(`${savedFiles}/directories`, { headers, data: { path: `/upload/${folder}` } })
     expect(made.ok()).toBe(true)
     const content = 'copied between panes\n'
+    const source = `e2e-source-${stamp}`
+    expect((await request.post(`${quickFiles}/directories`, { headers, data: { path: `/upload/${source}` } })).ok()).toBe(true)
     const upload = await request.put(`${quickFiles}/content`, {
-      params: { path: `/upload/${name}`, mode: 'overwrite' },
+      params: { path: `/upload/${source}/${name}`, mode: 'overwrite' },
       data: Buffer.from(content),
       headers: { ...headers, 'Content-Type': 'application/octet-stream' },
     })
     expect(upload.ok()).toBe(true)
 
-    await page.goto(`/sites/${quickId}?path=%2Fupload`)
+    await page.goto(`/sites/${quickId}?path=%2Fupload%2F${source}`)
     await page.getByRole('button', { name: 'Split view' }).click()
     const second = page.getByRole('group', { name: 'Second pane' })
     await second.getByRole('combobox', { name: 'Site of the second pane' }).selectOption({ label: `split-${stamp}` })
@@ -47,9 +49,9 @@ test.describe('split view', () => {
     await secondGrid.getByRole('row', { name: new RegExp(folder) }).dblclick()
     await expect(second.getByRole('button', { name: folder, exact: true })).toHaveAttribute('aria-current', 'page')
 
-    const source = page.getByRole('grid', { name: 'Files' }).first().getByRole('row', { name: new RegExp(name) })
-    await expect(source).toBeVisible()
-    await source.dragTo(second.locator('section'))
+    const row = page.getByRole('grid', { name: 'Files' }).first().getByRole('row', { name: new RegExp(name) })
+    await expect(row).toBeVisible()
+    await row.dragTo(second.locator('section'))
 
     const dock = page.getByRole('region', { name: 'Transfers' })
     await dock.getByRole('tab', { name: /Finished/ }).click()
@@ -58,7 +60,7 @@ test.describe('split view', () => {
     const copy = await request.get(`${savedFiles}/content`, { params: { path: `/upload/${folder}/${name}` } })
     expect(await copy.text()).toBe(content)
 
-    for (const [files, path] of [[quickFiles, `/upload/${name}`], [savedFiles, `/upload/${folder}`]] as const) {
+    for (const [files, path] of [[quickFiles, `/upload/${source}`], [savedFiles, `/upload/${folder}`]] as const) {
       await request.delete(files, { params: { path, recursive: true }, headers })
     }
     await request.delete(`/api/v1/workspaces/${workspace}/sites/${siteId}`, { headers })

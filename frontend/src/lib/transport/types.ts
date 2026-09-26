@@ -60,6 +60,11 @@ export interface Transport {
    * Failures are thrown as {@link ApiError}.
    */
   request<T>(request: ApiRequest): Promise<T>
+  /**
+   * Performs a GET call and returns the body of the answer as a stream of bytes, as file downloads need it.
+   * Failures, and answers without a body, are thrown as {@link ApiError}.
+   */
+  stream(request: ApiRequest): Promise<ReadableStream<Uint8Array>>
   /** Returns the URL of a path, for links the browser follows itself such as downloads. */
   url(path: string, query?: ApiQuery): string
   /**

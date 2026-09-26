@@ -159,6 +159,14 @@ describe('createApi', () => {
     expect(seen[0]?.query).toBe('?path=%2Ff')
   })
 
+  it('streams a download with the transfer identifier in the query', async () => {
+    recordEverything()
+
+    await client().api.files.download(ws, site, '/a b', 't1')
+
+    expect(seen[0]).toMatchObject({ method: 'GET', path: `${files}/content`, query: '?path=%2Fa+b&transferId=t1' })
+  })
+
   it('builds download URLs without calling the server', () => {
     const { api } = client()
 
