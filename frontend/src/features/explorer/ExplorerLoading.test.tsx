@@ -92,7 +92,7 @@ describe('explorer loading', () => {
       http.get('/api/v1/workspaces/:id/sites/s1/files', async ({ request }) => {
         const path = new URL(request.url).searchParams.get('path')
         if (path === '/www/assets') {
-          await delay(400)
+          await delay(1000)
           return HttpResponse.json([entry('/www/assets', 'logo.svg')])
         }
         return HttpResponse.json([entry('/www', 'assets', 'directory')])

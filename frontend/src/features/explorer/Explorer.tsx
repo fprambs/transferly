@@ -31,7 +31,7 @@ import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
 import { joinPath, parentPath, resolveSelection, sortEntries } from './entries'
-import { filesKey } from './files-key'
+import { filesKey, filesPrefix, listingFreshMs, listingKeepMs } from './files-key'
 
 /** The dialog that is open over the explorer. */
 type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry }
@@ -69,6 +69,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const listing = useQuery({
     queryKey: filesKey(workspaceId, siteId, path),
     queryFn: () => api.files.list(workspaceId, siteId, path),
+    staleTime: listingFreshMs,
+    gcTime: listingKeepMs,
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[3] === siteId ? previous : undefined),
   })
   const opening = listing.isFetching && listing.isPlaceholderData
@@ -90,7 +92,18 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
     await listing.refetch()
   }
 
-  const reload = (): Promise<void> => queryClient.invalidateQueries({ queryKey: filesKey(workspaceId, siteId, path) })
+  const reload = (): Promise<void> => queryClient.invalidateQueries({ queryKey: filesPrefix(workspaceId, siteId) })
+
+  const prefetch = (entry: RemoteEntry): void => {
+    if (entry.type === 'directory') {
+      void queryClient.prefetchQuery({
+        queryKey: filesKey(workspaceId, siteId, entry.path),
+        queryFn: () => api.files.list(workspaceId, siteId, entry.path),
+        staleTime: listingFreshMs,
+        gcTime: listingKeepMs,
+      })
+    }
+  }
 
   const uploads = useUploads({ api, workspaceId, siteId, path, onUploaded: reload })
 
@@ -365,6 +378,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             showPermissions={showPermissions}
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
+            onHover={prefetch}
             onDownload={download}
             onDownloadEach={(entry) => void downloadEach(entry)}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}

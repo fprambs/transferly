@@ -34,6 +34,8 @@ export interface EntryTableProps {
   selectedPath: string | null
   /** Called when the selection moves to an entry. */
   onSelect: (entry: RemoteEntry) => void
+  /** Called when the pointer rests on an entry, so what opening it needs can be fetched ahead. */
+  onHover?: (entry: RemoteEntry) => void
   /** Called to download a file, or a folder as a ZIP, from the context menu; the item is left out without it. */
   onDownload?: (entry: RemoteEntry) => void
   /** Called to download the files of a folder one by one from the context menu; the item is left out without it. */
@@ -88,7 +90,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -167,6 +169,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, showPermis
               onClick={() => onSelect(entry)}
               onContextMenu={() => onSelect(entry)}
               onDoubleClick={() => onOpen(entry)}
+              onMouseEnter={() => onHover?.(entry)}
               draggable={entry.type === 'file' || (dragFolders === true && entry.type === 'directory')}
               onDragStart={(event) => onDragEntry(entry, event.dataTransfer)}
               style={{ height: rowHeight, transform: `translateY(${item.start - rowHeight}px)` }}
