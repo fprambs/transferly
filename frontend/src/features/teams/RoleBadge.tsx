@@ -6,9 +6,9 @@ import type { Role } from './roles'
 
 /** Colors of each role; they differ in lightness as well as hue so they can be told apart without color. */
 const tones: Readonly<Record<Role, string>> = {
-  owner: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  admin: 'bg-violet-500/15 text-violet-700 dark:text-violet-300',
-  editor: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+  owner: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  admin: 'bg-violet-500/15 text-violet-800 dark:text-violet-300',
+  editor: 'bg-sky-500/15 text-sky-800 dark:text-sky-300',
   viewer: 'bg-muted text-muted-foreground',
 }
 
