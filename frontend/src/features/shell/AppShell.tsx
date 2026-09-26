@@ -5,6 +5,7 @@ import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { TopBar } from '@/features/topbar/TopBar'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import { TransfersDock } from '@/features/transfers/TransfersDock'
+import { useAccountTheme } from '@/features/settings/use-account-theme'
 import { useTransferStream } from '@/features/transfers/use-transfer-stream'
 
 
@@ -13,6 +14,7 @@ export function AppShell() {
   const explorer = useTranslation('explorer').t
   const navigate = useNavigate()
   useTransferStream()
+  useAccountTheme()
 
   return (
     <div className="flex min-h-svh flex-col">

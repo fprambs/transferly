@@ -70,3 +70,16 @@ export function mockWorkspaceData({ workspaces = [personalWorkspace], collection
 export function mockVault(status: VaultStatus = { initialized: true, unlocked: true }): void {
   server.use(http.get('/api/v1/vault', () => HttpResponse.json(status)))
 }
+
+/** Answers `PATCH /me`, echoing the account with the preferences it received; the bodies are recorded in the returned list. */
+export function mockUpdateMe(): unknown[] {
+  const received: unknown[] = []
+  server.use(
+    http.patch('/api/v1/me', async ({ request }) => {
+      const body = (await request.json()) as Record<string, string>
+      received.push(body)
+      return HttpResponse.json({ ...adminSession.user, ...body })
+    }),
+  )
+  return received
+}

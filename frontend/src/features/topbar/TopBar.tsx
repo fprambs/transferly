@@ -1,13 +1,11 @@
 import { useTranslation } from 'react-i18next'
 
-import { LanguageSelect } from '../shell/LanguageSelect'
-import { ThemeSelect } from '../shell/ThemeSelect'
 import { VaultChip } from '../vault/VaultChip'
 
 import { UserMenu } from './UserMenu'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
-/** Top bar of the shell: brand, workspace, vault state, preferences and the account menu. */
+/** Top bar of the shell: brand, workspace, vault state and the account menu. */
 export function TopBar() {
   const { t } = useTranslation('shell')
   const { t: common } = useTranslation()
@@ -23,8 +21,6 @@ export function TopBar() {
       </div>
       <WorkspaceSwitcher />
       <div className="flex-1" />
-      <ThemeSelect />
-      <LanguageSelect />
       <VaultChip />
       <UserMenu />
     </header>

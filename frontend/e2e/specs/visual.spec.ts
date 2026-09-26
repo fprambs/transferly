@@ -14,6 +14,7 @@ const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
  *
  * Scenarios:
  * - the sites tree is masked because the tests that run beside this one fill it with their own collections
+ * - the settings page in the default dark theme and the default light theme
  * - the shell in the default theme in English and Spanish, and in the light, Monokai and Nord themes
  *
  * Baselines are generated and compared only inside the official Playwright container.
@@ -28,6 +29,16 @@ test.describe('visual', () => {
         animations: 'disabled',
         mask: [page.getByRole('tree')],
       })
+    })
+  }
+
+  for (const theme of ['sentinel-dark', 'sentinel-light'] as const) {
+    test(`settings in en with the ${theme} theme`, async ({ shell, page }) => {
+      await shell.setTheme(theme)
+      await page.goto('/settings')
+      await expect(page.getByRole('radiogroup')).toBeVisible()
+
+      await expect(page).toHaveScreenshot(`settings-en-${theme}.png`, { animations: 'disabled', mask: [page.getByRole('tree')] })
     })
   }
 })

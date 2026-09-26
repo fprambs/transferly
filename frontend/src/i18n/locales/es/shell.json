@@ -22,13 +22,5 @@
     "empty": "No hay transferencias",
     "show": "Mostrar transferencias",
     "hide": "Ocultar transferencias"
-  },
-  "theme": {
-    "label": "Tema",
-    "followSystem": "Seguir al sistema",
-    "groups": {
-      "dark": "Oscuros",
-      "light": "Claros"
-    }
   }
 }

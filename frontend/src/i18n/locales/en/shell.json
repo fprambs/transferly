@@ -22,13 +22,5 @@
     "empty": "No transfers",
     "show": "Show transfers",
     "hide": "Hide transfers"
-  },
-  "theme": {
-    "label": "Theme",
-    "followSystem": "Follow the system",
-    "groups": {
-      "dark": "Dark",
-      "light": "Light"
-    }
   }
 }

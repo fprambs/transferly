@@ -9,6 +9,7 @@ import enQuick from './locales/en/quick.json'
 import enTransfers from './locales/en/transfers.json'
 import enVault from './locales/en/vault.json'
 import enSites from './locales/en/sites.json'
+import enSettings from './locales/en/settings.json'
 import enShell from './locales/en/shell.json'
 import esAuth from './locales/es/auth.json'
 import esCommon from './locales/es/common.json'
@@ -17,6 +18,7 @@ import esQuick from './locales/es/quick.json'
 import esTransfers from './locales/es/transfers.json'
 import esVault from './locales/es/vault.json'
 import esSites from './locales/es/sites.json'
+import esSettings from './locales/es/settings.json'
 import esShell from './locales/es/shell.json'
 
 /** Languages the interface is translated into. English is the source language. */
@@ -30,8 +32,8 @@ export const defaultNS = 'common'
 
 /** Translation resources by language and namespace. */
 export const resources = {
-  en: { auth: enAuth, common: enCommon, explorer: enExplorer, quick: enQuick, shell: enShell, sites: enSites, transfers: enTransfers, vault: enVault },
-  es: { auth: esAuth, common: esCommon, explorer: esExplorer, quick: esQuick, shell: esShell, sites: esSites, transfers: esTransfers, vault: esVault },
+  en: { auth: enAuth, common: enCommon, explorer: enExplorer, quick: enQuick, settings: enSettings, shell: enShell, sites: enSites, transfers: enTransfers, vault: enVault },
+  es: { auth: esAuth, common: esCommon, explorer: esExplorer, quick: esQuick, settings: esSettings, shell: esShell, sites: esSites, transfers: esTransfers, vault: esVault },
 } as const
 
 /** Subset of an i18next instance needed to describe the document language. */

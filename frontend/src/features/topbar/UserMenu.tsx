@@ -17,6 +17,7 @@ function initialsOf(email: string): string {
 /** Avatar of the top bar with the account menu: who is signed in and how to sign out. */
 export function UserMenu() {
   const { t } = useTranslation('shell')
+  const { t: settings } = useTranslation('settings')
   const api = useApi()
   const transport = useTransport()
   const queryClient = useQueryClient()
@@ -35,6 +36,9 @@ export function UserMenu() {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="truncate">{session?.user.email}</DropdownMenuLabel>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void navigate({ to: '/settings' })}>{settings(($) => $.menu.settings)}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => void navigate({ to: '/servers' })}>{settings(($) => $.menu.servers)}</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {

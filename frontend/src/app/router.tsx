@@ -9,6 +9,9 @@ import {
 import type { RouterHistory } from '@tanstack/react-router'
 import { z } from 'zod'
 
+import { TrustedServers } from '@/features/servers/TrustedServers'
+import { SettingsPage } from '@/features/settings/SettingsPage'
+import { NotFound } from '@/features/shell/NotFound'
 import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
 import { SiteExplorer } from '@/features/explorer/SiteExplorer'
 import { AppShell } from '@/features/shell/AppShell'
@@ -29,7 +32,7 @@ export interface RouterContext {
 }
 
 /** Root route: renders whatever child matches. */
-const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet })
+const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet, notFoundComponent: NotFound })
 
 /** Layout of everything a signed-in user sees; it sends everybody else to setup or login. */
 const shellRoute = createRoute({
@@ -48,6 +51,12 @@ const shellRoute = createRoute({
 
 /** Home of a signed-in user: no site is open yet. */
 const homeRoute = createRoute({ getParentRoute: () => shellRoute, path: '/', component: EmptyExplorer })
+
+/** Settings of the interface. */
+const settingsRoute = createRoute({ getParentRoute: () => shellRoute, path: '/settings', component: SettingsPage })
+
+/** Servers whose key the user trusted. */
+const serversRoute = createRoute({ getParentRoute: () => shellRoute, path: '/servers', component: TrustedServers })
 
 /** A saved site or quick connection, browsed at the folder given by the `path` search parameter. */
 const siteRoute = createRoute({
@@ -87,7 +96,7 @@ const setupRoute = createRoute({
 })
 
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute]), loginRoute, setupRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, settingsRoute, serversRoute]), loginRoute, setupRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

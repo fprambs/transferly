@@ -6,14 +6,10 @@ export type Language = 'en' | 'es'
 /** Identifier of a theme the interface offers, such as `monokai`. */
 export type Theme = string
 
-/** Page object for the application shell: toolbar, sites sidebar, explorer and transfer queue. */
+/** Page object for the application shell: toolbar, sites sidebar, explorer and transfer queue, and the settings page. */
 export class ShellPage {
   /** Level one heading with the product name. */
   readonly heading: Locator
-  /** Language drop-down of the toolbar. */
-  readonly languageSelect: Locator
-  /** Theme drop-down of the toolbar. */
-  readonly themeSelect: Locator
 
   /** The Playwright page this object drives. */
   readonly page: Page
@@ -22,8 +18,6 @@ export class ShellPage {
   constructor(page: Page) {
     this.page = page
     this.heading = page.getByRole('heading', { level: 1 })
-    this.languageSelect = page.locator('#language')
-    this.themeSelect = page.locator('#theme')
   }
 
   /** Opens the application root and waits for the shell to render. */
@@ -32,13 +26,29 @@ export class ShellPage {
     await this.heading.waitFor()
   }
 
-  /** Selects a language in the toolbar. */
-  async setLanguage(language: Language): Promise<void> {
-    await this.languageSelect.selectOption(language)
+  /** Opens the settings page, runs an action there, and returns to the page the test was on. */
+  private async inSettings(action: () => Promise<void>): Promise<void> {
+    const back = this.page.url()
+    await this.page.goto('/settings')
+    await this.page.getByRole('radiogroup').waitFor()
+    await action()
+    await this.page.goto(back)
+    await this.heading.waitFor()
   }
 
-  /** Chooses a theme in the toolbar by its identifier. */
+  /** Selects the interface language in the settings and returns to the page the test was on. */
+  async setLanguage(language: Language): Promise<void> {
+    await this.inSettings(async () => {
+      await this.page.locator('#language-setting').selectOption(language)
+    })
+  }
+
+  /** Chooses a theme by its identifier in the settings, waits for the account to save it, and returns to the page the test was on. */
   async setTheme(theme: Theme): Promise<void> {
-    await this.themeSelect.selectOption(theme)
+    await this.inSettings(async () => {
+      const saved = this.page.waitForResponse((response) => response.url().endsWith('/api/v1/me') && response.request().method() === 'PATCH')
+      await this.page.locator(`[data-theme-option="${theme}"]`).click()
+      await saved
+    })
   }
 }

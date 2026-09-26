@@ -1,0 +1,51 @@
+{
+  "title": "Settings",
+  "appearance": {
+    "title": "Appearance",
+    "description": "Choose how Sentinel looks. The theme is saved to your account and follows you to other browsers.",
+    "followSystem": "Follow the system",
+    "followSystemHint": "Use a light theme by day and a dark one by night, as your operating system does.",
+    "themes": "Themes",
+    "saveFailed": "The theme is applied here, but it could not be saved to your account."
+  },
+  "schemes": {
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "language": {
+    "title": "Language",
+    "label": "Interface language"
+  },
+  "servers": {
+    "title": "Trusted servers",
+    "description": "Servers whose key you accepted. Sentinel warns you if a server ever presents a different key.",
+    "host": "Server",
+    "keyType": "Key type",
+    "fingerprint": "Fingerprint",
+    "firstSeen": "Trusted on",
+    "forget": "Forget",
+    "forgetLabel": "Forget {{host}}",
+    "empty": "No server has been trusted yet.",
+    "loading": "Loading…",
+    "forgetTitle": "Forget this server?",
+    "forgetBody": "{{host}} will ask for confirmation the next time you connect.",
+    "forgetConfirm": "Forget",
+    "cancel": "Cancel",
+    "errors": {
+      "forbidden": "You do not have permission to change this workspace.",
+      "host_key_not_found": "This server key is already gone.",
+      "network_error": "Could not reach the server.",
+      "unknown": "Something went wrong. Try again."
+    },
+    "loadFailed": "The trusted servers could not be loaded."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The address does not lead anywhere in Sentinel.",
+    "home": "Go to the start"
+  },
+  "menu": {
+    "settings": "Settings",
+    "servers": "Trusted servers"
+  }
+}
