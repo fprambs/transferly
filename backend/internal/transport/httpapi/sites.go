@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/site"
 )
@@ -71,6 +72,7 @@ func (s *server) CreateSite(ctx context.Context, request CreateSiteRequestObject
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteCreated, created.Name, map[string]string{"host": created.Host})
 	return CreateSite201JSONResponse(siteDTO(created)), nil
 }
 
@@ -99,12 +101,17 @@ func (s *server) UpdateSite(ctx context.Context, request UpdateSiteRequestObject
 		return nil, err
 	}
 	s.deps.Connections.CloseKey(connections.Key{UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId})
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, updated.Name, map[string]string{"host": updated.Host})
 	return UpdateSite200JSONResponse(siteDTO(updated)), nil
 }
 
 // DeleteSite removes a site and its secrets.
 func (s *server) DeleteSite(ctx context.Context, request DeleteSiteRequestObject) (DeleteSiteResponseObject, error) {
 	p, _ := principalFrom(ctx)
+	name := ""
+	if found, err := s.deps.Sites.Get(ctx, p.User.ID, request.WorkspaceId, request.SiteId); err == nil {
+		name = found.Name
+	}
 	err := s.deps.Sites.Delete(ctx, p.User.ID, request.WorkspaceId, request.SiteId)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
@@ -112,6 +119,7 @@ func (s *server) DeleteSite(ctx context.Context, request DeleteSiteRequestObject
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteDeleted, name, nil)
 	s.deps.Connections.CloseKey(connections.Key{UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId})
 	return DeleteSite204Response{}, nil
 }

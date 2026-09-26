@@ -2,9 +2,11 @@ package httpapi
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 )
 
@@ -27,6 +29,9 @@ func (s *server) ImportFilezilla(ctx context.Context, request ImportFilezillaReq
 	result, err := s.deps.Import.Import(ctx, p.User.ID, request.WorkspaceId, vaultKey(p), servers, skipped, opts)
 	if err != nil {
 		return importFailure(err)
+	}
+	if created := result.Created(); !opts.DryRun && created > 0 {
+		s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesImported, "filezilla", map[string]string{"sites": strconv.Itoa(created)})
 	}
 	out := ImportFilezilla200JSONResponse{DryRun: opts.DryRun, Items: make([]ImportItem, 0, len(result.Items))}
 	for _, item := range result.Items {

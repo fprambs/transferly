@@ -933,3 +933,33 @@ func TestService_RotationFailures(t *testing.T) {
 		t.Error("a random source that ran out sealed a secret again")
 	}
 }
+
+// TestService_OnRotate verifies the hook called after a rotation.
+//
+// Scenarios:
+//   - the hook receives the workspace, the member who rotated and the new version, once per rotation
+//   - a rotation that lost the race to another member does not call it
+func TestService_OnRotate(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	team := e.team(t)
+	type call struct {
+		workspace, actor uuid.UUID
+		version          int
+	}
+	var calls []call
+	e.svc.OnRotate(func(_ context.Context, workspaceID, actor uuid.UUID, version int) {
+		calls = append(calls, call{workspaceID, actor, version})
+	})
+
+	e.store.pending[team] = true
+	if err := e.svc.Complete(ctx, e.alice, team, "alice"); err != nil || len(calls) != 1 || calls[0] != (call{team, e.alice, 2}) {
+		t.Fatalf("Complete() = %v, calls %+v; want one call for version 2", err, calls)
+	}
+	e.store.pending[team] = true
+	e.store.race = true
+	_ = e.svc.Complete(ctx, e.alice, team, "alice")
+	if len(calls) != 1 {
+		t.Errorf("calls = %+v; want the lost race not to call the hook", calls)
+	}
+}

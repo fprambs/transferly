@@ -5,7 +5,10 @@ import (
 	"crypto/rand"
 	"log/slog"
 	"runtime"
+	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/adapters/clock"
 	"github.com/fprambs/sentinel/internal/adapters/events"
@@ -14,6 +17,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -86,6 +90,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		PerUser: cfg.TransferLimits.PerUser, PerSite: cfg.TransferLimits.PerSite,
 	}}, nil)
 	invites := invite.NewService(store, workspaces, store, authService, system, rand.Reader, 0, nil)
+	auditTrail := audit.NewService(store, workspaces, system)
+	keys.OnRotate(rotationLogger(auditTrail, logger))
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
 	pool := connections.New(connect.New(sites, quickConnections, hostKeys, policy, connectTimeout), system, connections.Config{})
 
@@ -109,6 +115,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Activity:    activityLog,
 			Import:      fzimport.NewService(workspaces, sites),
 			Invites:     invites,
+			Audit:       auditTrail,
 			Quick:       quickConnections,
 			Events:      hub,
 			Limits: httpapi.Limits{
@@ -131,6 +138,17 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			{name: "expired invitations", run: invites.PurgeExpired},
 			{name: "expired vault keys", run: func(context.Context) (int, error) { return keyRing.Sweep(), nil }},
 		},
+	}
+}
+
+// rotationLogger returns the hook that adds every rotation of a workspace key to the audit trail; a failure to log is reported but never
+// fails the rotation.
+func rotationLogger(trail *audit.Service, logger *slog.Logger) func(context.Context, uuid.UUID, uuid.UUID, int) {
+	return func(ctx context.Context, workspaceID, actor uuid.UUID, version int) {
+		err := trail.Record(ctx, audit.Event{WorkspaceID: workspaceID, ActorID: actor, Action: audit.KeyRotated, Meta: map[string]string{"version": strconv.Itoa(version)}})
+		if err != nil {
+			logger.WarnContext(ctx, "audit event not recorded", "action", audit.KeyRotated, "error", err)
+		}
 	}
 }
 

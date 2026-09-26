@@ -12,8 +12,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/adapters/clock"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
@@ -128,5 +130,45 @@ func TestTransferLogger(t *testing.T) {
 	transferLogger(log, logger)(ended)
 	if !strings.Contains(logs.String(), "activity entry not written") || !strings.Contains(logs.String(), "disk on fire") {
 		t.Errorf("log = %q; want a warning", logs.String())
+	}
+}
+
+// auditLog is an audit store that keeps what it is given, or fails.
+type auditLog struct {
+	events []audit.Event
+	fail   error
+}
+
+// InsertAudit keeps the event or fails.
+func (a *auditLog) InsertAudit(_ context.Context, e audit.Event) error {
+	a.events = append(a.events, e)
+	return a.fail
+}
+
+// AuditByWorkspace is not used here.
+func (a *auditLog) AuditByWorkspace(context.Context, uuid.UUID, audit.Filter, int) ([]audit.Event, error) {
+	return nil, nil
+}
+
+// TestRotationLogger verifies the hook that logs the rotations of workspace keys.
+//
+// Scenarios:
+//   - a rotation is recorded with its workspace, actor and version
+//   - a failure to record is logged and not returned
+func TestRotationLogger(t *testing.T) {
+	var out strings.Builder
+	logger := slog.New(slog.NewTextHandler(&out, nil))
+	store := &auditLog{}
+	hook := rotationLogger(audit.NewService(store, nil, clock.System{}), logger)
+	ws, actor := uuid.New(), uuid.New()
+
+	hook(t.Context(), ws, actor, 3)
+	if len(store.events) != 1 || store.events[0].WorkspaceID != ws || store.events[0].ActorID != actor || store.events[0].Action != audit.KeyRotated || store.events[0].Meta["version"] != "3" {
+		t.Fatalf("events = %+v", store.events)
+	}
+	store.fail = errors.New("disk on fire")
+	hook(t.Context(), ws, actor, 4)
+	if !strings.Contains(out.String(), "audit event not recorded") || !strings.Contains(out.String(), "disk on fire") {
+		t.Errorf("logs = %q; want the failure", out.String())
 	}
 }

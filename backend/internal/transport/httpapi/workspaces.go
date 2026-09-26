@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/core/wskey"
@@ -66,6 +67,7 @@ func (s *server) CreateWorkspace(ctx context.Context, request CreateWorkspaceReq
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, created.ID, audit.TeamCreated, created.Name, nil)
 	return CreateWorkspace201JSONResponse(workspaceDTO(workspace.Summary{Workspace: created, Role: workspace.RoleOwner})), nil
 }
 
@@ -106,6 +108,7 @@ func (s *server) completeKeys(ctx context.Context, p authenticated, workspaceID 
 // SetMemberRole changes the role of a member.
 func (s *server) SetMemberRole(ctx context.Context, request SetMemberRoleRequestObject) (SetMemberRoleResponseObject, error) {
 	p, _ := principalFrom(ctx)
+	email := s.memberEmail(ctx, p.User.ID, request.WorkspaceId, request.UserId)
 	err := s.deps.Workspaces.SetRole(ctx, p.User.ID, request.WorkspaceId, request.UserId, workspace.Role(request.Body.Role))
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
@@ -113,14 +116,17 @@ func (s *server) SetMemberRole(ctx context.Context, request SetMemberRoleRequest
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.MemberRoleChanged, email, map[string]string{"role": string(request.Body.Role)})
 	return SetMemberRole204Response{}, nil
 }
 
 // RemoveMember removes a member from a team workspace.
 func (s *server) RemoveMember(ctx context.Context, request RemoveMemberRequestObject) (RemoveMemberResponseObject, error) {
 	p, _ := principalFrom(ctx)
+	email := s.memberEmail(ctx, p.User.ID, request.WorkspaceId, request.UserId)
 	err := s.deps.Workspaces.RemoveMember(ctx, p.User.ID, request.WorkspaceId, request.UserId)
 	if err == nil {
+		s.record(ctx, p.User.ID, request.WorkspaceId, audit.MemberRemoved, email, nil)
 		err = s.completeKeys(ctx, p, request.WorkspaceId)
 	}
 	if problem, ok := asProblem(err); ok {
@@ -142,12 +148,14 @@ func (s *server) LeaveWorkspace(ctx context.Context, request LeaveWorkspaceReque
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.MemberLeft, p.User.Email, nil)
 	return LeaveWorkspace204Response{}, nil
 }
 
 // TransferOwnership hands a team workspace to another member.
 func (s *server) TransferOwnership(ctx context.Context, request TransferOwnershipRequestObject) (TransferOwnershipResponseObject, error) {
 	p, _ := principalFrom(ctx)
+	email := s.memberEmail(ctx, p.User.ID, request.WorkspaceId, request.Body.UserId)
 	err := s.deps.Workspaces.TransferOwnership(ctx, p.User.ID, request.WorkspaceId, request.Body.UserId)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
@@ -155,5 +163,6 @@ func (s *server) TransferOwnership(ctx context.Context, request TransferOwnershi
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.OwnershipTransferred, email, nil)
 	return TransferOwnership204Response{}, nil
 }

@@ -91,6 +91,17 @@ type Result struct {
 	Items []Item
 }
 
+// Created counts the sites that were created.
+func (r Result) Created() int {
+	n := 0
+	for _, item := range r.Items {
+		if item.Status == StatusCreated {
+			n++
+		}
+	}
+	return n
+}
+
 // Service imports site managers.
 type Service struct {
 	authz Authorizer

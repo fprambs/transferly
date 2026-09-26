@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -94,6 +96,10 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
+	auditTrail := audit.NewService(store, workspaces, clock)
+	keys.OnRotate(func(ctx context.Context, workspaceID, actor uuid.UUID, version int) {
+		_ = auditTrail.Record(ctx, audit.Event{WorkspaceID: workspaceID, ActorID: actor, Action: audit.KeyRotated, Meta: map[string]string{"version": strconv.Itoa(version)}})
+	})
 	sites := site.NewService(store, workspaces, keys, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil)
 	quickConnections := quick.NewService(workspaces, netguard.NewPolicy(nil, nil), sites, clock, nil)
 	pool := connections.New(newMemConnector(clock, sites, quickConnections), clock, connections.Config{Attempts: 1})
@@ -123,6 +129,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Transfers:   transferService,
 		Activity:    activityLog,
 		Import:      fzimport.NewService(workspaces, sites),
+		Audit:       auditTrail,
 		Invites:     invite.NewService(store, workspaces, store, service, clock, rand.Reader, 0, nil),
 		Quick:       quickConnections,
 		Events:      hub,

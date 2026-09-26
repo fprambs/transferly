@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
@@ -152,6 +153,7 @@ var domainProblems = []struct {
 	{wskey.ErrPending, http.StatusConflict, "workspace_key_pending"},
 	{workspace.ErrOwnerBound, http.StatusConflict, "owner_bound"},
 	{workspace.ErrAlreadyMember, http.StatusConflict, "already_member"},
+	{audit.ErrInvalidFilter, http.StatusUnprocessableEntity, "invalid_filter"},
 	{invite.ErrNotFound, http.StatusNotFound, "invitation_not_found"},
 	{invite.ErrTooMany, http.StatusConflict, "too_many_invitations"},
 	{auth.ErrInvalidEmail, http.StatusUnprocessableEntity, "invalid_email"},
@@ -281,3 +283,6 @@ func (p domainProblem) VisitAcceptInvitationResponse(w http.ResponseWriter) erro
 func (p domainProblem) VisitJoinWithInvitationResponse(w http.ResponseWriter) error {
 	return p.write(w)
 }
+
+// VisitListAuditResponse implements [ListAuditResponseObject].
+func (p domainProblem) VisitListAuditResponse(w http.ResponseWriter) error { return p.write(w) }

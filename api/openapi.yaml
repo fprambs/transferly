@@ -781,6 +781,69 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /api/v1/workspaces/{workspaceId}/audit:
+    get:
+      operationId: listAudit
+      security:
+        - sessionCookie: []
+      summary: The audit trail of a workspace
+      description: >-
+        What changed in the workspace and who did it: members, roles, invitations, sites, keys and trusted servers. Needs manage_members.
+        The trail never holds credentials, keys or file contents.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - name: action
+          in: query
+          required: false
+          description: Keep the events whose action starts with this text, such as `member.` or `site.created`.
+          schema:
+            type: string
+        - name: before
+          in: query
+          required: false
+          description: Keep the events older than this identifier, to read the next page.
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          description: How many to return, 100 by default and at most 500.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The events, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/vault:
     get:
       operationId: getVault
@@ -3772,6 +3835,30 @@ components:
         accountExists:
           type: boolean
           description: Whether the invited address already has an account, so the client offers sign-in or sign-up.
+    AuditEvent:
+      type: object
+      required: [id, action, target, meta, at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Orders the events; larger is newer. Pass the last one as `before` for the next page.
+        actor:
+          type: string
+          description: Email of who did it; left out once that account no longer exists.
+        action:
+          type: string
+        target:
+          type: string
+        ip:
+          type: string
+        meta:
+          type: object
+          additionalProperties:
+            type: string
+        at:
+          type: string
+          format: date-time
     Preferences:
       type: object
       properties:

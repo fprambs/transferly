@@ -12,6 +12,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
@@ -132,6 +133,43 @@ func second[T any](_ T, err error) error { return err }
 // TestWorkspaceStore_Conformance runs the shared workspace store suite against Postgres.
 func TestWorkspaceStore_Conformance(t *testing.T) {
 	storetest.RunWorkspace(t, func(t *testing.T) storetest.WorkspaceStore { return openMigrated(t) })
+}
+
+// TestAuditStore_Conformance runs the shared audit store suite against Postgres.
+func TestAuditStore_Conformance(t *testing.T) {
+	storetest.RunAudit(t, func(t *testing.T) storetest.AuditStore { return openMigrated(t) })
+}
+
+// TestAuditStore_ReportsDatabaseFailures verifies that both audit operations return the database error, using a closed pool.
+func TestAuditStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+	if err := store.InsertAudit(ctx, audit.Event{WorkspaceID: id}); err == nil {
+		t.Error("InsertAudit() hid the database error")
+	}
+	if _, err := store.AuditByWorkspace(ctx, id, audit.Filter{}, 10); err == nil {
+		t.Error("AuditByWorkspace() hid the database error")
+	}
+}
+
+// TestAuditStore_RefusesUnreadableMetadata verifies that a row whose metadata is not an object is reported instead of skipped.
+func TestAuditStore_RefusesUnreadableMetadata(t *testing.T) {
+	store := openMigrated(t)
+	id := uuid.New()
+	if _, err := store.DB().Exec(t.Context(), "INSERT INTO users (id, email, password_hash) VALUES ($1, 'a@example.com', 'x')", id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB().Exec(t.Context(), "INSERT INTO workspaces (id, name, kind, owner_id) VALUES ($1, 'W', 'team', $2)", id, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB().Exec(t.Context(), "INSERT INTO audit_events (workspace_id, action, meta) VALUES ($1, 'x', '[1]')", id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AuditByWorkspace(t.Context(), id, audit.Filter{}, 10); err == nil {
+		t.Error("AuditByWorkspace() read a row whose metadata is not an object")
+	}
 }
 
 // TestKeyStore_Conformance runs the shared workspace key store suite against Postgres.

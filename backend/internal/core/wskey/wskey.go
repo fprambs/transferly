@@ -118,11 +118,17 @@ type Service struct {
 	vault      Vault
 	workspaces Workspaces
 	random     io.Reader
+	rotated    func(ctx context.Context, workspaceID, actor uuid.UUID, version int)
 }
 
 // NewService returns a service.
 func NewService(store Store, vault Vault, workspaces Workspaces, random io.Reader) *Service {
 	return &Service{store: store, vault: vault, workspaces: workspaces, random: random}
+}
+
+// OnRotate sets a function called after this service rotated the key of a workspace, with the member who did it and the new version.
+func (s *Service) OnRotate(f func(ctx context.Context, workspaceID, actor uuid.UUID, version int)) {
+	s.rotated = f
 }
 
 // Unlocked reports whether a session has its vault unlocked, which every use of a key needs.
@@ -312,6 +318,9 @@ func (s *Service) rotate(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	}
 	if err != nil {
 		return 0, err
+	}
+	if s.rotated != nil {
+		s.rotated(ctx, workspaceID, actor, old+1)
 	}
 	return old + 1, nil
 }

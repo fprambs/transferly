@@ -2,7 +2,10 @@ package httpapi
 
 import (
 	"context"
+	"net"
+	"strconv"
 
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 )
 
@@ -39,6 +42,7 @@ func (s *server) TrustHostKey(ctx context.Context, request TrustHostKeyRequestOb
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.HostKeyTrusted, hostPort(b.Host, b.Port), map[string]string{"type": b.KeyType})
 	return TrustHostKey201JSONResponse(knownHostDTO(key)), nil
 }
 
@@ -53,5 +57,11 @@ func (s *server) ForgetHostKey(ctx context.Context, request ForgetHostKeyRequest
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.HostKeyForgotten, hostPort(q.Host, q.Port), map[string]string{"type": q.KeyType})
 	return ForgetHostKey204Response{}, nil
+}
+
+// hostPort renders a server as host:port.
+func hostPort(host string, port int) string {
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }

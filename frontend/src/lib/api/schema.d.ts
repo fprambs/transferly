@@ -359,6 +359,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audit trail of a workspace
+         * @description What changed in the workspace and who did it: members, roles, invitations, sites, keys and trusted servers. Needs manage_members. The trail never holds credentials, keys or file contents.
+         */
+        get: operations["listAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vault": {
         parameters: {
             query?: never;
@@ -1416,6 +1436,23 @@ export interface components {
             expiresAt: string;
             /** @description Whether the invited address already has an account, so the client offers sign-in or sign-up. */
             accountExists: boolean;
+        };
+        AuditEvent: {
+            /**
+             * Format: int64
+             * @description Orders the events; larger is newer. Pass the last one as `before` for the next page.
+             */
+            id: number;
+            /** @description Email of who did it; left out once that account no longer exists. */
+            actor?: string;
+            action: string;
+            target: string;
+            ip?: string;
+            meta: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            at: string;
         };
         Preferences: {
             /** @description BCP 47 language tag of the interface. */
@@ -2581,6 +2618,72 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
+        };
+    };
+    listAudit: {
+        parameters: {
+            query?: {
+                /** @description Keep the events whose action starts with this text, such as `member.` or `site.created`. */
+                action?: string;
+                /** @description Keep the events older than this identifier, to read the next page. */
+                before?: number;
+                /** @description How many to return, 100 by default and at most 500. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The events, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEvent"][];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getVault: {

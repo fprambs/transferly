@@ -3,6 +3,9 @@ package httpapi
 import (
 	"context"
 
+	"github.com/google/uuid"
+
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
@@ -43,12 +46,14 @@ func (s *server) CreateInvitation(ctx context.Context, request CreateInvitationR
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.InvitationCreated, created.Email, map[string]string{"role": string(created.Role)})
 	return CreateInvitation201JSONResponse{Invitation: invitationDTO(created), Token: token}, nil
 }
 
 // RevokeInvitation cancels an invitation.
 func (s *server) RevokeInvitation(ctx context.Context, request RevokeInvitationRequestObject) (RevokeInvitationResponseObject, error) {
 	p, _ := principalFrom(ctx)
+	email := s.invitationEmail(ctx, p.User.ID, request.WorkspaceId, request.InvitationId)
 	err := s.deps.Invites.Revoke(ctx, p.User.ID, request.WorkspaceId, request.InvitationId)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
@@ -56,6 +61,7 @@ func (s *server) RevokeInvitation(ctx context.Context, request RevokeInvitationR
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.InvitationRevoked, email, nil)
 	return RevokeInvitation204Response{}, nil
 }
 
@@ -103,6 +109,7 @@ func (s *server) AcceptInvitation(ctx context.Context, request AcceptInvitationR
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, p.User.ID, w.ID, audit.MemberJoined, p.User.Email, map[string]string{"role": string(w.Role)})
 	return AcceptInvitation200JSONResponse(workspaceDTO(w)), nil
 }
 
@@ -111,7 +118,7 @@ func (s *server) JoinWithInvitation(ctx context.Context, request JoinWithInvitat
 	if limited, answer := s.invitationLimited(ctx); limited {
 		return JoinWithInvitation429ApplicationProblemPlusJSONResponse{answer}, nil
 	}
-	user, _, err := s.deps.Invites.Join(ctx, request.Body.Token, request.Body.Password)
+	user, joined, err := s.deps.Invites.Join(ctx, request.Body.Token, request.Body.Password)
 	if code, ok := isValidation(err); ok {
 		return JoinWithInvitation422ApplicationProblemPlusJSONResponse(problemBody(422, code, nil)), nil
 	}
@@ -121,6 +128,7 @@ func (s *server) JoinWithInvitation(ctx context.Context, request JoinWithInvitat
 	if err != nil {
 		return nil, err
 	}
+	s.record(ctx, user.ID, joined.ID, audit.MemberJoined, user.Email, map[string]string{"role": string(joined.Role)})
 	if _, err := s.deps.Workspaces.EnsurePersonal(ctx, user.ID); err != nil {
 		return nil, err
 	}
@@ -130,4 +138,19 @@ func (s *server) JoinWithInvitation(ctx context.Context, request JoinWithInvitat
 	}
 	cookie := newSessionCookie(token, s.deps.Cookie)
 	return JoinWithInvitation201JSONResponse{Body: s.sessionInfo(principal), Headers: JoinWithInvitation201ResponseHeaders{SetCookie: &cookie}}, nil
+}
+
+// invitationEmail returns the address an invitation was for, or an empty text when it cannot be found: the audit line is written with
+// what is known.
+func (s *server) invitationEmail(ctx context.Context, actor, workspaceID, id uuid.UUID) string {
+	list, err := s.deps.Invites.List(ctx, actor, workspaceID)
+	if err != nil {
+		return ""
+	}
+	for _, i := range list {
+		if i.ID == id {
+			return i.Email
+		}
+	}
+	return ""
 }

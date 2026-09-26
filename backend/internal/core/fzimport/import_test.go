@@ -220,3 +220,16 @@ func TestService_Import(t *testing.T) {
 	}
 	_ = fmt.Sprint
 }
+
+// TestResult_Created verifies counting the sites that were created.
+//
+// Scenarios:
+//   - only the created items count, not the ones skipped, failed or that would be created
+func TestResult_Created(t *testing.T) {
+	result := fzimport.Result{Items: []fzimport.Item{
+		{Status: fzimport.StatusCreated}, {Status: fzimport.StatusSkipped}, {Status: fzimport.StatusCreated}, {Status: fzimport.StatusFailed}, {Status: fzimport.StatusWouldCreate},
+	}}
+	if got := result.Created(); got != 2 {
+		t.Errorf("Created() = %d; want 2", got)
+	}
+}
