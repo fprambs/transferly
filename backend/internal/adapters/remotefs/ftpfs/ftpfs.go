@@ -47,6 +47,10 @@ const (
 	TLSImplicit
 )
 
+// maxTLSVersion caps FTPS at TLS 1.2. Servers such as vsftpd 3.0.3 demand session reuse on the data connections, and
+// under TLS 1.3 they fail every upload of more than one record with "426 Failure reading network stream".
+const maxTLSVersion = tls.VersionTLS12
+
 const (
 	sessionCacheSize = 8
 	dirPermissions   = fs.ModeDir | 0o755
@@ -223,6 +227,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		session.tls = &tls.Config{
 			ServerName:         host,
 			MinVersion:         tls.VersionTLS12,
+			MaxVersion:         maxTLSVersion,
 			ClientSessionCache: tls.NewLRUClientSessionCache(sessionCacheSize),
 			//nolint:gosec // The certificate is pinned by fingerprint in VerifyPeerCertificate, as an SSH host key is.
 			InsecureSkipVerify:    true,
