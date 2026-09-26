@@ -42,6 +42,8 @@ export interface ApiRequest {
   query?: ApiQuery
   /** JSON body, or binary data (a `Blob`, `ArrayBuffer` or typed array) sent as it is. */
   body?: unknown
+  /** Media type of a binary body; `application/octet-stream` when left out. */
+  contentType?: string
   /** Aborts the call. */
   signal?: AbortSignal
 }

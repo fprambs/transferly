@@ -15,7 +15,8 @@
     "newCollection": "Nueva colección",
     "newSite": "Nuevo sitio",
     "collectionCount": "{{count}} sitios",
-    "loading": "Cargando sitios…"
+    "loading": "Cargando sitios…",
+    "importSites": "Importar de FileZilla"
   },
   "queue": {
     "title": "Transferencias",

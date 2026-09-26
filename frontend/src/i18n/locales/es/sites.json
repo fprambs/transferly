@@ -27,7 +27,9 @@
     "remote_unavailable": "El servidor no respondió.",
     "destination_blocked": "La política del servidor no permite esta dirección.",
     "host_unresolvable": "No se pudo resolver el nombre del host.",
-    "site_not_found": "Este sitio ya no existe."
+    "site_not_found": "Este sitio ya no existe.",
+    "invalid_import_file": "Este no es un archivo del gestor de sitios de FileZilla.",
+    "import_file_too_large": "El archivo es demasiado grande para importarlo."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -85,5 +87,51 @@
     "deleteConfirm": "Eliminar",
     "ftpWarning": "FTP envía la contraseña y los archivos sin cifrar. Usa FTPS si el servidor lo ofrece.",
     "ftpsHint": "El puerto 990 empieza con TLS; en cualquier otro puerto la conexión se actualiza con AUTH TLS. La primera vez se muestra el certificado del servidor para que lo confirmes."
+  },
+  "import": {
+    "open": "Importar de FileZilla",
+    "title": "Importar de FileZilla",
+    "description": "Elige el sitemanager.xml de FileZilla. No se crea nada hasta que confirmes la vista previa.",
+    "file": "Archivo del gestor de sitios",
+    "passwords": "Importar las contraseñas guardadas",
+    "passwordsHint": "Se guardan cifradas en tu vault, que debe estar desbloqueado. Sin esto, los sitios se importan sin contraseña.",
+    "onConflict": "Si el nombre de un sitio ya existe",
+    "skip": "Omitirlo",
+    "rename": "Conservar ambos, renombrando el nuevo",
+    "preview": "Vista previa",
+    "importNow": "Importar",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "working": "Leyendo el archivo…",
+    "summaryPreview": "Se crearán {{count}} sitios y se omitirán {{skipped}}.",
+    "summaryDone": "{{count}} sitios creados, {{skipped}} omitidos, {{failed}} con error.",
+    "status": {
+      "created": "Creado",
+      "would_create": "Se creará",
+      "skipped": "Omitido",
+      "failed": "Con error"
+    },
+    "password": {
+      "stored": "contraseña guardada",
+      "skipped": "contraseña no guardada"
+    },
+    "reasons": {
+      "unsupported_protocol": "Protocolo no compatible",
+      "implicit_ftps_port": "FTPS implícito solo funciona en el puerto 990",
+      "key_file_login": "Los accesos con archivo de clave no se importan",
+      "missing_host": "Sin servidor",
+      "name_taken": "El nombre ya está en uso",
+      "invalid_name": "Nombre no válido",
+      "invalid_host": "Servidor no válido",
+      "invalid_port": "Puerto no válido",
+      "invalid_protocol": "Protocolo no válido",
+      "invalid_username": "Usuario no válido",
+      "invalid_auth_method": "Forma de acceso no válida",
+      "secret_too_large": "Contraseña demasiado grande",
+      "destination_blocked": "Dirección bloqueada por la política del servidor",
+      "host_unresolvable": "No se pudo resolver el servidor",
+      "collection_too_deep": "Carpetas demasiado anidadas",
+      "collection_name_taken": "El nombre de la carpeta ya está en uso"
+    }
   }
 }

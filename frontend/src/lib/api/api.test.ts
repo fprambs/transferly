@@ -144,6 +144,15 @@ describe('createApi', () => {
     expect(seen[0]?.csrf).toBe(method === 'GET' ? null : 'csrf-1')
   })
 
+  it('sends a site manager file as XML with the import options', async () => {
+    recordEverything()
+
+    await client().api.imports.filezilla(ws, new TextEncoder().encode('<FileZilla3/>'), { dryRun: true, passwords: false, onConflict: 'rename' })
+
+    expect(seen[0]).toMatchObject({ method: 'POST', path: `/api/v1/workspaces/${ws}/imports/filezilla`, query: '?dryRun=true&passwords=false&onConflict=rename', type: 'application/xml' })
+    expect(seen[0]?.body).toBe('<FileZilla3/>')
+  })
+
   it('uploads a blob as it is with the resume options in the query', async () => {
     recordEverything()
     const { api } = client()

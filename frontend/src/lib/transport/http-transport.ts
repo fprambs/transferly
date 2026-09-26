@@ -81,7 +81,7 @@ export class HttpTransport implements Transport {
     let body: BodyInit | undefined
     if (isBinary(request.body)) {
       body = request.body as BodyInit
-      headers['Content-Type'] = 'application/octet-stream'
+      headers['Content-Type'] = request.contentType ?? 'application/octet-stream'
     } else if (request.body !== undefined) {
       body = JSON.stringify(request.body)
       headers['Content-Type'] = jsonMediaType

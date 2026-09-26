@@ -1,4 +1,4 @@
-import { ChevronRight, Ellipsis, Folder, FolderPlus, Plus, Zap } from 'lucide-react'
+import { ChevronRight, Ellipsis, FileInput, Folder, FolderPlus, Plus, Zap } from 'lucide-react'
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -13,6 +13,7 @@ import { useWorkspace } from '../workspace/use-workspace'
 import { CollectionDialog, type CollectionTarget } from './CollectionDialog'
 import { DeleteCollectionDialog } from './DeleteCollectionDialog'
 import { DeleteSiteDialog } from './DeleteSiteDialog'
+import { ImportDialog } from './ImportDialog'
 import { SiteDialog, type SiteTarget } from './SiteDialog'
 import { buildTree, type CollectionNode, type TreeNode } from './tree'
 import { useSitesData } from './use-sites-data'
@@ -206,6 +207,7 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
   const [deleting, setDeleting] = useState<Collection | null>(null)
   const [siteTarget, setSiteTarget] = useState<SiteTarget | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
+  const [importing, setImporting] = useState(false)
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
   const [selected, setSelected] = useState<string | null>(null)
   const actions: CollectionActions = {
@@ -235,6 +237,9 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newCollection)} onClick={() => setTarget({ mode: 'create' })}>
             <FolderPlus />
           </Button>
+          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.importSites)} onClick={() => setImporting(true)}>
+            <FileInput />
+          </Button>
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
             <Plus />
           </Button>
@@ -255,6 +260,7 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
       {rows.length === 0 && <p className="px-4 text-sm text-muted-foreground">{t(($) => $.sidebar.empty)}</p>}
       {workspace !== undefined && (
         <>
+          <ImportDialog open={importing} workspaceId={workspace.id} onClose={() => setImporting(false)} />
           <CollectionDialog target={target} workspaceId={workspace.id} collections={collections} onClose={() => setTarget(null)} />
           <DeleteCollectionDialog collection={deleting} workspaceId={workspace.id} onClose={() => setDeleting(null)} />
           <SiteDialog target={siteTarget} workspaceId={workspace.id} collections={collections} onClose={() => setSiteTarget(null)} />

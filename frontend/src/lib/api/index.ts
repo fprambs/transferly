@@ -36,6 +36,19 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
+/** What happened, or would happen, to the sites of an imported file. */
+export type ImportResult = Schemas['ImportResult']
+
+/** How to import a site manager file. */
+export interface ImportOptions {
+  /** Only report what would happen. */
+  dryRun?: boolean
+  /** Store the passwords of the file in the vault. */
+  passwords?: boolean
+  /** What to do with a site whose name is taken. */
+  onConflict?: 'skip' | 'rename'
+}
+
 /** One line of the activity log. */
 export type ActivityEntry = Schemas['ActivityEntry']
 
@@ -173,6 +186,16 @@ export function createApi(transport: Transport) {
           query: { path, mode: options.mode, offset: options.offset, transferId: options.transferId, size: options.size },
           body,
           signal: options.signal,
+        }),
+    },
+    imports: {
+      filezilla: (workspaceId: string, file: Blob | Uint8Array, options: ImportOptions = {}) =>
+        transport.request<ImportResult>({
+          method: 'POST',
+          path: `${root}/workspaces/${workspaceId}/imports/filezilla`,
+          query: { dryRun: options.dryRun, passwords: options.passwords, onConflict: options.onConflict },
+          body: file,
+          contentType: 'application/xml',
         }),
     },
     activity: {

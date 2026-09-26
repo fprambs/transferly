@@ -27,7 +27,9 @@
     "remote_unavailable": "The server did not answer.",
     "destination_blocked": "This address is not allowed by the server policy.",
     "host_unresolvable": "The host name could not be resolved.",
-    "site_not_found": "This site no longer exists."
+    "site_not_found": "This site no longer exists.",
+    "invalid_import_file": "This is not a FileZilla site manager file.",
+    "import_file_too_large": "The file is too large to import."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -85,5 +87,51 @@
     "deleteConfirm": "Delete",
     "ftpWarning": "FTP sends the password and the files without encryption. Use FTPS when the server offers it.",
     "ftpsHint": "Port 990 starts with TLS; any other port upgrades the connection with AUTH TLS. The server certificate is shown for you to confirm the first time."
+  },
+  "import": {
+    "open": "Import from FileZilla",
+    "title": "Import from FileZilla",
+    "description": "Choose the sitemanager.xml of FileZilla. Nothing is created until you confirm the preview.",
+    "file": "Site manager file",
+    "passwords": "Import the saved passwords",
+    "passwordsHint": "They are stored encrypted in your vault, which must be unlocked. Without this, sites are imported without a password.",
+    "onConflict": "If a site name is taken",
+    "skip": "Skip it",
+    "rename": "Keep both, renaming the new one",
+    "preview": "Preview",
+    "importNow": "Import",
+    "close": "Close",
+    "cancel": "Cancel",
+    "working": "Reading the file…",
+    "summaryPreview": "{{count}} sites will be created, {{skipped}} skipped.",
+    "summaryDone": "{{count}} sites created, {{skipped}} skipped, {{failed}} failed.",
+    "status": {
+      "created": "Created",
+      "would_create": "Will be created",
+      "skipped": "Skipped",
+      "failed": "Failed"
+    },
+    "password": {
+      "stored": "password saved",
+      "skipped": "password not saved"
+    },
+    "reasons": {
+      "unsupported_protocol": "Protocol not supported",
+      "implicit_ftps_port": "Implicit FTPS only works on port 990",
+      "key_file_login": "Key file logins are not imported",
+      "missing_host": "No host",
+      "name_taken": "Name already used",
+      "invalid_name": "Invalid name",
+      "invalid_host": "Invalid host",
+      "invalid_port": "Invalid port",
+      "invalid_protocol": "Invalid protocol",
+      "invalid_username": "Invalid username",
+      "invalid_auth_method": "Invalid sign-in method",
+      "secret_too_large": "Password too large",
+      "destination_blocked": "Address blocked by the server policy",
+      "host_unresolvable": "Host name could not be resolved",
+      "collection_too_deep": "Folders nested too deeply",
+      "collection_name_taken": "Folder name already used"
+    }
   }
 }

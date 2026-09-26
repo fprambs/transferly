@@ -24,6 +24,8 @@ const siteErrorKeys = [
   'destination_blocked',
   'host_unresolvable',
   'site_not_found',
+  'invalid_import_file',
+  'import_file_too_large',
   'network_error',
 ] as const
 

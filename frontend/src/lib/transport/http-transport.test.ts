@@ -152,7 +152,8 @@ function recorder(make: () => Response | Error) {
  * Scenarios:
  * - a JSON call sends the body as JSON, accepts JSON and returns the parsed answer
  * - the anti-CSRF token is sent with changes, never with reads, and can be forgotten
- * - binary bodies (blobs, buffers, typed arrays) are sent as they are, not as JSON
+ * - binary bodies (blobs, buffers, typed arrays) are sent as they are, not as JSON, with the media type they are given
+ *   or octet-stream
  * - problem documents become an ApiError, network failures a `network_error`, and answers without a body resolve empty
  * - a stream call returns the body of the answer and reports problems, network failures and answers without a body
  * - the URL joins the base URL, the path and the encoded query, leaving out undefined values
@@ -214,6 +215,14 @@ describe('HttpTransport.request', () => {
 
     expect(inits[0]?.body).toBe(body)
     expect(inits[0]?.headers).toMatchObject({ 'Content-Type': 'application/octet-stream' })
+  })
+
+  it('sends a binary body with the media type it is given', async () => {
+    const { fetchStub, inits } = recorder(() => jsonResponse({}, 200))
+
+    await new HttpTransport({ fetch: fetchStub }).request({ method: 'POST', path: '/a', body: new Uint8Array([1]), contentType: 'application/xml' })
+
+    expect(inits[0]?.headers).toMatchObject({ 'Content-Type': 'application/xml' })
   })
 
   it('throws the problem of a failed call and resolves empty for answers without a body', async () => {
