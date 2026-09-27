@@ -5,7 +5,10 @@
     "code": "Code",
     "submit": "Verify",
     "back": "Use another account",
-    "hint": "A recovery code works once. Codes from the app change every 30 seconds."
+    "hint": "A recovery code works once. Codes from the app change every 30 seconds.",
+    "passkey": "Use a passkey",
+    "passkeyHint": "Your browser will ask you to confirm with your device, fingerprint or security key.",
+    "or": "or"
   },
   "errors": {
     "invalid_code": "The code is not right. Try the next one from the app, or a recovery code.",
@@ -18,7 +21,15 @@
     "network_error": "Could not reach the server.",
     "unknown": "Something went wrong. Try again.",
     "codeRequired": "Enter the code.",
-    "passwordRequired": "Enter your password."
+    "passwordRequired": "Enter your password.",
+    "invalid_passkey": "The passkey was not accepted. Try again or use a code.",
+    "ceremony_expired": "The request took too long. Try again.",
+    "too_many_passkeys": "You already have the most passkeys an account can hold.",
+    "invalid_name": "Give the passkey a name of up to 60 characters.",
+    "no_passkeys": "This account has no passkeys.",
+    "passkey_not_found": "This passkey no longer exists.",
+    "passkeyCancelled": "The passkey was not used: the request was cancelled or timed out.",
+    "passkeyUnsupported": "This browser or this address cannot use passkeys. They need a secure page (https)."
   },
   "section": {
     "title": "Two-step verification",
@@ -57,5 +68,31 @@
     "confirmDisable": "Turn off",
     "confirmRegenerate": "Create new codes",
     "cancel": "Cancel"
+  },
+  "passkeys": {
+    "title": "Passkeys",
+    "description": "Use your device, fingerprint or a security key as the second step. You can have several.",
+    "add": "Add a passkey",
+    "empty": "No passkeys yet.",
+    "created": "Added {{date}}",
+    "used": "last used {{date}}",
+    "neverUsed": "never used",
+    "remove": "Remove",
+    "removeOf": "Remove the passkey {{name}}",
+    "unsupported": "This browser or this address cannot use passkeys."
+  },
+  "addPasskey": {
+    "title": "Add a passkey",
+    "body": "Name it so you can tell it from the others, then confirm with your device when the browser asks.",
+    "name": "Name",
+    "placeholder": "Laptop, phone, YubiKey…",
+    "confirm": "Continue",
+    "cancel": "Cancel",
+    "working": "Waiting for your device…"
+  },
+  "removePasskey": {
+    "title": "Remove the passkey {{name}}",
+    "body": "Enter your password to confirm.",
+    "confirm": "Remove"
   }
 }

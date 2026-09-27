@@ -17,6 +17,11 @@ function api(): (JsonApi & typeof PublicKeyCredential) | undefined {
   return (globalThis as { PublicKeyCredential?: JsonApi & typeof PublicKeyCredential }).PublicKeyCredential
 }
 
+/** Takes the options a server sends, which go-webauthn wraps in a `publicKey` member, out of that wrapper. */
+function unwrap(options: object): object {
+  return 'publicKey' in options ? (options.publicKey as object) : options
+}
+
 /** Tells whether the browser can make and use passkeys: it has WebAuthn and the JSON helpers, and the page is a secure context. */
 export function passkeysSupported(): boolean {
   const constructor = api()
@@ -26,13 +31,13 @@ export function passkeysSupported(): boolean {
 /** Asks the browser to make a passkey from the options of a server, and returns the credential as JSON. It rejects when the user cancels. */
 export async function createPasskey(options: object): Promise<object> {
   const constructor = api() as JsonApi
-  const credential = (await navigator.credentials.create({ publicKey: constructor.parseCreationOptionsFromJSON(options) })) as unknown as JsonCredential
+  const credential = (await navigator.credentials.create({ publicKey: constructor.parseCreationOptionsFromJSON(unwrap(options)) })) as unknown as JsonCredential
   return credential.toJSON()
 }
 
 /** Asks the browser to sign in with a passkey from the options of a server, and returns the credential as JSON. It rejects when the user cancels. */
 export async function getPasskey(options: object): Promise<object> {
   const constructor = api() as JsonApi
-  const credential = (await navigator.credentials.get({ publicKey: constructor.parseRequestOptionsFromJSON(options) })) as unknown as JsonCredential
+  const credential = (await navigator.credentials.get({ publicKey: constructor.parseRequestOptionsFromJSON(unwrap(options)) })) as unknown as JsonCredential
   return credential.toJSON()
 }

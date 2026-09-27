@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatInstant } from '@/lib/datetime'
-import type { InvitationPreview, SessionInfo } from '@/lib/api'
+import type { InvitationPreview, MfaChallenge, SessionInfo } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
 import { useUiStore } from '@/state/ui-store'
@@ -161,7 +161,7 @@ function SignInForm({ token, preview }: InvitationProps) {
   const startSession = useStartSession()
   const enter = useEnter()
   const [password, setPassword] = useState('')
-  const [challenge, setChallenge] = useState<string | null>(null)
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null)
   const [failure, setFailure] = useState<TeamErrorKey | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -176,7 +176,7 @@ function SignInForm({ token, preview }: InvitationProps) {
     try {
       const answer = await api.auth.login({ email: preview.email, password })
       if (needsSecondStep(answer)) {
-        setChallenge(answer.challenge)
+        setChallenge(answer)
         return
       }
       await finish(answer)

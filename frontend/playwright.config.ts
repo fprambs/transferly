@@ -22,5 +22,10 @@ export default defineConfig({
     colorScheme: 'light',
     storageState: 'e2e/.auth/state.json',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], launchOptions: { args: [`--host-resolver-rules=MAP passkeys.localhost ${new URL(baseURL).hostname}`] } },
+    },
+  ],
 })

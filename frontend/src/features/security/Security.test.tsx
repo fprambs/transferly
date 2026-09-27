@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SecurityStatus } from '@/lib/api'
 import { adminSession, mockSession, mockSetupRequired, mockWorkspaceData, problem } from '@/test/handlers'
@@ -59,6 +59,44 @@ async function password(user: ReturnType<typeof userEvent.setup>): Promise<void>
   await user.click(screen.getByRole('button', { name: 'Sign in' }))
 }
 
+/** Installs a fake browser that makes and uses passkeys, or refuses as it does when the user cancels, and returns how often each was asked. */
+function installPasskeys(cancel = false): { created: number; used: number } {
+  const calls = { created: 0, used: 0 }
+  const answer = (kind: 'created' | 'used') => {
+    calls[kind]++
+    if (cancel) {
+      throw new DOMException('cancelled', 'NotAllowedError')
+    }
+    return { toJSON: () => ({ id: kind }) }
+  }
+  vi.stubGlobal('PublicKeyCredential', {
+    parseCreationOptionsFromJSON: (options: object) => options,
+    parseRequestOptionsFromJSON: (options: object) => options,
+  })
+  Object.defineProperty(navigator, 'credentials', {
+    configurable: true,
+    value: { create: async () => answer('created'), get: async () => answer('used') },
+  })
+  return calls
+}
+
+/** Answers the status with the passkeys given. */
+function mockStatus(passkeys: SecurityStatus['passkeys']): void {
+  server.use(http.get('/api/v1/me/security', () => HttpResponse.json({ totp: false, recoveryCodesLeft: passkeys.length > 0 ? 10 : 0, passkeys })))
+}
+
+/** Answers the password step with a challenge offering the methods given. */
+function mockMethods(methods: string[]): void {
+  server.use(http.post('/api/v1/auth/login', () => HttpResponse.json({ challenge: 'chal-1', methods }, { status: 202 })))
+}
+
+/** Types the password step and submits it. */
+async function signIn(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.type(await screen.findByLabelText('Email'), 'admin@example.com')
+  await user.type(screen.getByLabelText('Password'), 'a long enough password')
+  await user.click(screen.getByRole('button', { name: 'Sign in' }))
+}
+
 /**
  * Covers the second factor screens: {@link SecuritySection}, {@link EnableTotpDialog}, {@link PasswordDialog}, {@link RecoveryCodes}
  * and the second step of signing in in {@link MfaStep}.
@@ -72,6 +110,11 @@ async function password(user: ReturnType<typeof userEvent.setup>): Promise<void>
  *   clears the field, an expired challenge returns to the password, and going back returns to the password
  */
 describe('second factor', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: undefined })
+  })
+
   describe('settings', () => {
     beforeEach(() => {
       mockSession(adminSession)
@@ -167,6 +210,126 @@ describe('second factor', () => {
     })
   })
 
+  describe('passkeys in the settings', () => {
+    beforeEach(() => {
+      mockSession(adminSession)
+      mockWorkspaceData()
+    })
+
+    it('lists the passkeys with their use and removes one with the password', async () => {
+      mockStatus([
+        { id: 'p1', name: 'Laptop', createdAt: '2026-09-01T12:00:00Z', lastUsedAt: '2026-09-20T12:00:00Z' },
+        { id: 'p2', name: 'Key', createdAt: '2026-09-02T12:00:00Z' },
+      ])
+      let removed = ''
+      server.use(
+        http.post('/api/v1/me/passkeys/:id/remove', ({ params }) => {
+          removed = String(params.id)
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
+      const user = userEvent.setup()
+      await renderApp({ path: '/settings' })
+
+      const list = await screen.findByRole('list', { name: 'Passkeys' })
+      expect(within(list).getByText(/Added Sep 1, 2026 · last used Sep 20, 2026/)).toBeInTheDocument()
+      expect(within(list).getByText(/Added Sep 2, 2026 · never used/)).toBeInTheDocument()
+      await user.click(within(list).getByRole('button', { name: 'Remove the passkey Laptop' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Remove the passkey Laptop' })
+      await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Enter your password.')
+
+      server.use(http.post('/api/v1/me/passkeys/:id/remove', () => problem(403, 'invalid_password')))
+      await user.type(within(dialog).getByLabelText('Account password'), 'wrong password!')
+      await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('The password is not right.')
+
+      server.use(
+        http.post('/api/v1/me/passkeys/:id/remove', ({ params }) => {
+          removed = String(params.id)
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
+      await user.type(within(dialog).getByLabelText('Account password'), 'a long enough password')
+      await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(removed).toBe('p1')
+    })
+
+    it('says when there are none, adds one and can be cancelled', async () => {
+      mockStatus([])
+      const calls = installPasskeys()
+      let finished: unknown
+      server.use(
+        http.post('/api/v1/me/passkeys/begin', () => HttpResponse.json({ ceremony: 'cer-1', options: { publicKey: { challenge: 'c' } } })),
+        http.post('/api/v1/me/passkeys/finish', async ({ request }) => {
+          finished = await request.json()
+          return HttpResponse.json({ passkey: { id: 'p9', name: 'Laptop', createdAt: '2026-09-26T12:00:00Z' } }, { status: 201 })
+        }),
+      )
+      const user = userEvent.setup()
+      await renderApp({ path: '/settings' })
+
+      expect(await screen.findByText('No passkeys yet.')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Add a passkey' }))
+      let dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+      await user.click(screen.getByRole('button', { name: 'Add a passkey' }))
+      dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
+      await user.type(within(dialog).getByLabelText('Name'), ' Laptop ')
+      await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(calls.created).toBe(1)
+      expect(finished).toEqual({ ceremony: 'cer-1', name: 'Laptop', credential: { id: 'created' } })
+    })
+
+    it('shows the recovery codes the first passkey brings', async () => {
+      mockStatus([])
+      installPasskeys()
+      server.use(
+        http.post('/api/v1/me/passkeys/begin', () => HttpResponse.json({ ceremony: 'cer-1', options: {} })),
+        http.post('/api/v1/me/passkeys/finish', () =>
+          HttpResponse.json({ passkey: { id: 'p9', name: 'Laptop', createdAt: '2026-09-26T12:00:00Z' }, recoveryCodes: ['AAAAA-BBBBB'] }, { status: 201 }),
+        ),
+      )
+      const user = userEvent.setup()
+      await renderApp({ path: '/settings' })
+
+      await user.click(await screen.findByRole('button', { name: 'Add a passkey' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
+      await user.type(within(dialog).getByLabelText('Name'), 'Laptop')
+      await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+
+      const codes = await screen.findByRole('dialog', { name: 'Save your recovery codes' })
+      expect(within(codes).getByText('AAAAA-BBBBB')).toBeInTheDocument()
+      await user.click(within(codes).getByRole('button', { name: 'I have saved them' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    })
+
+    it('explains a browser that cannot, a cancelled request and a refusal of the server', async () => {
+      mockStatus([])
+      const user = userEvent.setup()
+      await renderApp({ path: '/settings' })
+
+      await user.click(await screen.findByRole('button', { name: 'Add a passkey' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
+      await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('cannot use passkeys')
+
+      installPasskeys(true)
+      server.use(http.post('/api/v1/me/passkeys/begin', () => HttpResponse.json({ ceremony: 'cer-1', options: {} })))
+      await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('The passkey was not used')
+
+      server.use(http.post('/api/v1/me/passkeys/begin', () => problem(409, 'too_many_passkeys')))
+      await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('most passkeys')
+    })
+  })
+
   describe('signing in', () => {
     beforeEach(() => {
       mockSession(null)
@@ -236,6 +399,83 @@ describe('second factor', () => {
       expect(await screen.findByLabelText('Password')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('signing in with a passkey', () => {
+    beforeEach(() => {
+      mockSession(null)
+      mockSetupRequired(false)
+      mockWorkspaceData()
+    })
+
+    it('offers the passkey next to the code and signs in with it', async () => {
+      mockMethods(['passkey', 'recovery'])
+      const calls = installPasskeys()
+      let sent: unknown
+      server.use(
+        http.post('/api/v1/auth/passkey/begin', () => HttpResponse.json({ ceremony: 'cer-1', options: { publicKey: {} } })),
+        http.post('/api/v1/auth/passkey/finish', async ({ request }) => {
+          sent = await request.json()
+          return HttpResponse.json(adminSession)
+        }),
+      )
+      const user = userEvent.setup()
+      const { history } = await renderApp({ path: '/login' })
+
+      await signIn(user)
+      expect(await screen.findByLabelText('Code')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Use a passkey' }))
+
+      await waitFor(() => expect(history.location.pathname).toBe('/'))
+      expect(calls.used).toBe(1)
+      expect(sent).toEqual({ challenge: 'chal-1', ceremony: 'cer-1', credential: { id: 'used' } })
+    })
+
+    it('shows only the passkey when there is no code to type', async () => {
+      mockMethods(['passkey'])
+      installPasskeys()
+      const user = userEvent.setup()
+      await renderApp({ path: '/login' })
+
+      await signIn(user)
+
+      expect(await screen.findByRole('button', { name: 'Use a passkey' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('Code')).not.toBeInTheDocument()
+    })
+
+    it('explains a cancelled request, a browser that cannot and a passkey the server refuses', async () => {
+      mockMethods(['passkey', 'totp'])
+      const user = userEvent.setup()
+      await renderApp({ path: '/login' })
+
+      await signIn(user)
+      await user.click(await screen.findByRole('button', { name: 'Use a passkey' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('cannot use passkeys')
+
+      installPasskeys(true)
+      server.use(http.post('/api/v1/auth/passkey/begin', () => HttpResponse.json({ ceremony: 'cer-1', options: {} })))
+      await user.click(screen.getByRole('button', { name: 'Use a passkey' }))
+      expect(await screen.findByText(/The passkey was not used/)).toBeInTheDocument()
+
+      installPasskeys()
+      server.use(http.post('/api/v1/auth/passkey/finish', () => problem(401, 'invalid_passkey')))
+      await user.click(screen.getByRole('button', { name: 'Use a passkey' }))
+      expect(await screen.findByText(/The passkey was not accepted/)).toBeInTheDocument()
+    })
+
+    it('returns to the password when the challenge expired during the passkey', async () => {
+      mockMethods(['passkey'])
+      installPasskeys()
+      server.use(http.post('/api/v1/auth/passkey/begin', () => problem(401, 'invalid_challenge')))
+      const user = userEvent.setup()
+      await renderApp({ path: '/login' })
+
+      await signIn(user)
+      await user.click(await screen.findByRole('button', { name: 'Use a passkey' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('The sign-in took too long.')
+      expect(screen.getByLabelText('Password')).toBeInTheDocument()
     })
   })
 })

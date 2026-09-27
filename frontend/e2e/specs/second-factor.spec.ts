@@ -1,10 +1,32 @@
 import { AxeBuilder } from '@axe-core/playwright'
 
+import type { Page } from '@playwright/test'
+
 import { expect, test } from '../fixtures.ts'
 import { totpCode } from '../totp.ts'
 
 /** Password of the test account, as the global setup creates it. */
 const password = 'a long e2e password'
+
+/** How long the limiter of a second step takes to give an attempt back, which the passkey sign-in waits for because the shared account spent its attempts. */
+const refill = 31_000
+
+/** Gives the page a virtual authenticator that answers passkey requests at once, as a phone or a security key would. */
+async function addVirtualAuthenticator(page: Page): Promise<void> {
+  const client = await page.context().newCDPSession(page)
+  await client.send('WebAuthn.enable')
+  await client.send('WebAuthn.addVirtualAuthenticator', {
+    options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
+  })
+}
+
+/** Opens the sign-in page of a page and submits the password of the shared account. */
+async function signIn(page: Page): Promise<void> {
+  await page.goto('/')
+  await page.getByLabel('Email').fill('e2e@example.com')
+  await page.getByLabel('Password').fill(password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+}
 
 /**
  * The second factor against the production image, on the account the tests share, which turns it off at the end.
@@ -15,6 +37,8 @@ const password = 'a long e2e password'
  *   unit tests, because the attempts of the account are limited and the tests share it
  * - a recovery code opens a session once and is refused the second time
  * - the settings section and the code step have no WCAG violations, and turning the factor off with the password restores the plain sign-in
+ * - a passkey, made by the virtual authenticator of the browser, is added in the settings with its recovery codes, signs in after the password
+ *   and is removed with the password
  */
 test.describe('second factor', () => {
   test.describe.configure({ mode: 'serial' })
@@ -87,5 +111,39 @@ test.describe('second factor', () => {
     await dialog.getByLabel('Account password').fill(password)
     await dialog.getByRole('button', { name: 'Turn off' }).click()
     await expect(section.getByText('Off', { exact: true })).toBeVisible()
+  })
+
+  test('adds a passkey, signs in with it and removes it', async ({ browser }) => {
+    test.setTimeout(90_000)
+    const context = await browser.newContext({ baseURL: 'http://passkeys.localhost:8080', storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
+    await addVirtualAuthenticator(page)
+    await signIn(page)
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('button', { name: 'Add a passkey' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add a passkey' })
+    await dialog.getByLabel('Name').fill('Virtual key')
+    await dialog.getByRole('button', { name: 'Continue' }).click()
+    const codes = page.getByRole('dialog', { name: 'Save your recovery codes' })
+    await expect(codes.getByRole('listitem')).toHaveCount(10)
+    await codes.getByRole('button', { name: 'I have saved them' }).click()
+    await expect(page.getByText('Virtual key')).toBeVisible()
+
+    await context.clearCookies()
+    await page.waitForTimeout(refill)
+    await signIn(page)
+    await page.getByRole('button', { name: 'Use a passkey' }).click()
+    await expect(page.getByRole('button', { name: 'Account' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await expect(page.getByText(/last used/)).toBeVisible()
+    await page.getByRole('button', { name: 'Remove the passkey Virtual key' }).click()
+    const remove = page.getByRole('dialog', { name: 'Remove the passkey Virtual key' })
+    await remove.getByLabel('Account password').fill(password)
+    await remove.getByRole('button', { name: 'Remove' }).click()
+    await expect(page.getByText('No passkeys yet.')).toBeVisible()
+    await context.close()
   })
 })

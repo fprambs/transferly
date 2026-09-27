@@ -10,7 +10,7 @@ import { sessionKey, setupKey } from '@/app/session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { SessionInfo } from '@/lib/api'
+import type { MfaChallenge, SessionInfo } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
 
@@ -52,7 +52,7 @@ export function AuthForm({ mode, onSecondStepChange }: AuthFormProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [failure, setFailure] = useState<ErrorKey | null>(null)
-  const [challenge, setChallenge] = useState<string | null>(null)
+  const [challenge, setChallenge] = useState<MfaChallenge | null>(null)
   const schema = schemaFor(mode)
   const {
     register,
@@ -73,7 +73,7 @@ export function AuthForm({ mode, onSecondStepChange }: AuthFormProps) {
     try {
       const answer = await (mode === 'setup' ? api.auth.setup(values) : api.auth.login(values))
       if (needsSecondStep(answer)) {
-        setChallenge(answer.challenge)
+        setChallenge(answer)
         onSecondStepChange?.(true)
         return
       }

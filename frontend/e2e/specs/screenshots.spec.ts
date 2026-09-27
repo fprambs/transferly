@@ -16,6 +16,15 @@ async function csrfOf(page: Page): Promise<string> {
   return ((await (await page.request.get('/api/v1/me')).json()) as { csrfToken: string }).csrfToken
 }
 
+/** Gives the page a virtual authenticator that answers passkey requests at once. */
+async function addVirtualAuthenticator(page: Page): Promise<void> {
+  const client = await page.context().newCDPSession(page)
+  await client.send('WebAuthn.enable')
+  await client.send('WebAuthn.addVirtualAuthenticator', {
+    options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
+  })
+}
+
 /**
  * Takes the screenshots of the team screens and of the vault notice, to review the interface without opening it.
  * It is skipped unless `SENTINEL_E2E_SCREENSHOTS` is set, so the normal run does not write files.
@@ -23,6 +32,7 @@ async function csrfOf(page: Page): Promise<string> {
  * Scenarios:
  * - the team switcher, the new team dialog, the members page, the invite dialog in both steps, the invitations tab, the invitation page
  *   for a new account and for the wrong account, the members page of a viewer, the row menu and the removal dialog
+ * - the passkey dialog, the settings with a passkey and the sign-in step that offers it
  * - the locked vault in a new site and a saved site, the unlock dialog, and a quick connection that works while locked
  */
 test.describe('screenshots', () => {
@@ -184,5 +194,46 @@ test.describe('screenshots', () => {
     await off.getByLabel('Account password').fill('a long e2e password')
     await off.getByRole('button', { name: 'Turn off' }).click()
     await expect(section.getByText('Off', { exact: true })).toBeVisible()
+  })
+
+  test('passkeys', async ({ browser }) => {
+    const password = 'a long e2e password'
+    const context = await browser.newContext({ baseURL: 'http://passkeys.localhost:8080', viewport: { width: 1280, height: 820 }, storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
+    await addVirtualAuthenticator(page)
+    const signIn = async () => {
+      await page.goto('/')
+      await page.getByLabel('Email').fill('e2e@example.com')
+      await page.getByLabel('Password').fill(password)
+      await page.getByRole('button', { name: 'Sign in' }).click()
+    }
+    await signIn()
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('button', { name: 'Add a passkey' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add a passkey' })
+    await dialog.getByLabel('Name').fill('MacBook fingerprint')
+    await shoot(page, '24-add-passkey')
+    await dialog.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('dialog', { name: 'Save your recovery codes' })).toBeVisible()
+    await page.getByRole('button', { name: 'I have saved them' }).click()
+    await page.getByRole('heading', { name: 'Passkeys' }).scrollIntoViewIfNeeded()
+    await shoot(page, '25-security-passkeys')
+
+    await context.clearCookies()
+    await signIn()
+    await expect(page.getByRole('button', { name: 'Use a passkey' })).toBeVisible()
+    await shoot(page, '26-login-passkey-step')
+
+    await page.getByRole('button', { name: 'Use a passkey' }).click()
+    await expect(page.getByRole('button', { name: 'Account' })).toBeVisible()
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('button', { name: 'Remove the passkey MacBook fingerprint' }).click()
+    const remove = page.getByRole('dialog', { name: 'Remove the passkey MacBook fingerprint' })
+    await remove.getByLabel('Account password').fill(password)
+    await remove.getByRole('button', { name: 'Remove' }).click()
+    await expect(page.getByText('No passkeys yet.')).toBeVisible()
+    await context.close()
   })
 })

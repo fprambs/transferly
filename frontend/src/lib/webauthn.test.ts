@@ -19,7 +19,7 @@ function install(): { create: ReturnType<typeof vi.fn>; get: ReturnType<typeof v
  *
  * Scenarios:
  * - a browser without WebAuthn, without the JSON helpers or without a credentials container is reported as unsupported, and one with all of them as supported
- * - creating and using a passkey passes the parsed options to the browser and returns the credential as JSON
+ * - creating and using a passkey takes the options out of their `publicKey` wrapper, parses them to the browser, accepts options without the wrapper and returns the credential as JSON
  */
 describe('webauthn', () => {
   afterEach(() => {
@@ -40,9 +40,11 @@ describe('webauthn', () => {
   it('creates and uses a passkey', async () => {
     const browser = install()
 
-    expect(await createPasskey({ challenge: 'c' })).toEqual({ id: 'made' })
+    expect(await createPasskey({ publicKey: { challenge: 'c' } })).toEqual({ id: 'made' })
     expect(browser.create).toHaveBeenCalledWith({ publicKey: { parsed: 'creation', challenge: 'c' } })
-    expect(await getPasskey({ challenge: 'd' })).toEqual({ id: 'used' })
+    expect(await createPasskey({ challenge: 'e' })).toEqual({ id: 'made' })
+    expect(browser.create).toHaveBeenLastCalledWith({ publicKey: { parsed: 'creation', challenge: 'e' } })
+    expect(await getPasskey({ publicKey: { challenge: 'd' } })).toEqual({ id: 'used' })
     expect(browser.get).toHaveBeenCalledWith({ publicKey: { parsed: 'request', challenge: 'd' } })
   })
 })

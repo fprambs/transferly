@@ -96,6 +96,7 @@ services:
     image: sentinel:test
     environment:
       SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
+      SENTINEL_BASE_URL: http://passkeys.localhost:8080
       SENTINEL_ALLOWED_ORIGINS: http://sentinel:8080
       SENTINEL_ALLOWED_NETWORKS: 172.16.0.0/12
       SENTINEL_TRANSFER_LIMIT_PER_SITE: "2"
