@@ -31,6 +31,7 @@ import { ConnectingState } from './ExplorerLoading'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
 import { SearchDialog } from '../search/SearchDialog'
+import { RemoteEditor } from '../editor/RemoteEditor'
 
 import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
@@ -39,7 +40,7 @@ import { joinPath, parentPath, resolveSelection, sortEntries } from './entries'
 import { filesKey, filesPrefix, listingFreshMs, listingKeepMs } from './files-key'
 
 /** The dialog that is open over the explorer. */
-type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry }
+type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry } | { kind: 'edit'; entry: RemoteEntry }
 
 /** Props of {@link Explorer}. */
 export interface ExplorerProps {
@@ -210,10 +211,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const dragEntry = (entry: RemoteEntry, data: DataTransfer): void =>
     writeDrag(data, { workspaceId, siteId, path: entry.path, isFolder: entry.type === 'directory' })
 
-  const open = (entry: { type: string; path: string }): void => {
-    if (entry.type === 'directory') {
-      onNavigate(entry.path)
-    }
+  const open = (entry: { path: string }): void => {
+    onNavigate(entry.path)
   }
 
   return (
@@ -399,6 +398,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             onHover={prefetch}
             onDownload={download}
             onDownloadEach={(entry) => void downloadEach(entry)}
+            onEdit={(entry) => setDialog({ kind: 'edit', entry })}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
             onNewFolder={() => setDialog({ kind: 'newFolder' })}
@@ -440,6 +440,17 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             await reload()
           }}
           onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'edit' && (
+        <RemoteEditor
+          key={dialog.entry.path}
+          api={api}
+          workspaceId={workspaceId}
+          siteId={siteId}
+          entry={dialog.entry}
+          onClose={() => setDialog(null)}
+          onSaved={() => void reload()}
         />
       )}
       {dialog?.kind === 'delete' && (

@@ -61,6 +61,7 @@
   "menu": {
     "label": "Acciones del elemento seleccionado",
     "open": "Abrir",
+    "edit": "Editar",
     "rename": "Renombrar",
     "delete": "Eliminar",
     "newFolder": "Nueva carpeta",

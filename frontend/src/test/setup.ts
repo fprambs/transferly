@@ -25,6 +25,10 @@ Object.defineProperties(HTMLElement.prototype, {
   offsetHeight: { configurable: true, get: () => 400 },
 })
 
+/** jsdom lacks this, and CodeMirror's measurement pass needs it to lay out the remote editor. */
+const emptyRects: DOMRectList = Object.assign([] as DOMRect[], { item: () => null }) as DOMRectList
+Range.prototype.getClientRects = () => emptyRects
+
 beforeEach(() => {
   FakeSocket.reset()
   vi.stubGlobal('WebSocket', FakeSocket)

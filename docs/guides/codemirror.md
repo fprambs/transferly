@@ -1,0 +1,12 @@
+# CodeMirror 6
+
+Sources: the [system guide](https://codemirror.net/docs/guide/) and reference docs of `@codemirror/state`, `@codemirror/view`, `@codemirror/language`, `@codemirror/language-data` and `@codemirror/theme-one-dark`, all 6.x. Used in `frontend/src/features/editor/RemoteEditor.tsx`.
+
+## Rules
+
+- The editor is a plain `EditorView` built by hand, not a React wrapper package: one `useRef` holds the DOM node, one `useEffect` creates the `EditorView` on it once and calls `view.destroy()` on cleanup, exactly as the guide's React section describes. Content changes go through `view.dispatch(transaction)`, never by touching the DOM.
+- `codemirror`'s own `basicSetup` bundles the line numbers, history (undo/redo), search, bracket matching and keymaps a plain text editor needs; nothing here reassembles those individually.
+- Language support is chosen per file by extension, not typed in by hand: `@codemirror/language-data`'s `languages` array plus `LanguageDescription.matchFilename(languages, name)` finds the right entry (or `null` for an unknown extension, which edits as plain text), and `.load()` returns a promise of the `LanguageSupport` to add as an extension. Loading is async, so the view is created first and the language extension is added with a `Compartment` once it resolves, instead of blocking the editor on the network fetch of the grammar.
+- A `Compartment` also holds the theme, so switching the app's light/dark mode reconfigures the editor in place (`compartment.reconfigure(...)`) instead of tearing down and rebuilding the `EditorView`. `@codemirror/theme-one-dark` is used for dark; the editor's own light appearance (no theme extension) is used otherwise — the app's many named themes (Nord, Monokai, …) are not each given their own CodeMirror theme, only the light/dark split that already drives the rest of the interface.
+- An `updateListener` extension (`EditorView.updateListener.of(update => …)`) is how the component learns the document changed, to mark the file dirty; it reads the new text with `update.state.doc.toString()` only when `update.docChanged` is true, never on every keystroke-unrelated update (cursor moves, focus, …).
+- The document itself is never held in React state on every keystroke — only a `dirty` flag and, on save, `view.state.doc.toString()` read once. Keeping the whole text in a state variable synced from the update listener would re-render the tree on every keystroke for no benefit, since the view already owns the text.

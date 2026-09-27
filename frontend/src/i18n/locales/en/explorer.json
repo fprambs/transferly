@@ -61,6 +61,7 @@
   "menu": {
     "label": "Actions for the selected item",
     "open": "Open",
+    "edit": "Edit",
     "rename": "Rename",
     "delete": "Delete",
     "newFolder": "New folder",

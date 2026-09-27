@@ -337,4 +337,27 @@ describe('explorer', () => {
     await user.click(await within(again).findByText('/www/report-here.csv'))
     expect(onNavigate).not.toHaveBeenCalled()
   })
+
+  it('opens a file in the remote editor with a double click, saves it and reloads the folder on close', async () => {
+    mockListing([entry('notes.txt', { size: 5 })])
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files/content', () => HttpResponse.text('hello')),
+      http.get('/api/v1/workspaces/:id/sites/s1/files/entry', () => HttpResponse.json(entry('notes.txt', { size: 5 }))),
+      http.put('/api/v1/workspaces/:id/sites/s1/files/content', () => HttpResponse.json(entry('notes.txt', { size: 5 }), { status: 201 })),
+    )
+    const { user } = await renderExplorer()
+    const grid = await screen.findByRole('grid')
+
+    await user.dblClick(within(grid).getByText('notes.txt'))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('/www/notes.txt')).toBeInTheDocument()
+
+    await waitFor(() => expect(within(dialog).getByRole('textbox')).toHaveTextContent('hello'))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Save' })).toBeEnabled())
+
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await screen.findByRole('grid')).toBeInTheDocument()
+  })
 })

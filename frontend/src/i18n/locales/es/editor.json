@@ -1,0 +1,25 @@
+{
+  "loading": "Cargando…",
+  "tooLarge": "Este archivo es demasiado grande para editarlo aquí (más de 2 MiB). Descárgalo, cámbialo y súbelo en su lugar.",
+  "save": "Guardar",
+  "saving": "Guardando…",
+  "close": "Cerrar",
+  "discardBody": "Tienes cambios sin guardar. ¿Cerrar sin guardarlos?",
+  "discardKeep": "Seguir editando",
+  "discardConfirm": "Descartar cambios",
+  "conflict": {
+    "title": "Este archivo cambió desde que lo abriste",
+    "body": "Alguien más lo cambió mientras lo editabas. Recarga su versión, perdiendo lo que escribiste, o sobrescríbelo con la tuya.",
+    "reload": "Recargar su versión",
+    "overwrite": "Sobrescribir de todas formas"
+  },
+  "errors": {
+    "path_not_found": "Este archivo ya no existe.",
+    "remote_permission_denied": "El servidor rechazó esta acción.",
+    "remote_unavailable": "El servidor no respondió.",
+    "vault_locked": "Desbloquea el vault para abrir este archivo.",
+    "destination_blocked": "La política del servidor no permite esta dirección.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

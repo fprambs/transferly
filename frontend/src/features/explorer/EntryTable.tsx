@@ -40,6 +40,8 @@ export interface EntryTableProps {
   onDownload?: (entry: RemoteEntry) => void
   /** Called to download the files of a folder one by one from the context menu; the item is left out without it. */
   onDownloadEach?: (entry: RemoteEntry) => void
+  /** Called to open a file in the remote editor: double click or the context menu; the item is left out without it. */
+  onEdit?: (entry: RemoteEntry) => void
   /** Called to rename an entry: F2 or the context menu; both are left out without it. */
   onRename?: (entry: RemoteEntry) => void
   /** Called to delete an entry: Delete or the context menu; both are left out without it. */
@@ -90,7 +92,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -102,12 +104,16 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, s
   })
   const current = resolveSelection(entries, selectedPath)
   const active = entries[current]
-  const menuItems = active.type === 'directory' || onDownload || onRename || onDelete || onNewFolder
+  const menuItems = active.type === 'directory' || onDownload || onEdit || onRename || onDelete || onNewFolder
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      onOpen(active)
+      if (active.type === 'file' && onEdit) {
+        onEdit(active)
+      } else {
+        onOpen(active)
+      }
       return
     }
     if (event.key === 'Backspace') {
@@ -168,7 +174,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, s
               aria-selected={item.index === current}
               onClick={() => onSelect(entry)}
               onContextMenu={() => onSelect(entry)}
-              onDoubleClick={() => onOpen(entry)}
+              onDoubleClick={() => (entry.type === 'file' && onEdit ? onEdit(entry) : onOpen(entry))}
               onMouseEnter={() => onHover?.(entry)}
               draggable={entry.type === 'file' || (dragFolders === true && entry.type === 'directory')}
               onDragStart={(event) => onDragEntry(entry, event.dataTransfer)}
@@ -202,6 +208,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, s
           {active.type === 'file' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.download)}</ContextMenuItem>}
           {active.type === 'directory' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.downloadZip)}</ContextMenuItem>}
           {active.type === 'directory' && onDownloadEach && <ContextMenuItem onClick={() => onDownloadEach(active)}>{t(($) => $.menu.downloadEach)}</ContextMenuItem>}
+          {active.type === 'file' && onEdit && <ContextMenuItem onClick={() => onEdit(active)}>{t(($) => $.menu.edit)}</ContextMenuItem>}
           {onRename && <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>}
           {onDelete && <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>}
           {onNewFolder && <ContextMenuSeparator />}

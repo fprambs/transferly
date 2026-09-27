@@ -418,4 +418,24 @@ test.describe('screenshots', () => {
 
     await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${siteId}`, { headers })
   })
+
+  test('remote editor', async ({ shell, quickId }) => {
+    const { page } = shell
+    const name = `shot-${Date.now()}.txt`
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await expect(grid).toBeVisible()
+    await grid.getByRole('row', { name: /upload/ }).dblclick()
+    await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('server {\n  listen 443;\n}\n') })
+    const row = grid.getByRole('row', { name: new RegExp(name) })
+    await expect(row).toBeVisible()
+    await row.dblclick()
+    const dialog = page.getByRole('dialog', { name: new RegExp(name) })
+    await expect(dialog.getByRole('textbox')).toContainText('listen 443')
+    await shoot(page, '38-remote-editor')
+
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await grid.press('Delete')
+    await page.getByRole('dialog', { name: 'Delete this file?' }).getByRole('button', { name: 'Delete' }).click()
+  })
 })

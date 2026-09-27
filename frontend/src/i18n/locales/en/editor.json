@@ -1,0 +1,25 @@
+{
+  "loading": "Loading…",
+  "tooLarge": "This file is too large to edit here (over 2 MiB). Download it, change it and upload it instead.",
+  "save": "Save",
+  "saving": "Saving…",
+  "close": "Close",
+  "discardBody": "You have unsaved changes. Close without saving them?",
+  "discardKeep": "Keep editing",
+  "discardConfirm": "Discard changes",
+  "conflict": {
+    "title": "This file changed since you opened it",
+    "body": "Someone else changed it while you were editing. Reload their version, losing what you typed, or overwrite it with yours.",
+    "reload": "Reload their version",
+    "overwrite": "Overwrite anyway"
+  },
+  "errors": {
+    "path_not_found": "This file no longer exists.",
+    "remote_permission_denied": "The server refused this action.",
+    "remote_unavailable": "The server did not answer.",
+    "vault_locked": "Unlock the vault to open this file.",
+    "destination_blocked": "This address is not allowed by the server policy.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again."
+  }
+}
