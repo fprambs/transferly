@@ -7,10 +7,11 @@ import { useSession } from '../auth/use-session'
 
 import { AccountsTab } from './AccountsTab'
 import { AdminAuditTab } from './AdminAuditTab'
+import { LimitsTab } from './LimitsTab'
 import { NetworksTab } from './NetworksTab'
 
 /** The tabs of the page. */
-type PageTab = 'accounts' | 'networks' | 'audit'
+type PageTab = 'accounts' | 'networks' | 'limits' | 'audit'
 
 /** The administration page of the instance: accounts, private networks and the record of what administrators did. Only administrators see it. */
 export function AdminPage() {
@@ -38,6 +39,9 @@ export function AdminPage() {
           <TabsTrigger value="networks" className="flex-none px-3">
             {t(($) => $.page.tabs.networks)}
           </TabsTrigger>
+          <TabsTrigger value="limits" className="flex-none px-3">
+            {t(($) => $.page.tabs.limits)}
+          </TabsTrigger>
           <TabsTrigger value="audit" className="flex-none px-3">
             {t(($) => $.page.tabs.audit)}
           </TabsTrigger>
@@ -45,6 +49,7 @@ export function AdminPage() {
       </Tabs>
       {tab === 'accounts' && <AccountsTab />}
       {tab === 'networks' && <NetworksTab />}
+      {tab === 'limits' && <LimitsTab />}
       {tab === 'audit' && <AdminAuditTab />}
     </div>
   )

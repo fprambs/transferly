@@ -47,6 +47,10 @@ export type AuditEvent = Schemas['AuditEvent']
 export type AdminUser = Schemas['AdminUser']
 /** What an administrator can change in an account. */
 export type AdminUserPatch = Schemas['AdminUserPatch']
+/** The caps and quotas of the instance; zero means no limit. */
+export type InstanceLimits = Schemas['InstanceLimits']
+/** The limits in force next to the ones the server started with. */
+export type InstanceLimitsView = Schemas['InstanceLimitsView']
 /** The private networks saved sites may reach: fixed by the server and added by administrators. */
 export type Networks = Schemas['Networks']
 /** A collection that groups sites. */
@@ -191,6 +195,8 @@ export function createApi(transport: Transport) {
       users: () => transport.request<AdminUser[]>({ method: 'GET', path: `${root}/admin/users` }),
       updateUser: (userId: string, changes: AdminUserPatch) => transport.request<void>({ method: 'PATCH', path: `${root}/admin/users/${userId}`, body: changes }),
       resetSecondFactor: (userId: string) => transport.request<void>({ method: 'POST', path: `${root}/admin/users/${userId}/second-factor/reset` }),
+      limits: () => transport.request<InstanceLimitsView>({ method: 'GET', path: `${root}/admin/limits` }),
+      setLimits: (limits: InstanceLimits) => transport.request<InstanceLimitsView>({ method: 'PUT', path: `${root}/admin/limits`, body: limits }),
       networks: () => transport.request<Networks>({ method: 'GET', path: `${root}/admin/networks` }),
       setNetworks: (networks: string[]) => transport.request<Networks>({ method: 'PUT', path: `${root}/admin/networks`, body: { networks } }),
       audit: (query: { action?: string; before?: number; limit?: number } = {}) => transport.request<AuditEvent[]>({ method: 'GET', path: `${root}/admin/audit`, query }),

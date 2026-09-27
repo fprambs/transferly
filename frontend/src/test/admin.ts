@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { AdminUser, AuditEvent, Networks } from '@/lib/api'
+import type { AdminUser, AuditEvent, InstanceLimits, InstanceLimitsView, Networks } from '@/lib/api'
 
 import { adminSession, mockSession, mockWorkspaceData, problem } from './handlers'
 import { server } from './msw'
@@ -19,12 +19,28 @@ export const defaultUsers: AdminUser[] = [
   adminUser('u-lucia', 'lucia@agency.io', { role: 'admin' }),
 ]
 
+/** The limits of the mock server unless a test says otherwise: the transfers the server starts with and nothing else capped. */
+export const defaultLimits: InstanceLimits = {
+  bandwidthGlobal: 0,
+  bandwidthPerUser: 0,
+  transfersGlobal: 32,
+  transfersPerWorkspace: 16,
+  transfersPerUser: 8,
+  transfersPerSite: 4,
+  maxSitesPerWorkspace: 0,
+  maxTeamsPerUser: 0,
+  maxMembersPerTeam: 0,
+  dailyBytesPerUser: 0,
+}
+
 /** What a test can ask for when it mocks the administration API. */
 export interface AdminOptions {
   /** The accounts the server holds. */
   users?: AdminUser[]
   /** The networks the server holds. */
   networks?: Networks
+  /** The limits the server holds; the ones it started with stay the defaults. */
+  limits?: InstanceLimits
   /** Answers the audit trail of the instance for a query. */
   audit?: (query: URLSearchParams) => AuditEvent[]
 }
@@ -35,6 +51,8 @@ export interface AdminMock {
   users: AdminUser[]
   /** The networks the server holds. */
   networks: Networks
+  /** The limits and the ones the server started with. */
+  limits: InstanceLimitsView
   /** Every change asked for. */
   calls: SeenCall[]
   /** The queries the audit trail was read with. */
@@ -45,10 +63,10 @@ export interface AdminMock {
  * Signs in as an administrator and mocks the administration API. The lists change with the calls, so what the screen reads after a
  * change is what the server would answer.
  */
-export function mockAdmin({ users = defaultUsers, networks = { fixed: ['172.16.0.0/12'], custom: ['192.168.1.0/24'] }, audit = () => [] }: AdminOptions = {}): AdminMock {
+export function mockAdmin({ users = defaultUsers, networks = { fixed: ['172.16.0.0/12'], custom: ['192.168.1.0/24'] }, limits = defaultLimits, audit = () => [] }: AdminOptions = {}): AdminMock {
   mockSession(adminSession)
   mockWorkspaceData()
-  const state: AdminMock = { users: [...users], networks, calls: [], auditQueries: [] }
+  const state: AdminMock = { users: [...users], networks, limits: { current: limits, defaults: defaultLimits }, calls: [], auditQueries: [] }
   const record = async (request: Request): Promise<unknown> => {
     const text = await request.text()
     const body = text === '' ? undefined : (JSON.parse(text) as unknown)
@@ -72,6 +90,11 @@ export function mockAdmin({ users = defaultUsers, networks = { fixed: ['172.16.0
       const body = (await record(request)) as { networks: string[] }
       state.networks = { ...state.networks, custom: body.networks.map((n) => (n.includes('/') ? n : `${n}/32`)) }
       return HttpResponse.json(state.networks)
+    }),
+    http.get('/api/v1/admin/limits', () => HttpResponse.json(state.limits)),
+    http.put('/api/v1/admin/limits', async ({ request }) => {
+      state.limits = { ...state.limits, current: (await record(request)) as InstanceLimits }
+      return HttpResponse.json(state.limits)
     }),
     http.get('/api/v1/admin/audit', ({ request }) => {
       const query = new URL(request.url).searchParams

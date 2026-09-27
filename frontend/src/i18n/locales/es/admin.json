@@ -7,7 +7,8 @@
     "tabs": {
       "accounts": "Cuentas",
       "networks": "Redes",
-      "audit": "Registro de auditoría"
+      "audit": "Registro de auditoría",
+      "limits": "Límites"
     }
   },
   "accounts": {
@@ -84,7 +85,8 @@
       "accounts": "Cuentas",
       "roles": "Roles",
       "security": "Segundo paso",
-      "networks": "Redes"
+      "networks": "Redes",
+      "limits": "Límites"
     },
     "actions": {
       "userDisabled": "deshabilitó la cuenta {{target}}",
@@ -93,7 +95,8 @@
       "secondFactorReset": "quitó el segundo paso de {{target}}",
       "networksChanged_one": "cambió las redes permitidas ({{count}} red)",
       "networksChanged_other": "cambió las redes permitidas ({{count}} redes)",
-      "unknown": "{{action}} {{target}}"
+      "unknown": "{{action}} {{target}}",
+      "limitsChanged": "cambió los límites de la instancia"
     }
   },
   "errors": {
@@ -106,6 +109,43 @@
     "too_many_networks": "Hay demasiadas entradas. El límite es 100.",
     "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
     "network_error": "No se pudo contactar con el servidor.",
-    "unknown": "Algo salió mal. Inténtalo de nuevo."
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "invalid_limits": "Un límite no es válido. Usa números enteros, o decimales para MiB/s y GiB, y nada por debajo de cero."
+  },
+  "limits": {
+    "loading": "Cargando límites…",
+    "intro": "Deja un campo vacío para no poner límite. Los cambios se aplican a la siguiente petición o bloque de datos; las transferencias en curso siguen. Se conservan al reiniciar el servidor.",
+    "unlimited": "Sin límite",
+    "started": "Arrancó con {{value}} {{unit}}",
+    "startedUnlimited": "Arrancó sin límite",
+    "save": "Guardar límites",
+    "restore": "Rellenar con los valores de arranque",
+    "saved": "Guardado. Los límites ya están en vigor.",
+    "groups": {
+      "bandwidth": {
+        "title": "Ancho de banda",
+        "note": "Qué tan rápido pueden moverse los datos. Las transferencias se frenan en conjunto para respetar los topes."
+      },
+      "transfers": {
+        "title": "Transferencias a la vez",
+        "note": "Cuántas transferencias corren juntas. Las demás esperan en la cola."
+      },
+      "quotas": {
+        "title": "Cuotas",
+        "note": "Lo que las cuentas pueden tener o mover. Los sitios, equipos y miembros que ya existen se conservan si bajas una cuota."
+      }
+    },
+    "fields": {
+      "bandwidthGlobal": "Todo el servidor",
+      "bandwidthPerUser": "Por persona",
+      "transfersGlobal": "Todo el servidor",
+      "transfersPerWorkspace": "Por workspace",
+      "transfersPerUser": "Por persona",
+      "transfersPerSite": "Por sitio",
+      "maxSitesPerWorkspace": "Sitios por workspace",
+      "maxTeamsPerUser": "Equipos que posee una persona",
+      "maxMembersPerTeam": "Miembros por equipo, con invitaciones en espera",
+      "dailyBytesPerUser": "Volumen por persona y día"
+    }
   }
 }

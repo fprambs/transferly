@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { AuditEvent } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData } from '@/test/handlers'
 import { server } from '@/test/msw'
-import { failAdmin, mockAdmin } from '@/test/admin'
+import { defaultLimits, failAdmin, mockAdmin } from '@/test/admin'
 import { renderApp } from '@/test/render-app'
 import { renderWithProviders } from '@/test/render'
 
@@ -36,6 +36,8 @@ async function openActions(email: string) {
  * - making somebody an administrator and back tells the server, and a failed change explains why
  * - removing the second step asks first, is unavailable for accounts without one, and a failure inside the question is shown in it
  * - the networks show what the server started with, save the entries one per line without blank lines, and explain a refusal
+ * - the limits show what is in force and what the server started with, save the values in the units of the server, refuse what is not a number
+ *   and fill in the starting values on request
  * - the audit log words every action, narrows by group, pages, and explains an empty trail
  * - people who are not administrators get a message instead of the page, and the account menu offers the page only to administrators
  * - the translated messages, the action keys and the error keys are the ones the server uses
@@ -205,6 +207,91 @@ describe('administration', () => {
     expect(await screen.findByText('Loading networks…')).toBeInTheDocument()
   })
 
+  it('shows the limits in force and what the server started with', async () => {
+    mockAdmin({ limits: { ...defaultLimits, bandwidthGlobal: 5 * 1024 * 1024, dailyBytesPerUser: 1.5 * 1024 ** 3, transfersGlobal: 10 } })
+    await renderApp({ path: '/admin' })
+    await userEvent.setup().click(await screen.findByRole('tab', { name: 'Limits' }))
+
+    expect(await screen.findByLabelText('Whole server', { selector: '#limit-bandwidthGlobal' })).toHaveValue('5')
+    expect(screen.getByLabelText('Volume per person and day')).toHaveValue('1.5')
+    expect(screen.getByLabelText('Per person', { selector: '#limit-bandwidthPerUser' })).toHaveValue('')
+    expect(screen.getByLabelText('Per person', { selector: '#limit-bandwidthPerUser' })).toHaveAttribute('placeholder', 'Unlimited')
+    expect(screen.getByLabelText('Whole server', { selector: '#limit-transfersGlobal' })).toHaveValue('10')
+    expect(screen.getByText('Started with 32')).toBeInTheDocument()
+    expect(screen.getAllByText('Started without a limit').length).toBeGreaterThan(0)
+  })
+
+  it('saves the limits in the units of the server', async () => {
+    const mock = mockAdmin()
+    await renderApp({ path: '/admin' })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: 'Limits' }))
+
+    await user.type(await screen.findByLabelText('Whole server', { selector: '#limit-bandwidthGlobal' }), '2.5')
+    await user.type(screen.getByLabelText('Sites per workspace'), '20')
+    await user.type(screen.getByLabelText('Volume per person and day'), '0.5')
+    await user.clear(screen.getByLabelText('Whole server', { selector: '#limit-transfersGlobal' }))
+    await user.click(screen.getByRole('button', { name: 'Save limits' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved.')
+    expect(mock.calls).toEqual([
+      {
+        method: 'PUT',
+        path: '/api/v1/admin/limits',
+        body: { ...defaultLimits, bandwidthGlobal: 2.5 * 1024 * 1024, maxSitesPerWorkspace: 20, dailyBytesPerUser: 0.5 * 1024 ** 3, transfersGlobal: 0 },
+      },
+    ])
+    expect(screen.getByLabelText('Whole server', { selector: '#limit-bandwidthGlobal' })).toHaveValue('2.5')
+    expect(screen.getByLabelText('Whole server', { selector: '#limit-transfersGlobal' })).toHaveValue('')
+  })
+
+  it('refuses what is not an amount before asking the server', async () => {
+    const mock = mockAdmin()
+    await renderApp({ path: '/admin' })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: 'Limits' }))
+
+    await user.type(await screen.findByLabelText('Sites per workspace'), 'lots')
+    await user.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('A limit is not valid')
+    await user.clear(screen.getByLabelText('Sites per workspace'))
+    await user.type(screen.getByLabelText('Sites per workspace'), '-3')
+    await user.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(mock.calls).toEqual([])
+  })
+
+  it('explains a refusal of the server and fills in the starting values on request', async () => {
+    mockAdmin({ limits: { ...defaultLimits, transfersGlobal: 3, maxTeamsPerUser: 9 } })
+    failAdmin('put', '/limits', 422, 'invalid_limits')
+    await renderApp({ path: '/admin' })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: 'Limits' }))
+
+    expect(await screen.findByLabelText('Teams a person owns')).toHaveValue('9')
+    await user.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('A limit is not valid')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Fill in the starting values' }))
+    expect(screen.getByLabelText('Teams a person owns')).toHaveValue('')
+    expect(screen.getByLabelText('Whole server', { selector: '#limit-transfersGlobal' })).toHaveValue('32')
+  })
+
+  it('waits for the limits', async () => {
+    mockAdmin()
+    server.use(
+      http.get('/api/v1/admin/limits', async () => {
+        await delay('infinite')
+        return HttpResponse.json({})
+      }),
+    )
+    await renderApp({ path: '/admin' })
+    await userEvent.setup().click(await screen.findByRole('tab', { name: 'Limits' }))
+
+    expect(await screen.findByText('Loading limits…')).toBeInTheDocument()
+  })
+
   it('words every action of the audit log', async () => {
     mockAdmin({
       audit: () => [
@@ -215,6 +302,7 @@ describe('administration', () => {
         event(2, 'admin.second_factor_reset', 'ana@acme.dev'),
         event(1, 'admin.networks_changed', '', { meta: { count: '2' } }),
         event(0, 'admin.networks_changed', '', { meta: { count: '1' } }),
+        event(-2, 'admin.limits_changed', ''),
         event(-1, 'admin.thing', 'x', { actor: undefined, ip: undefined, meta: {} }),
       ],
     })
@@ -230,6 +318,7 @@ describe('administration', () => {
       'removed the second step of ana@acme.dev',
       'changed the allowed networks (2 networks)',
       'changed the allowed networks (1 network)',
+      'changed the limits of the instance',
       'admin.thing x',
       'Deleted account',
     ]) {

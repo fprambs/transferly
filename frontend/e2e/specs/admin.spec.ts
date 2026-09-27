@@ -32,8 +32,9 @@ async function expectAccessible(page: Page, label: string): Promise<void> {
  * - removing its second step asks first, and afterwards the list shows it off
  * - disabling it asks first, ends its session at once, and enabling it makes it active again without a question
  * - the networks page saves an entry, keeps it after a reload, refuses the whole internet and clears the list
+ * - the limits page saves values in its units, keeps them after a reload, refuses what is not a number and goes back to the starting values
  * - the audit log words each change and narrows by group
- * - the three tabs and the confirmation have no WCAG violations in the light and dark themes
+ * - the four tabs and the confirmation have no WCAG violations in the light and dark themes
  */
 test.describe('administration', () => {
   test.describe.configure({ mode: 'serial' })
@@ -130,6 +131,32 @@ test.describe('administration', () => {
     await expect(page.getByLabel('Added by administrators')).toHaveValue('')
   })
 
+  test('saves and restores the limits', async ({ shell, page }) => {
+    void shell
+    await page.goto('/admin')
+    await page.getByRole('tab', { name: 'Limits' }).click()
+    const sites = page.getByLabel('Sites per workspace')
+    const bandwidth = page.getByLabel('Per person', { exact: true }).first()
+    await expect(sites).toHaveValue('')
+    await sites.fill('lots')
+    await page.getByRole('button', { name: 'Save limits' }).click()
+    await expect(page.getByRole('alert')).toContainText('A limit is not valid')
+
+    await sites.fill('500')
+    await bandwidth.fill('200')
+    await page.getByRole('button', { name: 'Save limits' }).click()
+    await expect(page.getByRole('status')).toContainText('Saved.')
+    await page.reload()
+    await page.getByRole('tab', { name: 'Limits' }).click()
+    await expect(page.getByLabel('Sites per workspace')).toHaveValue('500')
+    await expect(page.getByLabel('Per person', { exact: true }).first()).toHaveValue('200')
+
+    await page.getByRole('button', { name: 'Fill in the starting values' }).click()
+    await page.getByRole('button', { name: 'Save limits' }).click()
+    await expect(page.getByRole('status')).toContainText('Saved.')
+    await expect(page.getByLabel('Sites per workspace')).toHaveValue('')
+  })
+
   test('records what happened in the audit log', async ({ shell, page }) => {
     void shell
     await page.goto('/admin')
@@ -140,6 +167,7 @@ test.describe('administration', () => {
     await expect(log).toContainText(`enabled the account ${email}`)
     await expect(log).toContainText(`made ${email} Administrator`)
     await expect(log).toContainText('changed the allowed networks (2 networks)')
+    await expect(log).toContainText('changed the limits of the instance')
     await expect(log.getByRole('listitem').first()).toContainText('e2e@example.com')
 
     await page.getByLabel('Show').selectOption({ label: 'Networks' })
@@ -157,6 +185,9 @@ test.describe('administration', () => {
       await page.getByRole('tab', { name: 'Networks' }).click()
       await expect(page.getByLabel('Added by administrators')).toBeVisible()
       await expectAccessible(page, `${theme} networks`)
+      await page.getByRole('tab', { name: 'Limits' }).click()
+      await expect(page.getByLabel('Sites per workspace')).toBeVisible()
+      await expectAccessible(page, `${theme} limits`)
       await page.getByRole('tab', { name: 'Audit log' }).click()
       await expect(page.getByRole('list', { name: 'Instance audit log' })).toBeVisible()
       await expectAccessible(page, `${theme} audit`)

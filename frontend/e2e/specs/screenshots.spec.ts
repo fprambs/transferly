@@ -264,6 +264,13 @@ test.describe('screenshots', () => {
     await expect(page.getByRole('status')).toBeVisible()
     await shoot(page, '30-admin-networks')
 
+    await page.getByRole('tab', { name: 'Limits' }).click()
+    await expect(page.getByLabel('Sites per workspace')).toBeVisible()
+    await page.getByLabel('Per person', { exact: true }).first().fill('2')
+    await page.getByLabel('Sites per workspace').fill('50')
+    await page.getByLabel('Volume per person and day').fill('5')
+    await shoot(page, '32-admin-limits')
+
     await page.getByRole('tab', { name: 'Audit log' }).click()
     await expect(page.getByRole('list', { name: 'Instance audit log' })).toContainText('changed the allowed networks')
     await shoot(page, '31-admin-audit')

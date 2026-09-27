@@ -7,7 +7,8 @@
     "tabs": {
       "accounts": "Accounts",
       "networks": "Networks",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "limits": "Limits"
     }
   },
   "accounts": {
@@ -84,7 +85,8 @@
       "accounts": "Accounts",
       "roles": "Roles",
       "security": "Second step",
-      "networks": "Networks"
+      "networks": "Networks",
+      "limits": "Limits"
     },
     "actions": {
       "userDisabled": "disabled the account {{target}}",
@@ -93,7 +95,8 @@
       "secondFactorReset": "removed the second step of {{target}}",
       "networksChanged_one": "changed the allowed networks ({{count}} network)",
       "networksChanged_other": "changed the allowed networks ({{count}} networks)",
-      "unknown": "{{action}} {{target}}"
+      "unknown": "{{action}} {{target}}",
+      "limitsChanged": "changed the limits of the instance"
     }
   },
   "errors": {
@@ -106,6 +109,43 @@
     "too_many_networks": "There are too many entries. The limit is 100.",
     "rate_limited": "Too many attempts. Wait a moment and try again.",
     "network_error": "Could not reach the server.",
-    "unknown": "Something went wrong. Try again."
+    "unknown": "Something went wrong. Try again.",
+    "invalid_limits": "A limit is not valid. Use whole numbers, or decimals for MiB/s and GiB, and nothing below zero."
+  },
+  "limits": {
+    "loading": "Loading limits…",
+    "intro": "Leave a field empty for no limit. Changes apply to the next request or chunk of data; transfers that are already running keep running. They are kept when the server restarts.",
+    "unlimited": "Unlimited",
+    "started": "Started with {{value}} {{unit}}",
+    "startedUnlimited": "Started without a limit",
+    "save": "Save limits",
+    "restore": "Fill in the starting values",
+    "saved": "Saved. The limits are in force now.",
+    "groups": {
+      "bandwidth": {
+        "title": "Bandwidth",
+        "note": "How fast data may move. Transfers slow down together to stay under the caps."
+      },
+      "transfers": {
+        "title": "Transfers at once",
+        "note": "How many transfers run together. The rest wait in the queue."
+      },
+      "quotas": {
+        "title": "Quotas",
+        "note": "What accounts may have or move. Existing sites, teams and members are kept when a quota is lowered."
+      }
+    },
+    "fields": {
+      "bandwidthGlobal": "Whole server",
+      "bandwidthPerUser": "Per person",
+      "transfersGlobal": "Whole server",
+      "transfersPerWorkspace": "Per workspace",
+      "transfersPerUser": "Per person",
+      "transfersPerSite": "Per site",
+      "maxSitesPerWorkspace": "Sites per workspace",
+      "maxTeamsPerUser": "Teams a person owns",
+      "maxMembersPerTeam": "Members per team, with waiting invitations",
+      "dailyBytesPerUser": "Volume per person and day"
+    }
   }
 }

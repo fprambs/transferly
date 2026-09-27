@@ -5,6 +5,7 @@ const known = {
   'admin.role_changed': 'roleChanged',
   'admin.second_factor_reset': 'secondFactorReset',
   'admin.networks_changed': 'networksChanged',
+  'admin.limits_changed': 'limitsChanged',
 } as const
 
 /** Translation key of the sentence that describes an action; an action the interface does not know gets the generic one. */
@@ -22,6 +23,7 @@ export const adminCategories = [
   { key: 'roles', prefix: 'admin.role_' },
   { key: 'security', prefix: 'admin.second_' },
   { key: 'networks', prefix: 'admin.networks_' },
+  { key: 'limits', prefix: 'admin.limits_' },
 ] as const
 
 /** How many events each page of the trail holds. */

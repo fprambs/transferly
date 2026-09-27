@@ -233,7 +233,7 @@ Decisiones de diseño en [ADR-0006](adr/0006-teams-and-invitations.md).
 - [x] 3.5 Vista de auditoría (eventos de miembros, invitaciones, sitios, claves y servidores de confianza; solo la leen admins y propietario)
 - [x] 3.6 Segundo factor: TOTP y passkeys (WebAuthn) con códigos de recuperación, pantallas de ajustes y segundo paso al iniciar sesión
 - [x] 3.7 Panel de administración de la instancia (cuentas, roles, deshabilitar, quitar el segundo factor a quien lo perdió) y política de red editable en caliente; todo auditado en el registro de la instancia
-- [ ] 3.8 Cuotas y límites de ancho de banda
+- [x] 3.8 Cuotas y límites de ancho de banda (globales y por persona), transferencias simultáneas y cuotas de sitios, equipos, miembros y volumen diario, editables en caliente por un administrador
 - [ ] 3.9 Revisión de seguridad de la fase: IDOR y acceso entre workspaces, escalada de privilegios entre roles, sellado y rotación de claves, abuso de invitaciones, bypass de 2FA, enumeración de usuarios
 
 Tests obligatorios: aislamiento entre workspaces, sellado y rotación de DEK, matriz de autorización completa, TOTP y passkeys, cobertura de auditoría.
