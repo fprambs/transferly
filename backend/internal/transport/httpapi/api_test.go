@@ -23,6 +23,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
@@ -63,6 +64,7 @@ type api struct {
 	hash   *auth.Hasher
 	events *recordedEvents
 	hub    *events.Hub
+	policy *netguard.Policy
 }
 
 // reply is a fully read HTTP response.
@@ -106,8 +108,9 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	keys.OnRotate(func(ctx context.Context, workspaceID, actor uuid.UUID, version int) {
 		_ = auditTrail.Record(ctx, audit.Event{WorkspaceID: workspaceID, ActorID: actor, Action: audit.KeyRotated, Meta: map[string]string{"version": strconv.Itoa(version)}})
 	})
-	sites := site.NewService(store, workspaces, keys, netguard.NewPolicy(nil, nil), clock, rand.Reader, nil)
-	quickConnections := quick.NewService(workspaces, netguard.NewPolicy(nil, nil), sites, clock, nil)
+	policy := netguard.NewPolicy(nil, nil)
+	sites := site.NewService(store, workspaces, keys, policy, clock, rand.Reader, nil)
+	quickConnections := quick.NewService(workspaces, policy, sites, clock, nil)
 	pool := connections.New(newMemConnector(clock, sites, quickConnections), clock, connections.Config{Attempts: 1})
 	recorded := &recordedEvents{}
 	hub := events.New(64)
@@ -136,6 +139,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Activity:    activityLog,
 		Import:      fzimport.NewService(workspaces, sites),
 		Audit:       auditTrail,
+		Admin:       admin.NewService(store, policy, clock),
 		MFA:         mfa.NewService(store, instanceKey, rand.Reader, clock),
 		Passkeys:    passkeys,
 		Invites:     invite.NewService(store, workspaces, store, service, clock, rand.Reader, 0, nil),
@@ -160,7 +164,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	}
 	srv := httptest.NewServer(httpapi.NewRouter(deps))
 	t.Cleanup(srv.Close)
-	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub}
+	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub, policy: policy}
 }
 
 // request describes one call.

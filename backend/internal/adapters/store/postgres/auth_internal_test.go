@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -43,7 +44,8 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 		(f.failAt == "reseal" && strings.Contains(sql, "UPDATE site_secrets")) || (f.failAt == "totp-upsert" && strings.Contains(sql, "INSERT INTO user_totp")) || (f.failAt == "totp-confirm" && strings.Contains(sql, "SET confirmed = true")) ||
 		(f.failAt == "totp-delete" && strings.Contains(sql, "DELETE FROM user_totp")) || (f.failAt == "recovery-delete" && strings.Contains(sql, "DELETE FROM user_recovery_codes")) ||
 		(f.failAt == "recovery-insert" && strings.Contains(sql, "INSERT INTO user_recovery_codes")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
-		(f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
+		(f.failAt == "passkeys-delete" && strings.Contains(sql, "DELETE FROM user_passkeys")) || (f.failAt == "networks-delete" && strings.Contains(sql, "DELETE FROM network_allowances")) ||
+		(f.failAt == "networks-insert" && strings.Contains(sql, "INSERT INTO network_allowances")) || (f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
 	}
 	return pgconn.NewCommandTag("UPDATE 1"), nil
@@ -305,6 +307,38 @@ func TestFactorWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 	}{
 		"confirm": {[]string{"totp-confirm", "recovery-delete", "recovery-insert", "commit"}, func(s *Store) error { return s.ConfirmFactor(ctx, id, 1, codes) }},
 		"replace": {[]string{"recovery-delete", "recovery-insert", "commit"}, func(s *Store) error { return s.ReplaceRecovery(ctx, id, codes) }},
+	}
+	for name, c := range cases {
+		for _, step := range c.steps {
+			store := &Store{queries: db.New(nil)}
+			store.begin = func(context.Context) (pgx.Tx, error) { return fakeTx{failAt: step}, nil }
+			if err := c.run(store); !errors.Is(err, errStep) {
+				t.Errorf("%s failure at %s = %v, want the injected error", name, step, err)
+			}
+		}
+		failing := &Store{queries: db.New(nil)}
+		failing.begin = func(context.Context) (pgx.Tx, error) { return nil, errStep }
+		if err := c.run(failing); !errors.Is(err, errStep) {
+			t.Errorf("%s failure to start = %v, want the injected error", name, err)
+		}
+	}
+}
+
+// TestAdminWrites_ReportFailuresInsideTheTransaction verifies that a failure at any step of an administrator's change is returned.
+//
+// Scenarios:
+//   - resetting a second factor fails on deleting the app, the passkeys and the recovery codes, and on committing
+//   - replacing the allowed networks fails on deleting the old ones, on inserting a new one and on committing
+func TestAdminWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	networks := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
+	cases := map[string]struct {
+		steps []string
+		run   func(*Store) error
+	}{
+		"reset":    {[]string{"totp-delete", "passkeys-delete", "recovery-delete", "commit"}, func(s *Store) error { return s.ResetSecondFactor(ctx, id) }},
+		"networks": {[]string{"networks-delete", "networks-insert", "commit"}, func(s *Store) error { return s.ReplaceNetworks(ctx, networks, id, time.Now()) }},
 	}
 	for name, c := range cases {
 		for _, step := range c.steps {

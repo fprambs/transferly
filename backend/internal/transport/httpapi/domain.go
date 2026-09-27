@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -154,6 +155,14 @@ var domainProblems = []struct {
 	{workspace.ErrOwnerBound, http.StatusConflict, "owner_bound"},
 	{workspace.ErrAlreadyMember, http.StatusConflict, "already_member"},
 	{audit.ErrInvalidFilter, http.StatusUnprocessableEntity, "invalid_filter"},
+	{audit.ErrForbidden, http.StatusForbidden, "forbidden"},
+	{admin.ErrForbidden, http.StatusForbidden, "forbidden"},
+	{admin.ErrNotFound, http.StatusNotFound, "account_not_found"},
+	{admin.ErrSelf, http.StatusConflict, "own_account"},
+	{admin.ErrLastAdmin, http.StatusConflict, "last_admin"},
+	{admin.ErrInvalidRole, http.StatusUnprocessableEntity, "invalid_role"},
+	{admin.ErrInvalidNetwork, http.StatusUnprocessableEntity, "invalid_network"},
+	{admin.ErrTooManyNetworks, http.StatusUnprocessableEntity, "too_many_networks"},
 	{invite.ErrNotFound, http.StatusNotFound, "invitation_not_found"},
 	{invite.ErrTooMany, http.StatusConflict, "too_many_invitations"},
 	{auth.ErrInvalidEmail, http.StatusUnprocessableEntity, "invalid_email"},
@@ -286,3 +295,21 @@ func (p domainProblem) VisitJoinWithInvitationResponse(w http.ResponseWriter) er
 
 // VisitListAuditResponse implements [ListAuditResponseObject].
 func (p domainProblem) VisitListAuditResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListAdminUsersResponse implements [ListAdminUsersResponseObject].
+func (p domainProblem) VisitListAdminUsersResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitUpdateAdminUserResponse implements [UpdateAdminUserResponseObject].
+func (p domainProblem) VisitUpdateAdminUserResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitResetSecondFactorResponse implements [ResetSecondFactorResponseObject].
+func (p domainProblem) VisitResetSecondFactorResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitGetNetworksResponse implements [GetNetworksResponseObject].
+func (p domainProblem) VisitGetNetworksResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitSetNetworksResponse implements [SetNetworksResponseObject].
+func (p domainProblem) VisitSetNetworksResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListAdminAuditResponse implements [ListAdminAuditResponseObject].
+func (p domainProblem) VisitListAdminAuditResponse(w http.ResponseWriter) error { return p.write(w) }

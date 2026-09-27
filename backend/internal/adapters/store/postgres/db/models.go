@@ -62,6 +62,12 @@ type Membership struct {
 	CreatedAt   time.Time
 }
 
+type NetworkAllowance struct {
+	Cidr      string
+	CreatedBy uuid.NullUUID
+	CreatedAt time.Time
+}
+
 type Site struct {
 	ID           uuid.UUID
 	WorkspaceID  uuid.UUID

@@ -227,6 +227,34 @@ func TestServe_FailsWhenTransfersCannotBeRecovered(t *testing.T) {
 	}
 }
 
+// TestServe_FailsWhenTheAllowedNetworksCannotBeLoaded verifies that Serve refuses to start when it cannot read the networks the
+// administrators allowed, instead of running with a stricter policy than they chose.
+//
+// Scenarios:
+//   - a database whose allowed networks table is gone makes Serve return that error
+func TestServe_FailsWhenTheAllowedNetworksCannotBeLoaded(t *testing.T) {
+	url := testutil.NewDatabase(t)
+	if err := postgres.Migrate(t.Context(), url); err != nil {
+		t.Fatal(err)
+	}
+	store, err := postgres.Open(t.Context(), url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if _, err := store.DB().Exec(t.Context(), "DROP TABLE network_allowances"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := testConfig(t, url)
+	cfg.AutoMigrate = false
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	err = app.Serve(ctx, cfg, discardLogger(), listen(t))
+	if err == nil || !strings.Contains(err.Error(), "loading the allowed networks") {
+		t.Errorf("Serve() = %v; want a failure to load the networks", err)
+	}
+}
+
 // TestServe_InterruptsTransfersLeftRunning verifies the recovery of a crashed run.
 //
 // Scenarios:

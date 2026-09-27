@@ -3,6 +3,7 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -488,5 +490,54 @@ func TestCollectionStore_ReportsDatabaseFailures(t *testing.T) {
 		if err == nil || errors.Is(err, site.ErrCollectionNotFound) || errors.Is(err, site.ErrCollectionNameTaken) || errors.Is(err, site.ErrCollectionNotEmpty) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
+	}
+}
+
+// TestAdminStore_Conformance runs the shared administration store suite against Postgres.
+func TestAdminStore_Conformance(t *testing.T) {
+	storetest.RunAdmin(t, func(t *testing.T) storetest.AdminStore { return openMigrated(t) })
+}
+
+// TestAdminStore_ReportsDatabaseFailures verifies that every administration operation returns the database error, using a closed pool.
+func TestAdminStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"Accounts":          second(store.Accounts(ctx)),
+		"Account":           second(store.Account(ctx, id)),
+		"SetDisabled":       store.SetDisabled(ctx, id, true),
+		"SetAccountRole":    store.SetAccountRole(ctx, id, auth.RoleUser),
+		"ActiveAdmins":      second(store.ActiveAdmins(ctx)),
+		"ResetSecondFactor": store.ResetSecondFactor(ctx, id),
+		"Networks":          second(store.Networks(ctx)),
+		"ReplaceNetworks":   store.ReplaceNetworks(ctx, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}, id, time.Now()),
+		"AuditInstance":     second(store.AuditInstance(ctx, audit.Filter{}, 10)),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, admin.ErrNotFound) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestAdminStore_RefusesUnreadableData verifies that a stored network that is not a network, and instance events whose metadata is not an
+// object, are reported instead of skipped.
+func TestAdminStore_RefusesUnreadableData(t *testing.T) {
+	store := openMigrated(t)
+	ctx := t.Context()
+	if _, err := store.DB().Exec(ctx, "INSERT INTO network_allowances (cidr, created_at) VALUES ('not a network', now())"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Networks(ctx); err == nil {
+		t.Error("Networks() read a value that is not a network")
+	}
+	if _, err := store.DB().Exec(ctx, "INSERT INTO audit_events (action, meta) VALUES ('admin.x', '[1]')"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AuditInstance(ctx, audit.Filter{}, 10); err == nil {
+		t.Error("AuditInstance() read a row whose metadata is not an object")
 	}
 }

@@ -156,3 +156,41 @@ func portOf(ln net.Listener) string {
 	_, port, _ := net.SplitHostPort(ln.Addr().String())
 	return port
 }
+
+// TestPolicy_Extra verifies the networks an administrator allows while the server runs.
+//
+// Scenarios:
+//   - an extra network opens its addresses at once and only its own, next to the fixed ones
+//   - the fixed and the extra networks are reported apart, as copies the caller cannot use to change the policy
+//   - replacing the extra networks closes what they opened
+func TestPolicy_Extra(t *testing.T) {
+	p := netguard.NewPolicy([]netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}, nil)
+	inside := netip.MustParseAddr("192.168.1.5")
+	if err := p.CheckIP(inside); !errors.Is(err, netguard.ErrBlocked) {
+		t.Fatalf("CheckIP(%s) = %v; want ErrBlocked before the extra network", inside, err)
+	}
+
+	extra := []netip.Prefix{netip.MustParsePrefix("192.168.0.0/16")}
+	p.SetExtra(extra)
+	if err := p.CheckIP(inside); err != nil {
+		t.Errorf("CheckIP(%s) = %v; want allowed by the extra network", inside, err)
+	}
+	if err := p.CheckIP(netip.MustParseAddr("10.9.9.9")); err != nil {
+		t.Errorf("CheckIP(fixed network) = %v; want still allowed", err)
+	}
+	if err := p.CheckIP(netip.MustParseAddr("172.16.0.1")); !errors.Is(err, netguard.ErrBlocked) {
+		t.Errorf("CheckIP(172.16.0.1) = %v; want ErrBlocked", err)
+	}
+
+	got := p.Extra()
+	got[0] = netip.MustParsePrefix("172.16.0.0/12")
+	extra[0] = netip.MustParsePrefix("172.16.0.0/12")
+	if p.Extra()[0] != netip.MustParsePrefix("192.168.0.0/16") || p.Fixed()[0] != netip.MustParsePrefix("10.0.0.0/8") {
+		t.Errorf("Extra() = %v, Fixed() = %v; want independent copies", p.Extra(), p.Fixed())
+	}
+
+	p.SetExtra(nil)
+	if err := p.CheckIP(inside); !errors.Is(err, netguard.ErrBlocked) {
+		t.Errorf("CheckIP(%s) = %v; want ErrBlocked after clearing", inside, err)
+	}
+}

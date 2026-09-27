@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
@@ -47,12 +48,25 @@ const (
 	HostKeyTrusted = "host_key.trusted"
 	// HostKeyForgotten is a server key that was forgotten.
 	HostKeyForgotten = "host_key.forgotten"
+	// AdminUserDisabled is an account an administrator of the instance disabled; the target is its email. It belongs to no workspace.
+	AdminUserDisabled = "admin.user_disabled"
+	// AdminUserEnabled is an account an administrator of the instance enabled again.
+	AdminUserEnabled = "admin.user_enabled"
+	// AdminRoleChanged is an account whose role in the instance changed; the new role is in the metadata.
+	AdminRoleChanged = "admin.role_changed"
+	// AdminSecondFactorReset is an account whose second factor an administrator removed.
+	AdminSecondFactorReset = "admin.second_factor_reset"
+	// AdminNetworksChanged is a change of the private networks sites may reach; the number of networks is in the metadata.
+	AdminNetworksChanged = "admin.networks_changed"
 )
 
 const (
 	defaultLimit = 100
 	maxLimit     = 500
 )
+
+// ErrForbidden means the account that asked for the trail of the instance is not an administrator.
+var ErrForbidden = errors.New("administrator required")
 
 // ErrInvalidFilter means the action filter is not a group or an action of the trail.
 var ErrInvalidFilter = errors.New("invalid audit filter")
@@ -96,6 +110,8 @@ type Store interface {
 	InsertAudit(ctx context.Context, e Event) error
 	// AuditByWorkspace returns the events of a workspace, newest first.
 	AuditByWorkspace(ctx context.Context, workspaceID uuid.UUID, filter Filter, limit int) ([]Event, error)
+	// AuditInstance returns the events of the administrators of the instance, which belong to no workspace, newest first.
+	AuditInstance(ctx context.Context, filter Filter, limit int) ([]Event, error)
 }
 
 // Authorizer decides who may read the trail.
@@ -131,8 +147,25 @@ func (s *Service) List(ctx context.Context, actor, workspaceID uuid.UUID, filter
 	if !filterPattern.MatchString(filter.Action) || filter.Before < 0 {
 		return nil, ErrInvalidFilter
 	}
+	return s.store.AuditByWorkspace(ctx, workspaceID, filter, pageSize(limit))
+}
+
+// pageSize applies the default and the maximum to the number of events asked for.
+func pageSize(limit int) int {
 	if limit <= 0 {
-		limit = defaultLimit
+		return defaultLimit
 	}
-	return s.store.AuditByWorkspace(ctx, workspaceID, filter, min(limit, maxLimit))
+	return min(limit, maxLimit)
+}
+
+// ListInstance returns the newest events of the administrators of the instance, with the same filter and limit rules as [Service.List]. Only
+// an active administrator may read them.
+func (s *Service) ListInstance(ctx context.Context, actor auth.User, filter Filter, limit int) ([]Event, error) {
+	if actor.Role != auth.RoleAdmin || actor.Disabled {
+		return nil, ErrForbidden
+	}
+	if !filterPattern.MatchString(filter.Action) || filter.Before < 0 {
+		return nil, ErrInvalidFilter
+	}
+	return s.store.AuditInstance(ctx, filter, pageSize(limit))
 }

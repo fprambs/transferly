@@ -51,7 +51,12 @@ func (s *server) ListAudit(ctx context.Context, request ListAuditRequestObject) 
 	if err != nil {
 		return nil, err
 	}
-	out := make(ListAudit200JSONResponse, 0, len(events))
+	return ListAudit200JSONResponse(auditEvents(events)), nil
+}
+
+// auditEvents turns events into what the API answers with.
+func auditEvents(events []audit.Event) []AuditEvent {
+	out := make([]AuditEvent, 0, len(events))
 	for _, e := range events {
 		event := AuditEvent{Id: e.ID, Action: e.Action, Target: e.Target, Meta: e.Meta, At: e.At}
 		if e.ActorEmail != "" {
@@ -62,5 +67,5 @@ func (s *server) ListAudit(ctx context.Context, request ListAuditRequestObject) 
 		}
 		out = append(out, event)
 	}
-	return out, nil
+	return out
 }

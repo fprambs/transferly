@@ -18,6 +18,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
@@ -126,6 +127,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Import:      fzimport.NewService(workspaces, sites),
 			Invites:     invites,
 			Audit:       auditTrail,
+			Admin:       admin.NewService(store, policy, system),
 			MFA:         second,
 			Passkeys:    passkeys,
 			Quick:       quickConnections,

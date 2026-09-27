@@ -12,6 +12,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/events"
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
@@ -82,6 +83,8 @@ type Deps struct {
 	Passkeys *passkey.Service
 	// Audit is the audit trail of the workspaces.
 	Audit *audit.Service
+	// Admin is what the administrators of the instance do.
+	Admin *admin.Service
 	// Invites is the invitation service.
 	Invites *invite.Service
 	// Import creates the sites of a FileZilla site manager file.

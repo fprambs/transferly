@@ -160,6 +160,11 @@ func (brokenAudit) AuditByWorkspace(context.Context, uuid.UUID, audit.Filter, in
 	return nil, errInjected
 }
 
+// AuditInstance always fails.
+func (brokenAudit) AuditInstance(context.Context, audit.Filter, int) ([]audit.Event, error) {
+	return nil, errInjected
+}
+
 // TestAudit_Failures verifies how a failing audit store behaves.
 //
 // Scenarios:

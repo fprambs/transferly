@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/audit"
+	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
@@ -36,6 +37,12 @@ func (f *fakeStore) InsertAudit(_ context.Context, e audit.Event) error {
 
 // AuditByWorkspace records the arguments and returns the stored events.
 func (f *fakeStore) AuditByWorkspace(_ context.Context, _ uuid.UUID, filter audit.Filter, limit int) ([]audit.Event, error) {
+	f.seen, f.limit = filter, limit
+	return f.events, f.fail
+}
+
+// AuditInstance records the arguments and returns the stored events.
+func (f *fakeStore) AuditInstance(_ context.Context, filter audit.Filter, limit int) ([]audit.Event, error) {
 	f.seen, f.limit = filter, limit
 	return f.events, f.fail
 }
@@ -87,5 +94,38 @@ func TestService(t *testing.T) {
 	}
 	if _, err := svc.List(ctx, admin, ws, audit.Filter{}, 0); !errors.Is(err, errBoom) {
 		t.Errorf("List() failure = %v", err)
+	}
+}
+
+// TestService_ListInstance verifies reading the trail of the instance.
+//
+// Scenarios:
+//   - an active administrator lists with the default limit, a given limit and the maximum, and the filter reaches the store
+//   - a regular account and a disabled administrator are refused
+//   - filters that are not words are refused, and a failing store is returned
+func TestService_ListInstance(t *testing.T) {
+	ctx := context.Background()
+	store := &fakeStore{}
+	svc := audit.NewService(store, authz{}, testutil.NewFakeClock(time.Now()))
+	root := auth.User{ID: uuid.New(), Role: auth.RoleAdmin}
+
+	for limit, want := range map[int]int{0: 100, 7: 7, 100000: 500} {
+		if _, err := svc.ListInstance(ctx, root, audit.Filter{Action: "admin.", Before: 9}, limit); err != nil || store.limit != want || store.seen != (audit.Filter{Action: "admin.", Before: 9}) {
+			t.Errorf("ListInstance(limit %d) = %v, limit %d, filter %+v", limit, err, store.limit, store.seen)
+		}
+	}
+	for _, actor := range []auth.User{{Role: auth.RoleUser}, {Role: auth.RoleAdmin, Disabled: true}} {
+		if _, err := svc.ListInstance(ctx, actor, audit.Filter{}, 0); !errors.Is(err, audit.ErrForbidden) {
+			t.Errorf("ListInstance(%+v) = %v; want ErrForbidden", actor, err)
+		}
+	}
+	for _, filter := range []audit.Filter{{Action: "Admin"}, {Before: -1}} {
+		if _, err := svc.ListInstance(ctx, root, filter, 0); !errors.Is(err, audit.ErrInvalidFilter) {
+			t.Errorf("ListInstance(%+v) = %v; want ErrInvalidFilter", filter, err)
+		}
+	}
+	store.fail = errBoom
+	if _, err := svc.ListInstance(ctx, root, audit.Filter{}, 0); !errors.Is(err, errBoom) {
+		t.Errorf("ListInstance() failure = %v", err)
 	}
 }

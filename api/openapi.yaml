@@ -850,6 +850,247 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/users:
+    get:
+      operationId: listAdminUsers
+      security:
+        - sessionCookie: []
+      summary: The accounts of the instance
+      description: Needs the administrator role of the instance.
+      responses:
+        "200":
+          description: Every account, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/users/{userId}:
+    patch:
+      operationId: updateAdminUser
+      security:
+        - sessionCookie: []
+      summary: Disable, enable or change the role of an account
+      description: >-
+        Needs the administrator role of the instance. Disabling an account ends its sessions. Nobody changes their own account here and the
+        last active administrator cannot be disabled or demoted. Send only what changes.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserPatch"
+      responses:
+        "204":
+          description: The account was changed.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/users/{userId}/second-factor/reset:
+    post:
+      operationId: resetSecondFactor
+      security:
+        - sessionCookie: []
+      summary: Remove the second factor of an account
+      description: >-
+        For somebody who lost their device and their recovery codes. Removes the authenticator app, the passkeys and the recovery codes, and
+        is recorded in the audit trail of the instance. Needs the administrator role of the instance and cannot target the caller.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: The account has no second factor now.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/networks:
+    get:
+      operationId: getNetworks
+      security:
+        - sessionCookie: []
+      summary: The private networks saved sites may reach
+      description: Needs the administrator role of the instance. Public addresses are always allowed.
+      responses:
+        "200":
+          description: The networks the server was started with and the ones an administrator added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Networks"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: setNetworks
+      security:
+        - sessionCookie: []
+      summary: Replace the private networks an administrator allows
+      description: >-
+        Takes effect for the next connection. Entries are addresses or networks in CIDR notation. Networks wider than /8 (IPv4) or /7 (IPv6)
+        and the ranges of link-local, cloud metadata, multicast and reserved addresses are refused.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworksInput"
+      responses:
+        "200":
+          description: The networks in force.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Networks"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/audit:
+    get:
+      operationId: listAdminAudit
+      security:
+        - sessionCookie: []
+      summary: The audit trail of the instance
+      description: >-
+        What administrators did that belongs to no workspace: accounts, roles, second factors and networks. Needs the administrator role of the
+        instance.
+      parameters:
+        - name: action
+          in: query
+          required: false
+          description: Keep the events whose action starts with this text, such as `admin.user_`.
+          schema:
+            type: string
+        - name: before
+          in: query
+          required: false
+          description: Keep the events older than this identifier, to read the next page.
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          description: How many to return, 100 by default and at most 500.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The events, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/auth/mfa:
     post:
       operationId: verifyMfa
@@ -4257,6 +4498,57 @@ components:
         accountExists:
           type: boolean
           description: Whether the invited address already has an account, so the client offers sign-in or sign-up.
+    AdminUser:
+      type: object
+      required: [id, email, role, disabled, secondFactor, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        disabled:
+          type: boolean
+        secondFactor:
+          type: boolean
+          description: Whether the account has an authenticator app or a passkey.
+        createdAt:
+          type: string
+          format: date-time
+    AdminUserPatch:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+        role:
+          type: string
+          enum: [admin, user]
+    Networks:
+      type: object
+      required: [fixed, custom]
+      properties:
+        fixed:
+          type: array
+          description: Networks the server was started with; only a restart changes them.
+          items:
+            type: string
+        custom:
+          type: array
+          description: Networks an administrator allowed.
+          items:
+            type: string
+    NetworksInput:
+      type: object
+      required: [networks]
+      properties:
+        networks:
+          type: array
+          maxItems: 100
+          items:
+            type: string
     AuditEvent:
       type: object
       required: [id, action, target, meta, at]

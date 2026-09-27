@@ -54,6 +54,9 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	} else if interrupted > 0 {
 		logger.WarnContext(ctx, "transfers interrupted by the previous shutdown", "count", interrupted)
 	}
+	if err := wired.deps.Admin.Load(ctx); err != nil {
+		return fmt.Errorf("loading the allowed networks: %w", err)
+	}
 	janitorCtx, stopJanitor := context.WithCancel(ctx)
 	defer stopJanitor()
 	go runJanitor(janitorCtx, cfg.JanitorInterval, logger, wired.janitor)

@@ -46,3 +46,22 @@ func (s *Store) AuditByWorkspace(ctx context.Context, workspaceID uuid.UUID, fil
 	}
 	return out, nil
 }
+
+// AuditInstance implements [audit.Store].
+func (s *Store) AuditInstance(ctx context.Context, filter audit.Filter, limit int) ([]audit.Event, error) {
+	rows, err := s.queries.AuditInstance(ctx, db.AuditInstanceParams{Prefix: filter.Action, Before: filter.Before, RowLimit: int32(limit)}) //nolint:gosec // limited by the service
+	if err != nil {
+		return nil, err
+	}
+	out := make([]audit.Event, 0, len(rows))
+	for _, r := range rows {
+		meta := map[string]string{}
+		if err := json.Unmarshal(r.Meta, &meta); err != nil {
+			return nil, err
+		}
+		out = append(out, audit.Event{
+			ID: r.ID, ActorID: r.UserID.UUID, ActorEmail: r.ActorEmail, Action: r.Action, Target: r.Target, IP: r.Ip, Meta: meta, At: r.At.UTC(),
+		})
+	}
+	return out, nil
+}

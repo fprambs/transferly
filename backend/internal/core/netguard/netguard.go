@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -45,8 +46,10 @@ type Resolver interface {
 // Policy is the set of destinations the server may reach: every public address plus the
 // networks the administrator allowed explicitly.
 type Policy struct {
-	allowed  []netip.Prefix
+	fixed    []netip.Prefix
 	resolver Resolver
+	mu       sync.RWMutex
+	extra    []netip.Prefix
 }
 
 // NewPolicy returns a policy that refuses private, loopback, link-local and other special-purpose
@@ -55,17 +58,52 @@ func NewPolicy(allowed []netip.Prefix, resolver Resolver) *Policy {
 	if resolver == nil {
 		resolver = net.DefaultResolver
 	}
-	return &Policy{allowed: allowed, resolver: resolver}
+	return &Policy{fixed: allowed, resolver: resolver}
+}
+
+// SetExtra replaces the networks an administrator allowed while the server runs, next to the fixed ones the policy was made with.
+// It takes effect for the next connection.
+func (p *Policy) SetExtra(extra []netip.Prefix) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.extra = append([]netip.Prefix(nil), extra...)
+}
+
+// Fixed returns the networks the policy was made with, which only a restart changes.
+func (p *Policy) Fixed() []netip.Prefix {
+	return append([]netip.Prefix(nil), p.fixed...)
+}
+
+// Extra returns the networks allowed while the server runs.
+func (p *Policy) Extra() []netip.Prefix {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return append([]netip.Prefix(nil), p.extra...)
+}
+
+// allows tells whether an address is inside a fixed or an extra network.
+func (p *Policy) allows(ip netip.Addr) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	for _, prefix := range p.fixed {
+		if prefix.Contains(ip) {
+			return true
+		}
+	}
+	for _, prefix := range p.extra {
+		if prefix.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // CheckIP returns [ErrBlocked] unless the address is public or inside an allowed network.
 // IPv4-mapped IPv6 addresses are judged as the IPv4 address they carry.
 func (p *Policy) CheckIP(ip netip.Addr) error {
 	ip = ip.Unmap().WithZone("")
-	for _, prefix := range p.allowed {
-		if prefix.Contains(ip) {
-			return nil
-		}
+	if p.allows(ip) {
+		return nil
 	}
 	for _, prefix := range blocked {
 		if prefix.Contains(ip) {

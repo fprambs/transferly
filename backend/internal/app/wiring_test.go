@@ -153,6 +153,11 @@ func (a *auditLog) AuditByWorkspace(context.Context, uuid.UUID, audit.Filter, in
 	return nil, nil
 }
 
+// AuditInstance is not used here.
+func (a *auditLog) AuditInstance(context.Context, audit.Filter, int) ([]audit.Event, error) {
+	return nil, nil
+}
+
 // TestRotationLogger verifies the hook that logs the rotations of workspace keys.
 //
 // Scenarios:
