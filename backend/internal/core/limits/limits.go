@@ -26,6 +26,8 @@ const (
 	maxConcurrent = 10_000
 	// maxCount is the largest quota on things that are counted.
 	maxCount = 1_000_000
+	// minRate is the smallest bandwidth cap, in bytes per second (1 KiB): below it a single chunk of data would keep a request waiting for hours.
+	minRate = 1024
 	// maxRate is the largest bandwidth cap, in bytes per second (1 TiB).
 	maxRate = 1 << 40
 	// maxVolume is the largest daily volume, in bytes (1 PiB).
@@ -83,9 +85,15 @@ func (l Limits) Validate() error {
 		}
 		return nil
 	}
+	rate := func(name string, value int64) error {
+		if value != 0 && value < minRate {
+			return fmt.Errorf("%w: %s must be 0 or at least %d", ErrInvalid, name, minRate)
+		}
+		return within(name, value, maxRate)
+	}
 	return errors.Join(
-		within("bandwidthGlobal", l.BandwidthGlobal, maxRate),
-		within("bandwidthPerUser", l.BandwidthPerUser, maxRate),
+		rate("bandwidthGlobal", l.BandwidthGlobal),
+		rate("bandwidthPerUser", l.BandwidthPerUser),
 		within("transfersGlobal", int64(l.TransfersGlobal), maxConcurrent),
 		within("transfersPerWorkspace", int64(l.TransfersPerWorkspace), maxConcurrent),
 		within("transfersPerUser", int64(l.TransfersPerUser), maxConcurrent),

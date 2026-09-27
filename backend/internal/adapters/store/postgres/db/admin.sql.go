@@ -12,6 +12,22 @@ import (
 	"github.com/google/uuid"
 )
 
+const accountRoleAndStatus = `-- name: AccountRoleAndStatus :one
+SELECT role, status FROM users WHERE id = $1
+`
+
+type AccountRoleAndStatusRow struct {
+	Role   string
+	Status string
+}
+
+func (q *Queries) AccountRoleAndStatus(ctx context.Context, id uuid.UUID) (AccountRoleAndStatusRow, error) {
+	row := q.db.QueryRow(ctx, accountRoleAndStatus, id)
+	var i AccountRoleAndStatusRow
+	err := row.Scan(&i.Role, &i.Status)
+	return i, err
+}
+
 const auditInstance = `-- name: AuditInstance :many
 SELECT a.id, a.workspace_id, a.user_id, COALESCE(u.email, '')::text AS actor_email, a.action, a.target, a.ip, a.meta, a.at
 FROM audit_events a LEFT JOIN users u ON u.id = a.user_id
@@ -179,6 +195,15 @@ func (q *Queries) ListNetworkAllowances(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockAdminChanges = `-- name: LockAdminChanges :exec
+SELECT pg_advisory_xact_lock(4097083628)
+`
+
+func (q *Queries) LockAdminChanges(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockAdminChanges)
+	return err
 }
 
 const setUserRole = `-- name: SetUserRole :execrows

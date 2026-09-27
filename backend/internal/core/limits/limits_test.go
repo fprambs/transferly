@@ -130,7 +130,7 @@ func TestService_Load(t *testing.T) {
 //
 // Scenarios:
 //   - valid limits are stored with the actor and the time, put in force and returned
-//   - negative values and values above the ceilings are refused, name every wrong field and change nothing
+//   - negative values, values above the ceilings and bandwidth caps below 1 KiB/s are refused, name every wrong field and change nothing
 //   - a failing store leaves the limits as they were
 func TestService_Set(t *testing.T) {
 	ctx := context.Background()
@@ -156,6 +156,18 @@ func TestService_Set(t *testing.T) {
 		if !contains(err.Error(), name) {
 			t.Errorf("the refusal %q does not name %s", err, name)
 		}
+	}
+
+	for _, tooSlow := range []limits.Limits{{BandwidthGlobal: 1}, {BandwidthPerUser: 1023}} {
+		if _, err := svc.Set(ctx, admin, tooSlow); !errors.Is(err, limits.ErrInvalid) || svc.Current() != want {
+			t.Errorf("Set(%+v) = %v; want a cap below 1 KiB/s refused", tooSlow, err)
+		}
+	}
+	if _, err := svc.Set(ctx, admin, limits.Limits{BandwidthGlobal: 1024, BandwidthPerUser: 1024}); err != nil {
+		t.Errorf("Set() with the smallest cap = %v", err)
+	}
+	if _, err := svc.Set(ctx, admin, want); err != nil {
+		t.Fatal(err)
 	}
 
 	store.fail = "SaveLimits"

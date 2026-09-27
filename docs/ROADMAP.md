@@ -234,7 +234,7 @@ Decisiones de diseño en [ADR-0006](adr/0006-teams-and-invitations.md).
 - [x] 3.6 Segundo factor: TOTP y passkeys (WebAuthn) con códigos de recuperación, pantallas de ajustes y segundo paso al iniciar sesión
 - [x] 3.7 Panel de administración de la instancia (cuentas, roles, deshabilitar, quitar el segundo factor a quien lo perdió) y política de red editable en caliente; todo auditado en el registro de la instancia
 - [x] 3.8 Cuotas y límites de ancho de banda (globales y por persona), transferencias simultáneas y cuotas de sitios, equipos, miembros y volumen diario, editables en caliente por un administrador
-- [ ] 3.9 Revisión de seguridad de la fase: IDOR y acceso entre workspaces, escalada de privilegios entre roles, sellado y rotación de claves, abuso de invitaciones, bypass de 2FA, enumeración de usuarios
+- [x] 3.9 Revisión de seguridad de la fase ([informe](security/fase-3.md)): IDOR y acceso entre workspaces, escalada de privilegios entre roles, sellado y rotación de claves, abuso de invitaciones, bypass de 2FA, enumeración de usuarios
 
 Tests obligatorios: aislamiento entre workspaces, sellado y rotación de DEK, matriz de autorización completa, TOTP y passkeys, cobertura de auditoría.
 
@@ -242,16 +242,20 @@ Aceptación: dos usuarios comparten un workspace de equipo con workspaces person
 
 ## Fase 4: Funciones avanzadas
 
-- [ ] Comparación de directorios y sincronización con simulación previa
-- [ ] Editor remoto (CodeMirror) con detección de conflictos
-- [ ] Búsqueda remota recursiva
-- [ ] ProxyJump, proxy SOCKS5/HTTP, keyboard-interactive
-- [ ] Límites de velocidad por sitio, subidas con `.part`
-- [ ] Paleta de comandos, preferencias, marcadores, vistas previas
-- [ ] Exportación cifrada del vault
-- [ ] Mensajes de error guiados
-- [ ] Más idiomas (traducciones de la comunidad)
-- [ ] Revisión de seguridad de la fase: XSS en vistas previas y editor, conflictos y pérdida de datos en sync, fuga de secretos al exportar, abuso de proxies como pivote de red
+Preparada al cerrar la fase 3 (2026-09-27). Orden propuesto: cada punto se apoya en el anterior y cierra con sus pruebas al 100 %, un E2E y capturas. Las **vistas previas** de archivos no van en esta fase: son el diferenciador D2, con su propio diseño de seguridad, y se hacen al final.
+
+- [ ] 4.1 Comparación de directorios (local contra remoto y remoto contra remoto) y sincronización con simulación previa. Decisiones a tomar antes: reglas de comparación (tamaño, fecha con la tolerancia de zona horaria de cada sitio, suma opcional), qué hace con los borrados (nunca borra sin confirmación explícita y lista previa), dirección única o bidireccional, y cómo se registra en transferencias y auditoría. Escribir ADR-0008
+- [ ] 4.2 Búsqueda remota recursiva (por nombre y patrón, con los límites de árbol que ya usa el ZIP, cancelable, sin cargar el árbol entero en memoria)
+- [ ] 4.3 Subidas atómicas con `.part` (subir a un nombre temporal y renombrar al terminar) y límites de velocidad por sitio, que se suman a los globales y por persona de la 3.8
+- [ ] 4.4 ProxyJump, proxy SOCKS5/HTTP y keyboard-interactive. Cada salto pasa por `netguard`; decidir si el proxy y el salto pueden apuntar a redes privadas (por defecto no) y cómo se guardan sus credenciales en el vault. Escribir ADR
+- [ ] 4.5 Editor remoto (CodeMirror) con detección de conflictos (comparar tamaño y fecha antes de guardar, guardar con `.part` de 4.3). Leer la guía de CodeMirror antes de usarlo
+- [ ] 4.6 Paleta de comandos, preferencias y marcadores
+- [ ] 4.7 Exportación cifrada del vault (formato con contraseña propia, Argon2id y AES-GCM; nunca incluye la clave del workspace en claro)
+- [ ] 4.8 Mensajes de error guiados (cada código estable del servidor con una causa probable y un siguiente paso)
+- [ ] 4.9 Más idiomas (estructura para traducciones de la comunidad y prueba que exige las mismas claves en todos los idiomas)
+- [ ] 4.10 Revisión de seguridad de la fase: XSS en el editor, conflictos y pérdida de datos en sync, fuga de secretos al exportar, abuso de proxies como pivote de red
+
+Pendiente de fases anteriores que conviene retomar aquí: la opción por sitio para algoritmos SSH heredados, la importación del `EncodingType` de FileZilla y el juego de caracteres de la conexión rápida.
 
 ## Fase 5: Escala e integraciones
 

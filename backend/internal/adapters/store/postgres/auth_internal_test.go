@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -27,8 +28,11 @@ var errStep = errors.New("step failed")
 // fakeTx is a transaction that fails at a chosen step of first-user or workspace creation.
 type fakeTx struct {
 	pgx.Tx
-	failAt string
-	users  int64
+	failAt      string
+	users       int64
+	adminRole   string
+	adminStatus string
+	admins      int64
 }
 
 // Exec fails for the lock or an insert step when selected.
@@ -44,6 +48,7 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 		(f.failAt == "reseal" && strings.Contains(sql, "UPDATE site_secrets")) || (f.failAt == "totp-upsert" && strings.Contains(sql, "INSERT INTO user_totp")) || (f.failAt == "totp-confirm" && strings.Contains(sql, "SET confirmed = true")) ||
 		(f.failAt == "totp-delete" && strings.Contains(sql, "DELETE FROM user_totp")) || (f.failAt == "recovery-delete" && strings.Contains(sql, "DELETE FROM user_recovery_codes")) ||
 		(f.failAt == "recovery-insert" && strings.Contains(sql, "INSERT INTO user_recovery_codes")) || (f.failAt == "member-if-missing" && strings.Contains(sql, "ON CONFLICT (workspace_id, user_id)")) ||
+		(f.failAt == "admin-lock" && strings.Contains(sql, "pg_advisory_xact_lock(4097083628)")) || (f.failAt == "admin-update" && strings.Contains(sql, "-- name: SetUser")) ||
 		(f.failAt == "passkeys-delete" && strings.Contains(sql, "DELETE FROM user_passkeys")) || (f.failAt == "networks-delete" && strings.Contains(sql, "DELETE FROM network_allowances")) ||
 		(f.failAt == "networks-insert" && strings.Contains(sql, "INSERT INTO network_allowances")) || (f.failAt == "secret" && strings.Contains(sql, "INSERT INTO site_secrets")) || (f.failAt == "remove-secret" && strings.Contains(sql, "DELETE FROM site_secrets")) {
 		return pgconn.CommandTag{}, errStep
@@ -54,6 +59,10 @@ func (f fakeTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTag
 // QueryRow returns the user count, a consumed invitation or a workspace, or a failing row when the step is selected.
 func (f fakeTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
 	switch {
+	case strings.Contains(sql, "SELECT role, status FROM users"):
+		return statusRow{role: f.adminRole, status: f.adminStatus, err: f.stepError("admin-status")}
+	case strings.Contains(sql, "role = 'admin' AND status = 'active'"):
+		return scanRow{n: f.admins, err: f.stepError("admin-count")}
 	case f.failAt == "count":
 		return scanRow{err: errStep}
 	case strings.Contains(sql, "DELETE FROM invitations"):
@@ -123,6 +132,21 @@ func (f fakeTx) Commit(context.Context) error {
 
 // Rollback does nothing.
 func (fakeTx) Rollback(context.Context) error { return nil }
+
+// statusRow is the result of reading the role and the state of an account.
+type statusRow struct {
+	role, status string
+	err          error
+}
+
+// Scan copies the role and the state, or returns the injected error.
+func (r statusRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	*(dest[0].(*string)), *(dest[1].(*string)) = r.role, r.status
+	return nil
+}
 
 // scanRow is a query result holding one integer or an error.
 type scanRow struct {
@@ -353,6 +377,59 @@ func TestAdminWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 		if err := c.run(failing); !errors.Is(err, errStep) {
 			t.Errorf("%s failure to start = %v, want the injected error", name, err)
 		}
+	}
+}
+
+// TestAdminChange_ReportsFailuresInsideTheTransaction verifies that a failure at any step of taking an administrator away is returned, and
+// that the last administrator is refused before anything changes.
+//
+// Scenarios:
+//   - the transaction cannot start, and taking the lock, reading the account, counting the administrators, changing it and committing each fail
+//   - a last active administrator is refused with ErrLastAdmin and nothing is changed
+//   - an account that is not an administrator, or is already disabled, changes without counting
+func TestAdminChange_ReportsFailuresInsideTheTransaction(t *testing.T) {
+	ctx := context.Background()
+	id := uuid.New()
+	run := map[string]func(*Store) error{
+		"disable": func(s *Store) error { return s.SetDisabled(ctx, id, true) },
+		"demote":  func(s *Store) error { return s.SetAccountRole(ctx, id, auth.RoleUser) },
+	}
+	for name, do := range run {
+		for _, step := range []string{"admin-lock", "admin-status", "admin-count", "admin-update", "commit"} {
+			store := &Store{queries: db.New(nil)}
+			store.begin = func(context.Context) (pgx.Tx, error) {
+				return fakeTx{failAt: step, adminRole: "admin", adminStatus: "active", admins: 2}, nil
+			}
+			if err := do(store); !errors.Is(err, errStep) {
+				t.Errorf("%s failure at %s = %v, want the injected error", name, step, err)
+			}
+		}
+		last := &Store{queries: db.New(nil)}
+		last.begin = func(context.Context) (pgx.Tx, error) {
+			return fakeTx{adminRole: "admin", adminStatus: "active", admins: 1}, nil
+		}
+		if err := do(last); !errors.Is(err, admin.ErrLastAdmin) {
+			t.Errorf("%s of the last administrator = %v, want ErrLastAdmin", name, err)
+		}
+		for _, current := range [][2]string{{"user", "active"}, {"admin", "disabled"}} {
+			other := &Store{queries: db.New(nil)}
+			other.begin = func(context.Context) (pgx.Tx, error) {
+				return fakeTx{adminRole: current[0], adminStatus: current[1], admins: 1}, nil
+			}
+			if err := do(other); err != nil {
+				t.Errorf("%s of %v = %v, want it allowed", name, current, err)
+			}
+		}
+	}
+	enabling := &Store{queries: db.New(nil)}
+	enabling.begin = func(context.Context) (pgx.Tx, error) {
+		return fakeTx{adminRole: "admin", adminStatus: "active", admins: 1}, nil
+	}
+	if err := enabling.SetDisabled(ctx, id, false); err != nil {
+		t.Errorf("enabling = %v, want it allowed without counting", err)
+	}
+	if err := enabling.SetAccountRole(ctx, id, auth.RoleAdmin); err != nil {
+		t.Errorf("promoting = %v, want it allowed without counting", err)
 	}
 }
 

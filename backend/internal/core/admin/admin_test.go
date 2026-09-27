@@ -351,7 +351,7 @@ func TestParseNetworks(t *testing.T) {
 	}
 	for _, bad := range []string{
 		"", "nope", "10.0.0.0/33", "0.0.0.0/0", "10.0.0.0/7", "::/0", "fc00::/6", "0.0.0.5", "169.254.169.254", "169.254.0.0/16", "169.254.10.0/24",
-		"224.0.0.1", "239.0.0.0/8", "240.0.0.0/8", "255.255.255.255", "::", "fe80::1", "fe80::/10", "ff02::1", "fe80::1%eth0",
+		"127.0.0.1", "127.0.0.0/8", "::1", "224.0.0.1", "239.0.0.0/8", "240.0.0.0/8", "255.255.255.255", "::", "fe80::1", "fe80::/10", "ff02::1", "fe80::1%eth0",
 	} {
 		if _, err := admin.ParseNetworks([]string{bad}); !errors.Is(err, admin.ErrInvalidNetwork) {
 			t.Errorf("ParseNetworks(%q) = %v; want ErrInvalidNetwork", bad, err)

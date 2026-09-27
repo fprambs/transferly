@@ -10,6 +10,12 @@ UPDATE users SET status = $2, updated_at = now() WHERE id = $1;
 -- name: SetUserRole :execrows
 UPDATE users SET role = $2, updated_at = now() WHERE id = $1;
 
+-- name: LockAdminChanges :exec
+SELECT pg_advisory_xact_lock(4097083628);
+
+-- name: AccountRoleAndStatus :one
+SELECT role, status FROM users WHERE id = $1;
+
 -- name: CountActiveAdmins :one
 SELECT count(*) FROM users WHERE role = 'admin' AND status = 'active';
 

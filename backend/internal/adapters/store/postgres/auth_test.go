@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"strconv"
 	"testing"
 	"time"
 
@@ -578,5 +579,54 @@ func TestLimitsStore_RefusesUnreadableLimits(t *testing.T) {
 	}
 	if _, _, err := store.Limits(t.Context()); err == nil {
 		t.Error("Limits() read a value that is not an object of limits")
+	}
+}
+
+// TestAdminStore_TheLastAdministratorSurvivesRaces verifies that two administrators who remove each other at the same moment do not leave
+// the instance without one.
+//
+// Scenarios:
+//   - with two active administrators, disabling both at once succeeds for exactly one of them and refuses the other with ErrLastAdmin
+//   - the same holds when both are demoted at once
+//   - the administrator who stays is still active and still an administrator, in every round
+func TestAdminStore_TheLastAdministratorSurvivesRaces(t *testing.T) {
+	ctx := t.Context()
+	store := openMigrated(t)
+	for round := range 15 {
+		a, b := uuid.New(), uuid.New()
+		for i, id := range []uuid.UUID{a, b} {
+			email := "admin-" + strconv.Itoa(round) + "-" + strconv.Itoa(i) + "@example.com"
+			if _, err := store.DB().Exec(ctx, "INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, 'x', 'admin')", id, email); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := store.DB().Exec(ctx, "UPDATE users SET role = 'user' WHERE role = 'admin' AND id NOT IN ($1, $2)", a, b); err != nil {
+			t.Fatal(err)
+		}
+		results := make(chan error, 2)
+		for _, id := range []uuid.UUID{a, b} {
+			go func() {
+				if round%2 == 0 {
+					results <- store.SetDisabled(ctx, id, true)
+					return
+				}
+				results <- store.SetAccountRole(ctx, id, auth.RoleUser)
+			}()
+		}
+		first, second := <-results, <-results
+		refused := 0
+		for _, err := range []error{first, second} {
+			if errors.Is(err, admin.ErrLastAdmin) {
+				refused++
+			} else if err != nil {
+				t.Fatalf("round %d: %v", round, err)
+			}
+		}
+		if refused != 1 {
+			t.Fatalf("round %d: %d changes were refused, want exactly one (%v, %v)", round, refused, first, second)
+		}
+		if n, err := store.ActiveAdmins(ctx); err != nil || n != 1 {
+			t.Fatalf("round %d: %d active administrators, %v; want 1", round, n, err)
+		}
 	}
 }

@@ -44,26 +44,53 @@ func (s *Store) Account(ctx context.Context, id uuid.UUID) (admin.Account, error
 	return admin.Account{}, admin.ErrNotFound
 }
 
+// changeAdmin runs a change that may take an active administrator away, and refuses it with [admin.ErrLastAdmin] when that administrator is
+// the last one. The check and the change happen under a lock that every such change takes, so two administrators cannot each remove the
+// other at the same moment and leave the instance with none.
+func (s *Store) changeAdmin(ctx context.Context, id uuid.UUID, removes bool, apply func(q *db.Queries) (int64, error)) error {
+	return s.inTx(ctx, func(q *db.Queries) error {
+		if removes {
+			if err := q.LockAdminChanges(ctx); err != nil {
+				return err
+			}
+			current, err := q.AccountRoleAndStatus(ctx, id)
+			if err != nil && !errors.Is(err, errNoRows) {
+				return err
+			}
+			if err == nil && current.Role == string(auth.RoleAdmin) && current.Status == statusActive {
+				n, err := q.CountActiveAdmins(ctx)
+				if err != nil {
+					return err
+				}
+				if n <= 1 {
+					return admin.ErrLastAdmin
+				}
+			}
+		}
+		n, err := apply(q)
+		if err == nil && n == 0 {
+			return admin.ErrNotFound
+		}
+		return err
+	})
+}
+
 // SetDisabled implements [admin.Store].
 func (s *Store) SetDisabled(ctx context.Context, id uuid.UUID, disabled bool) error {
 	status := statusActive
 	if disabled {
 		status = statusDisabled
 	}
-	n, err := s.queries.SetUserStatus(ctx, db.SetUserStatusParams{ID: id, Status: status})
-	if err == nil && n == 0 {
-		return admin.ErrNotFound
-	}
-	return err
+	return s.changeAdmin(ctx, id, disabled, func(q *db.Queries) (int64, error) {
+		return q.SetUserStatus(ctx, db.SetUserStatusParams{ID: id, Status: status})
+	})
 }
 
 // SetAccountRole implements [admin.Store].
 func (s *Store) SetAccountRole(ctx context.Context, id uuid.UUID, role auth.Role) error {
-	n, err := s.queries.SetUserRole(ctx, db.SetUserRoleParams{ID: id, Role: string(role)})
-	if err == nil && n == 0 {
-		return admin.ErrNotFound
-	}
-	return err
+	return s.changeAdmin(ctx, id, role != auth.RoleAdmin, func(q *db.Queries) (int64, error) {
+		return q.SetUserRole(ctx, db.SetUserRoleParams{ID: id, Role: string(role)})
+	})
 }
 
 // ActiveAdmins implements [admin.Store].
