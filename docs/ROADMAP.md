@@ -246,7 +246,7 @@ Preparada al cerrar la fase 3 (2026-09-27). Orden propuesto: cada punto se apoya
 
 - [x] 4.1 Comparación de directorios (local-remoto y remoto-remoto) y sincronización con simulación previa ([ADR-0008](adr/0008-directory-compare-and-sync.md)): comparación por tamaño y fecha (60 s de tolerancia) con verificación manual por suma, dirección única elegida antes de correr, nada borra por defecto (casilla y confirmación aparte), ejecución reutilizando subida/bajada/copia entre sitios existentes
 - [x] 4.2 Búsqueda remota recursiva: texto simple o patrón con `*`/`?`, resultados en vivo mientras recorre, cancelable, con tope de elementos revisados y de coincidencias para no colgarse en árboles enormes; sin cambios en el backend, reutiliza el listado existente
-- [ ] 4.3 Subidas atómicas con `.part` (subir a un nombre temporal y renombrar al terminar) y límites de velocidad por sitio, que se suman a los globales y por persona de la 3.8
+- [x] 4.3 Subidas atómicas con `.part` (subir a un nombre temporal y renombrar al terminar) y límites de velocidad por sitio, que se suman a los globales y por persona de la 3.8
 - [ ] 4.4 ProxyJump, proxy SOCKS5/HTTP y keyboard-interactive. Cada salto pasa por `netguard`; decidir si el proxy y el salto pueden apuntar a redes privadas (por defecto no) y cómo se guardan sus credenciales en el vault. Escribir ADR
 - [ ] 4.5 Editor remoto (CodeMirror) con detección de conflictos (comparar tamaño y fecha antes de guardar, guardar con `.part` de 4.3). Leer la guía de CodeMirror antes de usarlo
 - [ ] 4.6 Paleta de comandos, preferencias y marcadores
@@ -256,6 +256,8 @@ Preparada al cerrar la fase 3 (2026-09-27). Orden propuesto: cada punto se apoya
 - [ ] 4.10 Revisión de seguridad de la fase: XSS en el editor, conflictos y pérdida de datos en sync, fuga de secretos al exportar, abuso de proxies como pivote de red
 
 Pendiente de fases anteriores que conviene retomar aquí: la opción por sitio para algoritmos SSH heredados, la importación del `EncodingType` de FileZilla y el juego de caracteres de la conexión rápida.
+
+Anotado el 2026-09-27, pendiente de decidir en qué punto entra: filtro instantáneo sobre la carpeta ya listada (distinto de la búsqueda recursiva remota de la 4.2), aprovechando que el listado ya vive en la caché de TanStack Query — sin ida y vuelta al servidor. Permitiría filtrar por nombre/patrón, tipo de archivo (extensión) y rango de fecha de modificación sobre las filas ya renderizadas. Encaja bien como parte de la 4.6 (paleta de comandos y preferencias) o como su propio punto pequeño justo después; no se mete en la 4.3 porque no tiene relación con subidas atómicas ni límites de velocidad.
 
 ## Fase 5: Escala e integraciones
 
