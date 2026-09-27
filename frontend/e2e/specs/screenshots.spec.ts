@@ -37,6 +37,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the administration page: accounts, the confirmation to remove a second step, networks and the audit log
  * - the locked vault in a new site and a saved site, the unlock dialog, and a quick connection that works while locked
  * - comparing a saved FTP site against the SFTP quick connection: the differences and the plan running
+ * - searching a folder recursively: the results found below a subfolder
  */
 test.describe('screenshots', () => {
   test.skip(process.env.SENTINEL_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
@@ -330,5 +331,33 @@ test.describe('screenshots', () => {
       await request.delete(files, { params: { path: `/upload/${folder}`, recursive: true }, headers })
     }
     await request.delete(`/api/v1/workspaces/${workspace}/sites/${siteId}`, { headers })
+  })
+
+  test('search', async ({ shell, page, quickId, request }) => {
+    void shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const headers = { 'X-CSRF-Token': me.csrfToken }
+    const files = `/api/v1/workspaces/${workspaces[0].id}/sites/${quickId}/files`
+    const stamp = Date.now()
+    const folder = `shots-search-${stamp}`
+    const sub = `${folder}/quarter-2`
+    await request.post(`${files}/directories`, { headers, data: { path: `/upload/${folder}` } })
+    await request.post(`${files}/directories`, { headers, data: { path: `/upload/${sub}` } })
+    await request.put(`${files}/content`, {
+      params: { path: `/upload/${sub}/sales-report.csv`, mode: 'overwrite' },
+      data: Buffer.from('name,total\n'),
+      headers: { ...headers, 'Content-Type': 'application/octet-stream' },
+    })
+
+    await page.goto(`/sites/${quickId}?path=%2Fupload%2F${folder}`)
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Search' })
+    await dialog.getByLabel('Search query').fill('report')
+    await dialog.getByRole('button', { name: 'Search' }).click()
+    await expect(dialog.getByRole('list', { name: 'Search results' })).toBeVisible()
+    await shoot(page, '35-search-results')
+
+    await request.delete(files, { params: { path: `/upload/${folder}`, recursive: true }, headers })
   })
 })
