@@ -99,16 +99,26 @@ func TestSites_Lifecycle(t *testing.T) {
 	update := siteBody("With secret")
 	update["port"], update["protocol"], update["host"], update["authMethod"], update["listTimezone"] = 2222, "sftp", "example.com", "key", "America/Santiago"
 	update["privateKey"] = "-----BEGIN KEY-----"
+	update["proxy"] = map[string]any{"kind": "socks5", "host": "8.8.4.4", "port": 1080, "username": "proxyuser"}
+	update["proxyPassword"] = "proxypass"
+	update["jump"] = map[string]any{"host": "1.1.1.1", "port": 22, "username": "bastion", "authMethod": "password"}
+	update["jumpPassword"] = "bastionpass"
 	updated := a.send(http.MethodPut, sitesPath(ws, secretID), update, cookie, csrf)
 	if updated.Status != http.StatusOK {
 		t.Fatalf("update = %d %s", updated.Status, updated.Body)
 	}
-	if got := updated.site(t); got.Port != 2222 || got.AuthMethod != "key" || got.ListTimezone != "America/Santiago" || len(got.Secrets) != 2 {
-		t.Errorf("updated = %+v; want the password kept and the key added", got)
+	if got := updated.site(t); got.Port != 2222 || got.AuthMethod != "key" || got.ListTimezone != "America/Santiago" || len(got.Secrets) != 4 {
+		t.Errorf("updated = %+v; want the password kept, the key, the proxy password and the jump password added", got)
 	}
-	update["password"] = ""
+	if got := updated.site(t); got.Proxy == nil || got.Proxy.Host != "8.8.4.4" || got.Proxy.Port != 1080 || got.Proxy.Username == nil || *got.Proxy.Username != "proxyuser" {
+		t.Errorf("updated proxy = %+v", got.Proxy)
+	}
+	if got := updated.site(t); got.Jump == nil || got.Jump.Host != "1.1.1.1" || got.Jump.Username != "bastion" || got.Jump.AuthMethod != "password" {
+		t.Errorf("updated jump = %+v", got.Jump)
+	}
+	update["password"], update["proxyPassword"], update["jumpPassword"] = "", "", ""
 	if got := a.send(http.MethodPut, sitesPath(ws, secretID), update, cookie, csrf).site(t); len(got.Secrets) != 1 || got.Secrets[0] != "private_key" {
-		t.Errorf("after emptying the password = %+v", got.Secrets)
+		t.Errorf("after emptying the password, proxy password and jump password = %+v", got.Secrets)
 	}
 
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), siteBody("production"), cookie, csrf), 409, "site_name_taken")
@@ -124,6 +134,13 @@ func TestSites_Lifecycle(t *testing.T) {
 		"invalid_charset":     func(b map[string]any) { b["charset"] = "klingon" },
 		"destination_blocked": func(b map[string]any) { b["host"] = "169.254.169.254" },
 		"secret_too_large":    func(b map[string]any) { b["password"] = strings.Repeat("p", 2000) },
+		"invalid_speed_limit": func(b map[string]any) { b["speedLimitBps"] = -1 },
+		"invalid_proxy": func(b map[string]any) {
+			b["proxy"] = map[string]any{"kind": "wireguard", "host": "p.example", "port": 1080}
+		},
+		"invalid_jump": func(b map[string]any) {
+			b["protocol"], b["jump"] = "ftp", map[string]any{"host": "b.example", "port": 22, "username": "u", "authMethod": "password"}
+		},
 	}
 	for code, mutate := range invalid {
 		body := siteBody("Invalid " + code)

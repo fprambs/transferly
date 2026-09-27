@@ -28,7 +28,10 @@ type SiteFactory func(t *testing.T) SiteStore
 func newSite(workspaceID uuid.UUID, name string) site.Site {
 	return site.Site{
 		ID: uuid.New(), WorkspaceID: workspaceID, Name: name, Protocol: site.SFTP, Host: "files.example.com", Port: 2222,
-		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", Charset: "koi8-r", SpeedLimit: 65536, CreatedAt: now, UpdatedAt: now,
+		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", Charset: "koi8-r", SpeedLimit: 65536,
+		Proxy:     site.Proxy{Kind: site.ProxySOCKS5, Host: "proxy.example.com", Port: 1080, Username: "proxyuser"},
+		Jump:      site.Jump{Host: "bastion.example.com", Port: 2222, Username: "bastion", AuthMethod: site.AuthKey},
+		CreatedAt: now, UpdatedAt: now,
 	}
 }
 
@@ -81,7 +84,7 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 		want.Secrets = []site.SecretKind{site.SecretPassphrase, site.SecretPrivateKey}
 		if got.ID != want.ID || got.Name != want.Name || got.Protocol != want.Protocol || got.Host != want.Host || got.Port != want.Port ||
 			got.Username != want.Username || got.AuthMethod != want.AuthMethod || got.ListTimezone != want.ListTimezone ||
-			got.SpeedLimit != want.SpeedLimit ||
+			got.SpeedLimit != want.SpeedLimit || got.Proxy != want.Proxy || got.Jump != want.Jump ||
 			!got.CreatedAt.Equal(now) || got.CreatedAt.Location().String() != "UTC" || len(got.Secrets) != 2 ||
 			got.Secrets[0] != want.Secrets[0] || got.Secrets[1] != want.Secrets[1] {
 			t.Fatalf("Site() = %+v; want %+v", got, want)
@@ -132,6 +135,8 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 		changed := s
 		changed.Name, changed.Host, changed.Port, changed.Protocol, changed.AuthMethod = "Prod", "other.example.com", 22, site.FTPS, site.AuthPassword
 		changed.SpeedLimit = 4096
+		changed.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "other-proxy.example.com", Port: 8080, Username: "other"}
+		changed.Jump = site.Jump{Host: "other-bastion.example.com", Port: 22, Username: "other", AuthMethod: site.AuthPassword}
 		changed.UpdatedAt = now.Add(time.Second)
 		changed.CreatedAt = now.Add(time.Hour)
 		if err := store.UpdateSite(ctx, changed, []site.Sealed{secret(site.SecretPassword, 7)}, []site.SecretKind{site.SecretPassphrase}); err != nil {
@@ -139,7 +144,7 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 		}
 		got, err := store.Site(ctx, ws, s.ID)
 		if err != nil || got.Name != "Prod" || got.Host != "other.example.com" || got.Port != 22 || got.Protocol != site.FTPS ||
-			got.SpeedLimit != 4096 ||
+			got.SpeedLimit != 4096 || got.Proxy != changed.Proxy || got.Jump != changed.Jump ||
 			!got.CreatedAt.Equal(now) || !got.UpdatedAt.Equal(now.Add(time.Second)) || len(got.Secrets) != 1 || got.Secrets[0] != site.SecretPassword {
 			t.Fatalf("Site() after update = %+v, %v", got, err)
 		}

@@ -19,7 +19,7 @@ import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 import { collectionOptions } from './collection-paths'
 import { ConnectionTest } from './ConnectionTest'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
-import { charsetOptions, defaultPorts, siteDefaults, siteSchema, toSiteInput, type SiteValues } from './site-form'
+import { charsetOptions, defaultJumpPort, defaultPorts, defaultProxyPort, siteDefaults, siteSchema, toSiteInput, type SiteValues } from './site-form'
 import { sitesKeys } from './use-sites-data'
 
 /** What the site dialog does. */
@@ -92,7 +92,11 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
   const protocol = useWatch({ control, name: 'protocol' })
   const method = useWatch({ control, name: 'authMethod' })
   const usesKey = protocol === 'sftp' && method === 'key'
-  const secrets = useWatch({ control, name: ['password', 'privateKey', 'passphrase'] })
+  const proxyKind = useWatch({ control, name: 'proxyKind' })
+  const jumpHost = useWatch({ control, name: 'jumpHost' })
+  const jumpAuthMethod = useWatch({ control, name: 'jumpAuthMethod' })
+  const jumpUsesKey = jumpAuthMethod === 'key'
+  const secrets = useWatch({ control, name: ['password', 'privateKey', 'passphrase', 'proxyPassword', 'jumpPassword', 'jumpPrivateKey', 'jumpPassphrase'] })
   const vault = useVaultStatus()
   const needsVault = vault !== undefined && !(vault.initialized && vault.unlocked) && secrets.some(Boolean)
 
@@ -200,6 +204,79 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         <Input id="site-speed-limit" className="font-mono" inputMode="decimal" placeholder={t(($) => $.site.speedLimitUnlimited)} aria-invalid={errors.speedLimit !== undefined} {...register('speedLimit')} />
         <p className="text-xs text-muted-foreground">{t(($) => $.site.speedLimitHint)}</p>
       </Field>
+      <div className="flex flex-col gap-3 rounded-md border p-3">
+        <Field id="site-proxy-kind" label={t(($) => $.site.proxyKind)} className="w-40">
+          <NativeSelect id="site-proxy-kind" {...register('proxyKind')}>
+            <option value="none">{t(($) => $.site.proxyNone)}</option>
+            <option value="socks5">SOCKS5</option>
+            <option value="http">{t(($) => $.site.proxyHttp)}</option>
+          </NativeSelect>
+        </Field>
+        {proxyKind !== 'none' && (
+          <>
+            <div className="flex gap-3">
+              <Field id="site-proxy-host" label={t(($) => $.site.proxyHost)} error={errors.proxyHost?.message} className="flex-1">
+                <Input id="site-proxy-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.proxyHost !== undefined} {...register('proxyHost')} />
+              </Field>
+              <Field id="site-proxy-port" label={t(($) => $.site.proxyPort)} error={errors.proxyPort?.message} className="w-24">
+                <Input id="site-proxy-port" className="font-mono" inputMode="numeric" placeholder={String(defaultProxyPort)} aria-invalid={errors.proxyPort !== undefined} {...register('proxyPort')} />
+              </Field>
+            </div>
+            <div className="flex gap-3">
+              <Field id="site-proxy-username" label={t(($) => $.site.proxyUsername)} className="flex-1">
+                <Input id="site-proxy-username" className="font-mono" autoComplete="off" spellCheck={false} {...register('proxyUsername')} />
+              </Field>
+              <Field id="site-proxy-password" label={t(($) => $.site.proxyPassword)} className="flex-1">
+                <Input id="site-proxy-password" type="password" autoComplete="off" {...register('proxyPassword')} />
+              </Field>
+            </div>
+          </>
+        )}
+        <p className="text-xs text-muted-foreground">{t(($) => $.site.proxyHint)}</p>
+      </div>
+      {protocol === 'sftp' && (
+        <div className="flex flex-col gap-3 rounded-md border p-3">
+          <p className="text-sm font-medium">{t(($) => $.site.jumpTitle)}</p>
+          <div className="flex gap-3">
+            <Field id="site-jump-host" label={t(($) => $.site.jumpHost)} className="flex-1">
+              <Input id="site-jump-host" className="font-mono" autoComplete="off" spellCheck={false} placeholder={t(($) => $.site.jumpNone)} {...register('jumpHost')} />
+            </Field>
+            <Field id="site-jump-port" label={t(($) => $.site.jumpPort)} error={errors.jumpPort?.message} className="w-24">
+              <Input id="site-jump-port" className="font-mono" inputMode="numeric" placeholder={String(defaultJumpPort)} aria-invalid={errors.jumpPort !== undefined} {...register('jumpPort')} />
+            </Field>
+          </div>
+          {jumpHost !== '' && (
+            <>
+              <div className="flex gap-3">
+                <Field id="site-jump-username" label={t(($) => $.site.jumpUsername)} error={errors.jumpUsername?.message} className="flex-1">
+                  <Input id="site-jump-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.jumpUsername !== undefined} {...register('jumpUsername')} />
+                </Field>
+                <Field id="site-jump-auth" label={t(($) => $.site.jumpAuthMethod)} className="w-44">
+                  <NativeSelect id="site-jump-auth" {...register('jumpAuthMethod')}>
+                    <option value="password">{t(($) => $.site.password)}</option>
+                    <option value="key">{t(($) => $.site.key)}</option>
+                  </NativeSelect>
+                </Field>
+              </div>
+              {jumpUsesKey ? (
+                <>
+                  <Field id="site-jump-key" label={t(($) => $.site.jumpPrivateKey)} className="">
+                    <Textarea id="site-jump-key" className="font-mono" rows={4} spellCheck={false} autoComplete="off" {...register('jumpPrivateKey')} />
+                  </Field>
+                  <Field id="site-jump-passphrase" label={t(($) => $.site.jumpPassphrase)} className="">
+                    <Input id="site-jump-passphrase" type="password" autoComplete="off" {...register('jumpPassphrase')} />
+                  </Field>
+                </>
+              ) : (
+                <Field id="site-jump-password" label={t(($) => $.site.jumpPassword)} className="">
+                  <Input id="site-jump-password" type="password" autoComplete="off" {...register('jumpPassword')} />
+                </Field>
+              )}
+            </>
+          )}
+          <p className="text-xs text-muted-foreground">{t(($) => $.site.jumpHint)}</p>
+        </div>
+      )}
       {editing !== undefined && <ConnectionTest workspaceId={workspaceId} site={editing} />}
       {needsVault || failure === 'vault_locked' ? (
         <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />

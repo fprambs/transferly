@@ -47,7 +47,59 @@ const (
 	SecretPrivateKey SecretKind = "private_key"
 	// SecretPassphrase is the passphrase of a private key.
 	SecretPassphrase SecretKind = "passphrase"
+	// SecretJumpPassword is the password of the jump host.
+	SecretJumpPassword SecretKind = "jump_password"
+	// SecretJumpPrivateKey is the SSH private key of the jump host.
+	SecretJumpPrivateKey SecretKind = "jump_private_key"
+	// SecretJumpPassphrase is the passphrase of the jump host's private key.
+	SecretJumpPassphrase SecretKind = "jump_passphrase"
+	// SecretProxyPassword is the password of the SOCKS5 or HTTP proxy.
+	SecretProxyPassword SecretKind = "proxy_password"
 )
+
+// ProxyKind is a proxy protocol a site's connection can go through.
+type ProxyKind string
+
+const (
+	// ProxyNone means the connection is made directly.
+	ProxyNone ProxyKind = ""
+	// ProxySOCKS5 tunnels the connection through a SOCKS5 proxy.
+	ProxySOCKS5 ProxyKind = "socks5"
+	// ProxyHTTP tunnels the connection through an HTTP CONNECT proxy.
+	ProxyHTTP ProxyKind = "http"
+)
+
+// Proxy is the SOCKS5 or HTTP proxy a site's connection goes through, in place of a direct TCP connection. The zero
+// value connects directly.
+type Proxy struct {
+	// Kind selects the proxy protocol; the empty value means no proxy.
+	Kind ProxyKind
+	// Host is the proxy's server name or address.
+	Host string
+	// Port is the proxy's server port.
+	Port int
+	// Username authenticates to the proxy; empty means no authentication.
+	Username string
+}
+
+// Jump is the SSH server a site's connection tunnels through before reaching the site itself. Only SFTP sites may
+// have one. The zero value connects directly.
+type Jump struct {
+	// Host is the jump host's server name or address; empty means no jump host.
+	Host string
+	// Port is the jump host's server port.
+	Port int
+	// Username is the account name on the jump host.
+	Username string
+	// AuthMethod is how the jump host account authenticates.
+	AuthMethod AuthMethod
+}
+
+// Set reports whether a jump host is configured.
+func (j Jump) Set() bool { return j.Host != "" }
+
+// Set reports whether a proxy is configured.
+func (p Proxy) Set() bool { return p.Kind != ProxyNone }
 
 // Errors returned by the package.
 var (
@@ -79,6 +131,11 @@ var (
 	ErrInvalidTimezone = errors.New("invalid time zone")
 	// ErrInvalidSpeedLimit means the speed limit is negative, below the smallest cap or above the largest one.
 	ErrInvalidSpeedLimit = errors.New("invalid speed limit")
+	// ErrInvalidProxy means the proxy's kind, host or port is invalid.
+	ErrInvalidProxy = errors.New("invalid proxy")
+	// ErrInvalidJump means the jump host's host, port or authentication method is invalid, or one was given for a
+	// protocol other than SFTP.
+	ErrInvalidJump = errors.New("invalid jump host")
 	// ErrCollectionNotFound means the collection does not exist in the workspace.
 	ErrCollectionNotFound = errors.New("collection not found")
 	// ErrCollectionNameTaken means the parent already has a collection with that name.
@@ -118,6 +175,11 @@ type Site struct {
 	// SpeedLimit caps the bytes per second the site's transfers move together, on top of the global and per-user caps of the
 	// instance; zero means the site has no cap of its own.
 	SpeedLimit int64
+	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
+	Proxy Proxy
+	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects directly.
+	// Only SFTP sites may have one.
+	Jump Jump
 	// Secrets lists the kinds of secret stored for the site.
 	Secrets []SecretKind
 	// CreatedAt is when the site was created, in UTC.

@@ -152,6 +152,38 @@ func TestService_Create(t *testing.T) {
 	}
 }
 
+// TestService_CreateProxyAndJump verifies that a quick connection's proxy and jump host, when given, are kept and
+// checked against the network guard exactly like the connection's own host.
+//
+// Scenarios:
+//   - a quick connection with a proxy is created with it, and one whose proxy is on a private host is refused
+//   - a quick connection with a jump host is created with it, and one whose jump host is on a private host is refused
+func TestService_CreateProxyAndJump(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture()
+
+	proxied := input("203.0.113.10")
+	proxied.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: "203.0.113.11", Port: 1080}
+	if c, err := f.svc.Create(ctx, f.editor, f.ws, proxied, secrets()); err != nil || c.Site.Proxy != proxied.Proxy {
+		t.Errorf("Create() with a proxy = %+v, %v", c, err)
+	}
+	blockedProxy := input("203.0.113.10")
+	blockedProxy.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: "10.0.0.2", Port: 1080}
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, blockedProxy, secrets()); !errors.Is(err, netguard.ErrBlocked) {
+		t.Errorf("Create() with a proxy on a private host = %v; want ErrBlocked", err)
+	}
+	jumped := input("203.0.113.10")
+	jumped.Jump = site.Jump{Host: "203.0.113.12", Username: "bastion"}
+	if c, err := f.svc.Create(ctx, f.editor, f.ws, jumped, secrets()); err != nil || c.Site.Jump.Host != "203.0.113.12" {
+		t.Errorf("Create() with a jump host = %+v, %v", c, err)
+	}
+	blockedJump := input("203.0.113.10")
+	blockedJump.Jump = site.Jump{Host: "10.0.0.3", Username: "bastion"}
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, blockedJump, secrets()); !errors.Is(err, netguard.ErrBlocked) {
+		t.Errorf("Create() with a jump host on a private host = %v; want ErrBlocked", err)
+	}
+}
+
 // TestService_LookupListClose verifies reading and ending connections, and what happens to their secrets.
 //
 // Scenarios:

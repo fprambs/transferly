@@ -1,18 +1,24 @@
 -- name: InsertSite :exec
-INSERT INTO sites (id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13);
+INSERT INTO sites (
+  id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13, $14, $15, $16, $17, $18, $19, $20, $21);
 
 -- name: UpdateSite :execrows
 UPDATE sites
-SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11, speed_limit = $13
+SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11, speed_limit = $13,
+  proxy_kind = $14, proxy_host = $15, proxy_port = $16, proxy_username = $17, jump_host = $18, jump_port = $19, jump_username = $20, jump_auth_method = $21
 WHERE id = $1 AND workspace_id = $2;
 
 -- name: SiteByID :one
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method
 FROM sites WHERE id = $1 AND workspace_id = $2;
 
 -- name: SitesByWorkspace :many
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method
 FROM sites WHERE workspace_id = $1 ORDER BY lower(name), id;
 
 -- name: DeleteSite :execrows

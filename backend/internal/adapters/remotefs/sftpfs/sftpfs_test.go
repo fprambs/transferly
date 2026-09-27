@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -321,6 +322,140 @@ func TestDial_ConnectionFailures(t *testing.T) {
 		return nil
 	}}); !errors.Is(err, context.Canceled) {
 		t.Errorf("Dial() canceled during the handshake = %v; want context.Canceled", err)
+	}
+}
+
+// jumpServerConfig returns a minimal SSH server config, with a generated host key, that accepts the given password.
+func jumpServerConfig(t *testing.T, username, password string) *ssh.ServerConfig {
+	t.Helper()
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := &ssh.ServerConfig{
+		PasswordCallback: func(conn ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
+			if conn.User() == username && string(pass) == password {
+				return nil, nil
+			}
+			return nil, errors.New("wrong credentials")
+		},
+	}
+	config.AddHostKey(signer)
+	return config
+}
+
+// jumpHost starts a minimal SSH server that authenticates with username and password and forwards every
+// "direct-tcpip" channel it is asked to open to the real address the client names, exactly as a real jump host
+// forwards a port. It stands in for a real one in tests, since the fake SFTP server has no use for port forwarding
+// of its own.
+func jumpHost(t *testing.T, username, password string) string {
+	t.Helper()
+	config := jumpServerConfig(t, username, password)
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go forwardChannels(conn, config)
+		}
+	}()
+	return ln.Addr().String()
+}
+
+// forwardChannels completes the SSH handshake on conn and relays every "direct-tcpip" channel to its named address.
+func forwardChannels(conn net.Conn, config *ssh.ServerConfig) {
+	sconn, chans, reqs, err := ssh.NewServerConn(conn, config)
+	if err != nil {
+		return
+	}
+	defer func() { _ = sconn.Close() }()
+	go ssh.DiscardRequests(reqs)
+	for newChannel := range chans {
+		if newChannel.ChannelType() != "direct-tcpip" {
+			_ = newChannel.Reject(ssh.UnknownChannelType, "only direct-tcpip is forwarded")
+			continue
+		}
+		var dest struct {
+			Addr       string
+			Port       uint32
+			OriginAddr string
+			OriginPort uint32
+		}
+		if err := ssh.Unmarshal(newChannel.ExtraData(), &dest); err != nil {
+			_ = newChannel.Reject(ssh.ConnectionFailed, "malformed request")
+			continue
+		}
+		channel, requests, err := newChannel.Accept()
+		if err != nil {
+			continue
+		}
+		go ssh.DiscardRequests(requests)
+		go relay(channel, net.JoinHostPort(dest.Addr, strconv.Itoa(int(dest.Port))))
+	}
+}
+
+// relay dials address and copies bytes between it and channel until either side closes.
+func relay(channel ssh.Channel, address string) {
+	defer func() { _ = channel.Close() }()
+	target, err := (&net.Dialer{}).Dial("tcp", address)
+	if err != nil {
+		return
+	}
+	defer func() { _ = target.Close() }()
+	go func() { _, _ = io.Copy(target, channel); _ = target.Close() }()
+	_, _ = io.Copy(channel, target)
+}
+
+// TestDialSSH_ThenTunnel verifies the two-step connection a jump host uses: [sftpfs.DialSSH] to reach it, then a
+// channel it opens handed to [sftpfs.Dial] as Config.Conn to reach the real site over that channel.
+//
+// Scenarios:
+//   - a channel opened on a bare [sftpfs.DialSSH] client, through a jump host that only forwards "direct-tcpip",
+//     reaches the real site exactly as a direct Dial would, with Config.Address never dialed since Config.Conn
+//     takes its place
+//   - DialSSH reports the same failures as Dial: authentication and host key errors
+func TestDialSSH_ThenTunnel(t *testing.T) {
+	server := startServer(t, sftptest.Options{})
+	jumpAddr := jumpHost(t, "bastion", "let-me-through")
+
+	jump, err := sftpfs.DialSSH(t.Context(), sftpfs.Config{Address: jumpAddr, Username: "bastion", Password: "let-me-through", VerifyHostKey: trustAll})
+	if err != nil {
+		t.Fatalf("DialSSH() = %v", err)
+	}
+	t.Cleanup(func() { _ = jump.Close() })
+
+	tunnel, err := jump.DialContext(t.Context(), "tcp", server.Addr)
+	if err != nil {
+		t.Fatalf("jump.DialContext() = %v", err)
+	}
+	fsys, err := sftpfs.Dial(t.Context(), sftpfs.Config{
+		Conn: tunnel, Address: "unreachable.invalid:1", Username: testUser, Password: testPassword, VerifyHostKey: trustAll,
+	})
+	if err != nil {
+		t.Fatalf("Dial() over a jumped connection = %v", err)
+	}
+	defer func() { _ = fsys.Close() }()
+	if _, err := fsys.List(t.Context(), "."); err != nil {
+		t.Errorf("List() over a jumped connection = %v", err)
+	}
+
+	if _, err := sftpfs.DialSSH(t.Context(), sftpfs.Config{Address: jumpAddr, Username: "bastion", Password: "wrong", VerifyHostKey: trustAll}); !errors.Is(err, remotefs.ErrAuth) {
+		t.Errorf("DialSSH() with a wrong password = %v; want ErrAuth", err)
+	}
+	if _, err := sftpfs.DialSSH(t.Context(), sftpfs.Config{Address: jumpAddr, Username: "bastion", Password: "let-me-through", VerifyHostKey: func(string, string) error {
+		return &remotefs.HostKeyError{}
+	}}); !errors.As(err, new(*remotefs.HostKeyError)) {
+		t.Errorf("DialSSH() with a refused host key = %v; want a HostKeyError", err)
 	}
 }
 

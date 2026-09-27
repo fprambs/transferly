@@ -33,6 +33,10 @@ const stored: Site = {
  * - the speed limit is shown in MiB/s and sent back in bytes per second, and a blank one means no cap
  * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
+ * - a stored proxy and jump host are shown prefilled and sent back, in both authentication methods, with their own
+ *   default ports when left blank, and neither is sent when not set
+ * - a proxy needs a host and a valid port once a kind is chosen, and a jump host needs a valid port and a username
+ *   once a host is given, whatever the site's own protocol; leaving both unset is always valid
  */
 describe('site form', () => {
   it('starts empty for a new site', () => {
@@ -55,6 +59,18 @@ describe('site form', () => {
       listTimezone: 'Europe/Madrid',
       charset: 'utf-8',
       speedLimit: '',
+      proxyKind: 'none',
+      proxyHost: '',
+      proxyPort: '',
+      proxyUsername: '',
+      proxyPassword: '',
+      jumpHost: '',
+      jumpPort: '',
+      jumpUsername: '',
+      jumpAuthMethod: 'password',
+      jumpPassword: '',
+      jumpPrivateKey: '',
+      jumpPassphrase: '',
     })
     expect(siteDefaults({ ...stored, collectionId: undefined }, 'c2').collectionId).toBe('c2')
   })
@@ -135,5 +151,57 @@ describe('site form', () => {
     expect(toSiteInput(values)).toMatchObject({ port: 2222, authMethod: 'key', listTimezone: 'UTC', password: undefined, privateKey: 'KEY', passphrase: undefined })
     expect(toSiteInput({ ...values, privateKey: '' }).privateKey).toBeUndefined()
     expect(toSiteInput({ ...siteDefaults(undefined, undefined), collectionId: '' }).collectionId).toBeUndefined()
+  })
+
+  it('shows a stored proxy and jump host prefilled, in both authentication methods', () => {
+    const proxied: Site = { ...stored, proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080, username: 'proxyuser' } }
+    expect(siteDefaults(proxied, undefined)).toMatchObject({ proxyKind: 'socks5', proxyHost: 'proxy.example.com', proxyPort: '1080', proxyUsername: 'proxyuser' })
+
+    const jumpedPassword: Site = { ...stored, jump: { host: 'bastion.example.com', port: 2222, username: 'bastion', authMethod: 'password' } }
+    expect(siteDefaults(jumpedPassword, undefined)).toMatchObject({ jumpHost: 'bastion.example.com', jumpPort: '2222', jumpUsername: 'bastion', jumpAuthMethod: 'password' })
+
+    const jumpedKey: Site = { ...stored, jump: { host: 'bastion.example.com', port: 22, username: 'bastion', authMethod: 'key' } }
+    expect(siteDefaults(jumpedKey, undefined).jumpAuthMethod).toBe('key')
+
+    expect(siteDefaults(stored, undefined)).toMatchObject({ proxyKind: 'none', proxyPort: '', jumpHost: '', jumpPort: '' })
+  })
+
+  it('sends a proxy with its own port when set, defaults the port when blank, and leaves out the username when blank', () => {
+    const withProxy = { ...siteDefaults(stored, undefined), proxyKind: 'http' as const, proxyHost: ' proxy.example.com ', proxyPort: '3128', proxyUsername: ' proxyuser ', proxyPassword: 'secret' }
+    expect(toSiteInput(withProxy)).toMatchObject({ proxy: { kind: 'http', host: 'proxy.example.com', port: 3128, username: 'proxyuser' }, proxyPassword: 'secret' })
+    expect(toSiteInput({ ...withProxy, proxyPort: '' }).proxy).toMatchObject({ port: 1080 })
+    expect(toSiteInput({ ...withProxy, proxyUsername: '' }).proxy?.username).toBeUndefined()
+    expect(toSiteInput({ ...withProxy, proxyPassword: '' }).proxyPassword).toBeUndefined()
+    expect(toSiteInput(siteDefaults(stored, undefined)).proxy).toBeUndefined()
+    expect(toSiteInput(siteDefaults(stored, undefined)).proxyPassword).toBeUndefined()
+  })
+
+  it('sends a jump host with its own port and, for each authentication method, only the credential it needs', () => {
+    const withJumpPassword = { ...siteDefaults(stored, undefined), jumpHost: 'bastion.example.com', jumpPort: '2200', jumpUsername: 'bastion', jumpAuthMethod: 'password' as const, jumpPassword: 'secret' }
+    expect(toSiteInput(withJumpPassword)).toMatchObject({
+      jump: { host: 'bastion.example.com', port: 2200, username: 'bastion', authMethod: 'password' },
+      jumpPassword: 'secret', jumpPrivateKey: undefined, jumpPassphrase: undefined,
+    })
+    expect(toSiteInput({ ...withJumpPassword, jumpPort: '' }).jump).toMatchObject({ port: 22 })
+
+    const withJumpKey = { ...withJumpPassword, jumpAuthMethod: 'key' as const, jumpPrivateKey: 'KEY', jumpPassphrase: 'phrase' }
+    expect(toSiteInput(withJumpKey)).toMatchObject({ jump: { authMethod: 'key' }, jumpPassword: undefined, jumpPrivateKey: 'KEY', jumpPassphrase: 'phrase' })
+
+    const noJump = toSiteInput(siteDefaults(stored, undefined))
+    expect(noJump.jump).toBeUndefined()
+    expect(noJump.jumpPassword).toBeUndefined()
+    expect(noJump.jumpPrivateKey).toBeUndefined()
+    expect(noJump.jumpPassphrase).toBeUndefined()
+  })
+
+  it('validates the proxy only once a kind is chosen, and the jump host only once a host is given', () => {
+    const base = siteDefaults(stored, undefined)
+    expect(siteSchema.safeParse(base).success).toBe(true)
+    expect(siteSchema.safeParse({ ...base, proxyKind: 'socks5', proxyHost: '', proxyPort: '1080' }).success).toBe(false)
+    expect(siteSchema.safeParse({ ...base, proxyKind: 'socks5', proxyHost: 'p.example', proxyPort: 'nope' }).success).toBe(false)
+    expect(siteSchema.safeParse({ ...base, proxyKind: 'socks5', proxyHost: 'p.example', proxyPort: '1080' }).success).toBe(true)
+    expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: 'nope', jumpUsername: 'u' }).success).toBe(false)
+    expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: '' }).success).toBe(false)
+    expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: 'u' }).success).toBe(true)
   })
 })

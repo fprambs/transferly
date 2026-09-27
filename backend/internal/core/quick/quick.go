@@ -95,6 +95,25 @@ func NewService(authz Authorizer, guard Guard, saver SiteSaver, clock ports.Cloc
 	return &Service{authz: authz, guard: guard, saver: saver, clock: clock, newID: newID, byID: map[uuid.UUID]*Connection{}, byKey: map[uuid.UUID][]uuid.UUID{}}
 }
 
+// checkHosts asks the guard about every literal address the input configures: the site's own host, and its proxy's
+// and jump host's, when set.
+func checkHosts(ctx context.Context, guard Guard, in site.Input) error {
+	if err := guard.CheckHost(ctx, in.Host); err != nil {
+		return err
+	}
+	if in.Proxy.Set() {
+		if err := guard.CheckHost(ctx, in.Proxy.Host); err != nil {
+			return err
+		}
+	}
+	if in.Jump.Set() {
+		if err := guard.CheckHost(ctx, in.Jump.Host); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Create validates the settings, vets the host and starts keeping a quick connection. The site name is the host.
 // It needs the permission to manage sites, since connecting to a server is what a saved site would allow too.
 func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in site.Input, secrets Secrets) (Connection, error) {
@@ -109,7 +128,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in s
 	if err != nil {
 		return Connection{}, err
 	}
-	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
+	if err := checkHosts(ctx, s.guard, in); err != nil {
 		return Connection{}, err
 	}
 	id, err := s.newID()
@@ -123,7 +142,8 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in s
 		lastUsed: now,
 		Site: site.Site{
 			ID: id, WorkspaceID: workspaceID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port, Username: in.Username,
-			AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, CreatedAt: now, UpdatedAt: now,
+			AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
+			Proxy: in.Proxy, Jump: in.Jump, CreatedAt: now, UpdatedAt: now,
 		},
 	}
 

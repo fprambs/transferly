@@ -83,6 +83,11 @@ type Input struct {
 	Charset string
 	// SpeedLimit caps the bytes per second the site's transfers move together; zero means no cap of its own.
 	SpeedLimit int64
+	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
+	Proxy Proxy
+	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects
+	// directly. Only valid for SFTP.
+	Jump Jump
 }
 
 // SecretChanges tells which secrets to write. A nil field leaves the secret as it is, an empty string
@@ -94,6 +99,14 @@ type SecretChanges struct {
 	PrivateKey *string
 	// Passphrase is the passphrase of the private key.
 	Passphrase *string
+	// JumpPassword is the password of the jump host.
+	JumpPassword *string
+	// JumpPrivateKey is the SSH private key of the jump host.
+	JumpPrivateKey *string
+	// JumpPassphrase is the passphrase of the jump host's private key.
+	JumpPassphrase *string
+	// ProxyPassword is the password of the SOCKS5 or HTTP proxy.
+	ProxyPassword *string
 }
 
 // Service implements the site use cases. Secrets are sealed with the key of their workspace: the DEK of the owner for a personal
@@ -178,7 +191,62 @@ func Normalize(in Input) (Input, error) {
 	if in.SpeedLimit != 0 && (in.SpeedLimit < minSpeedLimit || in.SpeedLimit > maxSpeedLimit) {
 		return in, ErrInvalidSpeedLimit
 	}
+	proxy, err := normalizeProxy(in.Proxy)
+	if err != nil {
+		return in, err
+	}
+	in.Proxy = proxy
+	jump, err := normalizeJump(in.Jump, in.Protocol)
+	if err != nil {
+		return in, err
+	}
+	in.Jump = jump
 	return in, nil
+}
+
+// normalizeProxy trims and validates a proxy; the zero value, meaning no proxy, is always valid.
+func normalizeProxy(p Proxy) (Proxy, error) {
+	p.Host = strings.TrimSpace(p.Host)
+	p.Username = strings.TrimSpace(p.Username)
+	if !p.Set() {
+		return Proxy{}, nil
+	}
+	if p.Kind != ProxySOCKS5 && p.Kind != ProxyHTTP {
+		return p, ErrInvalidProxy
+	}
+	if !ValidHost(p.Host) || p.Port < 1 || p.Port > 65535 {
+		return p, ErrInvalidProxy
+	}
+	return p, nil
+}
+
+// normalizeJump trims and validates a jump host; the zero value, meaning no jump host, is always valid. A jump host
+// is only valid for SFTP, since FTP and FTPS have no equivalent of an SSH tunnel to send it through.
+func normalizeJump(j Jump, protocol Protocol) (Jump, error) {
+	j.Host = strings.TrimSpace(j.Host)
+	j.Username = strings.TrimSpace(j.Username)
+	if !j.Set() {
+		return Jump{}, nil
+	}
+	if protocol != SFTP || !ValidHost(j.Host) {
+		return j, ErrInvalidJump
+	}
+	if j.Port == 0 {
+		j.Port = defaultPorts[SFTP]
+	}
+	if j.Port < 1 || j.Port > 65535 {
+		return j, ErrInvalidJump
+	}
+	if n := utf8.RuneCountInString(j.Username); n == 0 || n > maxUsernameRunes {
+		return j, ErrInvalidJump
+	}
+	if j.AuthMethod == "" {
+		j.AuthMethod = AuthPassword
+	}
+	if j.AuthMethod != AuthPassword && j.AuthMethod != AuthKey {
+		return j, ErrInvalidJump
+	}
+	return j, nil
 }
 
 // ValidHost reports whether host is an IP address or a dotted host name, without scheme, port, path or spaces.
@@ -214,6 +282,10 @@ func (s *Service) sealChanges(ctx context.Context, actor, workspaceID uuid.UUID,
 		{SecretPassword, changes.Password, maxSecretBytes},
 		{SecretPrivateKey, changes.PrivateKey, maxKeyBytes},
 		{SecretPassphrase, changes.Passphrase, maxSecretBytes},
+		{SecretJumpPassword, changes.JumpPassword, maxSecretBytes},
+		{SecretJumpPrivateKey, changes.JumpPrivateKey, maxKeyBytes},
+		{SecretJumpPassphrase, changes.JumpPassphrase, maxSecretBytes},
+		{SecretProxyPassword, changes.ProxyPassword, maxSecretBytes},
 	}
 	var dek []byte
 	var version int
@@ -265,7 +337,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err != nil {
 		return Site{}, err
 	}
-	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
+	if err := s.checkHosts(ctx, in); err != nil {
 		return Site{}, err
 	}
 	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {
@@ -293,8 +365,27 @@ func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) 
 	return Site{
 		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port,
 		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
-		CreatedAt: createdAt, UpdatedAt: updatedAt,
+		Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
+}
+
+// checkHosts asks the guard about every literal address the input configures: the site's own host, and its proxy's
+// and jump host's, when set.
+func (s *Service) checkHosts(ctx context.Context, in Input) error {
+	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
+		return err
+	}
+	if in.Proxy.Set() {
+		if err := s.guard.CheckHost(ctx, in.Proxy.Host); err != nil {
+			return err
+		}
+	}
+	if in.Jump.Set() {
+		if err := s.guard.CheckHost(ctx, in.Jump.Host); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // kinds lists the kinds of a set of sealed secrets.
@@ -315,7 +406,7 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 	if err != nil {
 		return Site{}, err
 	}
-	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
+	if err := s.checkHosts(ctx, in); err != nil {
 		return Site{}, err
 	}
 	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {

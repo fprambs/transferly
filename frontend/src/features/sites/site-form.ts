@@ -28,22 +28,58 @@ export const charsetOptions: ReadonlyArray<{ value: Charset; label: string }> = 
   { value: 'euc-kr', label: 'EUC-KR (Korean)' },
 ]
 
+/** Whether a port, given as text, is a valid one; an empty text is valid too and means the default. */
+function validPort(value: string): boolean {
+  return value === '' || (/^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= maxPort)
+}
+
 /** Validation of the site form; messages are translation keys. */
-export const siteSchema = z.object({
-  name: z.string().trim().min(1, 'nameRequired'),
-  collectionId: z.string(),
-  protocol: z.enum(['sftp', 'ftps', 'ftp']),
-  host: z.string().trim().min(1, 'hostRequired'),
-  port: z.string().trim().refine((value) => value === '' || (/^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= maxPort), 'portInvalid'),
-  username: z.string().trim().min(1, 'usernameRequired'),
-  authMethod: z.enum(['password', 'key']),
-  password: z.string(),
-  privateKey: z.string(),
-  passphrase: z.string(),
-  listTimezone: z.string().trim(),
-  charset: z.string(),
-  speedLimit: z.string().trim().refine((value) => value === '' || (/^\d+(\.\d+)?$/.test(value) && Number(value) > 0), 'speedLimitInvalid'),
-})
+export const siteSchema = z
+  .object({
+    name: z.string().trim().min(1, 'nameRequired'),
+    collectionId: z.string(),
+    protocol: z.enum(['sftp', 'ftps', 'ftp']),
+    host: z.string().trim().min(1, 'hostRequired'),
+    port: z.string().trim().refine(validPort, 'portInvalid'),
+    username: z.string().trim().min(1, 'usernameRequired'),
+    authMethod: z.enum(['password', 'key']),
+    password: z.string(),
+    privateKey: z.string(),
+    passphrase: z.string(),
+    listTimezone: z.string().trim(),
+    charset: z.string(),
+    speedLimit: z.string().trim().refine((value) => value === '' || (/^\d+(\.\d+)?$/.test(value) && Number(value) > 0), 'speedLimitInvalid'),
+    proxyKind: z.enum(['none', 'socks5', 'http']),
+    proxyHost: z.string().trim(),
+    proxyPort: z.string().trim(),
+    proxyUsername: z.string().trim(),
+    proxyPassword: z.string(),
+    jumpHost: z.string().trim(),
+    jumpPort: z.string().trim(),
+    jumpUsername: z.string().trim(),
+    jumpAuthMethod: z.enum(['password', 'key']),
+    jumpPassword: z.string(),
+    jumpPrivateKey: z.string(),
+    jumpPassphrase: z.string(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.proxyKind !== 'none') {
+      if (values.proxyHost === '') {
+        ctx.addIssue({ code: 'custom', path: ['proxyHost'], message: 'hostRequired' })
+      }
+      if (!validPort(values.proxyPort)) {
+        ctx.addIssue({ code: 'custom', path: ['proxyPort'], message: 'portInvalid' })
+      }
+    }
+    if (values.jumpHost !== '') {
+      if (!validPort(values.jumpPort)) {
+        ctx.addIssue({ code: 'custom', path: ['jumpPort'], message: 'portInvalid' })
+      }
+      if (values.jumpUsername === '') {
+        ctx.addIssue({ code: 'custom', path: ['jumpUsername'], message: 'usernameRequired' })
+      }
+    }
+  })
 
 /** Values of the site form. */
 export type SiteValues = z.infer<typeof siteSchema>
@@ -64,6 +100,18 @@ export function siteDefaults(site: Site | undefined, collectionId: string | unde
     listTimezone: site?.listTimezone ?? 'UTC',
     charset: site?.charset ?? 'utf-8',
     speedLimit: site?.speedLimitBps ? String(site.speedLimitBps / mebibyte) : '',
+    proxyKind: site?.proxy?.kind ?? 'none',
+    proxyHost: site?.proxy?.host ?? '',
+    proxyPort: site?.proxy ? String(site.proxy.port) : '',
+    proxyUsername: site?.proxy?.username ?? '',
+    proxyPassword: '',
+    jumpHost: site?.jump?.host ?? '',
+    jumpPort: site?.jump ? String(site.jump.port) : '',
+    jumpUsername: site?.jump?.username ?? '',
+    jumpAuthMethod: site?.jump?.authMethod ?? 'password',
+    jumpPassword: '',
+    jumpPrivateKey: '',
+    jumpPassphrase: '',
   }
 }
 
@@ -72,9 +120,16 @@ function secret(value: string): string | undefined {
   return value === '' ? undefined : value
 }
 
+/** Default port of a proxy that did not say its own. */
+export const defaultProxyPort = 1080
+
+/** Default port of a jump host that did not say its own: the SSH port, since only SFTP sites may have one. */
+export const defaultJumpPort = 22
+
 /** Builds the request body of a site: an empty port means the default and blank secrets are left out. */
 export function toSiteInput(values: SiteValues): SiteInput {
   const usesKey = values.protocol === 'sftp' && values.authMethod === 'key'
+  const jumpUsesKey = values.jumpAuthMethod === 'key'
   return {
     name: values.name.trim(),
     collectionId: values.collectionId === '' ? undefined : values.collectionId,
@@ -89,5 +144,42 @@ export function toSiteInput(values: SiteValues): SiteInput {
     password: usesKey ? undefined : secret(values.password),
     privateKey: usesKey ? secret(values.privateKey) : undefined,
     passphrase: usesKey ? secret(values.passphrase) : undefined,
+    ...proxyInput(values),
+    ...jumpInput(values, jumpUsesKey),
+  }
+}
+
+/** Builds the proxy fields of the request body; none of them are sent when no proxy is set. */
+function proxyInput(values: SiteValues): Pick<SiteInput, 'proxy' | 'proxyPassword'> {
+  if (values.proxyKind === 'none') {
+    return { proxy: undefined, proxyPassword: undefined }
+  }
+  const username = values.proxyUsername.trim()
+  return {
+    proxy: {
+      kind: values.proxyKind,
+      host: values.proxyHost.trim(),
+      port: values.proxyPort.trim() === '' ? defaultProxyPort : Number(values.proxyPort),
+      username: username === '' ? undefined : username,
+    },
+    proxyPassword: secret(values.proxyPassword),
+  }
+}
+
+/** Builds the jump host fields of the request body; none of them are sent when no jump host is set. */
+function jumpInput(values: SiteValues, usesKey: boolean): Pick<SiteInput, 'jump' | 'jumpPassword' | 'jumpPrivateKey' | 'jumpPassphrase'> {
+  if (values.jumpHost === '') {
+    return { jump: undefined, jumpPassword: undefined, jumpPrivateKey: undefined, jumpPassphrase: undefined }
+  }
+  return {
+    jump: {
+      host: values.jumpHost,
+      port: values.jumpPort.trim() === '' ? defaultJumpPort : Number(values.jumpPort),
+      username: values.jumpUsername,
+      authMethod: usesKey ? 'key' : 'password',
+    },
+    jumpPassword: usesKey ? undefined : secret(values.jumpPassword),
+    jumpPrivateKey: usesKey ? secret(values.jumpPrivateKey) : undefined,
+    jumpPassphrase: usesKey ? secret(values.jumpPassphrase) : undefined,
   }
 }

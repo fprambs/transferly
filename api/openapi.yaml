@@ -3997,6 +3997,35 @@ components:
       type: string
       enum: [utf-8, iso-8859-1, iso-8859-2, iso-8859-15, windows-1250, windows-1251, windows-1252, koi8-r, shift_jis, euc-jp, gbk, big5, euc-kr]
       description: Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
+    SiteProxy:
+      type: object
+      required: [kind, host, port]
+      description: A SOCKS5 or HTTP CONNECT proxy the connection goes through, in place of a direct TCP connection.
+      properties:
+        kind:
+          type: string
+          enum: [socks5, http]
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+          description: Left out when the proxy needs no authentication.
+    SiteJump:
+      type: object
+      required: [host, port, username, authMethod]
+      description: The SSH server the connection tunnels through before reaching an SFTP site.
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        authMethod:
+          type: string
+          enum: [password, key]
     Site:
       type: object
       required: [id, name, protocol, host, port, username, authMethod, listTimezone, charset, speedLimitBps, secrets, createdAt, updatedAt]
@@ -4031,12 +4060,18 @@ components:
           type: integer
           format: int64
           description: Bytes per second the site's transfers move together, on top of the global and per-user caps of the instance; 0 means the site has no cap of its own.
+        proxy:
+          allOf: [$ref: "#/components/schemas/SiteProxy"]
+          description: Left out when the connection is made directly.
+        jump:
+          allOf: [$ref: "#/components/schemas/SiteJump"]
+          description: Left out when the connection is made directly, without a jump host.
         secrets:
           type: array
           description: Kinds of secret stored for the site. The secrets themselves are never returned.
           items:
             type: string
-            enum: [password, private_key, passphrase]
+            enum: [password, private_key, passphrase, jump_password, jump_private_key, jump_passphrase, proxy_password]
         createdAt:
           type: string
           format: date-time
@@ -4077,6 +4112,12 @@ components:
           format: int64
           minimum: 0
           description: Bytes per second the site's transfers move together; left out or 0 means no cap of its own.
+        proxy:
+          allOf: [$ref: "#/components/schemas/SiteProxy"]
+          description: Left out to connect directly, without a proxy.
+        jump:
+          allOf: [$ref: "#/components/schemas/SiteJump"]
+          description: Left out to connect directly, without a jump host; only valid for SFTP.
         password:
           type: string
           description: Write only. Left out keeps the stored one; an empty string removes it.
@@ -4086,6 +4127,18 @@ components:
         passphrase:
           type: string
           description: Write only. Same rules as the password.
+        jumpPassword:
+          type: string
+          description: Write only. Same rules as the password, for the jump host's account.
+        jumpPrivateKey:
+          type: string
+          description: Write only. Same rules as the password, for the jump host's account.
+        jumpPassphrase:
+          type: string
+          description: Write only. Same rules as the password, for the jump host's private key.
+        proxyPassword:
+          type: string
+          description: Write only. Same rules as the password, for the proxy's account.
     KnownHost:
       type: object
       required: [host, port, keyType, fingerprint, firstSeen]

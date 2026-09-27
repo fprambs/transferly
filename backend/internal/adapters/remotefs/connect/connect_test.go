@@ -42,6 +42,7 @@ type flaky struct {
 	failTrustedAt  int
 	trusted        int
 	failPassphrase bool
+	failKind       site.SecretKind
 }
 
 // errFlaky is the failure injected by [flaky].
@@ -56,9 +57,9 @@ func (f *flaky) Trusted(ctx context.Context, ws uuid.UUID, host string, port int
 	return f.Store.Trusted(ctx, ws, host, port)
 }
 
-// Secret fails for passphrases when configured to.
+// Secret fails for passphrases, and for a chosen other kind, when configured to.
 func (f *flaky) Secret(ctx context.Context, ws, id uuid.UUID, kind site.SecretKind) (site.Sealed, error) {
-	if f.failPassphrase && kind == site.SecretPassphrase {
+	if (f.failPassphrase && kind == site.SecretPassphrase) || kind == f.failKind {
 		return site.Sealed{}, errFlaky
 	}
 	return f.Store.Secret(ctx, ws, id, kind)

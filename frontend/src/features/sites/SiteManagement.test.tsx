@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Site } from '@/lib/api'
-import { mockWorkspaceData, problem } from '@/test/handlers'
+import { mockVault, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 
@@ -59,7 +59,9 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * - FTP and FTPS are offered next to SFTP, with their own default port; FTP warns about clear text, FTPS explains its ports, and neither offers keys
  * - key authentication swaps the password for the key fields
  * - a site can be started inside a collection from its menu
+ * - a proxy and a jump host can be configured, in both authentication methods, and hide again outside SFTP
  * - a rejected save shows its message and Cancel closes the dialog
+ * - a locked vault is explained once a secret is typed, in place of a bare error
  * - editing prefills the site without secrets and saves the changes
  * - the connection test reports success, failures and asks to trust a new server key before testing again
  * - deleting asks for confirmation, reports failures and can be cancelled
@@ -176,6 +178,71 @@ describe('site management', () => {
     expect(body.password).toBeUndefined()
   })
 
+  it('configures a proxy and a jump host, in both authentication methods', async () => {
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ...prod, id: 's2' }, { status: 201 })
+      }),
+    )
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    let dialog = await screen.findByRole('dialog')
+
+    expect(within(dialog).queryByLabelText('Proxy host')).not.toBeInTheDocument()
+    await user.selectOptions(within(dialog).getByLabelText('Proxy'), 'socks5')
+    await user.type(within(dialog).getByLabelText('Proxy host'), 'proxy.example.com')
+    await user.clear(within(dialog).getByLabelText('Proxy port'))
+    await user.type(within(dialog).getByLabelText('Proxy port'), '1080')
+    await user.type(within(dialog).getByLabelText('Proxy username'), 'proxyuser')
+    await user.type(within(dialog).getByLabelText('Proxy password'), 'proxypass')
+
+    expect(within(dialog).queryByLabelText('Jump username')).not.toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
+    await user.type(within(dialog).getByLabelText('Jump username'), 'bastion')
+    await user.type(within(dialog).getByLabelText('Jump host password'), 'bastionpass')
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Jumped')
+    await user.type(within(dialog).getByLabelText('Host'), 'h.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'u')
+    await user.type(within(dialog).getByLabelText('Password'), 'pw')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    expect(body).toMatchObject({
+      proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080, username: 'proxyuser' },
+      proxyPassword: 'proxypass',
+      jump: { host: 'bastion.example.com', port: 22, username: 'bastion', authMethod: 'password' },
+      jumpPassword: 'bastionpass',
+    })
+
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
+    await user.selectOptions(within(dialog).getByLabelText('Jump sign in with'), 'key')
+    expect(within(dialog).queryByLabelText('Jump host password')).not.toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText('Jump host private key'), 'KEY')
+    await user.type(within(dialog).getByLabelText('Jump host key passphrase'), 'phrase')
+    await user.type(within(dialog).getByLabelText('Jump username'), 'bastion')
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Jumped key')
+    await user.type(within(dialog).getByLabelText('Host'), 'h.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'u')
+    await user.type(within(dialog).getByLabelText('Password'), 'pw')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+
+    await waitFor(() => expect(body.jump).toMatchObject({ authMethod: 'key' }))
+    expect(body).toMatchObject({ jumpPrivateKey: 'KEY', jumpPassphrase: 'phrase' })
+    expect(body.jumpPassword).toBeUndefined()
+
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('SSH jump host')).toBeInTheDocument()
+    await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
+    expect(within(dialog).queryByText('SSH jump host')).not.toBeInTheDocument()
+  })
+
   it('starts a site inside a collection', async () => {
     const user = await renderSidebar()
 
@@ -199,6 +266,17 @@ describe('site management', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('explains a locked vault once a secret is typed, instead of letting the save fail', async () => {
+    mockVault({ initialized: true, unlocked: false })
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog')
+
+    expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText('Password'), 'secret')
+    expect(await within(dialog).findByRole('status')).toBeInTheDocument()
   })
 
   it('edits a site without showing its secrets', async () => {

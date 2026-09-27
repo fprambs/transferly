@@ -50,7 +50,12 @@ type Config struct {
 	// HostKeyAlgorithms restricts the accepted key types, so a server cannot present a type that was never trusted.
 	HostKeyAlgorithms []string
 	// DialContext opens the TCP connection; nil uses a plain dialer. Give the dialer of the network guard here.
+	// Ignored when Conn is set.
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
+	// Conn, when set, is used as the connection instead of dialing Address: the channel a jump host's
+	// [ssh.Client.DialContext] opened to the real server, already past the network guard when the jump host itself
+	// was dialed.
+	Conn net.Conn
 	// Timeout bounds establishing the TCP connection; zero means no limit.
 	Timeout time.Duration
 }
@@ -121,6 +126,29 @@ var keyExchanges = []string{
 // [remotefs.ErrAuth] for credentials, the context error when canceled, [netguard.ErrBlocked] for forbidden
 // destinations and [remotefs.ErrConnectionLost] otherwise. Only a lost connection is worth retrying.
 func Dial(ctx context.Context, cfg Config) (*FS, error) {
+	sshClient, err := DialSSH(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := sftp.NewClient(sshClient,
+		sftp.UseConcurrentReads(true), sftp.UseConcurrentWrites(true),
+		sftp.MaxConcurrentRequestsPerFile(maxConcurrentRequests), sftp.MaxPacketChecked(maxPacket))
+	if err != nil {
+		_ = sshClient.Close()
+		return nil, fmt.Errorf("starting the sftp subsystem: %w: %w", remotefs.ErrConnectionLost, err)
+	}
+	return &FS{ssh: sshClient, client: client}, nil
+}
+
+// DialSSH connects, checks the host key and authenticates, like [Dial], but stops short of starting the SFTP
+// subsystem: it returns the bare SSH client. A jump host uses this to reach the site that tunnels through it, whose
+// own [Dial] then runs entirely over the channel [ssh.Client.DialContext] opens on it, with cfg.Conn set to that
+// channel instead of cfg.Address being dialed again.
+//
+// Failures are [remotefs.ErrHostKeyUnknown] or [remotefs.ErrHostKeyMismatch] for host keys, [remotefs.ErrAuth] for
+// credentials, the context error when canceled, [netguard.ErrBlocked] for forbidden destinations and
+// [remotefs.ErrConnectionLost] otherwise.
+func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 	if cfg.VerifyHostKey == nil {
 		return nil, fmt.Errorf("%w: host key verification is required", remotefs.ErrInvalid)
 	}
@@ -142,19 +170,22 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		Timeout:           cfg.Timeout,
 	}
 
-	dial := cfg.DialContext
-	if dial == nil {
-		dial = (&net.Dialer{Timeout: cfg.Timeout}).DialContext
-	}
-	conn, err := dial(ctx, "tcp", cfg.Address)
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, ctxErr
+	conn := cfg.Conn
+	if conn == nil {
+		dial := cfg.DialContext
+		if dial == nil {
+			dial = (&net.Dialer{Timeout: cfg.Timeout}).DialContext
 		}
-		if errors.Is(err, netguard.ErrBlocked) {
-			return nil, fmt.Errorf("connecting to %s: %w", cfg.Address, err)
+		conn, err = dial(ctx, "tcp", cfg.Address)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
+			if errors.Is(err, netguard.ErrBlocked) {
+				return nil, fmt.Errorf("connecting to %s: %w", cfg.Address, err)
+			}
+			return nil, fmt.Errorf("connecting to %s: %w: %w", cfg.Address, remotefs.ErrConnectionLost, err)
 		}
-		return nil, fmt.Errorf("connecting to %s: %w: %w", cfg.Address, remotefs.ErrConnectionLost, err)
 	}
 
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
@@ -167,16 +198,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		_ = conn.Close()
 		return nil, handshakeError(cfg.Address, rejected, err)
 	}
-
-	sshClient := ssh.NewClient(sshConn, channels, requests)
-	client, err := sftp.NewClient(sshClient,
-		sftp.UseConcurrentReads(true), sftp.UseConcurrentWrites(true),
-		sftp.MaxConcurrentRequestsPerFile(maxConcurrentRequests), sftp.MaxPacketChecked(maxPacket))
-	if err != nil {
-		_ = sshClient.Close()
-		return nil, fmt.Errorf("starting the sftp subsystem: %w: %w", remotefs.ErrConnectionLost, err)
-	}
-	return &FS{ssh: sshClient, client: client}, nil
+	return ssh.NewClient(sshConn, channels, requests), nil
 }
 
 // handshakeError explains why the SSH handshake failed.

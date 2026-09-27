@@ -20,7 +20,7 @@ function unique(prefix: string): string {
  * - the actions menu of a row opens next to its button and stays there when the pointer leaves the row
  * - the menu opens below its button, or above it when there is no room, and the dialogs it opens are centered in the window
  * - rows show a pointer, a visible hover shade and a selected state, and menu items highlight under the pointer
- * - a site is created inside a collection with a speed limit, which is kept, and edited from its menu
+ * - a site is created inside a collection with a speed limit, a proxy and a jump host, all of which are kept, and edited from its menu
  */
 test.describe('sites sidebar', () => {
   test('creates a collection', async ({ shell }) => {
@@ -114,10 +114,15 @@ test.describe('sites sidebar', () => {
     expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(4)
 
     await dialog.getByLabel('Name', { exact: true }).fill(site)
-    await dialog.getByLabel('Host').fill('8.8.8.8')
-    await dialog.getByLabel('Username').fill('deploy')
-    await dialog.getByLabel('Password').fill('secret')
+    await dialog.getByLabel('Host', { exact: true }).fill('8.8.8.8')
+    await dialog.getByLabel('Username', { exact: true }).fill('deploy')
+    await dialog.getByLabel('Password', { exact: true }).fill('secret')
     await dialog.getByLabel('Speed limit (MiB/s)').fill('4')
+    await dialog.getByLabel('Proxy', { exact: true }).selectOption('socks5')
+    await dialog.getByLabel('Proxy host').fill('9.9.9.9')
+    await dialog.getByLabel('Jump host', { exact: true }).fill('1.1.1.1')
+    await dialog.getByLabel('Jump username').fill('bastion')
+    await dialog.getByLabel('Jump host password').fill('bastionpass')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
@@ -130,8 +135,12 @@ test.describe('sites sidebar', () => {
 
     const edit = page.getByRole('dialog', { name: 'Edit site' })
     await expect(edit).toBeVisible()
-    await expect(edit.getByLabel('Host')).toHaveValue('8.8.8.8')
+    await expect(edit.getByLabel('Host', { exact: true })).toHaveValue('8.8.8.8')
     await expect(edit.getByLabel('Speed limit (MiB/s)')).toHaveValue('4')
+    await expect(edit.getByLabel('Proxy', { exact: true })).toHaveValue('socks5')
+    await expect(edit.getByLabel('Proxy host')).toHaveValue('9.9.9.9')
+    await expect(edit.getByLabel('Jump host', { exact: true })).toHaveValue('1.1.1.1')
+    await expect(edit.getByLabel('Jump username')).toHaveValue('bastion')
     const editBox = (await edit.boundingBox())!
     expect(Math.abs(editBox.x + editBox.width / 2 - viewport.width / 2)).toBeLessThan(4)
   })

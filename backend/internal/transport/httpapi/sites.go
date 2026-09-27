@@ -24,6 +24,15 @@ func siteDTO(s site.Site) Site {
 	if s.CollectionID != uuid.Nil {
 		out.CollectionId = &s.CollectionID
 	}
+	if s.Proxy.Set() {
+		out.Proxy = &SiteProxy{Kind: SiteProxyKind(s.Proxy.Kind), Host: s.Proxy.Host, Port: s.Proxy.Port}
+		if s.Proxy.Username != "" {
+			out.Proxy.Username = &s.Proxy.Username
+		}
+	}
+	if s.Jump.Set() {
+		out.Jump = &SiteJump{Host: s.Jump.Host, Port: s.Jump.Port, Username: s.Jump.Username, AuthMethod: SiteJumpAuthMethod(s.Jump.AuthMethod)}
+	}
 	return out
 }
 
@@ -45,7 +54,19 @@ func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	if in.SpeedLimitBps != nil {
 		settings.SpeedLimit = *in.SpeedLimitBps
 	}
-	return settings, site.SecretChanges{Password: in.Password, PrivateKey: in.PrivateKey, Passphrase: in.Passphrase}
+	if in.Proxy != nil {
+		settings.Proxy = site.Proxy{Kind: site.ProxyKind(in.Proxy.Kind), Host: in.Proxy.Host, Port: in.Proxy.Port}
+		if in.Proxy.Username != nil {
+			settings.Proxy.Username = *in.Proxy.Username
+		}
+	}
+	if in.Jump != nil {
+		settings.Jump = site.Jump{Host: in.Jump.Host, Port: in.Jump.Port, Username: in.Jump.Username, AuthMethod: site.AuthMethod(in.Jump.AuthMethod)}
+	}
+	return settings, site.SecretChanges{
+		Password: in.Password, PrivateKey: in.PrivateKey, Passphrase: in.Passphrase,
+		JumpPassword: in.JumpPassword, JumpPrivateKey: in.JumpPrivateKey, JumpPassphrase: in.JumpPassphrase, ProxyPassword: in.ProxyPassword,
+	}
 }
 
 // ListSites lists the sites of a workspace.

@@ -32,7 +32,9 @@
     "invalid_import_file": "This is not a FileZilla site manager file.",
     "import_file_too_large": "The file is too large to import.",
     "invalid_charset": "The character set is not supported here.",
-    "invalid_speed_limit": "The speed limit must be at least 1 KiB/s and at most 1 TiB/s."
+    "invalid_speed_limit": "The speed limit must be at least 1 KiB/s and at most 1 TiB/s.",
+    "invalid_proxy": "The proxy's kind, host or port is not valid.",
+    "invalid_jump": "The jump host is not valid, or is set on a protocol other than SFTP."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -94,7 +96,25 @@
     "charsetHint": "Change it only for old servers that show accents wrong; most servers use UTF-8.",
     "speedLimit": "Speed limit (MiB/s)",
     "speedLimitUnlimited": "No limit",
-    "speedLimitHint": "Caps the transfers of this site, on top of the server's own global and per-person limits. Leave blank for none."
+    "speedLimitHint": "Caps the transfers of this site, on top of the server's own global and per-person limits. Leave blank for none.",
+    "proxyKind": "Proxy",
+    "proxyNone": "No proxy",
+    "proxyHttp": "HTTP",
+    "proxyHost": "Proxy host",
+    "proxyPort": "Proxy port",
+    "proxyUsername": "Proxy username",
+    "proxyPassword": "Proxy password",
+    "proxyHint": "Tunnels the connection through a SOCKS5 or HTTP proxy instead of connecting directly.",
+    "jumpTitle": "SSH jump host",
+    "jumpHost": "Jump host",
+    "jumpPort": "Jump port",
+    "jumpUsername": "Jump username",
+    "jumpAuthMethod": "Jump sign in with",
+    "jumpPassword": "Jump host password",
+    "jumpPrivateKey": "Jump host private key",
+    "jumpPassphrase": "Jump host key passphrase",
+    "jumpNone": "No jump host",
+    "jumpHint": "Tunnels the SSH connection through this server first, as ssh -J does. Leave the host blank to connect directly."
   },
   "import": {
     "open": "Import from FileZilla",

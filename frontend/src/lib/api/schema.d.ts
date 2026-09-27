@@ -1393,6 +1393,23 @@ export interface components {
          * @enum {string}
          */
         Charset: "utf-8" | "iso-8859-1" | "iso-8859-2" | "iso-8859-15" | "windows-1250" | "windows-1251" | "windows-1252" | "koi8-r" | "shift_jis" | "euc-jp" | "gbk" | "big5" | "euc-kr";
+        /** @description A SOCKS5 or HTTP CONNECT proxy the connection goes through, in place of a direct TCP connection. */
+        SiteProxy: {
+            /** @enum {string} */
+            kind: "socks5" | "http";
+            host: string;
+            port: number;
+            /** @description Left out when the proxy needs no authentication. */
+            username?: string;
+        };
+        /** @description The SSH server the connection tunnels through before reaching an SFTP site. */
+        SiteJump: {
+            host: string;
+            port: number;
+            username: string;
+            /** @enum {string} */
+            authMethod: "password" | "key";
+        };
         Site: {
             /** Format: uuid */
             id: string;
@@ -1417,8 +1434,12 @@ export interface components {
              * @description Bytes per second the site's transfers move together, on top of the global and per-user caps of the instance; 0 means the site has no cap of its own.
              */
             speedLimitBps: number;
+            /** @description Left out when the connection is made directly. */
+            proxy?: components["schemas"]["SiteProxy"];
+            /** @description Left out when the connection is made directly, without a jump host. */
+            jump?: components["schemas"]["SiteJump"];
             /** @description Kinds of secret stored for the site. The secrets themselves are never returned. */
-            secrets: ("password" | "private_key" | "passphrase")[];
+            secrets: ("password" | "private_key" | "passphrase" | "jump_password" | "jump_private_key" | "jump_passphrase" | "proxy_password")[];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1450,12 +1471,24 @@ export interface components {
              * @description Bytes per second the site's transfers move together; left out or 0 means no cap of its own.
              */
             speedLimitBps?: number;
+            /** @description Left out to connect directly, without a proxy. */
+            proxy?: components["schemas"]["SiteProxy"];
+            /** @description Left out to connect directly, without a jump host; only valid for SFTP. */
+            jump?: components["schemas"]["SiteJump"];
             /** @description Write only. Left out keeps the stored one; an empty string removes it. */
             password?: string;
             /** @description Write only. Same rules as the password. */
             privateKey?: string;
             /** @description Write only. Same rules as the password. */
             passphrase?: string;
+            /** @description Write only. Same rules as the password, for the jump host's account. */
+            jumpPassword?: string;
+            /** @description Write only. Same rules as the password, for the jump host's account. */
+            jumpPrivateKey?: string;
+            /** @description Write only. Same rules as the password, for the jump host's private key. */
+            jumpPassphrase?: string;
+            /** @description Write only. Same rules as the password, for the proxy's account. */
+            proxyPassword?: string;
         };
         KnownHost: {
             host: string;

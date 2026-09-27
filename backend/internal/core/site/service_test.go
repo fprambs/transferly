@@ -294,6 +294,8 @@ func text(s string) *string { return &s }
 //   - the character set defaults to UTF-8, is case insensitive, and only UTF-8 is accepted for SFTP
 //   - key authentication is accepted for SFTP only
 //   - hosts that resolve to private addresses are refused with ErrBlocked, unresolvable ones with ErrUnresolvable
+//   - a proxy and a jump host are trimmed and validated the same way, refused on an invalid kind, host, port or
+//     username, a jump host is refused outside SFTP, and both are checked against the network guard like any host
 func TestService_CreateValidation(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t, &switchable{})
@@ -317,6 +319,24 @@ func TestService_CreateValidation(t *testing.T) {
 	}
 	if capped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Capped"; in.SpeedLimit = 65536; return in }(), site.SecretChanges{}); err != nil || capped.SpeedLimit != 65536 {
 		t.Errorf("site with a speed limit = %+v, %v", capped, err)
+	}
+	proxied, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input {
+		in := valid()
+		in.Name = "Proxied"
+		in.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: " public.example ", Port: 1080, Username: " proxyuser "}
+		return in
+	}(), site.SecretChanges{})
+	if err != nil || proxied.Proxy != (site.Proxy{Kind: site.ProxySOCKS5, Host: "public.example", Port: 1080, Username: "proxyuser"}) {
+		t.Errorf("site with a proxy = %+v, %v", proxied, err)
+	}
+	jumped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input {
+		in := valid()
+		in.Name = "Jumped"
+		in.Jump = site.Jump{Host: " public.example ", Username: " bastion "}
+		return in
+	}(), site.SecretChanges{})
+	if err != nil || jumped.Jump != (site.Jump{Host: "public.example", Port: 22, Username: "bastion", AuthMethod: site.AuthPassword}) {
+		t.Errorf("site with a jump host = %+v, %v", jumped, err)
 	}
 
 	tests := []struct {
@@ -348,6 +368,22 @@ func TestService_CreateValidation(t *testing.T) {
 		{"private host", func(in *site.Input) { in.Host = "private.example" }, netguard.ErrBlocked},
 		{"private address", func(in *site.Input) { in.Host = "192.168.1.1" }, netguard.ErrBlocked},
 		{"unresolvable host", func(in *site.Input) { in.Host = "nowhere.example" }, netguard.ErrUnresolvable},
+		{"unknown proxy kind", func(in *site.Input) { in.Proxy = site.Proxy{Kind: "wireguard", Host: "public.example", Port: 1080} }, site.ErrInvalidProxy},
+		{"proxy with a bad host", func(in *site.Input) { in.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "proxy://x", Port: 8080} }, site.ErrInvalidProxy},
+		{"proxy with a bad port", func(in *site.Input) { in.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "public.example", Port: 0} }, site.ErrInvalidProxy},
+		{"proxy on a private host", func(in *site.Input) {
+			in.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: "private.example", Port: 1080}
+		}, netguard.ErrBlocked},
+		{"jump host over FTP", func(in *site.Input) {
+			in.Protocol, in.Jump = site.FTP, site.Jump{Host: "public.example", Username: "bastion"}
+		}, site.ErrInvalidJump},
+		{"jump host with a bad host", func(in *site.Input) { in.Jump = site.Jump{Host: "ssh://x", Username: "bastion"} }, site.ErrInvalidJump},
+		{"jump host with a bad port", func(in *site.Input) { in.Jump = site.Jump{Host: "public.example", Port: -1, Username: "bastion"} }, site.ErrInvalidJump},
+		{"jump host with no username", func(in *site.Input) { in.Jump = site.Jump{Host: "public.example"} }, site.ErrInvalidJump},
+		{"jump host with an unknown auth method", func(in *site.Input) {
+			in.Jump = site.Jump{Host: "public.example", Username: "bastion", AuthMethod: "token"}
+		}, site.ErrInvalidJump},
+		{"jump host on a private host", func(in *site.Input) { in.Jump = site.Jump{Host: "private.example", Username: "bastion"} }, netguard.ErrBlocked},
 	}
 	for _, tt := range tests {
 		in := valid()

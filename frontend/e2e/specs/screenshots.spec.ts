@@ -39,6 +39,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - comparing a saved FTP site against the SFTP quick connection: the differences and the plan running
  * - searching a folder recursively: the results found below a subfolder
  * - editing a site's speed limit
+ * - editing a site's proxy and jump host
  */
 test.describe('screenshots', () => {
   test.skip(process.env.SENTINEL_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
@@ -384,6 +385,36 @@ test.describe('screenshots', () => {
     const dialog = page.getByRole('dialog', { name: 'Edit site' })
     await expect(dialog.getByLabel('Speed limit (MiB/s)')).toHaveValue('4')
     await shoot(page, '36-site-speed-limit')
+
+    await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${siteId}`, { headers })
+  })
+
+  test('proxy and jump host', async ({ shell, request }) => {
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const headers = { 'X-CSRF-Token': me.csrfToken }
+    const stamp = Date.now()
+    const name = `Via bastion ${stamp}`
+    const created = await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
+      headers,
+      data: {
+        name, protocol: 'sftp', host: 'sftp', username: 'sentinel', password: 'sentinel',
+        proxy: { kind: 'socks5', host: '9.9.9.9', port: 1080, username: 'proxyuser' }, proxyPassword: 'proxypass',
+        jump: { host: '1.1.1.1', port: 22, username: 'bastion', authMethod: 'password' }, jumpPassword: 'bastionpass',
+      },
+    })
+    expect(created.ok()).toBe(true)
+    const siteId = ((await created.json()) as { id: string }).id
+
+    await page.goto('/')
+    const row = page.getByRole('treeitem', { name: new RegExp(name) })
+    await row.hover()
+    await page.getByRole('button', { name: `Actions for ${name}` }).click()
+    await page.getByRole('menuitem', { name: 'Edit' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit site' })
+    await expect(dialog.getByLabel('Jump host', { exact: true })).toHaveValue('1.1.1.1')
+    await shoot(page, '37-proxy-and-jump')
 
     await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${siteId}`, { headers })
   })

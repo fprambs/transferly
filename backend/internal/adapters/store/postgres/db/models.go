@@ -76,21 +76,29 @@ type NetworkAllowance struct {
 }
 
 type Site struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	FolderID     uuid.NullUUID
-	Name         string
-	Protocol     string
-	Host         string
-	Port         int32
-	Username     string
-	AuthMethod   string
-	ListTimezone string
-	Options      []byte
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Charset      string
-	SpeedLimit   int64
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	FolderID       uuid.NullUUID
+	Name           string
+	Protocol       string
+	Host           string
+	Port           int32
+	Username       string
+	AuthMethod     string
+	ListTimezone   string
+	Options        []byte
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Charset        string
+	SpeedLimit     int64
+	ProxyKind      string
+	ProxyHost      string
+	ProxyPort      int32
+	ProxyUsername  string
+	JumpHost       string
+	JumpPort       int32
+	JumpUsername   string
+	JumpAuthMethod string
 }
 
 type SiteFolder struct {

@@ -44,24 +44,35 @@ func (q *Queries) DeleteSite(ctx context.Context, arg DeleteSiteParams) (int64, 
 }
 
 const insertSite = `-- name: InsertSite :exec
-INSERT INTO sites (id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13)
+INSERT INTO sites (
+  id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 `
 
 type InsertSiteParams struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	Name         string
-	Protocol     string
-	Host         string
-	Port         int32
-	Username     string
-	AuthMethod   string
-	ListTimezone string
-	CreatedAt    time.Time
-	FolderID     uuid.NullUUID
-	Charset      string
-	SpeedLimit   int64
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	Name           string
+	Protocol       string
+	Host           string
+	Port           int32
+	Username       string
+	AuthMethod     string
+	ListTimezone   string
+	CreatedAt      time.Time
+	FolderID       uuid.NullUUID
+	Charset        string
+	SpeedLimit     int64
+	ProxyKind      string
+	ProxyHost      string
+	ProxyPort      int32
+	ProxyUsername  string
+	JumpHost       string
+	JumpPort       int32
+	JumpUsername   string
+	JumpAuthMethod string
 }
 
 func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
@@ -79,6 +90,14 @@ func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
 		arg.FolderID,
 		arg.Charset,
 		arg.SpeedLimit,
+		arg.ProxyKind,
+		arg.ProxyHost,
+		arg.ProxyPort,
+		arg.ProxyUsername,
+		arg.JumpHost,
+		arg.JumpPort,
+		arg.JumpUsername,
+		arg.JumpAuthMethod,
 	)
 	return err
 }
@@ -137,7 +156,8 @@ func (q *Queries) SecretKindsByWorkspace(ctx context.Context, workspaceID uuid.U
 }
 
 const siteByID = `-- name: SiteByID :one
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method
 FROM sites WHERE id = $1 AND workspace_id = $2
 `
 
@@ -147,20 +167,28 @@ type SiteByIDParams struct {
 }
 
 type SiteByIDRow struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	Name         string
-	Protocol     string
-	Host         string
-	Port         int32
-	Username     string
-	AuthMethod   string
-	ListTimezone string
-	Charset      string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	FolderID     uuid.NullUUID
-	SpeedLimit   int64
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	Name           string
+	Protocol       string
+	Host           string
+	Port           int32
+	Username       string
+	AuthMethod     string
+	ListTimezone   string
+	Charset        string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	FolderID       uuid.NullUUID
+	SpeedLimit     int64
+	ProxyKind      string
+	ProxyHost      string
+	ProxyPort      int32
+	ProxyUsername  string
+	JumpHost       string
+	JumpPort       int32
+	JumpUsername   string
+	JumpAuthMethod string
 }
 
 func (q *Queries) SiteByID(ctx context.Context, arg SiteByIDParams) (SiteByIDRow, error) {
@@ -181,30 +209,47 @@ func (q *Queries) SiteByID(ctx context.Context, arg SiteByIDParams) (SiteByIDRow
 		&i.UpdatedAt,
 		&i.FolderID,
 		&i.SpeedLimit,
+		&i.ProxyKind,
+		&i.ProxyHost,
+		&i.ProxyPort,
+		&i.ProxyUsername,
+		&i.JumpHost,
+		&i.JumpPort,
+		&i.JumpUsername,
+		&i.JumpAuthMethod,
 	)
 	return i, err
 }
 
 const sitesByWorkspace = `-- name: SitesByWorkspace :many
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method
 FROM sites WHERE workspace_id = $1 ORDER BY lower(name), id
 `
 
 type SitesByWorkspaceRow struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	Name         string
-	Protocol     string
-	Host         string
-	Port         int32
-	Username     string
-	AuthMethod   string
-	ListTimezone string
-	Charset      string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	FolderID     uuid.NullUUID
-	SpeedLimit   int64
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	Name           string
+	Protocol       string
+	Host           string
+	Port           int32
+	Username       string
+	AuthMethod     string
+	ListTimezone   string
+	Charset        string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	FolderID       uuid.NullUUID
+	SpeedLimit     int64
+	ProxyKind      string
+	ProxyHost      string
+	ProxyPort      int32
+	ProxyUsername  string
+	JumpHost       string
+	JumpPort       int32
+	JumpUsername   string
+	JumpAuthMethod string
 }
 
 func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]SitesByWorkspaceRow, error) {
@@ -231,6 +276,14 @@ func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) (
 			&i.UpdatedAt,
 			&i.FolderID,
 			&i.SpeedLimit,
+			&i.ProxyKind,
+			&i.ProxyHost,
+			&i.ProxyPort,
+			&i.ProxyUsername,
+			&i.JumpHost,
+			&i.JumpPort,
+			&i.JumpUsername,
+			&i.JumpAuthMethod,
 		); err != nil {
 			return nil, err
 		}
@@ -244,24 +297,33 @@ func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) (
 
 const updateSite = `-- name: UpdateSite :execrows
 UPDATE sites
-SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11, speed_limit = $13
+SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11, speed_limit = $13,
+  proxy_kind = $14, proxy_host = $15, proxy_port = $16, proxy_username = $17, jump_host = $18, jump_port = $19, jump_username = $20, jump_auth_method = $21
 WHERE id = $1 AND workspace_id = $2
 `
 
 type UpdateSiteParams struct {
-	ID           uuid.UUID
-	WorkspaceID  uuid.UUID
-	Name         string
-	Protocol     string
-	Host         string
-	Port         int32
-	Username     string
-	AuthMethod   string
-	ListTimezone string
-	UpdatedAt    time.Time
-	FolderID     uuid.NullUUID
-	Charset      string
-	SpeedLimit   int64
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	Name           string
+	Protocol       string
+	Host           string
+	Port           int32
+	Username       string
+	AuthMethod     string
+	ListTimezone   string
+	UpdatedAt      time.Time
+	FolderID       uuid.NullUUID
+	Charset        string
+	SpeedLimit     int64
+	ProxyKind      string
+	ProxyHost      string
+	ProxyPort      int32
+	ProxyUsername  string
+	JumpHost       string
+	JumpPort       int32
+	JumpUsername   string
+	JumpAuthMethod string
 }
 
 func (q *Queries) UpdateSite(ctx context.Context, arg UpdateSiteParams) (int64, error) {
@@ -279,6 +341,14 @@ func (q *Queries) UpdateSite(ctx context.Context, arg UpdateSiteParams) (int64, 
 		arg.FolderID,
 		arg.Charset,
 		arg.SpeedLimit,
+		arg.ProxyKind,
+		arg.ProxyHost,
+		arg.ProxyPort,
+		arg.ProxyUsername,
+		arg.JumpHost,
+		arg.JumpPort,
+		arg.JumpUsername,
+		arg.JumpAuthMethod,
 	)
 	if err != nil {
 		return 0, err
