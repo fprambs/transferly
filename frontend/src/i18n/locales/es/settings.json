@@ -46,6 +46,7 @@
   },
   "menu": {
     "settings": "Ajustes",
-    "servers": "Servidores de confianza"
+    "servers": "Servidores de confianza",
+    "administration": "Administración"
   }
 }

@@ -10,6 +10,7 @@ import type { RouterHistory } from '@tanstack/react-router'
 import { z } from 'zod'
 
 import { TrustedServers } from '@/features/servers/TrustedServers'
+import { AdminPage } from '@/features/admin/AdminPage'
 import { AuditPage } from '@/features/teams/AuditPage'
 import { AcceptInvitationPage } from '@/features/teams/AcceptInvitationPage'
 import { MembersPage } from '@/features/teams/MembersPage'
@@ -64,6 +65,9 @@ const membersRoute = createRoute({ getParentRoute: () => shellRoute, path: '/mem
 /** Audit trail of the team workspace in use. */
 const auditRoute = createRoute({ getParentRoute: () => shellRoute, path: '/audit', component: AuditPage })
 
+/** Administration of the instance. */
+const adminRoute = createRoute({ getParentRoute: () => shellRoute, path: '/admin', component: AdminPage })
+
 /** Servers whose key the user trusted. */
 const serversRoute = createRoute({ getParentRoute: () => shellRoute, path: '/servers', component: TrustedServers })
 
@@ -111,7 +115,7 @@ const setupRoute = createRoute({
 })
 
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

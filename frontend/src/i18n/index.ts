@@ -2,6 +2,7 @@ import { createInstance, type i18n as I18n } from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
+import enAdmin from './locales/en/admin.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enExplorer from './locales/en/explorer.json'
@@ -13,6 +14,7 @@ import enSites from './locales/en/sites.json'
 import enSecurity from './locales/en/security.json'
 import enSettings from './locales/en/settings.json'
 import enShell from './locales/en/shell.json'
+import esAdmin from './locales/es/admin.json'
 import esAuth from './locales/es/auth.json'
 import esCommon from './locales/es/common.json'
 import esExplorer from './locales/es/explorer.json'
@@ -36,8 +38,8 @@ export const defaultNS = 'common'
 
 /** Translation resources by language and namespace. */
 export const resources = {
-  en: { auth: enAuth, common: enCommon, explorer: enExplorer, quick: enQuick, security: enSecurity, settings: enSettings, shell: enShell, sites: enSites, teams: enTeams, transfers: enTransfers, vault: enVault },
-  es: { auth: esAuth, common: esCommon, explorer: esExplorer, quick: esQuick, security: esSecurity, settings: esSettings, shell: esShell, sites: esSites, teams: esTeams, transfers: esTransfers, vault: esVault },
+  en: { admin: enAdmin, auth: enAuth, common: enCommon, explorer: enExplorer, quick: enQuick, security: enSecurity, settings: enSettings, shell: enShell, sites: enSites, teams: enTeams, transfers: enTransfers, vault: enVault },
+  es: { admin: esAdmin, auth: esAuth, common: esCommon, explorer: esExplorer, quick: esQuick, security: esSecurity, settings: esSettings, shell: esShell, sites: esSites, teams: esTeams, transfers: esTransfers, vault: esVault },
 } as const
 
 /** Subset of an i18next instance needed to describe the document language. */

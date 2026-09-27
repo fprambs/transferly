@@ -39,6 +39,7 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void navigate({ to: '/settings' })}>{settings(($) => $.menu.settings)}</DropdownMenuItem>
         <DropdownMenuItem onClick={() => void navigate({ to: '/servers' })}>{settings(($) => $.menu.servers)}</DropdownMenuItem>
+        {session?.user.role === 'admin' && <DropdownMenuItem onClick={() => void navigate({ to: '/admin' })}>{settings(($) => $.menu.administration)}</DropdownMenuItem>}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {

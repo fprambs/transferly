@@ -46,6 +46,7 @@
   },
   "menu": {
     "settings": "Settings",
-    "servers": "Trusted servers"
+    "servers": "Trusted servers",
+    "administration": "Administration"
   }
 }

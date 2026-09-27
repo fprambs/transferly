@@ -1,0 +1,111 @@
+{
+  "page": {
+    "title": "Administration",
+    "subtitle": "Accounts, private networks and the record of what administrators did on this instance.",
+    "loading": "Loading…",
+    "noAccess": "Only administrators of the instance can open this page.",
+    "tabs": {
+      "accounts": "Accounts",
+      "networks": "Networks",
+      "audit": "Audit log"
+    }
+  },
+  "accounts": {
+    "title": "Accounts",
+    "loading": "Loading accounts…",
+    "filter": "Filter accounts",
+    "empty": "No account matches.",
+    "you": "You",
+    "table": {
+      "account": "Account",
+      "role": "Role",
+      "state": "State",
+      "secondFactor": "Second step",
+      "created": "Created"
+    },
+    "roles": {
+      "admin": "Administrator",
+      "user": "User"
+    },
+    "state": {
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "factor": {
+      "on": "On",
+      "off": "Off"
+    },
+    "actions": "Actions for {{email}}",
+    "disable": "Disable account",
+    "enable": "Enable account",
+    "makeAdmin": "Make administrator",
+    "makeUser": "Make regular user",
+    "reset": "Remove second step"
+  },
+  "disable": {
+    "title": "Disable {{email}}?",
+    "body": "They are signed out at once and cannot sign in until you enable the account again. Their sites and files are kept.",
+    "confirm": "Disable account"
+  },
+  "reset": {
+    "title": "Remove the second step of {{email}}?",
+    "body": "Use this when they lost their device and their recovery codes. Their authenticator app, passkeys and recovery codes are deleted, and the password alone signs them in until they turn it on again. Make sure it is really them: the action is recorded.",
+    "confirm": "Remove second step"
+  },
+  "confirm": {
+    "cancel": "Cancel"
+  },
+  "networks": {
+    "loading": "Loading networks…",
+    "intro": "Sites can always reach public addresses. Servers in private networks, such as an office or a home lab, work only when their network is listed here or was set when the server started.",
+    "fixed": "Set at startup",
+    "fixedNote": "From SENTINEL_ALLOWED_NETWORKS. Only a restart changes them.",
+    "none": "None.",
+    "custom": "Added by administrators",
+    "placeholder": "192.168.1.0/24\n10.20.0.5",
+    "help": "One address or network per line, such as 192.168.1.0/24 or 10.20.0.5. The change applies to the next connection.",
+    "never": "Never allowed: link-local and cloud metadata addresses (169.254.0.0/16), multicast and reserved ranges, and networks wider than /8 (IPv4) or /7 (IPv6).",
+    "save": "Save networks",
+    "saved": "Saved. New connections follow the change."
+  },
+  "audit": {
+    "title": "Instance audit log",
+    "filter": "Show",
+    "loading": "Loading the audit log…",
+    "empty": "Nothing has been recorded yet.",
+    "more": "Load more",
+    "time": "When",
+    "actor": "Who",
+    "what": "What",
+    "ip": "Address",
+    "deletedAccount": "Deleted account",
+    "categories": {
+      "all": "Everything",
+      "accounts": "Accounts",
+      "roles": "Roles",
+      "security": "Second step",
+      "networks": "Networks"
+    },
+    "actions": {
+      "userDisabled": "disabled the account {{target}}",
+      "userEnabled": "enabled the account {{target}}",
+      "roleChanged": "made {{target}} {{role}}",
+      "secondFactorReset": "removed the second step of {{target}}",
+      "networksChanged_one": "changed the allowed networks ({{count}} network)",
+      "networksChanged_other": "changed the allowed networks ({{count}} networks)",
+      "unknown": "{{action}} {{target}}"
+    }
+  },
+  "errors": {
+    "forbidden": "Only administrators can do this.",
+    "own_account": "You cannot change your own account here.",
+    "last_admin": "This is the last active administrator. Make somebody else an administrator first.",
+    "account_not_found": "This account no longer exists.",
+    "invalid_role": "That role does not exist.",
+    "invalid_network": "One of the entries is not a network that can be allowed. Check the addresses and the note below.",
+    "too_many_networks": "There are too many entries. The limit is 100.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again."
+  }
+}

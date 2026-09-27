@@ -1,0 +1,111 @@
+{
+  "page": {
+    "title": "Administración",
+    "subtitle": "Cuentas, redes privadas y el registro de lo que hicieron los administradores en esta instancia.",
+    "loading": "Cargando…",
+    "noAccess": "Solo los administradores de la instancia pueden abrir esta página.",
+    "tabs": {
+      "accounts": "Cuentas",
+      "networks": "Redes",
+      "audit": "Registro de auditoría"
+    }
+  },
+  "accounts": {
+    "title": "Cuentas",
+    "loading": "Cargando cuentas…",
+    "filter": "Filtrar cuentas",
+    "empty": "Ninguna cuenta coincide.",
+    "you": "Tú",
+    "table": {
+      "account": "Cuenta",
+      "role": "Rol",
+      "state": "Estado",
+      "secondFactor": "Segundo paso",
+      "created": "Creada"
+    },
+    "roles": {
+      "admin": "Administrador",
+      "user": "Usuario"
+    },
+    "state": {
+      "active": "Activa",
+      "disabled": "Deshabilitada"
+    },
+    "factor": {
+      "on": "Activado",
+      "off": "Desactivado"
+    },
+    "actions": "Acciones de {{email}}",
+    "disable": "Deshabilitar cuenta",
+    "enable": "Habilitar cuenta",
+    "makeAdmin": "Hacer administrador",
+    "makeUser": "Hacer usuario normal",
+    "reset": "Quitar segundo paso"
+  },
+  "disable": {
+    "title": "¿Deshabilitar a {{email}}?",
+    "body": "Se cierra su sesión de inmediato y no podrá entrar hasta que habilites la cuenta otra vez. Sus sitios y archivos se conservan.",
+    "confirm": "Deshabilitar cuenta"
+  },
+  "reset": {
+    "title": "¿Quitar el segundo paso de {{email}}?",
+    "body": "Úsalo cuando perdió su dispositivo y sus códigos de recuperación. Se borran su app de autenticación, sus passkeys y sus códigos de recuperación, y entra solo con la contraseña hasta que lo vuelva a activar. Asegúrate de que sea realmente la persona: la acción queda registrada.",
+    "confirm": "Quitar segundo paso"
+  },
+  "confirm": {
+    "cancel": "Cancelar"
+  },
+  "networks": {
+    "loading": "Cargando redes…",
+    "intro": "Los sitios siempre pueden llegar a direcciones públicas. Los servidores en redes privadas, como una oficina o un laboratorio en casa, solo funcionan si su red está en esta lista o se definió al arrancar el servidor.",
+    "fixed": "Definidas al arrancar",
+    "fixedNote": "Vienen de SENTINEL_ALLOWED_NETWORKS. Solo un reinicio las cambia.",
+    "none": "Ninguna.",
+    "custom": "Agregadas por administradores",
+    "placeholder": "192.168.1.0/24\n10.20.0.5",
+    "help": "Una dirección o red por línea, como 192.168.1.0/24 o 10.20.0.5. El cambio se aplica a la próxima conexión.",
+    "never": "Nunca se permiten: direcciones link-local y de metadatos de la nube (169.254.0.0/16), rangos multicast y reservados, y redes más amplias que /8 (IPv4) o /7 (IPv6).",
+    "save": "Guardar redes",
+    "saved": "Guardado. Las conexiones nuevas siguen el cambio."
+  },
+  "audit": {
+    "title": "Registro de auditoría de la instancia",
+    "filter": "Mostrar",
+    "loading": "Cargando el registro de auditoría…",
+    "empty": "Todavía no se registró nada.",
+    "more": "Cargar más",
+    "time": "Cuándo",
+    "actor": "Quién",
+    "what": "Qué",
+    "ip": "Dirección",
+    "deletedAccount": "Cuenta eliminada",
+    "categories": {
+      "all": "Todo",
+      "accounts": "Cuentas",
+      "roles": "Roles",
+      "security": "Segundo paso",
+      "networks": "Redes"
+    },
+    "actions": {
+      "userDisabled": "deshabilitó la cuenta {{target}}",
+      "userEnabled": "habilitó la cuenta {{target}}",
+      "roleChanged": "hizo a {{target}} {{role}}",
+      "secondFactorReset": "quitó el segundo paso de {{target}}",
+      "networksChanged_one": "cambió las redes permitidas ({{count}} red)",
+      "networksChanged_other": "cambió las redes permitidas ({{count}} redes)",
+      "unknown": "{{action}} {{target}}"
+    }
+  },
+  "errors": {
+    "forbidden": "Solo los administradores pueden hacer esto.",
+    "own_account": "No puedes cambiar tu propia cuenta desde aquí.",
+    "last_admin": "Es el último administrador activo. Haz administrador a otra persona primero.",
+    "account_not_found": "Esta cuenta ya no existe.",
+    "invalid_role": "Ese rol no existe.",
+    "invalid_network": "Una de las entradas no es una red que se pueda permitir. Revisa las direcciones y la nota de abajo.",
+    "too_many_networks": "Hay demasiadas entradas. El límite es 100.",
+    "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

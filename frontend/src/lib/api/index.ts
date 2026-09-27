@@ -41,8 +41,14 @@ export type PasskeyCeremony = Schemas['PasskeyCeremony']
 export type PasskeyAdded = Schemas['PasskeyAdded']
 /** What a sign-in with a password answers: a session, or a challenge for the second step. */
 export type LoginResult = SessionInfo | MfaChallenge
-/** One line of the audit trail of a workspace. */
+/** One line of the audit trail of a workspace or of the instance. */
 export type AuditEvent = Schemas['AuditEvent']
+/** An account as an administrator of the instance sees it. */
+export type AdminUser = Schemas['AdminUser']
+/** What an administrator can change in an account. */
+export type AdminUserPatch = Schemas['AdminUserPatch']
+/** The private networks saved sites may reach: fixed by the server and added by administrators. */
+export type Networks = Schemas['Networks']
 /** A collection that groups sites. */
 export type Collection = Schemas['Collection']
 /** What to change in a collection. */
@@ -180,6 +186,14 @@ export function createApi(transport: Transport) {
     audit: {
       list: (workspaceId: string, query: { action?: string; before?: number; limit?: number } = {}) =>
         transport.request<AuditEvent[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/audit`, query }),
+    },
+    admin: {
+      users: () => transport.request<AdminUser[]>({ method: 'GET', path: `${root}/admin/users` }),
+      updateUser: (userId: string, changes: AdminUserPatch) => transport.request<void>({ method: 'PATCH', path: `${root}/admin/users/${userId}`, body: changes }),
+      resetSecondFactor: (userId: string) => transport.request<void>({ method: 'POST', path: `${root}/admin/users/${userId}/second-factor/reset` }),
+      networks: () => transport.request<Networks>({ method: 'GET', path: `${root}/admin/networks` }),
+      setNetworks: (networks: string[]) => transport.request<Networks>({ method: 'PUT', path: `${root}/admin/networks`, body: { networks } }),
+      audit: (query: { action?: string; before?: number; limit?: number } = {}) => transport.request<AuditEvent[]>({ method: 'GET', path: `${root}/admin/audit`, query }),
     },
     invitations: {
       list: (workspaceId: string) => transport.request<Invitation[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/invitations` }),
