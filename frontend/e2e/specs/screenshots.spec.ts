@@ -36,6 +36,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the passkey dialog, the settings with a passkey and the sign-in step that offers it
  * - the administration page: accounts, the confirmation to remove a second step, networks and the audit log
  * - the locked vault in a new site and a saved site, the unlock dialog, and a quick connection that works while locked
+ * - comparing a saved FTP site against the SFTP quick connection: the differences and the plan running
  */
 test.describe('screenshots', () => {
   test.skip(process.env.SENTINEL_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
@@ -280,5 +281,54 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'Save networks' }).click()
     await expect(page.getByRole('status')).toBeVisible()
     await guest.dispose()
+  })
+
+  test('compare and sync', async ({ shell, page, quickId, request }) => {
+    void shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const workspace = workspaces[0].id
+    const headers = { 'X-CSRF-Token': me.csrfToken }
+    const stamp = Date.now()
+    const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+      headers,
+      data: { name: `Backup ${stamp}`, protocol: 'ftp', host: 'ftp', port: 21, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+    })
+    const { id: siteId } = (await created.json()) as { id: string }
+    const leftFiles = `/api/v1/workspaces/${workspace}/sites/${quickId}/files`
+    const rightFiles = `/api/v1/workspaces/${workspace}/sites/${siteId}/files`
+    const folder = `shots-sync-${stamp}`
+    for (const files of [leftFiles, rightFiles]) {
+      await request.post(`${files}/directories`, { headers, data: { path: `/upload/${folder}` } })
+    }
+    const put = async (files: string, path: string, content: string) =>
+      request.put(`${files}/content`, { params: { path, mode: 'overwrite' }, data: Buffer.from(content), headers: { ...headers, 'Content-Type': 'application/octet-stream' } })
+    await put(leftFiles, `/upload/${folder}/report.csv`, 'name,total\n')
+    await put(rightFiles, `/upload/${folder}/archive-2025.csv`, 'old data\n')
+    await put(leftFiles, `/upload/${folder}/notes.txt`, 'the newer version, with more to say\n')
+    await put(rightFiles, `/upload/${folder}/notes.txt`, 'short\n')
+
+    await page.goto(`/sites/${quickId}?path=%2Fupload%2F${folder}`)
+    await page.getByRole('button', { name: 'Split view' }).click()
+    const second = page.getByRole('group', { name: 'Second pane' })
+    await second.getByRole('combobox', { name: 'Site of the second pane' }).selectOption({ label: `Backup ${stamp}` })
+    await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ }).dblclick()
+    await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(folder) }).dblclick()
+    await expect(second.getByRole('button', { name: folder, exact: true })).toHaveAttribute('aria-current', 'page')
+
+    await second.getByRole('button', { name: 'Compare and sync with the other pane' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Compare and sync' })
+    await expect(dialog.getByRole('list', { name: 'Comparison' })).toBeVisible()
+    await shoot(page, '33-compare-plan')
+
+    await dialog.getByRole('button', { name: /^Sync \d+ files?$/ }).click()
+    await expect(dialog.getByText('Done').first()).toBeVisible()
+    await shoot(page, '34-compare-done')
+    await dialog.getByRole('button', { name: 'Close' }).click()
+
+    for (const files of [leftFiles, rightFiles]) {
+      await request.delete(files, { params: { path: `/upload/${folder}`, recursive: true }, headers })
+    }
+    await request.delete(`/api/v1/workspaces/${workspace}/sites/${siteId}`, { headers })
   })
 })
