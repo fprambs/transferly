@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { FakeDir, handleOf, offerPicker, withdrawPicker } from '@/test/fake-local'
 
-import { freeLocalName, listLocal, LocalNameTaken, localNameExists, makeLocalDirectory, localSupported, openLocalDirectory, pickLocalDirectory, readLocalFile, saveToLocal, UnsafeLocalName } from './local-fs'
+import { freeLocalName, listLocal, LocalNameTaken, localNameExists, makeLocalDirectory, localSupported, openLocalDirectory, pickLocalDirectory, readLocalFile, removeLocal, saveToLocal, UnsafeLocalName } from './local-fs'
 
 /** A stream that delivers text. */
 function streamOf(text: string): ReadableStream<Uint8Array> {
@@ -39,6 +39,8 @@ function brokenStream(): ReadableStream<Uint8Array> {
  * - a file is read by its path, and a missing one fails
  * - a stream is saved as a new file, an existing file or folder of that name is refused and left alone, and a failing stream leaves no partial file
  * - names that are empty, `.`, `..` or hold a separator or NUL, and paths with `..`, are refused before anything is written
+ * - a file or folder is removed, recursively when asked, a missing name is left alone, an unsafe name is still refused, and any other
+ *   failure is not swallowed
  */
 describe('local folder access', () => {
   afterEach(() => withdrawPicker())
@@ -137,5 +139,29 @@ describe('local folder access', () => {
     await saveToLocal(handleOf(root), '/', 'a.txt', streamOf('new'), true)
 
     expect(await (await readLocalFile(handleOf(root), '/a.txt')).text()).toBe('new')
+  })
+
+  it('removes a file or folder, and leaves a missing name alone', async () => {
+    const root = new FakeDir('root').withFile('a.txt', 'gone soon')
+    root.withDir('sub')
+
+    await removeLocal(handleOf(root), '/', 'a.txt')
+    await removeLocal(handleOf(root), '/', 'sub', true)
+    await expect(removeLocal(handleOf(root), '/', 'never-existed')).resolves.toBeUndefined()
+
+    expect(root.children.has('a.txt')).toBe(false)
+    expect(root.children.has('sub')).toBe(false)
+    await expect(removeLocal(handleOf(root), '/', '..')).rejects.toBeInstanceOf(UnsafeLocalName)
+  })
+
+  it('rethrows a removal failure that is not about a missing name', async () => {
+    class StubbornDir extends FakeDir {
+      removeEntry(): Promise<void> {
+        return Promise.reject(new DOMException('not empty', 'InvalidModificationError'))
+      }
+    }
+    const root = new StubbornDir('root')
+
+    await expect(removeLocal(handleOf(root), '/', 'sub')).rejects.toMatchObject({ name: 'InvalidModificationError' })
   })
 })

@@ -86,6 +86,19 @@ export async function localNameExists(root: FileSystemDirectoryHandle, path: str
   return exists(await openLocalDirectory(root, path), name)
 }
 
+/** Removes a file or folder below the root, recursing into a folder when asked; a missing name is not an error. */
+export async function removeLocal(root: FileSystemDirectoryHandle, path: string, name: string, recursive = false): Promise<void> {
+  const directory = await openLocalDirectory(root, path)
+  checkName(name)
+  try {
+    await directory.removeEntry(name, { recursive })
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== 'NotFoundError') {
+      throw error
+    }
+  }
+}
+
 /** Returns the first name of the form `name (n).ext` that the folder does not use. */
 export async function freeLocalName(root: FileSystemDirectoryHandle, path: string, name: string): Promise<string> {
   const directory = await openLocalDirectory(root, path)

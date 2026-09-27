@@ -116,7 +116,8 @@
     "open": "Split view",
     "close": "Close the second pane",
     "site": "Site of the second pane",
-    "pane": "Second pane"
+    "pane": "Second pane",
+    "compare": "Compare and sync with the other pane"
   },
   "copy": {
     "failure": "The copy could not start",

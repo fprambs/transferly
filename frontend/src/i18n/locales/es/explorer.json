@@ -116,7 +116,8 @@
     "open": "Vista dividida",
     "close": "Cerrar el segundo panel",
     "site": "Sitio del segundo panel",
-    "pane": "Segundo panel"
+    "pane": "Segundo panel",
+    "compare": "Comparar y sincronizar con el otro panel"
   },
   "copy": {
     "failure": "No se pudo iniciar la copia",

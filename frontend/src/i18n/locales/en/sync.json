@@ -1,0 +1,51 @@
+{
+  "title": "Compare and sync",
+  "subtitle": "Files that differ between {{source}} and {{target}}, or exist only on one side.",
+  "refresh": "Compare again",
+  "loading": "Comparing folders…",
+  "empty": "Nothing differs. The two folders already match.",
+  "list": "Comparison",
+  "close": "Close",
+  "run_one": "Sync {{count}} file",
+  "run_other": "Sync {{count}} files",
+  "confirmRun": "Yes, sync and delete",
+  "confirmDeletes_one": "This will permanently remove {{count}} file from {{target}}. This cannot be undone.",
+  "confirmDeletes_other": "This will permanently remove {{count}} files from {{target}}. This cannot be undone.",
+  "action": {
+    "create": "Create",
+    "update": "Update",
+    "delete": "Delete"
+  },
+  "row": {
+    "include": "Include {{path}} in the sync",
+    "verify": "Verify",
+    "verifying": "Reading…",
+    "reason": {
+      "missing": "Missing on the other side",
+      "size": "Different size",
+      "time": "Different modification time",
+      "checksum": "Content differs"
+    },
+    "status": {
+      "running": "Working…",
+      "done": "Done"
+    }
+  },
+  "errors": {
+    "host_key_changed": "The server's key changed. Trust it again in the trusted servers page before syncing.",
+    "remote_auth_failed": "The server refused the credentials.",
+    "remote_unavailable": "The server could not be reached.",
+    "remote_permission_denied": "The server refused permission for this file.",
+    "path_not_found": "The file or folder no longer exists.",
+    "path_exists": "Something with that name already exists.",
+    "destination_blocked": "That address is not allowed.",
+    "host_unresolvable": "The server name could not be resolved.",
+    "vault_locked": "Unlock the vault to read this site's credentials.",
+    "site_not_found": "The site no longer exists.",
+    "daily_quota_reached": "The daily transfer quota was reached.",
+    "network_error": "Could not reach the server.",
+    "localFailure": "The local file system refused this file.",
+    "tooMany": "One of the folders holds more files than can be compared at once.",
+    "unknown": "Something went wrong. Try again."
+  }
+}

@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import type { RemoteEntry, Site } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
+import { FakeDir, offerPicker, withdrawPicker } from '@/test/fake-local'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 
@@ -74,12 +75,16 @@ function mockServer(copyReply: () => Response = () => HttpResponse.json({}, { st
  * - dragging a folder, or a file whose name exists in the target folder, asks what to do with files that exist there and whether to verify the copy, and the copy follows the choice or does not start when the user gives up
  * - dropping a file on its own folder, a file of another workspace or data that is not a file does nothing
  * - a copy the server refuses is explained and can be dismissed, and a later copy clears the message
+ * - the compare button offers to sync the second pane against the first, only once it has something to compare against, whether the
+ *   second pane is another site or a local folder that was actually chosen
  */
 describe('split view', () => {
   beforeEach(() => {
     mockSession(adminSession)
     mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Backup')] })
   })
+
+  afterEach(() => withdrawPicker())
 
   it('opens and closes the second pane', async () => {
     mockServer()
@@ -216,5 +221,34 @@ describe('split view', () => {
     fireEvent.drop(target, { dataTransfer: data })
     await waitFor(() => expect(within(pane).queryByRole('alert')).not.toBeInTheDocument())
     expect(copies).toHaveLength(3)
+  })
+
+
+  it('offers to compare the second pane against the first once there is something to compare', async () => {
+    mockServer()
+    const user = userEvent.setup()
+    await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+    await within(pane).findByText('right.txt')
+
+    await user.click(within(pane).getByRole('button', { name: 'Compare and sync with the other pane' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Compare and sync' })
+    expect(within(dialog).getByText('Files that differ between Prod and Backup, or exist only on one side.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog', { name: 'Compare and sync' })).not.toBeInTheDocument()
+  })
+
+  it('offers to compare only once a local folder was actually chosen for the second pane', async () => {
+    mockServer()
+    const user = userEvent.setup()
+    await renderApp({ path: '/sites/s1?path=%2F&split=local' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+
+    expect(within(pane).queryByRole('button', { name: 'Compare and sync with the other pane' })).not.toBeInTheDocument()
+    offerPicker(new FakeDir('Documents'))
+    await user.click(within(pane).getByRole('button', { name: 'Choose a folder' }))
+    await user.click(await within(pane).findByRole('button', { name: 'Compare and sync with the other pane' }))
+
+    expect(await screen.findByText('Files that differ between Prod and Local folder, or exist only on one side.')).toBeInTheDocument()
   })
 })

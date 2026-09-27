@@ -1,0 +1,51 @@
+{
+  "title": "Comparar y sincronizar",
+  "subtitle": "Archivos que difieren entre {{source}} y {{target}}, o que existen solo en un lado.",
+  "refresh": "Comparar de nuevo",
+  "loading": "Comparando carpetas…",
+  "empty": "No hay diferencias. Las dos carpetas ya coinciden.",
+  "list": "Comparación",
+  "close": "Cerrar",
+  "run_one": "Sincronizar {{count}} archivo",
+  "run_other": "Sincronizar {{count}} archivos",
+  "confirmRun": "Sí, sincronizar y borrar",
+  "confirmDeletes_one": "Esto eliminará permanentemente {{count}} archivo de {{target}}. No se puede deshacer.",
+  "confirmDeletes_other": "Esto eliminará permanentemente {{count}} archivos de {{target}}. No se puede deshacer.",
+  "action": {
+    "create": "Crear",
+    "update": "Actualizar",
+    "delete": "Borrar"
+  },
+  "row": {
+    "include": "Incluir {{path}} en la sincronización",
+    "verify": "Verificar",
+    "verifying": "Leyendo…",
+    "reason": {
+      "missing": "Falta en el otro lado",
+      "size": "Tamaño distinto",
+      "time": "Fecha de modificación distinta",
+      "checksum": "El contenido difiere"
+    },
+    "status": {
+      "running": "Trabajando…",
+      "done": "Listo"
+    }
+  },
+  "errors": {
+    "host_key_changed": "La clave del servidor cambió. Vuelve a confiar en ella en la página de servidores de confianza antes de sincronizar.",
+    "remote_auth_failed": "El servidor rechazó las credenciales.",
+    "remote_unavailable": "No se pudo contactar con el servidor.",
+    "remote_permission_denied": "El servidor rechazó el permiso para este archivo.",
+    "path_not_found": "El archivo o la carpeta ya no existe.",
+    "path_exists": "Ya existe algo con ese nombre.",
+    "destination_blocked": "Esa dirección no está permitida.",
+    "host_unresolvable": "No se pudo resolver el nombre del servidor.",
+    "vault_locked": "Desbloquea el vault para leer las credenciales de este sitio.",
+    "site_not_found": "El sitio ya no existe.",
+    "daily_quota_reached": "Se alcanzó la cuota diaria de transferencias.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "localFailure": "El sistema de archivos local rechazó este archivo.",
+    "tooMany": "Una de las carpetas tiene más archivos de los que se pueden comparar a la vez.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

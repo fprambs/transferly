@@ -99,8 +99,11 @@ export class FakeDir {
     return Promise.reject(new DOMException(name, 'NotFoundError'))
   }
 
-  /** Removes an entry of this folder. */
-  removeEntry(name: string): Promise<void> {
+  /** Removes an entry of this folder; a missing name fails like the browser does. */
+  removeEntry(name: string, _options?: { recursive?: boolean }): Promise<void> {
+    if (!this.children.has(name)) {
+      return Promise.reject(new DOMException(name, 'NotFoundError'))
+    }
     this.children.delete(name)
     return Promise.resolve()
   }

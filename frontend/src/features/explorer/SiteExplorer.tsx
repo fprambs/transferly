@@ -1,5 +1,6 @@
 import { getRouteApi } from '@tanstack/react-router'
-import { Columns2, X } from 'lucide-react'
+import { ArrowLeftRight, Columns2, X } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,10 @@ import { NativeSelect } from '@/components/ui/native-select'
 
 import { LocalExplorer } from '../local/LocalExplorer'
 import { localSiteId, localSupported } from '../local/local-fs'
+import { useLocalRoot } from '../local/local-root-store'
 import { useSitesData } from '../sites/use-sites-data'
+import { CompareDialog } from '../sync/CompareDialog'
+import type { SyncSide } from '../sync/sides'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { Explorer } from './Explorer'
@@ -23,13 +27,24 @@ export function SiteExplorer() {
   const navigate = siteRoute.useNavigate()
   const workspace = useWorkspace()
   const { sites, quick } = useSitesData(workspace?.id)
+  const localRoot = useLocalRoot((state) => state.root)
+  const [comparing, setComparing] = useState(false)
 
   if (workspace === undefined) {
     return null
   }
   const connections = [...sites, ...quick]
+  const otherName = (id: string): string => connections.find((connection) => connection.id === id)?.name ?? t(($) => $.local.option)
+  const otherSide: SyncSide | null =
+    split === undefined ? null : split === localSiteId ? (localRoot === null ? null : { kind: 'local', root: localRoot, path: splitPath ?? '/' }) : { kind: 'remote', workspaceId: workspace.id, siteId: split, path: splitPath ?? '/' }
+  const rightLabel = split === undefined ? '' : otherName(split)
   const paneActions = (
     <>
+      {otherSide !== null && (
+        <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.split.compare)} onClick={() => setComparing(true)}>
+          <ArrowLeftRight />
+        </Button>
+      )}
       <NativeSelect
         aria-label={t(($) => $.split.site)}
         containerClassName="w-40"
@@ -88,6 +103,15 @@ export function SiteExplorer() {
             />
           )}
         </div>
+      )}
+      {comparing && otherSide !== null && (
+        <CompareDialog
+          left={{ kind: 'remote', workspaceId: workspace.id, siteId, path }}
+          right={otherSide}
+          leftLabel={otherName(siteId)}
+          rightLabel={rightLabel}
+          onClose={() => setComparing(false)}
+        />
       )}
     </div>
   )
