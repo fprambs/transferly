@@ -60,7 +60,11 @@ func memberDTO(m workspace.Member, sealed bool) Member {
 // CreateWorkspace creates a team workspace owned by the signed-in user.
 func (s *server) CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error) {
 	p, _ := principalFrom(ctx)
-	created, err := s.deps.Keys.CreateTeam(ctx, p.User.ID, vaultKey(p), request.Body.Name)
+	err := s.deps.Quotas.CheckTeam(ctx, p.User.ID)
+	var created workspace.Workspace
+	if err == nil {
+		created, err = s.deps.Keys.CreateTeam(ctx, p.User.ID, vaultKey(p), request.Body.Name)
+	}
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}

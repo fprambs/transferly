@@ -238,3 +238,37 @@ func TestLoad_TransferLimits(t *testing.T) {
 		}
 	}
 }
+
+// TestLoad_Quotas verifies the starting caps on bandwidth and quotas.
+//
+// Scenarios:
+//   - every cap defaults to zero, which means no cap
+//   - each cap can be set from its variable
+//   - negative and non-numeric values are reported by name
+func TestLoad_Quotas(t *testing.T) {
+	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+	cfg, err := config.Load(env(base))
+	if err != nil || cfg.Quotas != (config.Quotas{}) {
+		t.Fatalf("defaults = %+v, %v", cfg.Quotas, err)
+	}
+	names := map[string]func(config.Quotas) int{
+		"SENTINEL_BANDWIDTH_GLOBAL":        func(q config.Quotas) int { return q.BandwidthGlobal },
+		"SENTINEL_BANDWIDTH_PER_USER":      func(q config.Quotas) int { return q.BandwidthPerUser },
+		"SENTINEL_MAX_SITES_PER_WORKSPACE": func(q config.Quotas) int { return q.MaxSitesPerWorkspace },
+		"SENTINEL_MAX_TEAMS_PER_USER":      func(q config.Quotas) int { return q.MaxTeamsPerUser },
+		"SENTINEL_MAX_MEMBERS_PER_TEAM":    func(q config.Quotas) int { return q.MaxMembersPerTeam },
+		"SENTINEL_DAILY_BYTES_PER_USER":    func(q config.Quotas) int { return q.DailyBytesPerUser },
+	}
+	for name, read := range names {
+		set := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x", name: "1234"}
+		if cfg, err := config.Load(env(set)); err != nil || read(cfg.Quotas) != 1234 {
+			t.Errorf("%s = %d, %v; want 1234", name, read(cfg.Quotas), err)
+		}
+		for _, bad := range []string{"-1", "lots"} {
+			set[name] = bad
+			if _, err := config.Load(env(set)); err == nil || !strings.Contains(err.Error(), name) {
+				t.Errorf("Load() with %s=%q = %v; want an error naming the variable", name, bad, err)
+			}
+		}
+	}
+}

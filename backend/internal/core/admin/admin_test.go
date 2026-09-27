@@ -11,6 +11,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
 
@@ -118,6 +119,27 @@ func (p *fakePolicy) Extra() []netip.Prefix { return p.extra }
 // SetExtra replaces the extra networks.
 func (p *fakePolicy) SetExtra(extra []netip.Prefix) { p.extra = extra }
 
+// fakeLimiter keeps the limits in memory.
+type fakeLimiter struct {
+	current, defaults limits.Limits
+	fail              error
+}
+
+// Current returns the limits in force.
+func (f *fakeLimiter) Current() limits.Limits { return f.current }
+
+// Defaults returns the starting limits.
+func (f *fakeLimiter) Defaults() limits.Limits { return f.defaults }
+
+// Set puts limits in force.
+func (f *fakeLimiter) Set(_ context.Context, _ uuid.UUID, l limits.Limits) (limits.Limits, error) {
+	if f.fail != nil {
+		return limits.Limits{}, f.fail
+	}
+	f.current = l
+	return l, nil
+}
+
 // setup returns a service with an administrator, a second administrator and two regular accounts.
 func setup() (*admin.Service, *fakeStore, *fakePolicy, map[string]auth.User) {
 	users := map[string]auth.User{
@@ -132,7 +154,7 @@ func setup() (*admin.Service, *fakeStore, *fakePolicy, map[string]auth.User) {
 		store.accounts = append(store.accounts, admin.Account{ID: u.ID, Email: u.Email, Role: u.Role, SecondFactor: name == "bob"})
 	}
 	policy := &fakePolicy{fixed: []netip.Prefix{netip.MustParsePrefix("172.16.0.0/12")}}
-	return admin.NewService(store, policy, testutil.NewFakeClock(time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC))), store, policy, users
+	return admin.NewService(store, policy, &fakeLimiter{defaults: limits.Limits{TransfersGlobal: 32}, current: limits.Limits{TransfersGlobal: 32}}, testutil.NewFakeClock(time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC))), store, policy, users
 }
 
 // TestService_RefusesWhoIsNotAnAdministrator verifies that every operation checks the acting account itself.
@@ -151,6 +173,8 @@ func TestService_RefusesWhoIsNotAnAdministrator(t *testing.T) {
 			"ResetSecondFactor": second(svc.ResetSecondFactor(ctx, actor, users["carol"].ID)),
 			"Networks":          second(svc.Networks(ctx, actor)),
 			"SetNetworks":       second(svc.SetNetworks(ctx, actor, []string{"10.0.0.0/8"})),
+			"Limits":            second(svc.Limits(actor)),
+			"SetLimits":         second(svc.SetLimits(ctx, actor, limits.Limits{})),
 		}
 		for name, err := range calls {
 			if !errors.Is(err, admin.ErrForbidden) {
@@ -398,3 +422,29 @@ func TestService_Networks(t *testing.T) {
 
 // second returns the error of a call whose first result does not matter.
 func second[T any](_ T, err error) error { return err }
+
+// TestService_Limits verifies reading and replacing the caps and quotas.
+//
+// Scenarios:
+//   - an administrator reads the limits in force next to the starting ones
+//   - replacing them returns the new ones next to the starting ones
+//   - a refusal of the limiter is returned and changes nothing
+func TestService_Limits(t *testing.T) {
+	ctx := context.Background()
+	limiter := &fakeLimiter{defaults: limits.Limits{TransfersGlobal: 32}, current: limits.Limits{TransfersGlobal: 32}}
+	svc := admin.NewService(&fakeStore{}, &fakePolicy{}, limiter, testutil.NewFakeClock(time.Now()))
+	root := auth.User{ID: uuid.New(), Role: auth.RoleAdmin}
+
+	view, err := svc.Limits(root)
+	if err != nil || view.Current.TransfersGlobal != 32 || view.Defaults.TransfersGlobal != 32 {
+		t.Fatalf("Limits() = %+v, %v", view, err)
+	}
+	view, err = svc.SetLimits(ctx, root, limits.Limits{TransfersGlobal: 4})
+	if err != nil || view.Current.TransfersGlobal != 4 || view.Defaults.TransfersGlobal != 32 {
+		t.Fatalf("SetLimits() = %+v, %v", view, err)
+	}
+	limiter.fail = limits.ErrInvalid
+	if _, err := svc.SetLimits(ctx, root, limits.Limits{TransfersGlobal: 9}); !errors.Is(err, limits.ErrInvalid) || limiter.current.TransfersGlobal != 4 {
+		t.Errorf("SetLimits() refused = %v, current %+v", err, limiter.current)
+	}
+}

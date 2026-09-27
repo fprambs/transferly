@@ -13,6 +13,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
@@ -161,6 +162,11 @@ var domainProblems = []struct {
 	{admin.ErrSelf, http.StatusConflict, "own_account"},
 	{admin.ErrLastAdmin, http.StatusConflict, "last_admin"},
 	{admin.ErrInvalidRole, http.StatusUnprocessableEntity, "invalid_role"},
+	{limits.ErrInvalid, http.StatusUnprocessableEntity, "invalid_limits"},
+	{limits.ErrSiteQuota, http.StatusConflict, "site_quota_reached"},
+	{limits.ErrTeamQuota, http.StatusConflict, "team_quota_reached"},
+	{limits.ErrMemberQuota, http.StatusConflict, "member_quota_reached"},
+	{limits.ErrDailyQuota, http.StatusForbidden, "daily_quota_reached"},
 	{admin.ErrInvalidNetwork, http.StatusUnprocessableEntity, "invalid_network"},
 	{admin.ErrTooManyNetworks, http.StatusUnprocessableEntity, "too_many_networks"},
 	{invite.ErrNotFound, http.StatusNotFound, "invitation_not_found"},
@@ -313,3 +319,9 @@ func (p domainProblem) VisitSetNetworksResponse(w http.ResponseWriter) error { r
 
 // VisitListAdminAuditResponse implements [ListAdminAuditResponseObject].
 func (p domainProblem) VisitListAdminAuditResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitGetLimitsResponse implements [GetLimitsResponseObject].
+func (p domainProblem) VisitGetLimitsResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitSetLimitsResponse implements [SetLimitsResponseObject].
+func (p domainProblem) VisitSetLimitsResponse(w http.ResponseWriter) error { return p.write(w) }

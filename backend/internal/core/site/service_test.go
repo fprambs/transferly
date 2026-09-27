@@ -743,3 +743,49 @@ func TestService_CanSeal(t *testing.T) {
 		t.Error("CanSeal() with a failing key provider = true")
 	}
 }
+
+// quota is a site quota that answers with a fixed error and counts the questions.
+type quota struct {
+	err   error
+	asked []uuid.UUID
+}
+
+// CheckSite records the workspace and returns the error.
+func (q *quota) CheckSite(_ context.Context, workspaceID uuid.UUID) error {
+	q.asked = append(q.asked, workspaceID)
+	return q.err
+}
+
+// TestService_Quota verifies that a quota decides whether a workspace may get another site.
+//
+// Scenarios:
+//   - without a quota, and with one that allows, a site is created
+//   - a quota that refuses stops the creation before anything is stored, and it is asked about the workspace of the site
+//   - people who may not manage sites are refused before the quota is asked
+func TestService_Quota(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{}); err != nil {
+		t.Fatalf("Create() without a quota = %v", err)
+	}
+	allowing := &quota{}
+	f.svc.UseQuota(allowing)
+	other := valid()
+	other.Name = "Staging"
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", other, site.SecretChanges{}); err != nil || len(allowing.asked) != 1 || allowing.asked[0] != f.ws {
+		t.Fatalf("Create() with a quota that allows = %v, asked %v", err, allowing.asked)
+	}
+
+	errFull := errors.New("full")
+	f.svc.UseQuota(&quota{err: errFull})
+	third := valid()
+	third.Name = "Third"
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", third, site.SecretChanges{}); !errors.Is(err, errFull) || len(f.store.sites) != 2 {
+		t.Errorf("Create() with a quota that refuses = %v, %d sites; want the refusal and no new site", err, len(f.store.sites))
+	}
+	refusing := &quota{err: errFull}
+	f.svc.UseQuota(refusing)
+	if _, err := f.svc.Create(ctx, f.viewer, f.ws, "open", third, site.SecretChanges{}); !errors.Is(err, workspace.ErrForbidden) || len(refusing.asked) != 0 {
+		t.Errorf("a viewer creating = %v, quota asked %d times; want ErrForbidden and no question", err, len(refusing.asked))
+	}
+}

@@ -463,6 +463,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caps and quotas of the instance
+         * @description Needs the administrator role of the instance. A zero means no limit.
+         */
+        get: operations["getLimits"];
+        /**
+         * Replace the caps and quotas of the instance
+         * @description Bandwidth caps, how many transfers run at once, and quotas on sites, teams, members and the volume a person moves in a day. The change is stored, survives restarts and applies to the next request or chunk; transfers that run keep running. Send every field.
+         */
+        put: operations["setLimits"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/audit": {
         parameters: {
             query?: never;
@@ -1768,6 +1792,63 @@ export interface components {
             disabled?: boolean;
             /** @enum {string} */
             role?: "admin" | "user";
+        };
+        /** @description Zero means no limit. */
+        InstanceLimits: {
+            /**
+             * Format: int64
+             * @description Bytes per second all transfers of the server move together.
+             */
+            bandwidthGlobal: number;
+            /**
+             * Format: int64
+             * @description Bytes per second the transfers of one person move together.
+             */
+            bandwidthPerUser: number;
+            /**
+             * Format: int64
+             * @description Transfers that run at once on the server.
+             */
+            transfersGlobal: number;
+            /**
+             * Format: int64
+             * @description Transfers that run at once in one workspace.
+             */
+            transfersPerWorkspace: number;
+            /**
+             * Format: int64
+             * @description Transfers that run at once for one person.
+             */
+            transfersPerUser: number;
+            /**
+             * Format: int64
+             * @description Transfers that run at once against one site.
+             */
+            transfersPerSite: number;
+            /**
+             * Format: int64
+             * @description Sites a workspace keeps.
+             */
+            maxSitesPerWorkspace: number;
+            /**
+             * Format: int64
+             * @description Teams a person owns.
+             */
+            maxTeamsPerUser: number;
+            /**
+             * Format: int64
+             * @description Members of a team, counting the invitations that wait.
+             */
+            maxMembersPerTeam: number;
+            /**
+             * Format: int64
+             * @description Bytes a person moves in a day.
+             */
+            dailyBytesPerUser: number;
+        };
+        InstanceLimitsView: {
+            current: components["schemas"]["InstanceLimits"];
+            defaults: components["schemas"]["InstanceLimits"];
         };
         Networks: {
             /** @description Networks the server was started with; only a restart changes them. */
@@ -3338,6 +3419,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Networks"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLimits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The limits in force and the ones the server started with. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceLimitsView"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setLimits: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstanceLimits"];
+            };
+        };
+        responses: {
+            /** @description The limits in force. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceLimitsView"];
                 };
             };
             /** @description An error. The stable code tells the client what happened. */

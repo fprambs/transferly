@@ -26,6 +26,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/passkey"
@@ -95,6 +96,10 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		PerUser: cfg.TransferLimits.PerUser, PerSite: cfg.TransferLimits.PerSite,
 	}}, nil)
 	invites := invite.NewService(store, workspaces, store, authService, system, rand.Reader, 0, nil)
+	quotas := limits.NewService(store, transfers, startingLimits(cfg), system)
+	sites.UseQuota(quotas)
+	invites.UseQuota(quotas)
+	transfers.UseQuota(quotas)
 	second := mfa.NewService(store, instanceKey, rand.Reader, system)
 	rp, origins := relyingParty(cfg.AllowedOrigins)
 	passkeys, err := passkey.NewService(store, passkey.Config{RPID: rp, DisplayName: "Sentinel", Origins: origins}, system, rand.Reader, nil)
@@ -127,7 +132,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Import:      fzimport.NewService(workspaces, sites),
 			Invites:     invites,
 			Audit:       auditTrail,
-			Admin:       admin.NewService(store, policy, system),
+			Admin:       admin.NewService(store, policy, quotas, system),
+			Quotas:      quotas,
 			MFA:         second,
 			Passkeys:    passkeys,
 			Quick:       quickConnections,
@@ -167,6 +173,17 @@ func relyingParty(origins []string) (string, []string) {
 		host = u.Hostname()
 	}
 	return host, origins
+}
+
+// startingLimits turns the configuration into the limits the server starts with, before an administrator changes them.
+func startingLimits(cfg config.Config) limits.Limits {
+	return limits.Limits{
+		BandwidthGlobal: int64(cfg.Quotas.BandwidthGlobal), BandwidthPerUser: int64(cfg.Quotas.BandwidthPerUser),
+		TransfersGlobal: cfg.TransferLimits.Global, TransfersPerWorkspace: cfg.TransferLimits.PerWorkspace,
+		TransfersPerUser: cfg.TransferLimits.PerUser, TransfersPerSite: cfg.TransferLimits.PerSite,
+		MaxSitesPerWorkspace: cfg.Quotas.MaxSitesPerWorkspace, MaxTeamsPerUser: cfg.Quotas.MaxTeamsPerUser,
+		MaxMembersPerTeam: cfg.Quotas.MaxMembersPerTeam, DailyBytesPerUser: int64(cfg.Quotas.DailyBytesPerUser),
+	}
 }
 
 // rotationLogger returns the hook that adds every rotation of a workspace key to the audit trail; a failure to log is reported but never

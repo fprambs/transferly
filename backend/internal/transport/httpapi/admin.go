@@ -2,14 +2,17 @@ package httpapi
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/netip"
 	"strconv"
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/limits"
 )
 
 // recordInstance adds an event of an administrator to the audit trail of the instance, which belongs to no workspace.
@@ -139,4 +142,55 @@ func (s *server) ListAdminAudit(ctx context.Context, request ListAdminAuditReque
 		return nil, err
 	}
 	return ListAdminAudit200JSONResponse(auditEvents(events)), nil
+}
+
+// limitsDTO converts limits to their public representation.
+func limitsDTO(l limits.Limits) InstanceLimits {
+	return InstanceLimits{
+		BandwidthGlobal: l.BandwidthGlobal, BandwidthPerUser: l.BandwidthPerUser, DailyBytesPerUser: l.DailyBytesPerUser,
+		MaxMembersPerTeam: int64(l.MaxMembersPerTeam), MaxSitesPerWorkspace: int64(l.MaxSitesPerWorkspace), MaxTeamsPerUser: int64(l.MaxTeamsPerUser),
+		TransfersGlobal: int64(l.TransfersGlobal), TransfersPerSite: int64(l.TransfersPerSite), TransfersPerUser: int64(l.TransfersPerUser),
+		TransfersPerWorkspace: int64(l.TransfersPerWorkspace),
+	}
+}
+
+// limitsFrom converts the public representation to limits. Values that do not fit are left for validation to refuse: they are clamped to
+// a size no limit accepts.
+func limitsFrom(l InstanceLimits) limits.Limits {
+	count := func(n int64) int { return int(min(max(n, -1), math.MaxInt32)) }
+	return limits.Limits{
+		BandwidthGlobal: l.BandwidthGlobal, BandwidthPerUser: l.BandwidthPerUser, DailyBytesPerUser: l.DailyBytesPerUser,
+		MaxMembersPerTeam: count(l.MaxMembersPerTeam), MaxSitesPerWorkspace: count(l.MaxSitesPerWorkspace), MaxTeamsPerUser: count(l.MaxTeamsPerUser),
+		TransfersGlobal: count(l.TransfersGlobal), TransfersPerSite: count(l.TransfersPerSite), TransfersPerUser: count(l.TransfersPerUser),
+		TransfersPerWorkspace: count(l.TransfersPerWorkspace),
+	}
+}
+
+// limitsView converts the limits in force and the starting ones to their public representation.
+func limitsView(v admin.LimitsView) InstanceLimitsView {
+	return InstanceLimitsView{Current: limitsDTO(v.Current), Defaults: limitsDTO(v.Defaults)}
+}
+
+// GetLimits returns the caps and quotas of the instance. Reading them fails only for an account that is not an administrator.
+func (s *server) GetLimits(ctx context.Context, _ GetLimitsRequestObject) (GetLimitsResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	view, err := s.deps.Admin.Limits(p.User)
+	if err != nil {
+		return domainProblem{status: http.StatusForbidden, code: "forbidden"}, nil
+	}
+	return GetLimits200JSONResponse(limitsView(view)), nil
+}
+
+// SetLimits replaces the caps and quotas of the instance.
+func (s *server) SetLimits(ctx context.Context, request SetLimitsRequestObject) (SetLimitsResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	view, err := s.deps.Admin.SetLimits(ctx, p.User, limitsFrom(*request.Body))
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.recordInstance(ctx, p.User, audit.AdminLimitsChanged, "", nil)
+	return SetLimits200JSONResponse(limitsView(view)), nil
 }

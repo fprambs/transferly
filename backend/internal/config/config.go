@@ -58,6 +58,8 @@ type Config struct {
 	JanitorInterval time.Duration
 	// TransferLimits caps how many transfers run at once; the rest wait in the queue.
 	TransferLimits TransferLimits
+	// Quotas are the caps on bandwidth and on what accounts may have or move; an administrator can change them while the server runs.
+	Quotas Quotas
 	// ActivityRetention is how long the activity log keeps its entries.
 	ActivityRetention time.Duration
 	// QuickConnectBurst is how many quick connections one client may open in a burst; afterwards one more every 12 seconds.
@@ -74,6 +76,22 @@ type TransferLimits struct {
 	PerUser int
 	// PerSite caps the transfers that use one site or quick connection.
 	PerSite int
+}
+
+// Quotas are the starting values of the caps on bandwidth and quotas; zero means no cap.
+type Quotas struct {
+	// BandwidthGlobal caps the bytes per second all transfers move together.
+	BandwidthGlobal int
+	// BandwidthPerUser caps the bytes per second the transfers of one user move together.
+	BandwidthPerUser int
+	// MaxSitesPerWorkspace caps the sites of a workspace.
+	MaxSitesPerWorkspace int
+	// MaxTeamsPerUser caps the teams a user owns.
+	MaxTeamsPerUser int
+	// MaxMembersPerTeam caps the members of a team, with the invitations that wait.
+	MaxMembersPerTeam int
+	// DailyBytesPerUser caps the bytes a user moves in a day.
+	DailyBytesPerUser int
 }
 
 // CookieSecure reports whether cookies must be marked Secure, which is the case for an https base URL.
@@ -135,6 +153,12 @@ func Load(getenv func(string) string) (Config, error) {
 		{"SENTINEL_TRANSFER_LIMIT_PER_WORKSPACE", &cfg.TransferLimits.PerWorkspace},
 		{"SENTINEL_TRANSFER_LIMIT_PER_USER", &cfg.TransferLimits.PerUser},
 		{"SENTINEL_TRANSFER_LIMIT_PER_SITE", &cfg.TransferLimits.PerSite},
+		{"SENTINEL_BANDWIDTH_GLOBAL", &cfg.Quotas.BandwidthGlobal},
+		{"SENTINEL_BANDWIDTH_PER_USER", &cfg.Quotas.BandwidthPerUser},
+		{"SENTINEL_MAX_SITES_PER_WORKSPACE", &cfg.Quotas.MaxSitesPerWorkspace},
+		{"SENTINEL_MAX_TEAMS_PER_USER", &cfg.Quotas.MaxTeamsPerUser},
+		{"SENTINEL_MAX_MEMBERS_PER_TEAM", &cfg.Quotas.MaxMembersPerTeam},
+		{"SENTINEL_DAILY_BYTES_PER_USER", &cfg.Quotas.DailyBytesPerUser},
 	} {
 		if err := parseLimit(getenv(l.name), l.name, l.into); err != nil {
 			errs = append(errs, err)

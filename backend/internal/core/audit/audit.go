@@ -58,6 +58,8 @@ const (
 	AdminSecondFactorReset = "admin.second_factor_reset"
 	// AdminNetworksChanged is a change of the private networks sites may reach; the number of networks is in the metadata.
 	AdminNetworksChanged = "admin.networks_changed"
+	// AdminLimitsChanged is a change of the caps and quotas of the instance.
+	AdminLimitsChanged = "admin.limits_changed"
 )
 
 const (

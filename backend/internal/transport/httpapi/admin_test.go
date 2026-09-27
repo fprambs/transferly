@@ -315,7 +315,7 @@ func (brokenAdmin) ReplaceNetworks(context.Context, []netip.Prefix, uuid.UUID, t
 //   - a change still succeeds when its audit event cannot be written
 func TestAdmin_Failures(t *testing.T) {
 	e := newAdminEnv(t, func(d *httpapi.Deps) {
-		d.Admin = admin.NewService(brokenAdmin{d.Readiness.(*postgres.Store)}, netguard.NewPolicy(nil, nil), realClock{})
+		d.Admin = admin.NewService(brokenAdmin{d.Readiness.(*postgres.Store)}, netguard.NewPolicy(nil, nil), d.Quotas, realClock{})
 	})
 	id := e.other.id.String()
 	for _, c := range []struct {

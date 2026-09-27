@@ -71,6 +71,14 @@ type BeginInput struct {
 // movement must use: canceling the transfer cancels that context. Beginning again with the identifier of an
 // interrupted or failed transfer of the same file resumes it.
 func (s *Service) Begin(ctx context.Context, in BeginInput) (*Tracker, context.Context, error) {
+	s.mu.Lock()
+	quota := s.quota
+	s.mu.Unlock()
+	if quota != nil {
+		if err := quota.CheckTransfer(ctx, in.UserID); err != nil {
+			return nil, nil, err
+		}
+	}
 	now := s.clock.Now().UTC()
 	id := in.ID
 	if id == uuid.Nil {
@@ -202,12 +210,21 @@ func (k *Tracker) Started(total int64) {
 	k.s.publishState(k.t)
 }
 
-// Progress adds n bytes to the count. Events and writes to the store are throttled.
+// Progress adds n bytes to the count and then waits as long as the bandwidth caps ask, so the caller's next chunk comes no sooner than
+// they allow. Events and writes to the store are throttled.
 func (k *Tracker) Progress(n int64) {
+	if !k.record(n) {
+		return
+	}
+	k.s.throttle(k.ctx, k.t.UserID, n)
+}
+
+// record adds n bytes to the count and reports whether the transfer is still going.
+func (k *Tracker) record(n int64) bool {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if k.finished {
-		return
+		return false
 	}
 	now := k.s.clock.Now().UTC()
 	k.t.BytesDone += n
@@ -220,6 +237,7 @@ func (k *Tracker) Progress(n int64) {
 		k.lastSave = now
 		k.save()
 	}
+	return true
 }
 
 // Complete reports whether every expected byte moved.
@@ -259,6 +277,7 @@ func (k *Tracker) Finish(err error, code string) {
 	k.s.mu.Lock()
 	delete(k.s.active, k.t.ID)
 	k.s.mu.Unlock()
+	k.s.forget(k.t.UserID)
 	k.s.publishState(k.t)
 	if k.s.cfg.OnFinish != nil {
 		k.s.cfg.OnFinish(k.t)

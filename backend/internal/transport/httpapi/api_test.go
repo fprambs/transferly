@@ -31,6 +31,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/passkey"
@@ -123,7 +124,12 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 			})
 		}
 	}
+	invites := invite.NewService(store, workspaces, store, service, clock, rand.Reader, 0, nil)
 	transferService := transfer.NewService(store, fanout{recorded, hub}, clock, transfers, nil)
+	quotas := limits.NewService(store, transferService, limits.Limits{}, clock)
+	sites.UseQuota(quotas)
+	invites.UseQuota(quotas)
+	transferService.UseQuota(quotas)
 	deps := httpapi.Deps{
 		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Readiness:   store,
@@ -139,10 +145,11 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Activity:    activityLog,
 		Import:      fzimport.NewService(workspaces, sites),
 		Audit:       auditTrail,
-		Admin:       admin.NewService(store, policy, clock),
+		Admin:       admin.NewService(store, policy, quotas, clock),
+		Quotas:      quotas,
 		MFA:         mfa.NewService(store, instanceKey, rand.Reader, clock),
 		Passkeys:    passkeys,
-		Invites:     invite.NewService(store, workspaces, store, service, clock, rand.Reader, 0, nil),
+		Invites:     invites,
 		Quick:       quickConnections,
 		Events:      hub,
 		WebSocket:   httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},

@@ -19,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -539,5 +540,43 @@ func TestAdminStore_RefusesUnreadableData(t *testing.T) {
 	}
 	if _, err := store.AuditInstance(ctx, audit.Filter{}, 10); err == nil {
 		t.Error("AuditInstance() read a row whose metadata is not an object")
+	}
+}
+
+// TestLimitsStore_Conformance runs the shared limits store suite against Postgres.
+func TestLimitsStore_Conformance(t *testing.T) {
+	storetest.RunLimits(t, func(t *testing.T) storetest.LimitsStore { return openMigrated(t) })
+}
+
+// TestLimitsStore_ReportsDatabaseFailures verifies that every limits operation returns the database error, using a closed pool.
+func TestLimitsStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+
+	calls := map[string]error{
+		"Limits":          second3(store.Limits(ctx)),
+		"SaveLimits":      store.SaveLimits(ctx, limits.Limits{}, id, time.Now()),
+		"CountSites":      second(store.CountSites(ctx, id)),
+		"CountOwnedTeams": second(store.CountOwnedTeams(ctx, id)),
+		"CountMembers":    second(store.CountMembers(ctx, id, time.Now())),
+		"BytesSince":      second(store.BytesSince(ctx, id, time.Now())),
+	}
+	for name, err := range calls {
+		if err == nil {
+			t.Errorf("%s hid the database error", name)
+		}
+	}
+}
+
+// TestLimitsStore_RefusesUnreadableLimits verifies that stored limits that are not an object of limits are reported instead of ignored.
+func TestLimitsStore_RefusesUnreadableLimits(t *testing.T) {
+	store := openMigrated(t)
+	if _, err := store.DB().Exec(t.Context(), "INSERT INTO instance_limits (data, updated_at) VALUES ('[1]', now())"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.Limits(t.Context()); err == nil {
+		t.Error("Limits() read a value that is not an object of limits")
 	}
 }

@@ -465,3 +465,45 @@ func TestService_PurgeExpired(t *testing.T) {
 		t.Errorf("failure = %v", err)
 	}
 }
+
+// fakeQuota is a member quota that answers with a fixed error and counts the questions.
+type fakeQuota struct {
+	err   error
+	asked int
+}
+
+// CheckMember counts the question and returns the error.
+func (q *fakeQuota) CheckMember(context.Context, uuid.UUID) error {
+	q.asked++
+	return q.err
+}
+
+// TestService_Quota verifies that a quota decides whether a team may take one more person.
+//
+// Scenarios:
+//   - without a quota, and with one that allows, an invitation is created
+//   - a quota that refuses stops it before anything is stored, and its error is returned
+//   - people who may not invite are refused before the quota is asked
+func TestService_Quota(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv()
+	if _, _, err := e.svc.Create(ctx, e.admin, e.ws, "a@example.com", workspace.RoleViewer); err != nil {
+		t.Fatalf("Create() without a quota = %v", err)
+	}
+	allowing := &fakeQuota{}
+	e.svc.UseQuota(allowing)
+	if _, _, err := e.svc.Create(ctx, e.admin, e.ws, "b@example.com", workspace.RoleViewer); err != nil || allowing.asked != 1 {
+		t.Fatalf("Create() with a quota that allows = %v, asked %d", err, allowing.asked)
+	}
+	errFull := errors.New("full")
+	refusing := &fakeQuota{err: errFull}
+	e.svc.UseQuota(refusing)
+	stored := len(e.store.byHash)
+	if _, _, err := e.svc.Create(ctx, e.admin, e.ws, "c@example.com", workspace.RoleViewer); !errors.Is(err, errFull) || len(e.store.byHash) != stored {
+		t.Errorf("Create() with a quota that refuses = %v, %d stored; want the refusal and nothing stored", err, len(e.store.byHash)-stored)
+	}
+	refusing.asked = 0
+	if _, _, err := e.svc.Create(ctx, e.editor, e.ws, "d@example.com", workspace.RoleViewer); !errors.Is(err, workspace.ErrForbidden) || refusing.asked != 0 {
+		t.Errorf("an editor inviting = %v, quota asked %d times; want ErrForbidden and no question", err, refusing.asked)
+	}
+}

@@ -255,6 +255,34 @@ func TestServe_FailsWhenTheAllowedNetworksCannotBeLoaded(t *testing.T) {
 	}
 }
 
+// TestServe_FailsWhenTheLimitsCannotBeLoaded verifies that Serve refuses to start when it cannot read the limits the administrators set,
+// instead of running with looser ones than they chose.
+//
+// Scenarios:
+//   - a database whose limits table is gone makes Serve return that error
+func TestServe_FailsWhenTheLimitsCannotBeLoaded(t *testing.T) {
+	url := testutil.NewDatabase(t)
+	if err := postgres.Migrate(t.Context(), url); err != nil {
+		t.Fatal(err)
+	}
+	store, err := postgres.Open(t.Context(), url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if _, err := store.DB().Exec(t.Context(), "DROP TABLE instance_limits"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := testConfig(t, url)
+	cfg.AutoMigrate = false
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	err = app.Serve(ctx, cfg, discardLogger(), listen(t))
+	if err == nil || !strings.Contains(err.Error(), "loading the limits") {
+		t.Errorf("Serve() = %v; want a failure to load the limits", err)
+	}
+}
+
 // TestServe_InterruptsTransfersLeftRunning verifies the recovery of a crashed run.
 //
 // Scenarios:

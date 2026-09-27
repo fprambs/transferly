@@ -102,7 +102,17 @@ type Service struct {
 	clock  ports.Clock
 	random io.Reader
 	newID  func() (uuid.UUID, error)
+	quota  Quota
 }
+
+// Quota decides whether a workspace may have another site.
+type Quota interface {
+	// CheckSite returns an error when the workspace already has as many sites as it may, such as [limits.ErrSiteQuota].
+	CheckSite(ctx context.Context, workspaceID uuid.UUID) error
+}
+
+// UseQuota makes the service ask a quota before it creates a site. Without one nothing is refused. Call it before the service is used.
+func (s *Service) UseQuota(q Quota) { s.quota = q }
 
 // NewService returns a service. newID may be nil to use UUIDv7.
 func NewService(store interface {
@@ -235,6 +245,11 @@ func (s *Service) CanSeal(session string) bool {
 func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, session string, in Input, changes SecretChanges) (Site, error) {
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Site{}, err
+	}
+	if s.quota != nil {
+		if err := s.quota.CheckSite(ctx, workspaceID); err != nil {
+			return Site{}, err
+		}
 	}
 	in, err := Normalize(in)
 	if err != nil {

@@ -117,7 +117,18 @@ type Service struct {
 	ttl        time.Duration
 	newID      func() (uuid.UUID, error)
 	maxPending int
+	quota      Quota
 }
+
+// Quota decides whether a team may take one more person.
+type Quota interface {
+	// CheckMember returns an error when the members of the team and its waiting invitations already reach its quota, such as
+	// [limits.ErrMemberQuota].
+	CheckMember(ctx context.Context, workspaceID uuid.UUID) error
+}
+
+// UseQuota makes the service ask a quota before it creates an invitation. Without one nothing is refused. Call it before the service is used.
+func (s *Service) UseQuota(q Quota) { s.quota = q }
 
 // NewService returns a service. newID may be nil to use UUIDv7 and ttl zero to use [DefaultTTL].
 func NewService(store Store, authz Authorizer, accounts Accounts, registrar Registrar, clock ports.Clock, random io.Reader, ttl time.Duration, newID func() (uuid.UUID, error)) *Service {
@@ -153,6 +164,11 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, emai
 	for _, m := range members {
 		if m.Email == email {
 			return Invitation{}, "", workspace.ErrAlreadyMember
+		}
+	}
+	if s.quota != nil {
+		if err := s.quota.CheckMember(ctx, workspaceID); err != nil {
+			return Invitation{}, "", err
 		}
 	}
 	now := s.clock.Now()

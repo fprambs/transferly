@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/ports"
 )
 
@@ -105,16 +106,54 @@ type Policy interface {
 	SetExtra(extra []netip.Prefix)
 }
 
+// Limiter keeps the caps and quotas of the instance.
+type Limiter interface {
+	// Current returns the limits in force.
+	Current() limits.Limits
+	// Defaults returns the limits the server started with.
+	Defaults() limits.Limits
+	// Set validates, stores and puts in force new limits.
+	Set(ctx context.Context, by uuid.UUID, l limits.Limits) (limits.Limits, error)
+}
+
 // Service implements the use cases of an administrator.
 type Service struct {
-	store  Store
-	policy Policy
-	clock  ports.Clock
+	store   Store
+	policy  Policy
+	limiter Limiter
+	clock   ports.Clock
 }
 
 // NewService returns a service.
-func NewService(store Store, policy Policy, clock ports.Clock) *Service {
-	return &Service{store: store, policy: policy, clock: clock}
+func NewService(store Store, policy Policy, limiter Limiter, clock ports.Clock) *Service {
+	return &Service{store: store, policy: policy, limiter: limiter, clock: clock}
+}
+
+// LimitsView is the limits in force next to the ones the server started with, so an administrator can see what a restore would do.
+type LimitsView struct {
+	// Current are the limits in force.
+	Current limits.Limits
+	// Defaults are the limits the server started with.
+	Defaults limits.Limits
+}
+
+// Limits returns the caps and quotas of the instance.
+func (s *Service) Limits(actor auth.User) (LimitsView, error) {
+	if err := require(actor); err != nil {
+		return LimitsView{}, err
+	}
+	return LimitsView{Current: s.limiter.Current(), Defaults: s.limiter.Defaults()}, nil
+}
+
+// SetLimits replaces the caps and quotas of the instance. They apply to the next request; what already runs keeps running.
+func (s *Service) SetLimits(ctx context.Context, actor auth.User, l limits.Limits) (LimitsView, error) {
+	if err := require(actor); err != nil {
+		return LimitsView{}, err
+	}
+	if _, err := s.limiter.Set(ctx, actor.ID, l); err != nil {
+		return LimitsView{}, err
+	}
+	return LimitsView{Current: s.limiter.Current(), Defaults: s.limiter.Defaults()}, nil
 }
 
 // require refuses an account that is not an active administrator.

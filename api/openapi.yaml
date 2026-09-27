@@ -1035,6 +1035,73 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/admin/limits:
+    get:
+      operationId: getLimits
+      security:
+        - sessionCookie: []
+      summary: The caps and quotas of the instance
+      description: Needs the administrator role of the instance. A zero means no limit.
+      responses:
+        "200":
+          description: The limits in force and the ones the server started with.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceLimitsView"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: setLimits
+      security:
+        - sessionCookie: []
+      summary: Replace the caps and quotas of the instance
+      description: >-
+        Bandwidth caps, how many transfers run at once, and quotas on sites, teams, members and the volume a person moves in a day. The change
+        is stored, survives restarts and applies to the next request or chunk; transfers that run keep running. Send every field.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstanceLimits"
+      responses:
+        "200":
+          description: The limits in force.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstanceLimitsView"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/admin/audit:
     get:
       operationId: listAdminAudit
@@ -4526,6 +4593,69 @@ components:
         role:
           type: string
           enum: [admin, user]
+    InstanceLimits:
+      type: object
+      description: Zero means no limit.
+      required: [bandwidthGlobal, bandwidthPerUser, transfersGlobal, transfersPerWorkspace, transfersPerUser, transfersPerSite, maxSitesPerWorkspace, maxTeamsPerUser, maxMembersPerTeam, dailyBytesPerUser]
+      properties:
+        bandwidthGlobal:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Bytes per second all transfers of the server move together.
+        bandwidthPerUser:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Bytes per second the transfers of one person move together.
+        transfersGlobal:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Transfers that run at once on the server.
+        transfersPerWorkspace:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Transfers that run at once in one workspace.
+        transfersPerUser:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Transfers that run at once for one person.
+        transfersPerSite:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Transfers that run at once against one site.
+        maxSitesPerWorkspace:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Sites a workspace keeps.
+        maxTeamsPerUser:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Teams a person owns.
+        maxMembersPerTeam:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Members of a team, counting the invitations that wait.
+        dailyBytesPerUser:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Bytes a person moves in a day.
+    InstanceLimitsView:
+      type: object
+      required: [current, defaults]
+      properties:
+        current:
+          $ref: "#/components/schemas/InstanceLimits"
+        defaults:
+          $ref: "#/components/schemas/InstanceLimits"
     Networks:
       type: object
       required: [fixed, custom]

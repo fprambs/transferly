@@ -57,6 +57,9 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	if err := wired.deps.Admin.Load(ctx); err != nil {
 		return fmt.Errorf("loading the allowed networks: %w", err)
 	}
+	if err := wired.deps.Quotas.Load(ctx); err != nil {
+		return fmt.Errorf("loading the limits: %w", err)
+	}
 	janitorCtx, stopJanitor := context.WithCancel(ctx)
 	defer stopJanitor()
 	go runJanitor(janitorCtx, cfg.JanitorInterval, logger, wired.janitor)

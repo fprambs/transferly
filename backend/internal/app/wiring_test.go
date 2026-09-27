@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/audit"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
@@ -200,5 +201,21 @@ func TestRelyingParty(t *testing.T) {
 	}
 	if _, err := newWiring(config.Config{AllowedOrigins: []string{"://bad"}}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef")); err == nil {
 		t.Error("newWiring() accepted a relying party WebAuthn refuses")
+	}
+}
+
+// TestStartingLimits verifies the limits the server starts with.
+//
+// Scenarios:
+//   - every value of the configuration lands in its own field of the limits, concurrent transfers included
+func TestStartingLimits(t *testing.T) {
+	cfg := config.Config{
+		TransferLimits: config.TransferLimits{Global: 1, PerWorkspace: 2, PerUser: 3, PerSite: 4},
+		Quotas:         config.Quotas{BandwidthGlobal: 5, BandwidthPerUser: 6, MaxSitesPerWorkspace: 7, MaxTeamsPerUser: 8, MaxMembersPerTeam: 9, DailyBytesPerUser: 10},
+	}
+	want := limits.Limits{BandwidthGlobal: 5, BandwidthPerUser: 6, TransfersGlobal: 1, TransfersPerWorkspace: 2, TransfersPerUser: 3, TransfersPerSite: 4,
+		MaxSitesPerWorkspace: 7, MaxTeamsPerUser: 8, MaxMembersPerTeam: 9, DailyBytesPerUser: 10}
+	if got := startingLimits(cfg); got != want {
+		t.Errorf("startingLimits() = %+v; want %+v", got, want)
 	}
 }

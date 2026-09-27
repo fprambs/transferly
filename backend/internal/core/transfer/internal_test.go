@@ -66,3 +66,27 @@ type raceStore struct {
 func (r *raceStore) TransferByID(context.Context, uuid.UUID, uuid.UUID) (Transfer, error) {
 	return r.t, nil
 }
+
+// TestSleep verifies the wait between the chunks of a capped transfer.
+//
+// Scenarios:
+//   - a wait of nothing, or less, returns at once
+//   - a short wait passes and returns nothing
+//   - a context that ends stops a long wait with its error
+func TestSleep(t *testing.T) {
+	if err := sleep(context.Background(), 0); err != nil {
+		t.Errorf("sleep(0) = %v", err)
+	}
+	if err := sleep(context.Background(), -time.Second); err != nil {
+		t.Errorf("sleep(-1s) = %v", err)
+	}
+	if err := sleep(context.Background(), time.Millisecond); err != nil {
+		t.Errorf("sleep(1ms) = %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	if err := sleep(ctx, time.Hour); !errors.Is(err, context.Canceled) || time.Since(start) > time.Second {
+		t.Errorf("sleep() with a canceled context = %v after %v; want it to stop at once", err, time.Since(start))
+	}
+}

@@ -20,6 +20,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
+	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
@@ -83,6 +84,8 @@ type Deps struct {
 	Passkeys *passkey.Service
 	// Audit is the audit trail of the workspaces.
 	Audit *audit.Service
+	// Quotas keeps the caps and quotas of the instance.
+	Quotas *limits.Service
 	// Admin is what the administrators of the instance do.
 	Admin *admin.Service
 	// Invites is the invitation service.

@@ -132,6 +132,9 @@ type Config struct {
 	MaxList int
 	// Limits are the most transfers that run at once; the others wait in the queue. Zero means no limit.
 	Limits scheduler.Limits
+	// Sleep waits between the chunks of a transfer that goes faster than its bandwidth cap, and stops when the context ends; a real timer by
+	// default. Tests replace it to watch the waits instead of living through them.
+	Sleep func(ctx context.Context, d time.Duration) error
 	// OnFinish, when set, is called with the record of every transfer that ends, whatever its outcome. It must be quick and must not
 	// call back into the transfer service.
 	OnFinish func(Transfer)
@@ -148,6 +151,9 @@ func (c Config) withDefaults() Config {
 	if c.MaxList <= 0 {
 		c.MaxList = 200
 	}
+	if c.Sleep == nil {
+		c.Sleep = sleep
+	}
 	return c
 }
 
@@ -160,8 +166,18 @@ type Service struct {
 	sched *scheduler.Scheduler
 	newID func() (uuid.UUID, error)
 
-	mu     sync.Mutex
-	active map[uuid.UUID]*Tracker
+	mu         sync.Mutex
+	active     map[uuid.UUID]*Tracker
+	quota      Quota
+	global     *shaper
+	perUser    map[uuid.UUID]*shaper
+	perUserCap int64
+}
+
+// Quota decides whether a person may start another transfer.
+type Quota interface {
+	// CheckTransfer returns an error when the person may not start one, such as [limits.ErrDailyQuota].
+	CheckTransfer(ctx context.Context, userID uuid.UUID) error
 }
 
 // NewService returns a service. newID may be nil to use UUIDv7.
@@ -169,7 +185,60 @@ func NewService(store Store, sink ports.EventSink, clock ports.Clock, cfg Config
 	if newID == nil {
 		newID = uuid.NewV7
 	}
-	return &Service{store: store, sink: sink, clock: clock, cfg: cfg.withDefaults(), sched: scheduler.New(cfg.Limits), newID: newID, active: map[uuid.UUID]*Tracker{}}
+	return &Service{store: store, sink: sink, clock: clock, cfg: cfg.withDefaults(), sched: scheduler.New(cfg.Limits), newID: newID, active: map[uuid.UUID]*Tracker{}, global: &shaper{}, perUser: map[uuid.UUID]*shaper{}}
+}
+
+// UseQuota makes the service ask a quota before it starts a transfer. Without one nothing is refused.
+func (s *Service) UseQuota(q Quota) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.quota = q
+}
+
+// SetLimits changes how many transfers run at once; the ones that already run are not interrupted and the ones that now fit are admitted.
+func (s *Service) SetLimits(limits scheduler.Limits) { s.sched.SetLimits(limits) }
+
+// SetBandwidth changes the caps on the bytes per second: one for all transfers of the server and one for the transfers of each person.
+// Zero removes a cap. It takes effect on the next chunk of every running transfer.
+func (s *Service) SetBandwidth(global, perUser int64) {
+	s.global.setRate(global)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.perUserCap = perUser
+	for _, sh := range s.perUser {
+		sh.setRate(perUser)
+	}
+}
+
+// shaperOf returns the shaper of a person, made on first use with the cap in force.
+func (s *Service) shaperOf(userID uuid.UUID) *shaper {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sh, ok := s.perUser[userID]
+	if !ok {
+		sh = &shaper{rate: s.perUserCap}
+		s.perUser[userID] = sh
+	}
+	return sh
+}
+
+// throttle makes a transfer that moved n bytes wait as long as the caps of the server and of the person ask, and stops when ctx ends.
+func (s *Service) throttle(ctx context.Context, userID uuid.UUID, n int64) {
+	now := s.clock.Now()
+	wait := max(s.global.reserve(now, n), s.shaperOf(userID).reserve(now, n))
+	_ = s.cfg.Sleep(ctx, wait)
+}
+
+// forget drops the shaper of a person who has no transfer left, so the table does not grow with every person who ever transferred.
+func (s *Service) forget(userID uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, k := range s.active {
+		if k.t.UserID == userID {
+			return
+		}
+	}
+	delete(s.perUser, userID)
 }
 
 // Recover marks the transfers that were in progress when the server stopped as interrupted. It runs once at startup.
