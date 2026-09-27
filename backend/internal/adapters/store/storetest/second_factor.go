@@ -22,10 +22,10 @@ type FactorFactory func(t *testing.T) FactorStore
 //
 // Scenarios:
 //   - a user without a factor is ErrNotEnrolled, a saved secret is unconfirmed, and confirming keeps the step and stores the recovery codes
-//   - saving again replaces the secret, resets the state and forgets the recovery codes
+//   - saving again replaces the secret and resets its state, and the recovery codes stay
 //   - a step is advanced only forward, so the same code cannot be used twice, and the first of two equal requests wins
 //   - a recovery code is used once, unknown codes are not found, replacing gives a full new set, and the unused ones are counted
-//   - deleting removes the secret and the recovery codes, and factors of other users are untouched
+//   - deleting removes the secret and keeps the recovery codes until they are replaced by nothing, and factors of other users are untouched
 func RunFactor(t *testing.T, newStore FactorFactory) {
 	t.Helper()
 	ctx := t.Context()
@@ -101,8 +101,8 @@ func RunFactor(t *testing.T, newStore FactorFactory) {
 	if f, _ := store.Factor(ctx, alice.ID); string(f.Sealed) != "sealed-2" || f.Confirmed || f.LastStep != 0 {
 		t.Fatalf("Factor() after saving again = %+v; want a fresh unconfirmed secret", f)
 	}
-	if n, _ := store.RecoveryLeft(ctx, alice.ID); n != 0 {
-		t.Fatalf("RecoveryLeft() after saving again = %d; want none", n)
+	if n, _ := store.RecoveryLeft(ctx, alice.ID); n != 2 {
+		t.Fatalf("RecoveryLeft() after saving again = %d; want the recovery codes kept", n)
 	}
 
 	if err := store.DeleteFactor(ctx, alice.ID); err != nil {
@@ -110,6 +110,15 @@ func RunFactor(t *testing.T, newStore FactorFactory) {
 	}
 	if _, err := store.Factor(ctx, alice.ID); !errors.Is(err, mfa.ErrNotEnrolled) {
 		t.Fatalf("Factor() after deleting = %v; want ErrNotEnrolled", err)
+	}
+	if n, _ := store.RecoveryLeft(ctx, alice.ID); n != 2 {
+		t.Fatalf("RecoveryLeft() after deleting the app = %d; want the recovery codes kept", n)
+	}
+	if err := store.ReplaceRecovery(ctx, alice.ID, nil); err != nil {
+		t.Fatalf("ReplaceRecovery(nothing) = %v", err)
+	}
+	if n, _ := store.RecoveryLeft(ctx, alice.ID); n != 0 {
+		t.Fatalf("RecoveryLeft() after clearing = %d; want none", n)
 	}
 	if f, err := store.Factor(ctx, bob.ID); err != nil || string(f.Sealed) != "bob" {
 		t.Fatalf("the factor of another user = %+v, %v; want it untouched", f, err)

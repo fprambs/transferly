@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/mfa"
+	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
@@ -159,6 +161,40 @@ func TestFactorStore_ReportsDatabaseFailures(t *testing.T) {
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, mfa.ErrNotEnrolled) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestPasskeyStore_Conformance runs the shared passkey store suite against Postgres.
+func TestPasskeyStore_Conformance(t *testing.T) {
+	storetest.RunPasskey(t, func(t *testing.T) storetest.PasskeyStore { return openMigrated(t) })
+}
+
+// TestPasskeyStore_ReportsDatabaseFailures verifies that every passkey operation returns the database error, using a closed pool, and that a
+// stored credential that cannot be read is reported.
+func TestPasskeyStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	id := uuid.New()
+	if _, err := store.DB().Exec(t.Context(), "INSERT INTO users (id, email, password_hash) VALUES ($1, 'a@example.com', 'x')", id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB().Exec(t.Context(), "INSERT INTO user_passkeys (id, user_id, name, credential_id, credential, created_at) VALUES ($1, $1, 'x', 'c', '[1]', now())", id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Passkeys(t.Context(), id); err == nil {
+		t.Error("Passkeys() read a credential that is not an object")
+	}
+	store.Close()
+	ctx := context.Background()
+	calls := map[string]error{
+		"Passkeys":      second(store.Passkeys(ctx, id)),
+		"AddPasskey":    store.AddPasskey(ctx, id, passkey.Passkey{ID: id}),
+		"DeletePasskey": store.DeletePasskey(ctx, id, id),
+		"TouchPasskey":  store.TouchPasskey(ctx, id, id, webauthn.Credential{}, time.Now()),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, passkey.ErrNotFound) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
 	}

@@ -293,10 +293,8 @@ func TestKeyWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 // TestFactorWrites_ReportFailuresInsideTheTransaction verifies that a failure at any step of a second factor change is returned.
 //
 // Scenarios:
-//   - saving fails when the transaction cannot start, when storing the secret, deleting the recovery codes and committing fail
 //   - confirming fails on the confirmation, on deleting the old codes, on inserting a new one and on committing
 //   - replacing the recovery codes fails on deleting, on inserting and on committing
-//   - deleting the factor fails on the secret, on the recovery codes and on committing
 func TestFactorWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.New()
@@ -305,10 +303,8 @@ func TestFactorWrites_ReportFailuresInsideTheTransaction(t *testing.T) {
 		steps []string
 		run   func(*Store) error
 	}{
-		"save":    {[]string{"totp-upsert", "recovery-delete", "commit"}, func(s *Store) error { return s.SaveFactor(ctx, id, nil) }},
 		"confirm": {[]string{"totp-confirm", "recovery-delete", "recovery-insert", "commit"}, func(s *Store) error { return s.ConfirmFactor(ctx, id, 1, codes) }},
 		"replace": {[]string{"recovery-delete", "recovery-insert", "commit"}, func(s *Store) error { return s.ReplaceRecovery(ctx, id, codes) }},
-		"delete":  {[]string{"totp-delete", "recovery-delete", "commit"}, func(s *Store) error { return s.DeleteFactor(ctx, id) }},
 	}
 	for name, c := range cases {
 		for _, step := range c.steps {

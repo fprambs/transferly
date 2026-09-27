@@ -126,6 +126,16 @@ type User struct {
 	Theme        string
 }
 
+type UserPasskey struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	Name         string
+	CredentialID []byte
+	Credential   []byte
+	CreatedAt    time.Time
+	LastUsedAt   *time.Time
+}
+
 type UserRecoveryCode struct {
 	UserID   uuid.UUID
 	CodeHash []byte

@@ -20,3 +20,7 @@ Sources: [RFC 4226](https://www.rfc-editor.org/rfc/rfc4226) (HOTP), [RFC 6238](h
 - The relying party ID is the registrable host of the site; the origin must match one of the allowed origins exactly. Browsers expose `navigator.credentials` only in secure contexts (https, or `localhost`).
 - Every ceremony starts with a fresh random challenge kept on the server; it is single use and expires. The response is verified for challenge, origin, RP ID hash, user presence, and the signature under the stored public key; the signature counter, when the authenticator supports it, must grow.
 - Registration excludes the credentials the user already has, so the same authenticator cannot be enrolled twice.
+
+## Testing WebAuthn
+
+`internal/core/passkey/passkeytest` is a software authenticator (ES256, no attestation) that answers the options a server sends the way a browser does, so the ceremonies are tested with real signatures and without a browser. The browser tests use the virtual authenticator of Chromium (`WebAuthn.addVirtualAuthenticator` over the DevTools protocol) and treat the test origin as secure with `--unsafely-treat-insecure-origin-as-secure`.

@@ -48,7 +48,6 @@ func (f *fakeStore) SaveFactor(_ context.Context, id uuid.UUID, sealed []byte) e
 		return err
 	}
 	f.factors[id] = mfa.Factor{Sealed: sealed}
-	delete(f.recovery, id)
 	return nil
 }
 
@@ -93,7 +92,6 @@ func (f *fakeStore) DeleteFactor(_ context.Context, id uuid.UUID) error {
 		return err
 	}
 	delete(f.factors, id)
-	delete(f.recovery, id)
 	return nil
 }
 
@@ -231,7 +229,7 @@ func TestURI(t *testing.T) {
 // Scenarios:
 //   - nothing is enrolled at first; beginning gives a base32 secret and an address but does not enable the factor
 //   - confirming with a right code enables it and gives ten recovery codes; a wrong code, an unstarted setup and a repeated confirmation are refused
-//   - the status reports the factor and the unused recovery codes, and disabling removes everything
+//   - the status reports the factor and the unused recovery codes, disabling removes the app and keeps the recovery codes until they are cleared
 //   - the stored secret is sealed: it is not the raw secret, and another user's copy cannot be opened
 //   - failures of the store are returned
 func TestService_Enrolment(t *testing.T) {
@@ -263,7 +261,7 @@ func TestService_Enrolment(t *testing.T) {
 	if status, err := e.svc.Status(ctx, e.user); err != nil || !status.TOTP || status.RecoveryLeft != 10 {
 		t.Errorf("Status() = %+v, %v", status, err)
 	}
-	if status, _ := e.svc.Status(ctx, uuid.New()); status.TOTP {
+	if status, _ := e.svc.Status(ctx, uuid.New()); status.TOTP || status.RecoveryLeft != 0 {
 		t.Error("a user without a factor reports one")
 	}
 
@@ -284,8 +282,11 @@ func TestService_Enrolment(t *testing.T) {
 	if err := e.svc.Disable(ctx, e.user); err != nil {
 		t.Fatal(err)
 	}
-	if enabled, _ := e.svc.Enabled(ctx, e.user); enabled || len(e.store.recovery[e.user]) != 0 {
-		t.Error("disabling left the factor or the recovery codes")
+	if enabled, _ := e.svc.Enabled(ctx, e.user); enabled || len(e.store.recovery[e.user]) != 10 {
+		t.Error("disabling left the factor, or removed the recovery codes, which belong to the account")
+	}
+	if err := e.svc.ClearRecovery(ctx, e.user); err != nil || len(e.store.recovery[e.user]) != 0 {
+		t.Errorf("ClearRecovery() = %v with %d codes left", err, len(e.store.recovery[e.user]))
 	}
 
 	for _, op := range []string{"save", "confirm", "factor", "left", "delete"} {
@@ -302,6 +303,9 @@ func TestService_Enrolment(t *testing.T) {
 			_, got = failing.svc.ConfirmTOTP(ctx, failing.user, mfa.Code(s, failing.clock.Now()))
 		case "factor":
 			_, got = failing.svc.Enabled(ctx, failing.user)
+			if _, err := failing.svc.Status(ctx, failing.user); !errors.Is(err, errBoom) {
+				t.Errorf("status with a failing lookup = %v", err)
+			}
 			if _, err := failing.svc.ConfirmTOTP(ctx, failing.user, "1"); !errors.Is(err, errBoom) {
 				t.Errorf("confirm with a failing lookup = %v", err)
 			}

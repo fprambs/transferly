@@ -57,16 +57,16 @@ type Factor struct {
 type Store interface {
 	// Factor returns the authenticator app of a user, or [ErrNotEnrolled].
 	Factor(ctx context.Context, userID uuid.UUID) (Factor, error)
-	// SaveFactor stores a new unconfirmed secret, replacing any earlier one and the recovery codes.
+	// SaveFactor stores a new unconfirmed secret, replacing any earlier one.
 	SaveFactor(ctx context.Context, userID uuid.UUID, sealed []byte) error
 	// ConfirmFactor marks the secret confirmed at a step and stores the hashes of the recovery codes, in one step.
 	ConfirmFactor(ctx context.Context, userID uuid.UUID, step int64, recovery [][]byte) error
 	// AdvanceStep records a step as used and reports whether it was newer than the last one, so a code is accepted once even under
 	// concurrent requests.
 	AdvanceStep(ctx context.Context, userID uuid.UUID, step int64) (bool, error)
-	// DeleteFactor removes the authenticator app and the recovery codes of a user.
+	// DeleteFactor removes the authenticator app of a user.
 	DeleteFactor(ctx context.Context, userID uuid.UUID) error
-	// ReplaceRecovery stores a new set of recovery code hashes, unused, in place of the old one.
+	// ReplaceRecovery stores a new set of recovery code hashes, unused, in place of the old one; an empty set removes them all.
 	ReplaceRecovery(ctx context.Context, userID uuid.UUID, recovery [][]byte) error
 	// UseRecovery marks the recovery code with that hash used and reports whether it was there and unused.
 	UseRecovery(ctx context.Context, userID uuid.UUID, hash []byte) (bool, error)
@@ -135,14 +135,15 @@ type Status struct {
 	RecoveryLeft int
 }
 
-// Status returns the state of the second factor of a user.
+// Status returns the state of the second factor of a user. Recovery codes belong to the account, not to the app, so they are counted
+// whenever they exist: a user with only passkeys has them too.
 func (s *Service) Status(ctx context.Context, userID uuid.UUID) (Status, error) {
 	enabled, err := s.Enabled(ctx, userID)
-	if err != nil || !enabled {
+	if err != nil {
 		return Status{}, err
 	}
 	left, err := s.store.RecoveryLeft(ctx, userID)
-	return Status{TOTP: true, RecoveryLeft: left}, err
+	return Status{TOTP: enabled, RecoveryLeft: left}, err
 }
 
 // BeginTOTP creates a secret for the user and returns it as base32 with the address an authenticator app scans. It is not active until
@@ -189,25 +190,33 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID uuid.UUID, given strin
 	return plain, nil
 }
 
-// Disable removes the second factor of a user.
+// Disable removes the authenticator app of a user. Their recovery codes stay: see [Service.ClearRecovery].
 func (s *Service) Disable(ctx context.Context, userID uuid.UUID) error {
 	return s.store.DeleteFactor(ctx, userID)
 }
 
-// RegenerateRecovery replaces the recovery codes of a user with new ones, shown once.
+// ClearRecovery removes the recovery codes of a user, for when their last second factor was removed.
+func (s *Service) ClearRecovery(ctx context.Context, userID uuid.UUID) error {
+	return s.store.ReplaceRecovery(ctx, userID, nil)
+}
+
+// RegenerateRecovery replaces the recovery codes of a user with new ones, shown once. The caller checks that the user has a second factor.
 func (s *Service) RegenerateRecovery(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	enabled, err := s.Enabled(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if !enabled {
-		return nil, ErrNotEnrolled
-	}
 	plain, hashes, err := s.newRecovery()
 	if err != nil {
 		return nil, err
 	}
 	return plain, s.store.ReplaceRecovery(ctx, userID, hashes)
+}
+
+// EnsureRecovery creates recovery codes for a user who has none, returning them, and returns nothing for one who already has some. It is
+// used when a user gets a second factor other than the app, so losing it never locks them out.
+func (s *Service) EnsureRecovery(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	left, err := s.store.RecoveryLeft(ctx, userID)
+	if err != nil || left > 0 {
+		return nil, err
+	}
+	return s.RegenerateRecovery(ctx, userID)
 }
 
 // recoveryEncoding renders recovery codes with letters and digits that are hard to mix up.
@@ -238,14 +247,14 @@ func hashRecovery(text string) []byte {
 // VerifyCode checks the second step of signing in: a code from the authenticator app, or a recovery code. A code works once.
 func (s *Service) VerifyCode(ctx context.Context, userID uuid.UUID, given string) error {
 	clean := strings.ToUpper(strings.NewReplacer(" ", "", "-", "").Replace(given))
-	f, err := s.store.Factor(ctx, userID)
-	if errors.Is(err, ErrNotEnrolled) || (err == nil && !f.Confirmed) {
-		return ErrNotEnrolled
-	}
-	if err != nil {
-		return err
-	}
 	if len(clean) == digits {
+		f, err := s.store.Factor(ctx, userID)
+		if errors.Is(err, ErrNotEnrolled) || (err == nil && !f.Confirmed) {
+			return ErrNotEnrolled
+		}
+		if err != nil {
+			return err
+		}
 		secret, err := s.open(userID, f.Sealed)
 		if err != nil {
 			return err

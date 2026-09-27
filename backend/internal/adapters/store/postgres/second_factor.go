@@ -25,14 +25,9 @@ func (s *Store) Factor(ctx context.Context, userID uuid.UUID) (mfa.Factor, error
 	return mfa.Factor{Sealed: r.Sealed, Confirmed: r.Confirmed, LastStep: r.LastStep}, nil
 }
 
-// SaveFactor implements [mfa.Store]: the new secret and the removal of the old recovery codes happen in one transaction.
+// SaveFactor implements [mfa.Store].
 func (s *Store) SaveFactor(ctx context.Context, userID uuid.UUID, sealed []byte) error {
-	return s.inTx(ctx, func(q *db.Queries) error {
-		if err := q.UpsertTotp(ctx, db.UpsertTotpParams{UserID: userID, Sealed: sealed}); err != nil {
-			return err
-		}
-		return q.DeleteRecoveryCodes(ctx, userID)
-	})
+	return s.queries.UpsertTotp(ctx, db.UpsertTotpParams{UserID: userID, Sealed: sealed})
 }
 
 // ConfirmFactor implements [mfa.Store].
@@ -66,12 +61,7 @@ func (s *Store) AdvanceStep(ctx context.Context, userID uuid.UUID, step int64) (
 
 // DeleteFactor implements [mfa.Store].
 func (s *Store) DeleteFactor(ctx context.Context, userID uuid.UUID) error {
-	return s.inTx(ctx, func(q *db.Queries) error {
-		if err := q.DeleteTotp(ctx, userID); err != nil {
-			return err
-		}
-		return q.DeleteRecoveryCodes(ctx, userID)
-	})
+	return s.queries.DeleteTotp(ctx, userID)
 }
 
 // ReplaceRecovery implements [mfa.Store].

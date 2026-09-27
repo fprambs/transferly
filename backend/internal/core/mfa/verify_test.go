@@ -50,6 +50,9 @@ func TestService_VerifyCode(t *testing.T) {
 	if err := pending.svc.VerifyCode(ctx, pending.user, "123456"); !errors.Is(err, mfa.ErrNotEnrolled) {
 		t.Errorf("an unconfirmed setup = %v; want ErrNotEnrolled", err)
 	}
+	if err := e.svc.VerifyCode(ctx, uuid.New(), "ABCDE-FGHIJ"); !errors.Is(err, mfa.ErrInvalidCode) {
+		t.Errorf("an unknown recovery code = %v; want ErrInvalidCode", err)
+	}
 
 	if err := e.svc.VerifyCode(ctx, e.user, strings.ToLower(recovery[0])); err != nil {
 		t.Errorf("a recovery code in lower case = %v", err)
@@ -105,16 +108,36 @@ func TestService_Recovery(t *testing.T) {
 	if err := e.svc.VerifyCode(ctx, e.user, fresh[0]); err != nil {
 		t.Errorf("a new code = %v", err)
 	}
-	if _, err := e.svc.RegenerateRecovery(ctx, uuid.New()); !errors.Is(err, mfa.ErrNotEnrolled) {
-		t.Errorf("without a factor = %v; want ErrNotEnrolled", err)
-	}
 	e.store.fail["replace"] = errBoom
 	if _, err := e.svc.RegenerateRecovery(ctx, e.user); !errors.Is(err, errBoom) {
 		t.Errorf("replace failure = %v", err)
 	}
-	e.store.fail = map[string]error{"factor": errBoom}
-	if _, err := e.svc.RegenerateRecovery(ctx, e.user); !errors.Is(err, errBoom) {
-		t.Errorf("lookup failure = %v", err)
+}
+
+// TestService_EnsureRecovery verifies creating recovery codes for a user whose second factor is not the app.
+//
+// Scenarios:
+//   - a user without codes gets ten, which work, and one who already has some gets nothing new and keeps them
+//   - a user who had passkeys only can sign in with a recovery code, and failures of the store are returned
+func TestService_EnsureRecovery(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv()
+	codes, err := e.svc.EnsureRecovery(ctx, e.user)
+	if err != nil || len(codes) != mfa.RecoveryCodes {
+		t.Fatalf("EnsureRecovery() = %v, %v; want ten codes", codes, err)
+	}
+	if again, err := e.svc.EnsureRecovery(ctx, e.user); err != nil || again != nil {
+		t.Errorf("second EnsureRecovery() = %v, %v; want nothing new", again, err)
+	}
+	if status, _ := e.svc.Status(ctx, e.user); status.TOTP || status.RecoveryLeft != 10 {
+		t.Errorf("Status() = %+v; want no app and ten codes", status)
+	}
+	if err := e.svc.VerifyCode(ctx, e.user, codes[0]); err != nil {
+		t.Errorf("a recovery code without the app = %v", err)
+	}
+	e.store.fail["left"] = errBoom
+	if _, err := e.svc.EnsureRecovery(ctx, e.user); !errors.Is(err, errBoom) {
+		t.Errorf("count failure = %v", err)
 	}
 }
 
