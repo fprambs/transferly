@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
+import { totpCode } from '../totp.ts'
 
 /** Where the screenshots are written, relative to the frontend folder. */
 const folder = 'shots'
@@ -148,5 +149,40 @@ test.describe('screenshots', () => {
     await page.goto('/members')
     await expect(page.getByRole('heading', { name: 'Miembros', exact: true })).toBeVisible()
     await shoot(page, '18-members-es')
+
+    await shell.setLanguage('en')
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    const section = page.getByRole('heading', { name: 'Two-step verification' }).locator('xpath=ancestor::section')
+    await section.scrollIntoViewIfNeeded()
+    await shoot(page, '19-security-off')
+    await section.getByRole('button', { name: 'Turn on' }).click()
+    const enable = page.getByRole('dialog', { name: 'Turn on two-step verification' })
+    await expect(enable.getByRole('img', { name: /QR code/ })).toBeVisible()
+    await shoot(page, '20-enable-two-step')
+    const secret = (await enable.locator('code').textContent()) ?? ''
+    await enable.getByLabel('Code from the app').fill(totpCode(secret))
+    await enable.getByRole('button', { name: 'Confirm' }).click()
+    await expect(page.getByRole('dialog', { name: 'Save your recovery codes' })).toBeVisible()
+    await shoot(page, '21-recovery-codes')
+    await page.getByRole('button', { name: 'I have saved them' }).click()
+    await section.scrollIntoViewIfNeeded()
+    await shoot(page, '22-security-on')
+
+    const clean = await browser.newContext({ baseURL, viewport: { width: 1280, height: 820 }, storageState: { cookies: [], origins: [] } })
+    const login = await clean.newPage()
+    await login.goto('/login')
+    await login.getByLabel('Email').fill('e2e@example.com')
+    await login.getByLabel('Password').fill('a long e2e password')
+    await login.getByRole('button', { name: 'Sign in' }).click()
+    await expect(login.getByLabel('Code')).toBeVisible()
+    await shoot(login, '23-login-code-step')
+    await clean.close()
+
+    await section.getByRole('button', { name: 'Turn off' }).click()
+    const off = page.getByRole('dialog', { name: 'Turn off two-step verification' })
+    await off.getByLabel('Account password').fill('a long e2e password')
+    await off.getByRole('button', { name: 'Turn off' }).click()
+    await expect(section.getByText('Off', { exact: true })).toBeVisible()
   })
 })

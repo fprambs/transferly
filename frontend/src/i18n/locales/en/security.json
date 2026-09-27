@@ -1,0 +1,61 @@
+{
+  "login": {
+    "title": "Two-step verification",
+    "subtitle": "Enter the 6 digit code of your authenticator app, or one of your recovery codes.",
+    "code": "Code",
+    "submit": "Verify",
+    "back": "Use another account",
+    "hint": "A recovery code works once. Codes from the app change every 30 seconds."
+  },
+  "errors": {
+    "invalid_code": "The code is not right. Try the next one from the app, or a recovery code.",
+    "invalid_challenge": "The sign-in took too long. Enter your password again.",
+    "invalid_password": "The password is not right.",
+    "totp_not_started": "Start setting up the app again.",
+    "totp_not_enabled": "The second factor is not enabled.",
+    "user_disabled": "This account is disabled.",
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "network_error": "Could not reach the server.",
+    "unknown": "Something went wrong. Try again.",
+    "codeRequired": "Enter the code.",
+    "passwordRequired": "Enter your password."
+  },
+  "section": {
+    "title": "Two-step verification",
+    "description": "Ask for a code from an authenticator app after your password, so a stolen password is not enough to reach your servers.",
+    "statusOn": "On",
+    "statusOff": "Off",
+    "recoveryLeft": "{{count}} recovery codes left",
+    "enable": "Turn on",
+    "disable": "Turn off",
+    "regenerate": "New recovery codes",
+    "loading": "Loading…"
+  },
+  "enable": {
+    "title": "Turn on two-step verification",
+    "scan": "Scan this code with an authenticator app such as Aegis, 2FAS, Google Authenticator or 1Password.",
+    "qrAlt": "QR code to add Sentinel to an authenticator app",
+    "manual": "Can't scan? Type this key instead",
+    "code": "Code from the app",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "working": "Preparing…"
+  },
+  "recovery": {
+    "title": "Save your recovery codes",
+    "description": "Each code works once if you lose your authenticator. They are shown only now: store them somewhere safe and offline.",
+    "copy": "Copy all",
+    "copied": "Copied",
+    "done": "I have saved them"
+  },
+  "password": {
+    "disableTitle": "Turn off two-step verification",
+    "disableBody": "Your account will need only the password to sign in. Enter it to confirm.",
+    "regenerateTitle": "New recovery codes",
+    "regenerateBody": "The old codes stop working. Enter your password to confirm.",
+    "password": "Account password",
+    "confirmDisable": "Turn off",
+    "confirmRegenerate": "Create new codes",
+    "cancel": "Cancel"
+  }
+}

@@ -5,6 +5,8 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { supportedLanguages } from '@/i18n'
 import { useUiStore } from '@/state/ui-store'
 
+import { SecuritySection } from '../security/SecuritySection'
+
 import { ThemeList } from './ThemeList'
 import { useThemeChoice } from './use-theme-choice'
 
@@ -57,6 +59,7 @@ export function SettingsPage() {
           ))}
         </NativeSelect>
       </section>
+      <SecuritySection />
     </div>
   )
 }

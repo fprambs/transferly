@@ -32,7 +32,8 @@
     "nameRequired": "Escribe un nombre.",
     "emailRequired": "Escribe un correo.",
     "passwordShort": "Usa al menos 12 caracteres.",
-    "passwordMismatch": "Las contraseñas no coinciden."
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "invalid_challenge": "El inicio de sesión tardó demasiado. Escribe de nuevo tu contraseña."
   },
   "page": {
     "label": "Miembros",

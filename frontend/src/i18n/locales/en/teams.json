@@ -32,7 +32,8 @@
     "nameRequired": "Enter a name.",
     "emailRequired": "Enter an email address.",
     "passwordShort": "Use at least 12 characters.",
-    "passwordMismatch": "The passwords do not match."
+    "passwordMismatch": "The passwords do not match.",
+    "invalid_challenge": "The sign-in took too long. Enter your password again."
   },
   "page": {
     "label": "Members",

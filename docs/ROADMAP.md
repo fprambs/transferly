@@ -231,7 +231,7 @@ Decisiones de diseño en [ADR-0006](adr/0006-teams-and-invitations.md).
 - [x] 3.3 Claves X25519 por usuario y clave de workspace compartida; rotación al quitar un miembro o salir (guía [workspace-keys](guides/workspace-keys.md))
 - [x] 3.4 RBAC en API y UI (miembros, invitaciones, roles, transferencia, salida)
 - [x] 3.5 Vista de auditoría (eventos de miembros, invitaciones, sitios, claves y servidores de confianza; solo la leen admins y propietario)
-- [ ] 3.6 TOTP y passkeys
+- [ ] 3.6 TOTP (hecho: app de autenticación, códigos de recuperación, segundo paso al iniciar sesión) y passkeys (pendiente)
 - [ ] 3.7 Panel de administración de la instancia y política de red
 - [ ] 3.8 Cuotas y límites de ancho de banda
 - [ ] 3.9 Revisión de seguridad de la fase: IDOR y acceso entre workspaces, escalada de privilegios entre roles, sellado y rotación de claves, abuso de invitaciones, bypass de 2FA, enumeración de usuarios

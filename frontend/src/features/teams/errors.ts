@@ -17,6 +17,7 @@ const teamErrorKeys = [
   'account_exists',
   'weak_password',
   'invalid_credentials',
+  'invalid_challenge',
   'rate_limited',
   'network_error',
 ] as const

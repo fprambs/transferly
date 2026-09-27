@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { adminSession, mockSession, mockUpdateMe, mockWorkspaceData, problem } from '@/test/handlers'
+import { adminSession, mockSecurity, mockSession, mockUpdateMe, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 import { useUiStore } from '@/state/ui-store'
@@ -24,6 +24,7 @@ describe('settings', () => {
     useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false })
     mockSession(adminSession)
     mockWorkspaceData()
+    mockSecurity()
   })
 
   it('lists the themes with the current one checked', async () => {

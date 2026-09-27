@@ -50,6 +50,7 @@ function mockJoinedWorkspaces(): void {
  * - an address without an account chooses a password twice, is told when it is short or does not match, and joins as a signed-in member
  *   even when the workspace is not listed yet
  * - an address with an account signs in with its fixed email and joins, and a wrong password is explained
+ * - an account with a second factor gives its code first, and an expired challenge or going back returns to the password
  * - somebody already signed in as the invited address joins with one click, and any failure is explained
  * - somebody signed in as another account is told so and can sign out
  */
@@ -175,6 +176,53 @@ describe('accept invitation page', () => {
     expect(login).toEqual({ email: 'ana@acme.dev', password: 'my account password' })
     expect(accepted).toEqual({ token: 'tok-abc' })
     expect(useUiStore.getState().workspaceId).toBe(teamId)
+  })
+
+  it('asks an account with a second factor for its code before joining', async () => {
+    mockSession(null)
+    mockPreview({ accountExists: true })
+    let accepted = false
+    server.use(
+      http.post('/api/v1/auth/login', () => HttpResponse.json({ challenge: 'chal-1', methods: ['totp'] }, { status: 202 })),
+      http.post('/api/v1/auth/mfa', () => HttpResponse.json(anaSession)),
+      http.post('/api/v1/invitations/accept', () => {
+        accepted = true
+        return HttpResponse.json(teamWorkspace('editor'))
+      }),
+    )
+    mockJoinedWorkspaces()
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/invite#tok-abc' })
+
+    await user.type(await screen.findByLabelText('Account password'), 'my account password')
+    await user.click(screen.getByRole('button', { name: 'Sign in and join' }))
+    await user.type(await screen.findByLabelText('Code'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Verify' }))
+
+    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    expect(accepted).toBe(true)
+  })
+
+  it('returns to the password of the invitation when the challenge expired or the user goes back', async () => {
+    mockSession(null)
+    mockPreview({ accountExists: true })
+    server.use(
+      http.post('/api/v1/auth/login', () => HttpResponse.json({ challenge: 'chal-1', methods: ['totp'] }, { status: 202 })),
+      http.post('/api/v1/auth/mfa', () => problem(401, 'invalid_challenge')),
+    )
+    const user = userEvent.setup()
+    await renderApp({ path: '/invite#tok-abc' })
+
+    await user.type(await screen.findByLabelText('Account password'), 'my account password')
+    await user.click(screen.getByRole('button', { name: 'Sign in and join' }))
+    await user.type(await screen.findByLabelText('Code'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Verify' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The sign-in took too long.')
+
+    await user.type(screen.getByLabelText('Account password'), 'my account password')
+    await user.click(screen.getByRole('button', { name: 'Sign in and join' }))
+    await user.click(await screen.findByRole('button', { name: 'Use another account' }))
+    expect(await screen.findByLabelText('Account password')).toBeInTheDocument()
   })
 
   it('explains a wrong password', async () => {

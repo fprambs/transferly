@@ -22,6 +22,8 @@ Before using a library for the first time, read its official documentation and r
 | [Transfer scheduler](transfer-scheduler.md) | done |
 | [Character sets of file names](charset.md) | done |
 | [Workspace keys](workspace-keys.md) | done |
+| [Second factor (TOTP, WebAuthn)](second-factor.md) | done |
+| [QR codes (qrcode)](qr-codes.md) | done |
 | [Remote files API](remote-files-api.md) | done |
 | [coder/websocket](websocket.md) | done |
 | [Theming](theming.md) | done |

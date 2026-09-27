@@ -13,6 +13,8 @@ import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
 import { useUiStore } from '@/state/ui-store'
 
+import { MfaStep } from '../security/MfaStep'
+import { needsSecondStep } from '../security/errors'
 import { workspacesKey } from '../workspace/use-workspace'
 
 import { teamErrorKeyOf, type TeamErrorKey } from './errors'
@@ -159,21 +161,44 @@ function SignInForm({ token, preview }: InvitationProps) {
   const startSession = useStartSession()
   const enter = useEnter()
   const [password, setPassword] = useState('')
+  const [challenge, setChallenge] = useState<string | null>(null)
   const [failure, setFailure] = useState<TeamErrorKey | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const finish = async (session: SessionInfo) => {
+    startSession(session)
+    await enter((await api.invitations.accept(token)).id)
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     try {
-      startSession(await api.auth.login({ email: preview.email, password }))
-      const joined = await api.invitations.accept(token)
-      await enter(joined.id)
+      const answer = await api.auth.login({ email: preview.email, password })
+      if (needsSecondStep(answer)) {
+        setChallenge(answer.challenge)
+        return
+      }
+      await finish(answer)
     } catch (error) {
       setFailure(teamErrorKeyOf(error))
       setPassword('')
       setBusy(false)
     }
+  }
+
+  if (challenge !== null) {
+    return (
+      <MfaStep
+        challenge={challenge}
+        onVerified={finish}
+        onRestart={(expired) => {
+          setChallenge(null)
+          setBusy(false)
+          setFailure(expired ? 'invalid_challenge' : null)
+        }}
+      />
+    )
   }
 
   return (

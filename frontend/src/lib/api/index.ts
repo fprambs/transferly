@@ -27,6 +27,14 @@ export type Invitation = Schemas['Invitation']
 export type InvitationCreated = Schemas['InvitationCreated']
 /** What an invitation offers, for whoever holds its token. */
 export type InvitationPreview = Schemas['InvitationPreview']
+/** The password step of a sign-in that needs a second step. */
+export type MfaChallenge = Schemas['MfaChallenge']
+/** What is enabled for the second factor of the account. */
+export type SecurityStatus = Schemas['SecurityStatus']
+/** The secret and address of an authenticator app being set up. */
+export type TotpSetup = Schemas['TotpSetup']
+/** What a sign-in with a password answers: a session, or a challenge for the second step. */
+export type LoginResult = SessionInfo | MfaChallenge
 /** One line of the audit trail of a workspace. */
 export type AuditEvent = Schemas['AuditEvent']
 /** A collection that groups sites. */
@@ -119,7 +127,13 @@ export function createApi(transport: Transport) {
     auth: {
       setupStatus: () => transport.request<{ required: boolean }>({ method: 'GET', path: `${root}/setup/status` }),
       setup: (credentials: Credentials) => transport.request<SessionInfo>({ method: 'POST', path: `${root}/setup`, body: credentials }),
-      login: (credentials: Credentials) => transport.request<SessionInfo>({ method: 'POST', path: `${root}/auth/login`, body: credentials }),
+      login: (credentials: Credentials) => transport.request<LoginResult>({ method: 'POST', path: `${root}/auth/login`, body: credentials }),
+      verifyMfa: (challenge: string, code: string) => transport.request<SessionInfo>({ method: 'POST', path: `${root}/auth/mfa`, body: { challenge, code } }),
+      security: () => transport.request<SecurityStatus>({ method: 'GET', path: `${root}/me/security` }),
+      beginTotp: () => transport.request<TotpSetup>({ method: 'POST', path: `${root}/me/totp` }),
+      confirmTotp: (code: string) => transport.request<{ codes: string[] }>({ method: 'POST', path: `${root}/me/totp/confirm`, body: { code } }),
+      disableTotp: (password: string) => transport.request<void>({ method: 'POST', path: `${root}/me/totp/disable`, body: { password } }),
+      regenerateRecoveryCodes: (password: string) => transport.request<{ codes: string[] }>({ method: 'POST', path: `${root}/me/recovery-codes`, body: { password } }),
       logout: () => transport.request<void>({ method: 'POST', path: `${root}/auth/logout` }),
       me: () => transport.request<SessionInfo>({ method: 'GET', path: `${root}/me` }),
       updateMe: (preferences: Preferences) => transport.request<User>({ method: 'PATCH', path: `${root}/me`, body: preferences }),

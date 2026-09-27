@@ -1,0 +1,61 @@
+{
+  "login": {
+    "title": "Verificación en dos pasos",
+    "subtitle": "Escribe el código de 6 dígitos de tu app de autenticación, o uno de tus códigos de recuperación.",
+    "code": "Código",
+    "submit": "Verificar",
+    "back": "Usar otra cuenta",
+    "hint": "Un código de recuperación sirve una sola vez. Los de la app cambian cada 30 segundos."
+  },
+  "errors": {
+    "invalid_code": "El código no es correcto. Prueba el siguiente de la app, o un código de recuperación.",
+    "invalid_challenge": "El inicio de sesión tardó demasiado. Escribe de nuevo tu contraseña.",
+    "invalid_password": "La contraseña no es correcta.",
+    "totp_not_started": "Empieza de nuevo la configuración de la app.",
+    "totp_not_enabled": "El segundo factor no está activado.",
+    "user_disabled": "Esta cuenta está desactivada.",
+    "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+    "network_error": "No se pudo contactar con el servidor.",
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "codeRequired": "Escribe el código.",
+    "passwordRequired": "Escribe tu contraseña."
+  },
+  "section": {
+    "title": "Verificación en dos pasos",
+    "description": "Pide un código de una app de autenticación después de tu contraseña, para que una contraseña robada no baste para llegar a tus servidores.",
+    "statusOn": "Activada",
+    "statusOff": "Desactivada",
+    "recoveryLeft": "{{count}} códigos de recuperación",
+    "enable": "Activar",
+    "disable": "Desactivar",
+    "regenerate": "Nuevos códigos de recuperación",
+    "loading": "Cargando…"
+  },
+  "enable": {
+    "title": "Activar la verificación en dos pasos",
+    "scan": "Escanea este código con una app de autenticación como Aegis, 2FAS, Google Authenticator o 1Password.",
+    "qrAlt": "Código QR para añadir Sentinel a una app de autenticación",
+    "manual": "¿No puedes escanear? Escribe esta clave",
+    "code": "Código de la app",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "working": "Preparando…"
+  },
+  "recovery": {
+    "title": "Guarda tus códigos de recuperación",
+    "description": "Cada código sirve una vez si pierdes tu autenticador. Solo se muestran ahora: guárdalos en un lugar seguro y sin conexión.",
+    "copy": "Copiar todos",
+    "copied": "Copiado",
+    "done": "Ya los guardé"
+  },
+  "password": {
+    "disableTitle": "Desactivar la verificación en dos pasos",
+    "disableBody": "Tu cuenta solo necesitará la contraseña para entrar. Escríbela para confirmar.",
+    "regenerateTitle": "Nuevos códigos de recuperación",
+    "regenerateBody": "Los códigos anteriores dejan de funcionar. Escribe tu contraseña para confirmar.",
+    "password": "Contraseña de la cuenta",
+    "confirmDisable": "Desactivar",
+    "confirmRegenerate": "Crear códigos nuevos",
+    "cancel": "Cancelar"
+  }
+}

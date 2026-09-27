@@ -10,8 +10,12 @@ import { sessionKey, setupKey } from '@/app/session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import type { SessionInfo } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
+
+import { MfaStep } from '../security/MfaStep'
+import { needsSecondStep } from '../security/errors'
 
 import { errorKeyOf, type ErrorKey } from './errors'
 
@@ -36,16 +40,19 @@ function schemaFor(mode: AuthMode) {
 export interface AuthFormProps {
   /** Whether the form signs in or creates the first administrator. */
   mode: AuthMode
+  /** Called when the form moves to the second step of signing in and back, so the screen can change its heading. */
+  onSecondStepChange?: (active: boolean) => void
 }
 
 /** Email and password form of the login and first-run setup screens. */
-export function AuthForm({ mode }: AuthFormProps) {
+export function AuthForm({ mode, onSecondStepChange }: AuthFormProps) {
   const { t } = useTranslation('auth')
   const api = useApi()
   const transport = useTransport()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [failure, setFailure] = useState<ErrorKey | null>(null)
+  const [challenge, setChallenge] = useState<string | null>(null)
   const schema = schemaFor(mode)
   const {
     register,
@@ -54,19 +61,42 @@ export function AuthForm({ mode }: AuthFormProps) {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema) })
 
+  const start = async (session: SessionInfo) => {
+    transport.setCsrfToken(session.csrfToken)
+    queryClient.setQueryData(sessionKey, session)
+    queryClient.setQueryData(setupKey, false)
+    await navigate({ to: '/' })
+  }
+
   const submit = handleSubmit(async (values) => {
     setFailure(null)
     try {
-      const session = await (mode === 'setup' ? api.auth.setup(values) : api.auth.login(values))
-      transport.setCsrfToken(session.csrfToken)
-      queryClient.setQueryData(sessionKey, session)
-      queryClient.setQueryData(setupKey, false)
-      await navigate({ to: '/' })
+      const answer = await (mode === 'setup' ? api.auth.setup(values) : api.auth.login(values))
+      if (needsSecondStep(answer)) {
+        setChallenge(answer.challenge)
+        onSecondStepChange?.(true)
+        return
+      }
+      await start(answer)
     } catch (error) {
       setFailure(errorKeyOf(error))
       reset({ email: values.email, password: '' })
     }
   })
+
+  if (challenge !== null) {
+    return (
+      <MfaStep
+        challenge={challenge}
+        onVerified={start}
+        onRestart={(expired) => {
+          setChallenge(null)
+          onSecondStepChange?.(false)
+          setFailure(expired ? 'invalid_challenge' : null)
+        }}
+      />
+    )
+  }
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
