@@ -238,7 +238,7 @@ func TestAdmin_Networks(t *testing.T) {
 	r := e.root.call(http.MethodPut, "/api/v1/admin/networks", map[string][]string{"networks": {"192.168.1.9/24", "192.168.1.0/24", "10.0.0.5"}})
 	var set httpapi.Networks
 	mustDecode(t, r.Body, &set)
-	if r.Status != http.StatusOK || len(set.Custom) != 2 || set.Custom[0] != "192.168.1.0/24" || set.Custom[1] != "10.0.0.5/32" {
+	if r.Status != http.StatusOK || len(set.Custom) != 2 || set.Custom[0] != "10.0.0.5/32" || set.Custom[1] != "192.168.1.0/24" {
 		t.Fatalf("replace = %d %+v", r.Status, set)
 	}
 	if got := e.a.policy.Extra(); len(got) != 2 {

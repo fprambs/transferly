@@ -310,13 +310,13 @@ func TestService_ResetSecondFactor(t *testing.T) {
 // TestParseNetworks verifies reading networks written as text.
 //
 // Scenarios:
-//   - networks and single addresses are accepted, masked, without repeats and in the order given, IPv4-mapped addresses as IPv4
+//   - networks and single addresses are accepted, masked, without repeats and sorted by address, IPv4-mapped addresses as IPv4
 //   - entries that are not networks, networks wider than /8 (IPv4) or /7 (IPv6), and every range that is never allowed are refused, including
 //     wider networks that contain one
 //   - more than the maximum is refused
 func TestParseNetworks(t *testing.T) {
 	got, err := admin.ParseNetworks([]string{" 192.168.1.77/24 ", "10.0.0.1", "192.168.1.0/24", "::ffff:10.1.1.1", "fd12::/16", "8.0.0.0/8"})
-	want := []string{"192.168.1.0/24", "10.0.0.1/32", "10.1.1.1/32", "fd12::/16", "8.0.0.0/8"}
+	want := []string{"8.0.0.0/8", "10.0.0.1/32", "10.1.1.1/32", "192.168.1.0/24", "fd12::/16"}
 	if err != nil || len(got) != len(want) {
 		t.Fatalf("ParseNetworks() = %v, %v; want %v", got, err, want)
 	}
@@ -349,7 +349,7 @@ func TestParseNetworks(t *testing.T) {
 //
 // Scenarios:
 //   - replacing stores the parsed networks with the actor and the time, applies them to the policy and returns both lists
-//   - reading returns the fixed networks of the policy and the custom ones of the store, and a failing store is returned
+//   - reading returns the fixed networks of the policy and the custom ones of the store, sorted, and a failing store is returned
 //   - a refused list changes nothing, and a failing store leaves the policy as it was
 //   - loading at start applies the stored networks to the policy, and a failing store is reported
 func TestService_Networks(t *testing.T) {
@@ -376,6 +376,13 @@ func TestService_Networks(t *testing.T) {
 	store.fail["ReplaceNetworks"] = errBoom
 	if _, err := svc.SetNetworks(ctx, root, nil); !errors.Is(err, errBoom) || len(policy.extra) != 2 {
 		t.Errorf("SetNetworks() failure = %v, policy %v; want the failure and no change", err, policy.extra)
+	}
+
+	store.fail = map[string]error{}
+	store.networks = []netip.Prefix{netip.MustParsePrefix("fd00::/8"), netip.MustParsePrefix("10.0.0.0/16"), netip.MustParsePrefix("10.0.0.0/8")}
+	order, _ := svc.Networks(ctx, root)
+	if len(order.Custom) != 3 || order.Custom[0].String() != "10.0.0.0/8" || order.Custom[1].String() != "10.0.0.0/16" || order.Custom[2].String() != "fd00::/8" {
+		t.Errorf("Networks() = %v; want them sorted by address, then by length, IPv4 first", order.Custom)
 	}
 
 	fresh, freshStore, freshPolicy, _ := setup()

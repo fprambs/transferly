@@ -149,6 +149,8 @@ DEK --AES-256-GCM(nonce, AAD=site_id|kind|dek_version)--> site_secrets
 - Cookie de sesión opaca (`HttpOnly`, `SameSite=Lax`, `Secure` con https; solo se guarda el hash del token), token CSRF firmado con la clave de instancia y ligado a la sesión, guarda de `Sec-Fetch-Site` y `Origin`, rate limit en login y setup.
 - La IP del cliente sale de la conexión, o de `X-Forwarded-For` solo detrás de proxies de confianza configurados (`SENTINEL_TRUSTED_PROXIES`).
 - Los sitios solo pueden apuntar a direcciones públicas; las redes privadas, loopback, link-local y metadatos de nube se rechazan salvo las listadas en `SENTINEL_ALLOWED_NETWORKS`. La comprobación ocurre al conectar (`net.Dialer.Control`), por lo que resiste DNS rebinding (`core/netguard`).
+- Los administradores de la instancia (`role = admin`, distinto del rol en un workspace) pueden ampliar esa lista desde `/admin` sin reiniciar: las redes se guardan en `network_allowances` y `netguard.Policy` las aplica a la siguiente conexión. Nunca se permiten `0.0.0.0/8`, `169.254.0.0/16` (metadatos de nube), multicast, reservados ni redes más anchas que /8 (IPv4) o /7 (IPv6), aunque las pida un administrador.
+- La administración (`core/admin`) comprueba el rol del actor en cada operación, no se puede cambiar la propia cuenta y el último administrador activo no se puede deshabilitar ni degradar. Deshabilitar una cuenta cierra sus sesiones; quitar el segundo factor borra la app, las passkeys y los códigos de recuperación en una transacción. Todo queda en `audit_events` sin workspace y con acción `admin.*`, que solo leen los administradores.
 - Qué operaciones exigen sesión sale del contrato OpenAPI.
 
 | Acción | viewer | editor | admin | owner |

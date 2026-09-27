@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -238,11 +239,23 @@ func (s *Service) Networks(ctx context.Context, actor auth.User) (Networks, erro
 	if err != nil {
 		return Networks{}, err
 	}
-	return Networks{Fixed: s.policy.Fixed(), Custom: custom}, nil
+	return Networks{Fixed: s.policy.Fixed(), Custom: sorted(custom)}, nil
+}
+
+// sorted orders networks by address and then by length, IPv4 before IPv6, so every answer lists them the same way.
+func sorted(networks []netip.Prefix) []netip.Prefix {
+	out := slices.Clone(networks)
+	slices.SortFunc(out, func(a, b netip.Prefix) int {
+		if c := a.Addr().Compare(b.Addr()); c != 0 {
+			return c
+		}
+		return a.Bits() - b.Bits()
+	})
+	return out
 }
 
 // ParseNetworks reads addresses and networks written as text, such as `192.168.1.10` or `10.20.0.0/16`, and returns them masked, without
-// repeats and in order. Ranges that are never allowed and networks wider than /8 (IPv4) or /7 (IPv6) are refused.
+// repeats and sorted. Ranges that are never allowed and networks wider than /8 (IPv4) or /7 (IPv6) are refused.
 func ParseNetworks(entries []string) ([]netip.Prefix, error) {
 	if len(entries) > MaxNetworks {
 		return nil, ErrTooManyNetworks
@@ -259,7 +272,7 @@ func ParseNetworks(entries []string) ([]netip.Prefix, error) {
 			out = append(out, prefix)
 		}
 	}
-	return out, nil
+	return sorted(out), nil
 }
 
 // parseNetwork reads one address or network and applies the limits of [ParseNetworks].

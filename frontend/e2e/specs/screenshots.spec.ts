@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 
+import { createAccountWithSecondStep } from '../accounts.ts'
 import { expect, test } from '../fixtures.ts'
 import { totpCode } from '../totp.ts'
 
@@ -33,6 +34,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the team switcher, the new team dialog, the members page, the invite dialog in both steps, the invitations tab, the invitation page
  *   for a new account and for the wrong account, the members page of a viewer, the row menu and the removal dialog
  * - the passkey dialog, the settings with a passkey and the sign-in step that offers it
+ * - the administration page: accounts, the confirmation to remove a second step, networks and the audit log
  * - the locked vault in a new site and a saved site, the unlock dialog, and a quick connection that works while locked
  */
 test.describe('screenshots', () => {
@@ -235,5 +237,41 @@ test.describe('screenshots', () => {
     await remove.getByRole('button', { name: 'Remove' }).click()
     await expect(page.getByText('No passkeys yet.')).toBeVisible()
     await context.close()
+  })
+
+  test('administration', async ({ page, request, playwright, baseURL }) => {
+    const stamp = Date.now()
+    const email = `ana.perez-${stamp}@acme.dev`
+    const guest = await playwright.request.newContext({ baseURL, storageState: { cookies: [], origins: [] } })
+    await createAccountWithSecondStep(request, guest, email, `Shots team ${stamp}`)
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Administration' }).click()
+    await expect(page.getByRole('list', { name: 'Accounts' })).toBeVisible()
+    await shoot(page, '27-admin-accounts')
+
+    await page.getByRole('button', { name: `Actions for ${email}` }).click()
+    await shoot(page, '28-admin-account-menu')
+    await page.getByRole('menuitem', { name: 'Remove second step' }).click()
+    await expect(page.getByRole('dialog', { name: `Remove the second step of ${email}?` })).toBeVisible()
+    await shoot(page, '29-admin-reset-confirm')
+    await page.getByRole('dialog').getByRole('button', { name: 'Remove second step' }).click()
+    await expect(page.getByRole('list', { name: 'Accounts' }).getByRole('listitem').filter({ hasText: email })).toContainText('Off')
+
+    await page.getByRole('tab', { name: 'Networks' }).click()
+    await page.getByLabel('Added by administrators').fill('192.168.1.0/24\n10.20.0.5')
+    await page.getByRole('button', { name: 'Save networks' }).click()
+    await expect(page.getByRole('status')).toBeVisible()
+    await shoot(page, '30-admin-networks')
+
+    await page.getByRole('tab', { name: 'Audit log' }).click()
+    await expect(page.getByRole('list', { name: 'Instance audit log' })).toContainText('changed the allowed networks')
+    await shoot(page, '31-admin-audit')
+
+    await page.getByRole('tab', { name: 'Networks' }).click()
+    await page.getByLabel('Added by administrators').fill('')
+    await page.getByRole('button', { name: 'Save networks' }).click()
+    await expect(page.getByRole('status')).toBeVisible()
+    await guest.dispose()
   })
 })
