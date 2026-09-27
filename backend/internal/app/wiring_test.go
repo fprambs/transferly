@@ -68,7 +68,10 @@ func TestRunJanitor(t *testing.T) {
 // Scenarios:
 //   - the key sweep task is registered and reports nothing to remove on an empty key ring
 func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
-	w := newWiring(config.Config{SessionIdle: time.Minute, SessionMax: time.Hour}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef"))
+	w, err := newWiring(config.Config{SessionIdle: time.Minute, SessionMax: time.Hour}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	names := map[string]int{}
 	for _, task := range w.janitor {
@@ -170,5 +173,27 @@ func TestRotationLogger(t *testing.T) {
 	hook(t.Context(), ws, actor, 4)
 	if !strings.Contains(out.String(), "audit event not recorded") || !strings.Contains(out.String(), "disk on fire") {
 		t.Errorf("logs = %q; want the failure", out.String())
+	}
+}
+
+// TestRelyingParty verifies deriving the WebAuthn relying party from the allowed origins.
+//
+// Scenarios:
+//   - the host of the first origin is the relying party and every origin is kept
+//   - without origins it is localhost, and an origin that cannot be parsed is used as it is
+//   - a relying party the WebAuthn library refuses stops the composition of the services
+func TestRelyingParty(t *testing.T) {
+	host, origins := relyingParty([]string{"https://sentinel.example:8443", "https://alias.example"})
+	if host != "sentinel.example" || len(origins) != 2 {
+		t.Errorf("relyingParty() = %q, %v", host, origins)
+	}
+	if host, origins := relyingParty(nil); host != "localhost" || len(origins) != 1 {
+		t.Errorf("relyingParty(nil) = %q, %v", host, origins)
+	}
+	if host, _ := relyingParty([]string{"://bad"}); host != "://bad" {
+		t.Errorf("relyingParty(unparsable) = %q", host)
+	}
+	if _, err := newWiring(config.Config{AllowedOrigins: []string{"://bad"}}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef")); err == nil {
+		t.Error("newWiring() accepted a relying party WebAuthn refuses")
 	}
 }

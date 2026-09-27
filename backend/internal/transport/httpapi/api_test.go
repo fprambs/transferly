@@ -32,6 +32,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
@@ -97,6 +98,10 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
+	passkeys, err := passkey.NewService(store, passkey.Config{RPID: "localhost", DisplayName: "Sentinel", Origins: []string{localOrigin}}, clock, rand.Reader, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	auditTrail := audit.NewService(store, workspaces, clock)
 	keys.OnRotate(func(ctx context.Context, workspaceID, actor uuid.UUID, version int) {
 		_ = auditTrail.Record(ctx, audit.Event{WorkspaceID: workspaceID, ActorID: actor, Action: audit.KeyRotated, Meta: map[string]string{"version": strconv.Itoa(version)}})
@@ -132,6 +137,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Import:      fzimport.NewService(workspaces, sites),
 		Audit:       auditTrail,
 		MFA:         mfa.NewService(store, instanceKey, rand.Reader, clock),
+		Passkeys:    passkeys,
 		Invites:     invite.NewService(store, workspaces, store, service, clock, rand.Reader, 0, nil),
 		Quick:       quickConnections,
 		Events:      hub,

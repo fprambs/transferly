@@ -121,6 +121,18 @@ func TestServe_FailsWhenTheInstanceKeyCannotBeResolved(t *testing.T) {
 	}
 }
 
+// TestServe_FailsWhenTheServicesCannotBeComposed verifies that Serve refuses to start with a base URL the passkeys cannot be bound to.
+func TestServe_FailsWhenTheServicesCannotBeComposed(t *testing.T) {
+	cfg := testConfig(t, testutil.NewDatabase(t))
+	cfg.AllowedOrigins = []string{"://bad"}
+
+	err := app.Serve(t.Context(), cfg, discardLogger(), listen(t))
+
+	if err == nil || !strings.Contains(err.Error(), "composing the services") {
+		t.Errorf("Serve() with a bad base URL = %v, want a composition error", err)
+	}
+}
+
 // TestServe_FailsWhenListenerIsClosed verifies that Serve returns the listener error
 // when the HTTP server cannot accept connections.
 func TestServe_FailsWhenListenerIsClosed(t *testing.T) {

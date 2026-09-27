@@ -20,6 +20,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/mfa"
+	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -77,6 +78,8 @@ type Deps struct {
 	Transfers *transfer.Service
 	// MFA is the second factor service.
 	MFA *mfa.Service
+	// Passkeys is the WebAuthn service.
+	Passkeys *passkey.Service
 	// Audit is the audit trail of the workspaces.
 	Audit *audit.Service
 	// Invites is the invitation service.

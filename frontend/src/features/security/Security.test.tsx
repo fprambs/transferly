@@ -17,7 +17,7 @@ interface Factor {
 }
 
 /** Answers the endpoints of the second factor of the signed-in account and records what was asked. */
-function mockFactor(status: SecurityStatus = { totp: false, recoveryCodesLeft: 0 }): Factor {
+function mockFactor(status: SecurityStatus = { totp: false, recoveryCodesLeft: 0, passkeys: [] }): Factor {
   const state: Factor = { status, calls: [] }
   const record = async (request: Request) => {
     const text = await request.text()
@@ -31,12 +31,12 @@ function mockFactor(status: SecurityStatus = { totp: false, recoveryCodesLeft: 0
     }),
     http.post('/api/v1/me/totp/confirm', async ({ request }) => {
       await record(request)
-      state.status = { totp: true, recoveryCodesLeft: 10 }
+      state.status = { totp: true, recoveryCodesLeft: 10, passkeys: [] }
       return HttpResponse.json({ codes: ['AAAAA-BBBBB', 'CCCCC-DDDDD'] })
     }),
     http.post('/api/v1/me/totp/disable', async ({ request }) => {
       await record(request)
-      state.status = { totp: false, recoveryCodesLeft: 0 }
+      state.status = { totp: false, recoveryCodesLeft: 0, passkeys: [] }
       return new HttpResponse(null, { status: 204 })
     }),
     http.post('/api/v1/me/recovery-codes', async ({ request }) => {
@@ -109,7 +109,7 @@ describe('second factor', () => {
       expect(await navigator.clipboard.readText()).toBe('AAAAA-BBBBB\nCCCCC-DDDDD')
       expect(factor.calls[0]).toBe('POST /api/v1/me/totp')
 
-      mockFactor({ totp: true, recoveryCodesLeft: 10 })
+      mockFactor({ totp: true, recoveryCodesLeft: 10, passkeys: [] })
       await user.click(within(codes).getByRole('button', { name: 'I have saved them' }))
       expect(await within(section).findByText('On')).toBeInTheDocument()
       expect(within(section).getByText('10 recovery codes left')).toBeInTheDocument()
@@ -128,7 +128,7 @@ describe('second factor', () => {
     })
 
     it('turns it off with the password', async () => {
-      const factor = mockFactor({ totp: true, recoveryCodesLeft: 4 })
+      const factor = mockFactor({ totp: true, recoveryCodesLeft: 4, passkeys: [] })
       const user = userEvent.setup()
       await renderApp({ path: '/settings' })
 
@@ -143,7 +143,7 @@ describe('second factor', () => {
       expect(await within(dialog).findByRole('alert')).toHaveTextContent('The password is not right.')
       expect(within(dialog).getByLabelText('Account password')).toHaveValue('')
 
-      mockFactor({ totp: true, recoveryCodesLeft: 4 })
+      mockFactor({ totp: true, recoveryCodesLeft: 4, passkeys: [] })
       await user.type(within(dialog).getByLabelText('Account password'), 'a long enough password')
       await user.click(within(dialog).getByRole('button', { name: 'Turn off' }))
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -151,7 +151,7 @@ describe('second factor', () => {
     })
 
     it('renews the recovery codes', async () => {
-      const factor = mockFactor({ totp: true, recoveryCodesLeft: 4 })
+      const factor = mockFactor({ totp: true, recoveryCodesLeft: 4, passkeys: [] })
       const user = userEvent.setup()
       await renderApp({ path: '/settings' })
 

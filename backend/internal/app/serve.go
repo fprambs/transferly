@@ -45,7 +45,10 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	}
 	defer store.Close()
 
-	wired := newWiring(cfg, logger, store, key)
+	wired, err := newWiring(cfg, logger, store, key)
+	if err != nil {
+		return fmt.Errorf("composing the services: %w", err)
+	}
 	if interrupted, err := wired.recover(ctx); err != nil {
 		return fmt.Errorf("recovering transfers: %w", err)
 	} else if interrupted > 0 {

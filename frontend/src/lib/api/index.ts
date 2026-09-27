@@ -33,6 +33,12 @@ export type MfaChallenge = Schemas['MfaChallenge']
 export type SecurityStatus = Schemas['SecurityStatus']
 /** The secret and address of an authenticator app being set up. */
 export type TotpSetup = Schemas['TotpSetup']
+/** A passkey registered to the account. */
+export type Passkey = Schemas['Passkey']
+/** The options of a WebAuthn ceremony with the token that ties the answer to it. */
+export type PasskeyCeremony = Schemas['PasskeyCeremony']
+/** A passkey that was just registered, with recovery codes when the account had none. */
+export type PasskeyAdded = Schemas['PasskeyAdded']
 /** What a sign-in with a password answers: a session, or a challenge for the second step. */
 export type LoginResult = SessionInfo | MfaChallenge
 /** One line of the audit trail of a workspace. */
@@ -129,6 +135,13 @@ export function createApi(transport: Transport) {
       setup: (credentials: Credentials) => transport.request<SessionInfo>({ method: 'POST', path: `${root}/setup`, body: credentials }),
       login: (credentials: Credentials) => transport.request<LoginResult>({ method: 'POST', path: `${root}/auth/login`, body: credentials }),
       verifyMfa: (challenge: string, code: string) => transport.request<SessionInfo>({ method: 'POST', path: `${root}/auth/mfa`, body: { challenge, code } }),
+      beginPasskeyLogin: (challenge: string) => transport.request<PasskeyCeremony>({ method: 'POST', path: `${root}/auth/passkey/begin`, body: { challenge } }),
+      finishPasskeyLogin: (challenge: string, ceremony: string, credential: object) =>
+        transport.request<SessionInfo>({ method: 'POST', path: `${root}/auth/passkey/finish`, body: { challenge, ceremony, credential } }),
+      beginPasskey: () => transport.request<PasskeyCeremony>({ method: 'POST', path: `${root}/me/passkeys/begin` }),
+      finishPasskey: (ceremony: string, name: string, credential: object) =>
+        transport.request<PasskeyAdded>({ method: 'POST', path: `${root}/me/passkeys/finish`, body: { ceremony, name, credential } }),
+      removePasskey: (id: string, password: string) => transport.request<void>({ method: 'POST', path: `${root}/me/passkeys/${id}/remove`, body: { password } }),
       security: () => transport.request<SecurityStatus>({ method: 'GET', path: `${root}/me/security` }),
       beginTotp: () => transport.request<TotpSetup>({ method: 'POST', path: `${root}/me/totp` }),
       confirmTotp: (code: string) => transport.request<{ codes: string[] }>({ method: 'POST', path: `${root}/me/totp/confirm`, body: { code } }),

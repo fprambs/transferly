@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"log/slog"
+	"net/url"
 	"runtime"
 	"strconv"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/scheduler"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -70,7 +72,7 @@ type wiring struct {
 }
 
 // newWiring composes the core services with the store and the configuration.
-func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, instanceKey []byte) wiring {
+func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, instanceKey []byte) (wiring, error) {
 	system := clock.System{}
 	kdf := vault.NewKDF(max(runtime.NumCPU(), 2))
 	hasher := auth.NewHasher(kdf, vault.DefaultParams, rand.Reader)
@@ -93,6 +95,11 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	}}, nil)
 	invites := invite.NewService(store, workspaces, store, authService, system, rand.Reader, 0, nil)
 	second := mfa.NewService(store, instanceKey, rand.Reader, system)
+	rp, origins := relyingParty(cfg.AllowedOrigins)
+	passkeys, err := passkey.NewService(store, passkey.Config{RPID: rp, DisplayName: "Sentinel", Origins: origins}, system, rand.Reader, nil)
+	if err != nil {
+		return wiring{}, err
+	}
 	auditTrail := audit.NewService(store, workspaces, system)
 	keys.OnRotate(rotationLogger(auditTrail, logger))
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
@@ -120,6 +127,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Invites:     invites,
 			Audit:       auditTrail,
 			MFA:         second,
+			Passkeys:    passkeys,
 			Quick:       quickConnections,
 			Events:      hub,
 			Limits: httpapi.Limits{
@@ -143,7 +151,20 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			{name: "expired invitations", run: invites.PurgeExpired},
 			{name: "expired vault keys", run: func(context.Context) (int, error) { return keyRing.Sweep(), nil }},
 		},
+	}, nil
+}
+
+// relyingParty derives the WebAuthn relying party from the allowed origins: the host of the first one, and every origin. Without any it
+// is localhost, which browsers accept over plain http for development.
+func relyingParty(origins []string) (string, []string) {
+	if len(origins) == 0 {
+		return "localhost", []string{"http://localhost"}
 	}
+	host := origins[0]
+	if u, err := url.Parse(origins[0]); err == nil {
+		host = u.Hostname()
+	}
+	return host, origins
 }
 
 // rotationLogger returns the hook that adds every rotation of a workspace key to the audit trail; a failure to log is reported but never

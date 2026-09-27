@@ -71,12 +71,12 @@ func (s *server) Login(ctx context.Context, request LoginRequestObject) (LoginRe
 	if err != nil {
 		return nil, err
 	}
-	second, err := s.deps.MFA.Enabled(ctx, user.ID)
+	methods, err := s.secondFactors(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
-	if second {
-		return Login202JSONResponse{Challenge: s.deps.MFA.Challenge(user.ID), Methods: mfaMethods}, nil
+	if len(methods) > 0 {
+		return Login202JSONResponse{Challenge: s.deps.MFA.Challenge(user.ID), Methods: methods}, nil
 	}
 	if _, err := s.deps.Workspaces.EnsurePersonal(ctx, user.ID); err != nil {
 		return nil, err
