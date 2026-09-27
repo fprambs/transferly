@@ -41,11 +41,12 @@ interface Seen {
   body: string
 }
 
-/** Answers the size of the partial file, or an error, and records the upload. */
-function mockServer(partial: number | 'missing' | 'broken'): Seen[] {
+/** Answers the size of the partial file, or an error, and records the upload and the path the size was asked for. */
+function mockServer(partial: number | 'missing' | 'broken', statPaths: string[] = []): Seen[] {
   const uploads: Seen[] = []
   server.use(
-    http.get('/api/v1/workspaces/:id/sites/s1/files/entry', () => {
+    http.get('/api/v1/workspaces/:id/sites/s1/files/entry', ({ request }) => {
+      statPaths.push(new URL(request.url).searchParams.get('path') ?? '')
       if (partial === 'missing') {
         return problem(404, 'path_not_found')
       }
@@ -76,6 +77,7 @@ function file(name: string, content: string): File {
  *
  * Scenarios:
  * - the rest of the file is sent from the size the server holds, under the same transfer identifier and with the whole size
+ * - the size is asked for at the ".part" staging file, not the final path, since that is where an interrupted upload lands
  * - a partial file that is gone starts over with the whole file
  * - a partial file larger than the file is capped at the file's size
  * - a file with another name or size is refused before anything is sent, and an unknown size is not checked
@@ -95,6 +97,15 @@ describe('resumeUpload', () => {
     await resumeUpload(api, record, { file: file('big.bin', '0123456789'), siteId: 's1' })
 
     expect(uploads).toEqual([{ mode: 'resume', offset: '4', transferId: 't1', size: '10', body: '456789' }])
+  })
+
+  it('asks for the size of the ".part" staging file, not the final path', async () => {
+    const statPaths: string[] = []
+    mockServer(4, statPaths)
+
+    await resumeUpload(api, record, { file: file('big.bin', '0123456789'), siteId: 's1' })
+
+    expect(statPaths).toEqual([`${record.path}.part`])
   })
 
   it('starts over when the partial file is gone', async () => {

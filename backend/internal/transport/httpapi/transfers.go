@@ -146,16 +146,16 @@ func (s *server) CreateCopy(ctx context.Context, request CreateCopyRequestObject
 	if err := s.deps.Files.CheckCopy(ctx, location); err != nil {
 		return copyFailure(err)
 	}
-	_, sourceName, err := s.siteOf(ctx, source)
+	_, sourceName, _, err := s.siteOf(ctx, source)
 	if err != nil {
 		return copyFailure(err)
 	}
-	targetID, targetName, err := s.siteOf(ctx, destination)
+	targetID, targetName, targetSpeedLimit, err := s.siteOf(ctx, destination)
 	if err != nil {
 		return copyFailure(err)
 	}
 	in := transfer.BeginInput{
-		UserID: destination.Actor, WorkspaceID: request.WorkspaceId, SiteID: targetID, Route: body.TargetSiteId,
+		UserID: destination.Actor, WorkspaceID: request.WorkspaceId, SiteID: targetID, Route: body.TargetSiteId, RouteBandwidth: targetSpeedLimit,
 		SiteName: sourceName + " → " + targetName, Direction: transfer.Copy, Path: body.TargetPath, Name: path.Base(body.TargetPath), Total: -1,
 	}
 	if body.TransferId != nil {

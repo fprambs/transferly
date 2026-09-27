@@ -8,6 +8,9 @@ export const defaultPorts = { sftp: 22, ftps: 21, ftp: 21 } as const
 /** Highest valid TCP port. */
 const maxPort = 65535
 
+/** Bytes in a mebibyte, the unit the site's speed limit is shown in. */
+const mebibyte = 1024 * 1024
+
 /** The character sets a site can use for file names, with the text each one is shown as. */
 export const charsetOptions: ReadonlyArray<{ value: Charset; label: string }> = [
   { value: 'utf-8', label: 'UTF-8' },
@@ -39,6 +42,7 @@ export const siteSchema = z.object({
   passphrase: z.string(),
   listTimezone: z.string().trim(),
   charset: z.string(),
+  speedLimit: z.string().trim().refine((value) => value === '' || (/^\d+(\.\d+)?$/.test(value) && Number(value) > 0), 'speedLimitInvalid'),
 })
 
 /** Values of the site form. */
@@ -59,6 +63,7 @@ export function siteDefaults(site: Site | undefined, collectionId: string | unde
     passphrase: '',
     listTimezone: site?.listTimezone ?? 'UTC',
     charset: site?.charset ?? 'utf-8',
+    speedLimit: site?.speedLimitBps ? String(site.speedLimitBps / mebibyte) : '',
   }
 }
 
@@ -80,6 +85,7 @@ export function toSiteInput(values: SiteValues): SiteInput {
     authMethod: usesKey ? 'key' : 'password',
     listTimezone: values.listTimezone === '' ? 'UTC' : values.listTimezone,
     charset: values.protocol === 'sftp' ? 'utf-8' : (values.charset as Charset),
+    speedLimitBps: values.speedLimit.trim() === '' ? 0 : Math.round(Number(values.speedLimit) * mebibyte),
     password: usesKey ? undefined : secret(values.password),
     privateKey: usesKey ? secret(values.privateKey) : undefined,
     passphrase: usesKey ? secret(values.passphrase) : undefined,

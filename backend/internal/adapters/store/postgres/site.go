@@ -51,7 +51,7 @@ func (s *Store) CreateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	err = q.InsertSite(ctx, db.InsertSiteParams{
 		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Protocol: string(st.Protocol), Host: st.Host, Port: int32(st.Port),
 		Username: st.Username, AuthMethod: string(st.AuthMethod), ListTimezone: st.ListTimezone, Charset: st.Charset, CreatedAt: st.CreatedAt,
-		FolderID: folderID(st.CollectionID),
+		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit,
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -74,7 +74,7 @@ func (s *Store) UpdateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	rows, err := q.UpdateSite(ctx, db.UpdateSiteParams{
 		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Protocol: string(st.Protocol), Host: st.Host, Port: int32(st.Port),
 		Username: st.Username, AuthMethod: string(st.AuthMethod), ListTimezone: st.ListTimezone, Charset: st.Charset, UpdatedAt: st.UpdatedAt,
-		FolderID: folderID(st.CollectionID),
+		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit,
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -97,7 +97,7 @@ func folderID(id uuid.UUID) uuid.NullUUID {
 func siteFrom(r db.SiteByIDRow, secrets []site.SecretKind) site.Site {
 	return site.Site{
 		ID: r.ID, WorkspaceID: r.WorkspaceID, CollectionID: r.FolderID.UUID, Name: r.Name, Protocol: site.Protocol(r.Protocol), Host: r.Host, Port: int(r.Port),
-		Username: r.Username, AuthMethod: site.AuthMethod(r.AuthMethod), ListTimezone: r.ListTimezone, Charset: r.Charset, Secrets: secrets,
+		Username: r.Username, AuthMethod: site.AuthMethod(r.AuthMethod), ListTimezone: r.ListTimezone, Charset: r.Charset, SpeedLimit: r.SpeedLimit, Secrets: secrets,
 		CreatedAt: r.CreatedAt.UTC(), UpdatedAt: r.UpdatedAt.UTC(),
 	}
 }

@@ -26,10 +26,15 @@ interface ResumePlan {
   offset: number
 }
 
-/** Asks the server how much of the file arrived, and plans the rest; a partial file that is gone means starting over. */
+/**
+ * Asks the server how much of the file arrived, and plans the rest.
+ *
+ * An upload stages into a "<path>.part" file on the server and only becomes the real file once it finishes, so
+ * an interrupted upload is found there, not at the final path; a partial file that is gone means starting over.
+ */
 async function planResume(api: Api, record: TransferRecord, siteId: string, size: number): Promise<ResumePlan> {
   try {
-    const partial = await api.files.stat(record.workspaceId, siteId, record.path)
+    const partial = await api.files.stat(record.workspaceId, siteId, `${record.path}.part`)
     return { mode: 'resume', offset: Math.min(partial.size, size) }
   } catch (error) {
     if (error instanceof ApiError && error.code === 'path_not_found') {

@@ -310,10 +310,16 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 	return d, nil
 }
 
-// Upload writes the request body to a file and returns the file afterwards. The mode says what happens when
-// the file exists: create refuses, overwrite truncates, resume continues at offset, which must not exceed the
-// size of the file. Offsets are only valid for resume. A body that ends early leaves a partial file that a
-// resumed upload can complete.
+// partSuffix names the temporary file an upload is staged into, so a reader never sees a half-written file at
+// the real path and an interrupted upload leaves something a resume can find and finish.
+const partSuffix = ".part"
+
+// Upload writes the request body to a temporary "<path>.part" file and, once it is complete, renames it onto
+// path, returning the file afterwards. The mode says what happens when path exists: create refuses, overwrite
+// replaces it, resume continues an interrupted upload at offset, which is the size of the ".part" file already
+// staged there and must not exceed it. Offsets are only valid for resume. A body that ends early, or a failure
+// while renaming, leaves the ".part" file in place so a resumed upload can complete it; path itself is only ever
+// created or replaced at the very end, atomically, once the whole body has been written.
 func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.WriteMode, offset int64, data io.Reader) (remotefs.Entry, error) {
 	if offset < 0 || (offset != 0 && mode != remotefs.WriteResume) {
 		return remotefs.Entry{}, fmt.Errorf("%w: an offset is only valid when resuming", remotefs.ErrInvalid)
@@ -322,7 +328,21 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 	if err != nil {
 		return remotefs.Entry{}, err
 	}
-	w, err := lease.FS().OpenWrite(ctx, p, offset, mode)
+	part := p + partSuffix
+	if mode == remotefs.WriteCreate {
+		if _, statErr := lease.FS().Stat(ctx, p); statErr == nil {
+			lease.Release(nil)
+			return remotefs.Entry{}, fmt.Errorf("%w: %s", remotefs.ErrExists, p)
+		} else if !errors.Is(statErr, remotefs.ErrNotFound) {
+			lease.Release(statErr)
+			return remotefs.Entry{}, statErr
+		}
+	}
+	openMode := mode
+	if openMode != remotefs.WriteResume {
+		openMode = remotefs.WriteOverwrite
+	}
+	w, err := lease.FS().OpenWrite(ctx, part, offset, openMode)
 	if err != nil {
 		lease.Release(err)
 		return remotefs.Entry{}, err
@@ -336,9 +356,32 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 		lease.Release(err)
 		return remotefs.Entry{}, err
 	}
+	if err := s.finish(ctx, lease.FS(), part, p, mode); err != nil {
+		lease.Release(err)
+		return remotefs.Entry{}, err
+	}
 	entry, err := lease.FS().Stat(ctx, p)
 	lease.Release(err)
 	return entry, err
+}
+
+// finish makes the completed ".part" file take the place of path. When mode is not create, any file already at
+// path is removed first so the rename, which never replaces an existing target, can succeed. A create whose
+// rename loses a race to a file that appeared at path in the meantime discards the ".part" file, since the
+// upload it staged must not land under a different name.
+func (s *Service) finish(ctx context.Context, fsys remotefs.RemoteFS, part, p string, mode remotefs.WriteMode) error {
+	if mode != remotefs.WriteCreate {
+		if err := fsys.Remove(ctx, p); err != nil && !errors.Is(err, remotefs.ErrNotFound) {
+			return err
+		}
+	}
+	if err := fsys.Rename(ctx, part, p); err != nil {
+		if mode == remotefs.WriteCreate && errors.Is(err, remotefs.ErrExists) {
+			_ = fsys.Remove(ctx, part)
+		}
+		return err
+	}
+	return nil
 }
 
 // countingReader counts what it reads and stops with the context error once the context ended.

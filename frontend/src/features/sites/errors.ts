@@ -15,6 +15,7 @@ const siteErrorKeys = [
   'invalid_username',
   'invalid_timezone',
   'invalid_charset',
+  'invalid_speed_limit',
   'invalid_protocol',
   'invalid_auth_method',
   'secret_too_large',

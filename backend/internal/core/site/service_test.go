@@ -315,6 +315,9 @@ func TestService_CreateValidation(t *testing.T) {
 	if sftp, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Key"; in.AuthMethod = site.AuthKey; return in }(), site.SecretChanges{}); err != nil || sftp.Port != 22 {
 		t.Errorf("SFTP with key = %+v, %v", sftp, err)
 	}
+	if capped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Capped"; in.SpeedLimit = 65536; return in }(), site.SecretChanges{}); err != nil || capped.SpeedLimit != 65536 {
+		t.Errorf("site with a speed limit = %+v, %v", capped, err)
+	}
 
 	tests := []struct {
 		name   string
@@ -339,6 +342,9 @@ func TestService_CreateValidation(t *testing.T) {
 		{"key over ftp", func(in *site.Input) { in.Protocol, in.AuthMethod = site.FTP, site.AuthKey }, site.ErrInvalidAuthMethod},
 		{"bad zone", func(in *site.Input) { in.ListTimezone = "Mars/Base" }, site.ErrInvalidTimezone},
 		{"local zone", func(in *site.Input) { in.ListTimezone = "Local" }, site.ErrInvalidTimezone},
+		{"negative speed limit", func(in *site.Input) { in.SpeedLimit = -1 }, site.ErrInvalidSpeedLimit},
+		{"speed limit below the smallest cap", func(in *site.Input) { in.SpeedLimit = 1023 }, site.ErrInvalidSpeedLimit},
+		{"speed limit above the largest cap", func(in *site.Input) { in.SpeedLimit = 1<<40 + 1 }, site.ErrInvalidSpeedLimit},
 		{"private host", func(in *site.Input) { in.Host = "private.example" }, netguard.ErrBlocked},
 		{"private address", func(in *site.Input) { in.Host = "192.168.1.1" }, netguard.ErrBlocked},
 		{"unresolvable host", func(in *site.Input) { in.Host = "nowhere.example" }, netguard.ErrUnresolvable},

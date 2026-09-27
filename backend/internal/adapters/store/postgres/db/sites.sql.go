@@ -44,8 +44,8 @@ func (q *Queries) DeleteSite(ctx context.Context, arg DeleteSiteParams) (int64, 
 }
 
 const insertSite = `-- name: InsertSite :exec
-INSERT INTO sites (id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11)
+INSERT INTO sites (id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13)
 `
 
 type InsertSiteParams struct {
@@ -61,6 +61,7 @@ type InsertSiteParams struct {
 	CreatedAt    time.Time
 	FolderID     uuid.NullUUID
 	Charset      string
+	SpeedLimit   int64
 }
 
 func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
@@ -77,6 +78,7 @@ func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
 		arg.CreatedAt,
 		arg.FolderID,
 		arg.Charset,
+		arg.SpeedLimit,
 	)
 	return err
 }
@@ -135,7 +137,7 @@ func (q *Queries) SecretKindsByWorkspace(ctx context.Context, workspaceID uuid.U
 }
 
 const siteByID = `-- name: SiteByID :one
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit
 FROM sites WHERE id = $1 AND workspace_id = $2
 `
 
@@ -158,6 +160,7 @@ type SiteByIDRow struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	FolderID     uuid.NullUUID
+	SpeedLimit   int64
 }
 
 func (q *Queries) SiteByID(ctx context.Context, arg SiteByIDParams) (SiteByIDRow, error) {
@@ -177,12 +180,13 @@ func (q *Queries) SiteByID(ctx context.Context, arg SiteByIDParams) (SiteByIDRow
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.FolderID,
+		&i.SpeedLimit,
 	)
 	return i, err
 }
 
 const sitesByWorkspace = `-- name: SitesByWorkspace :many
-SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id
+SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit
 FROM sites WHERE workspace_id = $1 ORDER BY lower(name), id
 `
 
@@ -200,6 +204,7 @@ type SitesByWorkspaceRow struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	FolderID     uuid.NullUUID
+	SpeedLimit   int64
 }
 
 func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]SitesByWorkspaceRow, error) {
@@ -225,6 +230,7 @@ func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) (
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.FolderID,
+			&i.SpeedLimit,
 		); err != nil {
 			return nil, err
 		}
@@ -238,7 +244,7 @@ func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) (
 
 const updateSite = `-- name: UpdateSite :execrows
 UPDATE sites
-SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11
+SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11, speed_limit = $13
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -255,6 +261,7 @@ type UpdateSiteParams struct {
 	UpdatedAt    time.Time
 	FolderID     uuid.NullUUID
 	Charset      string
+	SpeedLimit   int64
 }
 
 func (q *Queries) UpdateSite(ctx context.Context, arg UpdateSiteParams) (int64, error) {
@@ -271,6 +278,7 @@ func (q *Queries) UpdateSite(ctx context.Context, arg UpdateSiteParams) (int64, 
 		arg.UpdatedAt,
 		arg.FolderID,
 		arg.Charset,
+		arg.SpeedLimit,
 	)
 	if err != nil {
 		return 0, err

@@ -149,21 +149,22 @@ func TestTransfers_Recording(t *testing.T) {
 // TestTransfers_Resume verifies resuming and identifier rules.
 //
 // Scenarios:
-//   - an upload can be repeated under the same identifier with mode=resume, counting attempts and starting at the offset
+//   - a resumed upload continues an interrupted one, staged in its ".part" file here by hand, from the given offset,
+//     untracked until the resuming call, which is its only attempt
 //   - the identifier of a transfer of another user, or of another file, is 409 transfer_id_taken
 //   - the identifier of a transfer that is still running is 409 transfer_active
 func TestTransfers_Resume(t *testing.T) {
 	e := newFileEnv(t)
 	a := e.a
 	id := uuid.New()
-	a.upload(e.ws, e.site, q("path", "/movie", "transferId", id.String(), "size", "22"), "first-half|", e.cookie, e.csrf)
+	a.upload(e.ws, e.site, q("path", "/movie.part"), "first-half|", e.cookie, e.csrf)
 	done := a.upload(e.ws, e.site, q("path", "/movie", "transferId", id.String(), "size", "22", "mode", "resume", "offset", "11"), "second-half", e.cookie, e.csrf)
 	if done.Status != http.StatusCreated {
 		t.Fatalf("resume = %d %s", done.Status, done.Body)
 	}
 	var tr httpapi.Transfer
 	mustDecode(t, a.do(request{method: http.MethodGet, path: "/api/v1/transfers/" + id.String(), cookie: e.cookie}).Body, &tr)
-	if tr.Attempts != 2 || tr.BytesDone != 22 || tr.Status != "done" {
+	if tr.Attempts != 1 || tr.BytesDone != 22 || tr.Status != "done" {
 		t.Errorf("resumed record = %+v", tr)
 	}
 
@@ -188,7 +189,7 @@ func TestTransfers_Resume(t *testing.T) {
 //
 // Scenarios:
 //   - a running upload is visible as running with its progress, canceling it answers 204, ends the upload with
-//     409 transfer_canceled and the record as canceled, keeping the partial file
+//     409 transfer_canceled and the record as canceled, keeping the staged ".part" file untouched at the final path
 //   - canceling a finished transfer is 409 transfer_not_active, an unknown one 404
 //   - a running transfer cannot be deleted (409 transfer_active); a finished one can, once
 func TestTransfers_Cancel(t *testing.T) {
@@ -237,8 +238,9 @@ func TestTransfers_Cancel(t *testing.T) {
 	_ = pw.Close()
 	expectProblem(t, <-replies, 409, "transfer_canceled")
 	waitFor(t, "the transfer to be canceled", func() bool { return a.transferState(e.cookie, id) == "canceled" })
-	if entry := e.get("/entry", q("path", "/slow"), nil); entry.Status != http.StatusOK || entry.entry(t).Size == 0 {
-		t.Errorf("the partial file = %d %s; want it kept", entry.Status, entry.Body)
+	expectProblem(t, e.get("/entry", q("path", "/slow"), nil), 404, "path_not_found")
+	if entry := e.get("/entry", q("path", "/slow.part"), nil); entry.Status != http.StatusOK || entry.entry(t).Size == 0 {
+		t.Errorf("the staged file = %d %s; want it kept", entry.Status, entry.Body)
 	}
 
 	expectProblem(t, a.send(http.MethodPost, "/api/v1/transfers/"+id.String()+"/cancel", nil, e.cookie, e.csrf), 409, "transfer_not_active")

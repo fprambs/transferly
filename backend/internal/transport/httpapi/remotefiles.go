@@ -84,7 +84,7 @@ func (s *server) StatFile(ctx context.Context, request StatFileRequestObject) (S
 // audit adds what the user did on a connection to the activity log, with the outcome as a stable code. A connection that cannot
 // be described, and a log that cannot be written, leave no entry: they must not fail what was done.
 func (s *server) audit(ctx context.Context, t files.Target, kind activity.Kind, p, detail string, err error) {
-	siteID, name, siteErr := s.siteOf(ctx, t)
+	siteID, name, _, siteErr := s.siteOf(ctx, t)
 	if siteErr != nil {
 		return
 	}
@@ -190,25 +190,25 @@ func problemCode(err error) string {
 	return "internal_error"
 }
 
-// siteOf returns the identifier and the name to record for the site a request works on: those of a saved site, or
-// the nil identifier and the host for a quick connection, which is not stored anywhere.
-func (s *server) siteOf(ctx context.Context, t files.Target) (uuid.UUID, string, error) {
+// siteOf returns the identifier, the name to record and the speed limit for the site a request works on: those of a saved
+// site, or the nil identifier, the host and no limit for a quick connection, which is not stored anywhere.
+func (s *server) siteOf(ctx context.Context, t files.Target) (uuid.UUID, string, int64, error) {
 	if q, ok := s.deps.Quick.Describe(t.Actor, t.Workspace, t.Site); ok {
-		return uuid.Nil, q.Name, nil
+		return uuid.Nil, q.Name, 0, nil
 	}
 	found, err := s.deps.Sites.Get(ctx, t.Actor, t.Workspace, t.Site)
-	return found.ID, found.Name, err
+	return found.ID, found.Name, found.SpeedLimit, err
 }
 
 // track records a transfer of the site's file, shown under label. The record is created only after the request was authorized, so
 // refused requests leave no trace.
 func (s *server) track(ctx context.Context, t files.Target, direction transfer.Direction, p, label string, id *TransferIdQuery, total, offset int64) (*transfer.Tracker, context.Context, error) {
-	siteID, name, err := s.siteOf(ctx, t)
+	siteID, name, speedLimit, err := s.siteOf(ctx, t)
 	if err != nil {
 		return nil, nil, err
 	}
 	in := transfer.BeginInput{
-		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, Route: t.Site, SiteName: name, Direction: direction,
+		UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: siteID, Route: t.Site, RouteBandwidth: speedLimit, SiteName: name, Direction: direction,
 		Path: p, Name: label, Total: total, Offset: offset,
 	}
 	if id != nil {

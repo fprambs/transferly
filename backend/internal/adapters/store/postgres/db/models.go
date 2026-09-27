@@ -90,6 +90,7 @@ type Site struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	Charset      string
+	SpeedLimit   int64
 }
 
 type SiteFolder struct {

@@ -20,7 +20,7 @@ function unique(prefix: string): string {
  * - the actions menu of a row opens next to its button and stays there when the pointer leaves the row
  * - the menu opens below its button, or above it when there is no room, and the dialogs it opens are centered in the window
  * - rows show a pointer, a visible hover shade and a selected state, and menu items highlight under the pointer
- * - a site is created inside a collection and edited from its menu
+ * - a site is created inside a collection with a speed limit, which is kept, and edited from its menu
  */
 test.describe('sites sidebar', () => {
   test('creates a collection', async ({ shell }) => {
@@ -117,6 +117,7 @@ test.describe('sites sidebar', () => {
     await dialog.getByLabel('Host').fill('8.8.8.8')
     await dialog.getByLabel('Username').fill('deploy')
     await dialog.getByLabel('Password').fill('secret')
+    await dialog.getByLabel('Speed limit (MiB/s)').fill('4')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
@@ -130,6 +131,7 @@ test.describe('sites sidebar', () => {
     const edit = page.getByRole('dialog', { name: 'Edit site' })
     await expect(edit).toBeVisible()
     await expect(edit.getByLabel('Host')).toHaveValue('8.8.8.8')
+    await expect(edit.getByLabel('Speed limit (MiB/s)')).toHaveValue('4')
     const editBox = (await edit.boundingBox())!
     expect(Math.abs(editBox.x + editBox.width / 2 - viewport.width / 2)).toBeLessThan(4)
   })

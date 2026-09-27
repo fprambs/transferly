@@ -53,6 +53,9 @@ type BeginInput struct {
 	// Route is the site or quick connection that carries the data, which the limits per site count; it differs from SiteID
 	// for a quick connection, which has no site record. The nil identifier means SiteID.
 	Route uuid.UUID
+	// RouteBandwidth caps the bytes per second the transfers of Route move together; zero means no cap of its own. It adds
+	// to the global and per-user caps: a transfer waits as long as the strictest of the three asks.
+	RouteBandwidth int64
 	// SiteName is the name of the site, kept in the history.
 	SiteName string
 	// Direction is upload, download or copy.
@@ -123,7 +126,8 @@ func (s *Service) Begin(ctx context.Context, in BeginInput) (*Tracker, context.C
 		route = in.SiteID
 	}
 	runCtx, cancel := context.WithCancelCause(ctx)
-	k := &Tracker{s: s, t: t, route: route, ctx: runCtx, cancel: cancel, base: context.WithoutCancel(ctx), lastEvent: now, lastSave: now}
+	routeShaper := s.routeShaperOf(route, in.RouteBandwidth)
+	k := &Tracker{s: s, t: t, route: route, routeShaper: routeShaper, ctx: runCtx, cancel: cancel, base: context.WithoutCancel(ctx), lastEvent: now, lastSave: now}
 	s.mu.Lock()
 	s.active[id] = k
 	s.mu.Unlock()
@@ -139,11 +143,12 @@ func (s *Service) publishState(t Transfer) {
 
 // Tracker follows one transfer. It is safe for concurrent use.
 type Tracker struct {
-	s      *Service
-	route  uuid.UUID
-	ctx    context.Context
-	cancel context.CancelCauseFunc
-	base   context.Context
+	s           *Service
+	route       uuid.UUID
+	routeShaper *shaper
+	ctx         context.Context
+	cancel      context.CancelCauseFunc
+	base        context.Context
 
 	mu        sync.Mutex
 	t         Transfer
@@ -216,7 +221,7 @@ func (k *Tracker) Progress(n int64) {
 	if !k.record(n) {
 		return
 	}
-	k.s.throttle(k.ctx, k.t.UserID, n)
+	k.s.throttle(k.ctx, k.t.UserID, k.routeShaper, n)
 }
 
 // record adds n bytes to the count and reports whether the transfer is still going.
@@ -278,6 +283,7 @@ func (k *Tracker) Finish(err error, code string) {
 	delete(k.s.active, k.t.ID)
 	k.s.mu.Unlock()
 	k.s.forget(k.t.UserID)
+	k.s.forgetRoute(k.route)
 	k.s.publishState(k.t)
 	if k.s.cfg.OnFinish != nil {
 		k.s.cfg.OnFinish(k.t)

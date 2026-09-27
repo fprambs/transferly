@@ -11,6 +11,7 @@
     "unknown": "Algo salió mal. Inténtalo de nuevo.",
     "hostRequired": "Escribe el host.",
     "portInvalid": "Escribe un puerto entre 1 y 65535.",
+    "speedLimitInvalid": "Escribe un límite de velocidad mayor que 0, o déjalo en blanco para no limitarlo.",
     "usernameRequired": "Escribe el usuario.",
     "site_name_taken": "Ya existe un sitio con este nombre.",
     "invalid_name": "El nombre no es válido.",
@@ -30,7 +31,8 @@
     "site_not_found": "Este sitio ya no existe.",
     "invalid_import_file": "Este no es un archivo del gestor de sitios de FileZilla.",
     "import_file_too_large": "El archivo es demasiado grande para importarlo.",
-    "invalid_charset": "El juego de caracteres no es válido aquí."
+    "invalid_charset": "El juego de caracteres no es válido aquí.",
+    "invalid_speed_limit": "El límite de velocidad debe ser de al menos 1 KiB/s y como máximo 1 TiB/s."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -89,7 +91,10 @@
     "ftpWarning": "FTP envía la contraseña y los archivos sin cifrar. Usa FTPS si el servidor lo ofrece.",
     "ftpsHint": "El puerto 990 empieza con TLS; en cualquier otro puerto la conexión se actualiza con AUTH TLS. La primera vez se muestra el certificado del servidor para que lo confirmes.",
     "charset": "Juego de caracteres de los nombres",
-    "charsetHint": "Cámbialo solo con servidores antiguos que muestran mal las tildes; la mayoría usa UTF-8."
+    "charsetHint": "Cámbialo solo con servidores antiguos que muestran mal las tildes; la mayoría usa UTF-8.",
+    "speedLimit": "Límite de velocidad (MiB/s)",
+    "speedLimitUnlimited": "Sin límite",
+    "speedLimitHint": "Limita las transferencias de este sitio, sumándose a los límites globales y por persona del servidor. Déjalo en blanco para no limitarlo."
   },
   "import": {
     "open": "Importar de FileZilla",

@@ -190,6 +190,7 @@ var domainProblems = []struct {
 	{site.ErrInvalidAuthMethod, http.StatusUnprocessableEntity, "invalid_auth_method"},
 	{site.ErrInvalidCharset, http.StatusUnprocessableEntity, "invalid_charset"},
 	{site.ErrInvalidTimezone, http.StatusUnprocessableEntity, "invalid_timezone"},
+	{site.ErrInvalidSpeedLimit, http.StatusUnprocessableEntity, "invalid_speed_limit"},
 	{hostkey.ErrNotFound, http.StatusNotFound, "host_key_not_found"},
 	{hostkey.ErrChanged, http.StatusConflict, "host_key_changed"},
 	{hostkey.ErrInvalid, http.StatusUnprocessableEntity, "invalid_host_key"},

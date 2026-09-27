@@ -172,6 +172,7 @@ type Service struct {
 	global     *shaper
 	perUser    map[uuid.UUID]*shaper
 	perUserCap int64
+	perRoute   map[uuid.UUID]*shaper
 }
 
 // Quota decides whether a person may start another transfer.
@@ -185,7 +186,10 @@ func NewService(store Store, sink ports.EventSink, clock ports.Clock, cfg Config
 	if newID == nil {
 		newID = uuid.NewV7
 	}
-	return &Service{store: store, sink: sink, clock: clock, cfg: cfg.withDefaults(), sched: scheduler.New(cfg.Limits), newID: newID, active: map[uuid.UUID]*Tracker{}, global: &shaper{}, perUser: map[uuid.UUID]*shaper{}}
+	return &Service{
+		store: store, sink: sink, clock: clock, cfg: cfg.withDefaults(), sched: scheduler.New(cfg.Limits), newID: newID,
+		active: map[uuid.UUID]*Tracker{}, global: &shaper{}, perUser: map[uuid.UUID]*shaper{}, perRoute: map[uuid.UUID]*shaper{},
+	}
 }
 
 // UseQuota makes the service ask a quota before it starts a transfer. Without one nothing is refused.
@@ -222,10 +226,27 @@ func (s *Service) shaperOf(userID uuid.UUID) *shaper {
 	return sh
 }
 
-// throttle makes a transfer that moved n bytes wait as long as the caps of the server and of the person ask, and stops when ctx ends.
-func (s *Service) throttle(ctx context.Context, userID uuid.UUID, n int64) {
+// routeShaperOf returns the shaper of a route, made on first use, with its rate set to the cap in force for the transfer
+// that is asking. A site's own bandwidth cap, unlike the global and per-user ones, has no separate setter: it is
+// carried on [BeginInput] and refreshed here every time a transfer begins on the route, so editing a site's limit takes
+// effect for the transfers that start after the edit, without disturbing the caps of the server or of the people using it.
+func (s *Service) routeShaperOf(route uuid.UUID, rate int64) *shaper {
+	s.mu.Lock()
+	sh, ok := s.perRoute[route]
+	if !ok {
+		sh = &shaper{}
+		s.perRoute[route] = sh
+	}
+	s.mu.Unlock()
+	sh.setRate(rate)
+	return sh
+}
+
+// throttle makes a transfer that moved n bytes wait as long as the caps of the server, of the person and of the route ask,
+// added to the global and per-person caps of 3.8, and stops when ctx ends.
+func (s *Service) throttle(ctx context.Context, userID uuid.UUID, route *shaper, n int64) {
 	now := s.clock.Now()
-	wait := max(s.global.reserve(now, n), s.shaperOf(userID).reserve(now, n))
+	wait := max(s.global.reserve(now, n), s.shaperOf(userID).reserve(now, n), route.reserve(now, n))
 	_ = s.cfg.Sleep(ctx, wait)
 }
 
@@ -239,6 +260,19 @@ func (s *Service) forget(userID uuid.UUID) {
 		}
 	}
 	delete(s.perUser, userID)
+}
+
+// forgetRoute drops the shaper of a route no transfer uses any more, so the table does not grow with every site or quick
+// connection ever used.
+func (s *Service) forgetRoute(route uuid.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, k := range s.active {
+		if k.route == route {
+			return
+		}
+	}
+	delete(s.perRoute, route)
 }
 
 // Recover marks the transfers that were in progress when the server stopped as interrupted. It runs once at startup.

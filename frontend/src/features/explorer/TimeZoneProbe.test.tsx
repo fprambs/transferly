@@ -25,6 +25,7 @@ const ftp: Site = {
   authMethod: 'password',
   listTimezone: 'UTC',
   charset: 'utf-8',
+  speedLimitBps: 0,
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',

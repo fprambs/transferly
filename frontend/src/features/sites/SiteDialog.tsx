@@ -59,7 +59,7 @@ function Field({ id, label, error, className, children }: FieldProps) {
     <div className={`flex flex-col gap-1.5 ${className}`}>
       <Label htmlFor={id}>{label}</Label>
       {children}
-      {error !== undefined && <p className="text-xs text-destructive">{t(($) => $.errors[error as 'nameRequired' | 'hostRequired' | 'portInvalid' | 'usernameRequired'])}</p>}
+      {error !== undefined && <p className="text-xs text-destructive">{t(($) => $.errors[error as 'nameRequired' | 'hostRequired' | 'portInvalid' | 'usernameRequired' | 'speedLimitInvalid'])}</p>}
     </div>
   )
 }
@@ -195,6 +195,10 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
             <option key={zone} value={zone} />
           ))}
         </datalist>
+      </Field>
+      <Field id="site-speed-limit" label={t(($) => $.site.speedLimit)} error={errors.speedLimit?.message} className="">
+        <Input id="site-speed-limit" className="font-mono" inputMode="decimal" placeholder={t(($) => $.site.speedLimitUnlimited)} aria-invalid={errors.speedLimit !== undefined} {...register('speedLimit')} />
+        <p className="text-xs text-muted-foreground">{t(($) => $.site.speedLimitHint)}</p>
       </Field>
       {editing !== undefined && <ConnectionTest workspaceId={workspaceId} site={editing} />}
       {needsVault || failure === 'vault_locked' ? (

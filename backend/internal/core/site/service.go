@@ -25,6 +25,11 @@ const (
 	maxHostLength    = 253
 	maxSecretBytes   = 1024
 	maxKeyBytes      = 64 * 1024
+	// minSpeedLimit is the smallest speed limit a site may have, in bytes per second (1 KiB): below it a single chunk of
+	// data would keep a request waiting for hours.
+	minSpeedLimit = 1024
+	// maxSpeedLimit is the largest speed limit a site may have, in bytes per second (1 TiB).
+	maxSpeedLimit = 1 << 40
 )
 
 // labelPattern matches one label of a host name.
@@ -76,6 +81,8 @@ type Input struct {
 	ListTimezone string
 	// Charset is the character set of file names; empty selects UTF-8. Only FTP and FTPS accept another one.
 	Charset string
+	// SpeedLimit caps the bytes per second the site's transfers move together; zero means no cap of its own.
+	SpeedLimit int64
 }
 
 // SecretChanges tells which secrets to write. A nil field leaves the secret as it is, an empty string
@@ -167,6 +174,9 @@ func Normalize(in Input) (Input, error) {
 	}
 	if _, err := time.LoadLocation(in.ListTimezone); err != nil || in.ListTimezone == "Local" {
 		return in, ErrInvalidTimezone
+	}
+	if in.SpeedLimit != 0 && (in.SpeedLimit < minSpeedLimit || in.SpeedLimit > maxSpeedLimit) {
+		return in, ErrInvalidSpeedLimit
 	}
 	return in, nil
 }
@@ -282,7 +292,8 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) Site {
 	return Site{
 		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port,
-		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, CreatedAt: createdAt, UpdatedAt: updatedAt,
+		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
+		CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 }
 

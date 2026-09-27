@@ -11,6 +11,7 @@
     "unknown": "Something went wrong. Try again.",
     "hostRequired": "Enter the host.",
     "portInvalid": "Enter a port between 1 and 65535.",
+    "speedLimitInvalid": "Enter a speed limit greater than 0, or leave it blank for none.",
     "usernameRequired": "Enter the username.",
     "site_name_taken": "A site with this name already exists.",
     "invalid_name": "The name is not valid.",
@@ -30,7 +31,8 @@
     "site_not_found": "This site no longer exists.",
     "invalid_import_file": "This is not a FileZilla site manager file.",
     "import_file_too_large": "The file is too large to import.",
-    "invalid_charset": "The character set is not supported here."
+    "invalid_charset": "The character set is not supported here.",
+    "invalid_speed_limit": "The speed limit must be at least 1 KiB/s and at most 1 TiB/s."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -89,7 +91,10 @@
     "ftpWarning": "FTP sends the password and the files without encryption. Use FTPS when the server offers it.",
     "ftpsHint": "Port 990 starts with TLS; any other port upgrades the connection with AUTH TLS. The server certificate is shown for you to confirm the first time.",
     "charset": "Character set of file names",
-    "charsetHint": "Change it only for old servers that show accents wrong; most servers use UTF-8."
+    "charsetHint": "Change it only for old servers that show accents wrong; most servers use UTF-8.",
+    "speedLimit": "Speed limit (MiB/s)",
+    "speedLimitUnlimited": "No limit",
+    "speedLimitHint": "Caps the transfers of this site, on top of the server's own global and per-person limits. Leave blank for none."
   },
   "import": {
     "open": "Import from FileZilla",

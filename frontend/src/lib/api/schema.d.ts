@@ -1029,7 +1029,7 @@ export interface paths {
         get: operations["downloadFile"];
         /**
          * Upload a file
-         * @description The body is streamed to the server with no size limit. If an upload is interrupted the partial file stays, and a request with mode=resume and the size of the partial file as offset completes it.
+         * @description The body is streamed to a "<path>.part" file with no size limit, which takes the place of path only once it is complete; path itself is never partially written. If an upload is interrupted the ".part" file stays there, and a request with mode=resume and the size of that file (found by getting "<path>.part") as offset completes it.
          */
         put: operations["uploadFile"];
         post?: never;
@@ -1412,6 +1412,11 @@ export interface components {
             /** @description IANA zone in which the server prints listing times. */
             listTimezone: string;
             charset: components["schemas"]["Charset"];
+            /**
+             * Format: int64
+             * @description Bytes per second the site's transfers move together, on top of the global and per-user caps of the instance; 0 means the site has no cap of its own.
+             */
+            speedLimitBps: number;
             /** @description Kinds of secret stored for the site. The secrets themselves are never returned. */
             secrets: ("password" | "private_key" | "passphrase")[];
             /** Format: date-time */
@@ -1440,6 +1445,11 @@ export interface components {
             /** @description IANA zone of the server's listing times; defaults to UTC. */
             listTimezone?: string;
             charset?: components["schemas"]["Charset"];
+            /**
+             * Format: int64
+             * @description Bytes per second the site's transfers move together; left out or 0 means no cap of its own.
+             */
+            speedLimitBps?: number;
             /** @description Write only. Left out keeps the stored one; an empty string removes it. */
             password?: string;
             /** @description Write only. Same rules as the password. */

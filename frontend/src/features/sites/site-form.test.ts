@@ -16,6 +16,7 @@ const stored: Site = {
   authMethod: 'key',
   listTimezone: 'Europe/Madrid',
   charset: 'utf-8',
+  speedLimitBps: 0,
   secrets: ['private_key'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -29,6 +30,7 @@ const stored: Site = {
  * - the schema accepts empty or in-range ports and rejects anything else
  * - the request trims text, defaults port and time zone, and files the site in its collection
  * - the character set is kept for FTP and FTPS and is UTF-8 for SFTP
+ * - the speed limit is shown in MiB/s and sent back in bytes per second, and a blank one means no cap
  * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
  */
@@ -52,6 +54,7 @@ describe('site form', () => {
       passphrase: '',
       listTimezone: 'Europe/Madrid',
       charset: 'utf-8',
+      speedLimit: '',
     })
     expect(siteDefaults({ ...stored, collectionId: undefined }, 'c2').collectionId).toBe('c2')
   })
@@ -63,6 +66,22 @@ describe('site form', () => {
     expect(toSiteInput({ ...values, protocol: 'ftps' }).charset).toBe('shift_jis')
     expect(toSiteInput({ ...values, protocol: 'sftp' }).charset).toBe('utf-8')
     expect(siteDefaults(undefined, undefined).charset).toBe('utf-8')
+  })
+
+  it('shows the speed limit in MiB/s and sends it back in bytes per second', () => {
+    const capped = { ...stored, speedLimitBps: 2 * 1024 * 1024 }
+    expect(siteDefaults(capped, undefined).speedLimit).toBe('2')
+    expect(toSiteInput({ ...siteDefaults(capped, undefined) }).speedLimitBps).toBe(2 * 1024 * 1024)
+    expect(siteDefaults(stored, undefined).speedLimit).toBe('')
+    expect(toSiteInput(siteDefaults(stored, undefined)).speedLimitBps).toBe(0)
+  })
+
+  it.each(['', '0.5', '1024'])('accepts speed limit %j', (speedLimit) => {
+    expect(siteSchema.safeParse({ ...siteDefaults(stored, undefined), speedLimit }).success).toBe(true)
+  })
+
+  it.each(['0', '-1', 'fast'])('rejects speed limit %j', (speedLimit) => {
+    expect(siteSchema.safeParse({ ...siteDefaults(stored, undefined), speedLimit }).success).toBe(false)
   })
 
   it.each(['', '22', '65535'])('accepts port %j', (port) => {
@@ -103,6 +122,7 @@ describe('site form', () => {
       authMethod: 'password',
       listTimezone: 'UTC',
       charset: 'utf-8',
+      speedLimitBps: 0,
       password: 'pw',
       privateKey: undefined,
       passphrase: undefined,

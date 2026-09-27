@@ -21,6 +21,7 @@ const prod: Site = {
   authMethod: 'password',
   listTimezone: 'Europe/Madrid',
   charset: 'utf-8',
+  speedLimitBps: 0,
   secrets: ['password'],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -106,6 +107,7 @@ describe('site management', () => {
       authMethod: 'password',
       listTimezone: 'UTC',
       charset: 'utf-8',
+      speedLimitBps: 0,
       password: 'secret',
     })
   })

@@ -77,6 +77,8 @@ var (
 	ErrInvalidCharset = errors.New("invalid character set")
 	// ErrInvalidTimezone means the listing time zone is not an IANA name.
 	ErrInvalidTimezone = errors.New("invalid time zone")
+	// ErrInvalidSpeedLimit means the speed limit is negative, below the smallest cap or above the largest one.
+	ErrInvalidSpeedLimit = errors.New("invalid speed limit")
 	// ErrCollectionNotFound means the collection does not exist in the workspace.
 	ErrCollectionNotFound = errors.New("collection not found")
 	// ErrCollectionNameTaken means the parent already has a collection with that name.
@@ -113,6 +115,9 @@ type Site struct {
 	ListTimezone string
 	// Charset is the character set the server uses for file names; FTP servers that do not speak UTF-8 need another one.
 	Charset string
+	// SpeedLimit caps the bytes per second the site's transfers move together, on top of the global and per-user caps of the
+	// instance; zero means the site has no cap of its own.
+	SpeedLimit int64
 	// Secrets lists the kinds of secret stored for the site.
 	Secrets []SecretKind
 	// CreatedAt is when the site was created, in UTC.

@@ -34,6 +34,15 @@ type flakyFS struct {
 	failOpen   bool
 	failStat   bool
 	failCommit bool
+	failRemove bool
+}
+
+// Remove fails when configured to.
+func (f *flakyFS) Remove(ctx context.Context, p string) error {
+	if f.failRemove {
+		return fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+	}
+	return f.shared.Remove(ctx, p)
 }
 
 // Stat fails when configured to.
@@ -382,9 +391,11 @@ func TestService_Download(t *testing.T) {
 // Scenarios:
 //   - create writes a new file and returns its entry, and refuses to replace an existing one
 //   - overwrite replaces the content
-//   - resume continues at the given offset and completes a partial upload
+//   - resume continues, from a ".part" file staged by hand as an interrupted upload would leave it, at the given offset,
+//     and completes it
 //   - an offset outside resume, a negative offset and an offset past the end are ErrInvalid
-//   - a body that fails midway returns its own error, leaves the partial file and keeps the connection pooled
+//   - a body that fails midway returns its own error, leaves the partial ".part" file untouched at the final path and keeps the
+//     connection pooled
 //   - a connection lost while closing the file is reported and the connection is discarded
 //   - the connection is returned when the file cannot be opened
 func TestService_Upload(t *testing.T) {
@@ -398,12 +409,14 @@ func TestService_Upload(t *testing.T) {
 	if _, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteCreate, 0, strings.NewReader("x")); !errors.Is(err, remotefs.ErrExists) {
 		t.Errorf("create over an existing file = %v; want ErrExists", err)
 	}
+	f.put(t, "/f.part", "hello ")
 	if e, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteResume, 6, strings.NewReader("world")); err != nil || e.Size != 11 {
 		t.Errorf("resume = %+v, %v", e, err)
 	}
 	if e, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteOverwrite, 0, strings.NewReader("new")); err != nil || e.Size != 3 {
 		t.Errorf("overwrite = %+v, %v", e, err)
 	}
+	f.put(t, "/f.part", "12345")
 	for name, call := range map[string]func() error{
 		"offset without resume": func() error {
 			return second(f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteOverwrite, 1, strings.NewReader("x")))
@@ -425,8 +438,11 @@ func TestService_Upload(t *testing.T) {
 	if _, err := f.svc.Upload(ctx, f.editor, "/partial", remotefs.WriteCreate, 0, body); !errors.Is(err, interrupted) || errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("Upload() with a failing body = %v; want the body error only", err)
 	}
-	if e, err := f.svc.Stat(ctx, f.editor, "/partial"); err != nil || e.Size != 7 {
-		t.Errorf("the partial file = %+v, %v; want the 7 bytes that arrived", e, err)
+	if _, err := f.svc.Stat(ctx, f.editor, "/partial"); !errors.Is(err, remotefs.ErrNotFound) {
+		t.Errorf("the final path after a failed upload = %v; want ErrNotFound, since nothing lands there until it succeeds", err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/partial.part"); err != nil || e.Size != 7 {
+		t.Errorf("the staged file = %+v, %v; want the 7 bytes that arrived", e, err)
 	}
 	if e, err := f.svc.Upload(ctx, f.editor, "/partial", remotefs.WriteResume, 7, strings.NewReader(" done")); err != nil || e.Size != 12 {
 		t.Errorf("resuming the partial file = %+v, %v", e, err)
@@ -456,6 +472,87 @@ type errReader struct{ err error }
 
 // Read returns the error.
 func (e errReader) Read([]byte) (int, error) { return 0, e.err }
+
+// raceReader reads from src and, on its first read, plants content at path directly in the file system, as if
+// another upload finished there while this one was still streaming.
+type raceReader struct {
+	fs      remotefs.RemoteFS
+	path    string
+	content string
+	src     io.Reader
+	planted bool
+}
+
+// Read plants the race once, then delegates to src.
+func (r *raceReader) Read(p []byte) (int, error) {
+	if !r.planted {
+		r.planted = true
+		w, err := r.fs.OpenWrite(context.Background(), r.path, 0, remotefs.WriteOverwrite)
+		if err == nil {
+			_, _ = io.WriteString(w, r.content)
+			_ = w.Close()
+		}
+	}
+	return r.src.Read(p)
+}
+
+// TestService_Upload_Atomic verifies that a file only ever appears, or changes, at its final path once the whole
+// body has arrived, since it is staged into a ".part" file until then.
+//
+// Scenarios:
+//   - overwriting a file leaves it untouched until the new body finishes, then the ".part" file is gone
+//   - a body that fails while overwriting leaves the original file exactly as it was
+//   - a create that loses a race to a file that appears at the path while it uploads fails with ErrExists and
+//     discards its ".part" file, instead of silently replacing what appeared
+func TestService_Upload_Atomic(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+
+	f.put(t, "/f", "original")
+	if e, err := f.svc.Upload(ctx, f.editor, "/f", remotefs.WriteOverwrite, 0, strings.NewReader("replaced")); err != nil || e.Size != 8 {
+		t.Fatalf("Upload() = %+v, %v", e, err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/f"); err != nil || e.Size != 8 {
+		t.Errorf("the final file = %+v, %v; want the replaced content", e, err)
+	}
+	if _, err := f.svc.Stat(ctx, f.editor, "/f.part"); !errors.Is(err, remotefs.ErrNotFound) {
+		t.Errorf("the staging file after a finished upload = %v; want it gone", err)
+	}
+
+	f.put(t, "/g", "original")
+	interrupted := errors.New("client went away")
+	body := io.MultiReader(strings.NewReader("half"), errReader{interrupted})
+	if _, err := f.svc.Upload(ctx, f.editor, "/g", remotefs.WriteOverwrite, 0, body); !errors.Is(err, interrupted) {
+		t.Errorf("Upload() with a failing body = %v; want the body error", err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/g"); err != nil || e.Size != int64(len("original")) {
+		t.Errorf("the file after a failed overwrite = %+v, %v; want it untouched", e, err)
+	}
+
+	raced := &raceReader{fs: f.fs.shared, path: "/h", content: "won the race", src: strings.NewReader("lost the race")}
+	if _, err := f.svc.Upload(ctx, f.editor, "/h", remotefs.WriteCreate, 0, raced); !errors.Is(err, remotefs.ErrExists) {
+		t.Errorf("Upload() that loses a create race = %v; want ErrExists", err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/h"); err != nil || e.Size != int64(len("won the race")) {
+		t.Errorf("the file after a lost create race = %+v, %v; want what won it, untouched", e, err)
+	}
+	if _, err := f.svc.Stat(ctx, f.editor, "/h.part"); !errors.Is(err, remotefs.ErrNotFound) {
+		t.Errorf("the staging file after a lost create race = %v; want it discarded", err)
+	}
+
+	f.put(t, "/i", "original")
+	f.fs.failRemove = true
+	if _, err := f.svc.Upload(ctx, f.editor, "/i", remotefs.WriteOverwrite, 0, strings.NewReader("replaced")); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("Upload() whose finishing remove fails = %v; want ErrConnectionLost", err)
+	}
+	f.fs.failRemove = false
+	if e, err := f.svc.Stat(ctx, f.editor, "/i"); err != nil || e.Size != int64(len("original")) {
+		t.Errorf("the file after a finishing remove fails = %+v, %v; want it untouched", e, err)
+	}
+	if e, err := f.svc.Stat(ctx, f.editor, "/i.part"); err != nil || e.Size != int64(len("replaced")) {
+		t.Errorf("the staging file after a finishing remove fails = %+v, %v; want it kept", e, err)
+	}
+}
 
 // TestService_Concurrency verifies that parallel transfers use separate connections.
 //

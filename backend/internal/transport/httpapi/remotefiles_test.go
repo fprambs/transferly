@@ -82,7 +82,8 @@ func (e *fileEnv) get(endpoint string, query url.Values, headers map[string]stri
 //   - entries carry type, size, mode, UTC time and precision
 //   - duplicate creation is 409 path_exists, missing paths are 404 path_not_found, listing a file is 422 not_a_directory
 //   - deleting a non-empty directory is 409 directory_not_empty unless recursive is set
-//   - invalid paths, modes, offsets (also negative ones) and sizes (negative ones) are 422, malformed bodies are 400
+//   - invalid paths, modes, offsets (also negative ones) and sizes (negative ones) are 422, malformed bodies are 400;
+//     resuming a file with no ".part" staged, since it was never interrupted, is 404 whatever the offset
 func TestRemoteFiles_Lifecycle(t *testing.T) {
 	e := newFileEnv(t)
 	a := e.a
@@ -154,7 +155,7 @@ func TestRemoteFiles_Lifecycle(t *testing.T) {
 	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "offset", "5"), "x", e.cookie, e.csrf), 422, "invalid_path")
 	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "mode", "resume", "offset", "-1"), "x", e.cookie, e.csrf), 422, "invalid_offset")
 	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/x", "size", "-5"), "x", e.cookie, e.csrf), 422, "invalid_size")
-	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/c.txt", "mode", "resume", "offset", "99"), "x", e.cookie, e.csrf), 422, "invalid_path")
+	expectProblem(t, e.a.upload(e.ws, e.site, q("path", "/c.txt", "mode", "resume", "offset", "99"), "x", e.cookie, e.csrf), 404, "path_not_found")
 	expectProblem(t, e.get("", nil, nil), 400, "invalid_request")
 	expectProblem(t, a.send(http.MethodPost, filesPath(e.ws, e.site, "/directories", nil), "{not json", e.cookie, e.csrf), 400, "invalid_request")
 }
@@ -242,13 +243,15 @@ func TestRemoteFiles_Download(t *testing.T) {
 // TestRemoteFiles_ResumableUpload verifies completing an interrupted upload.
 //
 // Scenarios:
-//   - after a partial upload the size is read with stat, and mode=resume with that offset completes the file
-//   - resuming at an offset inside the file rewrites from there
+//   - an upload stages into a ".part" file next to the path, staged here by hand as an interrupted upload would leave it,
+//     whose size is read with stat, and mode=resume with that offset completes it, replacing path and leaving the ".part"
+//     file gone
+//   - resuming at an offset inside the staged file rewrites from there
 func TestRemoteFiles_ResumableUpload(t *testing.T) {
 	e := newFileEnv(t)
-	e.a.upload(e.ws, e.site, q("path", "/movie"), "first-half|", e.cookie, e.csrf)
+	e.a.upload(e.ws, e.site, q("path", "/movie.part"), "first-half|", e.cookie, e.csrf)
 
-	size := e.get("/entry", q("path", "/movie"), nil).entry(t).Size
+	size := e.get("/entry", q("path", "/movie.part"), nil).entry(t).Size
 	done := e.a.upload(e.ws, e.site, q("path", "/movie", "mode", "resume", "offset", "11"), "second-half", e.cookie, e.csrf)
 	if size != 11 || done.Status != http.StatusCreated || done.entry(t).Size != 22 {
 		t.Fatalf("resume from %d = %d %s", size, done.Status, done.Body)
@@ -256,6 +259,9 @@ func TestRemoteFiles_ResumableUpload(t *testing.T) {
 	if got := e.get("/content", q("path", "/movie"), nil); string(got.Body) != "first-half|second-half" {
 		t.Errorf("content = %q", got.Body)
 	}
+	expectProblem(t, e.get("/entry", q("path", "/movie.part"), nil), 404, "path_not_found")
+
+	e.a.upload(e.ws, e.site, q("path", "/movie.part"), "first-", e.cookie, e.csrf)
 	e.a.upload(e.ws, e.site, q("path", "/movie", "mode", "resume", "offset", "6"), "HALF|SECOND", e.cookie, e.csrf)
 	if got := e.get("/content", q("path", "/movie"), nil); !strings.HasPrefix(string(got.Body), "first-HALF|SECOND") {
 		t.Errorf("content after a rewrite = %q", got.Body)

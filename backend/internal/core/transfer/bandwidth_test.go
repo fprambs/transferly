@@ -134,6 +134,80 @@ func TestService_Bandwidth(t *testing.T) {
 	}
 }
 
+// beginRoute starts a transfer against a route with the given bandwidth cap, chosen by the caller so several transfers can share one.
+func (f *fixture) beginRoute(t *testing.T, route uuid.UUID, bandwidth int64) *transfer.Tracker {
+	t.Helper()
+	in := f.input()
+	in.ID, in.Route, in.RouteBandwidth = uuid.Nil, route, bandwidth
+	k, _, err := f.svc.Begin(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return k
+}
+
+// TestService_RouteBandwidth verifies the cap on the bytes per second of a site or quick connection, from 4.3.
+//
+// Scenarios:
+//   - with no cap on the route a transfer never waits
+//   - a cap on the route is shared by the transfers that move through it and does not slow a different route
+//   - when the route's cap and a global one both apply, the longer wait wins
+//   - a later transfer on the same route changes the cap for all of them, since the site's own setting has no separate live
+//     setter and is instead refreshed every time a transfer begins on it
+//   - once every transfer on a route ends, a fresh one on it starts without owing anything
+func TestService_RouteBandwidth(t *testing.T) {
+	f, w := shapedFixture()
+	siteA, siteB := f.site, uuid.New()
+
+	a := f.beginRoute(t, siteA, 0)
+	a.Progress(1 << 20)
+	if got := w.last(); got != 0 {
+		t.Fatalf("wait without a route cap = %v; want none", got)
+	}
+	a.Finish(nil, "")
+
+	f.clock.Advance(time.Minute)
+	a = f.beginRoute(t, siteA, 500)
+	b := f.beginRoute(t, siteA, 500)
+	c := f.beginRoute(t, siteB, 500)
+	a.Progress(500)
+	b.Progress(500)
+	if got := w.last(); got != time.Second {
+		t.Errorf("a second transfer sharing the route cap waits %v; want 1s", got)
+	}
+	c.Progress(500)
+	if got := w.last(); got != 0 {
+		t.Errorf("a transfer on another route waits %v; want none", got)
+	}
+
+	f.svc.SetBandwidth(500, 0)
+	f.clock.Advance(time.Minute)
+	a.Progress(500)
+	b.Progress(500)
+	if got := w.last(); got != time.Second {
+		t.Errorf("with both a route and a global cap the wait is %v; want the longer, 1s", got)
+	}
+
+	f.clock.Advance(time.Minute)
+	f.svc.SetBandwidth(0, 0)
+	d := f.beginRoute(t, siteA, 250)
+	a.Progress(500)
+	d.Progress(500)
+	if got := w.last(); got != 2*time.Second {
+		t.Errorf("a later transfer on the route lowering its cap to 250 waits %v; want 2s", got)
+	}
+
+	a.Finish(nil, "")
+	b.Finish(nil, "")
+	c.Finish(nil, "")
+	d.Finish(nil, "")
+	e := f.beginRoute(t, siteA, 500)
+	e.Progress(500)
+	if got := w.last(); got != 0 {
+		t.Errorf("a fresh transfer once the route was left by everyone waits %v; want none", got)
+	}
+}
+
 // refusing is a quota that refuses every transfer.
 type refusing struct{ err error }
 
