@@ -250,8 +250,8 @@ export function createApi(transport: Transport) {
         transport.request<Site>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/quick-connections/${quickId}/save`, body: input }),
     },
     files: {
-      list: (workspaceId: string, siteId: string, path: string) =>
-        transport.request<RemoteEntry[]>({ method: 'GET', path: filesPath(workspaceId, siteId), query: { path } }),
+      list: (workspaceId: string, siteId: string, path: string, signal?: AbortSignal) =>
+        transport.request<RemoteEntry[]>({ method: 'GET', path: filesPath(workspaceId, siteId), query: { path }, signal }),
       stat: (workspaceId: string, siteId: string, path: string) =>
         transport.request<RemoteEntry>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/entry`, query: { path } }),
       mkdir: (workspaceId: string, siteId: string, path: string) =>

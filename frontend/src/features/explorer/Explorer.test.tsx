@@ -82,6 +82,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
  * - FTP and FTPS report no permissions, so their entries and details show a dash instead of nominal ones
  * - the dates follow the interface language
+ * - the search button opens a search of the folder in view, and a chosen match navigates there
  */
 describe('explorer', () => {
   beforeEach(() => {
@@ -304,5 +305,35 @@ describe('explorer', () => {
     await renderExplorer('/www', 's1', 'es')
 
     expect(within(await screen.findByRole('grid')).getByText(/8 mar 2026/)).toBeInTheDocument()
+  })
+
+  it('opens a search of the folder in view and navigates to a chosen match', async () => {
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', ({ request }) =>
+        HttpResponse.json(
+          new URL(request.url).searchParams.get('path') === '/www'
+            ? [entry('assets', { type: 'directory', path: '/www/assets' }), entry('report-here.csv')]
+            : [entry('deep-report.csv', { path: '/www/assets/deep-report.csv' })],
+        ),
+      ),
+    )
+    const { user, onNavigate } = await renderExplorer()
+    await screen.findByRole('grid')
+
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    const dialog = screen.getByRole('dialog', { name: 'Search' })
+    await user.type(within(dialog).getByLabelText('Search query'), 'report')
+    await user.click(within(dialog).getByRole('button', { name: 'Search' }))
+    await user.click(await within(dialog).findByText('/www/assets/deep-report.csv'))
+    expect(onNavigate).toHaveBeenCalledWith('/www/assets')
+    expect(screen.queryByRole('dialog', { name: 'Search' })).not.toBeInTheDocument()
+
+    onNavigate.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    const again = screen.getByRole('dialog', { name: 'Search' })
+    await user.type(within(again).getByLabelText('Search query'), 'report')
+    await user.click(within(again).getByRole('button', { name: 'Search' }))
+    await user.click(await within(again).findByText('/www/report-here.csv'))
+    expect(onNavigate).not.toHaveBeenCalled()
   })
 })

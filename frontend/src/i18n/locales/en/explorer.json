@@ -178,5 +178,22 @@
     "failed": "The time zone could not be detected.",
     "dismiss": "Dismiss",
     "inconclusive": "The times of the server do not match the clock, so no time zone fits."
+  },
+  "search": {
+    "title": "Search",
+    "subtitle": "Looks for files and folders below {{path}}, and everything inside them.",
+    "query": "Search query",
+    "placeholder": "report*.csv, invoice, backup-????",
+    "hint": "Plain text matches anywhere in the name. A pattern with * or ? matches the whole name.",
+    "start": "Search",
+    "stop": "Stop",
+    "scanning_one": "Looked at {{count}} entry so far…",
+    "scanning_other": "Looked at {{count}} entries so far…",
+    "found_one": "{{count}} match found.",
+    "found_other": "{{count}} matches found.",
+    "canceled_one": "Stopped. {{count}} match found so far.",
+    "canceled_other": "Stopped. {{count}} matches found so far.",
+    "truncated": "There is more; narrow the search to see everything.",
+    "results": "Search results"
   }
 }

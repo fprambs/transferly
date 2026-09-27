@@ -178,5 +178,22 @@
     "failed": "No se pudo detectar la zona horaria.",
     "dismiss": "Cerrar",
     "inconclusive": "Las horas del servidor no coinciden con el reloj, así que ninguna zona encaja."
+  },
+  "search": {
+    "title": "Buscar",
+    "subtitle": "Busca archivos y carpetas debajo de {{path}}, y todo lo que hay dentro.",
+    "query": "Texto de búsqueda",
+    "placeholder": "informe*.csv, factura, backup-????",
+    "hint": "El texto simple coincide en cualquier parte del nombre. Un patrón con * o ? coincide con el nombre completo.",
+    "start": "Buscar",
+    "stop": "Detener",
+    "scanning_one": "Se revisó {{count}} elemento hasta ahora…",
+    "scanning_other": "Se revisaron {{count}} elementos hasta ahora…",
+    "found_one": "{{count}} coincidencia encontrada.",
+    "found_other": "{{count}} coincidencias encontradas.",
+    "canceled_one": "Detenido. {{count}} coincidencia encontrada hasta ahora.",
+    "canceled_other": "Detenido. {{count}} coincidencias encontradas hasta ahora.",
+    "truncated": "Hay más; acota la búsqueda para verlo todo.",
+    "results": "Resultados de la búsqueda"
   }
 }

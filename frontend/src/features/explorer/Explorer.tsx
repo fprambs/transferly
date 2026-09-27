@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, FolderPlus, FolderUp, RefreshCw, ShieldQuestion, Upload } from 'lucide-react'
+import { ArrowUp, FolderPlus, FolderUp, RefreshCw, Search, ShieldQuestion, Upload } from 'lucide-react'
 import { useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -29,6 +29,8 @@ import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { EntryNameDialog } from './EntryNameDialog'
 import { ConnectingState } from './ExplorerLoading'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
+
+import { SearchDialog } from '../search/SearchDialog'
 
 import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
@@ -67,6 +69,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const [folders, setFolders] = useState<UploadTree[]>([])
   const [asking, setAsking] = useState<{ source: DraggedEntry; name: string } | null>(null)
   const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
+  const [searching, setSearching] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
   const folderPicker = useRef<HTMLInputElement>(null)
   const listing = useQuery({
@@ -280,6 +283,10 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         >
           <RefreshCw />
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => setSearching(true)}>
+          <Search />
+          {t(($) => $.search.title)}
+        </Button>
         {target !== undefined && target.protocol !== 'sftp' ? (
           <TimeZoneProbe workspaceId={workspaceId} siteId={siteId} path={path} site={sites.find((saved) => saved.id === siteId)} onApplied={() => void reload()} />
         ) : null}
@@ -443,6 +450,19 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             await reload()
           }}
           onClose={() => setDialog(null)}
+        />
+      )}
+      {searching && (
+        <SearchDialog
+          workspaceId={workspaceId}
+          siteId={siteId}
+          path={path}
+          onOpen={(found) => {
+            if (found !== path) {
+              onNavigate(found)
+            }
+          }}
+          onClose={() => setSearching(false)}
         />
       )}
     </section>
