@@ -1,4 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
+
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { RouterProvider, type RouterHistory } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -24,7 +26,9 @@ export default function App({ history }: AppProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <TooltipProvider>
+        <RouterProvider router={router} />
+      </TooltipProvider>
     </QueryClientProvider>
   )
 }

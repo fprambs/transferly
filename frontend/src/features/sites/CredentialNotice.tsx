@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { PanelState } from '@/components/ui/panel-state'
 
 import { CredentialDialog, type CredentialTarget } from './CredentialDialog'
 
@@ -27,15 +28,8 @@ export function CredentialNotice({ workspaceId, target, onGiven, refused = false
   const [open, setOpen] = useState(true)
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-      <div role="status" className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl border bg-card px-8 py-9 text-center shadow-sm duration-300 animate-in fade-in-0 zoom-in-95">
-        <div className="flex size-16 items-center justify-center rounded-full bg-accent-text/10 ring-8 ring-accent-text/5">
-          <KeyRound aria-hidden="true" className="size-7 text-accent-text" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <p className="text-lg font-semibold tracking-tight">{t(($) => $.credential.cardTitle)}</p>
-          <p className="text-sm leading-relaxed text-muted-foreground">{t(($) => $.credential.cardBody)}</p>
-        </div>
+    <>
+      <PanelState icon={KeyRound} title={t(($) => $.credential.cardTitle)} description={t(($) => $.credential.cardBody)}>
         <div className="flex max-w-full flex-col items-center gap-0.5 rounded-lg border bg-muted/40 px-4 py-2">
           <span className="max-w-full truncate text-sm font-medium">{target.name}</span>
           <span className="max-w-full truncate font-mono text-xs text-muted-foreground">
@@ -46,7 +40,7 @@ export function CredentialNotice({ workspaceId, target, onGiven, refused = false
           <KeyRound />
           {t(($) => $.credential.cardAction)}
         </Button>
-      </div>
+      </PanelState>
       <CredentialDialog
         workspaceId={workspaceId}
         target={open ? target : null}
@@ -57,6 +51,6 @@ export function CredentialNotice({ workspaceId, target, onGiven, refused = false
           onGiven()
         }}
       />
-    </div>
+    </>
   )
 }

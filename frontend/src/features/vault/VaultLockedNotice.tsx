@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { PanelState } from '@/components/ui/panel-state'
 
 import { useVaultStatus } from './use-vault'
 import { VaultDialog, type VaultTarget } from './VaultDialog'
@@ -39,15 +40,8 @@ export function VaultLockedNotice({ need, onUnlocked, autoOpen = false, target, 
 
   if (layout === 'page') {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <div role="status" className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl border bg-card px-8 py-9 text-center shadow-sm duration-300 animate-in fade-in-0 zoom-in-95">
-          <div className="flex size-16 items-center justify-center rounded-full bg-warn/15 ring-8 ring-warn/5">
-            <LockKeyhole aria-hidden="true" className="size-7 text-warn" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-lg font-semibold tracking-tight">{t(($) => $.notice[variant].title)}</p>
-            <p className="text-sm leading-relaxed text-muted-foreground">{t(($) => $.notice[variant][need])}</p>
-          </div>
+      <>
+        <PanelState icon={LockKeyhole} tone="warn" title={t(($) => $.notice[variant].title)} description={t(($) => $.notice[variant][need])}>
           {target !== undefined && (
             <div className="flex max-w-full flex-col items-center gap-0.5 rounded-lg border bg-muted/40 px-4 py-2">
               <span className="max-w-full truncate text-sm font-medium">{target.name}</span>
@@ -64,9 +58,9 @@ export function VaultLockedNotice({ need, onUnlocked, autoOpen = false, target, 
             <Zap aria-hidden="true" className="size-3.5 text-warn" />
             {t(($) => $.notice.quickHint)}
           </p>
-        </div>
+        </PanelState>
         {dialog}
-      </div>
+      </>
     )
   }
   return (

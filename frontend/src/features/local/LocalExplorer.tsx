@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, FolderOpen, RefreshCw } from 'lucide-react'
+import { ArrowUp, CircleAlert, FolderOpen, HardDrive, RefreshCw } from 'lucide-react'
 import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { PanelState } from '@/components/ui/panel-state'
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { useApi } from '@/lib/api/use-api'
 import { ApiError } from '@/lib/transport'
@@ -183,14 +184,10 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
         />
       )}
       <LoadingBar active={listing.isFetching} label={t(($) => $.opening, { path })} />
-      {!localSupported() && <p role="status" className="p-4 text-sm text-muted-foreground">{t(($) => $.local.unsupported)}</p>}
-      {localSupported() && root === null && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.local.hint)}</p>}
-      {listing.isError && (
-        <p role="alert" className="p-4 text-sm text-destructive">
-          {t(($) => $.local.readFailure)}
-        </p>
-      )}
-      {listing.isSuccess && entries.length === 0 && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.local.empty)}</p>}
+      {!localSupported() && <PanelState icon={HardDrive} tone="muted" title={t(($) => $.local.unsupported)} />}
+      {localSupported() && root === null && <PanelState icon={HardDrive} role="none" title={t(($) => $.local.hint)} />}
+      {listing.isError && <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.local.readFailure)} />}
+      {listing.isSuccess && entries.length === 0 && <PanelState icon={FolderOpen} tone="muted" role="none" title={t(($) => $.local.empty)} />}
       {listing.isSuccess && entries.length > 0 && (
         <div className={cn('flex min-h-0 flex-1')}>
           <EntryTable
