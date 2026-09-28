@@ -214,6 +214,45 @@ func TestDial_Certificates(t *testing.T) {
 	}
 }
 
+// TestDial_Optional covers [ftpfs.TLSOptional].
+//
+// Use cases:
+//   - a server without TLS refuses AUTH TLS, and the connection carries on in clear text and works
+//   - a server with explicit TLS upgrades, so its certificate is checked
+//   - an implicit TLS server, which speaks TLS from the first byte, is not reached, and the failure is not hidden
+func TestDial_Optional(t *testing.T) {
+	optional := func(c *ftpfs.Config) { c.TLS = ftpfs.TLSOptional }
+	plain := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Plain})
+	fsys, err := connect(t, plain, ftptest.Plain, optional)
+	if err != nil {
+		t.Fatalf("optional TLS against a server without TLS = %v; want clear text", err)
+	}
+	if _, err := fsys.List(t.Context(), "/"); err != nil {
+		t.Errorf("List() in clear text = %v", err)
+	}
+
+	explicit := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Explicit})
+	checked := false
+	if _, err := connect(t, explicit, ftptest.Explicit, func(c *ftpfs.Config) {
+		c.TLS = ftpfs.TLSOptional
+		check := c.VerifyHostKey
+		c.VerifyHostKey = func(keyType, fingerprint string) error {
+			checked = true
+			return check(keyType, fingerprint)
+		}
+	}); err != nil {
+		t.Fatalf("optional TLS against an explicit TLS server = %v", err)
+	}
+	if !checked {
+		t.Error("the certificate of a server that offers TLS was not checked")
+	}
+
+	implicit := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Implicit})
+	if _, err := connect(t, implicit, ftptest.Implicit, optional); err == nil {
+		t.Error("optional TLS reached an implicit TLS server")
+	}
+}
+
 // TestDial_Destinations verifies that every connection goes through the dialer that is given, and only to the control host.
 //
 // Scenarios:

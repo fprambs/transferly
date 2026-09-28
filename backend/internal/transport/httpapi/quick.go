@@ -12,8 +12,9 @@ import (
 // quickDTO converts a quick connection to its public representation, which never holds credentials.
 func quickDTO(c quick.Connection) QuickConnection {
 	return QuickConnection{
-		Id: c.Site.ID, Name: c.Site.Name, Protocol: QuickConnectionProtocol(c.Site.Protocol), Host: c.Site.Host, Port: c.Site.Port,
-		Username: c.Site.Username, AuthMethod: QuickConnectionAuthMethod(c.Site.AuthMethod), ListTimezone: c.Site.ListTimezone, Charset: Charset(c.Site.Charset), CreatedAt: c.Site.CreatedAt,
+		Id: c.Site.ID, Name: c.Site.Name, Protocol: QuickConnectionProtocol(c.Site.Protocol), FtpEncryption: encryptionDTO(c.Site.FTPEncryption), Host: c.Site.Host,
+		Port: c.Site.Port, Username: c.Site.Username, AuthMethod: QuickConnectionAuthMethod(c.Site.AuthMethod), ListTimezone: c.Site.ListTimezone,
+		Charset: Charset(c.Site.Charset), CreatedAt: c.Site.CreatedAt,
 	}
 }
 
@@ -52,6 +53,9 @@ func (s *server) CreateQuickConnection(ctx context.Context, request CreateQuickC
 	in := site.Input{Protocol: site.Protocol(b.Protocol), Host: b.Host, Username: b.Username}
 	if b.Port != nil {
 		in.Port = *b.Port
+	}
+	if b.FtpEncryption != nil {
+		in.FTPEncryption = site.FTPEncryption(*b.FtpEncryption)
 	}
 	if b.AuthMethod != nil {
 		in.AuthMethod = site.AuthMethod(*b.AuthMethod)

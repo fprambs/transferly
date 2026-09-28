@@ -23,6 +23,7 @@ func siteDTO(s site.Site) Site {
 		AuthMethod: SiteAuthMethod(s.AuthMethod), ListTimezone: s.ListTimezone, Charset: Charset(s.Charset), SpeedLimitBps: s.SpeedLimit,
 		Secrets: secrets, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
+	out.FtpEncryption = encryptionDTO(s.FTPEncryption)
 	if s.CollectionID != uuid.Nil {
 		out.CollectionId = &s.CollectionID
 	}
@@ -38,11 +39,23 @@ func siteDTO(s site.Site) Site {
 	return out
 }
 
+// encryptionDTO is the FTP encryption of a site or a quick connection as the API shows it: left out for SFTP.
+func encryptionDTO(encryption site.FTPEncryption) *FtpEncryption {
+	if encryption == "" {
+		return nil
+	}
+	out := FtpEncryption(encryption)
+	return &out
+}
+
 // siteInput converts the request body to the settings and secret changes of a site.
 func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	settings := site.Input{CollectionID: optionalID(in.CollectionId), Name: in.Name, Protocol: site.Protocol(in.Protocol), Host: in.Host, Username: in.Username}
 	if in.Port != nil {
 		settings.Port = *in.Port
+	}
+	if in.FtpEncryption != nil {
+		settings.FTPEncryption = site.FTPEncryption(*in.FtpEncryption)
 	}
 	if in.AuthMethod != nil {
 		settings.AuthMethod = site.AuthMethod(*in.AuthMethod)

@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/fs"
 	"net"
+	"net/textproto"
 	"path"
 	"strings"
 	"sync"
@@ -47,7 +48,13 @@ const (
 	TLSExplicit
 	// TLSImplicit expects TLS from the first byte, as on port 990.
 	TLSImplicit
+	// TLSOptional upgrades with AUTH TLS when the server accepts it and carries on in clear text when it refuses. Anyone on
+	// the network can make it fall back, so it only suits servers that may not offer TLS at all.
+	TLSOptional
 )
+
+// errAuthTLSRefused means the server refused the AUTH TLS upgrade, so the connection could only go on in clear text.
+var errAuthTLSRefused = errors.New("AUTH TLS refused")
 
 // maxTLSVersion caps FTPS at TLS 1.2. Servers such as vsftpd 3.0.3 demand session reuse on the data connections, and
 // under TLS 1.3 they fail every upload of more than one record with "426 Failure reading network stream".
@@ -206,6 +213,9 @@ func (l *link) shutdown() {
 // credentials, the context error when canceled, [netguard.ErrBlocked] for forbidden destinations and
 // [remotefs.ErrConnectionLost] otherwise. Only a lost connection is worth retrying.
 func Dial(ctx context.Context, cfg Config) (*FS, error) {
+	if cfg.TLS == TLSOptional {
+		return dialOptional(ctx, cfg)
+	}
 	host, _, err := net.SplitHostPort(cfg.Address)
 	if err != nil || host == "" {
 		return nil, fmt.Errorf("%w: %q is not a host:port address", remotefs.ErrInvalid, cfg.Address)
@@ -256,6 +266,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	}
 	stop := context.AfterFunc(ctx, session.shutdown)
 	conn, err := ftp.Dial(cfg.Address, options...)
+	greeted := err == nil
 	if err == nil {
 		err = conn.Login(cfg.Username, cfg.Password)
 		if err != nil {
@@ -271,10 +282,21 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	}
 	if err != nil {
 		session.shutdown()
-		return nil, dialError(cfg.Address, session.verifier, err)
+		return nil, dialError(cfg.Address, session.verifier, cfg.TLS == TLSExplicit && !greeted, err)
 	}
 	session.ctx.Store(&parent)
 	return &FS{turn: make(chan struct{}, 1), conn: conn, link: session, chtimes: conn.IsSetTimeSupported(), codec: codec{encoding: cfg.Charset}}, nil
+}
+
+// dialOptional connects with AUTH TLS and, when the server refuses the upgrade, again in clear text.
+func dialOptional(ctx context.Context, cfg Config) (*FS, error) {
+	cfg.TLS = TLSExplicit
+	fsys, err := Dial(ctx, cfg)
+	if !errors.Is(err, errAuthTLSRefused) {
+		return fsys, err
+	}
+	cfg.TLS = TLSNone
+	return Dial(ctx, cfg)
 }
 
 // location returns the zone of LIST times, UTC when none is given.
@@ -285,8 +307,9 @@ func location(l *time.Location) *time.Location {
 	return l
 }
 
-// dialError explains why connecting or logging in failed.
-func dialError(address string, v *verifier, err error) error {
+// dialError explains why connecting or logging in failed. upgrading says the failure came before the greeting ended while
+// asking for AUTH TLS, so a refusal from the server means it does not offer the upgrade.
+func dialError(address string, v *verifier, upgrading bool, err error) error {
 	if v != nil {
 		if rejected := v.reason(); rejected != nil {
 			return fmt.Errorf("verifying the certificate of %s: %w", address, rejected)
@@ -295,9 +318,9 @@ func dialError(address string, v *verifier, err error) error {
 	if errors.Is(err, netguard.ErrBlocked) {
 		return fmt.Errorf("connecting to %s: %w", address, err)
 	}
-	var reply interface{ Error() string }
-	if errors.As(err, &reply) && strings.Contains(err.Error(), "534") {
-		return fmt.Errorf("%w: %s does not accept AUTH TLS: %w", remotefs.ErrInvalid, address, err)
+	var reply *textproto.Error
+	if upgrading && errors.As(err, &reply) && reply.Code >= 500 {
+		return fmt.Errorf("%w: %w: %s does not accept AUTH TLS: %w", remotefs.ErrInvalid, errAuthTLSRefused, address, err)
 	}
 	return fmt.Errorf("connecting to %s: %w", address, classify(err))
 }

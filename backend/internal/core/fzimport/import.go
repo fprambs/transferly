@@ -261,7 +261,7 @@ func (r *run) one(server Server) (Item, error) {
 		return item, nil
 	}
 	item.Name = name
-	input := site.Input{Name: name, Protocol: server.Protocol, Host: server.Host, Port: server.Port, Username: server.Username}
+	input := site.Input{Name: name, Protocol: server.Protocol, FTPEncryption: server.FTPEncryption, Host: server.Host, Port: server.Port, Username: server.Username}
 	if _, err := site.Normalize(input); err != nil {
 		item.Status, item.Reason = StatusFailed, reasonOf(err)
 		return item, nil

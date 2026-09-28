@@ -144,7 +144,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in s
 		Secrets:  secrets,
 		lastUsed: now,
 		Site: site.Site{
-			ID: id, WorkspaceID: workspaceID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port, Username: in.Username,
+			ID: id, WorkspaceID: workspaceID, Name: in.Name, Protocol: in.Protocol, FTPEncryption: in.FTPEncryption, Host: in.Host, Port: in.Port, Username: in.Username,
 			AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
 			Proxy: in.Proxy, Jump: in.Jump, CreatedAt: now, UpdatedAt: now,
 		},

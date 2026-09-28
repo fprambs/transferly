@@ -179,21 +179,30 @@ func TestLink_OpenAfterShutdown(t *testing.T) {
 // Scenarios:
 //   - a refused certificate reports the reason the check gave
 //   - a destination the guard blocked keeps its own error
-//   - a server that answers 534 to AUTH TLS is an invalid configuration, not a lost connection
+//   - a server that refuses AUTH TLS with a 5xx reply before the greeting ended is an invalid configuration that optional
+//     encryption can fall back from; the same reply later, or a transient one, is not
 //   - anything else is classified as any other failure
 func TestDialError(t *testing.T) {
 	rejected := &remotefs.HostKeyError{Type: CertificateKeyType, Fingerprint: "SHA256:x"}
 	v := &verifier{rejected: rejected}
-	if err := dialError("h:21", v, errors.New("tls: bad certificate")); !errors.Is(err, rejected) {
+	if err := dialError("h:21", v, false, errors.New("tls: bad certificate")); !errors.Is(err, rejected) {
 		t.Errorf("refused certificate = %v; want the check's error", err)
 	}
-	if err := dialError("h:21", &verifier{}, netguard.ErrBlocked); !errors.Is(err, netguard.ErrBlocked) {
+	if err := dialError("h:21", &verifier{}, false, netguard.ErrBlocked); !errors.Is(err, netguard.ErrBlocked) {
 		t.Errorf("blocked destination = %v", err)
 	}
-	if err := dialError("h:21", nil, &textproto.Error{Code: 534, Msg: "no tls"}); !errors.Is(err, remotefs.ErrInvalid) {
-		t.Errorf("AUTH TLS refused = %v; want ErrInvalid", err)
+	for _, code := range []int{500, 502, 530, 534} {
+		if err := dialError("h:21", nil, true, &textproto.Error{Code: code, Msg: "no tls"}); !errors.Is(err, remotefs.ErrInvalid) || !errors.Is(err, errAuthTLSRefused) {
+			t.Errorf("AUTH TLS refused with %d = %v; want ErrInvalid and errAuthTLSRefused", code, err)
+		}
 	}
-	if err := dialError("h:21", nil, errors.New("boom")); !errors.Is(err, remotefs.ErrConnectionLost) {
+	if err := dialError("h:21", nil, false, &textproto.Error{Code: 530, Msg: "login incorrect"}); errors.Is(err, errAuthTLSRefused) {
+		t.Errorf("a refusal after the upgrade = %v; must not read as AUTH TLS refused", err)
+	}
+	if err := dialError("h:21", nil, true, &textproto.Error{Code: 421, Msg: "busy"}); errors.Is(err, errAuthTLSRefused) {
+		t.Errorf("a transient reply = %v; must not read as AUTH TLS refused", err)
+	}
+	if err := dialError("h:21", nil, false, errors.New("boom")); !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("other failure = %v; want ErrConnectionLost", err)
 	}
 }

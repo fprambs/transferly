@@ -870,3 +870,50 @@ func TestService_Quota(t *testing.T) {
 		t.Errorf("a viewer creating = %v, quota asked %d times; want ErrForbidden and no question", err, len(refusing.asked))
 	}
 }
+
+// TestNormalize_FTPEncryption covers how [site.Normalize] settles the FTP encryption of a site (ADR-0012).
+//
+// Use cases:
+//   - SFTP takes no encryption and refuses one
+//   - the legacy FTPS protocol becomes FTP that requires TLS: implicit on port 990, explicit on any other, and it refuses an
+//     encryption that does not require TLS
+//   - FTP without an encryption keeps clear text, takes any known one, and refuses an unknown one
+//   - an implicit site without a port gets port 990, any other FTP site port 21
+func TestNormalize_FTPEncryption(t *testing.T) {
+	tests := []struct {
+		name       string
+		protocol   site.Protocol
+		port       int
+		encryption site.FTPEncryption
+		want       site.FTPEncryption
+		wantPort   int
+		err        error
+	}{
+		{"sftp", site.SFTP, 0, "", "", 22, nil},
+		{"sftp with an encryption", site.SFTP, 0, site.EncryptionExplicit, "", 0, site.ErrInvalidEncryption},
+		{"legacy ftps on 990", site.FTPS, 990, "", site.EncryptionImplicit, 990, nil},
+		{"legacy ftps elsewhere", site.FTPS, 0, "", site.EncryptionExplicit, 21, nil},
+		{"legacy ftps asked for implicit", site.FTPS, 0, site.EncryptionImplicit, site.EncryptionImplicit, 990, nil},
+		{"legacy ftps asked for plain", site.FTPS, 0, site.EncryptionPlain, "", 0, site.ErrInvalidEncryption},
+		{"ftp without one", site.FTP, 0, "", site.EncryptionPlain, 21, nil},
+		{"ftp optional", site.FTP, 0, site.EncryptionOptional, site.EncryptionOptional, 21, nil},
+		{"ftp implicit on its own port", site.FTP, 2990, site.EncryptionImplicit, site.EncryptionImplicit, 2990, nil},
+		{"ftp unknown", site.FTP, 0, "tls", "", 0, site.ErrInvalidEncryption},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := valid()
+			in.Protocol, in.Port, in.FTPEncryption = tt.protocol, tt.port, tt.encryption
+			got, err := site.Normalize(in)
+			if !errors.Is(err, tt.err) {
+				t.Fatalf("Normalize() = %v; want %v", err, tt.err)
+			}
+			if err != nil {
+				return
+			}
+			if got.FTPEncryption != tt.want || got.Port != tt.wantPort || (tt.protocol != site.SFTP && got.Protocol != site.FTP) {
+				t.Errorf("Normalize() = %s %s port %d; want %s port %d", got.Protocol, got.FTPEncryption, got.Port, tt.want, tt.wantPort)
+			}
+		})
+	}
+}

@@ -16,11 +16,30 @@ type Protocol string
 const (
 	// SFTP is SSH file transfer.
 	SFTP Protocol = "sftp"
-	// FTP is plain FTP.
+	// FTP is FTP, protected as its [FTPEncryption] says.
 	FTP Protocol = "ftp"
-	// FTPS is FTP over TLS.
+	// FTPS is FTP over TLS. It is only accepted as input, for clients written before [FTPEncryption]: sites store FTP
+	// with an encryption that requires TLS instead.
 	FTPS Protocol = "ftps"
 )
+
+// FTPEncryption is how an FTP site protects the connection, as FileZilla offers it (ADR-0012).
+type FTPEncryption string
+
+const (
+	// EncryptionOptional upgrades with AUTH TLS when the server offers it and carries on in clear text when it does not.
+	// Anyone on the network can make it fall back, so it is not the default of new sites.
+	EncryptionOptional FTPEncryption = "optional"
+	// EncryptionExplicit requires the upgrade with AUTH TLS and refuses a server that does not offer it.
+	EncryptionExplicit FTPEncryption = "explicit"
+	// EncryptionImplicit expects TLS from the first byte, as on port 990.
+	EncryptionImplicit FTPEncryption = "implicit"
+	// EncryptionPlain sends everything, credentials included, in clear text.
+	EncryptionPlain FTPEncryption = "plain"
+)
+
+// implicitPort is the port of implicit FTPS, and the default of sites that use it.
+const implicitPort = 990
 
 // Charsets lists the character sets a site may use for file names, by their lower case IANA names; UTF-8 is the default.
 var Charsets = []string{
@@ -124,6 +143,8 @@ var (
 	ErrInvalidPort = errors.New("invalid port")
 	// ErrInvalidProtocol means the protocol is not supported.
 	ErrInvalidProtocol = errors.New("invalid protocol")
+	// ErrInvalidEncryption means the FTP encryption is unknown, was given for SFTP, or contradicts the legacy FTPS protocol.
+	ErrInvalidEncryption = errors.New("invalid FTP encryption")
 	// ErrInvalidAuthMethod means the authentication method is unknown or not available for the protocol.
 	ErrInvalidAuthMethod = errors.New("invalid authentication method")
 	// ErrInvalidUsername means the user name is empty or too long.
@@ -163,6 +184,8 @@ type Site struct {
 	Name string
 	// Protocol is the transfer protocol.
 	Protocol Protocol
+	// FTPEncryption is how an FTP site protects the connection; empty for SFTP.
+	FTPEncryption FTPEncryption
 	// Host is the server name or address.
 	Host string
 	// Port is the server port.

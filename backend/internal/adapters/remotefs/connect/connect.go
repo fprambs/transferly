@@ -47,22 +47,11 @@ type Connector struct {
 	hostKeys *hostkey.Service
 	policy   *netguard.Policy
 	timeout  time.Duration
-	implicit map[int]bool
 	asked    *credentials.Store
 }
 
 // Option adjusts a [Connector].
 type Option func(*Connector)
-
-// ImplicitFTPSPorts sets the ports whose FTPS sites start with TLS instead of upgrading with AUTH TLS. The default is 990.
-func ImplicitFTPSPorts(ports ...int) Option {
-	return func(c *Connector) {
-		c.implicit = make(map[int]bool, len(ports))
-		for _, port := range ports {
-			c.implicit[port] = true
-		}
-	}
-}
 
 // AskedPasswords sets where the passwords typed for sites that ask for one when connecting are held (ADR-0010). Without
 // it, those sites always fail with [credentials.ErrRequired].
@@ -77,15 +66,12 @@ var (
 
 // New returns a connector. timeout bounds establishing each TCP connection.
 func New(sites *site.Service, quick QuickConnections, hostKeys *hostkey.Service, policy *netguard.Policy, timeout time.Duration, options ...Option) *Connector {
-	c := &Connector{sites: sites, quick: quick, hostKeys: hostKeys, policy: policy, timeout: timeout, implicit: map[int]bool{implicitFTPSPort: true}}
+	c := &Connector{sites: sites, quick: quick, hostKeys: hostKeys, policy: policy, timeout: timeout}
 	for _, option := range options {
 		option(c)
 	}
 	return c
 }
-
-// implicitFTPSPort is the port of implicit FTPS; FTPS on any other port starts in clear text and upgrades with AUTH TLS.
-const implicitFTPSPort = 990
 
 // Connect implements [connections.Connector].
 //
@@ -124,7 +110,7 @@ func (c *Connector) dial(ctx context.Context, key connections.Key, target site.S
 	switch target.Protocol {
 	case site.SFTP:
 		return c.dialSFTP(ctx, key, target, secrets)
-	case site.FTP, site.FTPS:
+	case site.FTP:
 		return c.dialFTP(ctx, key, target, secrets)
 	}
 	return nil, fmt.Errorf("%w: %s sites cannot be connected", remotefs.ErrInvalid, target.Protocol)
@@ -144,16 +130,18 @@ func (c *Connector) baseDialer(target site.Site, s secrets) func(ctx context.Con
 	}, guarded).DialContext
 }
 
-// dialFTP connects to an FTP or FTPS server. FTP sends everything in clear text; FTPS on an implicit port (990 by default)
-// starts with TLS, on any other port it upgrades with AUTH TLS. An FTP account may have an empty password.
+// tlsModes is how each FTP encryption of a site protects the connection.
+var tlsModes = map[site.FTPEncryption]ftpfs.TLSMode{
+	site.EncryptionPlain:    ftpfs.TLSNone,
+	site.EncryptionOptional: ftpfs.TLSOptional,
+	site.EncryptionExplicit: ftpfs.TLSExplicit,
+	site.EncryptionImplicit: ftpfs.TLSImplicit,
+}
+
+// dialFTP connects to an FTP server, protected as the site's encryption says (ADR-0012). An FTP account may have an empty
+// password.
 func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target site.Site, s secrets) (remotefs.RemoteFS, error) {
-	mode := ftpfs.TLSNone
-	if target.Protocol == site.FTPS {
-		mode = ftpfs.TLSExplicit
-		if c.implicit[target.Port] {
-			mode = ftpfs.TLSImplicit
-		}
-	}
+	mode := tlsModes[target.FTPEncryption]
 	return ftpfs.Dial(ctx, ftpfs.Config{
 		Address:     net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
 		Username:    target.Username,

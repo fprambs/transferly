@@ -99,6 +99,7 @@ type Site struct {
 	JumpPort       int32
 	JumpUsername   string
 	JumpAuthMethod string
+	FtpEncryption  string
 }
 
 type SiteFolder struct {

@@ -193,6 +193,7 @@ var domainProblems = []struct {
 	{site.ErrInvalidPort, http.StatusUnprocessableEntity, "invalid_port"},
 	{site.ErrInvalidUsername, http.StatusUnprocessableEntity, "invalid_username"},
 	{site.ErrInvalidAuthMethod, http.StatusUnprocessableEntity, "invalid_auth_method"},
+	{site.ErrInvalidEncryption, http.StatusUnprocessableEntity, "invalid_ftp_encryption"},
 	{site.ErrInvalidCharset, http.StatusUnprocessableEntity, "invalid_charset"},
 	{site.ErrInvalidTimezone, http.StatusUnprocessableEntity, "invalid_timezone"},
 	{site.ErrInvalidSpeedLimit, http.StatusUnprocessableEntity, "invalid_speed_limit"},

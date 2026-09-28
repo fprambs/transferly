@@ -3,11 +3,9 @@ package connect_test
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/connect"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
 	"github.com/fprambs/sentinel/internal/core/connections"
@@ -35,7 +33,9 @@ func (e *env) trustCertificate(address, fingerprint string) {
 //   - an FTP account with an empty password connects without a stored secret
 //   - an FTPS site reports the certificate it met, with its fingerprint under the certificate key type, and connects once trusted
 //   - a certificate other than the trusted one is refused as a mismatch
-//   - an FTPS site on an implicit port starts with TLS, and one on another port upgrades with AUTH TLS
+//   - a legacy FTPS site off port 990 upgrades with AUTH TLS, and a site with implicit encryption starts with TLS on any port
+//   - optional encryption carries on in clear text with a server that does not offer TLS and uses TLS with one that does,
+//     while required explicit encryption refuses a server that does not offer it
 //   - a wrong password is ErrAuth and the destination guard applies to FTP too
 func TestConnector_FTP(t *testing.T) {
 	e := newEnv(t)
@@ -87,17 +87,37 @@ func TestConnector_FTP(t *testing.T) {
 	}
 
 	implicit := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Implicit})
-	_, implicitPort, _ := splitAddr(implicit.Addr)
-	implicitSite := e.addSiteAt(implicit.Addr, site.Input{Name: "Implicit", Protocol: site.FTPS, Username: ftpUser}, site.SecretChanges{Password: text(ftpPassword)})
+	legacy := e.addSiteAt(implicit.Addr, site.Input{Name: "Legacy FTPS", Protocol: site.FTPS, Username: ftpUser}, site.SecretChanges{Password: text(ftpPassword)})
 	e.trustCertificate(implicit.Addr, implicit.Fingerprint)
-	if _, err := c.Connect(t.Context(), e.key(implicitSite), session); err == nil {
-		t.Error("an implicit FTPS server was reached with an explicit connection")
+	if _, err := c.Connect(t.Context(), e.key(legacy), session); err == nil {
+		t.Error("an implicit FTPS server was reached with the explicit connection a legacy FTPS site off port 990 means")
 	}
-	implicitConnector := connect.New(e.sites, e.quick, e.hostKeys, e.allow, 5*time.Second, connect.ImplicitFTPSPorts(implicitPort))
-	if fsys, err := implicitConnector.Connect(t.Context(), e.key(implicitSite), session); err != nil {
-		t.Errorf("Connect() to an implicit FTPS port = %v", err)
+	implicitSite := e.addSiteAt(implicit.Addr, site.Input{Name: "Implicit", Protocol: site.FTP, FTPEncryption: site.EncryptionImplicit, Username: ftpUser},
+		site.SecretChanges{Password: text(ftpPassword)})
+	if fsys, err := c.Connect(t.Context(), e.key(implicitSite), session); err != nil {
+		t.Errorf("Connect() to a site with implicit encryption on any port = %v", err)
 	} else {
 		_ = fsys.Close()
+	}
+
+	optionalPlain := e.addSiteAt(plain.Addr, site.Input{Name: "Optional plain", Protocol: site.FTP, FTPEncryption: site.EncryptionOptional, Username: ftpUser},
+		site.SecretChanges{Password: text(ftpPassword)})
+	if fsys, err := c.Connect(t.Context(), e.key(optionalPlain), session); err != nil {
+		t.Errorf("Connect() with optional encryption to a server without TLS = %v; want it to carry on in clear text", err)
+	} else {
+		_ = fsys.Close()
+	}
+	optionalTLS := e.addSiteAt(explicit.Addr, site.Input{Name: "Optional TLS", Protocol: site.FTP, FTPEncryption: site.EncryptionOptional, Username: ftpUser},
+		site.SecretChanges{Password: text(ftpPassword)})
+	if fsys, err := c.Connect(t.Context(), e.key(optionalTLS), session); err != nil {
+		t.Errorf("Connect() with optional encryption to a server with TLS = %v", err)
+	} else {
+		_ = fsys.Close()
+	}
+	required := e.addSiteAt(plain.Addr, site.Input{Name: "Required", Protocol: site.FTP, FTPEncryption: site.EncryptionExplicit, Username: ftpUser},
+		site.SecretChanges{Password: text(ftpPassword)})
+	if _, err := c.Connect(t.Context(), e.key(required), session); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("Connect() requiring TLS from a server without it = %v; want ErrInvalid", err)
 	}
 
 	blocked := e.connector(netguard.NewPolicy(nil, nil))

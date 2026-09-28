@@ -4056,6 +4056,13 @@ components:
         recoveryKit:
           type: string
           description: Key that recovers the vault when the master password is lost. Shown once.
+    FtpEncryption:
+      type: string
+      enum: [optional, explicit, implicit, plain]
+      description: >-
+        How an FTP site protects the connection (ADR-0012): optional upgrades with AUTH TLS when offered and carries on in clear text
+        otherwise, explicit requires AUTH TLS, implicit expects TLS from the first byte, plain is clear text. Left out for SFTP; on
+        input, left out means plain for ftp and the encryption the port implies for ftps.
     Charset:
       type: string
       enum: [utf-8, iso-8859-1, iso-8859-2, iso-8859-15, windows-1250, windows-1251, windows-1252, koi8-r, shift_jis, euc-jp, gbk, big5, euc-kr]
@@ -4105,6 +4112,8 @@ components:
         protocol:
           type: string
           enum: [sftp, ftp, ftps]
+        ftpEncryption:
+          $ref: "#/components/schemas/FtpEncryption"
         host:
           type: string
         port:
@@ -4154,6 +4163,9 @@ components:
         protocol:
           type: string
           enum: [sftp, ftp, ftps]
+          description: ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
+        ftpEncryption:
+          $ref: "#/components/schemas/FtpEncryption"
         host:
           type: string
         port:
@@ -4494,6 +4506,9 @@ components:
         protocol:
           type: string
           enum: [sftp, ftp, ftps]
+          description: ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
+        ftpEncryption:
+          $ref: "#/components/schemas/FtpEncryption"
         host:
           type: string
         port:
@@ -4530,6 +4545,8 @@ components:
         protocol:
           type: string
           enum: [sftp, ftp, ftps]
+        ftpEncryption:
+          $ref: "#/components/schemas/FtpEncryption"
         host:
           type: string
         port:

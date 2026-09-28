@@ -25,8 +25,6 @@ const (
 	maxDepth = 12
 	// maxNameRunes is the longest name kept for a folder or a site; longer ones are cut.
 	maxNameRunes = 200
-	// implicitFTPSPort is the only port on which implicit FTPS is supported.
-	implicitFTPSPort = 990
 )
 
 // Errors returned by [Parse].
@@ -45,6 +43,8 @@ type Server struct {
 	Name string
 	// Protocol is the transfer protocol.
 	Protocol site.Protocol
+	// FTPEncryption is how an FTP site protects the connection, as FileZilla's protocol number says; empty for SFTP.
+	FTPEncryption site.FTPEncryption
 	// Host is the server name or address.
 	Host string
 	// Port is the server port; zero selects the default of the protocol.
@@ -63,7 +63,7 @@ type Skipped struct {
 	Path []string
 	// Name is the name of the site.
 	Name string
-	// Reason is a stable code: unsupported_protocol, implicit_ftps_port, key_file_login or missing_host.
+	// Reason is a stable code: unsupported_protocol, key_file_login or missing_host.
 	Reason string
 }
 
@@ -246,6 +246,20 @@ func (p *parser) server(start xml.StartElement, path []string) error {
 	return nil
 }
 
+// fileZillaProtocols maps the protocol numbers of FileZilla to a protocol and, for FTP, its encryption: 0 is FileZilla's
+// default "explicit TLS if available", 3 implicit TLS, 4 required explicit TLS and 6 plain FTP.
+var fileZillaProtocols = map[string]struct {
+	protocol   site.Protocol
+	encryption site.FTPEncryption
+}{
+	"":  {site.FTP, site.EncryptionOptional},
+	"0": {site.FTP, site.EncryptionOptional},
+	"1": {site.SFTP, ""},
+	"3": {site.FTP, site.EncryptionImplicit},
+	"4": {site.FTP, site.EncryptionExplicit},
+	"6": {site.FTP, site.EncryptionPlain},
+}
+
 // convert maps the settings of FileZilla to the ones of a site, or gives the reason why that cannot be done.
 func convert(raw rawServer, name string, path []string) (Server, string) {
 	server := Server{Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User)}
@@ -257,21 +271,11 @@ func convert(raw rawServer, name string, path []string) (Server, string) {
 			server.Port = n
 		}
 	}
-	switch strings.TrimSpace(raw.Protocol) {
-	case "", "0", "6":
-		server.Protocol = site.FTP
-	case "1":
-		server.Protocol = site.SFTP
-	case "4":
-		server.Protocol = site.FTPS
-	case "3":
-		if server.Port != implicitFTPSPort {
-			return Server{}, "implicit_ftps_port"
-		}
-		server.Protocol = site.FTPS
-	default:
+	known, ok := fileZillaProtocols[strings.TrimSpace(raw.Protocol)]
+	if !ok {
 		return Server{}, "unsupported_protocol"
 	}
+	server.Protocol, server.FTPEncryption = known.protocol, known.encryption
 	switch strings.TrimSpace(raw.Logontype) {
 	case "0":
 		server.Username = "anonymous"

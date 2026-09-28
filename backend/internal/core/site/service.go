@@ -65,8 +65,11 @@ type Guard interface {
 type Input struct {
 	// Name is the display name.
 	Name string
-	// Protocol is the transfer protocol.
+	// Protocol is the transfer protocol; FTPS is read as FTP that requires TLS.
 	Protocol Protocol
+	// FTPEncryption is how an FTP site protects the connection; empty selects clear text for FTP, the encryption the port
+	// implies for FTPS, and nothing for SFTP.
+	FTPEncryption FTPEncryption
 	// Host is the server name or address.
 	Host string
 	// Port is the server port; zero selects the protocol's default.
@@ -160,8 +163,15 @@ func Normalize(in Input) (Input, error) {
 	if !ValidHost(in.Host) {
 		return in, ErrInvalidHost
 	}
+	var err error
+	if in.Protocol, in.FTPEncryption, err = normalizeEncryption(in.Protocol, in.Port, in.FTPEncryption); err != nil {
+		return in, err
+	}
 	if in.Port == 0 {
 		in.Port = defaultPorts[in.Protocol]
+		if in.FTPEncryption == EncryptionImplicit {
+			in.Port = implicitPort
+		}
 	}
 	if in.Port < 1 || in.Port > 65535 {
 		return in, ErrInvalidPort
@@ -218,6 +228,31 @@ func normalizeProxy(p Proxy) (Proxy, error) {
 		return p, ErrInvalidProxy
 	}
 	return p, nil
+}
+
+// normalizeEncryption settles how an FTP site protects the connection. SFTP takes none. The legacy FTPS protocol becomes FTP
+// that requires TLS: implicit on port 990, explicit on any other, as before encryptions could be chosen. FTP without one keeps
+// clear text, as it always meant.
+func normalizeEncryption(protocol Protocol, port int, encryption FTPEncryption) (Protocol, FTPEncryption, error) {
+	switch {
+	case protocol == SFTP && encryption == "":
+		return SFTP, "", nil
+	case protocol == SFTP:
+		return protocol, encryption, ErrInvalidEncryption
+	case protocol == FTPS && encryption == "" && port == implicitPort:
+		return FTP, EncryptionImplicit, nil
+	case protocol == FTPS && encryption == "":
+		return FTP, EncryptionExplicit, nil
+	case protocol == FTPS && encryption != EncryptionExplicit && encryption != EncryptionImplicit:
+		return protocol, encryption, ErrInvalidEncryption
+	case encryption == "":
+		return FTP, EncryptionPlain, nil
+	}
+	switch encryption {
+	case EncryptionOptional, EncryptionExplicit, EncryptionImplicit, EncryptionPlain:
+		return FTP, encryption, nil
+	}
+	return protocol, encryption, ErrInvalidEncryption
 }
 
 // normalizeJump trims and validates a jump host; the zero value, meaning no jump host, is always valid. A jump host
@@ -364,8 +399,8 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 // build assembles a site from validated input.
 func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) Site {
 	return Site{
-		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, Host: in.Host, Port: in.Port,
-		Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
+		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, FTPEncryption: in.FTPEncryption, Host: in.Host,
+		Port: in.Port, Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
 		Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 }

@@ -50,7 +50,8 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 //   - the sites of the file are read with their folders, protocols, ports, users and passwords, in the order of the file
 //   - passwords may be base64 or plain, the ones that cannot be decoded are reported, and asking for the password or anonymous logins keep no password
 //   - names default to the host, folder names are trimmed and CDATA is read
-//   - sites that cannot be represented are reported with a reason: unsupported protocols, implicit FTPS off port 990, key file logins and a missing host
+//   - FileZilla's protocol numbers keep their encryption: 0 explicit TLS if available, 3 implicit TLS on any port, 4 required explicit TLS and 6 plain
+//   - sites that cannot be represented are reported with a reason: unsupported protocols, key file logins and a missing host
 //   - a port that is not a number is left for the default
 func TestParse(t *testing.T) {
 	servers, skipped, err := fzimport.Parse(strings.NewReader(sample))
@@ -61,24 +62,24 @@ func TestParse(t *testing.T) {
 	for _, s := range servers {
 		byName[s.Name] = s
 	}
-	if len(servers) != 7 || len(skipped) != 4 {
-		t.Fatalf("read %d servers and %d skipped; want 7 and 4: %+v %+v", len(servers), len(skipped), servers, skipped)
+	if len(servers) != 8 || len(skipped) != 3 {
+		t.Fatalf("read %d servers and %d skipped; want 8 and 3: %+v %+v", len(servers), len(skipped), servers, skipped)
 	}
 	top := byName["Top level"]
-	if top.Host != "top.example.com" || top.Port != 2121 || top.Protocol != site.FTP || top.Username != "alice" || top.Password != "secret" || len(top.Path) != 0 {
+	if top.Host != "top.example.com" || top.Port != 2121 || top.Protocol != site.FTP || top.FTPEncryption != site.EncryptionOptional || top.Username != "alice" || top.Password != "secret" || len(top.Path) != 0 {
 		t.Errorf("top level = %+v", top)
 	}
 	if box := byName["SFTP box"]; box.Protocol != site.SFTP || box.Password != "páss" || len(box.Path) != 1 || box.Path[0] != "Work" {
 		t.Errorf("sftp box = %+v", box)
 	}
 	nested := byName["ftps.example.com"]
-	if nested.Protocol != site.FTPS || nested.Password != "plain-pass" || len(nested.Path) != 2 || nested.Path[1] != "Nested Deep" {
+	if nested.Protocol != site.FTP || nested.FTPEncryption != site.EncryptionExplicit || nested.Password != "plain-pass" || len(nested.Path) != 2 || nested.Path[1] != "Nested Deep" {
 		t.Errorf("nested = %+v", nested)
 	}
-	if implicit := byName["implicit.example.com"]; implicit.Protocol != site.FTPS || implicit.Port != 990 {
+	if implicit := byName["implicit.example.com"]; implicit.FTPEncryption != site.EncryptionImplicit || implicit.Port != 990 {
 		t.Errorf("implicit = %+v", implicit)
 	}
-	if anon := byName["Anonymous"]; anon.Username != "anonymous" || anon.Protocol != site.FTP || anon.Password != "" {
+	if anon := byName["Anonymous"]; anon.Username != "anonymous" || anon.FTPEncryption != site.EncryptionPlain || anon.Password != "" {
 		t.Errorf("anonymous = %+v", anon)
 	}
 	if asks := byName["Asks"]; asks.Password != "" || asks.Username != "eve" {
@@ -87,11 +88,17 @@ func TestParse(t *testing.T) {
 	if bad := byName["Bad password"]; !bad.PasswordSkipped || bad.Password != "" || bad.Port != 0 {
 		t.Errorf("bad password = %+v", bad)
 	}
+	if odd := byName["Odd implicit"]; odd.FTPEncryption != site.EncryptionImplicit || odd.Port != 9990 {
+		t.Errorf("implicit off port 990 = %+v", odd)
+	}
+	if box := byName["SFTP box"]; box.FTPEncryption != "" {
+		t.Errorf("an SFTP site got the encryption %q", box.FTPEncryption)
+	}
 	reasons := map[string]string{}
 	for _, s := range skipped {
 		reasons[s.Name] = s.Reason
 	}
-	want := map[string]string{"Key login": "key_file_login", "WebDAV": "unsupported_protocol", "Odd implicit": "implicit_ftps_port", "No host": "missing_host"}
+	want := map[string]string{"Key login": "key_file_login", "WebDAV": "unsupported_protocol", "No host": "missing_host"}
 	for name, reason := range want {
 		if reasons[name] != reason {
 			t.Errorf("%q skipped for %q; want %q (all: %v)", name, reasons[name], reason, reasons)
