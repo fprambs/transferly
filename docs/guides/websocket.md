@@ -29,6 +29,7 @@ A browser sends the user's cookie on a WebSocket opened from any site, so the up
 | `transfer.state` | the transfer, whenever its state changes |
 | `transfer.progress` | `{"id", "bytesDone", "totalBytes"}`, at most every 250 ms per transfer |
 | `vault.locked` | `null`, when the user locks the vault |
+| `connection.log` | `{"workspaceId", "siteId", "time", "level", "step", "params"}`, one step of a connection to a site (ADR-0011); not replayed on reconnect |
 
 A client that reconnects gets a new snapshot and reloads the history with `GET /api/v1/transfers`.
 
