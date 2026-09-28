@@ -11,8 +11,8 @@ async function csrfOf(request: APIRequestContext): Promise<{ 'X-CSRF-Token': str
   return { 'X-CSRF-Token': me.csrfToken }
 }
 
-/** Creates an account the only way the instance allows, through an invitation to a team, and turns its authenticator app on. */
-export async function createAccountWithSecondStep(admin: APIRequestContext, guest: APIRequestContext, email: string, team: string): Promise<void> {
+/** Creates an account the only way the instance allows, through an invitation to a team; `guest` ends up signed in as it. */
+export async function createAccount(admin: APIRequestContext, guest: APIRequestContext, email: string, team: string): Promise<void> {
   const headers = await csrfOf(admin)
   const workspace = (await (await admin.post('/api/v1/workspaces', { data: { name: team }, headers })).json()) as { id: string }
   const invitation = (await (await admin.post(`/api/v1/workspaces/${workspace.id}/invitations`, { data: { email, role: 'viewer' }, headers })).json()) as {
@@ -20,6 +20,11 @@ export async function createAccountWithSecondStep(admin: APIRequestContext, gues
   }
   const joined = await guest.post('/api/v1/invitations/join', { data: { token: invitation.token, password: guestPassword } })
   expect(joined.status()).toBe(201)
+}
+
+/** Creates an account as {@link createAccount} does and turns its authenticator app on. */
+export async function createAccountWithSecondStep(admin: APIRequestContext, guest: APIRequestContext, email: string, team: string): Promise<void> {
+  await createAccount(admin, guest, email, team)
   const own = await csrfOf(guest)
   const setup = (await (await guest.post('/api/v1/me/totp', { headers: own })).json()) as { secret: string }
   const confirmed = await guest.post('/api/v1/me/totp/confirm', { data: { code: totpCode(setup.secret) }, headers: own })

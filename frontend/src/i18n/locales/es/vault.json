@@ -55,5 +55,11 @@
       "connect": "Este sitio tiene una contraseña guardada, pero aún no tienes vault. Crea uno para conectar.",
       "team": "La clave de un equipo se sella con tu vault. Crea tu vault para empezar un equipo."
     }
+  },
+  "target": {
+    "label": "Servidor que necesita el vault",
+    "name": "Sitio",
+    "host": "Servidor",
+    "username": "Usuario"
   }
 }

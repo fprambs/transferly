@@ -35,7 +35,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  *   for a new account and for the wrong account, the members page of a viewer, the row menu and the removal dialog
  * - the passkey dialog, the settings with a passkey and the sign-in step that offers it
  * - the administration page: accounts, the confirmation to remove a second step, networks and the audit log
- * - the locked vault in a new site and a saved site, the unlock dialog, and a quick connection that works while locked
+ * - the locked vault in a new site, the unlock dialog, a saved site that asks for the master password at once naming its server, and a quick connection that works while locked
  * - comparing a saved FTP site against the SFTP quick connection: the differences and the plan running
  * - searching a folder recursively: the results found below a subfolder
  * - editing a site's speed limit
@@ -147,15 +147,14 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     await page.goto(`/sites/${siteId}?path=%2F`)
-    await expect(page.getByText('Your vault is locked')).toBeVisible()
-    await shoot(page, '15-saved-site-vault-locked')
+    await expect(page.getByRole('dialog', { name: 'Unlock the vault' })).toContainText('sentinel')
+    await shoot(page, '15-saved-site-asks-master-password')
 
     await page.goto(`/sites/${quickId}?path=%2F`)
     await expect(page.getByRole('row').first()).toBeVisible()
     await shoot(page, '16-quick-connection-vault-locked')
 
     await page.goto(`/sites/${siteId}?path=%2F`)
-    await page.getByRole('button', { name: 'Unlock the vault' }).click()
     await page.getByRole('dialog', { name: 'Unlock the vault' }).getByLabel('Master password').fill('a long e2e master password')
     await page.getByRole('dialog', { name: 'Unlock the vault' }).getByRole('button', { name: 'Unlock' }).click()
     await expect(page.getByRole('row').first()).toBeVisible()

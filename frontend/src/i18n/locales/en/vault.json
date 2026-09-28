@@ -55,5 +55,11 @@
       "connect": "This site has a saved password, but you have no vault yet. Create one to connect.",
       "team": "The key of a team is sealed with your vault. Create your vault to start a team."
     }
+  },
+  "target": {
+    "label": "Server that needs the vault",
+    "name": "Site",
+    "host": "Host",
+    "username": "User"
   }
 }

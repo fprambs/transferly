@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Site } from '@/lib/api'
-import { mockVault, mockWorkspaceData, problem } from '@/test/handlers'
+import { mockUnlocking, mockVault, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 
@@ -64,7 +64,7 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * - a rejected save shows its message and Cancel closes the dialog
  * - a locked vault is explained once a secret is typed, in place of a bare error
  * - editing prefills the site without secrets and saves the changes
- * - the connection test reports success, failures and asks to trust a new server key before testing again
+ * - the connection test reports success, failures, asks to trust a new server key before testing again, and asks for the master password when the vault is locked
  * - deleting asks for confirmation, reports failures and can be cancelled
  */
 describe('site management', () => {
@@ -357,6 +357,26 @@ describe('site management', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
 
     expect(await within(dialog).findByText('The server refused the credentials.')).toBeInTheDocument()
+  })
+
+  it('asks for the master password when the test finds the vault locked, and tests again once it is unlocked', async () => {
+    const vault = mockUnlocking()
+    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files', () => (vault.unlocked() ? HttpResponse.json([]) : problem(409, 'vault_locked'))))
+    const user = await renderSidebar()
+    await pick(user, 'Prod', 'Edit')
+    const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
+
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    const unlock = await screen.findByRole('dialog', { name: 'Unlock the vault' })
+    expect(unlock).toHaveTextContent(prod.host)
+    await user.click(within(unlock).getByRole('button', { name: 'Cancel' }))
+    expect(await within(dialog).findByText('Unlock the vault to save credentials.')).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    const again = await screen.findByRole('dialog', { name: 'Unlock the vault' })
+    await user.type(within(again).getByLabelText('Master password'), 'correct horse battery')
+    await user.click(within(again).getByRole('button', { name: 'Unlock' }))
+    expect(await within(dialog).findByText(/Connected. The server answered/)).toBeInTheDocument()
   })
 
   it('asks to trust a new key and tests again', async () => {

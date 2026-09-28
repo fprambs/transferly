@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 
 import { useVaultStatus } from './use-vault'
-import { VaultDialog } from './VaultDialog'
+import { VaultDialog, type VaultTarget } from './VaultDialog'
 
 /** What the user was doing when the vault turned out to be locked, which decides the wording. */
 export type VaultNeed = 'save' | 'connect' | 'team'
@@ -16,16 +16,21 @@ export interface VaultLockedNoticeProps {
   need: VaultNeed
   /** Called once the vault is unlocked from the notice, so the caller can try again. */
   onUnlocked?: () => void
+  /** Whether the master password dialog opens at once, as FileZilla asks for its master password, instead of waiting for the button. */
+  autoOpen?: boolean
+  /** The server that needs the vault, named in the dialog. */
+  target?: VaultTarget
 }
 
 /**
  * A friendly panel that says the vault is needed for what the user is doing, why, and unlocks it in place: the button opens the
- * master password dialog, or the setup one when there is no vault yet. It replaces a bare error message.
+ * master password dialog, or the setup one when there is no vault yet; with `autoOpen` the dialog opens at once and the panel stays behind in case
+ * it is dismissed. It replaces a bare error message.
  */
-export function VaultLockedNotice({ need, onUnlocked }: VaultLockedNoticeProps) {
+export function VaultLockedNotice({ need, onUnlocked, autoOpen = false, target }: VaultLockedNoticeProps) {
   const { t } = useTranslation('vault')
   const status = useVaultStatus()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(autoOpen)
   const initialized = status?.initialized ?? true
   const variant = initialized ? 'locked' : 'missing'
 
@@ -41,7 +46,7 @@ export function VaultLockedNotice({ need, onUnlocked }: VaultLockedNoticeProps) 
           {t(($) => $.notice[variant].action)}
         </Button>
       </div>
-      <VaultDialog mode={open ? (initialized ? 'unlock' : 'setup') : null} onClose={() => setOpen(false)} onUnlocked={onUnlocked} />
+      <VaultDialog mode={open ? (initialized ? 'unlock' : 'setup') : null} onClose={() => setOpen(false)} onUnlocked={onUnlocked} target={target} />
     </div>
   )
 }

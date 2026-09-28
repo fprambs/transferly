@@ -15,6 +15,7 @@ import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
 import { useVaultStatus } from '../vault/use-vault'
+import { VaultDialog } from '../vault/VaultDialog'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
 import { collectionOptions } from './collection-paths'
@@ -104,16 +105,32 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
   const [tab, setTab] = useState<SiteTab>('general')
   const errorTabs = tabsWithErrors(errors)
 
+  const [unlocking, setUnlocking] = useState<SiteValues | null>(null)
+
+  const persist = async (values: SiteValues): Promise<void> => {
+    setFailure(null)
+    try {
+      const input = toSiteInput(values)
+      await (editing === undefined ? api.sites.create(workspaceId, input) : api.sites.update(workspaceId, editing.id, input))
+      await queryClient.invalidateQueries({ queryKey: sitesKeys.sites(workspaceId) })
+      onClose()
+    } catch (error) {
+      const key = siteErrorKeyOf(error)
+      if (key === 'vault_locked') {
+        setUnlocking(values)
+      } else {
+        setFailure(key)
+      }
+    }
+  }
+
   const submit = handleSubmit(
     async (values) => {
-      try {
-        const input = toSiteInput(values)
-        await (editing === undefined ? api.sites.create(workspaceId, input) : api.sites.update(workspaceId, editing.id, input))
-        await queryClient.invalidateQueries({ queryKey: sitesKeys.sites(workspaceId) })
-        onClose()
-      } catch (error) {
-        setFailure(siteErrorKeyOf(error))
+      if (needsVault) {
+        setUnlocking(values)
+        return
       }
+      await persist(values)
     },
     (invalid) => {
       const failing = tabsWithErrors(invalid)
@@ -311,6 +328,15 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         </TabsContent>
       </Tabs>
       {editing !== undefined && <ConnectionTest workspaceId={workspaceId} site={editing} />}
+      <VaultDialog
+        mode={unlocking === null ? null : vault?.initialized === false ? 'setup' : 'unlock'}
+        target={unlocking === null ? undefined : { name: unlocking.name, host: unlocking.host, username: unlocking.username }}
+        onClose={() => {
+          setUnlocking(null)
+          setFailure('vault_locked')
+        }}
+        onUnlocked={() => void persist(unlocking as SiteValues)}
+      />
       {needsVault || failure === 'vault_locked' ? (
         <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
       ) : (

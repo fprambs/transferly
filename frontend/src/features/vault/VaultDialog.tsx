@@ -28,6 +28,16 @@ const setupSchema = z
   .object({ password: z.string().min(minPasswordLength, 'passwordShort'), confirm: z.string() })
   .refine((values) => values.password === values.confirm, { path: ['confirm'], message: 'confirmMismatch' })
 
+/** The server the vault is unlocked for, named in the dialog so the user knows what asked for the master password. */
+export interface VaultTarget {
+  /** Name of the site or quick connection. */
+  name: string
+  /** Host of the server. */
+  host: string
+  /** User the server is signed in as. */
+  username: string
+}
+
 /** Props of {@link VaultDialog}. */
 export interface VaultDialogProps {
   /** Which step to show, or `null` when the dialog is closed. */
@@ -36,6 +46,8 @@ export interface VaultDialogProps {
   onClose: () => void
   /** Called after the vault was unlocked, or created and its recovery kit stored, so the caller can carry on with what needed it. */
   onUnlocked?: () => void
+  /** The server that needs the vault, if any, shown above the password. */
+  target?: VaultTarget
 }
 
 /** Props of {@link RecoveryKit}. */
@@ -84,10 +96,12 @@ interface PasswordFormProps {
   onKit: (kit: string) => void
   /** Called after the vault was unlocked. */
   onUnlocked?: () => void
+  /** The server that needs the vault, if any. */
+  target?: VaultTarget
 }
 
-/** Master password form of the vault dialog. */
-function PasswordForm({ mode, onClose, onKit, onUnlocked }: PasswordFormProps) {
+/** Master password form of the vault dialog. Its submit event stops here, so a dialog opened from another form never submits that form too. */
+function PasswordForm({ mode, onClose, onKit, onUnlocked, target }: PasswordFormProps) {
   const { t } = useTranslation('vault')
   const api = useApi()
   const queryClient = useQueryClient()
@@ -120,16 +134,34 @@ function PasswordForm({ mode, onClose, onKit, onUnlocked }: PasswordFormProps) {
   })
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+    <form
+      onSubmit={(event) => {
+        event.stopPropagation()
+        void submit(event)
+      }}
+      noValidate
+      className="flex flex-col gap-4"
+    >
       <DialogHeader>
         <DialogTitle>{t(($) => $[mode].title)}</DialogTitle>
         <DialogDescription>{t(($) => $[mode].description)}</DialogDescription>
       </DialogHeader>
+      {target !== undefined && (
+        <dl aria-label={t(($) => $.target.label)} className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
+          <dt className="text-muted-foreground">{t(($) => $.target.name)}</dt>
+          <dd className="truncate font-medium">{target.name}</dd>
+          <dt className="text-muted-foreground">{t(($) => $.target.host)}</dt>
+          <dd className="truncate font-mono">{target.host}</dd>
+          <dt className="text-muted-foreground">{t(($) => $.target.username)}</dt>
+          <dd className="truncate font-mono">{target.username}</dd>
+        </dl>
+      )}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="vault-password">{t(($) => $.fields.password)}</Label>
         <Input
           id="vault-password"
           type="password"
+          autoFocus
           autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
           aria-invalid={errors.password !== undefined}
           {...register('password')}
@@ -163,7 +195,7 @@ function PasswordForm({ mode, onClose, onKit, onUnlocked }: PasswordFormProps) {
 }
 
 /** Dialog to create or unlock the vault; a new vault ends with its recovery kit. */
-export function VaultDialog({ mode, onClose, onUnlocked }: VaultDialogProps) {
+export function VaultDialog({ mode, onClose, onUnlocked, target }: VaultDialogProps) {
   const [kit, setKit] = useState<string | null>(null)
 
   return (
@@ -179,7 +211,7 @@ export function VaultDialog({ mode, onClose, onUnlocked }: VaultDialogProps) {
             }}
           />
         ) : (
-          mode !== null && <PasswordForm key={mode} mode={mode} onClose={onClose} onKit={setKit} onUnlocked={onUnlocked} />
+          mode !== null && <PasswordForm key={mode} mode={mode} onClose={onClose} onKit={setKit} onUnlocked={onUnlocked} target={target} />
         )}
       </DialogContent>
     </Dialog>
