@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: ['frontend'],
-    proxy: { '/api': apiUrl, '/healthz': apiUrl, '/readyz': apiUrl },
+    proxy: { '/api': { target: apiUrl, ws: true }, '/healthz': apiUrl, '/readyz': apiUrl },
   },
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
