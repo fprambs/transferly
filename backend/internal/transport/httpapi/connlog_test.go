@@ -1,11 +1,15 @@
 package httpapi_test
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/fprambs/sentinel/internal/core/connections"
 )
 
 // logMessage is the payload of a connection.log message.
@@ -50,5 +54,66 @@ func TestConnectionLog_Listing(t *testing.T) {
 	conn.nextLog(t)
 	if failed := conn.nextLog(t); failed.Step != "failed" || failed.Level != "error" || failed.Params["code"] != "path_not_found" || failed.Params["path"] != "/missing" {
 		t.Errorf("failed = %+v", failed)
+	}
+}
+
+// TestDisconnectSite covers closing the connections of the caller to a site (4.9b).
+//
+// Use cases:
+//   - after listing, disconnecting closes the pooled connection, tells the log, and the next listing connects again
+//   - a site that does not exist is not found
+func TestDisconnectSite(t *testing.T) {
+	e := newFileEnv(t)
+	conn, _ := e.a.connectEvents(e.cookie)
+	e.get("", q("path", "/"), nil)
+	conn.nextLog(t)
+	conn.nextLog(t)
+	key := connections.Key{UserID: e.a.userID(e.cookie), WorkspaceID: e.ws, SiteID: e.site}
+	if idle, _ := e.a.pool.Stats(key); idle != 1 {
+		t.Fatalf("idle connections after listing = %d; want 1", idle)
+	}
+
+	if r := e.a.send(http.MethodDelete, sitesPath(e.ws, e.site.String())+"/connection", nil, e.cookie, e.csrf); r.Status != http.StatusNoContent {
+		t.Fatalf("disconnect = %d %s", r.Status, r.Body)
+	}
+	if idle, total := e.a.pool.Stats(key); idle != 0 || total != 0 {
+		t.Errorf("connections after disconnecting = %d idle, %d total; want none", idle, total)
+	}
+	if entry := conn.nextLog(t); entry.Step != "disconnected" || entry.SiteID != e.site {
+		t.Errorf("log after disconnecting = %+v", entry)
+	}
+	if r := e.get("", q("path", "/"), nil); r.Status != http.StatusOK {
+		t.Errorf("listing after disconnecting = %d", r.Status)
+	}
+	expectProblem(t, e.a.send(http.MethodDelete, sitesPath(e.ws, uuid.NewString())+"/connection", nil, e.cookie, e.csrf), http.StatusNotFound, "site_not_found")
+}
+
+// TestConnectionLog_Canceled covers a listing the client gives up before it ends (4.9b).
+//
+// Use cases:
+//   - the log tells that the listing was canceled, as a warning, instead of a failure with a code
+func TestConnectionLog_Canceled(t *testing.T) {
+	e := newFileEnv(t)
+	body := siteBody(slowSite)
+	created := e.a.send(http.MethodPost, sitesPath(e.ws), body, e.cookie, e.csrf)
+	if created.Status != http.StatusCreated {
+		t.Fatalf("create = %d %s", created.Status, created.Body)
+	}
+	slow := created.site(t).Id
+	conn, _ := e.a.connectEvents(e.cookie)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.a.srv.URL+filesPath(e.ws, slow, "", q("path", "/")), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.AddCookie(e.cookie)
+	if resp, err := http.DefaultClient.Do(req); err == nil {
+		_ = resp.Body.Close()
+		t.Fatal("a listing of a site that never answers came back")
+	}
+	if entry := conn.nextLog(t); entry.Step != "canceled" || entry.Level != "warn" || entry.Params["path"] != "/" || entry.SiteID != slow {
+		t.Errorf("log of a canceled listing = %+v", entry)
 	}
 }

@@ -2249,6 +2249,40 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/connection:
+    delete:
+      operationId: disconnectSite
+      summary: Close the open connections of the caller to a site or quick connection
+      description: >-
+        Closes the pooled connections of the caller to the site, idle or in use; an operation running on one fails as a
+        lost connection. The next request to the site connects again. Tells the connection log (ADR-0011).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+      responses:
+        "204":
+          description: Disconnected; nothing was open is fine too.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/credential:
     put:
       operationId: setSiteCredential

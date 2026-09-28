@@ -68,6 +68,7 @@ type api struct {
 	events *recordedEvents
 	hub    *events.Hub
 	policy *netguard.Policy
+	pool   *connections.Manager
 }
 
 // reply is a fully read HTTP response.
@@ -176,7 +177,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	}
 	srv := httptest.NewServer(httpapi.NewRouter(deps))
 	t.Cleanup(srv.Close)
-	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub, policy: policy}
+	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub, policy: policy, pool: pool}
 }
 
 // request describes one call.
@@ -682,7 +683,11 @@ func newMemConnector(clock ports.Clock, sites *site.Service, quickConnections *q
 	return memConnector{clock: clock, sites: sites, quick: quickConnections, asked: asked, mu: &sync.Mutex{}, byID: map[uuid.UUID]*sharedFS{}}
 }
 
-// Connect returns a connection to the file system of the site.
+// slowSite is the name of a site whose connection never opens: connecting waits until the request is given up.
+const slowSite = "Never answers"
+
+// Connect returns a connection to the file system of the site; one to the site named [slowSite] waits for the request
+// to end.
 func (c memConnector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
 	if _, ok := c.quick.Describe(key.UserID, key.WorkspaceID, key.SiteID); !ok {
 		found, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
@@ -691,6 +696,10 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, session 
 		}
 		if _, typed := c.asked.Password(credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}); found.AuthMethod == site.AuthAsk && !typed {
 			return nil, credentials.ErrRequired
+		}
+		if found.Name == slowSite {
+			<-ctx.Done()
+			return nil, ctx.Err()
 		}
 	}
 	c.mu.Lock()

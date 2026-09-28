@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
@@ -55,7 +56,7 @@ func remoteEntryDTO(e remotefs.Entry) RemoteEntry {
 }
 
 // ListFiles lists a remote directory, telling the connection log of the site the folder it reads once the connection is
-// open, and how that went (ADR-0011).
+// open, and how that went (ADR-0011): listed, failed with its code, or canceled because the client gave up the request.
 func (s *server) ListFiles(ctx context.Context, request ListFilesRequestObject) (ListFilesResponseObject, error) {
 	t := target(ctx, request.WorkspaceId, request.SiteId)
 	logTarget := connlog.Target{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site}
@@ -63,9 +64,12 @@ func (s *server) ListFiles(ctx context.Context, request ListFilesRequestObject) 
 		s.deps.ConnectionLog.Record(logTarget, connlog.Info, connlog.Listing, map[string]string{"path": request.Params.Path})
 	}
 	entries, err := s.deps.Files.List(ctx, t, request.Params.Path)
-	if err != nil {
+	switch {
+	case err != nil && ctx.Err() != nil:
+		s.deps.ConnectionLog.Record(logTarget, connlog.Warn, connlog.Canceled, map[string]string{"path": request.Params.Path})
+	case err != nil:
 		s.deps.ConnectionLog.Record(logTarget, connlog.Error, connlog.Failed, map[string]string{"path": request.Params.Path, "code": problemCode(err)})
-	} else {
+	default:
 		s.deps.ConnectionLog.Record(logTarget, connlog.Info, connlog.Listed, map[string]string{"path": request.Params.Path, "count": strconv.Itoa(len(entries))})
 	}
 	if problem, ok := asProblem(err); ok {
@@ -459,3 +463,22 @@ func probeResponse(probe files.TimeProbe) ProbeTimeZone200JSONResponse {
 	}
 	return out
 }
+
+// DisconnectSite closes the pooled connections of the caller to a site or quick connection, and tells the connection
+// log of the site. A site the caller cannot see is not found.
+func (s *server) DisconnectSite(ctx context.Context, request DisconnectSiteRequestObject) (DisconnectSiteResponseObject, error) {
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	_, _, _, err := s.siteOf(ctx, t)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.deps.Connections.CloseKey(connections.Key{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site})
+	s.deps.ConnectionLog.Record(connlog.Target{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site}, connlog.Info, connlog.Disconnected, map[string]string{})
+	return DisconnectSite204Response{}, nil
+}
+
+// VisitDisconnectSiteResponse implements [DisconnectSiteResponseObject].
+func (p domainProblem) VisitDisconnectSiteResponse(w http.ResponseWriter) error { return p.write(w) }

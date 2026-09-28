@@ -50,6 +50,10 @@ const (
 	Listed Step = "listed"
 	// Failed means an operation failed: params code, the stable error code the API answers.
 	Failed Step = "failed"
+	// Canceled means the user canceled an operation before it ended: params path.
+	Canceled Step = "canceled"
+	// Disconnected means the user closed the connections to the site.
+	Disconnected Step = "disconnected"
 )
 
 // Entry is one line of the log of a site.
