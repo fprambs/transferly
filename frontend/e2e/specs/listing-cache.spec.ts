@@ -5,7 +5,7 @@ import { expect, test } from '../fixtures.ts'
  *
  * Scenarios:
  * - going back to a folder that was just visited shows its listing without a new request to the server, and resting the pointer on a
- *   folder fetches its listing before it is opened
+ *   folder does not list it: only opening it does
  */
 test.describe('listing cache', () => {
   test('does not ask the server again for a folder that was just seen', async ({ shell, quickId, request }) => {
@@ -31,7 +31,8 @@ test.describe('listing cache', () => {
     const grid = page.getByRole('grid', { name: 'Files' })
     await expect(grid.getByRole('row', { name: /child/ })).toBeVisible()
     await grid.getByRole('row', { name: /other/ }).hover()
-    await expect.poll(() => asked.filter((path) => path === `/upload/${parent}/other`).length).toBe(1)
+    await page.waitForTimeout(300)
+    expect(asked.filter((path) => path === `/upload/${parent}/other`)).toHaveLength(0)
     await grid.getByRole('row', { name: /other/ }).dblclick()
     await expect(page).toHaveURL(new RegExp(`other$`))
     await page.getByRole('button', { name: 'Up one level' }).click()

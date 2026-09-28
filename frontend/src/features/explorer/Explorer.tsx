@@ -109,17 +109,6 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
 
   const reload = (): Promise<void> => queryClient.invalidateQueries({ queryKey: filesPrefix(workspaceId, siteId) })
 
-  const prefetch = (entry: RemoteEntry): void => {
-    if (entry.type === 'directory') {
-      void queryClient.prefetchQuery({
-        queryKey: filesKey(workspaceId, siteId, entry.path),
-        queryFn: () => api.files.list(workspaceId, siteId, entry.path),
-        staleTime: listingFreshMs,
-        gcTime: listingKeepMs,
-      })
-    }
-  }
-
   const uploads = useUploads({ api, workspaceId, siteId, path, onUploaded: reload })
 
   const download = (entry: RemoteEntry): void => {
@@ -413,7 +402,6 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             showPermissions={showPermissions}
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
-            onHover={prefetch}
             onDownload={download}
             onDownloadEach={(entry) => void downloadEach(entry)}
             onEdit={edit}

@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import { useState } from 'react'
@@ -65,7 +65,7 @@ async function renderHarness() {
  * - going back to a folder that was just seen shows it at once and asks the server nothing
  * - once a listing is older than the fresh time, visiting it shows the cached one while the server is asked again in the background, and
  *   the listing changes when the answer arrives
- * - resting the pointer on a folder fetches its listing ahead, so opening it asks nothing more, and files are not fetched
+ * - resting the pointer on a folder does not list it: only opening it asks the server
  * - changing something on the connection makes every cached listing of it stale, so the next visit asks again
  * - coming back to the page after the listings went stale reloads the folder in view
  */
@@ -115,14 +115,13 @@ describe('listing cache', () => {
     expect(asked['/www/docs']).toBe(2)
   })
 
-  it('fetches a folder ahead when the pointer rests on it', async () => {
+  it('lists a folder only when it is opened, not when the pointer rests on it', async () => {
     const { user, grid } = await renderHarness()
     const table = await grid()
 
-    fireEvent.mouseEnter(table.getByText('index.html').closest('[role="row"]') as HTMLElement)
+    await user.hover(table.getByText('docs'))
+    await new Promise((resolve) => setTimeout(resolve, 50))
     expect(asked['/www/docs']).toBeUndefined()
-    fireEvent.mouseEnter(table.getByText('docs').closest('[role="row"]') as HTMLElement)
-    await waitFor(() => expect(asked['/www/docs']).toBe(1))
 
     await user.dblClick(table.getByText('docs'))
     expect(await (await grid()).findByText('guide.md')).toBeInTheDocument()
