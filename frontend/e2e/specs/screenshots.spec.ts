@@ -518,6 +518,12 @@ test.describe('screenshots', () => {
     await page.getByRole('treeitem', { name: /^Log / }).first().click()
     await expect(page.getByRole('list', { name: 'Connection log' }).getByText(/^Listed \//)).toBeVisible()
     await shoot(page, '54-connection-log')
+    await page.getByRole('toolbar', { name: 'Toolbar' }).getByRole('button', { name: 'Disconnect from the server' }).click()
+    await expect(page).toHaveURL(/\/$/)
+    await page.goBack()
+    await expect(page.getByText(/^Disconnected from /)).toBeVisible()
+    await page.waitForTimeout(400)
+    await shoot(page, '55-disconnected')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
