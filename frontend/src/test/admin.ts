@@ -106,6 +106,6 @@ export function mockAdmin({ users = defaultUsers, networks = { fixed: ['172.16.0
 }
 
 /** Makes a route of the administration API answer with a problem instead. */
-export function failAdmin(method: 'patch' | 'post' | 'put', path: string, status: number, code: string): void {
+export function failAdmin(method: 'get' | 'patch' | 'post' | 'put', path: string, status: number, code: string): void {
   server.use(http[method](`/api/v1/admin${path}`, () => problem(status, code)))
 }

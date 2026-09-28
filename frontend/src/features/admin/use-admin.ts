@@ -15,21 +15,35 @@ export const adminKeys = {
   audit: (prefix: string) => ['admin', 'audit', prefix] as const,
 }
 
-/** Returns the accounts of the instance, oldest first, and whether they are still loading. */
-export function useAdminUsers(): { items: AdminUser[]; loading: boolean } {
-  const api = useApi()
-  const { data, isPending } = useQuery({ queryKey: adminKeys.users, queryFn: () => api.admin.users() })
-  return { items: data ?? [], loading: isPending }
+/** A screen's data, whether it is still loading, and whether it failed to load; `refetch` tries again. */
+export interface AdminQuery<T> {
+  /** The data, once loaded. */
+  data: T | undefined
+  /** Whether the first load is still going. */
+  loading: boolean
+  /** The error that failed the load, or `undefined` when it did not fail. */
+  error: unknown
+  /** Tries the load again. */
+  refetch: () => void
 }
 
-/** Returns the private networks sites may reach, or `undefined` while they load. */
-export function useNetworks(): Networks | undefined {
+/** Returns the accounts of the instance, oldest first. */
+export function useAdminUsers(): AdminQuery<AdminUser[]> {
   const api = useApi()
-  return useQuery({ queryKey: adminKeys.networks, queryFn: () => api.admin.networks() }).data
+  const { data, isPending, error, refetch } = useQuery({ queryKey: adminKeys.users, queryFn: () => api.admin.users() })
+  return { data, loading: isPending, error, refetch: () => void refetch() }
 }
 
-/** Returns the caps and quotas of the instance with the values the server started with, or `undefined` while they load. */
-export function useLimits(): InstanceLimitsView | undefined {
+/** Returns the private networks sites may reach. */
+export function useNetworks(): AdminQuery<Networks> {
   const api = useApi()
-  return useQuery({ queryKey: adminKeys.limits, queryFn: () => api.admin.limits() }).data
+  const { data, isPending, error, refetch } = useQuery({ queryKey: adminKeys.networks, queryFn: () => api.admin.networks() })
+  return { data, loading: isPending, error, refetch: () => void refetch() }
+}
+
+/** Returns the caps and quotas of the instance with the values the server started with. */
+export function useLimits(): AdminQuery<InstanceLimitsView> {
+  const api = useApi()
+  const { data, isPending, error, refetch } = useQuery({ queryKey: adminKeys.limits, queryFn: () => api.admin.limits() })
+  return { data, loading: isPending, error, refetch: () => void refetch() }
 }

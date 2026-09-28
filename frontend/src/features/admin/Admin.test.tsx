@@ -39,6 +39,7 @@ async function openActions(email: string) {
  * - the limits show what is in force and what the server started with, save the values in the units of the server, refuse what is not a number
  *   and fill in the starting values on request
  * - the audit log words every action, narrows by group, pages, and explains an empty trail
+ * - a tab whose data could not load explains why and retries, instead of staying on its loading state forever
  * - people who are not administrators get a message instead of the page, and the account menu offers the page only to administrators
  * - the translated messages, the action keys and the error keys are the ones the server uses
  */
@@ -375,6 +376,27 @@ describe('administration', () => {
     await renderApp({ path: '/admin' })
 
     expect(await screen.findByText('Loading accounts…')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['Accounts', '/users', 'maria@acme.dev'],
+    ['Networks', '/networks', 'Set at startup'],
+    ['Limits', '/limits', 'Bandwidth'],
+    ['Audit log', '/audit', 'Nothing has been recorded yet.'],
+  ])('explains a %s tab that could not load instead of loading forever, and retries', async (tab, path, loaded) => {
+    const mock = mockAdmin()
+    failAdmin('get', path, 503, 'network_error')
+    await renderApp({ path: '/admin' })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: tab }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server.')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    mockAdmin({ users: mock.users })
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText(loaded)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('waits for the session', async () => {

@@ -1,4 +1,5 @@
 {
+  "retry": "Reintentar",
   "page": {
     "title": "Administración",
     "subtitle": "Cuentas, redes privadas y el registro de lo que hicieron los administradores en esta instancia.",

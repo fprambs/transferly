@@ -1,4 +1,5 @@
 {
+  "retry": "Retry",
   "page": {
     "title": "Administration",
     "subtitle": "Accounts, private networks and the record of what administrators did on this instance.",

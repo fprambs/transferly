@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Loading } from '@/components/ui/loading'
+import { RetryFailure } from '@/components/ui/retry-failure'
 import type { InstanceLimits, InstanceLimitsView } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -112,13 +114,16 @@ export function LimitsTab() {
   const { t } = useTranslation('admin')
   const view = useLimits()
 
-  if (view === undefined) {
-    return <p className="text-sm text-muted-foreground">{t(($) => $.limits.loading)}</p>
+  if (view.loading) {
+    return <Loading label={t(($) => $.limits.loading)} />
+  }
+  if (view.data === undefined) {
+    return <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(view.error)])} retryLabel={t(($) => $.retry)} onRetry={view.refetch} />
   }
   return (
     <div className="flex flex-col gap-4">
       <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{t(($) => $.limits.intro)}</p>
-      <LimitsForm view={view} />
+      <LimitsForm view={view.data} />
     </div>
   )
 }

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Loading } from '@/components/ui/loading'
+import { RetryFailure } from '@/components/ui/retry-failure'
 import type { Networks } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -108,13 +110,16 @@ export function NetworksTab() {
   const { t } = useTranslation('admin')
   const networks = useNetworks()
 
-  if (networks === undefined) {
-    return <p className="text-sm text-muted-foreground">{t(($) => $.networks.loading)}</p>
+  if (networks.loading) {
+    return <Loading label={t(($) => $.networks.loading)} />
+  }
+  if (networks.data === undefined) {
+    return <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(networks.error)])} retryLabel={t(($) => $.retry)} onRetry={networks.refetch} />
   }
   return (
     <div className="flex flex-col gap-4">
       <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{t(($) => $.networks.intro)}</p>
-      <NetworksForm networks={networks} />
+      <NetworksForm networks={networks.data} />
     </div>
   )
 }

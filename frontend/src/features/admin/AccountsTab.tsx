@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Loading } from '@/components/ui/loading'
+import { RetryFailure } from '@/components/ui/retry-failure'
 import { formatInstant } from '@/lib/datetime'
 import type { AdminUser, AdminUserPatch } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -154,14 +156,16 @@ export function AccountsTab() {
   const [filter, setFilter] = useState('')
   const [pending, setPending] = useState<Pending>(null)
   const [failure, setFailure] = useState<AdminErrorKey | null>(null)
-  const shown = users.items.filter((user) => matches(user, filter))
+  const shown = (users.data ?? []).filter((user) => matches(user, filter))
 
   return (
     <div className="flex flex-col gap-4">
       <Input aria-label={t(($) => $.accounts.filter)} placeholder={t(($) => $.accounts.filter)} value={filter} onChange={(event) => setFilter(event.target.value)} className="max-w-72" />
       <AdminFailure failure={failure} />
       {users.loading ? (
-        <p className="text-sm text-muted-foreground">{t(($) => $.accounts.loading)}</p>
+        <Loading label={t(($) => $.accounts.loading)} />
+      ) : users.data === undefined ? (
+        <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(users.error)])} retryLabel={t(($) => $.retry)} onRetry={users.refetch} />
       ) : (
         <div className="overflow-hidden rounded-lg border bg-card">
           <div className="grid grid-cols-[2.6fr_1.2fr_1fr_1fr_1.1fr_0.4fr] border-b px-4 py-2 text-[11px] tracking-wider text-muted-foreground uppercase" aria-hidden="true">

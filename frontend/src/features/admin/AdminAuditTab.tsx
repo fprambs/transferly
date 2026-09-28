@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Loading } from '@/components/ui/loading'
 import { NativeSelect } from '@/components/ui/native-select'
+import { RetryFailure } from '@/components/ui/retry-failure'
 import { formatInstant } from '@/lib/datetime'
 import type { AuditEvent } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -11,6 +13,7 @@ import { useApi } from '@/lib/api/use-api'
 import { useTimeZone } from '../auth/use-time-zone'
 
 import { adminActionKey, adminCategories, adminPageSize } from './admin-actions'
+import { adminErrorKeyOf } from './errors'
 import { adminKeys } from './use-admin'
 
 /** One line of the trail: when, who, what happened and from which address. */
@@ -58,7 +61,9 @@ export function AdminAuditTab() {
         </NativeSelect>
       </label>
       {trail.isPending ? (
-        <p className="text-sm text-muted-foreground">{t(($) => $.audit.loading)}</p>
+        <Loading label={t(($) => $.audit.loading)} />
+      ) : trail.isError ? (
+        <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(trail.error)])} retryLabel={t(($) => $.retry)} onRetry={() => void trail.refetch()} />
       ) : events.length === 0 ? (
         <p className="rounded-lg border bg-card px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.audit.empty)}</p>
       ) : (
