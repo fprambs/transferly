@@ -114,7 +114,13 @@
     "jumpPrivateKey": "Jump host private key",
     "jumpPassphrase": "Jump host key passphrase",
     "jumpNone": "No jump host",
-    "jumpHint": "Tunnels the SSH connection through this server first, as ssh -J does. Leave the host blank to connect directly."
+    "jumpHint": "Tunnels the SSH connection through this server first, as ssh -J does. Leave the host blank to connect directly.",
+    "tabs": {
+      "general": "General",
+      "advanced": "Advanced",
+      "network": "Proxy and jump host",
+      "hasErrors": "(has errors)"
+    }
   },
   "import": {
     "open": "Import from FileZilla",

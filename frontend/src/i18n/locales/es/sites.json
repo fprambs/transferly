@@ -114,7 +114,13 @@
     "jumpPrivateKey": "Clave privada del salto",
     "jumpPassphrase": "Frase de la clave del salto",
     "jumpNone": "Sin salto",
-    "jumpHint": "Hace pasar la conexión SSH primero por este servidor, como ssh -J. Deja el host en blanco para conectar directamente."
+    "jumpHint": "Hace pasar la conexión SSH primero por este servidor, como ssh -J. Deja el host en blanco para conectar directamente.",
+    "tabs": {
+      "general": "General",
+      "advanced": "Avanzado",
+      "network": "Proxy y salto",
+      "hasErrors": "(tiene errores)"
+    }
   },
   "import": {
     "open": "Importar de FileZilla",

@@ -1,3 +1,4 @@
+import type { FieldErrors } from 'react-hook-form'
 import { z } from 'zod'
 
 import type { Charset, Site, SiteInput } from '@/lib/api'
@@ -182,4 +183,44 @@ function jumpInput(values: SiteValues, usesKey: boolean): Pick<SiteInput, 'jump'
     jumpPrivateKey: usesKey ? secret(values.jumpPrivateKey) : undefined,
     jumpPassphrase: usesKey ? secret(values.jumpPassphrase) : undefined,
   }
+}
+
+/** The tabs of the site form: what is needed to connect, the settings most sites leave alone, and how the connection is routed. */
+export type SiteTab = 'general' | 'advanced' | 'network'
+
+/** The tabs in the order they are drawn. */
+export const siteTabs: readonly SiteTab[] = ['general', 'advanced', 'network']
+
+/** The tab each field of the form is on. */
+const fieldTabs: Record<keyof SiteValues, SiteTab> = {
+  name: 'general',
+  collectionId: 'general',
+  protocol: 'general',
+  host: 'general',
+  port: 'general',
+  username: 'general',
+  authMethod: 'general',
+  password: 'general',
+  privateKey: 'general',
+  passphrase: 'general',
+  charset: 'advanced',
+  listTimezone: 'advanced',
+  speedLimit: 'advanced',
+  proxyKind: 'network',
+  proxyHost: 'network',
+  proxyPort: 'network',
+  proxyUsername: 'network',
+  proxyPassword: 'network',
+  jumpHost: 'network',
+  jumpPort: 'network',
+  jumpUsername: 'network',
+  jumpAuthMethod: 'network',
+  jumpPassword: 'network',
+  jumpPrivateKey: 'network',
+  jumpPassphrase: 'network',
+}
+
+/** The tabs that hold at least one field with a validation error. */
+export function tabsWithErrors(errors: FieldErrors<SiteValues>): Set<SiteTab> {
+  return new Set((Object.keys(errors) as (keyof SiteValues)[]).map((field) => fieldTabs[field]))
 }

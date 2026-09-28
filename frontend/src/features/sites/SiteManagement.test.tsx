@@ -55,6 +55,7 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  *
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
+ * - what is needed to connect is on the first tab, the rest on Advanced and Proxy and jump host, and a wrong field opens its tab and marks it
  * - the character set of file names is offered for FTP and FTPS only, is UTF-8 by default and is sent with the site
  * - FTP and FTPS are offered next to SFTP, with their own default port; FTP warns about clear text, FTPS explains its ports, and neither offers keys
  * - key authentication swaps the password for the key fields
@@ -112,6 +113,37 @@ describe('site management', () => {
       speedLimitBps: 0,
       password: 'secret',
     })
+  })
+
+  it('keeps what is needed to connect on the first tab, and opens the tab of a field that is wrong', async () => {
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New site' })
+
+    expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(dialog).getByLabelText('Host')).toBeVisible()
+    expect(within(dialog).getByLabelText('Speed limit (MiB/s)')).not.toBeVisible()
+    expect(within(dialog).getByLabelText('Proxy')).not.toBeVisible()
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Staging')
+    await user.type(within(dialog).getByLabelText('Host'), 'staging.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'deploy')
+    await user.click(within(dialog).getByRole('tab', { name: 'Advanced' }))
+    expect(within(dialog).getByLabelText('Host')).not.toBeVisible()
+    await user.type(within(dialog).getByLabelText('Speed limit (MiB/s)'), 'fast')
+    await user.click(within(dialog).getByRole('tab', { name: 'General' }))
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Staging')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    const advanced = within(dialog).getByRole('tab', { name: /Advanced/ })
+    await waitFor(() => expect(advanced).toHaveAttribute('aria-selected', 'true'))
+    expect(advanced).toHaveTextContent('(has errors)')
+    expect(within(dialog).getByText('Enter a speed limit greater than 0, or leave it blank for none.')).toBeVisible()
+
+    await user.click(within(dialog).getByRole('tab', { name: 'Proxy and jump host' }))
+    expect(within(dialog).getByLabelText('Proxy')).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    await waitFor(() => expect(within(dialog).getByRole('tab', { name: /Proxy and jump host/ })).toHaveAttribute('aria-selected', 'false'))
   })
 
   it('creates FTP and FTPS sites with their own port and no key option', async () => {
