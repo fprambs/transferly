@@ -1,5 +1,5 @@
 # vsftpd test servers: plain FTP, explicit FTPS and implicit FTPS from one image.
-# Test use only: fixed credentials and a self-signed certificate.
+# Test use only: fixed credentials and a self-signed certificate. The plain server also lets anonymous users read /srv/anon.
 FROM debian:bookworm-slim
 
 # Package downloads use HTTPS so a middlebox cannot alter them; the slim image ships no CA bundle.
@@ -14,7 +14,10 @@ RUN printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \
 RUN useradd --home-dir /srv/ftp --shell /bin/sh sentinel \
     && echo 'sentinel:sentinel' | chpasswd \
     && mkdir -p /var/run/vsftpd/empty /srv/ftp/upload \
-    && chown -R sentinel /srv/ftp
+    && chown -R sentinel /srv/ftp \
+    && mkdir -p /srv/anon/pub \
+    && echo 'public file of the anonymous test server' > /srv/anon/pub/readme.txt \
+    && chmod -R a+rX,go-w /srv/anon
 
 RUN openssl req -x509 -nodes -newkey rsa:2048 -days 3650 -subj "/CN=sentinel-test" \
     -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/certs/vsftpd.pem
