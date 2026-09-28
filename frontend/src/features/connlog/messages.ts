@@ -8,7 +8,7 @@ import type { LogLine } from './connection-log-store'
 const certificateKeyType = 'tls-certificate'
 
 /** Steps whose message the log knows; any other is shown by its code. */
-const knownSteps = ['connecting', 'connected', 'host_key_verified', 'host_key_unknown', 'host_key_changed', 'plain_text', 'authenticated', 'listing', 'listed', 'failed'] as const
+const knownSteps = ['connecting', 'connected', 'host_key_verified', 'host_key_unknown', 'host_key_changed', 'plain_text', 'authenticated', 'listing', 'listed', 'failed', 'canceled', 'disconnected'] as const
 
 /** Logon types the log names; any other is shown as it came. */
 const knownMethods = ['password', 'key', 'ask', 'anonymous'] as const

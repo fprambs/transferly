@@ -36,7 +36,7 @@ test.describe('visual', () => {
 
       await expect(page).toHaveScreenshot(`shell-${language}-${theme}.png`, {
         animations: 'disabled',
-        mask: [page.getByRole('navigation', { name: 'Sites' })],
+        mask: [page.getByRole('navigation', { name: /^(Sites|Sitios)$/ })],
       })
     })
   }

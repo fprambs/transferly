@@ -241,7 +241,26 @@
       "authenticated": "Sesión iniciada como {{username}} ({{method}}).",
       "listing": "Listando {{path}}…",
       "listed": "Listado {{path}}: {{count}} elementos.",
-      "failed": "Falló: {{reason}} ({{code}})"
+      "failed": "Falló: {{reason}} ({{code}})",
+      "canceled": "Cancelado: {{path}}.",
+      "disconnected": "Desconectado."
     }
-  }
+  },
+  "disconnected": {
+    "title": "Desconectado de {{name}}",
+    "body": "No hay nada abierto con este servidor. Conéctate de nuevo para explorarlo.",
+    "connect": "Conectar"
+  },
+  "canceled": "Se canceló el listado de {{path}}.",
+  "commands": {
+    "label": "Barra de herramientas",
+    "refresh": "Actualizar la carpeta",
+    "cancel": "Cancelar la operación en curso",
+    "disconnect": "Desconectar del servidor",
+    "log": "Panel del registro",
+    "connection": "Conexión: {{name}}",
+    "disconnectedFrom": "Desconectado: {{name}}",
+    "disconnectFailed": "No se pudo desconectar. Inténtalo de nuevo."
+  },
+  "failedTitle": "No se pudo listar esta carpeta"
 }

@@ -233,6 +233,8 @@ export function createApi(transport: Transport) {
         transport.request<Site>({ method: 'PUT', path: `${root}/workspaces/${workspaceId}/sites/${siteId}`, body: input }),
       remove: (workspaceId: string, siteId: string) =>
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}` }),
+      disconnect: (workspaceId: string, siteId: string) =>
+        transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/connection` }),
       setCredential: (workspaceId: string, siteId: string, password: string, remember: boolean) =>
         transport.request<void>({ method: 'PUT', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/credential`, body: { password, remember } }),
     },

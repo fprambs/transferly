@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, FolderPlus, FolderUp, RefreshCw, Search, ShieldQuestion, Upload } from 'lucide-react'
+import { ArrowUp, CircleAlert, CircleStop, FolderOpen, FolderPlus, FolderUp, Plug, RefreshCw, Search, ShieldQuestion, Unplug, Upload } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { PanelState } from '@/components/ui/panel-state'
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { Loading } from '@/components/ui/loading'
 import { cn } from '@/lib/utils'
@@ -28,6 +29,8 @@ import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { EntryNameDialog } from './EntryNameDialog'
+import { useConnectionState, useDisconnected } from '../toolbar/connection-store'
+
 import { ConnectingState } from './ExplorerLoading'
 import { DownloadNotices, type RequestedDownload } from './DownloadNotices'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
@@ -80,14 +83,19 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const fileDoubleClick = useUiStore((state) => state.fileDoubleClick)
   const picker = useRef<HTMLInputElement>(null)
   const folderPicker = useRef<HTMLInputElement>(null)
+  const disconnected = useDisconnected({ workspaceId, siteId })
+  const reconnect = useConnectionState((state) => state.reconnect)
+  const focus = useConnectionState((state) => state.focus)
   const listing = useQuery({
     queryKey: filesKey(workspaceId, siteId, path),
-    queryFn: () => api.files.list(workspaceId, siteId, path),
+    queryFn: ({ signal }) => api.files.list(workspaceId, siteId, path, signal),
+    enabled: !disconnected,
     staleTime: listingFreshMs,
     gcTime: listingKeepMs,
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[3] === siteId ? previous : undefined),
   })
   const opening = listing.isFetching && listing.isPlaceholderData
+  const canceled = !listing.isFetching && (listing.isPending || listing.isPlaceholderData)
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const showPermissions = target === undefined || target.protocol === 'sftp'
@@ -216,6 +224,19 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
     onNavigate(entry.path)
   }
 
+  if (disconnected) {
+    return (
+      <section aria-label={t(($) => $.list)} className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <PanelState icon={Unplug} tone="muted" title={t(($) => $.disconnected.title, { name: target?.name ?? siteId })} description={t(($) => $.disconnected.body)}>
+          <Button size="lg" className="min-w-52" onClick={() => reconnect({ workspaceId, siteId })}>
+            <Plug aria-hidden="true" />
+            {t(($) => $.disconnected.connect)}
+          </Button>
+        </PanelState>
+      </section>
+    )
+  }
+
   return (
     <section
       aria-label={t(($) => $.list)}
@@ -225,6 +246,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       }}
       onDragLeave={() => setDragging(null)}
       onDrop={drop}
+      onPointerDownCapture={() => focus({ workspaceId, siteId })}
+      onFocusCapture={() => focus({ workspaceId, siteId })}
       className="relative flex min-h-0 min-w-0 flex-1 flex-col"
     >
       {dragging !== null ? (
@@ -348,25 +371,27 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         />
       )}
       <LoadingBar active={listing.isFetching} label={t(($) => $.opening, { path })} />
-      {listing.isPending && <ConnectingState name={target?.name ?? siteId} />}
+      {listing.isPending && listing.isFetching && <ConnectingState name={target?.name ?? siteId} />}
+      {canceled && (
+        <PanelState icon={CircleStop} tone="muted" title={t(($) => $.canceled, { path })}>
+          <Button variant="outline" onClick={() => void listing.refetch()}>
+            {t(($) => $.retry)}
+          </Button>
+        </PanelState>
+      )}
       {failure !== null && hostKey !== undefined && target !== undefined && (
-        <div role="alert" className="m-4 flex max-w-xl flex-col gap-3 rounded-xl border bg-card p-4 text-sm">
-          <p className="flex items-center gap-2 font-medium">
-            <ShieldQuestion className="size-5 text-warn" />
-            {t(($) => $.trust.title)}
-          </p>
-          <p className="text-muted-foreground">{t(($) => $.trust.body)}</p>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        <PanelState icon={ShieldQuestion} tone="warn" role="alert" title={t(($) => $.trust.title)} description={t(($) => $.trust.body)}>
+          <dl className="grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2 text-start text-sm">
             <dt className="text-muted-foreground">{t(($) => $.trust.keyType)}</dt>
             <dd className="font-mono">{hostKey.keyType}</dd>
             <dt className="text-muted-foreground">{t(($) => $.trust.fingerprint)}</dt>
             <dd className="font-mono break-all">{hostKey.fingerprint}</dd>
           </dl>
-          {trustFailure !== null && <p className="text-destructive">{t(($) => $.errors[trustFailure])}</p>}
-          <Button className="self-start" onClick={() => trust(hostKey, target)}>
+          {trustFailure !== null && <p className="text-sm text-destructive">{t(($) => $.errors[trustFailure])}</p>}
+          <Button size="lg" className="min-w-52" onClick={() => trust(hostKey, target)}>
             {t(($) => $.trust.confirm)}
           </Button>
-        </div>
+        </PanelState>
       )}
       {asksPassword && target !== undefined && (
         <CredentialNotice
@@ -381,15 +406,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         <VaultLockedNotice need="connect" layout="page" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
       )}
       {failure !== null && failure !== 'vault_locked' && !asksPassword && (hostKey === undefined || target === undefined) && (
-        <div role="alert" className="m-4 flex max-w-xl flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
-          <p className="text-destructive">{t(($) => $.errors[failure])}</p>
-          <Button variant="outline" className="self-start" onClick={() => void listing.refetch()}>
+        <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failedTitle)} description={t(($) => $.errors[failure])}>
+          <Button variant="outline" onClick={() => void listing.refetch()}>
             {t(($) => $.retry)}
           </Button>
-        </div>
+        </PanelState>
       )}
-      {listing.isSuccess && !opening && entries.length === 0 && <p className="p-4 text-sm text-muted-foreground">{t(($) => $.emptyDir)}</p>}
-      {listing.isSuccess && entries.length > 0 && (
+      {listing.isSuccess && !canceled && !opening && entries.length === 0 && <PanelState icon={FolderOpen} tone="muted" role="none" title={t(($) => $.emptyDir)} />}
+      {listing.isSuccess && !canceled && entries.length > 0 && (
         <div aria-busy={opening} className={cn('flex min-h-0 flex-1 transition-opacity', opening && 'pointer-events-none opacity-50')}>
           <EntryTable
             key={path}

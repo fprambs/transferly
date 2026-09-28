@@ -1,6 +1,6 @@
 import { getRouteApi } from '@tanstack/react-router'
 import { ArrowLeftRight, Columns2, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { useLocalRoot } from '../local/local-root-store'
 import { useSitesData } from '../sites/use-sites-data'
 import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
+import { useConnectionState } from '../toolbar/connection-store'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { Explorer } from './Explorer'
@@ -30,6 +31,14 @@ export function SiteExplorer() {
   const { sites, quick } = useSitesData(workspace?.id)
   const localRoot = useLocalRoot((state) => state.root)
   const [comparing, setComparing] = useState(false)
+  const focus = useConnectionState((state) => state.focus)
+  const workspaceId = workspace?.id
+
+  useEffect(() => {
+    if (workspaceId !== undefined) {
+      focus({ workspaceId, siteId })
+    }
+  }, [focus, workspaceId, siteId])
 
   if (workspace === undefined) {
     return null
