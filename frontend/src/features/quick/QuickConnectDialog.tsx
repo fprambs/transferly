@@ -13,7 +13,7 @@ import type { QuickConnectInput, QuickConnection } from '@/lib/api'
 import { useApi, type Api } from '@/lib/api/use-api'
 
 import { quickErrorKeyOf, unknownHostKeyOf, type QuickErrorKey, type UnknownHostKey } from './errors'
-import { defaultPorts, quickSchema, toQuickInput, type QuickValues } from './schema'
+import { defaultPorts, quickSchema, toQuickInput, type QuickValues, type QuickProtocol } from './schema'
 import { TrustPanel } from './TrustPanel'
 
 /** A connection attempt waiting for the user to trust the server key. */
@@ -26,9 +26,9 @@ interface PendingTrust {
   workspaceId: string
 }
 
-/** Reads the protocol of a tab, which is one of the three the tabs offer. */
-function toProtocol(value: unknown): QuickConnectInput['protocol'] {
-  return value === 'ftps' || value === 'ftp' ? value : 'sftp'
+/** Reads the protocol of a tab, which is one of the two the tabs offer. */
+function toProtocol(value: unknown): QuickProtocol {
+  return value === 'ftp' ? 'ftp' : 'sftp'
 }
 
 /** Runs a call and reports how long it took, in milliseconds. */
@@ -68,7 +68,7 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
   const api = useApi()
   const [pending, setPending] = useState<PendingTrust | null>(null)
   const [failure, setFailure] = useState<QuickErrorKey | null>(null)
-  const [protocol, setProtocol] = useState<QuickConnectInput['protocol']>('sftp')
+  const [protocol, setProtocol] = useState<QuickProtocol>('sftp')
   const {
     register,
     handleSubmit,
@@ -128,7 +128,6 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
             <Tabs value={protocol} onValueChange={(value) => setProtocol(toProtocol(value))} aria-label={t(($) => $.protocol.label)}>
               <TabsList className="w-full">
                 <TabsTrigger value="sftp">{t(($) => $.protocol.sftp)}</TabsTrigger>
-                <TabsTrigger value="ftps">{t(($) => $.protocol.ftps)}</TabsTrigger>
                 <TabsTrigger value="ftp">{t(($) => $.protocol.ftp)}</TabsTrigger>
               </TabsList>
             </Tabs>
