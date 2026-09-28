@@ -36,7 +36,17 @@
     "invalid_proxy": "El tipo, host o puerto del proxy no es válido.",
     "invalid_jump": "El host de salto no es válido, o está configurado en un protocolo distinto de SFTP.",
     "credentials_required": "Este sitio pide su contraseña al conectar.",
-    "credentials_not_asked": "Este sitio ya no pide contraseña; ábrelo de nuevo."
+    "credentials_not_asked": "Este sitio ya no pide contraseña; ábrelo de nuevo.",
+    "private_key_is_public": "La clave privada es una clave pública. Elige el archivo de la clave privada.",
+    "passphrase_required": "Escribe la frase de paso de la clave privada.",
+    "wrong_passphrase": "La frase de paso no abre la clave privada.",
+    "private_key_unreadable": "No se puede leer el archivo de la clave privada.",
+    "private_key_unsupported": "Esta clave privada no se puede usar.",
+    "jump_private_key_is_public": "La clave del salto es una clave pública. Elige el archivo de la clave privada.",
+    "jump_passphrase_required": "Escribe la frase de paso de la clave del salto.",
+    "jump_wrong_passphrase": "La frase de paso no abre la clave del salto.",
+    "jump_private_key_unreadable": "No se puede leer el archivo de la clave del salto.",
+    "jump_private_key_unsupported": "La clave del salto no se puede usar."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -134,8 +144,6 @@
     },
     "anonymousHint": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
     "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
-    "keepKey": "Dejar en blanco para mantener la clave existente.",
-    "keepPassphrase": "Dejar en blanco para mantener la frase existente.",
     "timezoneHint": "La zona horaria en la que el servidor muestra las horas. La mayoría usa UTC.",
     "proxyTitle": "Proxy",
     "askHint": "No se guarda ninguna contraseña. Se pide al conectar y vive solo en la memoria del servidor durante tu sesión.",
@@ -151,6 +159,45 @@
       "explicit": "Empieza sin cifrar y se actualiza con AUTH TLS antes de iniciar sesión; si el servidor no ofrece TLS, se rechaza. La primera vez se muestra su certificado para que lo confirmes.",
       "implicit": "Usa TLS desde el primer byte, normalmente en el puerto 990. La primera vez se muestra el certificado del servidor para que lo confirmes.",
       "plain": "FTP envía la contraseña y los archivos sin cifrar. Usa TLS si el servidor lo ofrece."
+    },
+    "keyFile": {
+      "input": "Archivo de clave",
+      "chosen": "Archivo de clave elegido",
+      "choose": "Elegir un archivo de clave",
+      "drop": "o arrástralo aquí",
+      "saved": "Hay una clave guardada. Elige o arrastra otro archivo para reemplazarla.",
+      "remove": "Quitar el archivo de clave",
+      "hint": "OpenSSH, PEM, PKCS#8 o PuTTY (.ppk). El archivo se reconoce por su contenido, no por su nombre.",
+      "checking": "Leyendo la clave…",
+      "private": "clave privada",
+      "public": "clave pública",
+      "encrypted": "protegida con frase de paso",
+      "formats": {
+        "openssh": "OpenSSH",
+        "pem": "PEM",
+        "pkcs8": "PKCS#8",
+        "rfc4716": "SSH2 (RFC 4716)",
+        "ppk2": "PuTTY PPK 2",
+        "ppk3": "PuTTY PPK 3"
+      },
+      "status": {
+        "usable": "Lista para usar.",
+        "public_key": "Esta es una clave pública. Elige la privada: normalmente el archivo con el mismo nombre sin .pub.",
+        "passphrase_required": "Escribe la frase de paso de esta clave.",
+        "wrong_passphrase": "La frase de paso no abre esta clave."
+      },
+      "failures": {
+        "private_key_unreadable": "Este archivo no es una clave que Sentinel pueda leer.",
+        "secret_too_large": "Este archivo es demasiado grande para ser una clave.",
+        "unknown": "No se pudo revisar la clave. Inténtalo de nuevo."
+      },
+      "reasons": {
+        "key_type": "Sentinel se conecta con claves RSA, ECDSA y Ed25519; esta clave es de otro tipo.",
+        "ppk_version": "Solo se leen archivos de clave de PuTTY de las versiones 2 y 3.",
+        "encryption": "Esta clave está cifrada de una forma que Sentinel no lee. Guárdala de nuevo con ssh-keygen o PuTTYgen.",
+        "argon2d": "Esta clave de PuTTY usa Argon2d. Guárdala de nuevo en PuTTYgen con el valor por defecto, Argon2id.",
+        "cost": "Abrir esta clave pide más trabajo del que Sentinel permite. Guárdala de nuevo con los valores por defecto."
+      }
     }
   },
   "import": {

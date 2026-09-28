@@ -122,6 +122,7 @@ describe('createApi', () => {
     { name: 'collections.remove', call: (a) => a.collections.remove(ws, 'c1'), method: 'DELETE', path: `/api/v1/workspaces/${ws}/collections/c1` },
     { name: 'sites.list', call: (a) => a.sites.list(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/sites` },
     { name: 'sites.get', call: (a) => a.sites.get(ws, site), method: 'GET', path: `/api/v1/workspaces/${ws}/sites/${site}` },
+    { name: 'sshKeys.inspect', call: (a) => a.sshKeys.inspect('KEY', 'phrase'), method: 'POST', path: '/api/v1/ssh-keys/inspect', body: { key: 'KEY', passphrase: 'phrase' } },
     { name: 'sites.create', call: (a) => a.sites.create(ws, { name: 'S', protocol: 'sftp', host: 'h', username: 'u' }), method: 'POST', path: `/api/v1/workspaces/${ws}/sites`, body: { name: 'S', protocol: 'sftp', host: 'h', username: 'u' } },
     { name: 'sites.update', call: (a) => a.sites.update(ws, site, { name: 'S', protocol: 'sftp', host: 'h', username: 'u' }), method: 'PUT', path: `/api/v1/workspaces/${ws}/sites/${site}`, body: { name: 'S', protocol: 'sftp', host: 'h', username: 'u' } },
     { name: 'sites.remove', call: (a) => a.sites.remove(ws, site), method: 'DELETE', path: `/api/v1/workspaces/${ws}/sites/${site}` },

@@ -483,6 +483,28 @@ test.describe('screenshots', () => {
     await shoot(page, '49-asks-for-password')
   })
 
+  test('key file', async ({ shell }) => {
+    const { page } = shell
+    await page.goto('/')
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByLabel('Name', { exact: true }).fill('Deploy')
+    await dialog.getByLabel('Host', { exact: true }).fill('sftp')
+    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Logon type').selectOption('key')
+    await shoot(page, '50-key-file-empty')
+    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.pub')
+    await expect(dialog.getByRole('alert')).toBeVisible()
+    await shoot(page, '51-key-file-public')
+    await dialog.getByRole('button', { name: 'Remove the key file' }).click()
+    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.ppk')
+    await expect(dialog.getByText('Enter the passphrase of this key.')).toBeVisible()
+    await shoot(page, '52-key-file-passphrase')
+    await dialog.getByLabel('Key passphrase').fill('correct horse')
+    await expect(dialog.getByText('Ready to use.')).toBeVisible()
+    await shoot(page, '53-key-file-ready')
+  })
+
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }

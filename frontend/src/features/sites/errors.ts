@@ -33,13 +33,24 @@ const siteErrorKeys = [
   'invalid_import_file',
   'import_file_too_large',
   'network_error',
+  'private_key_is_public',
+  'passphrase_required',
+  'wrong_passphrase',
+  'private_key_unreadable',
+  'private_key_unsupported',
+  'jump_private_key_is_public',
+  'jump_passphrase_required',
+  'jump_wrong_passphrase',
+  'jump_private_key_unreadable',
+  'jump_private_key_unsupported',
 ] as const
 
 /** Translation key of the message that explains a failure. */
 export type SiteErrorKey = (typeof siteErrorKeys)[number] | 'unknown'
 
-/** Maps a failed request to the translation key of its message. */
+/** Maps a failed request to the translation key of its message; a private key the server refused is told apart as the
+ * site's or the jump host's. */
 export function siteErrorKeyOf(error: unknown): SiteErrorKey {
-  const code = error instanceof ApiError ? error.code : undefined
+  const code = error instanceof ApiError ? (error.problem.params?.key === 'jump' ? `jump_${error.code}` : error.code) : undefined
   return siteErrorKeys.find((key) => key === code) ?? 'unknown'
 }

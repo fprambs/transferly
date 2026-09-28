@@ -85,6 +85,7 @@ services:
     command: sentinel:sentinel:1001:100:upload anonymous::1002:100
     volumes:
       - ./testenv/sftp/anonymous.sh:/etc/sftp.d/anonymous.sh:ro
+      - ./frontend/e2e/keys/sentinel.pub:/home/sentinel/.ssh/keys/sentinel.pub:ro
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 22"]
       interval: 3s

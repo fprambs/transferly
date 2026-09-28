@@ -17,9 +17,9 @@ export const adminSession: SessionInfo = {
 }
 
 /** Builds an RFC 9457 problem answer. */
-export function problem(status: number, code: string) {
+export function problem(status: number, code: string, params?: Record<string, unknown>) {
   return HttpResponse.json(
-    { type: 'about:blank', title: code, status, code },
+    { type: 'about:blank', title: code, status, code, params },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   )
 }

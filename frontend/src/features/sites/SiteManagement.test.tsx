@@ -11,6 +11,17 @@ import { renderWithProviders } from '@/test/render'
 import { SitesSidebar } from './SitesSidebar'
 
 /** A saved site. */
+/** Answers key inspections as for an encrypted Ed25519 key whose passphrase is "phrase". */
+function mockKeyInspection(): void {
+  server.use(
+    http.post('/api/v1/ssh-keys/inspect', async ({ request }) => {
+      const { passphrase } = (await request.json()) as { passphrase?: string }
+      const status = passphrase === undefined ? 'passphrase_required' : passphrase === 'phrase' ? 'usable' : 'wrong_passphrase'
+      return HttpResponse.json({ private: true, format: 'openssh', algorithm: 'ssh-ed25519', bits: 256, fingerprint: 'SHA256:abc', encrypted: true, status })
+    }),
+  )
+}
+
 const prod: Site = {
   id: 's1',
   name: 'Prod',
@@ -62,7 +73,9 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * - the character set of file names is offered for FTP and FTPS only, is UTF-8 by default and is sent with the site
  * - FTP is offered next to SFTP with the four encryptions of FileZilla, requiring explicit TLS by default; each encryption explains itself, clear
  *   text and the optional fall back warn, implicit TLS defaults to port 990, and FTP offers no key
- * - key authentication swaps the password for the key fields
+ * - key authentication swaps the password for a key file, whose passphrase is asked once the server reads the key as encrypted; a stored key
+ *   is kept unless another file is chosen
+ * - a private key the server refuses on save is explained, and the form opens the tab of that key, the site's or the jump host's
  * - a site can be started inside a collection from its menu
  * - a proxy and a jump host can be configured, in both authentication methods, and hide again outside SFTP
  * - a rejected save shows its message and Cancel closes the dialog
@@ -232,19 +245,20 @@ describe('site management', () => {
     expect(body).not.toHaveProperty('privateKey')
   })
 
-  it('says a stored key and its passphrase are kept when left blank', async () => {
+  it('says a stored key is kept unless another file is chosen', async () => {
     mockWorkspaceData({ sites: [{ ...prod, authMethod: 'key', secrets: ['private_key', 'passphrase'] }], collections: [] })
     const user = await renderSidebar()
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
 
     expect(within(dialog).getByLabelText('Logon type')).toHaveValue('key')
-    expect(within(dialog).getByLabelText('Private key')).toHaveAttribute('placeholder', 'Leave blank to keep the existing key.')
-    expect(within(dialog).getByLabelText('Key passphrase')).toHaveAttribute('placeholder', 'Leave blank to keep the existing passphrase.')
+    expect(within(dialog).getByRole('button', { name: 'Choose a key file' })).toBeInTheDocument()
+    expect(within(dialog).getByText('A key is saved. Choose or drop another file to replace it.')).toBeInTheDocument()
   })
 
   it('swaps the password for the key fields', async () => {
     let body: Record<string, unknown> = {}
+    mockKeyInspection()
     server.use(
       http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
@@ -262,8 +276,9 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Name'), 'Keyed')
     await user.type(within(dialog).getByLabelText('Host'), 'k.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
-    await user.type(within(dialog).getByLabelText('Private key'), 'KEY')
-    await user.type(within(dialog).getByLabelText('Key passphrase'), 'phrase')
+    await user.upload(within(dialog).getByLabelText('Key file'), new File(['KEY'], 'id_ed25519'))
+    await user.type(await within(dialog).findByLabelText('Key passphrase'), 'phrase')
+    await within(dialog).findByText('Ready to use.')
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
     await waitFor(() => expect(body.privateKey).toBe('KEY'))
@@ -273,6 +288,7 @@ describe('site management', () => {
 
   it('configures a proxy and a jump host, in both authentication methods', async () => {
     let body: Record<string, unknown> = {}
+    mockKeyInspection()
     server.use(
       http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
@@ -315,8 +331,8 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
     await user.selectOptions(within(dialog).getByLabelText('Jump host logon type'), 'key')
     expect(within(dialog).queryByLabelText('Jump host password')).not.toBeInTheDocument()
-    await user.type(within(dialog).getByLabelText('Jump host private key'), 'KEY')
-    await user.type(within(dialog).getByLabelText('Jump host key passphrase'), 'phrase')
+    await user.upload(within(dialog).getByLabelText('Key file'), new File(['KEY'], 'bastion.ppk'))
+    await user.type(await within(dialog).findByLabelText('Jump host key passphrase'), 'phrase')
     await user.type(within(dialog).getByLabelText('Jump username'), 'bastion')
 
     await user.type(within(dialog).getByLabelText('Name'), 'Jumped key')
@@ -359,6 +375,26 @@ describe('site management', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('explains a private key the server refuses and opens the tab of that key', async () => {
+    let answer = problem(422, 'wrong_passphrase', { key: 'jump' })
+    server.use(http.post('/api/v1/workspaces/:id/sites', () => answer))
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Name'), 'Keyed')
+    await user.type(within(dialog).getByLabelText('Host'), 'h')
+    await user.type(within(dialog).getByLabelText('Username'), 'u')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('The passphrase does not open the jump host key.')
+    expect(within(dialog).getByRole('tab', { name: 'Proxy and jump host' })).toHaveAttribute('aria-selected', 'true')
+
+    answer = problem(422, 'private_key_is_public', { key: 'site' })
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    expect(await within(dialog).findByText('The private key is a public key. Choose the private key file.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('explains a locked vault once a secret is typed, instead of letting the save fail', async () => {

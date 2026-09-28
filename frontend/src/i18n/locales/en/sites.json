@@ -36,7 +36,17 @@
     "invalid_proxy": "The proxy's kind, host or port is not valid.",
     "invalid_jump": "The jump host is not valid, or is set on a protocol other than SFTP.",
     "credentials_required": "This site asks for its password when connecting.",
-    "credentials_not_asked": "This site no longer asks for a password; open it again."
+    "credentials_not_asked": "This site no longer asks for a password; open it again.",
+    "private_key_is_public": "The private key is a public key. Choose the private key file.",
+    "passphrase_required": "Enter the passphrase of the private key.",
+    "wrong_passphrase": "The passphrase does not open the private key.",
+    "private_key_unreadable": "The private key file cannot be read.",
+    "private_key_unsupported": "This private key cannot be used.",
+    "jump_private_key_is_public": "The jump host key is a public key. Choose the private key file.",
+    "jump_passphrase_required": "Enter the passphrase of the jump host key.",
+    "jump_wrong_passphrase": "The passphrase does not open the jump host key.",
+    "jump_private_key_unreadable": "The jump host key file cannot be read.",
+    "jump_private_key_unsupported": "The jump host key cannot be used."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -134,8 +144,6 @@
     },
     "anonymousHint": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
     "keepPassword": "Leave blank to keep the existing password.",
-    "keepKey": "Leave blank to keep the existing key.",
-    "keepPassphrase": "Leave blank to keep the existing passphrase.",
     "timezoneHint": "The time zone the server lists times in. Most servers use UTC.",
     "proxyTitle": "Proxy",
     "askHint": "No password is saved. It is asked for when connecting and kept only in the server's memory for your session.",
@@ -151,6 +159,45 @@
       "explicit": "Starts in clear text and upgrades with AUTH TLS before signing in; a server that does not offer TLS is refused. The first time, its certificate is shown for you to confirm.",
       "implicit": "Speaks TLS from the first byte, usually on port 990. The first time, the server's certificate is shown for you to confirm.",
       "plain": "FTP sends the password and the files without encryption. Use TLS if the server offers it."
+    },
+    "keyFile": {
+      "input": "Key file",
+      "chosen": "Chosen key file",
+      "choose": "Choose a key file",
+      "drop": "or drop it here",
+      "saved": "A key is saved. Choose or drop another file to replace it.",
+      "remove": "Remove the key file",
+      "hint": "OpenSSH, PEM, PKCS#8 or PuTTY (.ppk). The file is recognized by its content, not its name.",
+      "checking": "Reading the key…",
+      "private": "private key",
+      "public": "public key",
+      "encrypted": "protected by a passphrase",
+      "formats": {
+        "openssh": "OpenSSH",
+        "pem": "PEM",
+        "pkcs8": "PKCS#8",
+        "rfc4716": "SSH2 (RFC 4716)",
+        "ppk2": "PuTTY PPK 2",
+        "ppk3": "PuTTY PPK 3"
+      },
+      "status": {
+        "usable": "Ready to use.",
+        "public_key": "This is a public key. Choose the private key instead: usually the file with the same name without .pub.",
+        "passphrase_required": "Enter the passphrase of this key.",
+        "wrong_passphrase": "The passphrase does not open this key."
+      },
+      "failures": {
+        "private_key_unreadable": "This file is not a key Sentinel can read.",
+        "secret_too_large": "This file is too large to be a key.",
+        "unknown": "The key could not be checked. Try again."
+      },
+      "reasons": {
+        "key_type": "Sentinel connects with RSA, ECDSA and Ed25519 keys; this key is of another type.",
+        "ppk_version": "Only PuTTY key files of versions 2 and 3 can be read.",
+        "encryption": "This key is encrypted in a way Sentinel does not read. Save it again with ssh-keygen or PuTTYgen.",
+        "argon2d": "This PuTTY key uses Argon2d. Save it again in PuTTYgen with the default, Argon2id.",
+        "cost": "This key asks for more work to open than Sentinel allows. Save it again with the default settings."
+      }
     }
   },
   "import": {

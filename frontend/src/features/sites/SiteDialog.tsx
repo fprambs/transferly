@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
 import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -20,6 +19,7 @@ import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
 import { collectionOptions } from './collection-paths'
 import { ConnectionTest } from './ConnectionTest'
+import { KeyFileField } from './KeyFileField'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
 import {
   accessModesOf,
@@ -104,6 +104,20 @@ function Group({ title, children }: { title?: string; children: ReactNode }) {
   )
 }
 
+/** Failures of a private key the server refused, which send the form to the tab of that key. */
+const keyFailures: readonly SiteErrorKey[] = [
+  'private_key_is_public',
+  'passphrase_required',
+  'wrong_passphrase',
+  'private_key_unreadable',
+  'private_key_unsupported',
+  'jump_private_key_is_public',
+  'jump_passphrase_required',
+  'jump_wrong_passphrase',
+  'jump_private_key_unreadable',
+  'jump_private_key_unsupported',
+]
+
 /** Time zones the browser knows, offered as suggestions. */
 const timeZones = Intl.supportedValuesOf('timeZone')
 
@@ -135,6 +149,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
   const mode = effectiveMode({ protocol, accessMode })
   const hasPassword = editing?.secrets.includes('password') === true
   const hasKey = editing?.secrets.includes('private_key') === true
+  const hasJumpKey = editing?.secrets.includes('jump_private_key') === true
   const proxyKind = useWatch({ control, name: 'proxyKind' })
   const jumpHost = useWatch({ control, name: 'jumpHost' })
   const jumpAuthMethod = useWatch({ control, name: 'jumpAuthMethod' })
@@ -160,8 +175,11 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
       const key = siteErrorKeyOf(error)
       if (key === 'vault_locked') {
         setUnlocking(values)
-      } else {
-        setFailure(key)
+        return
+      }
+      setFailure(key)
+      if (keyFailures.includes(key)) {
+        setTab(key.startsWith('jump_') ? 'network' : 'general')
       }
     }
   }
@@ -284,10 +302,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
             {mode === 'key' && (
               <>
                 <Row id="site-key" label={t(($) => $.site.privateKey)}>
-                  <Textarea id="site-key" className="font-mono" rows={4} spellCheck={false} autoComplete="off" placeholder={hasKey ? t(($) => $.site.keepKey) : undefined} {...register('privateKey')} />
-                </Row>
-                <Row id="site-passphrase" label={t(($) => $.site.passphrase)}>
-                  <Input id="site-passphrase" type="password" autoComplete="off" placeholder={hasKey ? t(($) => $.site.keepPassphrase) : undefined} {...register('passphrase')} />
+                  <KeyFileField control={control} name="privateKey" passphraseName="passphrase" id="site-key" passphraseLabel={t(($) => $.site.passphrase)} saved={hasKey} />
                 </Row>
               </>
             )}
@@ -381,10 +396,14 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                   {jumpUsesKey ? (
                     <>
                       <Row id="site-jump-key" label={t(($) => $.site.jumpPrivateKey)}>
-                        <Textarea id="site-jump-key" className="font-mono" rows={4} spellCheck={false} autoComplete="off" {...register('jumpPrivateKey')} />
-                      </Row>
-                      <Row id="site-jump-passphrase" label={t(($) => $.site.jumpPassphrase)}>
-                        <Input id="site-jump-passphrase" type="password" autoComplete="off" {...register('jumpPassphrase')} />
+                        <KeyFileField
+                          control={control}
+                          name="jumpPrivateKey"
+                          passphraseName="jumpPassphrase"
+                          id="site-jump-key"
+                          passphraseLabel={t(($) => $.site.jumpPassphrase)}
+                          saved={hasJumpKey}
+                        />
                       </Row>
                     </>
                   ) : (
