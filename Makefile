@@ -29,11 +29,11 @@ unit:
 	$(TEST) run --rm unit
 
 e2e:
-	$(TEST) --profile ftp up -d --build --force-recreate --wait postgres sentinel ftp ftps ftps-implicit
+	$(TEST) --profile ftp up -d --build --force-recreate --wait postgres sentinel sftp ftp ftps ftps-implicit
 	$(TEST) run --rm e2e
 
 e2e-update:
-	$(TEST) --profile ftp up -d --build --force-recreate --wait postgres sentinel ftp ftps ftps-implicit
+	$(TEST) --profile ftp up -d --build --force-recreate --wait postgres sentinel sftp ftp ftps ftps-implicit
 	$(TEST) run --rm e2e node_modules/.bin/playwright test --update-snapshots
 
 lint:
