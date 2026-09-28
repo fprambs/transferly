@@ -45,7 +45,7 @@
       "title": "Your vault is locked",
       "action": "Unlock the vault",
       "save": "Passwords and keys are sealed with the vault, so it has to be unlocked to save them. Editing other settings and quick connections do not need it.",
-      "connect": "The password of this site is sealed in your vault. Unlock it to connect. Quick connections do not need the vault.",
+      "connect": "The password of this site is sealed in your vault. Unlock it with your master password to connect.",
       "team": "The key of a team is sealed with your vault. Unlock it to create the team."
     },
     "missing": {
@@ -54,7 +54,8 @@
       "save": "Passwords and keys are sealed with a vault protected by a master password. Create it to save them; quick connections do not need it.",
       "connect": "This site has a saved password, but you have no vault yet. Create one to connect.",
       "team": "The key of a team is sealed with your vault. Create your vault to start a team."
-    }
+    },
+    "quickHint": "Quick connections do not need the vault."
   },
   "target": {
     "label": "Server that needs the vault",

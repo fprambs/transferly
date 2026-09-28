@@ -378,9 +378,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         </div>
       )}
       {failure === 'vault_locked' && (
-        <div className="m-4 max-w-xl">
-          <VaultLockedNotice need="connect" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
-        </div>
+        <VaultLockedNotice need="connect" layout="page" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
       )}
       {failure !== null && failure !== 'vault_locked' && (hostKey === undefined || target === undefined) && (
         <div role="alert" className="m-4 flex max-w-xl flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
