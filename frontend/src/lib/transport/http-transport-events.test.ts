@@ -56,12 +56,13 @@ describe('HttpTransport.events', () => {
     socket.onopen?.()
     socket.onmessage?.({ data: JSON.stringify({ type: 'snapshot', data: { transfers: [] } }) })
     socket.onmessage?.({ data: JSON.stringify({ type: 'vault.locked', data: null }) })
+    socket.onmessage?.({ data: JSON.stringify({ type: 'connection.log', data: { step: 'connected' } }) })
     socket.onmessage?.({ data: JSON.stringify({ type: 'something.else', data: null }) })
     socket.onmessage?.({ data: JSON.stringify({ data: null }) })
     socket.onmessage?.({ data: 'not json' })
     socket.onclose?.()
 
-    expect(log).toEqual(['open', 'snapshot', 'vault.locked', 'close'])
+    expect(log).toEqual(['open', 'snapshot', 'vault.locked', 'connection.log', 'close'])
   })
 
   it('closes the socket without reporting it when asked to stop', () => {

@@ -9,6 +9,7 @@ import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 
 import { useUiStore } from '@/state/ui-store'
+import { logKey, useConnectionLog } from '../connlog/connection-log-store'
 import { useVaultStatus } from '../vault/use-vault'
 
 import { useTransfersStore } from './transfers-store'
@@ -157,6 +158,15 @@ describe('useTransferStream', () => {
     act(() => FakeSocket.opened[0].emit('vault.locked', null))
 
     await waitFor(() => expect(reads).toBe(2))
+  })
+
+  it('adds the connection log entries of the stream to the log of their site', async () => {
+    await renderProbe()
+    const entry = { workspaceId: 'w1', siteId: 's1', time: '2026-09-28T12:00:00Z', level: 'info', step: 'connected', params: { address: '10.0.0.1:22' } }
+
+    act(() => FakeSocket.opened[0].emit('connection.log', entry))
+
+    expect(useConnectionLog.getState().lines[logKey('w1', 's1')]).toEqual([expect.objectContaining({ step: 'connected', params: { address: '10.0.0.1:22' } })])
   })
 
   it('reconnects with growing waits and starts again after opening', async () => {

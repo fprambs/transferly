@@ -203,5 +203,45 @@
     "canceled_other": "Detenido. {{count}} coincidencias encontradas hasta ahora.",
     "truncated": "Hay más; acota la búsqueda para verlo todo.",
     "results": "Resultados de la búsqueda"
+  },
+  "log": {
+    "title": "Registro",
+    "lines": "Registro de la conexión",
+    "empty": "Aquí aparecen los pasos de la conexión.",
+    "copy": "Copiar el registro",
+    "copied": "Copiado",
+    "clear": "Limpiar el registro",
+    "jump": "Salto: {{text}}",
+    "methods": {
+      "password": "contraseña",
+      "key": "archivo de clave",
+      "ask": "contraseña pedida al conectar",
+      "anonymous": "anónimo"
+    },
+    "steps": {
+      "connecting": {
+        "direct": "Conectando a {{host}}:{{port}}…",
+        "proxy": "Conectando a {{host}}:{{port}} a través del proxy {{proxy}}…",
+        "jump": "Conectando a {{host}}:{{port}} a través del salto…"
+      },
+      "connected": "Conectado a {{address}}.",
+      "host_key_verified": {
+        "key": "Clave del servidor verificada: {{keyType}} {{fingerprint}}.",
+        "certificate": "Certificado del servidor verificado: {{fingerprint}}."
+      },
+      "host_key_unknown": {
+        "key": "La clave del servidor todavía no es de confianza: {{keyType}} {{fingerprint}}. Confírmala para seguir.",
+        "certificate": "El certificado del servidor todavía no es de confianza: {{fingerprint}}. Confírmalo para seguir."
+      },
+      "host_key_changed": {
+        "key": "La clave del servidor cambió: {{keyType}} {{fingerprint}}. Se rechazó la conexión.",
+        "certificate": "El certificado del servidor cambió: {{fingerprint}}. Se rechazó la conexión."
+      },
+      "plain_text": "El servidor no ofrece TLS: se sigue en texto claro, contraseña incluida.",
+      "authenticated": "Sesión iniciada como {{username}} ({{method}}).",
+      "listing": "Listando {{path}}…",
+      "listed": "Listado {{path}}: {{count}} elementos.",
+      "failed": "Falló: {{reason}} ({{code}})"
+    }
   }
 }

@@ -505,6 +505,21 @@ test.describe('screenshots', () => {
     await shoot(page, '53-key-file-ready')
   })
 
+  test('connection log', async ({ shell }) => {
+    const { page } = shell
+    await page.goto('/')
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByLabel('Name', { exact: true }).fill(`Log ${Date.now()}`)
+    await dialog.getByLabel('Host', { exact: true }).fill('sftp')
+    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await page.getByRole('treeitem', { name: /^Log / }).first().click()
+    await expect(page.getByRole('list', { name: 'Connection log' }).getByText(/^Listed \//)).toBeVisible()
+    await shoot(page, '54-connection-log')
+  })
+
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }

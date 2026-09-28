@@ -23,6 +23,8 @@ export interface UiState {
   workspaceId: string | null
   /** What a double click, or Enter, does on a file. */
   fileDoubleClick: FileDoubleClick
+  /** Whether the connection log panel is expanded. */
+  logOpen: boolean
   /** Chooses a theme. */
   setTheme: (themeId: string) => void
   /** Turns following the operating system on or off. */
@@ -39,10 +41,12 @@ export interface UiState {
   clearWorkspace: () => void
   /** Chooses what a double click, or Enter, does on a file. */
   setFileDoubleClick: (action: FileDoubleClick) => void
+  /** Expands or collapses the connection log panel. */
+  toggleLog: () => void
 }
 
 /** The subset of {@link UiState} that is persisted. */
-type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick'>
+type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'logOpen'>
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
@@ -68,6 +72,9 @@ function sanitize(raw: unknown): Partial<PersistedUi> {
   if (typeof value.queueOpen === 'boolean') {
     clean.queueOpen = value.queueOpen
   }
+  if (typeof value.logOpen === 'boolean') {
+    clean.logOpen = value.logOpen
+  }
   if (typeof value.workspaceId === 'string') {
     clean.workspaceId = value.workspaceId
   }
@@ -87,6 +94,7 @@ export const useUiStore = create<UiState>()(
       queueTab: 'active',
       workspaceId: null,
       fileDoubleClick: 'download',
+      logOpen: true,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen })),
@@ -95,15 +103,17 @@ export const useUiStore = create<UiState>()(
       setWorkspace: (workspaceId) => set({ workspaceId }),
       clearWorkspace: () => set({ workspaceId: null }),
       setFileDoubleClick: (fileDoubleClick) => set({ fileDoubleClick }),
+      toggleLog: () => set((state) => ({ logOpen: !state.logOpen })),
     }),
     {
       name: 'sentinel-ui',
-      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick }): PersistedUi => ({
+      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, logOpen }): PersistedUi => ({
         themeId,
         followSystem,
         queueOpen,
         workspaceId,
         fileDoubleClick,
+        logOpen,
       }),
       merge: (persisted, current) => ({ ...current, ...sanitize(persisted) }),
     },

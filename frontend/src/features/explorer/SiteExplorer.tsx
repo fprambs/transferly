@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
 
+import { ConnectionLog } from '../connlog/ConnectionLog'
 import { LocalExplorer } from '../local/LocalExplorer'
 import { localSiteId, localSupported } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
@@ -70,40 +71,43 @@ export function SiteExplorer() {
     </>
   )
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
-      <Explorer
-        workspaceId={workspace.id}
-        siteId={siteId}
-        path={path}
-        onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, path: next }) })}
-        actions={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t(($) => $.split.open)}
-            aria-pressed={split !== undefined}
-            onClick={() => void navigate({ search: (previous) => ({ ...previous, split: split === undefined ? siteId : undefined, splitPath: undefined }) })}
-          >
-            <Columns2 />
-          </Button>
-        }
-      />
-      {split === undefined ? null : (
-        <div role="group" aria-label={t(($) => $.split.pane)} className="flex min-h-0 min-w-0 flex-1 flex-col border-s">
-          {split === localSiteId ? (
-            <LocalExplorer workspaceId={workspace.id} path={splitPath ?? '/'} onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })} actions={paneActions} />
-          ) : (
-            <Explorer
-              key={split}
-              workspaceId={workspace.id}
-              siteId={split}
-              path={splitPath ?? '/'}
-              onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })}
-              actions={paneActions}
-            />
-          )}
-        </div>
-      )}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <ConnectionLog workspaceId={workspace.id} siteId={siteId} />
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <Explorer
+          workspaceId={workspace.id}
+          siteId={siteId}
+          path={path}
+          onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, path: next }) })}
+          actions={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t(($) => $.split.open)}
+              aria-pressed={split !== undefined}
+              onClick={() => void navigate({ search: (previous) => ({ ...previous, split: split === undefined ? siteId : undefined, splitPath: undefined }) })}
+            >
+              <Columns2 />
+            </Button>
+          }
+        />
+        {split === undefined ? null : (
+          <div role="group" aria-label={t(($) => $.split.pane)} className="flex min-h-0 min-w-0 flex-1 flex-col border-s">
+            {split === localSiteId ? (
+              <LocalExplorer workspaceId={workspace.id} path={splitPath ?? '/'} onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })} actions={paneActions} />
+            ) : (
+              <Explorer
+                key={split}
+                workspaceId={workspace.id}
+                siteId={split}
+                path={splitPath ?? '/'}
+                onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })}
+                actions={paneActions}
+              />
+            )}
+          </div>
+        )}
+      </div>
       {comparing && otherSide !== null && (
         <CompareDialog
           left={{ kind: 'remote', workspaceId: workspace.id, siteId, path }}

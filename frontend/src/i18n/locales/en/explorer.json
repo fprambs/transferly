@@ -203,5 +203,45 @@
     "canceled_other": "Stopped. {{count}} matches found so far.",
     "truncated": "There is more; narrow the search to see everything.",
     "results": "Search results"
+  },
+  "log": {
+    "title": "Log",
+    "lines": "Connection log",
+    "empty": "The steps of the connection show here.",
+    "copy": "Copy the log",
+    "copied": "Copied",
+    "clear": "Clear the log",
+    "jump": "Jump host: {{text}}",
+    "methods": {
+      "password": "password",
+      "key": "key file",
+      "ask": "password asked for",
+      "anonymous": "anonymous"
+    },
+    "steps": {
+      "connecting": {
+        "direct": "Connecting to {{host}}:{{port}}…",
+        "proxy": "Connecting to {{host}}:{{port}} through the proxy {{proxy}}…",
+        "jump": "Connecting to {{host}}:{{port}} through the jump host…"
+      },
+      "connected": "Connected to {{address}}.",
+      "host_key_verified": {
+        "key": "Server key verified: {{keyType}} {{fingerprint}}.",
+        "certificate": "Server certificate verified: {{fingerprint}}."
+      },
+      "host_key_unknown": {
+        "key": "The server key is not trusted yet: {{keyType}} {{fingerprint}}. Confirm it to go on.",
+        "certificate": "The server certificate is not trusted yet: {{fingerprint}}. Confirm it to go on."
+      },
+      "host_key_changed": {
+        "key": "The server key changed: {{keyType}} {{fingerprint}}. The connection was refused.",
+        "certificate": "The server certificate changed: {{fingerprint}}. The connection was refused."
+      },
+      "plain_text": "The server offers no TLS: going on in clear text, the password included.",
+      "authenticated": "Signed in as {{username}} ({{method}}).",
+      "listing": "Listing {{path}}…",
+      "listed": "Listed {{path}}: {{count}} entries.",
+      "failed": "Failed: {{reason}} ({{code}})"
+    }
   }
 }

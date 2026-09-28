@@ -22,7 +22,7 @@ function store(state: object): void {
 describe('useUiStore', () => {
   beforeEach(() => {
     localStorage.clear()
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download' })
+    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', logOpen: true })
   })
 
   it('starts with the default theme and an open queue', () => {
@@ -31,14 +31,15 @@ describe('useUiStore', () => {
     expect({ themeId, followSystem, queueOpen }).toEqual({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
   })
 
-  it('chooses a theme, follows the system, toggles the queue and chooses what a double click on a file does', () => {
+  it('chooses a theme, follows the system, toggles the queue and the log, and chooses what a double click on a file does', () => {
     useUiStore.getState().setTheme('monokai')
     useUiStore.getState().setFollowSystem(true)
     useUiStore.getState().toggleQueue()
     useUiStore.getState().setWorkspace('w1')
     useUiStore.getState().setFileDoubleClick('edit')
+    useUiStore.getState().toggleLog()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'monokai', followSystem: true, queueOpen: false, workspaceId: 'w1', fileDoubleClick: 'edit' })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'monokai', followSystem: true, queueOpen: false, workspaceId: 'w1', fileDoubleClick: 'edit', logOpen: false })
   })
 
   it('goes back to the personal workspace', () => {
@@ -64,27 +65,27 @@ describe('useUiStore', () => {
     expect(Object.keys(stored.state)).not.toContain('queueTab')
   })
 
-  it('persists only the theme, the follow-system flag, the queue state, the workspace and the double click action', () => {
+  it('persists only the theme, the follow-system flag, the queue and log states, the workspace and the double click action', () => {
     useUiStore.getState().setTheme('nord')
 
     const stored = JSON.parse(localStorage.getItem('sentinel-ui') ?? '{}') as { state: object }
-    expect(Object.keys(stored.state).sort()).toEqual(['fileDoubleClick', 'followSystem', 'queueOpen', 'themeId', 'workspaceId'])
+    expect(Object.keys(stored.state).sort()).toEqual(['fileDoubleClick', 'followSystem', 'logOpen', 'queueOpen', 'themeId', 'workspaceId'])
   })
 
   it('restores valid persisted values', async () => {
-    store({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit' })
+    store({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit', logOpen: false })
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit' })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit', logOpen: false })
   })
 
   it('ignores values of the wrong type and unknown themes', async () => {
-    store({ themeId: 'no-such-theme', followSystem: 'yes', queueOpen: 'no', workspaceId: 7, fileDoubleClick: 'open' })
+    store({ themeId: 'no-such-theme', followSystem: 'yes', queueOpen: 'no', workspaceId: 7, fileDoubleClick: 'open', logOpen: 'no' })
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download' })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', logOpen: true })
   })
 
   it('works with nothing stored', async () => {

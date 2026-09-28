@@ -9,12 +9,29 @@ export type Problem = components['schemas']['Problem']
 /** A recorded upload or download; generated from the OpenAPI contract. */
 export type TransferRecord = components['schemas']['Transfer']
 
+/** One step of a connection to a site, as the server tells it (ADR-0011): a stable step code and the values its message shows. */
+export interface ConnectionLogEntry {
+  /** Workspace of the site. */
+  workspaceId: string
+  /** Site, or quick connection, the step is about. */
+  siteId: string
+  /** When it happened, in RFC 3339. */
+  time: string
+  /** How it reads. */
+  level: 'info' | 'warn' | 'error'
+  /** Stable code of the step. */
+  step: string
+  /** Values of the message; never a secret. */
+  params: Record<string, string>
+}
+
 /** A message of the server's event stream. */
 export type ServerEvent =
   | { type: 'snapshot'; data: { transfers: TransferRecord[] } }
   | { type: 'transfer.state'; data: TransferRecord }
   | { type: 'transfer.progress'; data: { id: string; bytesDone: number; totalBytes: number } }
   | { type: 'vault.locked'; data: null }
+  | { type: 'connection.log'; data: ConnectionLogEntry }
 
 /** What to do with the events of the server's stream and with the life of its connection. */
 export interface EventHandlers {

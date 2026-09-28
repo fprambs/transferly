@@ -6,6 +6,7 @@ export {
   type ApiMethod,
   type ApiQuery,
   type ApiRequest,
+  type ConnectionLogEntry,
   type EventHandlers,
   type ServerEvent,
   type TransferRecord,

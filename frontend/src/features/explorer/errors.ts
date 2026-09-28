@@ -26,6 +26,10 @@ export type ExplorerErrorKey = (typeof explorerErrorKeys)[number] | 'unknown'
 
 /** Maps a failed request to the translation key of its message. */
 export function explorerErrorKeyOf(error: unknown): ExplorerErrorKey {
-  const code = error instanceof ApiError ? error.code : undefined
+  return explorerErrorKeyOfCode(error instanceof ApiError ? error.code : undefined)
+}
+
+/** Maps the stable code of a failure, as the connection log tells it, to the translation key of its message. */
+export function explorerErrorKeyOfCode(code: string | undefined): ExplorerErrorKey {
   return explorerErrorKeys.find((key) => key === code) ?? 'unknown'
 }
