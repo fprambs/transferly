@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import { useApi } from '@/lib/api/use-api'
 
@@ -134,7 +135,7 @@ export function CompareDialog({ left, right, leftLabel, rightLabel, onClose }: C
           </Button>
         </div>
         {plan.loading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">{t(($) => $.loading)}</p>
+          <Loading label={t(($) => $.loading)} className="justify-center py-6" />
         ) : failure !== null ? (
           <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {t(($) => $.errors[failure])}

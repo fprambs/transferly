@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import type { AuditEvent, Workspace } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -72,7 +73,7 @@ function AuditList({ workspace }: AuditListProps) {
         </NativeSelect>
       </label>
       {trail.isPending ? (
-        <p className="text-sm text-muted-foreground">{t(($) => $.audit.loading)}</p>
+        <Loading label={t(($) => $.audit.loading)} />
       ) : events.length === 0 ? (
         <p className="rounded-lg border bg-card px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.audit.empty)}</p>
       ) : (
@@ -105,7 +106,7 @@ export function AuditPage() {
   const workspace = useWorkspace()
 
   if (workspace === undefined) {
-    return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.audit.loading)}</p>
+    return <Loading label={t(($) => $.audit.loading)} className="p-7" />
   }
   if (workspace.kind === 'personal') {
     return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.audit.personal)}</p>

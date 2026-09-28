@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Loading } from '@/components/ui/loading'
 import type { Checksum, ChecksumAlgorithm, RemoteEntry } from '@/lib/api'
 import { formatInstant } from '@/lib/datetime'
 
@@ -88,7 +89,7 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
               {t(($) => $.checksum.compute)}
             </Button>
           </div>
-          {checksum?.state === 'working' ? <p role="status" className="text-xs text-muted-foreground">{t(($) => $.checksum.working)}</p> : null}
+          {checksum?.state === 'working' ? <Loading label={t(($) => $.checksum.working)} className="text-xs" /> : null}
           {checksum?.state === 'failed' ? <p role="alert" className="text-xs text-destructive">{t(($) => $.checksum.failed)}</p> : null}
           {checksum?.state === 'done' ? (
             <div className="flex items-start gap-2">

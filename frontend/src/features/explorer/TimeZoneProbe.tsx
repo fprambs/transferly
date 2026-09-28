@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Loading } from '@/components/ui/loading'
 import type { Site, TimeZoneProbe as Probe } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -79,7 +80,7 @@ export function TimeZoneProbe({ workspaceId, siteId, path, site, onApplied }: Ti
       </Button>
       {state === null ? null : (
         <div role="status" className="absolute end-3 top-12 z-30 flex max-w-sm flex-col gap-2 rounded-lg border bg-card p-3 text-sm shadow-lg">
-          {state.kind === 'working' ? <p>{t(($) => $.timezone.working)}</p> : null}
+          {state.kind === 'working' ? <Loading label={t(($) => $.timezone.working)} announce={false} className="text-foreground" /> : null}
           {state.kind === 'failed' ? <p className="text-destructive">{t(($) => $.timezone.failed)} {t(($) => $.errors[state.key])}</p> : null}
           {state.kind === 'applied' ? <p>{t(($) => $.timezone.applied, { zone: state.zone })}</p> : null}
           {state.kind === 'found' && state.probe.exact ? <p>{t(($) => $.timezone.exact)}</p> : null}

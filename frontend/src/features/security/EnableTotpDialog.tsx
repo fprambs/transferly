@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Loading } from '@/components/ui/loading'
 import { useApi } from '@/lib/api/use-api'
 
 import { securityErrorKeyOf, type SecurityErrorKey } from './errors'
@@ -61,9 +62,7 @@ function EnableBody({ onClose }: Pick<EnableTotpDialogProps, 'onClose'>) {
         <DialogDescription>{t(($) => $.enable.scan)}</DialogDescription>
       </DialogHeader>
       {setup.isPending ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t(($) => $.enable.working)}
-        </p>
+        <Loading label={t(($) => $.enable.working)} />
       ) : (
         <div className="flex flex-col items-center gap-3">
           {qr.data !== undefined && <img src={qr.data} alt={t(($) => $.enable.qrAlt)} width={192} height={192} className="rounded-lg bg-white p-1" />}

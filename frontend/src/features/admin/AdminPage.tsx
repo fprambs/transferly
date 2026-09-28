@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Loading } from '@/components/ui/loading'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { useSession } from '../auth/use-session'
@@ -20,7 +21,7 @@ export function AdminPage() {
   const [tab, setTab] = useState<PageTab>('accounts')
 
   if (session === null) {
-    return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.page.loading)}</p>
+    return <Loading label={t(($) => $.page.loading)} className="p-7" />
   }
   if (session.user.role !== 'admin') {
     return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.page.noAccess)}</p>

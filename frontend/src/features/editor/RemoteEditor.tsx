@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Loading } from '@/components/ui/loading'
 import type { RemoteEntry } from '@/lib/api'
 import type { Api } from '@/lib/api/use-api'
 import { useActiveTheme } from '@/lib/theme/use-theme'
@@ -165,9 +166,7 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
           </p>
         )}
         {phase.kind === 'loading' && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t(($) => $.loading)}
-          </p>
+          <Loading label={t(($) => $.loading)} />
         )}
         <div ref={container} className={cn('min-h-0 flex-1 overflow-auto rounded-md border text-sm [&_.cm-editor]:h-full', phase.kind !== 'ready' && 'hidden')} />
         {conflict !== null && (

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Loading } from '@/components/ui/loading'
 import type { ImportOptions, ImportResult } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -116,7 +117,7 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
               <option value="rename">{t(($) => $.import.rename)}</option>
             </NativeSelect>
           </label>
-          {working ? <p role="status">{t(($) => $.import.working)}</p> : null}
+          {working ? <Loading label={t(($) => $.import.working)} /> : null}
           {failure === 'vault_locked' ? (
             <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
           ) : failure === null ? null : (

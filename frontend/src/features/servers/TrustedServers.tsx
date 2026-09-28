@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Loading } from '@/components/ui/loading'
 import type { KnownHost } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { formatInstant, resolveTimeZone } from '@/lib/datetime'
@@ -82,7 +83,7 @@ function TrustedServersList({ workspaceId }: TrustedServersListProps) {
   const timeZone = session?.user.timezone ?? resolveTimeZone()
 
   if (hosts.isPending) {
-    return <p className="text-sm text-muted-foreground">{t(($) => $.servers.loading)}</p>
+    return <Loading label={t(($) => $.servers.loading)} />
   }
   if (hosts.isError) {
     return <p role="alert" className="text-sm text-destructive">{t(($) => $.servers.loadFailed)}</p>

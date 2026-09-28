@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Loading } from '@/components/ui/loading'
 import { useApi } from '@/lib/api/use-api'
 import { createPasskey, passkeysSupported } from '@/lib/webauthn'
 
@@ -66,9 +67,7 @@ function AddBody({ onClose }: Pick<AddPasskeyDialogProps, 'onClose'>) {
         <Input id="passkey-name" autoFocus autoComplete="off" maxLength={60} placeholder={t(($) => $.addPasskey.placeholder)} value={name} onChange={(event) => setName(event.target.value)} />
       </div>
       {busy && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t(($) => $.addPasskey.working)}
-        </p>
+        <Loading label={t(($) => $.addPasskey.working)} />
       )}
       {failure !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import type { Passkey } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -40,7 +41,7 @@ export function SecuritySection() {
         <p className="text-sm text-muted-foreground">{t(($) => $.section.description)}</p>
       </div>
       {status.isPending ? (
-        <p className="text-sm text-muted-foreground">{t(($) => $.section.loading)}</p>
+        <Loading label={t(($) => $.section.loading)} />
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <span className={on ? 'rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-300' : 'rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'}>

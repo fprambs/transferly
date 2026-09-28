@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import type { Invitation, Member, Workspace } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -195,7 +196,7 @@ function InvitationsTable({ workspace, invitations, loading, fail }: Invitations
   const timeZone = useTimeZone()
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">{t(($) => $.invitations.loading)}</p>
+    return <Loading label={t(($) => $.invitations.loading)} />
   }
   if (invitations.length === 0) {
     return <p className="rounded-lg border bg-card px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.invitations.empty)}</p>
@@ -328,7 +329,7 @@ function TeamMembers({ workspace }: TableProps) {
         <>
           <Input aria-label={t(($) => $.page.filter)} placeholder={t(($) => $.page.filter)} value={filter} onChange={(event) => setFilter(event.target.value)} className="max-w-72" />
           {members.loading ? (
-            <p className="text-sm text-muted-foreground">{t(($) => $.page.loading)}</p>
+            <Loading label={t(($) => $.page.loading)} />
           ) : (
             <MembersTable
               workspace={workspace}
@@ -362,7 +363,7 @@ export function MembersPage() {
   const [creating, setCreating] = useState(false)
 
   if (workspace === undefined) {
-    return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.page.loading)}</p>
+    return <Loading label={t(($) => $.page.loading)} className="p-7" />
   }
   if (workspace.kind === 'personal') {
     return (

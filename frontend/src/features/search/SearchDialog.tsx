@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Loading } from '@/components/ui/loading'
 import { useApi } from '@/lib/api/use-api'
 
 import { formatSize, parentPath } from '../explorer/entries'
@@ -75,7 +76,7 @@ export function SearchDialog({ workspaceId, siteId, path, onOpen, onClose }: Sea
           )}
         </form>
         <p className="text-xs text-muted-foreground">{t(($) => $.search.hint)}</p>
-        {running && <p role="status" className="text-sm text-muted-foreground">{t(($) => $.search.scanning, { count: search.scanned })}</p>}
+        {running && <Loading label={t(($) => $.search.scanning, { count: search.scanned })} />}
         {search.phase === 'done' && (
           <p role="status" className="text-sm text-muted-foreground">
             {search.summary?.canceled ? t(($) => $.search.canceled, { count: search.matches.length }) : t(($) => $.search.found, { count: search.matches.length })}

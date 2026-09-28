@@ -7,6 +7,7 @@ import { sessionKey, sessionQuery, setupKey } from '@/app/session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import type { InvitationPreview, MfaChallenge, SessionInfo } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -298,9 +299,7 @@ export function AcceptInvitationPage() {
   if (preview.data === undefined || session.isPending) {
     return (
       <Card title={t(($) => $.accept.label)}>
-        <p role="status" className="text-sm text-muted-foreground">
-          {t(($) => $.accept.loading)}
-        </p>
+        <Loading label={t(($) => $.accept.loading)} />
       </Card>
     )
   }
