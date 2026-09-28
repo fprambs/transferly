@@ -90,8 +90,6 @@
     "deleteTitle": "Delete this site?",
     "deleteBody": "{{name}} and its stored credentials will be removed.",
     "deleteConfirm": "Delete",
-    "ftpWarning": "FTP sends the password and the files without encryption. Use FTPS when the server offers it.",
-    "ftpsHint": "Port 990 starts with TLS; any other port upgrades the connection with AUTH TLS. The server certificate is shown for you to confirm the first time.",
     "charset": "Character set of file names",
     "charsetHint": "Change it only for old servers that show accents wrong; most servers use UTF-8.",
     "speedLimit": "Speed limit (MiB/s)",
@@ -125,8 +123,7 @@
     },
     "protocols": {
       "sftp": "SFTP - SSH File Transfer Protocol",
-      "ftps": "FTPS - FTP over TLS",
-      "ftp": "FTP - File Transfer Protocol (not encrypted)"
+      "ftp": "FTP - File Transfer Protocol"
     },
     "accessMode": "Logon type",
     "accessModes": {
@@ -141,7 +138,20 @@
     "keepPassphrase": "Leave blank to keep the existing passphrase.",
     "timezoneHint": "The time zone the server lists times in. Most servers use UTC.",
     "proxyTitle": "Proxy",
-    "askHint": "No password is saved. It is asked for when connecting and kept only in the server's memory for your session."
+    "askHint": "No password is saved. It is asked for when connecting and kept only in the server's memory for your session.",
+    "encryption": "Encryption",
+    "encryptions": {
+      "optional": "Use explicit FTP over TLS if available",
+      "explicit": "Require explicit FTP over TLS",
+      "implicit": "Require implicit FTP over TLS",
+      "plain": "Only use plain FTP (insecure)"
+    },
+    "encryptionHints": {
+      "optional": "If the server does not offer TLS, or someone on the network removes the offer, the password and the files go in clear text without a warning. Prefer requiring TLS.",
+      "explicit": "Starts in clear text and upgrades with AUTH TLS before signing in; a server that does not offer TLS is refused. The first time, its certificate is shown for you to confirm.",
+      "implicit": "Speaks TLS from the first byte, usually on port 990. The first time, the server's certificate is shown for you to confirm.",
+      "plain": "FTP sends the password and the files without encryption. Use TLS if the server offers it."
+    }
   },
   "import": {
     "open": "Import from FileZilla",
@@ -172,7 +182,6 @@
     },
     "reasons": {
       "unsupported_protocol": "Protocol not supported",
-      "implicit_ftps_port": "Implicit FTPS only works on port 990",
       "key_file_login": "Key file logins are not imported",
       "missing_host": "No host",
       "name_taken": "Name already used",

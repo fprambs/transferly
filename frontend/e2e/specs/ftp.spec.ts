@@ -6,7 +6,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures.ts'
 
 /** Fills the quick connect dialog for a server of the test stack and presses Connect. */
-async function quickConnect(page: Page, protocol: 'SFTP' | 'FTPS' | 'FTP', host: string): Promise<void> {
+async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string): Promise<void> {
   await page.getByRole('button', { name: /Quick connect/ }).click()
   const dialog = page.getByRole('dialog', { name: 'Quick connect' })
   await dialog.getByRole('tab', { name: protocol, exact: true }).click()
@@ -20,14 +20,16 @@ async function quickConnect(page: Page, protocol: 'SFTP' | 'FTPS' | 'FTP', host:
  * FTP and FTPS against real vsftpd servers.
  *
  * Scenarios:
- * - a plain FTP server is reached from quick connect, which warns that FTP is not encrypted; its folders are listed and
+ * - a plain FTP server is reached from quick connect, which says FTP uses TLS only when the server offers it; its folders are listed and
  *   show a dash where permissions would be, since FTP reports none
  * - an upload to a plain FTP server that is canceled half way leaves a partial file, resuming it from the dock sends only the rest with the
  *   resume mode, and the file that arrives is byte for byte the one that was chosen
  * - the time zone probe finds that the plain FTP server, which prints its times in the local time of Santiago, is behind UTC by three or four hours
- * - a public FTP server is reached anonymously from a site saved with the Anonymous logon type, with no password and no vault
- * - an FTPS server with a self-signed certificate asks to trust the certificate first, then connects with TLS on the
- *   control and the data channels, uploads a file, hands it back with the same content, and deletes it
+ * - a public FTP server is reached anonymously from a site saved with the Anonymous logon type, with no password and no vault, and with
+ *   "explicit TLS if available" it goes on in clear text because the server offers no TLS
+ * - a site that requires implicit TLS defaults to port 990, shows the server's certificate for trust, and lists its folders
+ * - a quick FTP connection to a server with TLS and a self-signed certificate upgrades to TLS, asks to trust the certificate first, then
+ *   connects with TLS on the control and the data channels, uploads a file, hands it back with the same content, and deletes it
  */
 test.describe('ftp and ftps', () => {
   test.describe.configure({ mode: 'serial' })
@@ -36,7 +38,7 @@ test.describe('ftp and ftps', () => {
     const { page } = shell
     await page.getByRole('button', { name: /Quick connect/ }).click()
     await page.getByRole('dialog').getByRole('tab', { name: 'FTP', exact: true }).click()
-    await expect(page.getByRole('dialog').getByRole('note')).toContainText('FTP sends the password and the files without encryption')
+    await expect(page.getByRole('dialog').getByRole('note')).toContainText('Uses TLS when the server offers it')
     await page.keyboard.press('Escape')
 
     await quickConnect(page, 'FTP', 'ftp')
@@ -58,6 +60,7 @@ test.describe('ftp and ftps', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Protocol').selectOption('ftp')
+    await dialog.getByLabel('Encryption').selectOption('optional')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
     await dialog.getByLabel('Logon type').selectOption('anonymous')
     await expect(dialog.getByLabel('Username', { exact: true })).toHaveValue('anonymous')
@@ -71,10 +74,31 @@ test.describe('ftp and ftps', () => {
     await expect(grid.getByRole('row', { name: /readme\.txt/ })).toBeVisible()
   })
 
+  test('connects to a site that requires implicit TLS, on its default port 990', async ({ shell }) => {
+    const { page } = shell
+    const name = `Implicit ${Date.now()}`
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await dialog.getByLabel('Protocol').selectOption('ftp')
+    await dialog.getByLabel('Encryption').selectOption('implicit')
+    await expect(dialog.getByLabel('Port', { exact: true })).toHaveAttribute('placeholder', '990')
+    await dialog.getByLabel('Host', { exact: true }).fill('ftps-implicit')
+    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await expect(dialog).toBeHidden()
+
+    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await expect(page.getByText('tls-certificate')).toBeVisible()
+    await page.getByRole('button', { name: 'Trust and connect' }).click()
+    await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
+  })
+
   test('asks to trust an FTPS certificate and transfers a file over TLS', async ({ shell }) => {
     test.setTimeout(120_000)
     const { page } = shell
-    await quickConnect(page, 'FTPS', 'ftps')
+    await quickConnect(page, 'FTP', 'ftps')
 
     await expect(page.getByText('Trust this server?')).toBeVisible()
     await expect(page.getByText('tls-certificate')).toBeVisible()

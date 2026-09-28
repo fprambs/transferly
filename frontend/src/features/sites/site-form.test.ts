@@ -31,7 +31,8 @@ const stored: Site = {
  * - the request trims text, defaults port and time zone, and files the site in its collection
  * - the character set is kept for FTP and FTPS and is UTF-8 for SFTP
  * - the speed limit is shown in MiB/s and sent back in bytes per second, and a blank one means no cap
- * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
+ * - FTP sites send their encryption, default to port 21 or 990 for implicit TLS and never use a key; new ones require TLS, stored ones keep
+ *   their encryption, and a legacy FTPS answer reads as FTP
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
  * - every protocol may ask for the password when connecting, which sends and keeps none; SFTP offers a key and FTP and FTPS the anonymous
  *   user; an anonymous site sends the anonymous user and clears its password, and a stored one is read back as anonymous only when it has
@@ -53,6 +54,7 @@ describe('site form', () => {
       name: 'Prod',
       collectionId: 'c1',
       protocol: 'sftp',
+      ftpEncryption: 'explicit',
       host: 'prod.example.com',
       port: '2222',
       username: 'deploy',
@@ -83,7 +85,6 @@ describe('site form', () => {
     const values = { ...siteDefaults(stored, undefined), charset: 'shift_jis' }
 
     expect(toSiteInput({ ...values, protocol: 'ftp' }).charset).toBe('shift_jis')
-    expect(toSiteInput({ ...values, protocol: 'ftps' }).charset).toBe('shift_jis')
     expect(toSiteInput({ ...values, protocol: 'sftp' }).charset).toBe('utf-8')
     expect(siteDefaults(undefined, undefined).charset).toBe('utf-8')
   })
@@ -112,12 +113,13 @@ describe('site form', () => {
     expect(siteSchema.safeParse({ ...siteDefaults(stored, undefined), port }).success).toBe(false)
   })
 
-  it('builds FTP and FTPS sites: their own port, always a password', () => {
-    const base = { ...siteDefaults(undefined, undefined), name: 'F', host: 'h', username: 'u', accessMode: 'key' as const, password: 'pw', privateKey: 'KEY', passphrase: 'ph' }
+  it('builds FTP sites with their encryption and their own port, always with a password', () => {
+    const base = { ...siteDefaults(undefined, undefined), name: 'F', protocol: 'ftp' as const, host: 'h', username: 'u', accessMode: 'key' as const, password: 'pw', privateKey: 'KEY', passphrase: 'ph' }
 
-    for (const protocol of ['ftp', 'ftps'] as const) {
-      expect(toSiteInput({ ...base, protocol })).toMatchObject({
-        protocol,
+    for (const ftpEncryption of ['optional', 'explicit', 'plain'] as const) {
+      expect(toSiteInput({ ...base, ftpEncryption })).toMatchObject({
+        protocol: 'ftp',
+        ftpEncryption,
         port: 21,
         authMethod: 'password',
         password: 'pw',
@@ -125,8 +127,15 @@ describe('site form', () => {
         passphrase: undefined,
       })
     }
-    expect(toSiteInput({ ...base, protocol: 'ftps', port: '990' }).port).toBe(990)
-    expect(siteDefaults({ ...stored, protocol: 'ftps' }, undefined).protocol).toBe('ftps')
+    expect(toSiteInput({ ...base, ftpEncryption: 'implicit' }).port).toBe(990)
+    expect(toSiteInput({ ...base, ftpEncryption: 'implicit', port: '2990' }).port).toBe(2990)
+    expect(toSiteInput({ ...base, protocol: 'sftp' }).ftpEncryption).toBeUndefined()
+  })
+
+  it('reads the encryption of a stored FTP site, and requires TLS for new ones', () => {
+    expect(siteDefaults(undefined, undefined).ftpEncryption).toBe('explicit')
+    expect(siteDefaults({ ...stored, protocol: 'ftp', ftpEncryption: 'optional' }, undefined)).toMatchObject({ protocol: 'ftp', ftpEncryption: 'optional' })
+    expect(siteDefaults({ ...stored, protocol: 'ftps' }, undefined).protocol).toBe('ftp')
   })
 
   it('builds a password site', () => {
@@ -209,10 +218,9 @@ describe('site form', () => {
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: 'u' }).success).toBe(true)
   })
 
-  it('offers asking for the password to every protocol, a key to SFTP and the anonymous user to FTP and FTPS', () => {
+  it('offers asking for the password to every protocol, a key to SFTP and the anonymous user to FTP', () => {
     expect(accessModesOf('sftp')).toEqual(['normal', 'ask', 'key'])
     expect(accessModesOf('ftp')).toEqual(['normal', 'ask', 'anonymous'])
-    expect(accessModesOf('ftps')).toEqual(['normal', 'ask', 'anonymous'])
   })
 
   it('builds a site that asks for its password: no password sent, clearing a stored one', () => {

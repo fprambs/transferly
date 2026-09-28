@@ -1415,6 +1415,11 @@ export interface components {
             recoveryKit: string;
         };
         /**
+         * @description How an FTP site protects the connection (ADR-0012): optional upgrades with AUTH TLS when offered and carries on in clear text otherwise, explicit requires AUTH TLS, implicit expects TLS from the first byte, plain is clear text. Left out for SFTP; on input, left out means plain for ftp and the encryption the port implies for ftps.
+         * @enum {string}
+         */
+        FtpEncryption: "optional" | "explicit" | "implicit" | "plain";
+        /**
          * @description Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
          * @enum {string}
          */
@@ -1447,6 +1452,7 @@ export interface components {
             name: string;
             /** @enum {string} */
             protocol: "sftp" | "ftp" | "ftps";
+            ftpEncryption?: components["schemas"]["FtpEncryption"];
             host: string;
             port: number;
             username: string;
@@ -1478,8 +1484,12 @@ export interface components {
              */
             collectionId?: string;
             name: string;
-            /** @enum {string} */
+            /**
+             * @description ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
+             * @enum {string}
+             */
             protocol: "sftp" | "ftp" | "ftps";
+            ftpEncryption?: components["schemas"]["FtpEncryption"];
             host: string;
             /** @description Defaults to the protocol's port. */
             port?: number;
@@ -1719,8 +1729,12 @@ export interface components {
             moveToTop?: boolean;
         };
         QuickConnectInput: {
-            /** @enum {string} */
+            /**
+             * @description ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
+             * @enum {string}
+             */
             protocol: "sftp" | "ftp" | "ftps";
+            ftpEncryption?: components["schemas"]["FtpEncryption"];
             host: string;
             /** @description Defaults to the protocol's port. */
             port?: number;
@@ -1743,6 +1757,7 @@ export interface components {
             name: string;
             /** @enum {string} */
             protocol: "sftp" | "ftp" | "ftps";
+            ftpEncryption?: components["schemas"]["FtpEncryption"];
             host: string;
             port: number;
             username: string;

@@ -26,9 +26,10 @@ import {
   anonymousUser,
   charsetOptions,
   defaultJumpPort,
-  defaultPorts,
+  defaultPortOf,
   defaultProxyPort,
   effectiveMode,
+  ftpEncryptions,
   siteDefaults,
   siteSchema,
   siteTabs,
@@ -129,6 +130,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
     defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined),
   })
   const protocol = useWatch({ control, name: 'protocol' })
+  const ftpEncryption = useWatch({ control, name: 'ftpEncryption' })
   const accessMode = useWatch({ control, name: 'accessMode' })
   const mode = effectiveMode({ protocol, accessMode })
   const hasPassword = editing?.secrets.includes('password') === true
@@ -219,32 +221,41 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
             <Row id="site-protocol" label={t(($) => $.site.protocol)}>
               <NativeSelect id="site-protocol" {...register('protocol')}>
                 <option value="sftp">{t(($) => $.site.protocols.sftp)}</option>
-                <option value="ftps">{t(($) => $.site.protocols.ftps)}</option>
                 <option value="ftp">{t(($) => $.site.protocols.ftp)}</option>
               </NativeSelect>
             </Row>
-            <Row
-              id="site-host"
-              label={t(($) => $.site.host)}
-              errors={[errors.host?.message, errors.port?.message]}
-              hint={
-                protocol === 'ftp' ? (
-                  <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-foreground">
-                    {t(($) => $.site.ftpWarning)}
-                  </p>
-                ) : protocol === 'ftps' ? (
-                  t(($) => $.site.ftpsHint)
-                ) : undefined
-              }
-            >
+            <Row id="site-host" label={t(($) => $.site.host)} errors={[errors.host?.message, errors.port?.message]}>
               <div className="flex items-center gap-3">
                 <Input id="site-host" className="min-w-0 flex-1 font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
                 <Label htmlFor="site-port" className="font-normal text-muted-foreground">
                   {t(($) => $.site.port)}
                 </Label>
-                <Input id="site-port" className="w-20 font-mono" inputMode="numeric" placeholder={String(defaultPorts[protocol])} aria-invalid={errors.port !== undefined} {...register('port')} />
+                <Input id="site-port" className="w-20 font-mono" inputMode="numeric" placeholder={String(defaultPortOf(protocol, ftpEncryption))} aria-invalid={errors.port !== undefined} {...register('port')} />
               </div>
             </Row>
+            {protocol === 'ftp' && (
+              <Row
+                id="site-encryption"
+                label={t(($) => $.site.encryption)}
+                hint={
+                  ftpEncryption === 'plain' || ftpEncryption === 'optional' ? (
+                    <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-foreground">
+                      {t(($) => $.site.encryptionHints[ftpEncryption])}
+                    </p>
+                  ) : (
+                    t(($) => $.site.encryptionHints[ftpEncryption])
+                  )
+                }
+              >
+                <NativeSelect id="site-encryption" {...register('ftpEncryption')}>
+                  {ftpEncryptions.map((candidate) => (
+                    <option key={candidate} value={candidate}>
+                      {t(($) => $.site.encryptions[candidate])}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Row>
+            )}
           </Group>
           <Group>
             <Row id="site-access" label={t(($) => $.site.accessMode)} hint={mode === 'anonymous' ? t(($) => $.site.anonymousHint) : mode === 'ask' ? t(($) => $.site.askHint) : undefined}>

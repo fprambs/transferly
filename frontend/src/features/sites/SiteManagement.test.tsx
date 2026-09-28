@@ -60,7 +60,8 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with the
  *   anonymous user and no password
  * - the character set of file names is offered for FTP and FTPS only, is UTF-8 by default and is sent with the site
- * - FTP and FTPS are offered next to SFTP, with their own default port; FTP warns about clear text, FTPS explains its ports, and neither offers keys
+ * - FTP is offered next to SFTP with the four encryptions of FileZilla, requiring explicit TLS by default; each encryption explains itself, clear
+ *   text and the optional fall back warn, implicit TLS defaults to port 990, and FTP offers no key
  * - key authentication swaps the password for the key fields
  * - a site can be started inside a collection from its menu
  * - a proxy and a jump host can be configured, in both authentication methods, and hide again outside SFTP
@@ -150,7 +151,7 @@ describe('site management', () => {
     await waitFor(() => expect(within(dialog).getByRole('tab', { name: /Proxy and jump host/ })).toHaveAttribute('aria-selected', 'false'))
   })
 
-  it('creates FTP and FTPS sites with their own port and no key option', async () => {
+  it('creates FTP sites with the encryption FileZilla offers, their own port and no key option', async () => {
     const bodies: Array<Record<string, unknown>> = []
     server.use(
       http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
@@ -162,25 +163,38 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByLabelText('Character set of file names')).not.toBeInTheDocument()
+    expect(within(dialog).queryByLabelText('Encryption')).not.toBeInTheDocument()
     expect(within(within(dialog).getByLabelText('Protocol')).getAllByRole('option').map((option) => option.textContent)).toEqual([
       'SFTP - SSH File Transfer Protocol',
-      'FTPS - FTP over TLS',
-      'FTP - File Transfer Protocol (not encrypted)',
+      'FTP - File Transfer Protocol',
     ])
     expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Key file'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
     await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
+    const encryption = within(dialog).getByLabelText('Encryption')
+    expect(within(encryption).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Use explicit FTP over TLS if available',
+      'Require explicit FTP over TLS',
+      'Require implicit FTP over TLS',
+      'Only use plain FTP (insecure)',
+    ])
+    expect(encryption).toHaveValue('explicit')
+    expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/upgrades with AUTH TLS before signing in/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '21')
-    expect(within(dialog).getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
     expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Anonymous'])
+
+    await user.selectOptions(encryption, 'implicit')
+    expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '990')
+    await user.selectOptions(encryption, 'optional')
+    expect(within(dialog).getByRole('note')).toHaveTextContent('someone on the network removes the offer')
+    await user.selectOptions(encryption, 'plain')
+    expect(within(dialog).getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
 
     expect(within(dialog).getByLabelText('Character set of file names')).toHaveValue('utf-8')
     await user.selectOptions(within(dialog).getByLabelText('Character set of file names'), 'windows-1252')
-    await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftps')
-    expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
-    expect(within(dialog).getByText(/Port 990 starts with TLS/)).toBeInTheDocument()
-
+    await user.selectOptions(encryption, 'implicit')
     await user.type(within(dialog).getByLabelText('Name', { exact: true }), 'Secure')
     await user.type(within(dialog).getByLabelText('Host'), 'ftp.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
@@ -188,7 +202,7 @@ describe('site management', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
     await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(bodies[0]).toMatchObject({ protocol: 'ftps', port: 21, authMethod: 'password', password: 'pw', charset: 'windows-1252' })
+    expect(bodies[0]).toMatchObject({ protocol: 'ftp', ftpEncryption: 'implicit', port: 990, authMethod: 'password', password: 'pw', charset: 'windows-1252' })
   })
 
   it('saves an anonymous FTP site with the anonymous user and no password', async () => {

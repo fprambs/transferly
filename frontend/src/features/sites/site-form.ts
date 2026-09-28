@@ -3,8 +3,25 @@ import { z } from 'zod'
 
 import type { Charset, Site, SiteInput } from '@/lib/api'
 
-/** Default port of each protocol; FTPS on port 990 starts with TLS, on any other port it upgrades. */
-export const defaultPorts = { sftp: 22, ftps: 21, ftp: 21 } as const
+/** Default port of each protocol; an FTP site with implicit TLS defaults to {@link implicitPort} instead. */
+export const defaultPorts = { sftp: 22, ftp: 21 } as const
+
+/** Port of implicit FTPS, the default of FTP sites that use it. */
+export const implicitPort = 990
+
+/** How an FTP site protects the connection, as FileZilla offers it (ADR-0012). */
+export type FtpEncryption = 'optional' | 'explicit' | 'implicit' | 'plain'
+
+/** The FTP encryptions in the order FileZilla lists them. */
+export const ftpEncryptions: readonly FtpEncryption[] = ['optional', 'explicit', 'implicit', 'plain']
+
+/** The encryption of a new FTP site, or of an SFTP site switched to FTP: TLS required, never a silent fall back. */
+export const defaultFtpEncryption: FtpEncryption = 'explicit'
+
+/** The default port of a site, given its protocol and, for FTP, its encryption. */
+export function defaultPortOf(protocol: SiteValues['protocol'], encryption: FtpEncryption): number {
+  return protocol === 'ftp' && encryption === 'implicit' ? implicitPort : defaultPorts[protocol]
+}
 
 /** Highest valid TCP port. */
 const maxPort = 65535
@@ -56,7 +73,8 @@ export const siteSchema = z
   .object({
     name: z.string().trim().min(1, 'nameRequired'),
     collectionId: z.string(),
-    protocol: z.enum(['sftp', 'ftps', 'ftp']),
+    protocol: z.enum(['sftp', 'ftp']),
+    ftpEncryption: z.enum(['optional', 'explicit', 'implicit', 'plain']),
     host: z.string().trim().min(1, 'hostRequired'),
     port: z.string().trim().refine(validPort, 'portInvalid'),
     username: z.string().trim(),
@@ -118,7 +136,8 @@ export function siteDefaults(site: Site | undefined, collectionId: string | unde
   return {
     name: site?.name ?? '',
     collectionId: site?.collectionId ?? collectionId ?? '',
-    protocol: site?.protocol ?? 'sftp',
+    protocol: site === undefined || site.protocol === 'sftp' ? 'sftp' : 'ftp',
+    ftpEncryption: site?.ftpEncryption ?? defaultFtpEncryption,
     host: site?.host ?? '',
     port: site === undefined ? '' : String(site.port),
     username: site?.username ?? '',
@@ -165,8 +184,9 @@ export function toSiteInput(values: SiteValues): SiteInput {
     name: values.name.trim(),
     collectionId: values.collectionId === '' ? undefined : values.collectionId,
     protocol: values.protocol,
+    ftpEncryption: values.protocol === 'ftp' ? values.ftpEncryption : undefined,
     host: values.host.trim(),
-    port: values.port.trim() === '' ? defaultPorts[values.protocol] : Number(values.port),
+    port: values.port.trim() === '' ? defaultPortOf(values.protocol, values.ftpEncryption) : Number(values.port),
     username: mode === 'anonymous' ? anonymousUser : values.username.trim(),
     authMethod: usesKey ? 'key' : mode === 'ask' ? 'ask' : 'password',
     listTimezone: values.listTimezone === '' ? 'UTC' : values.listTimezone,
@@ -232,6 +252,7 @@ const fieldTabs: Record<keyof SiteValues, SiteTab> = {
   name: 'general',
   collectionId: 'general',
   protocol: 'general',
+  ftpEncryption: 'general',
   host: 'general',
   port: 'general',
   username: 'general',

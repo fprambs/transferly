@@ -90,8 +90,6 @@
     "deleteTitle": "¿Eliminar este sitio?",
     "deleteBody": "Se eliminarán {{name}} y sus credenciales guardadas.",
     "deleteConfirm": "Eliminar",
-    "ftpWarning": "FTP envía la contraseña y los archivos sin cifrar. Usa FTPS si el servidor lo ofrece.",
-    "ftpsHint": "El puerto 990 empieza con TLS; en cualquier otro puerto la conexión se actualiza con AUTH TLS. La primera vez se muestra el certificado del servidor para que lo confirmes.",
     "charset": "Juego de caracteres de los nombres",
     "charsetHint": "Cámbialo solo con servidores antiguos que muestran mal las tildes; la mayoría usa UTF-8.",
     "speedLimit": "Límite de velocidad (MiB/s)",
@@ -125,8 +123,7 @@
     },
     "protocols": {
       "sftp": "SFTP - SSH File Transfer Protocol",
-      "ftps": "FTPS - FTP sobre TLS",
-      "ftp": "FTP - File Transfer Protocol (sin cifrar)"
+      "ftp": "FTP - Protocolo de Transferencia de Archivos"
     },
     "accessMode": "Modo de acceso",
     "accessModes": {
@@ -141,7 +138,20 @@
     "keepPassphrase": "Dejar en blanco para mantener la frase existente.",
     "timezoneHint": "La zona horaria en la que el servidor muestra las horas. La mayoría usa UTC.",
     "proxyTitle": "Proxy",
-    "askHint": "No se guarda ninguna contraseña. Se pide al conectar y vive solo en la memoria del servidor durante tu sesión."
+    "askHint": "No se guarda ninguna contraseña. Se pide al conectar y vive solo en la memoria del servidor durante tu sesión.",
+    "encryption": "Cifrado",
+    "encryptions": {
+      "optional": "Usar FTP explícito sobre TLS si está disponible",
+      "explicit": "Requiere FTP explícito sobre TLS",
+      "implicit": "Requiere FTP implícito sobre TLS",
+      "plain": "Usar sólo FTP plano (inseguro)"
+    },
+    "encryptionHints": {
+      "optional": "Si el servidor no ofrece TLS, o alguien en la red borra esa oferta, la contraseña y los archivos viajan sin cifrar y sin aviso. Mejor requerir TLS.",
+      "explicit": "Empieza sin cifrar y se actualiza con AUTH TLS antes de iniciar sesión; si el servidor no ofrece TLS, se rechaza. La primera vez se muestra su certificado para que lo confirmes.",
+      "implicit": "Usa TLS desde el primer byte, normalmente en el puerto 990. La primera vez se muestra el certificado del servidor para que lo confirmes.",
+      "plain": "FTP envía la contraseña y los archivos sin cifrar. Usa TLS si el servidor lo ofrece."
+    }
   },
   "import": {
     "open": "Importar de FileZilla",
@@ -172,7 +182,6 @@
     },
     "reasons": {
       "unsupported_protocol": "Protocolo no compatible",
-      "implicit_ftps_port": "FTPS implícito solo funciona en el puerto 990",
       "key_file_login": "Los accesos con archivo de clave no se importan",
       "missing_host": "Sin servidor",
       "name_taken": "El nombre ya está en uso",

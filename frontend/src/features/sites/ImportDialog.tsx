@@ -27,7 +27,6 @@ export interface ImportDialogProps {
 /** The reasons the interface has a text for; any other code is shown as it is. */
 const knownReasons = [
   'unsupported_protocol',
-  'implicit_ftps_port',
   'key_file_login',
   'missing_host',
   'name_taken',
