@@ -29,6 +29,22 @@ export const charsetOptions: ReadonlyArray<{ value: Charset; label: string }> = 
   { value: 'euc-kr', label: 'EUC-KR (Korean)' },
 ]
 
+/** How the site signs in, as FileZilla names it: with a password, with a private key (SFTP only), or anonymously (FTP and FTPS only). */
+export type AccessMode = 'normal' | 'key' | 'anonymous'
+
+/** The access modes a protocol offers, in the order they are listed. */
+export function accessModesOf(protocol: SiteValues['protocol']): readonly AccessMode[] {
+  return protocol === 'sftp' ? ['normal', 'key'] : ['normal', 'anonymous']
+}
+
+/** The access mode a site really uses: one its protocol does not offer falls back to a password. */
+export function effectiveMode(values: Pick<SiteValues, 'protocol' | 'accessMode'>): AccessMode {
+  return accessModesOf(values.protocol).includes(values.accessMode) ? values.accessMode : 'normal'
+}
+
+/** The user name anonymous FTP servers expect. */
+export const anonymousUser = 'anonymous'
+
 /** Whether a port, given as text, is a valid one; an empty text is valid too and means the default. */
 function validPort(value: string): boolean {
   return value === '' || (/^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= maxPort)
@@ -42,8 +58,8 @@ export const siteSchema = z
     protocol: z.enum(['sftp', 'ftps', 'ftp']),
     host: z.string().trim().min(1, 'hostRequired'),
     port: z.string().trim().refine(validPort, 'portInvalid'),
-    username: z.string().trim().min(1, 'usernameRequired'),
-    authMethod: z.enum(['password', 'key']),
+    username: z.string().trim(),
+    accessMode: z.enum(['normal', 'key', 'anonymous']),
     password: z.string(),
     privateKey: z.string(),
     passphrase: z.string(),
@@ -64,6 +80,9 @@ export const siteSchema = z
     jumpPassphrase: z.string(),
   })
   .superRefine((values, ctx) => {
+    if (values.username === '' && effectiveMode(values) !== 'anonymous') {
+      ctx.addIssue({ code: 'custom', path: ['username'], message: 'usernameRequired' })
+    }
     if (values.proxyKind !== 'none') {
       if (values.proxyHost === '') {
         ctx.addIssue({ code: 'custom', path: ['proxyHost'], message: 'hostRequired' })
@@ -85,6 +104,14 @@ export const siteSchema = z
 /** Values of the site form. */
 export type SiteValues = z.infer<typeof siteSchema>
 
+/** The access mode of a saved site: its key, or anonymous when it is an FTP site of the anonymous user with no password saved. */
+function accessModeOf(site: Site | undefined): AccessMode {
+  if (site?.authMethod === 'key') {
+    return 'key'
+  }
+  return site !== undefined && site.protocol !== 'sftp' && site.username === anonymousUser && !site.secrets.includes('password') ? 'anonymous' : 'normal'
+}
+
 /** Initial values of the form for a new site, or for an existing one; secrets are never prefilled. */
 export function siteDefaults(site: Site | undefined, collectionId: string | undefined): SiteValues {
   return {
@@ -94,7 +121,7 @@ export function siteDefaults(site: Site | undefined, collectionId: string | unde
     host: site?.host ?? '',
     port: site === undefined ? '' : String(site.port),
     username: site?.username ?? '',
-    authMethod: site?.authMethod ?? 'password',
+    accessMode: accessModeOf(site),
     password: '',
     privateKey: '',
     passphrase: '',
@@ -127,9 +154,10 @@ export const defaultProxyPort = 1080
 /** Default port of a jump host that did not say its own: the SSH port, since only SFTP sites may have one. */
 export const defaultJumpPort = 22
 
-/** Builds the request body of a site: an empty port means the default and blank secrets are left out. */
+/** Builds the request body of a site: an empty port means the default and blank secrets are left out; an anonymous site clears its password. */
 export function toSiteInput(values: SiteValues): SiteInput {
-  const usesKey = values.protocol === 'sftp' && values.authMethod === 'key'
+  const mode = effectiveMode(values)
+  const usesKey = mode === 'key'
   const jumpUsesKey = values.jumpAuthMethod === 'key'
   return {
     name: values.name.trim(),
@@ -137,12 +165,12 @@ export function toSiteInput(values: SiteValues): SiteInput {
     protocol: values.protocol,
     host: values.host.trim(),
     port: values.port.trim() === '' ? defaultPorts[values.protocol] : Number(values.port),
-    username: values.username.trim(),
+    username: mode === 'anonymous' ? anonymousUser : values.username.trim(),
     authMethod: usesKey ? 'key' : 'password',
     listTimezone: values.listTimezone === '' ? 'UTC' : values.listTimezone,
     charset: values.protocol === 'sftp' ? 'utf-8' : (values.charset as Charset),
     speedLimitBps: values.speedLimit.trim() === '' ? 0 : Math.round(Number(values.speedLimit) * mebibyte),
-    password: usesKey ? undefined : secret(values.password),
+    password: mode === 'anonymous' ? '' : usesKey ? undefined : secret(values.password),
     privateKey: usesKey ? secret(values.privateKey) : undefined,
     passphrase: usesKey ? secret(values.passphrase) : undefined,
     ...proxyInput(values),
@@ -185,11 +213,17 @@ function jumpInput(values: SiteValues, usesKey: boolean): Pick<SiteInput, 'jump'
   }
 }
 
-/** The tabs of the site form: what is needed to connect, the settings most sites leave alone, and how the connection is routed. */
-export type SiteTab = 'general' | 'advanced' | 'network'
+/** The tabs of the site form, as FileZilla splits it: what is needed to connect, the listing time zone, the speed limit, the character set of
+ * file names, and how the connection is routed. */
+export type SiteTab = 'general' | 'advanced' | 'transfer' | 'charset' | 'network'
 
 /** The tabs in the order they are drawn. */
-export const siteTabs: readonly SiteTab[] = ['general', 'advanced', 'network']
+export const siteTabs: readonly SiteTab[] = ['general', 'advanced', 'transfer', 'charset', 'network']
+
+/** The tabs a protocol shows: the character set is chosen for FTP and FTPS only, SFTP always uses UTF-8. */
+export function tabsOf(protocol: SiteValues['protocol']): readonly SiteTab[] {
+  return protocol === 'sftp' ? siteTabs.filter((tab) => tab !== 'charset') : siteTabs
+}
 
 /** The tab each field of the form is on. */
 const fieldTabs: Record<keyof SiteValues, SiteTab> = {
@@ -199,13 +233,13 @@ const fieldTabs: Record<keyof SiteValues, SiteTab> = {
   host: 'general',
   port: 'general',
   username: 'general',
-  authMethod: 'general',
+  accessMode: 'general',
   password: 'general',
   privateKey: 'general',
   passphrase: 'general',
-  charset: 'advanced',
+  charset: 'charset',
   listTimezone: 'advanced',
-  speedLimit: 'advanced',
+  speedLimit: 'transfer',
   proxyKind: 'network',
   proxyHost: 'network',
   proxyPort: 'network',

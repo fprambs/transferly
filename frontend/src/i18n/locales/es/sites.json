@@ -64,15 +64,13 @@
     "collection": "Colección",
     "noCollection": "Sin colección",
     "protocol": "Protocolo",
-    "host": "Host",
+    "host": "Servidor",
     "port": "Puerto",
     "username": "Usuario",
-    "authMethod": "Iniciar sesión con",
     "password": "Contraseña",
     "key": "Clave privada",
     "privateKey": "Clave privada",
     "passphrase": "Frase de la clave",
-    "secretHint": "Déjalo en blanco para conservar el valor guardado.",
     "timezone": "Zona horaria del servidor",
     "create": "Crear sitio",
     "save": "Guardar cambios",
@@ -109,7 +107,7 @@
     "jumpHost": "Host del salto",
     "jumpPort": "Puerto del salto",
     "jumpUsername": "Usuario del salto",
-    "jumpAuthMethod": "Iniciar sesión del salto con",
+    "jumpAuthMethod": "Modo de acceso del salto",
     "jumpPassword": "Contraseña del salto",
     "jumpPrivateKey": "Clave privada del salto",
     "jumpPassphrase": "Frase de la clave del salto",
@@ -119,8 +117,27 @@
       "general": "General",
       "advanced": "Avanzado",
       "network": "Proxy y salto",
-      "hasErrors": "(tiene errores)"
-    }
+      "hasErrors": "(tiene errores)",
+      "transfer": "Transferencia",
+      "charset": "Juego de caracteres"
+    },
+    "protocols": {
+      "sftp": "SFTP - SSH File Transfer Protocol",
+      "ftps": "FTPS - FTP sobre TLS",
+      "ftp": "FTP - File Transfer Protocol (sin cifrar)"
+    },
+    "accessMode": "Modo de acceso",
+    "accessModes": {
+      "normal": "Normal",
+      "key": "Archivo de clave",
+      "anonymous": "Anónimo"
+    },
+    "anonymousHint": "Entra como anonymous sin guardar contraseña, como esperan los servidores públicos.",
+    "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
+    "keepKey": "Dejar en blanco para mantener la clave existente.",
+    "keepPassphrase": "Dejar en blanco para mantener la frase existente.",
+    "timezoneHint": "La zona horaria en la que el servidor muestra las horas. La mayoría usa UTC.",
+    "proxyTitle": "Proxy"
   },
   "import": {
     "open": "Importar de FileZilla",

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Site } from '@/lib/api'
 
-import { siteDefaults, siteSchema, toSiteInput } from './site-form'
+import { accessModesOf, siteDefaults, siteSchema, tabsOf, tabsWithErrors, toSiteInput } from './site-form'
 
 /** A stored site. */
 const stored: Site = {
@@ -33,6 +33,9 @@ const stored: Site = {
  * - the speed limit is shown in MiB/s and sent back in bytes per second, and a blank one means no cap
  * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
+ * - SFTP offers a key and FTP and FTPS the anonymous user; an anonymous site sends the anonymous user and clears its password, and a stored
+ *   one is read back as anonymous only when it has no password
+ * - the character set tab is shown to FTP and FTPS only, and the tabs of the fields that are wrong are found
  * - a stored proxy and jump host are shown prefilled and sent back, in both authentication methods, with their own
  *   default ports when left blank, and neither is sent when not set
  * - a proxy needs a host and a valid port once a kind is chosen, and a jump host needs a valid port and a username
@@ -40,7 +43,7 @@ const stored: Site = {
  */
 describe('site form', () => {
   it('starts empty for a new site', () => {
-    expect(siteDefaults(undefined, 'c9')).toMatchObject({ name: '', collectionId: 'c9', port: '', authMethod: 'password', listTimezone: 'UTC' })
+    expect(siteDefaults(undefined, 'c9')).toMatchObject({ name: '', collectionId: 'c9', port: '', accessMode: 'normal', listTimezone: 'UTC' })
     expect(siteDefaults(undefined, undefined).collectionId).toBe('')
   })
 
@@ -52,7 +55,7 @@ describe('site form', () => {
       host: 'prod.example.com',
       port: '2222',
       username: 'deploy',
-      authMethod: 'key',
+      accessMode: 'key',
       password: '',
       privateKey: '',
       passphrase: '',
@@ -109,7 +112,7 @@ describe('site form', () => {
   })
 
   it('builds FTP and FTPS sites: their own port, always a password', () => {
-    const base = { ...siteDefaults(undefined, undefined), name: 'F', host: 'h', username: 'u', authMethod: 'key' as const, password: 'pw', privateKey: 'KEY', passphrase: 'ph' }
+    const base = { ...siteDefaults(undefined, undefined), name: 'F', host: 'h', username: 'u', accessMode: 'key' as const, password: 'pw', privateKey: 'KEY', passphrase: 'ph' }
 
     for (const protocol of ['ftp', 'ftps'] as const) {
       expect(toSiteInput({ ...base, protocol })).toMatchObject({
@@ -203,5 +206,35 @@ describe('site form', () => {
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: 'nope', jumpUsername: 'u' }).success).toBe(false)
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: '' }).success).toBe(false)
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: 'u' }).success).toBe(true)
+  })
+
+  it('offers a key to SFTP and the anonymous user to FTP and FTPS', () => {
+    expect(accessModesOf('sftp')).toEqual(['normal', 'key'])
+    expect(accessModesOf('ftp')).toEqual(['normal', 'anonymous'])
+    expect(accessModesOf('ftps')).toEqual(['normal', 'anonymous'])
+  })
+
+  it('builds an anonymous FTP site: the anonymous user and no password, clearing a stored one', () => {
+    const values = { ...siteDefaults(undefined, undefined), name: 'Public', protocol: 'ftp' as const, host: 'h', accessMode: 'anonymous' as const, username: '', password: 'typed' }
+
+    expect(siteSchema.safeParse(values).success).toBe(true)
+    expect(toSiteInput(values)).toMatchObject({ username: 'anonymous', authMethod: 'password', password: '' })
+    expect(toSiteInput({ ...values, protocol: 'sftp', username: 'u' })).toMatchObject({ username: 'u', password: 'typed' })
+    expect(siteSchema.safeParse({ ...values, protocol: 'sftp' }).success).toBe(false)
+  })
+
+  it('reads a stored FTP site of the anonymous user with no password as anonymous', () => {
+    const anonymous: Site = { ...stored, protocol: 'ftp', authMethod: 'password', username: 'anonymous', secrets: [] }
+
+    expect(siteDefaults(anonymous, undefined).accessMode).toBe('anonymous')
+    expect(siteDefaults({ ...anonymous, secrets: ['password'] }, undefined).accessMode).toBe('normal')
+    expect(siteDefaults({ ...anonymous, protocol: 'sftp' }, undefined).accessMode).toBe('normal')
+    expect(siteDefaults({ ...anonymous, username: 'deploy' }, undefined).accessMode).toBe('normal')
+  })
+
+  it('shows the character set tab to FTP and FTPS only, and finds the tabs of the fields that are wrong', () => {
+    expect(tabsOf('sftp')).not.toContain('charset')
+    expect(tabsOf('ftp')).toContain('charset')
+    expect(tabsWithErrors({ speedLimit: { type: 'custom' }, username: { type: 'custom' } })).toEqual(new Set(['transfer', 'general']))
   })
 })

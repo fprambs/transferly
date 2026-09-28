@@ -67,12 +67,10 @@
     "host": "Host",
     "port": "Port",
     "username": "Username",
-    "authMethod": "Sign in with",
     "password": "Password",
     "key": "Private key",
     "privateKey": "Private key",
     "passphrase": "Key passphrase",
-    "secretHint": "Leave blank to keep the stored value.",
     "timezone": "Server time zone",
     "create": "Create site",
     "save": "Save changes",
@@ -109,7 +107,7 @@
     "jumpHost": "Jump host",
     "jumpPort": "Jump port",
     "jumpUsername": "Jump username",
-    "jumpAuthMethod": "Jump sign in with",
+    "jumpAuthMethod": "Jump host logon type",
     "jumpPassword": "Jump host password",
     "jumpPrivateKey": "Jump host private key",
     "jumpPassphrase": "Jump host key passphrase",
@@ -119,8 +117,27 @@
       "general": "General",
       "advanced": "Advanced",
       "network": "Proxy and jump host",
-      "hasErrors": "(has errors)"
-    }
+      "hasErrors": "(has errors)",
+      "transfer": "Transfer",
+      "charset": "Character set"
+    },
+    "protocols": {
+      "sftp": "SFTP - SSH File Transfer Protocol",
+      "ftps": "FTPS - FTP over TLS",
+      "ftp": "FTP - File Transfer Protocol (not encrypted)"
+    },
+    "accessMode": "Logon type",
+    "accessModes": {
+      "normal": "Normal",
+      "key": "Key file",
+      "anonymous": "Anonymous"
+    },
+    "anonymousHint": "Signs in as anonymous with no password saved, as public servers expect.",
+    "keepPassword": "Leave blank to keep the existing password.",
+    "keepKey": "Leave blank to keep the existing key.",
+    "keepPassphrase": "Leave blank to keep the existing passphrase.",
+    "timezoneHint": "The time zone the server lists times in. Most servers use UTC.",
+    "proxyTitle": "Proxy"
   },
   "import": {
     "open": "Import from FileZilla",

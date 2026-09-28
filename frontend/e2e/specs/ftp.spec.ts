@@ -25,6 +25,7 @@ async function quickConnect(page: Page, protocol: 'SFTP' | 'FTPS' | 'FTP', host:
  * - an upload to a plain FTP server that is canceled half way leaves a partial file, resuming it from the dock sends only the rest with the
  *   resume mode, and the file that arrives is byte for byte the one that was chosen
  * - the time zone probe finds that the plain FTP server, which prints its times in the local time of Santiago, is behind UTC by three or four hours
+ * - a public FTP server is reached anonymously from a site saved with the Anonymous logon type, with no password and no vault
  * - an FTPS server with a self-signed certificate asks to trust the certificate first, then connects with TLS on the
  *   control and the data channels, uploads a file, hands it back with the same content, and deletes it
  */
@@ -48,6 +49,26 @@ test.describe('ftp and ftps', () => {
     await expect(upload).toBeVisible()
     await expect(upload).toContainText('—')
     await expect(upload).not.toContainText('rwx')
+  })
+
+  test('signs in to a public FTP server anonymously, with no password and no vault', async ({ shell }) => {
+    const { page } = shell
+    const name = `Public ${Date.now()}`
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await dialog.getByLabel('Protocol').selectOption('ftp')
+    await dialog.getByLabel('Host', { exact: true }).fill('ftp')
+    await dialog.getByLabel('Logon type').selectOption('anonymous')
+    await expect(dialog.getByLabel('Username', { exact: true })).toHaveValue('anonymous')
+    await expect(dialog.getByLabel('Password', { exact: true })).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await expect(dialog).toBeHidden()
+
+    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /pub/ }).dblclick()
+    await expect(grid.getByRole('row', { name: /readme\.txt/ })).toBeVisible()
   })
 
   test('asks to trust an FTPS certificate and transfers a file over TLS', async ({ shell }) => {

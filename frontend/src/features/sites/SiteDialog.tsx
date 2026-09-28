@@ -21,7 +21,23 @@ import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 import { collectionOptions } from './collection-paths'
 import { ConnectionTest } from './ConnectionTest'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
-import { charsetOptions, defaultJumpPort, defaultPorts, defaultProxyPort, siteDefaults, siteSchema, siteTabs, tabsWithErrors, toSiteInput, type SiteTab, type SiteValues } from './site-form'
+import {
+  accessModesOf,
+  anonymousUser,
+  charsetOptions,
+  defaultJumpPort,
+  defaultPorts,
+  defaultProxyPort,
+  effectiveMode,
+  siteDefaults,
+  siteSchema,
+  siteTabs,
+  tabsOf,
+  tabsWithErrors,
+  toSiteInput,
+  type SiteTab,
+  type SiteValues,
+} from './site-form'
 import { sitesKeys } from './use-sites-data'
 
 /** What the site dialog does. */
@@ -39,30 +55,51 @@ export interface SiteDialogProps {
   onClose: () => void
 }
 
-/** Props of {@link Field}. */
-interface FieldProps {
+/** Props of {@link Row}. */
+interface RowProps {
   /** Identifier of the input the label points at. */
   id: string
-  /** Visible label. */
+  /** Visible label, drawn in the left column. */
   label: string
-  /** Translation key of the validation message, if any. */
-  error?: string
-  /** Extra classes of the wrapper. */
-  className: string
-  /** The input. */
+  /** Translation keys of the validation messages, if any. */
+  errors?: ReadonlyArray<string | undefined>
+  /** Explanation drawn under the input. */
+  hint?: ReactNode
+  /** The input, or a group of inputs. */
   children: ReactNode
 }
 
-/** Label, input and validation message of one form field. */
-function Field({ id, label, error, className, children }: FieldProps) {
+/** One row of the form as FileZilla lays it out: the label on the left, the input and its messages on the right. */
+function Row({ id, label, errors = [], hint, children }: RowProps) {
   const { t } = useTranslation('sites')
 
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-      {error !== undefined && <p className="text-xs text-destructive">{t(($) => $.errors[error as 'nameRequired' | 'hostRequired' | 'portInvalid' | 'usernameRequired' | 'speedLimitInvalid'])}</p>}
+    <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-start gap-x-4">
+      <Label htmlFor={id} className="min-h-8 font-normal text-muted-foreground">
+        {label}
+      </Label>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        {children}
+        {hint !== undefined && <div className="text-xs leading-relaxed text-muted-foreground">{hint}</div>}
+        {errors
+          .filter((error) => error !== undefined)
+          .map((error) => (
+            <p key={error} className="text-xs text-destructive">
+              {t(($) => $.errors[error as 'nameRequired' | 'hostRequired' | 'portInvalid' | 'usernameRequired' | 'speedLimitInvalid'])}
+            </p>
+          ))}
+      </div>
     </div>
+  )
+}
+
+/** A titled group of rows inside a tab, set apart from the next one by a line. */
+function Group({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 border-b pb-4 last:border-b-0 last:pb-0">
+      {title !== undefined && <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h3>}
+      {children}
+    </section>
   )
 }
 
@@ -92,8 +129,10 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
     defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined),
   })
   const protocol = useWatch({ control, name: 'protocol' })
-  const method = useWatch({ control, name: 'authMethod' })
-  const usesKey = protocol === 'sftp' && method === 'key'
+  const accessMode = useWatch({ control, name: 'accessMode' })
+  const mode = effectiveMode({ protocol, accessMode })
+  const hasPassword = editing?.secrets.includes('password') === true
+  const hasKey = editing?.secrets.includes('private_key') === true
   const proxyKind = useWatch({ control, name: 'proxyKind' })
   const jumpHost = useWatch({ control, name: 'jumpHost' })
   const jumpAuthMethod = useWatch({ control, name: 'jumpAuthMethod' })
@@ -103,6 +142,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
   const needsVault = vault !== undefined && !(vault.initialized && vault.unlocked) && secrets.some(Boolean)
 
   const [tab, setTab] = useState<SiteTab>('general')
+  const shownTabs = tabsOf(protocol)
   const errorTabs = tabsWithErrors(errors)
 
   const [unlocking, setUnlocking] = useState<SiteValues | null>(null)
@@ -146,8 +186,8 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         <DialogTitle>{editing === undefined ? t(($) => $.site.createTitle) : t(($) => $.site.editTitle)}</DialogTitle>
       </DialogHeader>
       <Tabs value={tab} onValueChange={(value) => setTab(value as SiteTab)}>
-        <TabsList variant="line" className="justify-start border-b pb-1">
-          {siteTabs.map((candidate) => (
+        <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b pb-1">
+          {shownTabs.map((candidate) => (
             <TabsTrigger key={candidate} value={candidate} className="flex-none px-3">
               {t(($) => $.site.tabs[candidate])}
               {errorTabs.has(candidate) && (
@@ -159,12 +199,12 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
             </TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value="general" keepMounted className="flex min-h-80 flex-col gap-4 pt-2">
-          <div className="flex gap-3">
-            <Field id="site-name" label={t(($) => $.site.name)} error={errors.name?.message} className="flex-1">
+        <TabsContent value="general" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
+          <Group>
+            <Row id="site-name" label={t(($) => $.site.name)} errors={[errors.name?.message]}>
               <Input id="site-name" autoComplete="off" aria-invalid={errors.name !== undefined} {...register('name')} />
-            </Field>
-            <Field id="site-collection" label={t(($) => $.site.collection)} className="flex-1">
+            </Row>
+            <Row id="site-collection" label={t(($) => $.site.collection)}>
               <NativeSelect id="site-collection" {...register('collectionId')}>
                 <option value="">{t(($) => $.site.noCollection)}</option>
                 {collectionOptions(collections).map((option) => (
@@ -173,157 +213,177 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                   </option>
                 ))}
               </NativeSelect>
-            </Field>
-          </div>
-          <div className="flex gap-3">
-            <Field id="site-protocol" label={t(($) => $.site.protocol)} className="w-28">
+            </Row>
+          </Group>
+          <Group>
+            <Row id="site-protocol" label={t(($) => $.site.protocol)}>
               <NativeSelect id="site-protocol" {...register('protocol')}>
-                <option value="sftp">SFTP</option>
-                <option value="ftps">FTPS</option>
-                <option value="ftp">FTP</option>
+                <option value="sftp">{t(($) => $.site.protocols.sftp)}</option>
+                <option value="ftps">{t(($) => $.site.protocols.ftps)}</option>
+                <option value="ftp">{t(($) => $.site.protocols.ftp)}</option>
               </NativeSelect>
-            </Field>
-            <Field id="site-host" label={t(($) => $.site.host)} error={errors.host?.message} className="flex-1">
-              <Input id="site-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
-            </Field>
-            <Field id="site-port" label={t(($) => $.site.port)} error={errors.port?.message} className="w-24">
-              <Input id="site-port" className="font-mono" inputMode="numeric" placeholder={String(defaultPorts[protocol])} aria-invalid={errors.port !== undefined} {...register('port')} />
-            </Field>
-          </div>
-          <div className="flex gap-3">
-            <Field id="site-username" label={t(($) => $.site.username)} error={errors.username?.message} className="flex-1">
-              <Input id="site-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.username !== undefined} {...register('username')} />
-            </Field>
-            {protocol === 'sftp' ? (
-              <Field id="site-auth" label={t(($) => $.site.authMethod)} className="w-44">
-                <NativeSelect id="site-auth" {...register('authMethod')}>
-                  <option value="password">{t(($) => $.site.password)}</option>
-                  <option value="key">{t(($) => $.site.key)}</option>
-                </NativeSelect>
-              </Field>
-            ) : null}
-          </div>
-          {protocol === 'ftp' ? (
-            <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-xs">
-              {t(($) => $.site.ftpWarning)}
-            </p>
-          ) : null}
-          {protocol === 'ftps' ? <p className="text-xs text-muted-foreground">{t(($) => $.site.ftpsHint)}</p> : null}
-          {usesKey ? (
-            <>
-              <Field id="site-key" label={t(($) => $.site.privateKey)} className="">
-                <Textarea id="site-key" className="font-mono" rows={4} spellCheck={false} autoComplete="off" {...register('privateKey')} />
-              </Field>
-              <Field id="site-passphrase" label={t(($) => $.site.passphrase)} className="">
-                <Input id="site-passphrase" type="password" autoComplete="off" {...register('passphrase')} />
-              </Field>
-            </>
-          ) : (
-            <Field id="site-password" label={t(($) => $.site.password)} className="">
-              <Input id="site-password" type="password" autoComplete="off" {...register('password')} />
-            </Field>
-          )}
-          {editing !== undefined && <p className="text-xs text-muted-foreground">{t(($) => $.site.secretHint)}</p>}
-        </TabsContent>
-        <TabsContent value="advanced" keepMounted className="flex min-h-80 flex-col gap-4 pt-2">
-          {protocol === 'sftp' ? null : (
-            <Field id="site-charset" label={t(($) => $.site.charset)} className="">
-              <NativeSelect id="site-charset" {...register('charset')}>
-                {charsetOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+            </Row>
+            <Row
+              id="site-host"
+              label={t(($) => $.site.host)}
+              errors={[errors.host?.message, errors.port?.message]}
+              hint={
+                protocol === 'ftp' ? (
+                  <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-foreground">
+                    {t(($) => $.site.ftpWarning)}
+                  </p>
+                ) : protocol === 'ftps' ? (
+                  t(($) => $.site.ftpsHint)
+                ) : undefined
+              }
+            >
+              <div className="flex items-center gap-3">
+                <Input id="site-host" className="min-w-0 flex-1 font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
+                <Label htmlFor="site-port" className="font-normal text-muted-foreground">
+                  {t(($) => $.site.port)}
+                </Label>
+                <Input id="site-port" className="w-20 font-mono" inputMode="numeric" placeholder={String(defaultPorts[protocol])} aria-invalid={errors.port !== undefined} {...register('port')} />
+              </div>
+            </Row>
+          </Group>
+          <Group>
+            <Row id="site-access" label={t(($) => $.site.accessMode)} hint={mode === 'anonymous' ? t(($) => $.site.anonymousHint) : undefined}>
+              <NativeSelect id="site-access" value={mode} {...register('accessMode')}>
+                {accessModesOf(protocol).map((candidate) => (
+                  <option key={candidate} value={candidate}>
+                    {t(($) => $.site.accessModes[candidate])}
                   </option>
                 ))}
               </NativeSelect>
-              <p className="text-xs text-muted-foreground">{t(($) => $.site.charsetHint)}</p>
-            </Field>
-          )}
-          <Field id="site-timezone" label={t(($) => $.site.timezone)} className="">
-            <Input id="site-timezone" className="font-mono" list="site-timezones" autoComplete="off" {...register('listTimezone')} />
-            <datalist id="site-timezones">
-              {timeZones.map((zone) => (
-                <option key={zone} value={zone} />
-              ))}
-            </datalist>
-          </Field>
-          <Field id="site-speed-limit" label={t(($) => $.site.speedLimit)} error={errors.speedLimit?.message} className="">
-            <Input id="site-speed-limit" className="font-mono" inputMode="decimal" placeholder={t(($) => $.site.speedLimitUnlimited)} aria-invalid={errors.speedLimit !== undefined} {...register('speedLimit')} />
-            <p className="text-xs text-muted-foreground">{t(($) => $.site.speedLimitHint)}</p>
-          </Field>
+            </Row>
+            {mode === 'anonymous' ? (
+              <Row id="site-username" label={t(($) => $.site.username)}>
+                <Input key="anonymous" id="site-username" className="font-mono" value={anonymousUser} readOnly disabled />
+              </Row>
+            ) : (
+              <Row id="site-username" label={t(($) => $.site.username)} errors={[errors.username?.message]}>
+                <Input key="username" id="site-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.username !== undefined} {...register('username')} />
+              </Row>
+            )}
+            {mode === 'normal' && (
+              <Row id="site-password" label={t(($) => $.site.password)}>
+                <Input id="site-password" type="password" autoComplete="off" placeholder={hasPassword ? t(($) => $.site.keepPassword) : undefined} {...register('password')} />
+              </Row>
+            )}
+            {mode === 'key' && (
+              <>
+                <Row id="site-key" label={t(($) => $.site.privateKey)}>
+                  <Textarea id="site-key" className="font-mono" rows={4} spellCheck={false} autoComplete="off" placeholder={hasKey ? t(($) => $.site.keepKey) : undefined} {...register('privateKey')} />
+                </Row>
+                <Row id="site-passphrase" label={t(($) => $.site.passphrase)}>
+                  <Input id="site-passphrase" type="password" autoComplete="off" placeholder={hasKey ? t(($) => $.site.keepPassphrase) : undefined} {...register('passphrase')} />
+                </Row>
+              </>
+            )}
+          </Group>
         </TabsContent>
-        <TabsContent value="network" keepMounted className="flex min-h-80 flex-col gap-4 pt-2">
-          <div className="flex flex-col gap-3 rounded-md border p-3">
-            <Field id="site-proxy-kind" label={t(($) => $.site.proxyKind)} className="w-40">
+        <TabsContent value="advanced" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
+          <Group>
+            <Row id="site-timezone" label={t(($) => $.site.timezone)} hint={t(($) => $.site.timezoneHint)}>
+              <Input id="site-timezone" className="font-mono" list="site-timezones" autoComplete="off" {...register('listTimezone')} />
+              <datalist id="site-timezones">
+                {timeZones.map((zone) => (
+                  <option key={zone} value={zone} />
+                ))}
+              </datalist>
+            </Row>
+          </Group>
+        </TabsContent>
+        <TabsContent value="transfer" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
+          <Group>
+            <Row id="site-speed-limit" label={t(($) => $.site.speedLimit)} errors={[errors.speedLimit?.message]} hint={t(($) => $.site.speedLimitHint)}>
+              <Input id="site-speed-limit" className="max-w-40 font-mono" inputMode="decimal" placeholder={t(($) => $.site.speedLimitUnlimited)} aria-invalid={errors.speedLimit !== undefined} {...register('speedLimit')} />
+            </Row>
+          </Group>
+        </TabsContent>
+        {protocol !== 'sftp' && (
+          <TabsContent value="charset" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
+            <Group>
+              <Row id="site-charset" label={t(($) => $.site.charset)} hint={t(($) => $.site.charsetHint)}>
+                <NativeSelect id="site-charset" {...register('charset')}>
+                  {charsetOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Row>
+            </Group>
+          </TabsContent>
+        )}
+        <TabsContent value="network" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
+          <Group title={t(($) => $.site.proxyTitle)}>
+            <Row id="site-proxy-kind" label={t(($) => $.site.proxyKind)} hint={t(($) => $.site.proxyHint)}>
               <NativeSelect id="site-proxy-kind" {...register('proxyKind')}>
                 <option value="none">{t(($) => $.site.proxyNone)}</option>
                 <option value="socks5">SOCKS5</option>
                 <option value="http">{t(($) => $.site.proxyHttp)}</option>
               </NativeSelect>
-            </Field>
+            </Row>
             {proxyKind !== 'none' && (
               <>
-                <div className="flex gap-3">
-                  <Field id="site-proxy-host" label={t(($) => $.site.proxyHost)} error={errors.proxyHost?.message} className="flex-1">
-                    <Input id="site-proxy-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.proxyHost !== undefined} {...register('proxyHost')} />
-                  </Field>
-                  <Field id="site-proxy-port" label={t(($) => $.site.proxyPort)} error={errors.proxyPort?.message} className="w-24">
-                    <Input id="site-proxy-port" className="font-mono" inputMode="numeric" placeholder={String(defaultProxyPort)} aria-invalid={errors.proxyPort !== undefined} {...register('proxyPort')} />
-                  </Field>
-                </div>
-                <div className="flex gap-3">
-                  <Field id="site-proxy-username" label={t(($) => $.site.proxyUsername)} className="flex-1">
-                    <Input id="site-proxy-username" className="font-mono" autoComplete="off" spellCheck={false} {...register('proxyUsername')} />
-                  </Field>
-                  <Field id="site-proxy-password" label={t(($) => $.site.proxyPassword)} className="flex-1">
-                    <Input id="site-proxy-password" type="password" autoComplete="off" {...register('proxyPassword')} />
-                  </Field>
-                </div>
+                <Row id="site-proxy-host" label={t(($) => $.site.proxyHost)} errors={[errors.proxyHost?.message, errors.proxyPort?.message]}>
+                  <div className="flex items-center gap-3">
+                    <Input id="site-proxy-host" className="min-w-0 flex-1 font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.proxyHost !== undefined} {...register('proxyHost')} />
+                    <Label htmlFor="site-proxy-port" className="font-normal text-muted-foreground">
+                      {t(($) => $.site.proxyPort)}
+                    </Label>
+                    <Input id="site-proxy-port" className="w-20 font-mono" inputMode="numeric" placeholder={String(defaultProxyPort)} aria-invalid={errors.proxyPort !== undefined} {...register('proxyPort')} />
+                  </div>
+                </Row>
+                <Row id="site-proxy-username" label={t(($) => $.site.proxyUsername)}>
+                  <Input id="site-proxy-username" className="font-mono" autoComplete="off" spellCheck={false} {...register('proxyUsername')} />
+                </Row>
+                <Row id="site-proxy-password" label={t(($) => $.site.proxyPassword)}>
+                  <Input id="site-proxy-password" type="password" autoComplete="off" {...register('proxyPassword')} />
+                </Row>
               </>
             )}
-            <p className="text-xs text-muted-foreground">{t(($) => $.site.proxyHint)}</p>
-          </div>
+          </Group>
           {protocol === 'sftp' && (
-            <div className="flex flex-col gap-3 rounded-md border p-3">
-              <p className="text-sm font-medium">{t(($) => $.site.jumpTitle)}</p>
-              <div className="flex gap-3">
-                <Field id="site-jump-host" label={t(($) => $.site.jumpHost)} className="flex-1">
-                  <Input id="site-jump-host" className="font-mono" autoComplete="off" spellCheck={false} placeholder={t(($) => $.site.jumpNone)} {...register('jumpHost')} />
-                </Field>
-                <Field id="site-jump-port" label={t(($) => $.site.jumpPort)} error={errors.jumpPort?.message} className="w-24">
-                  <Input id="site-jump-port" className="font-mono" inputMode="numeric" placeholder={String(defaultJumpPort)} aria-invalid={errors.jumpPort !== undefined} {...register('jumpPort')} />
-                </Field>
-              </div>
+            <Group title={t(($) => $.site.jumpTitle)}>
+              <Row id="site-jump-host" label={t(($) => $.site.jumpHost)} errors={[errors.jumpPort?.message]} hint={t(($) => $.site.jumpHint)}>
+                <div className="flex items-center gap-3">
+                  <Input id="site-jump-host" className="min-w-0 flex-1 font-mono" autoComplete="off" spellCheck={false} placeholder={t(($) => $.site.jumpNone)} {...register('jumpHost')} />
+                  <Label htmlFor="site-jump-port" className="font-normal text-muted-foreground">
+                    {t(($) => $.site.jumpPort)}
+                  </Label>
+                  <Input id="site-jump-port" className="w-20 font-mono" inputMode="numeric" placeholder={String(defaultJumpPort)} aria-invalid={errors.jumpPort !== undefined} {...register('jumpPort')} />
+                </div>
+              </Row>
               {jumpHost !== '' && (
                 <>
-                  <div className="flex gap-3">
-                    <Field id="site-jump-username" label={t(($) => $.site.jumpUsername)} error={errors.jumpUsername?.message} className="flex-1">
-                      <Input id="site-jump-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.jumpUsername !== undefined} {...register('jumpUsername')} />
-                    </Field>
-                    <Field id="site-jump-auth" label={t(($) => $.site.jumpAuthMethod)} className="w-44">
-                      <NativeSelect id="site-jump-auth" {...register('jumpAuthMethod')}>
-                        <option value="password">{t(($) => $.site.password)}</option>
-                        <option value="key">{t(($) => $.site.key)}</option>
-                      </NativeSelect>
-                    </Field>
-                  </div>
+                  <Row id="site-jump-auth" label={t(($) => $.site.jumpAuthMethod)}>
+                    <NativeSelect id="site-jump-auth" {...register('jumpAuthMethod')}>
+                      <option value="password">{t(($) => $.site.accessModes.normal)}</option>
+                      <option value="key">{t(($) => $.site.accessModes.key)}</option>
+                    </NativeSelect>
+                  </Row>
+                  <Row id="site-jump-username" label={t(($) => $.site.jumpUsername)} errors={[errors.jumpUsername?.message]}>
+                    <Input id="site-jump-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.jumpUsername !== undefined} {...register('jumpUsername')} />
+                  </Row>
                   {jumpUsesKey ? (
                     <>
-                      <Field id="site-jump-key" label={t(($) => $.site.jumpPrivateKey)} className="">
+                      <Row id="site-jump-key" label={t(($) => $.site.jumpPrivateKey)}>
                         <Textarea id="site-jump-key" className="font-mono" rows={4} spellCheck={false} autoComplete="off" {...register('jumpPrivateKey')} />
-                      </Field>
-                      <Field id="site-jump-passphrase" label={t(($) => $.site.jumpPassphrase)} className="">
+                      </Row>
+                      <Row id="site-jump-passphrase" label={t(($) => $.site.jumpPassphrase)}>
                         <Input id="site-jump-passphrase" type="password" autoComplete="off" {...register('jumpPassphrase')} />
-                      </Field>
+                      </Row>
                     </>
                   ) : (
-                    <Field id="site-jump-password" label={t(($) => $.site.jumpPassword)} className="">
+                    <Row id="site-jump-password" label={t(($) => $.site.jumpPassword)}>
                       <Input id="site-jump-password" type="password" autoComplete="off" {...register('jumpPassword')} />
-                    </Field>
+                    </Row>
                   )}
                 </>
               )}
-              <p className="text-xs text-muted-foreground">{t(($) => $.site.jumpHint)}</p>
-            </div>
+            </Group>
           )}
         </TabsContent>
       </Tabs>
@@ -362,7 +422,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
 export function SiteDialog({ target, ...form }: SiteDialogProps) {
   return (
     <Dialog open={target !== null} onOpenChange={form.onClose}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[560px]">{target !== null && <SiteForm target={target} {...form} />}</DialogContent>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[680px]">{target !== null && <SiteForm target={target} {...form} />}</DialogContent>
     </Dialog>
   )
 }

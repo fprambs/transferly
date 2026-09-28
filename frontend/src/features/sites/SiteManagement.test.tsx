@@ -55,7 +55,10 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  *
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
- * - what is needed to connect is on the first tab, the rest on Advanced and Proxy and jump host, and a wrong field opens its tab and marks it
+ * - what is needed to connect is on the first tab, the rest on Advanced, Transfer, Character set and Proxy and jump host, and a wrong field opens
+ *   its tab and marks it
+ * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with the
+ *   anonymous user and no password
  * - the character set of file names is offered for FTP and FTPS only, is UTF-8 by default and is sent with the site
  * - FTP and FTPS are offered next to SFTP, with their own default port; FTP warns about clear text, FTPS explains its ports, and neither offers keys
  * - key authentication swaps the password for the key fields
@@ -128,16 +131,16 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Name'), 'Staging')
     await user.type(within(dialog).getByLabelText('Host'), 'staging.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'deploy')
-    await user.click(within(dialog).getByRole('tab', { name: 'Advanced' }))
+    await user.click(within(dialog).getByRole('tab', { name: 'Transfer' }))
     expect(within(dialog).getByLabelText('Host')).not.toBeVisible()
     await user.type(within(dialog).getByLabelText('Speed limit (MiB/s)'), 'fast')
     await user.click(within(dialog).getByRole('tab', { name: 'General' }))
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Staging')
 
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
-    const advanced = within(dialog).getByRole('tab', { name: /Advanced/ })
-    await waitFor(() => expect(advanced).toHaveAttribute('aria-selected', 'true'))
-    expect(advanced).toHaveTextContent('(has errors)')
+    const transfer = within(dialog).getByRole('tab', { name: /Transfer/ })
+    await waitFor(() => expect(transfer).toHaveAttribute('aria-selected', 'true'))
+    expect(transfer).toHaveTextContent('(has errors)')
     expect(within(dialog).getByText('Enter a speed limit greater than 0, or leave it blank for none.')).toBeVisible()
 
     await user.click(within(dialog).getByRole('tab', { name: 'Proxy and jump host' }))
@@ -158,13 +161,18 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByLabelText('Character set of file names')).not.toBeInTheDocument()
-    expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(expect.arrayContaining(['SFTP', 'FTPS', 'FTP']))
+    expect(within(within(dialog).getByLabelText('Protocol')).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'SFTP - SSH File Transfer Protocol',
+      'FTPS - FTP over TLS',
+      'FTP - File Transfer Protocol (not encrypted)',
+    ])
+    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Key file'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
     await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '21')
     expect(within(dialog).getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
-    expect(within(dialog).queryByLabelText('Sign in with')).not.toBeInTheDocument()
+    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Anonymous'])
 
     expect(within(dialog).getByLabelText('Character set of file names')).toHaveValue('utf-8')
     await user.selectOptions(within(dialog).getByLabelText('Character set of file names'), 'windows-1252')
@@ -182,6 +190,43 @@ describe('site management', () => {
     expect(bodies[0]).toMatchObject({ protocol: 'ftps', port: 21, authMethod: 'password', password: 'pw', charset: 'windows-1252' })
   })
 
+  it('saves an anonymous FTP site with the anonymous user and no password', async () => {
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ...prod, id: 's3' }, { status: 201 })
+      }),
+    )
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog')
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Public')
+    await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
+    await user.type(within(dialog).getByLabelText('Host'), 'ftp.example.com')
+    await user.selectOptions(within(dialog).getByLabelText('Logon type'), 'anonymous')
+    expect(within(dialog).getByLabelText('Username')).toHaveValue('anonymous')
+    expect(within(dialog).getByLabelText('Username')).toBeDisabled()
+    expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/Signs in as anonymous/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+
+    await waitFor(() => expect(body.username).toBe('anonymous'))
+    expect(body).toMatchObject({ protocol: 'ftp', authMethod: 'password', password: '' })
+  })
+
+  it('says a stored key and its passphrase are kept when left blank', async () => {
+    mockWorkspaceData({ sites: [{ ...prod, authMethod: 'key', secrets: ['private_key', 'passphrase'] }], collections: [] })
+    const user = await renderSidebar()
+    await pick(user, 'Prod', 'Edit')
+    const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
+
+    expect(within(dialog).getByLabelText('Logon type')).toHaveValue('key')
+    expect(within(dialog).getByLabelText('Private key')).toHaveAttribute('placeholder', 'Leave blank to keep the existing key.')
+    expect(within(dialog).getByLabelText('Key passphrase')).toHaveAttribute('placeholder', 'Leave blank to keep the existing passphrase.')
+  })
+
   it('swaps the password for the key fields', async () => {
     let body: Record<string, unknown> = {}
     server.use(
@@ -195,7 +240,7 @@ describe('site management', () => {
     const dialog = await screen.findByRole('dialog')
 
     expect(within(dialog).getByLabelText('Password')).toBeInTheDocument()
-    await user.selectOptions(within(dialog).getByLabelText('Sign in with'), 'key')
+    await user.selectOptions(within(dialog).getByLabelText('Logon type'), 'key')
     expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
 
     await user.type(within(dialog).getByLabelText('Name'), 'Keyed')
@@ -252,7 +297,7 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
-    await user.selectOptions(within(dialog).getByLabelText('Jump sign in with'), 'key')
+    await user.selectOptions(within(dialog).getByLabelText('Jump host logon type'), 'key')
     expect(within(dialog).queryByLabelText('Jump host password')).not.toBeInTheDocument()
     await user.type(within(dialog).getByLabelText('Jump host private key'), 'KEY')
     await user.type(within(dialog).getByLabelText('Jump host key passphrase'), 'phrase')
@@ -326,7 +371,7 @@ describe('site management', () => {
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Prod')
     expect(within(dialog).getByLabelText('Port')).toHaveValue('2222')
     expect(within(dialog).getByLabelText('Password')).toHaveValue('')
-    expect(within(dialog).getByText('Leave blank to keep the stored value.')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Password')).toHaveAttribute('placeholder', 'Leave blank to keep the existing password.')
 
     await user.clear(within(dialog).getByLabelText('Name'))
     await user.type(within(dialog).getByLabelText('Name'), 'Production')

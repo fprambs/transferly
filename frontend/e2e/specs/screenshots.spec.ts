@@ -395,7 +395,7 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: `Actions for ${name}` }).click()
     await page.getByRole('menuitem', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit site' })
-    await dialog.getByRole('tab', { name: 'Advanced' }).click()
+    await dialog.getByRole('tab', { name: 'Transfer' }).click()
     await expect(dialog.getByLabel('Speed limit (MiB/s)')).toHaveValue('4')
     await shoot(page, '36-site-speed-limit')
 
@@ -458,9 +458,18 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await expect(dialog.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+    await dialog.getByLabel('Name', { exact: true }).fill('7a')
+    await dialog.getByLabel('Host', { exact: true }).fill('23.20.130.239')
+    await dialog.getByLabel('Username', { exact: true }).fill('sftp7a')
     await shoot(page, '39-site-dialog-general')
     await dialog.getByRole('tab', { name: 'Advanced' }).click()
     await shoot(page, '40-site-dialog-advanced')
+    await dialog.getByRole('tab', { name: 'General' }).click()
+    await dialog.getByLabel('Protocol').selectOption('ftp')
+    await dialog.getByLabel('Logon type').selectOption('anonymous')
+    await shoot(page, '46-site-dialog-ftp-anonymous')
+    await dialog.getByRole('tab', { name: 'Proxy and jump host' }).click()
+    await shoot(page, '47-site-dialog-proxy')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
