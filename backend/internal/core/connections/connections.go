@@ -190,10 +190,12 @@ func (l *Lease) Release(err error) {
 	l.once.Do(func() { l.m.release(l.p, l.c, err) })
 }
 
-// release returns a connection to its pool, or closes it when it broke or the pool is gone.
+// release returns a connection to its pool, or closes it when it broke or the pool is gone. An operation that was
+// canceled or ran out of time also closes it: FTP can only interrupt a command by cutting its connection, so what it
+// leaves behind cannot be trusted for the next operation.
 func (m *Manager) release(p *pool, c *conn, err error) {
 	c.lastUsed = m.clock.Now()
-	if remotefs.Retryable(err) {
+	if remotefs.Retryable(err) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		m.drop(p, c)
 		return
 	}

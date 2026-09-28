@@ -162,7 +162,7 @@ func (f *fixture) acquire(t *testing.T) *connections.Lease {
 //
 // Scenarios:
 //   - a released connection is reused instead of opening another one, and the session is given to the connector
-//   - a connection released after a lost connection is discarded and replaced
+//   - a connection released after a lost connection, a cancellation or a timeout is discarded and replaced
 //   - releasing twice has no effect
 //   - Stats reports idle and total connections
 //   - pools of different keys are independent
@@ -196,11 +196,20 @@ func TestManager_Reuse(t *testing.T) {
 	if idle, _ := f.m.Stats(f.key); idle != 1 {
 		t.Error("a connection released after a normal error was not pooled")
 	}
+	for _, stopped := range []error{context.Canceled, fmt.Errorf("upload: %w", context.DeadlineExceeded)} {
+		lease := f.acquire(t)
+		lease.Release(stopped)
+		if idle, _ := f.m.Stats(f.key); idle != 0 {
+			t.Errorf("a connection released after %v was pooled", stopped)
+		}
+	}
+	f.acquire(t).Release(nil)
 
+	opened := f.conn.count()
 	other := f.key
 	other.SiteID = uuid.New()
 	lease, err := f.m.Acquire(t.Context(), other, "session")
-	if err != nil || f.conn.count() != 3 {
+	if err != nil || f.conn.count() != opened+1 {
 		t.Errorf("another site: Acquire() = %v with %d opened; want its own connection", err, f.conn.count())
 	}
 	lease.Release(nil)

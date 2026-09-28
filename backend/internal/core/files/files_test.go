@@ -163,6 +163,7 @@ func (f *fixture) idle(t files.Target) int {
 //
 // Scenarios:
 //   - listing, stat, mkdir, rename and delete work and return the affected entry
+//   - the target is told once its connection is open, and not for a request refused before connecting
 //   - deleting a directory needs recursive unless it is empty, and removes the tree when set
 //   - remote errors keep their sentinels: missing paths, existing destinations, non-empty directories
 //   - every operation gives its connection back to the pool
@@ -171,9 +172,15 @@ func TestService_Operations(t *testing.T) {
 	f := newFixture(t)
 	f.put(t, "/a.txt", "hello")
 
-	list, err := f.svc.List(ctx, f.editor, "/")
+	ready := 0
+	watched := f.editor
+	watched.Ready = func() { ready++ }
+	list, err := f.svc.List(ctx, watched, "/")
 	if err != nil || len(list) != 1 || list[0].Name != "a.txt" {
 		t.Fatalf("List() = %v, %v", list, err)
+	}
+	if _, err := f.svc.List(ctx, watched, ""); err == nil || ready != 1 {
+		t.Errorf("Ready called %d times; want once, for the listing that got a connection", ready)
 	}
 	if e, err := f.svc.Stat(ctx, f.editor, "/a.txt"); err != nil || e.Size != 5 {
 		t.Errorf("Stat() = %+v, %v", e, err)
@@ -613,7 +620,8 @@ func (r *recorder) Progress(n int64) {
 // Scenarios:
 //   - an upload announces its start once it has a connection and counts every byte
 //   - a download announces the number of bytes it will send, also for a range, and counts what was read
-//   - canceling the context stops an upload and a download between chunks with the context error
+//   - canceling the context stops an upload and a download between chunks with the context error, and their connections are not
+//     reused, while the next operation opens a new one
 //   - the service works without an observer
 //   - Check authorizes and validates without connecting
 func TestService_Observer(t *testing.T) {
@@ -673,8 +681,11 @@ func TestService_Observer(t *testing.T) {
 	if err := f.svc.Check(ctx, f.editor, workspace.ActionUpload, ""); !errors.Is(err, remotefs.ErrInvalid) {
 		t.Errorf("Check() of an empty path = %v; want ErrInvalid", err)
 	}
-	if f.idle(f.editor) == 0 {
-		t.Error("no connection was pooled after the transfers")
+	if f.idle(f.editor) != 0 {
+		t.Error("a connection used by a canceled transfer went back to the pool")
+	}
+	if _, err := f.svc.List(ctx, f.editor, "/"); err != nil || f.idle(f.editor) != 1 {
+		t.Errorf("List() after the cancellations = %v with %d idle; want a new pooled connection", err, f.idle(f.editor))
 	}
 }
 
