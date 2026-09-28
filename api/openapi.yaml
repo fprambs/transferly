@@ -2204,6 +2204,57 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/credential:
+    put:
+      operationId: setSiteCredential
+      summary: Give the password of a site that asks for it when connecting
+      description: >-
+        Held in server memory for this session only, never stored (ADR-0010). The site must use the ask logon type.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteCredentialRequest"
+      responses:
+        "204":
+          description: Password held for this session.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/files:
     get:
       operationId: listFiles
@@ -3970,6 +4021,18 @@ components:
         masterPassword:
           type: string
           description: Sent to the server only; never returned.
+    SiteCredentialRequest:
+      type: object
+      required: [password, remember]
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          description: Sent to the server only; never returned or stored.
+        remember:
+          type: boolean
+          description: Keep it for the rest of the session; otherwise it goes once no connection to the site is open.
     ChangeMasterPasswordRequest:
       type: object
       required: [currentPassword, newPassword]
@@ -4050,7 +4113,7 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key]
+          enum: [password, key, ask]
         listTimezone:
           type: string
           description: IANA zone in which the server prints listing times.
@@ -4100,8 +4163,8 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key]
-          description: Defaults to password; key is for SFTP only.
+          enum: [password, key, ask]
+          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010).
         listTimezone:
           type: string
           description: IANA zone of the server's listing times; defaults to UTC.

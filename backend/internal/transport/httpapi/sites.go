@@ -2,12 +2,14 @@ package httpapi
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/vault"
 )
 
 // siteDTO converts a site to its public representation.
@@ -125,9 +127,39 @@ func (s *server) UpdateSite(ctx context.Context, request UpdateSiteRequestObject
 	if err != nil {
 		return nil, err
 	}
-	s.deps.Connections.CloseKey(connections.Key{UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId})
+	s.siteChanged(request.SiteId)
 	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, updated.Name, map[string]string{"host": updated.Host})
 	return UpdateSite200JSONResponse(siteDTO(updated)), nil
+}
+
+// siteChanged closes every connection to a site, for every user, and drops the passwords typed for it: whatever was
+// opened with its old settings must not stay in use.
+func (s *server) siteChanged(siteID uuid.UUID) {
+	s.deps.Connections.CloseSite(siteID)
+	s.deps.Credentials.ForgetSite(siteID)
+}
+
+// SetSiteCredential holds, for this session only, the password of a site that asks for it when connecting (ADR-0010).
+func (s *server) SetSiteCredential(ctx context.Context, request SetSiteCredentialRequestObject) (SetSiteCredentialResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	found, err := s.deps.Sites.Get(ctx, p.User.ID, request.WorkspaceId, request.SiteId)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if found.AuthMethod != site.AuthAsk {
+		return domainProblem{status: http.StatusConflict, code: "credentials_not_asked"}, nil
+	}
+	if request.Body.Password == "" {
+		return domainProblem{status: http.StatusUnprocessableEntity, code: "password_required"}, nil
+	}
+	password := []byte(request.Body.Password)
+	s.deps.Credentials.Put(credentials.Key{Session: vaultKey(p), UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId}, password, request.Body.Remember)
+	vault.Wipe(password)
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteCredentialProvided, found.Name, nil)
+	return SetSiteCredential204Response{}, nil
 }
 
 // DeleteSite removes a site and its secrets.
@@ -145,6 +177,6 @@ func (s *server) DeleteSite(ctx context.Context, request DeleteSiteRequestObject
 		return nil, err
 	}
 	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteDeleted, name, nil)
-	s.deps.Connections.CloseKey(connections.Key{UserID: p.User.ID, WorkspaceID: request.WorkspaceId, SiteID: request.SiteId})
+	s.siteChanged(request.SiteId)
 	return DeleteSite204Response{}, nil
 }

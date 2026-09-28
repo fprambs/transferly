@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -98,6 +99,8 @@ type Deps struct {
 	Files *files.Service
 	// Connections pools the connections to remote servers; the vault lock and sign-out close a user's connections.
 	Connections *connections.Manager
+	// Credentials holds the passwords typed for sites that ask for one when connecting.
+	Credentials *credentials.Store
 	// HostKeys is the trusted server keys service.
 	HostKeys *hostkey.Service
 	// Sites is the saved connections service.

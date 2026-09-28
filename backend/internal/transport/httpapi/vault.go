@@ -14,6 +14,11 @@ func vaultKey(p authenticated) string {
 	return p.Session.ID.String()
 }
 
+// closeCredentials drops the passwords typed in a session: it ended or its vault was locked (ADR-0010).
+func (s *server) closeCredentials(session string) {
+	s.deps.Credentials.CloseSession(session)
+}
+
 // vaultAttempt counts one attempt to prove knowledge of a vault secret by the signed-in account.
 func (s *server) vaultAttempt(p authenticated) (bool, time.Duration) {
 	return s.deps.Limits.VaultAttempts.Allow("vault:" + p.User.ID.String())
@@ -81,6 +86,7 @@ func (s *server) LockVault(ctx context.Context, _ LockVaultRequestObject) (LockV
 	p, _ := principalFrom(ctx)
 	s.deps.Vault.Lock(vaultKey(p))
 	s.deps.Connections.CloseUser(p.User.ID)
+	s.closeCredentials(vaultKey(p))
 	s.deps.Events.Publish(ports.Event{Type: "vault.locked", UserID: p.User.ID})
 	return LockVault204Response{}, nil
 }

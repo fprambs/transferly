@@ -128,6 +128,9 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in s
 	if err != nil {
 		return Connection{}, err
 	}
+	if in.AuthMethod == site.AuthAsk {
+		return Connection{}, site.ErrInvalidAuthMethod
+	}
 	if err := checkHosts(ctx, s.guard, in); err != nil {
 		return Connection{}, err
 	}

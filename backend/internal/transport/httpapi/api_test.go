@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -112,7 +113,8 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	policy := netguard.NewPolicy(nil, nil)
 	sites := site.NewService(store, workspaces, keys, policy, clock, rand.Reader, nil)
 	quickConnections := quick.NewService(workspaces, policy, sites, clock, nil)
-	pool := connections.New(newMemConnector(clock, sites, quickConnections), clock, connections.Config{Attempts: 1})
+	asked := credentials.New(clock, 8*time.Hour)
+	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1})
 	recorded := &recordedEvents{}
 	hub := events.New(64)
 	activityLog := activity.NewService(store, clock, 30*24*time.Hour, nil)
@@ -139,6 +141,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Keys:        keys,
 		HostKeys:    hostkey.NewService(store, workspaces, clock),
 		Connections: pool,
+		Credentials: asked,
 		Sites:       sites,
 		Files:       files.NewService(workspaces, pool),
 		Transfers:   transferService,
@@ -655,11 +658,13 @@ func mustDecode(t *testing.T, raw []byte, into any) {
 }
 
 // memConnector serves one in-memory file system per site, after checking that the site exists like the real
-// connector does. The file systems outlive the connections that use them.
+// connector does, and that a site asking for its password got one in the session. The file systems outlive the
+// connections that use them.
 type memConnector struct {
 	clock ports.Clock
 	sites *site.Service
 	quick *quick.Service
+	asked *credentials.Store
 	mu    *sync.Mutex
 	byID  map[uuid.UUID]*sharedFS
 }
@@ -671,15 +676,19 @@ type sharedFS struct{ *memfs.FS }
 func (sharedFS) Close() error { return nil }
 
 // newMemConnector returns a connector over the sites service.
-func newMemConnector(clock ports.Clock, sites *site.Service, quickConnections *quick.Service) memConnector {
-	return memConnector{clock: clock, sites: sites, quick: quickConnections, mu: &sync.Mutex{}, byID: map[uuid.UUID]*sharedFS{}}
+func newMemConnector(clock ports.Clock, sites *site.Service, quickConnections *quick.Service, asked *credentials.Store) memConnector {
+	return memConnector{clock: clock, sites: sites, quick: quickConnections, asked: asked, mu: &sync.Mutex{}, byID: map[uuid.UUID]*sharedFS{}}
 }
 
 // Connect returns a connection to the file system of the site.
-func (c memConnector) Connect(ctx context.Context, key connections.Key, _ string) (remotefs.RemoteFS, error) {
+func (c memConnector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
 	if _, ok := c.quick.Describe(key.UserID, key.WorkspaceID, key.SiteID); !ok {
-		if _, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID); err != nil {
+		found, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
+		if err != nil {
 			return nil, err
+		}
+		if _, typed := c.asked.Password(credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}); found.AuthMethod == site.AuthAsk && !typed {
+			return nil, credentials.ErrRequired
 		}
 	}
 	c.mu.Lock()

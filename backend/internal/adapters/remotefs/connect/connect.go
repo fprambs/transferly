@@ -25,6 +25,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
@@ -47,6 +48,7 @@ type Connector struct {
 	policy   *netguard.Policy
 	timeout  time.Duration
 	implicit map[int]bool
+	asked    *credentials.Store
 }
 
 // Option adjusts a [Connector].
@@ -62,7 +64,16 @@ func ImplicitFTPSPorts(ports ...int) Option {
 	}
 }
 
-var _ connections.Connector = (*Connector)(nil)
+// AskedPasswords sets where the passwords typed for sites that ask for one when connecting are held (ADR-0010). Without
+// it, those sites always fail with [credentials.ErrRequired].
+func AskedPasswords(store *credentials.Store) Option {
+	return func(c *Connector) { c.asked = store }
+}
+
+var (
+	_ connections.Connector = (*Connector)(nil)
+	_ connections.Admitter  = (*Connector)(nil)
+)
 
 // New returns a connector. timeout bounds establishing each TCP connection.
 func New(sites *site.Service, quick QuickConnections, hostKeys *hostkey.Service, policy *netguard.Policy, timeout time.Duration, options ...Option) *Connector {
@@ -87,7 +98,25 @@ func (c *Connector) Connect(ctx context.Context, key connections.Key, session st
 		return nil, err
 	}
 	defer secrets.wipe()
-	return c.dial(ctx, key, target, secrets)
+	fsys, err := c.dial(ctx, key, target, secrets)
+	if target.AuthMethod == site.AuthAsk && errors.Is(err, remotefs.ErrAuth) {
+		c.asked.Forget(askedKey(key, session))
+	}
+	return fsys, err
+}
+
+// Admit implements [connections.Admitter]: a session may use an open connection to a site that asks for its password
+// only when it gave the password itself, so another session of the same user cannot ride on it.
+func (c *Connector) Admit(_ context.Context, key connections.Key, session string) error {
+	if c.asked != nil && !c.asked.Admits(askedKey(key, session)) {
+		return credentials.ErrRequired
+	}
+	return nil
+}
+
+// askedKey is where the password a session typed for the site of key is held.
+func askedKey(key connections.Key, session string) credentials.Key {
+	return credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}
 }
 
 // dial connects with the protocol of the site.
@@ -323,7 +352,12 @@ func (c *Connector) open(ctx context.Context, key connections.Key, session strin
 		return c.sites.OpenSecret(ctx, key.UserID, key.WorkspaceID, key.SiteID, session, kind)
 	}
 	var err error
-	if target.AuthMethod == site.AuthKey {
+	switch target.AuthMethod {
+	case site.AuthAsk:
+		if s.password, err = c.askedPassword(key, session, target); err != nil {
+			return secrets{}, err
+		}
+	case site.AuthKey:
 		if s.privateKey, err = read(site.SecretPrivateKey); err != nil {
 			return secrets{}, missing(err, "private key")
 		}
@@ -331,7 +365,7 @@ func (c *Connector) open(ctx context.Context, key connections.Key, session strin
 			s.wipe()
 			return secrets{}, err
 		}
-	} else {
+	default:
 		s.password, err = read(site.SecretPassword)
 		if errors.Is(err, site.ErrNoSecret) && target.Protocol != site.SFTP {
 			err = nil
@@ -372,6 +406,20 @@ func openJump(read func(site.SecretKind) ([]byte, error), target site.Site, s *s
 		return missing(err, "jump host password")
 	}
 	return nil
+}
+
+// askedPassword returns the password the session typed for a site that asks for one when connecting, and records that
+// the site asks, so another session cannot use its open connections; without one it fails with [credentials.ErrRequired].
+func (c *Connector) askedPassword(key connections.Key, session string, target site.Site) ([]byte, error) {
+	if c.asked == nil {
+		return nil, credentials.ErrRequired
+	}
+	c.asked.MarkAsk(target.ID)
+	password, ok := c.asked.Password(askedKey(key, session))
+	if !ok {
+		return nil, credentials.ErrRequired
+	}
+	return password, nil
 }
 
 // missing turns "no such secret" into an authentication error and keeps other errors.

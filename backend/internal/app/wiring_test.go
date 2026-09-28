@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/config"
 	"github.com/fprambs/sentinel/internal/core/activity"
 	"github.com/fprambs/sentinel/internal/core/audit"
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -67,7 +68,7 @@ func TestRunJanitor(t *testing.T) {
 // TestNewWiring_RegistersJanitorTasks verifies that the wiring cleans expired sessions and expired vault keys.
 //
 // Scenarios:
-//   - the key sweep task is registered and reports nothing to remove on an empty key ring
+//   - the key sweep and asked password sweep tasks are registered and report nothing to remove when empty
 func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 	w, err := newWiring(config.Config{SessionIdle: time.Minute, SessionMax: time.Hour}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef"))
 	if err != nil {
@@ -81,15 +82,15 @@ func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
 			}
 		}
-		if task.name == "expired vault keys" {
+		if task.name == "expired vault keys" || task.name == "asked passwords" {
 			if removed, err := task.run(t.Context()); removed != 0 || err != nil {
 				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
 			}
 		}
 		names[task.name]++
 	}
-	if names["old activity"] != 1 || names["expired invitations"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 {
-		t.Errorf("janitor tasks = %v; want sessions, quick connections, vault keys, old activity and invitations once each", names)
+	if names["old activity"] != 1 || names["expired invitations"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 || names["asked passwords"] != 1 {
+		t.Errorf("janitor tasks = %v; want sessions, quick connections, vault keys, asked passwords, old activity and invitations once each", names)
 	}
 }
 
@@ -217,5 +218,17 @@ func TestStartingLimits(t *testing.T) {
 		MaxSitesPerWorkspace: 7, MaxTeamsPerUser: 8, MaxMembersPerTeam: 9, DailyBytesPerUser: 10}
 	if got := startingLimits(cfg); got != want {
 		t.Errorf("startingLimits() = %+v; want %+v", got, want)
+	}
+}
+
+// TestOpenConnections covers [openConnections].
+//
+// Use cases:
+//   - a site with no pool reports no open connection, so the sweep may drop a password not to be remembered
+func TestOpenConnections(t *testing.T) {
+	pool := connections.New(nil, testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), connections.Config{})
+	t.Cleanup(pool.Close)
+	if openConnections(pool)(uuid.New(), uuid.New(), uuid.New()) {
+		t.Error("a site nobody connected to reports an open connection")
 	}
 }

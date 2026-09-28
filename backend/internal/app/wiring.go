@@ -22,6 +22,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -109,7 +110,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	auditTrail := audit.NewService(store, workspaces, system)
 	keys.OnRotate(rotationLogger(auditTrail, logger))
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
-	pool := connections.New(connect.New(sites, quickConnections, hostKeys, policy, connectTimeout), system, connections.Config{})
+	askedPasswords := credentials.New(system, cfg.SessionMax)
+	pool := connections.New(connect.New(sites, quickConnections, hostKeys, policy, connectTimeout, connect.AskedPasswords(askedPasswords)), system, connections.Config{})
 
 	return wiring{
 		pool:    pool,
@@ -126,6 +128,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Sites:       sites,
 			HostKeys:    hostKeys,
 			Connections: pool,
+			Credentials: askedPasswords,
 			Files:       files.NewService(workspaces, pool),
 			Transfers:   transfers,
 			Activity:    activityLog,
@@ -155,11 +158,20 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		janitor: []janitorTask{
 			{name: "expired sessions", run: authService.PurgeExpired},
 			{name: "idle quick connections", run: func(context.Context) (int, error) { return quickConnections.Sweep(cfg.SessionIdle), nil }},
+			{name: "asked passwords", run: func(context.Context) (int, error) { return askedPasswords.Sweep(openConnections(pool)), nil }},
 			{name: "old activity", run: activityLog.PurgeExpired},
 			{name: "expired invitations", run: invites.PurgeExpired},
 			{name: "expired vault keys", run: func(context.Context) (int, error) { return keyRing.Sweep(), nil }},
 		},
 	}, nil
+}
+
+// openConnections reports, for the sweep of the asked passwords, whether a user still has a connection open to a site.
+func openConnections(pool *connections.Manager) func(userID, workspaceID, siteID uuid.UUID) bool {
+	return func(userID, workspaceID, siteID uuid.UUID) bool {
+		_, total := pool.Stats(connections.Key{UserID: userID, WorkspaceID: workspaceID, SiteID: siteID})
+		return total > 0
+	}
 }
 
 // relyingParty derives the WebAuthn relying party from the allowed origins: the host of the first one, and every origin. Without any it

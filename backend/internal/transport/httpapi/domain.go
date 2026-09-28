@@ -9,6 +9,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -136,6 +137,9 @@ func (p domainProblem) VisitRenameFileResponse(w http.ResponseWriter) error { re
 // VisitDeleteFileResponse implements [DeleteFileResponseObject].
 func (p domainProblem) VisitDeleteFileResponse(w http.ResponseWriter) error { return p.write(w) }
 
+// VisitSetSiteCredentialResponse implements [SetSiteCredentialResponseObject].
+func (p domainProblem) VisitSetSiteCredentialResponse(w http.ResponseWriter) error { return p.write(w) }
+
 // VisitDeleteSiteResponse implements [DeleteSiteResponseObject].
 func (p domainProblem) VisitDeleteSiteResponse(w http.ResponseWriter) error { return p.write(w) }
 
@@ -152,6 +156,7 @@ var domainProblems = []struct {
 	{workspace.ErrMemberNotFound, http.StatusNotFound, "member_not_found"},
 	{workspace.ErrInvalidRole, http.StatusUnprocessableEntity, "invalid_role"},
 	{vault.ErrLocked, http.StatusConflict, "vault_locked"},
+	{credentials.ErrRequired, http.StatusConflict, "credentials_required"},
 	{wskey.ErrPending, http.StatusConflict, "workspace_key_pending"},
 	{workspace.ErrOwnerBound, http.StatusConflict, "owner_bound"},
 	{workspace.ErrAlreadyMember, http.StatusConflict, "already_member"},

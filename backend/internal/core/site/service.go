@@ -172,7 +172,7 @@ func Normalize(in Input) (Input, error) {
 	if in.AuthMethod == "" {
 		in.AuthMethod = AuthPassword
 	}
-	if in.AuthMethod != AuthPassword && (in.AuthMethod != AuthKey || in.Protocol != SFTP) {
+	if in.AuthMethod != AuthPassword && in.AuthMethod != AuthAsk && (in.AuthMethod != AuthKey || in.Protocol != SFTP) {
 		return in, ErrInvalidAuthMethod
 	}
 	if in.Charset == "" {
@@ -337,6 +337,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err != nil {
 		return Site{}, err
 	}
+	changes = withoutStoredPassword(in, changes)
 	if err := s.checkHosts(ctx, in); err != nil {
 		return Site{}, err
 	}
@@ -406,6 +407,7 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 	if err != nil {
 		return Site{}, err
 	}
+	changes = withoutStoredPassword(in, changes)
 	if err := s.checkHosts(ctx, in); err != nil {
 		return Site{}, err
 	}
@@ -425,6 +427,16 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 		return Site{}, err
 	}
 	return s.store.Site(ctx, workspaceID, id)
+}
+
+// withoutStoredPassword makes a site that asks for its password when connecting drop any stored one, whatever the
+// request said: its password must never be written anywhere (ADR-0010).
+func withoutStoredPassword(in Input, changes SecretChanges) SecretChanges {
+	if in.AuthMethod == AuthAsk {
+		none := ""
+		changes.Password = &none
+	}
+	return changes
 }
 
 // Delete removes a site and its secrets.

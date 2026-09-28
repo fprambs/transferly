@@ -74,6 +74,7 @@ func (s *server) UpdateAdminUser(ctx context.Context, request UpdateAdminUserReq
 		action := audit.AdminUserEnabled
 		if account.Disabled {
 			action = audit.AdminUserDisabled
+			s.deps.Credentials.CloseUser(request.UserId)
 		}
 		s.recordInstance(ctx, p.User, action, account.Email, nil)
 	}

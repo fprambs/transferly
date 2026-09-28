@@ -95,7 +95,8 @@ func allZero(b []byte) bool {
 // Scenarios:
 //   - a valid connection is named after its host, gets the defaults and an identifier, and is kept
 //   - viewers and strangers cannot create
-//   - malformed settings and forbidden destinations are refused with their errors and nothing is kept
+//   - malformed settings, forbidden destinations and asking for the password (a quick connection always has it) are
+//     refused with their errors and nothing is kept
 //   - a user may keep five connections at once, others are unaffected, and closing one makes room
 //   - a failing identifier generator is returned
 func TestService_Create(t *testing.T) {
@@ -126,6 +127,11 @@ func TestService_Create(t *testing.T) {
 	keyOverFTP.Protocol, keyOverFTP.AuthMethod = site.FTP, site.AuthKey
 	if _, err := f.svc.Create(ctx, f.editor, f.ws, keyOverFTP, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
 		t.Errorf("key over FTP = %v", err)
+	}
+	asking := input("203.0.113.5")
+	asking.AuthMethod = site.AuthAsk
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
+		t.Errorf("ask for password on a quick connection = %v; want ErrInvalidAuthMethod", err)
 	}
 	if list, _ := f.svc.List(ctx, f.editor, f.ws); len(list) != 1 {
 		t.Errorf("%d connections kept after refusals; want 1", len(list))

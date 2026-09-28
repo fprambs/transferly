@@ -35,6 +35,9 @@ const (
 	AuthPassword AuthMethod = "password"
 	// AuthKey logs in with an SSH private key, only for SFTP.
 	AuthKey AuthMethod = "key"
+	// AuthAsk logs in with a password that is never stored: it is asked for when connecting and kept in memory for the
+	// session (ADR-0010).
+	AuthAsk AuthMethod = "ask"
 )
 
 // SecretKind is the type of a stored secret.

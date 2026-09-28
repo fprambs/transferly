@@ -42,6 +42,8 @@ const (
 	SiteUpdated = "site.updated"
 	// SiteDeleted is a saved site that was deleted.
 	SiteDeleted = "site.deleted"
+	// SiteCredentialProvided is a password typed for a site that asks for it when connecting; the value is never recorded.
+	SiteCredentialProvided = "site.credential_provided"
 	// SitesImported is a FileZilla site manager that was imported; the number of sites is in the metadata.
 	SitesImported = "sites.imported"
 	// HostKeyTrusted is a server key that was trusted; the target is host:port.

@@ -292,7 +292,7 @@ func (brokenSites) DeleteSite(context.Context, uuid.UUID, uuid.UUID) error { ret
 // TestSiteFailures verifies that store failures inside the site handlers are 500 problems.
 //
 // Scenarios:
-//   - listing, reading, creating, updating and deleting answer 500 when the store fails
+//   - listing, reading, creating, updating, deleting and giving the password of a site answer 500 when the store fails
 func TestSiteFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
 		store := brokenSites{d.Readiness.(*postgres.Store)}
@@ -307,6 +307,7 @@ func TestSiteFailures(t *testing.T) {
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), siteBody("A"), cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodPut, sitesPath(ws, id), siteBody("A"), cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodDelete, sitesPath(ws, id), nil, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPut, sitesPath(ws, id)+"/credential", map[string]any{"password": "pw", "remember": true}, cookie, csrf), 500, "internal_error")
 }
 
 // brokenHostKeys is a store whose host key reads and deletes fail.

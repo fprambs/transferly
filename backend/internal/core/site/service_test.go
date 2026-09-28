@@ -551,6 +551,45 @@ func TestService_Secrets(t *testing.T) {
 	random.broken = false
 }
 
+// TestService_AskForPassword covers the [site.AuthAsk] logon type of [site.Service.Create] and [site.Service.Update].
+//
+// Use cases:
+//   - every protocol may ask for its password when connecting
+//   - a site that asks never stores a password, even when the request sends one, and needs no unlocked vault for it
+//   - switching a saved site to ask removes the password it had
+func TestService_AskForPassword(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	for _, protocol := range []site.Protocol{site.SFTP, site.FTP, site.FTPS} {
+		in := valid()
+		in.Name, in.Protocol, in.AuthMethod = "Ask "+string(protocol), protocol, site.AuthAsk
+		created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{Password: text("typed")})
+		if err != nil {
+			t.Fatalf("Create(%s, ask) = %v", protocol, err)
+		}
+		if created.AuthMethod != site.AuthAsk || len(created.Secrets) != 0 {
+			t.Errorf("Create(%s, ask) = %s with secrets %v; want ask with none", protocol, created.AuthMethod, created.Secrets)
+		}
+	}
+
+	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("kept")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	switched := valid()
+	switched.AuthMethod = site.AuthAsk
+	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", switched, site.SecretChanges{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Secrets) != 0 {
+		t.Errorf("a site switched to ask kept %v", updated.Secrets)
+	}
+	if _, ok := f.store.secrets[stored.ID.String()+string(site.SecretPassword)]; ok {
+		t.Error("the password of a site switched to ask is still stored")
+	}
+}
+
 // TestService_KeyAndStoreFailures verifies that failures of collaborators are returned.
 //
 // Scenarios:

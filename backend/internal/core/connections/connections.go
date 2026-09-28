@@ -35,6 +35,13 @@ type Connector interface {
 	Connect(ctx context.Context, key Key, session string) (remotefs.RemoteFS, error)
 }
 
+// Admitter is a [Connector] that also decides whether a session may use a connection of the pool at all, even one
+// already open: a site whose password was typed in one session must not serve another session of the same user.
+type Admitter interface {
+	// Admit returns an error when the session may not use the connections of the key.
+	Admit(ctx context.Context, key Key, session string) error
+}
+
 // Config tunes the manager. Zero values select the defaults.
 type Config struct {
 	// MaxPerSite is the most connections one user keeps open to one site; 4 by default, which the throughput
@@ -225,8 +232,14 @@ func (m *Manager) ping(ctx context.Context, c *conn) error {
 }
 
 // Acquire borrows a connection for the site of key, reusing an idle one, opening a new one while the pool has
-// room, or waiting for one to be released. session identifies the user's session for opening credentials.
+// room, or waiting for one to be released. session identifies the user's session for opening credentials; a connector
+// that is an [Admitter] may refuse the session before any connection is handed out.
 func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease, error) {
+	if admitter, ok := m.connector.(Admitter); ok {
+		if err := admitter.Admit(ctx, key, session); err != nil {
+			return nil, err
+		}
+	}
 	p := m.pool(key)
 	if p == nil {
 		return nil, ErrClosed
@@ -435,6 +448,21 @@ func (m *Manager) CloseKey(key Key) {
 	if ok {
 		m.closePools([]*pool{p})
 	}
+}
+
+// CloseSite closes the connections of one site for every user, for example when its settings change or it is deleted,
+// so no connection opened with the old settings stays in use. Connections in use are closed when released.
+func (m *Manager) CloseSite(siteID uuid.UUID) {
+	m.mu.Lock()
+	var closing []*pool
+	for key, p := range m.pools {
+		if key.SiteID == siteID {
+			closing = append(closing, p)
+			delete(m.pools, key)
+		}
+	}
+	m.mu.Unlock()
+	m.closePools(closing)
 }
 
 // CloseUser closes the connections of a user, for example when they lock their vault or sign out.

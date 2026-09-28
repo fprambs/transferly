@@ -716,3 +716,78 @@ func TestManager_CloseKey(t *testing.T) {
 		t.Error("another site's pool was affected")
 	}
 }
+
+// TestManager_CloseSite covers [connections.Manager.CloseSite].
+//
+// Use cases:
+//   - the connections of a site close for every user, idle ones at once and ones in use when released
+//   - the connections of other sites stay open
+func TestManager_CloseSite(t *testing.T) {
+	f := newFixture(t, connections.Config{})
+	otherUser := connections.Key{UserID: uuid.New(), WorkspaceID: f.key.WorkspaceID, SiteID: f.key.SiteID}
+	otherSite := connections.Key{UserID: f.key.UserID, WorkspaceID: f.key.WorkspaceID, SiteID: uuid.New()}
+	busy := f.acquire(t)
+	for _, key := range []connections.Key{otherUser, otherSite} {
+		lease, err := f.m.Acquire(t.Context(), key, "s")
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease.Release(nil)
+	}
+
+	f.m.CloseSite(f.key.SiteID)
+	if !f.conn.connection(2).closed.Load() {
+		t.Error("the idle connection of another user to the site stayed open")
+	}
+	busy.Release(nil)
+	if !f.conn.connection(1).closed.Load() {
+		t.Error("a connection in use was not closed on release")
+	}
+	if f.conn.connection(3).closed.Load() {
+		t.Error("the connection of another site was closed")
+	}
+	if _, total := f.m.Stats(otherSite); total != 1 {
+		t.Error("the pool of another site was affected")
+	}
+}
+
+// admitting is a connector that is also a [connections.Admitter], refusing the sessions it is told to.
+type admitting struct {
+	*connector
+	refused string
+}
+
+// errRefused is what [admitting] refuses a session with.
+var errRefused = errors.New("session refused")
+
+// Admit implements [connections.Admitter].
+func (a *admitting) Admit(_ context.Context, _ connections.Key, session string) error {
+	if session == a.refused {
+		return errRefused
+	}
+	return nil
+}
+
+// TestManager_Admitter covers how [connections.Manager.Acquire] consults a connector that is a [connections.Admitter].
+//
+// Use cases:
+//   - an admitted session gets a connection, and releases it to the pool
+//   - a refused session gets the connector's error, even though an idle connection is waiting, and nothing is opened
+func TestManager_Admitter(t *testing.T) {
+	conn := &admitting{connector: &connector{}, refused: "other"}
+	m := connections.New(conn, testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), connections.Config{})
+	t.Cleanup(m.Close)
+	key := connections.Key{UserID: uuid.New(), WorkspaceID: uuid.New(), SiteID: uuid.New()}
+
+	lease, err := m.Acquire(t.Context(), key, "typed")
+	if err != nil {
+		t.Fatalf("Acquire(admitted) = %v", err)
+	}
+	lease.Release(nil)
+	if _, err := m.Acquire(t.Context(), key, "other"); !errors.Is(err, errRefused) {
+		t.Fatalf("Acquire(refused) = %v; want the connector's error", err)
+	}
+	if conn.count() != 1 {
+		t.Errorf("connections opened = %d; want 1", conn.count())
+	}
+}
