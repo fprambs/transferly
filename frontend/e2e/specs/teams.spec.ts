@@ -155,6 +155,7 @@ test.describe('teams', () => {
       await page.getByRole('button', { name: 'Workspace' }).click()
       await page.getByRole('menuitem', { name: 'Audit log' }).click()
       await expect(page.getByRole('list', { name: 'Audit log' })).toBeVisible()
+      await expect(page.getByRole('menu')).toHaveCount(0)
       const trail = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(trail.violations, `${theme} audit`).toEqual([])
       await openTeamMembers(page, team)

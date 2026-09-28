@@ -40,6 +40,10 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - searching a folder recursively: the results found below a subfolder
  * - editing a site's speed limit
  * - editing a site's proxy and jump host
+ * - the remote editor
+ * - the site dialog on its General and Advanced tabs
+ * - a folder with many files, with the transfers panel still in view
+ * - a tab that is still loading, one that failed to load and offers to retry, and a ZIP download showing up in the transfers panel at once
  */
 test.describe('screenshots', () => {
   test.skip(process.env.SENTINEL_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
@@ -383,6 +387,7 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: `Actions for ${name}` }).click()
     await page.getByRole('menuitem', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit site' })
+    await dialog.getByRole('tab', { name: 'Advanced' }).click()
     await expect(dialog.getByLabel('Speed limit (MiB/s)')).toHaveValue('4')
     await shoot(page, '36-site-speed-limit')
 
@@ -413,19 +418,19 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: `Actions for ${name}` }).click()
     await page.getByRole('menuitem', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit site' })
+    await dialog.getByRole('tab', { name: 'Proxy and jump host' }).click()
     await expect(dialog.getByLabel('Jump host', { exact: true })).toHaveValue('1.1.1.1')
     await shoot(page, '37-proxy-and-jump')
 
     await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${siteId}`, { headers })
   })
 
-  test('remote editor', async ({ shell, quickId }) => {
+  test('remote editor', async ({ shell, quickId, folder }) => {
     const { page } = shell
     const name = `shot-${Date.now()}.txt`
-    await page.goto(`/sites/${quickId}?path=%2F`)
+    await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
+    await expect(page.getByText('This folder is empty.')).toBeVisible()
     const grid = page.getByRole('grid', { name: 'Files' })
-    await expect(grid).toBeVisible()
-    await grid.getByRole('row', { name: /upload/ }).dblclick()
     await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('server {\n  listen 443;\n}\n') })
     const row = grid.getByRole('row', { name: new RegExp(name) })
     await expect(row).toBeVisible()
@@ -437,5 +442,70 @@ test.describe('screenshots', () => {
     await dialog.getByRole('button', { name: 'Close' }).click()
     await grid.press('Delete')
     await page.getByRole('dialog', { name: 'Delete this file?' }).getByRole('button', { name: 'Delete' }).click()
+  })
+  test('site dialog with tabs', async ({ shell }) => {
+    const { page } = shell
+    await page.goto('/')
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await expect(dialog.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+    await shoot(page, '39-site-dialog-general')
+    await dialog.getByRole('tab', { name: 'Advanced' }).click()
+    await shoot(page, '40-site-dialog-advanced')
+  })
+
+  test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const files = `/api/v1/workspaces/${workspaces[0].id}/sites/${quickId}/files`
+    const folder = `/upload/long-${Date.now()}`
+    await request.post(`${files}/directories`, { headers: { 'X-CSRF-Token': me.csrfToken }, data: { path: folder } })
+    for (let index = 0; index < 60; index++) {
+      await request.put(`${files}/content?path=${encodeURIComponent(`${folder}/file-${String(index).padStart(2, '0')}.txt`)}`, {
+        headers: { 'X-CSRF-Token': me.csrfToken, 'Content-Type': 'application/octet-stream' },
+        data: Buffer.from(`file ${index}\n`),
+      })
+    }
+    await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
+    await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /file-00/ })).toBeVisible()
+    const dock = page.getByRole('region', { name: 'Transfers' })
+    await expect(dock).toBeInViewport({ ratio: 1 })
+    await shoot(page, '41-long-folder-dock')
+    await request.delete(`${files}?path=${encodeURIComponent(folder)}&recursive=true`, { headers: { 'X-CSRF-Token': me.csrfToken } })
+  })
+  test('loading, failure and preparing states', async ({ shell, quickId }) => {
+    const { page } = shell
+    let release: () => void = () => undefined
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('**/api/v1/admin/limits', async (route) => {
+      await held
+      await route.continue()
+    })
+    await page.route('**/api/v1/admin/networks', (route) =>
+      route.fulfill({ status: 503, contentType: 'application/problem+json', body: JSON.stringify({ type: 'about:blank', title: 'x', status: 503, code: 'network_error' }) }),
+    )
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Administration' }).click()
+    await page.getByRole('tab', { name: 'Limits' }).click()
+    await expect(page.getByRole('status')).toHaveText('Loading limits…')
+    await shoot(page, '42-loading-spinner')
+    release()
+    await page.getByRole('tab', { name: 'Networks' }).click()
+    await expect(page.getByRole('alert')).toContainText('Could not reach the server.')
+    await shoot(page, '43-load-failed-retry')
+    await page.unroute('**/api/v1/admin/networks')
+    await page.getByRole('button', { name: 'Retry' }).click()
+    await expect(page.getByLabel('Added by administrators')).toBeVisible()
+
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /upload/ }).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Download as ZIP' }).click()
+    await expect(page.getByRole('region', { name: 'Transfers' }).getByRole('listitem').filter({ hasText: 'upload.zip' })).toBeVisible()
+    await shoot(page, '44-zip-download-feedback')
   })
 })
