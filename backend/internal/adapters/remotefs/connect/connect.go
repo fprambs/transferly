@@ -289,13 +289,11 @@ func (c *Connector) resolve(ctx context.Context, key connections.Key, session st
 	return target, s, err
 }
 
-// require checks that the credentials the site needs are there: a private key, or a password unless the account is
-// an FTP one; and, when it has a jump host, the credentials that needs too.
+// require checks that the credentials a quick connection needs are there: a password unless the account is an FTP one
+// or logs in with a key, which the quick connection read when it was made; and, when it has a jump host, the
+// credentials that needs too.
 func (s secrets) require(target site.Site) error {
-	switch {
-	case target.AuthMethod == site.AuthKey && len(s.privateKey) == 0:
-		return fmt.Errorf("%w: no private key was given", remotefs.ErrAuth)
-	case target.AuthMethod != site.AuthKey && target.Protocol == site.SFTP && len(s.password) == 0:
+	if target.AuthMethod != site.AuthKey && target.Protocol == site.SFTP && len(s.password) == 0 {
 		return fmt.Errorf("%w: no password was given", remotefs.ErrAuth)
 	}
 	switch {

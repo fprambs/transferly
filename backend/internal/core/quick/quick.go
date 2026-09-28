@@ -13,6 +13,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/sshkey"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
@@ -114,6 +115,24 @@ func checkHosts(ctx context.Context, guard Guard, in site.Input) error {
 	return nil
 }
 
+// readKey reads the private key of a connection that logs in with one, as saved sites do (4.8g): a key that cannot be
+// used is a [*site.KeyError], a PuTTY or encrypted PKCS#8 key is kept in OpenSSH's format, and a key that is not
+// encrypted drops its passphrase.
+func readKey(in site.Input, secrets Secrets) (Secrets, error) {
+	if in.AuthMethod != site.AuthKey {
+		return secrets, nil
+	}
+	key, err := sshkey.Read(secrets.PrivateKey, secrets.Passphrase)
+	if err != nil {
+		return secrets, &site.KeyError{Err: err}
+	}
+	secrets.PrivateKey = key.PEM
+	if !key.Encrypted {
+		secrets.Passphrase = nil
+	}
+	return secrets, nil
+}
+
 // Create validates the settings, vets the host and starts keeping a quick connection. The site name is the host.
 // It needs the permission to manage sites, since connecting to a server is what a saved site would allow too.
 func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in site.Input, secrets Secrets) (Connection, error) {
@@ -130,6 +149,9 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in s
 	}
 	if in.AuthMethod == site.AuthAsk || in.AuthMethod == site.AuthAnonymous {
 		return Connection{}, site.ErrInvalidAuthMethod
+	}
+	if secrets, err = readKey(in, secrets); err != nil {
+		return Connection{}, err
 	}
 	if err := checkHosts(ctx, s.guard, in); err != nil {
 		return Connection{}, err

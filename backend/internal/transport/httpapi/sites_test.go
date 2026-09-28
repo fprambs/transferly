@@ -9,6 +9,8 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
+
+	"github.com/fprambs/sentinel/internal/testutil"
 )
 
 // siteBody returns valid site settings with the given name.
@@ -98,7 +100,7 @@ func TestSites_Lifecycle(t *testing.T) {
 
 	update := siteBody("With secret")
 	update["port"], update["protocol"], update["host"], update["authMethod"], update["listTimezone"] = 2222, "sftp", "example.com", "key", "America/Santiago"
-	update["privateKey"] = "-----BEGIN KEY-----"
+	update["privateKey"] = testutil.PrivateKey(t, "")
 	update["proxy"] = map[string]any{"kind": "socks5", "host": "8.8.4.4", "port": 1080, "username": "proxyuser"}
 	update["proxyPassword"] = "proxypass"
 	update["jump"] = map[string]any{"host": "1.1.1.1", "port": 22, "username": "bastion", "authMethod": "password"}

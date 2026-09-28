@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/sshkey"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 )
@@ -376,6 +377,9 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 		return Site{}, err
 	}
 	changes = withoutStoredPassword(in, changes)
+	if changes, err = checkKeys(in, changes); err != nil {
+		return Site{}, err
+	}
 	if err := s.checkHosts(ctx, in); err != nil {
 		return Site{}, err
 	}
@@ -446,6 +450,9 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 		return Site{}, err
 	}
 	changes = withoutStoredPassword(in, changes)
+	if changes, err = checkKeys(in, changes); err != nil {
+		return Site{}, err
+	}
 	if err := s.checkHosts(ctx, in); err != nil {
 		return Site{}, err
 	}
@@ -465,6 +472,58 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 		return Site{}, err
 	}
 	return s.store.Site(ctx, workspaceID, id)
+}
+
+// checkKeys reads the private keys a request saves, the site's and its jump host's, with their passphrases (4.8g): a key
+// that cannot be used is refused with a [*KeyError], and a usable one is stored in the form connecting reads, PuTTY
+// and encrypted PKCS#8 keys converted to OpenSSH's. A key that is not encrypted drops any passphrase, which would only
+// stop it from opening.
+func checkKeys(in Input, changes SecretChanges) (SecretChanges, error) {
+	var err error
+	if in.AuthMethod == AuthKey {
+		if changes.PrivateKey, changes.Passphrase, err = checkKey(changes.PrivateKey, changes.Passphrase); err != nil {
+			return changes, keyError(false, err)
+		}
+	}
+	if in.Jump.Set() && in.Jump.AuthMethod == AuthKey {
+		if changes.JumpPrivateKey, changes.JumpPassphrase, err = checkKey(changes.JumpPrivateKey, changes.JumpPassphrase); err != nil {
+			return changes, keyError(true, err)
+		}
+	}
+	return changes, nil
+}
+
+// keyError wraps the reason a key cannot be used, except a key too large to read, which is refused as any secret is.
+func keyError(jump bool, err error) error {
+	if errors.Is(err, ErrSecretTooLarge) {
+		return err
+	}
+	return &KeyError{Jump: jump, Err: err}
+}
+
+// checkKey reads one private key being saved. A key left as it is (nil) or removed (empty) is not read, and neither is
+// one larger than any key file, which the store would refuse anyway.
+func checkKey(key, passphrase *string) (*string, *string, error) {
+	switch {
+	case key == nil || *key == "":
+		return key, passphrase, nil
+	case len(*key) > maxKeyBytes:
+		return key, passphrase, ErrSecretTooLarge
+	}
+	var phrase []byte
+	if passphrase != nil {
+		phrase = []byte(*passphrase)
+	}
+	read, err := sshkey.Read([]byte(*key), phrase)
+	if err != nil {
+		return key, passphrase, err
+	}
+	stored := string(read.PEM)
+	if !read.Encrypted {
+		none := ""
+		return &stored, &none, nil
+	}
+	return &stored, passphrase, nil
 }
 
 // withoutStoredPassword makes a site that asks for its password when connecting drop any stored one, whatever the

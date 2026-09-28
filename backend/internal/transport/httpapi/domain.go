@@ -19,6 +19,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/sshkey"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
@@ -230,11 +231,36 @@ var domainProblems = []struct {
 	{netguard.ErrUnresolvable, http.StatusUnprocessableEntity, "host_unresolvable"},
 }
 
+// keyProblem is the problem for a private key a site cannot use: which key (params.key "site" or "jump") and why, with
+// the reason of an unsupported one (params.reason).
+func keyProblem(err *site.KeyError) domainProblem {
+	params := map[string]any{"key": "site"}
+	if err.Jump {
+		params["key"] = "jump"
+	}
+	p := domainProblem{status: http.StatusUnprocessableEntity, code: "private_key_unreadable", params: params}
+	var unsupported *sshkey.UnsupportedError
+	switch {
+	case errors.Is(err, sshkey.ErrPublicKey):
+		p.code = "private_key_is_public"
+	case errors.Is(err, sshkey.ErrPassphraseRequired):
+		p.code = "passphrase_required"
+	case errors.Is(err, sshkey.ErrWrongPassphrase):
+		p.code = "wrong_passphrase"
+	case errors.As(err, &unsupported):
+		p.code, params["reason"] = "private_key_unsupported", unsupported.Reason
+	}
+	return p
+}
+
 // asProblem returns the problem for err, or false when err is not one the client can act on.
 func asProblem(err error) (domainProblem, bool) {
 	var hostKey *remotefs.HostKeyError
 	var badRange *files.RangeError
+	var badKey *site.KeyError
 	switch {
+	case errors.As(err, &badKey):
+		return keyProblem(badKey), true
 	case errors.As(err, &hostKey):
 		code := "host_key_unknown"
 		if hostKey.Changed {

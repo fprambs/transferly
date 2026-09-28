@@ -2204,6 +2204,51 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/ssh-keys/inspect:
+    post:
+      operationId: inspectSshKey
+      summary: Describe a key file without storing it
+      description: >-
+        Reads a key file by its content (OpenSSH, PEM, PKCS#8, RFC 4716 or PuTTY PPK 2 and 3) and says whether it is a
+        private key, its type, size and SHA-256 fingerprint, and whether the passphrase given opens it. Nothing is kept;
+        saving a site reads the key again. A file that is no key is private_key_unreadable, and a key of a type or
+        protection Sentinel does not use is private_key_unsupported with params.reason (key_type, ppk_version,
+        encryption, argon2d or cost).
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SshKeyInspectRequest"
+      responses:
+        "200":
+          description: What the file holds.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SshKeyInfo"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/credential:
     put:
       operationId: setSiteCredential
@@ -4021,6 +4066,47 @@ components:
         masterPassword:
           type: string
           description: Sent to the server only; never returned.
+    SshKeyInspectRequest:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+          minLength: 1
+          maxLength: 65536
+          description: The text of the key file. Never returned, stored or logged.
+        passphrase:
+          type: string
+          maxLength: 1024
+          description: The passphrase to check against an encrypted key. Never returned, stored or logged.
+    SshKeyInfo:
+      type: object
+      required: [private, format, encrypted, status]
+      properties:
+        private:
+          type: boolean
+          description: False when the file holds a public key.
+        format:
+          type: string
+          enum: [openssh, pem, pkcs8, rfc4716, ppk2, ppk3]
+        algorithm:
+          type: string
+          description: SSH name of the key type, such as ssh-ed25519; absent when the file does not tell before decrypting.
+        bits:
+          type: integer
+          description: Size of the key; absent when unknown.
+        fingerprint:
+          type: string
+          description: SHA-256 fingerprint in OpenSSH's form; absent when the file does not tell before decrypting.
+        encrypted:
+          type: boolean
+          description: The private key is protected by a passphrase.
+        status:
+          type: string
+          enum: [usable, public_key, passphrase_required, wrong_passphrase]
+          description: >-
+            usable means the site can be saved with this key and passphrase; public_key that a private key must be chosen
+            instead; the other two that the passphrase is missing or does not open the key.
     SiteCredentialRequest:
       type: object
       required: [password, remember]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/sshkey"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
@@ -323,6 +325,8 @@ func TestService_Sweep(t *testing.T) {
 //
 // Scenarios:
 //   - saving passes the settings, the name, the collection and only the secrets that exist, then ends the quick connection
+//   - a private key is read when the connection is made: one that is not encrypted drops its passphrase, and text that
+//     is no key is refused with a key error
 //   - a failure such as a locked vault keeps the quick connection for another try
 //   - unknown and foreign connections are ErrNotFound
 func TestService_Save(t *testing.T) {
@@ -330,11 +334,16 @@ func TestService_Save(t *testing.T) {
 	f := newFixture()
 	in := input("203.0.113.5")
 	in.Port, in.AuthMethod = 2222, site.AuthKey
-	c, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{PrivateKey: []byte("KEY")})
+	key := testutil.PrivateKey(t, "")
+	c, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{PrivateKey: []byte(key), Passphrase: []byte("stale")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	collection := uuid.New()
+	var keyErr *site.KeyError
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{PrivateKey: []byte("KEY")}); !errors.As(err, &keyErr) || !errors.Is(err, sshkey.ErrUnreadable) {
+		t.Errorf("Create() with text that is no key = %v; want a key error", err)
+	}
 
 	f.saver.err = site.ErrLocked
 	if _, err := f.svc.Save(ctx, f.editor, f.ws, c.Site.ID, "s", "Production", collection); !errors.Is(err, site.ErrLocked) {
@@ -353,8 +362,8 @@ func TestService_Save(t *testing.T) {
 		t.Errorf("saved input = %+v", f.saver.input)
 	}
 	ch := f.saver.changes
-	if ch.PrivateKey == nil || *ch.PrivateKey != "KEY" || ch.Password != nil || ch.Passphrase != nil {
-		t.Errorf("secret changes = %+v; want only the private key", ch)
+	if ch.PrivateKey == nil || *ch.PrivateKey != strings.TrimSpace(key) || ch.Password != nil || ch.Passphrase != nil {
+		t.Errorf("secret changes = %+v; want only the private key, without the passphrase it does not need", ch)
 	}
 	if _, ok := f.svc.Lookup(f.editor, f.ws, c.Site.ID); ok {
 		t.Error("the quick connection survived being saved")

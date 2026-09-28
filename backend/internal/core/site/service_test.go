@@ -2,18 +2,23 @@ package site_test
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/sentinel/internal/core/sshkey"
 	"github.com/fprambs/sentinel/internal/core/vault"
 	"github.com/fprambs/sentinel/internal/core/workspace"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -613,7 +618,7 @@ func TestService_Anonymous(t *testing.T) {
 
 	keyed := valid()
 	keyed.Name, keyed.AuthMethod = "Keyed", site.AuthKey
-	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: text("key"), Passphrase: text("phrase")})
+	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: text(testutil.PrivateKey(t, "phrase")), Passphrase: text("phrase")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,6 +629,94 @@ func TestService_Anonymous(t *testing.T) {
 	}
 	if len(updated.Secrets) != 0 {
 		t.Errorf("a site switched to anonymous kept %v", updated.Secrets)
+	}
+}
+
+// TestService_PrivateKeys covers how [site.Service.Create] and [site.Service.Update] read the private keys they save (4.8g).
+//
+// Use cases:
+//   - a PuTTY key is stored converted to OpenSSH's format, which connecting reads with the same passphrase
+//   - a key that is not encrypted drops the passphrase sent with it
+//   - a public key, an encrypted key without its passphrase or with a wrong one, and text that is no key are refused
+//     with a [*site.KeyError] that says which key, the site's or the jump host's
+//   - a key larger than any key file is refused as too large before it is read
+//   - an update that leaves the key as it is does not read it, and one that replaces it reads the new one
+func TestService_PrivateKeys(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	ppk, err := os.ReadFile("../sshkey/testdata/ppk3-rsa-argon2id.ppk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyed := valid()
+	keyed.Name, keyed.AuthMethod = "PuTTY", site.AuthKey
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: text(string(ppk)), Passphrase: text("correct horse")})
+	if err != nil {
+		t.Fatalf("Create() with a PuTTY key = %v", err)
+	}
+	stored, err := f.svc.OpenSecret(ctx, f.editor, f.ws, created.ID, "open", site.SecretPrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ssh.ParsePrivateKeyWithPassphrase(stored, []byte("correct horse")); err != nil {
+		t.Errorf("the stored PuTTY key does not open in OpenSSH's format: %v", err)
+	}
+
+	plain := keyed
+	plain.Name = "Plain"
+	unencrypted, err := f.svc.Create(ctx, f.editor, f.ws, "open", plain, site.SecretChanges{PrivateKey: text(testutil.PrivateKey(t, "")), Passphrase: text("stale")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(unencrypted.Secrets, site.SecretPassphrase) {
+		t.Error("a key that is not encrypted kept the passphrase sent with it")
+	}
+
+	_, signer, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, err := ssh.NewPublicKey(signer.Public())
+	if err != nil {
+		t.Fatal(err)
+	}
+	encrypted := testutil.PrivateKey(t, "phrase")
+	withJump := keyed
+	withJump.Name, withJump.Jump = "Jump", site.Jump{Host: "bastion.example", Port: 22, Username: "bastion", AuthMethod: site.AuthKey}
+	refusals := []struct {
+		name    string
+		in      site.Input
+		changes site.SecretChanges
+		jump    bool
+		want    error
+	}{
+		{"public key", keyed, site.SecretChanges{PrivateKey: text(string(ssh.MarshalAuthorizedKey(public)))}, false, sshkey.ErrPublicKey},
+		{"no passphrase", keyed, site.SecretChanges{PrivateKey: text(encrypted)}, false, sshkey.ErrPassphraseRequired},
+		{"not a key", keyed, site.SecretChanges{PrivateKey: text("hello")}, false, sshkey.ErrUnreadable},
+		{"jump wrong passphrase", withJump, site.SecretChanges{PrivateKey: text(encrypted), Passphrase: text("phrase"),
+			JumpPrivateKey: text(encrypted), JumpPassphrase: text("wrong")}, true, sshkey.ErrWrongPassphrase},
+	}
+	for _, r := range refusals {
+		r.in.Name = "Refused " + r.name
+		_, err := f.svc.Create(ctx, f.editor, f.ws, "open", r.in, r.changes)
+		var keyErr *site.KeyError
+		prefix := "private key: "
+		if r.jump {
+			prefix = "jump host private key: "
+		}
+		if !errors.As(err, &keyErr) || keyErr.Jump != r.jump || !errors.Is(err, r.want) || !strings.HasPrefix(err.Error(), prefix) {
+			t.Errorf("Create(%s) = %v; want a key error of the jump host %v for %v", r.name, err, r.jump, r.want)
+		}
+	}
+	huge := strings.Repeat("A", 64*1024+1)
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: &huge}); !errors.Is(err, site.ErrSecretTooLarge) {
+		t.Errorf("Create() with a huge key = %v; want ErrSecretTooLarge", err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{Passphrase: text("changed")}); err != nil {
+		t.Errorf("Update() keeping the key = %v", err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{PrivateKey: text("hello")}); !errors.Is(err, sshkey.ErrUnreadable) {
+		t.Errorf("Update() with text that is no key = %v; want ErrUnreadable", err)
 	}
 }
 

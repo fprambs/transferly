@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/fprambs/sentinel/internal/transport/httpapi"
+
+	"github.com/fprambs/sentinel/internal/testutil"
 )
 
 // lockedBuffer is a log destination that the server goroutines and the test can share.
@@ -49,12 +51,13 @@ func TestSecrets_NeverLeave(t *testing.T) {
 	ws := a.personal(cookie)
 	const (
 		sitePassword = "site-password-LEAKCHECK-1"
-		siteKey      = "-----BEGIN OPENSSH PRIVATE KEY-----LEAKCHECK-KEY-BODY"
 		sitePhrase   = "site-passphrase-LEAKCHECK-2"
 		quickPass    = "quick-password-LEAKCHECK-3"
 		wrongMaster  = "wrong-master-LEAKCHECK-4"
 	)
-	secrets := []string{sitePassword, siteKey, sitePhrase, quickPass, wrongMaster, masterPassword, adminPassword, cookie.Value, csrf}
+	siteKey := testutil.PrivateKey(t, sitePhrase)
+	keyBody := strings.Split(siteKey, "\n")[2]
+	secrets := []string{sitePassword, keyBody, sitePhrase, quickPass, wrongMaster, masterPassword, adminPassword, cookie.Value, csrf}
 
 	var responses []string
 	record := func(r reply) reply {

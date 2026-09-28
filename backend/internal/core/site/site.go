@@ -273,3 +273,24 @@ type CollectionStore interface {
 	// DeleteCollection removes an empty collection, or returns [ErrCollectionNotFound] or [ErrCollectionNotEmpty].
 	DeleteCollection(ctx context.Context, workspaceID, id uuid.UUID) error
 }
+
+// KeyError is a private key given for a site that cannot be used, and which of the site's keys it is. It unwraps to
+// the [sshkey] error that says why.
+type KeyError struct {
+	// Jump says the key is the jump host's; false means the site's own.
+	Jump bool
+	// Err is why the key cannot be used: [sshkey.ErrUnreadable], [sshkey.ErrPublicKey], [sshkey.ErrPassphraseRequired],
+	// [sshkey.ErrWrongPassphrase] or an [*sshkey.UnsupportedError].
+	Err error
+}
+
+// Error implements [error].
+func (e *KeyError) Error() string {
+	if e.Jump {
+		return "jump host private key: " + e.Err.Error()
+	}
+	return "private key: " + e.Err.Error()
+}
+
+// Unwrap returns the reason.
+func (e *KeyError) Unwrap() error { return e.Err }

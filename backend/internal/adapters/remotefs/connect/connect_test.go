@@ -369,7 +369,7 @@ func TestConnector_StoreFailures(t *testing.T) {
 	}
 	e.flaky.failTrustedAt = 0
 
-	keyed := e.addSite(server, site.Input{Name: "Keyed", AuthMethod: site.AuthKey}, site.SecretChanges{PrivateKey: text("key"), Passphrase: text("phrase")})
+	keyed := e.addSite(server, site.Input{Name: "Keyed", AuthMethod: site.AuthKey}, site.SecretChanges{PrivateKey: text(testutil.PrivateKey(t, "phrase")), Passphrase: text("phrase")})
 	e.flaky.failPassphrase = true
 	if _, err := c.Connect(t.Context(), e.key(keyed), session); !errors.Is(err, errFlaky) {
 		t.Errorf("Connect() with a failing passphrase read = %v; want the store error", err)
@@ -381,7 +381,7 @@ func TestConnector_StoreFailures(t *testing.T) {
 // Scenarios:
 //   - a quick connection with a password connects after its host key is trusted, without touching the vault
 //   - one with a private key and its passphrase connects
-//   - a quick connection without the credential its method needs is ErrAuth,
+//   - an SFTP quick connection with no password is ErrAuth
 //   - an unknown host key is reported with its fingerprint, as for saved sites
 //   - quick connections of another user are not found, and the wiped secrets of an ended connection are gone
 func TestConnector_QuickConnections(t *testing.T) {
@@ -433,12 +433,9 @@ func TestConnector_QuickConnections(t *testing.T) {
 		_ = fsys.Close()
 	}
 
-	keyless := start(site.Input{AuthMethod: site.AuthKey}, quick.Secrets{})
 	passwordless := start(site.Input{}, quick.Secrets{})
-	for _, id := range []uuid.UUID{keyless, passwordless} {
-		if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: id}, "s"); !errors.Is(err, remotefs.ErrAuth) {
-			t.Errorf("Connect() without credentials = %v; want ErrAuth", err)
-		}
+	if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: passwordless}, "s"); !errors.Is(err, remotefs.ErrAuth) {
+		t.Errorf("Connect() without a password = %v; want ErrAuth", err)
 	}
 
 	if _, err := c.Connect(t.Context(), connections.Key{UserID: uuid.New(), WorkspaceID: e.workspace, SiteID: withPassword}, "s"); err == nil {

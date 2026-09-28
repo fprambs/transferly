@@ -917,6 +917,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ssh-keys/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Describe a key file without storing it
+         * @description Reads a key file by its content (OpenSSH, PEM, PKCS#8, RFC 4716 or PuTTY PPK 2 and 3) and says whether it is a private key, its type, size and SHA-256 fingerprint, and whether the passphrase given opens it. Nothing is kept; saving a site reads the key again. A file that is no key is private_key_unreadable, and a key of a type or protection Sentinel does not use is private_key_unsupported with params.reason (key_type, ppk_version, encryption, argon2d or cost).
+         */
+        post: operations["inspectSshKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}/credential": {
         parameters: {
             query?: never;
@@ -1395,6 +1415,31 @@ export interface components {
         MasterPasswordRequest: {
             /** @description Sent to the server only; never returned. */
             masterPassword: string;
+        };
+        SshKeyInspectRequest: {
+            /** @description The text of the key file. Never returned, stored or logged. */
+            key: string;
+            /** @description The passphrase to check against an encrypted key. Never returned, stored or logged. */
+            passphrase?: string;
+        };
+        SshKeyInfo: {
+            /** @description False when the file holds a public key. */
+            private: boolean;
+            /** @enum {string} */
+            format: "openssh" | "pem" | "pkcs8" | "rfc4716" | "ppk2" | "ppk3";
+            /** @description SSH name of the key type, such as ssh-ed25519; absent when the file does not tell before decrypting. */
+            algorithm?: string;
+            /** @description Size of the key; absent when unknown. */
+            bits?: number;
+            /** @description SHA-256 fingerprint in OpenSSH's form; absent when the file does not tell before decrypting. */
+            fingerprint?: string;
+            /** @description The private key is protected by a passphrase. */
+            encrypted: boolean;
+            /**
+             * @description usable means the site can be saved with this key and passphrase; public_key that a private key must be chosen instead; the other two that the passphrase is missing or does not open the key.
+             * @enum {string}
+             */
+            status: "usable" | "public_key" | "passphrase_required" | "wrong_passphrase";
         };
         SiteCredentialRequest: {
             /** @description Sent to the server only; never returned or stored. */
@@ -5137,6 +5182,60 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    inspectSshKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SshKeyInspectRequest"];
+            };
+        };
+        responses: {
+            /** @description What the file holds. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SshKeyInfo"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
