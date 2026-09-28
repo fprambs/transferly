@@ -21,6 +21,12 @@ const themes = [
   'github-light',
 ]
 
+/** Opens a folder of the quick connection that the global setup made to the SFTP server of the test stack; the fresh folders of the tests are empty. */
+async function openFolder(page: Page, quickId: string, folder: string): Promise<void> {
+  await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
+  await expect(page.getByText('This folder is empty.')).toBeVisible()
+}
+
 /** Opens the quick connection that the global setup made to the SFTP server of the test stack, at its root. */
 async function openQuickConnection(page: Page, quickId: string): Promise<void> {
   await page.goto(`/sites/${quickId}?path=%2F`)
@@ -115,14 +121,12 @@ test.describe('explorer', () => {
     await expect(renamedRow).toBeHidden()
   })
 
-  test('uploads, downloads and deletes a file on the server', async ({ shell, quickId }) => {
+  test('uploads, downloads and deletes a file on the server', async ({ shell, quickId, folder }) => {
     const { page } = shell
     const name = `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}.txt`
     const content = 'hello from the browser test\n'
-    await openQuickConnection(page, quickId)
+    await openFolder(page, quickId, folder)
     const grid = page.getByRole('grid', { name: 'Files' })
-    await grid.getByRole('row', { name: /upload/ }).dblclick()
-    await expect(page).toHaveURL(/path=%2Fupload$/)
 
     await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from(content) })
     const row = grid.getByRole('row', { name: new RegExp(name) })
@@ -147,7 +151,7 @@ test.describe('explorer', () => {
     await expect(row).toBeHidden()
   })
 
-  test('resumes a canceled upload and the file arrives intact', async ({ shell, quickId }) => {
+  test('resumes a canceled upload and the file arrives intact', async ({ shell, quickId, folder }) => {
     test.setTimeout(120_000)
     const { page } = shell
     const name = `e2e-resume-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
@@ -155,10 +159,8 @@ test.describe('explorer', () => {
     for (let index = 0; index < content.length; index++) {
       content[index] = (index * 31 + (index >> 8)) & 0xff
     }
-    await openQuickConnection(page, quickId)
+    await openFolder(page, quickId, folder)
     const grid = page.getByRole('grid', { name: 'Files' })
-    await grid.getByRole('row', { name: /upload/ }).dblclick()
-    await expect(page).toHaveURL(/path=%2Fupload$/)
 
     const client = await page.context().newCDPSession(page)
     await client.send('Network.enable')
@@ -223,7 +225,7 @@ test.describe('explorer', () => {
     await expect(bar).toHaveAttribute('aria-busy', 'false')
   })
 
-  test('shows the progress of a download in the transfers dock', async ({ shell, quickId, request }) => {
+  test('shows the progress of a download in the transfers dock', async ({ shell, quickId, request, folder }) => {
     test.setTimeout(120_000)
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
@@ -231,12 +233,12 @@ test.describe('explorer', () => {
     const files = `/api/v1/workspaces/${workspaces[0].id}/sites/${quickId}/files`
     const name = `e2e-download-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
     await request.put(`${files}/content`, {
-      params: { path: `/upload/${name}`, mode: 'overwrite' },
+      params: { path: `${folder}/${name}`, mode: 'overwrite' },
       data: Buffer.alloc(24 * 1024 * 1024, 7),
       headers: { 'X-CSRF-Token': me.csrfToken, 'Content-Type': 'application/octet-stream' },
     })
 
-    await page.goto(`/sites/${quickId}?path=%2Fupload`)
+    await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
     const row = page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(name) })
     await row.click()
     await expect(async () => {
@@ -264,7 +266,6 @@ test.describe('explorer', () => {
     await dock.getByRole('tab', { name: /Finished/ }).click()
     await expect(dock.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByRole('img', { name: 'Download' }) })).toContainText('Done', { timeout: 30_000 })
 
-    await request.delete(files, { params: { path: `/upload/${name}` }, headers: { 'X-CSRF-Token': me.csrfToken } })
   })
 
   test('has no WCAG violations in any theme', async ({ shell, quickId }) => {

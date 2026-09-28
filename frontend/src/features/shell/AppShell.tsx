@@ -17,11 +17,11 @@ export function AppShell() {
   useAccountTheme()
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex h-svh flex-col overflow-hidden">
       <TopBar />
       <div className="flex min-h-0 flex-1">
         <SitesSidebar onOpen={(siteId) => void navigate({ to: '/sites/$siteId', params: { siteId }, search: { path: '/' } })} />
-        <main aria-label={explorer(($) => $.label)} className="flex min-w-0 flex-1 flex-col bg-background">
+        <main aria-label={explorer(($) => $.label)} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background">
           <Outlet />
         </main>
       </div>

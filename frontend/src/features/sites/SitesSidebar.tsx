@@ -230,7 +230,7 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
   }
 
   return (
-    <nav aria-label={t(($) => $.sidebar.label)} className="flex w-62 flex-col border-e bg-card">
+    <nav aria-label={t(($) => $.sidebar.label)} className="flex min-h-0 w-62 shrink-0 flex-col border-e bg-card">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
         <h2 className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">{t(($) => $.sidebar.sites)}</h2>
         <div className="flex gap-1">
@@ -252,7 +252,7 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
           <kbd className="rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground">⌘⇧K</kbd>
         </Button>
       </div>
-      <div role="tree" aria-label={t(($) => $.sidebar.sites)} className="flex flex-col gap-px overflow-y-auto px-2">
+      <div role="tree" aria-label={t(($) => $.sidebar.sites)} className="flex min-h-0 flex-col gap-px overflow-y-auto px-2">
         {rows.map((node) => (
           <Row key={`${node.kind}-${node.id}`} node={node} actions={actions} />
         ))}

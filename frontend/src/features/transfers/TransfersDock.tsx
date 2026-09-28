@@ -97,7 +97,7 @@ export function TransfersDock() {
                 {transfers(($) => $.tabs.activity)}
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="active" className="max-h-60 overflow-y-auto">
+            <TabsContent value="active" className="max-h-[25svh] overflow-y-auto">
               {shown.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
               ) : (
@@ -108,7 +108,7 @@ export function TransfersDock() {
                 </ul>
               )}
             </TabsContent>
-            <TabsContent value="finished" className="max-h-60 overflow-y-auto">
+            <TabsContent value="finished" className="max-h-[25svh] overflow-y-auto">
               {finished.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyFinished)}</p>
               ) : (
@@ -119,7 +119,7 @@ export function TransfersDock() {
                 </ul>
               )}
             </TabsContent>
-            <TabsContent value="activity" className="max-h-60 overflow-y-auto">
+            <TabsContent value="activity" className="max-h-[25svh] overflow-y-auto">
               {workspace !== undefined ? (
                 <ActivityList workspaceId={workspace.id} locale={i18n.language} timeZone={timeZone} />
               ) : null}

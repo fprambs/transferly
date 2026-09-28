@@ -4,10 +4,10 @@ import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
 
-/** Opens the quick connection that the global setup made to the SFTP server of the test stack, at its root. */
-async function openQuickConnection(page: Page, quickId: string): Promise<void> {
-  await page.goto(`/sites/${quickId}?path=%2F`)
-  await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
+/** Opens a folder of the quick connection that the global setup made to the SFTP server of the test stack; the fresh folders of the tests are empty. */
+async function openFolder(page: Page, quickId: string, folder: string): Promise<void> {
+  await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
+  await expect(page.getByText('This folder is empty.')).toBeVisible()
 }
 
 /**
@@ -18,13 +18,11 @@ async function openQuickConnection(page: Page, quickId: string): Promise<void> {
  * - a file changed on the server since it was opened offers to reload the other version or overwrite it anyway
  */
 test.describe('remote editor', () => {
-  test('edits and saves a file on the server', async ({ shell, quickId }) => {
+  test('edits and saves a file on the server', async ({ shell, quickId, folder }) => {
     const { page } = shell
     const name = `e2e-edit-${Date.now()}-${Math.floor(Math.random() * 1e6)}.txt`
-    await openQuickConnection(page, quickId)
+    await openFolder(page, quickId, folder)
     const grid = page.getByRole('grid', { name: 'Files' })
-    await grid.getByRole('row', { name: /upload/ }).dblclick()
-    await expect(page).toHaveURL(/path=%2Fupload$/)
 
     await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('first line\n') })
     const row = grid.getByRole('row', { name: new RegExp(name) })
@@ -54,13 +52,11 @@ test.describe('remote editor', () => {
     await expect(row).toBeHidden()
   })
 
-  test('offers to reload or overwrite a file that changed on the server while it was open', async ({ shell, quickId }) => {
+  test('offers to reload or overwrite a file that changed on the server while it was open', async ({ shell, quickId, folder }) => {
     const { page } = shell
     const name = `e2e-conflict-${Date.now()}-${Math.floor(Math.random() * 1e6)}.txt`
-    await openQuickConnection(page, quickId)
+    await openFolder(page, quickId, folder)
     const grid = page.getByRole('grid', { name: 'Files' })
-    await grid.getByRole('row', { name: /upload/ }).dblclick()
-    await expect(page).toHaveURL(/path=%2Fupload$/)
 
     await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('mine\n') })
     const row = grid.getByRole('row', { name: new RegExp(name) })
