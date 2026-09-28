@@ -8,13 +8,14 @@ import { collectFiles, startDownload, TooManyFiles } from './download'
  * Covers {@link startDownload}.
  *
  * Scenarios:
- * - a temporary link to the URL is clicked and removed again
+ * - a temporary link to the URL, marked as a download so an error never replaces the app, is clicked and removed again
  */
 describe('startDownload', () => {
   it('clicks a temporary link and removes it', () => {
     const clicks: string[] = []
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       clicks.push(this.href)
+      expect(this.hasAttribute('download')).toBe(true)
       expect(document.body.contains(this)).toBe(true)
     })
 

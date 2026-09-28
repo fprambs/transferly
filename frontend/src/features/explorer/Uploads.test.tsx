@@ -1,6 +1,6 @@
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,7 +10,9 @@ import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/ha
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 import { clearUploadSources, recallUpload } from '../transfers/upload-sources'
+import { useTransfersStore } from '../transfers/transfers-store'
 
+import { preparingTimeoutMs } from './download'
 import { Explorer } from './Explorer'
 
 /** Workspace the mock server answers for. */
@@ -95,12 +97,14 @@ async function renderExplorer() {
  * - failures are listed by file and can be dismissed, and the other files still upload
  * - dropping files uploads them, and dragging over the folder shows a hint that goes away
  * - files download from the inspector and the context menu (folders are covered by the folder download tests)
+ * - a download says it is being prepared until the server reports it as a transfer, or for a minute at most
  */
 describe('uploads and downloads', () => {
   beforeEach(() => {
     mockSession(adminSession)
     mockWorkspaceData({ sites: [prod] })
     clearUploadSources()
+    useTransfersStore.getState().reset()
   })
 
   it('uploads the chosen files in order', async () => {
@@ -242,5 +246,56 @@ describe('uploads and downloads', () => {
       expect(url.searchParams.get('transferId')).toMatch(/^[0-9a-f-]{36}$/)
     }
     expect(links[0]).not.toBe(links[1])
+  })
+
+  it('says a download is being prepared until the server reports it as a transfer', async () => {
+    mockServer()
+    const links: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      links.push(this.href)
+    })
+    const { user, grid } = await renderExplorer()
+
+    fireEvent.contextMenu(within(grid).getByText('assets'))
+    await user.click(await screen.findByRole('menuitem', { name: 'Download as ZIP' }))
+    expect(await screen.findByText('Preparing the download of assets…')).toBeInTheDocument()
+
+    const id = new URL(links[0]).searchParams.get('transferId') as string
+    act(() =>
+      useTransfersStore.getState().upsert([
+        {
+          id,
+          workspaceId,
+          siteName: 'Prod',
+          direction: 'download',
+          path: '/www/assets',
+          name: 'assets.zip',
+          status: 'running',
+          bytesDone: 0,
+          attempts: 1,
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ]),
+    )
+    expect(screen.queryByText('Preparing the download of assets…')).not.toBeInTheDocument()
+  })
+
+  it('stops saying a download is being prepared when the server never reports it', async () => {
+    mockServer()
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    const { grid } = await renderExplorer()
+
+    fireEvent.contextMenu(within(grid).getByText('assets'))
+    const item = await screen.findByRole('menuitem', { name: 'Download as ZIP' })
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      fireEvent.click(item)
+      expect(screen.getByText('Preparing the download of assets…')).toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(preparingTimeoutMs))
+      expect(screen.queryByText('Preparing the download of assets…')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

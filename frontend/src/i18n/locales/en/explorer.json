@@ -112,6 +112,8 @@
     "title": "Connecting to {{name}}…",
     "hint": "Opening the connection and reading the first folder"
   },
+  "preparing_one": "Preparing the download of {{name}}…",
+  "preparing_other": "Preparing {{count}} downloads…",
   "opening": "Opening {{path}}…",
   "split": {
     "open": "Split view",

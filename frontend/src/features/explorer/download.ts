@@ -6,17 +6,23 @@ export const maxEachFiles = 500
 /** Milliseconds between the downloads of a folder fetched file by file, so the browser is not flooded. */
 export const eachDelayMs = 300
 
+/** Milliseconds a download is shown as being prepared at most, in case the server never reports it as a transfer. */
+export const preparingTimeoutMs = 60_000
+
 /** A folder holds more files than may be downloaded one by one. */
 export class TooManyFiles extends Error {}
 
 /**
  * Starts a browser download of a URL by clicking a temporary link.
  *
- * The server answers with `Content-Disposition: attachment`, so the page stays where it is.
+ * The link is marked as a download, so the page stays where it is even when the server answers with an error instead of
+ * the file: the browser reports a failed download rather than leaving the app to show the error. The name still comes from
+ * the server's `Content-Disposition`.
  */
 export function startDownload(url: string): void {
   const link = document.createElement('a')
   link.href = url
+  link.download = ''
   link.rel = 'noopener'
   document.body.append(link)
   link.click()
