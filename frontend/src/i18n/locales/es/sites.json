@@ -132,7 +132,7 @@
       "anonymous": "Anónimo",
       "ask": "Preguntar la contraseña"
     },
-    "anonymousHint": "Entra como anonymous sin guardar contraseña, como esperan los servidores públicos.",
+    "anonymousHint": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
     "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
     "keepKey": "Dejar en blanco para mantener la clave existente.",
     "keepPassphrase": "Dejar en blanco para mantener la frase existente.",

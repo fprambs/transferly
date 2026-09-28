@@ -168,7 +168,7 @@ describe('site management', () => {
       'SFTP - SSH File Transfer Protocol',
       'FTP - File Transfer Protocol',
     ])
-    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Key file'])
+    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Key file', 'Anonymous'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
     await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
@@ -205,7 +205,7 @@ describe('site management', () => {
     expect(bodies[0]).toMatchObject({ protocol: 'ftp', ftpEncryption: 'implicit', port: 990, authMethod: 'password', password: 'pw', charset: 'windows-1252' })
   })
 
-  it('saves an anonymous FTP site with the anonymous user and no password', async () => {
+  it('saves an anonymous SFTP site with the anonymous user and no secret', async () => {
     let body: Record<string, unknown> = {}
     server.use(
       http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
@@ -218,8 +218,7 @@ describe('site management', () => {
     const dialog = await screen.findByRole('dialog')
 
     await user.type(within(dialog).getByLabelText('Name'), 'Public')
-    await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
-    await user.type(within(dialog).getByLabelText('Host'), 'ftp.example.com')
+    await user.type(within(dialog).getByLabelText('Host'), 'sftp.example.com')
     await user.selectOptions(within(dialog).getByLabelText('Logon type'), 'anonymous')
     expect(within(dialog).getByLabelText('Username')).toHaveValue('anonymous')
     expect(within(dialog).getByLabelText('Username')).toBeDisabled()
@@ -228,7 +227,9 @@ describe('site management', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
     await waitFor(() => expect(body.username).toBe('anonymous'))
-    expect(body).toMatchObject({ protocol: 'ftp', authMethod: 'password', password: '' })
+    expect(body).toMatchObject({ protocol: 'sftp', authMethod: 'anonymous' })
+    expect(body).not.toHaveProperty('password')
+    expect(body).not.toHaveProperty('privateKey')
   })
 
   it('says a stored key and its passphrase are kept when left blank', async () => {

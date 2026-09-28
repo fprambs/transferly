@@ -132,7 +132,7 @@
       "anonymous": "Anonymous",
       "ask": "Ask for password"
     },
-    "anonymousHint": "Signs in as anonymous with no password saved, as public servers expect.",
+    "anonymousHint": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
     "keepPassword": "Leave blank to keep the existing password.",
     "keepKey": "Leave blank to keep the existing key.",
     "keepPassphrase": "Leave blank to keep the existing passphrase.",

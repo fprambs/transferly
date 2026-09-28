@@ -1457,7 +1457,7 @@ export interface components {
             port: number;
             username: string;
             /** @enum {string} */
-            authMethod: "password" | "key" | "ask";
+            authMethod: "password" | "key" | "ask" | "anonymous";
             /** @description IANA zone in which the server prints listing times. */
             listTimezone: string;
             charset: components["schemas"]["Charset"];
@@ -1495,10 +1495,10 @@ export interface components {
             port?: number;
             username: string;
             /**
-             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010).
+             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP).
              * @enum {string}
              */
-            authMethod?: "password" | "key" | "ask";
+            authMethod?: "password" | "key" | "ask" | "anonymous";
             /** @description IANA zone of the server's listing times; defaults to UTC. */
             listTimezone?: string;
             charset?: components["schemas"]["Charset"];

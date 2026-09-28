@@ -47,12 +47,12 @@ export const charsetOptions: ReadonlyArray<{ value: Charset; label: string }> = 
 ]
 
 /** How the site signs in, as FileZilla names it: with a stored password, with a password asked for when connecting (ADR-0010), with a
- * private key (SFTP only), or anonymously (FTP and FTPS only). */
+ * private key (SFTP only), or anonymously with no secret (the SSH "none" method first for SFTP). */
 export type AccessMode = 'normal' | 'ask' | 'key' | 'anonymous'
 
 /** The access modes a protocol offers, in the order they are listed. */
 export function accessModesOf(protocol: SiteValues['protocol']): readonly AccessMode[] {
-  return protocol === 'sftp' ? ['normal', 'ask', 'key'] : ['normal', 'ask', 'anonymous']
+  return protocol === 'sftp' ? ['normal', 'ask', 'key', 'anonymous'] : ['normal', 'ask', 'anonymous']
 }
 
 /** The access mode a site really uses: one its protocol does not offer falls back to a password. */
@@ -60,7 +60,7 @@ export function effectiveMode(values: Pick<SiteValues, 'protocol' | 'accessMode'
   return accessModesOf(values.protocol).includes(values.accessMode) ? values.accessMode : 'normal'
 }
 
-/** The user name anonymous FTP servers expect. */
+/** The user name of every anonymous site. */
 export const anonymousUser = 'anonymous'
 
 /** Whether a port, given as text, is a valid one; an empty text is valid too and means the default. */
@@ -123,12 +123,9 @@ export const siteSchema = z
 /** Values of the site form. */
 export type SiteValues = z.infer<typeof siteSchema>
 
-/** The access mode of a saved site: its key, asking for the password, or anonymous when it is an FTP site of the anonymous user with no password saved. */
+/** The access mode of a saved site, from its logon type: a password is the normal mode. */
 function accessModeOf(site: Site | undefined): AccessMode {
-  if (site?.authMethod === 'key' || site?.authMethod === 'ask') {
-    return site.authMethod
-  }
-  return site !== undefined && site.protocol !== 'sftp' && site.username === anonymousUser && !site.secrets.includes('password') ? 'anonymous' : 'normal'
+  return site === undefined || site.authMethod === 'password' ? 'normal' : site.authMethod
 }
 
 /** Initial values of the form for a new site, or for an existing one; secrets are never prefilled. */
@@ -174,8 +171,8 @@ export const defaultProxyPort = 1080
 /** Default port of a jump host that did not say its own: the SSH port, since only SFTP sites may have one. */
 export const defaultJumpPort = 22
 
-/** Builds the request body of a site: an empty port means the default and blank secrets are left out; an anonymous site, or one that asks
- * for its password, clears the stored one. */
+/** Builds the request body of a site: an empty port means the default and blank secrets are left out; a site that asks for its
+ * password clears the stored one, and the server drops every secret of an anonymous one. */
 export function toSiteInput(values: SiteValues): SiteInput {
   const mode = effectiveMode(values)
   const usesKey = mode === 'key'
@@ -188,11 +185,11 @@ export function toSiteInput(values: SiteValues): SiteInput {
     host: values.host.trim(),
     port: values.port.trim() === '' ? defaultPortOf(values.protocol, values.ftpEncryption) : Number(values.port),
     username: mode === 'anonymous' ? anonymousUser : values.username.trim(),
-    authMethod: usesKey ? 'key' : mode === 'ask' ? 'ask' : 'password',
+    authMethod: mode === 'normal' ? 'password' : mode,
     listTimezone: values.listTimezone === '' ? 'UTC' : values.listTimezone,
     charset: values.protocol === 'sftp' ? 'utf-8' : (values.charset as Charset),
     speedLimitBps: values.speedLimit.trim() === '' ? 0 : Math.round(Number(values.speedLimit) * mebibyte),
-    password: mode === 'anonymous' || mode === 'ask' ? '' : usesKey ? undefined : secret(values.password),
+    password: mode === 'normal' ? secret(values.password) : mode === 'ask' ? '' : undefined,
     privateKey: usesKey ? secret(values.privateKey) : undefined,
     passphrase: usesKey ? secret(values.passphrase) : undefined,
     ...proxyInput(values),
