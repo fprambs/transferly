@@ -139,3 +139,50 @@ func TestFS_StateWithoutRoot(t *testing.T) {
 		t.Errorf("state() = %d; want missing", got)
 	}
 }
+
+// TestHandshakeError covers [handshakeError] with the ways a real OpenSSH server refuses credentials, which the test
+// server does not reproduce.
+//
+// Use cases:
+//   - the library's own "unable to authenticate", a failure where a keyboard-interactive question was expected, too many
+//     failed attempts, and an error that already is ErrAuth are all refused credentials
+//   - a rejected host key is reported as such, and anything else is a lost connection worth retrying
+func TestHandshakeError(t *testing.T) {
+	refused := []error{
+		errors.New("ssh: handshake failed: ssh: unable to authenticate, attempted methods [none password], no supported methods remain"),
+		errors.New("ssh: handshake failed: ssh: unexpected message type 51 (expected 60)"),
+		errors.New("ssh: disconnect, reason 2: Too many authentication failures"),
+		fmt.Errorf("ssh: handshake failed: %w", remotefs.ErrAuth),
+	}
+	for _, err := range refused {
+		if got := handshakeError("h:22", nil, err); !errors.Is(got, remotefs.ErrAuth) {
+			t.Errorf("handshakeError(%q) = %v; want ErrAuth", err, got)
+		}
+	}
+	if got := handshakeError("h:22", remotefs.ErrHostKeyUnknown, errors.New("x")); !errors.Is(got, remotefs.ErrHostKeyUnknown) {
+		t.Errorf("rejected host key = %v; want ErrHostKeyUnknown", got)
+	}
+	if got := handshakeError("h:22", nil, io.EOF); !errors.Is(got, remotefs.ErrConnectionLost) {
+		t.Errorf("EOF = %v; want ErrConnectionLost", got)
+	}
+}
+
+// TestPasswordAnswers covers [passwordAnswers].
+//
+// Use cases:
+//   - a challenge without questions is acknowledged without answers
+//   - the first challenge with questions gets the password for each one
+//   - a second one fails as refused credentials instead of repeating the password
+func TestPasswordAnswers(t *testing.T) {
+	answer := passwordAnswers("pw")
+	if answers, err := answer("", "banner", nil, nil); err != nil || answers != nil {
+		t.Errorf("banner = %v, %v; want no answers", answers, err)
+	}
+	answers, err := answer("", "", []string{"Password:", "Again:"}, []bool{false, false})
+	if err != nil || len(answers) != 2 || answers[0] != "pw" || answers[1] != "pw" {
+		t.Fatalf("first challenge = %v, %v", answers, err)
+	}
+	if _, err := answer("", "", []string{"Password:"}, []bool{false}); !errors.Is(err, remotefs.ErrAuth) {
+		t.Errorf("second challenge = %v; want ErrAuth", err)
+	}
+}

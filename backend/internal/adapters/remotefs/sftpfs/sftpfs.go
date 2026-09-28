@@ -93,18 +93,34 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 		methods = append(methods, ssh.PublicKeys(signer))
 	}
 	if cfg.Password != "" {
-		methods = append(methods, ssh.Password(cfg.Password), ssh.KeyboardInteractive(func(_, _ string, questions []string, _ []bool) ([]string, error) {
-			answers := make([]string, len(questions))
-			for i := range answers {
-				answers[i] = cfg.Password
-			}
-			return answers, nil
-		}))
+		methods = append(methods, ssh.Password(cfg.Password), ssh.KeyboardInteractive(passwordAnswers(cfg.Password)))
 	}
 	if len(methods) == 0 {
 		return nil, fmt.Errorf("%w: no password or private key given", remotefs.ErrAuth)
 	}
 	return methods, nil
+}
+
+// passwordAnswers answers the first keyboard-interactive challenge that asks something with the password, every question
+// alike. A second one means the server did not take it: answering again would only repeat the same password until the
+// server gives up and disconnects, which reads as a lost connection, so the challenge fails as refused credentials
+// instead. Challenges without questions, such as a banner, are acknowledged.
+func passwordAnswers(password string) ssh.KeyboardInteractiveChallenge {
+	asked := false
+	return func(_, _ string, questions []string, _ []bool) ([]string, error) {
+		if len(questions) == 0 {
+			return nil, nil
+		}
+		if asked {
+			return nil, fmt.Errorf("%w: the server asked again after the password", remotefs.ErrAuth)
+		}
+		asked = true
+		answers := make([]string, len(questions))
+		for i := range answers {
+			answers[i] = password
+		}
+		return answers, nil
+	}
 }
 
 // keyExchanges are the key exchange algorithms offered to servers, best first. They all use SHA-2 or elliptic curves: the
@@ -201,12 +217,24 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 	return ssh.NewClient(sshConn, channels, requests), nil
 }
 
+// refusedCredentials tells whether a failed handshake means the server did not accept the credentials. Besides the
+// library's own message once every method failed, OpenSSH has two other ways of saying it: answering a keyboard-interactive
+// attempt with a plain failure (message 51) where the library expects a question (message 60), and disconnecting after too
+// many failed attempts.
+func refusedCredentials(err error) bool {
+	message := err.Error()
+	return errors.Is(err, remotefs.ErrAuth) ||
+		strings.Contains(message, "unable to authenticate") ||
+		strings.Contains(message, "unexpected message type 51") ||
+		strings.Contains(message, "Too many authentication failures")
+}
+
 // handshakeError explains why the SSH handshake failed.
 func handshakeError(address string, rejected, err error) error {
 	switch {
 	case rejected != nil:
 		return fmt.Errorf("verifying the host key of %s: %w", address, rejected)
-	case strings.Contains(err.Error(), "unable to authenticate"):
+	case refusedCredentials(err):
 		return fmt.Errorf("%w: %s refused the credentials", remotefs.ErrAuth, address)
 	}
 	return fmt.Errorf("handshake with %s: %w: %w", address, remotefs.ErrConnectionLost, err)
