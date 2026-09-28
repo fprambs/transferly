@@ -97,7 +97,7 @@ async function renderExplorer() {
  * - failures are listed by file and can be dismissed, and the other files still upload
  * - dropping files uploads them, and dragging over the folder shows a hint that goes away
  * - files download from the inspector and the context menu (folders are covered by the folder download tests)
- * - a download says it is being prepared until the server reports it as a transfer, or for a minute at most
+ * - a download shows a card that says it is being prepared, then that it started once the server reports it, and goes away; without a report it goes away after a while
  */
 describe('uploads and downloads', () => {
   beforeEach(() => {
@@ -248,7 +248,7 @@ describe('uploads and downloads', () => {
     expect(links[0]).not.toBe(links[1])
   })
 
-  it('says a download is being prepared until the server reports it as a transfer', async () => {
+  it('shows a download as being prepared, then as started once the server reports it, and takes it away', async () => {
     mockServer()
     const links: string[] = []
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
@@ -258,7 +258,9 @@ describe('uploads and downloads', () => {
 
     fireEvent.contextMenu(within(grid).getByText('assets'))
     await user.click(await screen.findByRole('menuitem', { name: 'Download as ZIP' }))
-    expect(await screen.findByText('Preparing the download of assets…')).toBeInTheDocument()
+    const notices = await screen.findByRole('list', { name: 'Downloads being prepared' })
+    expect(within(notices).getByRole('status')).toHaveTextContent('Preparing the download')
+    expect(within(notices).getByRole('status')).toHaveTextContent('assets')
 
     const id = new URL(links[0]).searchParams.get('transferId') as string
     act(() =>
@@ -278,7 +280,8 @@ describe('uploads and downloads', () => {
         },
       ]),
     )
-    expect(screen.queryByText('Preparing the download of assets…')).not.toBeInTheDocument()
+    expect(within(notices).getByRole('status')).toHaveTextContent('Download started')
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Downloads being prepared' })).not.toBeInTheDocument())
   })
 
   it('stops saying a download is being prepared when the server never reports it', async () => {
@@ -291,9 +294,9 @@ describe('uploads and downloads', () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
     try {
       fireEvent.click(item)
-      expect(screen.getByText('Preparing the download of assets…')).toBeInTheDocument()
+      expect(screen.getByRole('list', { name: 'Downloads being prepared' })).toHaveTextContent('Preparing the download')
       act(() => vi.advanceTimersByTime(preparingTimeoutMs))
-      expect(screen.queryByText('Preparing the download of assets…')).not.toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: 'Downloads being prepared' })).not.toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }

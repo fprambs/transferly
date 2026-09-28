@@ -48,5 +48,12 @@
     "settings": "Ajustes",
     "servers": "Servidores de confianza",
     "administration": "Administración"
+  },
+  "explorer": {
+    "title": "Explorador de archivos",
+    "doubleClick": "Doble clic en un archivo",
+    "download": "Descargarlo",
+    "edit": "Abrirlo en el editor",
+    "doubleClickHint": "Enter hace lo mismo. La otra acción sigue en el menú del clic derecho y en el panel de detalles."
   }
 }

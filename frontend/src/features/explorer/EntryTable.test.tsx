@@ -19,6 +19,7 @@ function file(): RemoteEntry {
  * Scenarios:
  * - a file with no context menu action wired shows no context menu at all
  * - a file with only `onEdit` wired shows a context menu with just that action
+ * - a file opened with a double click or Enter goes to `onOpenFile` when it is wired
  */
 describe('EntryTable', () => {
   it('shows no context menu for a file with no action wired', async () => {
@@ -38,5 +39,19 @@ describe('EntryTable', () => {
     fireEvent.contextMenu(screen.getByText('notes.txt'))
     await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
     expect(onEdit).toHaveBeenCalledWith(file())
+  })
+
+  it('hands a file opened with a double click or Enter to onOpenFile instead of onOpen', async () => {
+    const onOpen = vi.fn()
+    const onOpenFile = vi.fn()
+    const user = userEvent.setup()
+    await renderWithI18n(
+      <EntryTable entries={[file()]} locale="en" timeZone="UTC" onOpen={onOpen} onOpenFile={onOpenFile} onUp={vi.fn()} showPermissions selectedPath={null} onSelect={vi.fn()} onDragEntry={vi.fn()} />,
+    )
+    await user.dblClick(screen.getByText('notes.txt'))
+    screen.getByRole('grid').focus()
+    await user.keyboard('{Enter}')
+    expect(onOpenFile).toHaveBeenCalledTimes(2)
+    expect(onOpen).not.toHaveBeenCalled()
   })
 })

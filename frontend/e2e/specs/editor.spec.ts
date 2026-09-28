@@ -14,7 +14,7 @@ async function openFolder(page: Page, quickId: string, folder: string): Promise<
  * The remote editor against a real SFTP server.
  *
  * Scenarios:
- * - a file opens with its content, is edited and saved, and the server keeps the new content
+ * - a double click downloads a file; Edit in the details panel opens it with its content, it is edited and saved, and the server keeps the new content
  * - a file changed on the server since it was opened offers to reload the other version or overwrite it anyway
  */
 test.describe('remote editor', () => {
@@ -28,7 +28,13 @@ test.describe('remote editor', () => {
     const row = grid.getByRole('row', { name: new RegExp(name) })
     await expect(row).toBeVisible()
 
+    const doubleClicked = page.waitForEvent('download')
     await row.dblclick()
+    expect(await readFile(await (await doubleClicked).path(), 'utf8')).toBe('first line\n')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+
+    await row.click()
+    await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: new RegExp(name) })
     await expect(dialog.getByRole('textbox')).toContainText('first line')
 
@@ -62,7 +68,8 @@ test.describe('remote editor', () => {
     const row = grid.getByRole('row', { name: new RegExp(name) })
     await expect(row).toBeVisible()
 
-    await row.dblclick()
+    await row.click()
+    await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: new RegExp(name) })
     await expect(dialog.getByRole('textbox')).toContainText('mine')
 
@@ -72,6 +79,7 @@ test.describe('remote editor', () => {
     await other.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('someone else wrote this\n') })
     await other.getByRole('dialog').getByRole('button', { name: 'Overwrite' }).click()
     await expect(other.getByRole('dialog')).toBeHidden()
+    await expect(other.getByRole('row', { name: new RegExp(name) })).toContainText('24 B')
     await other.close()
 
     await dialog.getByRole('button', { name: 'Save' }).click()

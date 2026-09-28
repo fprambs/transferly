@@ -17,6 +17,7 @@ import { useUiStore } from '@/state/ui-store'
  * - following the system turns the theme choices off
  * - the account's theme wins when the session loads, unless it is not a theme this version knows
  * - the language changes from the page
+ * - what a double click on a file does is chosen on the page
  * - the user menu opens the settings
  */
 describe('settings', () => {
@@ -103,6 +104,18 @@ describe('settings', () => {
     await user.selectOptions(await screen.findByLabelText('Interface language'), 'es')
 
     expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+  })
+
+  it('chooses what a double click on a file does', async () => {
+    const user = userEvent.setup()
+    await renderApp({ path: '/settings' })
+
+    const select = await screen.findByLabelText('Double click on a file')
+    expect(select).toHaveValue('download')
+    await user.selectOptions(select, 'edit')
+    expect(useUiStore.getState().fileDoubleClick).toBe('edit')
+    await user.selectOptions(select, 'download')
+    expect(useUiStore.getState().fileDoubleClick).toBe('download')
   })
 
   it('opens from the user menu', async () => {

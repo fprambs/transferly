@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware'
 
 import { defaultThemeId, findTheme } from '@/lib/theme'
 
+/** What a double click, or Enter, does on a file of the explorer: download it, as FileZilla does, or open it in the remote editor. */
+export type FileDoubleClick = 'download' | 'edit'
+
 /** The tabs of the transfer queue panel. */
 export type QueueTab = 'active' | 'finished' | 'activity'
 
@@ -18,6 +21,8 @@ export interface UiState {
   queueTab: QueueTab
   /** Identifier of the workspace the user chose, or `null` to use the personal one. */
   workspaceId: string | null
+  /** What a double click, or Enter, does on a file. */
+  fileDoubleClick: FileDoubleClick
   /** Chooses a theme. */
   setTheme: (themeId: string) => void
   /** Turns following the operating system on or off. */
@@ -32,10 +37,12 @@ export interface UiState {
   setWorkspace: (workspaceId: string) => void
   /** Goes back to the personal workspace. */
   clearWorkspace: () => void
+  /** Chooses what a double click, or Enter, does on a file. */
+  setFileDoubleClick: (action: FileDoubleClick) => void
 }
 
 /** The subset of {@link UiState} that is persisted. */
-type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId'>
+type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick'>
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
@@ -64,6 +71,9 @@ function sanitize(raw: unknown): Partial<PersistedUi> {
   if (typeof value.workspaceId === 'string') {
     clean.workspaceId = value.workspaceId
   }
+  if (value.fileDoubleClick === 'download' || value.fileDoubleClick === 'edit') {
+    clean.fileDoubleClick = value.fileDoubleClick
+  }
   return clean
 }
 
@@ -76,6 +86,7 @@ export const useUiStore = create<UiState>()(
       queueOpen: true,
       queueTab: 'active',
       workspaceId: null,
+      fileDoubleClick: 'download',
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen })),
@@ -83,14 +94,16 @@ export const useUiStore = create<UiState>()(
       showActiveTransfers: () => set((state) => ({ queueOpen: true, queueTab: state.queueOpen ? state.queueTab : 'active' })),
       setWorkspace: (workspaceId) => set({ workspaceId }),
       clearWorkspace: () => set({ workspaceId: null }),
+      setFileDoubleClick: (fileDoubleClick) => set({ fileDoubleClick }),
     }),
     {
       name: 'sentinel-ui',
-      partialize: ({ themeId, followSystem, queueOpen, workspaceId }): PersistedUi => ({
+      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick }): PersistedUi => ({
         themeId,
         followSystem,
         queueOpen,
         workspaceId,
+        fileDoubleClick,
       }),
       merge: (persisted, current) => ({ ...current, ...sanitize(persisted) }),
     },

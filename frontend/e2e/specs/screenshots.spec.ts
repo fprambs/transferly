@@ -43,7 +43,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the remote editor
  * - the site dialog on its General and Advanced tabs
  * - a folder with many files, with the transfers panel still in view
- * - a tab that is still loading, one that failed to load and offers to retry, and a ZIP download showing up in the transfers panel at once
+ * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
 test.describe('screenshots', () => {
   test.skip(process.env.SENTINEL_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
@@ -434,7 +434,8 @@ test.describe('screenshots', () => {
     await page.getByLabel('Choose files to upload').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from('server {\n  listen 443;\n}\n') })
     const row = grid.getByRole('row', { name: new RegExp(name) })
     await expect(row).toBeVisible()
-    await row.dblclick()
+    await row.click()
+    await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: new RegExp(name) })
     await expect(dialog.getByRole('textbox')).toContainText('listen 443')
     await shoot(page, '38-remote-editor')
@@ -505,7 +506,13 @@ test.describe('screenshots', () => {
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.getByRole('row', { name: /upload/ }).click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Download as ZIP' }).click()
+    await expect(page.getByRole('list', { name: 'Downloads being prepared' })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Transfers' }).getByRole('listitem').filter({ hasText: 'upload.zip' })).toBeVisible()
     await shoot(page, '44-zip-download-feedback')
+
+    await page.getByRole('button', { name: 'Account' }).click()
+    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByLabel('Double click on a file').scrollIntoViewIfNeeded()
+    await shoot(page, '45-settings-double-click')
   })
 })

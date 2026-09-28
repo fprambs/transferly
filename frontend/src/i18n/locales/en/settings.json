@@ -48,5 +48,12 @@
     "settings": "Settings",
     "servers": "Trusted servers",
     "administration": "Administration"
+  },
+  "explorer": {
+    "title": "File explorer",
+    "doubleClick": "Double click on a file",
+    "download": "Download it",
+    "edit": "Open it in the editor",
+    "doubleClickHint": "Enter does the same. The other action stays in the right-click menu and in the details panel."
   }
 }

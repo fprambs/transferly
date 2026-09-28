@@ -51,6 +51,7 @@
   },
   "toolbar": {
     "newFolder": "Nueva carpeta",
+    "edit": "Editar",
     "rename": "Renombrar",
     "delete": "Eliminar",
     "upload": "Subir",
@@ -112,8 +113,11 @@
     "title": "Conectando con {{name}}…",
     "hint": "Abriendo la conexión y leyendo la primera carpeta"
   },
-  "preparing_one": "Preparando la descarga de {{name}}…",
-  "preparing_other": "Preparando {{count}} descargas…",
+  "downloads": {
+    "label": "Descargas en preparación",
+    "preparing": "Preparando la descarga",
+    "started": "Descarga iniciada"
+  },
   "opening": "Abriendo {{path}}…",
   "split": {
     "open": "Vista dividida",

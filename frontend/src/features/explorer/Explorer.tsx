@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, FolderPlus, FolderUp, RefreshCw, Search, ShieldQuestion, Upload } from 'lucide-react'
-import { useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -29,8 +29,9 @@ import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { EntryNameDialog } from './EntryNameDialog'
 import { ConnectingState } from './ExplorerLoading'
+import { DownloadNotices, type RequestedDownload } from './DownloadNotices'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
-import { useTransfersStore } from '../transfers/transfers-store'
+import { useUiStore } from '@/state/ui-store'
 
 import { SearchDialog } from '../search/SearchDialog'
 import { RemoteEditor } from '../editor/RemoteEditor'
@@ -73,9 +74,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const [asking, setAsking] = useState<{ source: DraggedEntry; name: string } | null>(null)
   const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
   const [searching, setSearching] = useState(false)
-  const [preparing, setPreparing] = useState<{ id: string; name: string }[]>([])
-  const knownTransfers = useTransfersStore((state) => state.items)
-  const waiting = preparing.filter((download) => knownTransfers[download.id] === undefined)
+  const [preparing, setPreparing] = useState<RequestedDownload[]>([])
+  const dismissDownload = useCallback((id: string) => setPreparing((list) => list.filter((item) => item.id !== id)), [])
+  const fileDoubleClick = useUiStore((state) => state.fileDoubleClick)
   const picker = useRef<HTMLInputElement>(null)
   const folderPicker = useRef<HTMLInputElement>(null)
   const listing = useQuery({
@@ -122,9 +123,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const download = (entry: RemoteEntry): void => {
     const id = uuid()
     setPreparing((list) => [...list, { id, name: entry.name }])
-    setTimeout(() => setPreparing((list) => list.filter((item) => item.id !== id)), preparingTimeoutMs)
+    setTimeout(() => dismissDownload(id), preparingTimeoutMs)
     startDownload(entry.type === 'directory' ? api.files.archiveUrl(workspaceId, siteId, entry.path, id) : api.files.downloadUrl(workspaceId, siteId, entry.path, id))
   }
+
+  const edit = (entry: RemoteEntry): void => setDialog({ kind: 'edit', entry })
 
   const downloadEach = async (folder: RemoteEntry): Promise<void> => {
     try {
@@ -298,9 +301,6 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         ) : null}
         {actions}
       </div>
-      {waiting.length > 0 && (
-        <Loading label={t(($) => $.preparing, { name: waiting[0].name, count: waiting.length })} className="mx-3 mt-3 rounded-lg border bg-card p-3 text-foreground" />
-      )}
       {each === null ? null : typeof each === 'object' ? (
         <Loading label={t(($) => $.archive.working, { count: each.count })} className="mx-3 mt-3 rounded-lg border bg-card p-3 text-foreground" />
       ) : (
@@ -399,6 +399,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             locale={i18n.language}
             timeZone={timeZone}
             onOpen={open}
+            onOpenFile={(entry) => (fileDoubleClick === 'edit' ? edit(entry) : download(entry))}
             onUp={() => onNavigate(parentPath(path))}
             showPermissions={showPermissions}
             selectedPath={selectedPath}
@@ -406,7 +407,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             onHover={prefetch}
             onDownload={download}
             onDownloadEach={(entry) => void downloadEach(entry)}
-            onEdit={(entry) => setDialog({ kind: 'edit', entry })}
+            onEdit={edit}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
             onNewFolder={() => setDialog({ kind: 'newFolder' })}
@@ -421,6 +422,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
             onDownload={download}
             onDownloadEach={(entry) => void downloadEach(entry)}
             onChecksum={(entry, algorithm) => api.files.checksum(workspaceId, siteId, entry.path, algorithm)}
+            onEdit={edit}
             onRename={(entry) => setDialog({ kind: 'rename', entry })}
             onDelete={(entry) => setDialog({ kind: 'delete', entry })}
           />
@@ -484,6 +486,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
           onClose={() => setSearching(false)}
         />
       )}
+      <DownloadNotices downloads={preparing} onDone={dismissDownload} />
     </section>
   )
 }

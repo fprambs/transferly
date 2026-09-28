@@ -10,12 +10,14 @@ import { SecuritySection } from '../security/SecuritySection'
 import { ThemeList } from './ThemeList'
 import { useThemeChoice } from './use-theme-choice'
 
-/** Settings of the interface: the theme, following the system, and the language. */
+/** Settings of the interface: the theme, following the system, the language, and what a double click on a file does. */
 export function SettingsPage() {
   const { t, i18n } = useTranslation('settings')
   const { t: common } = useTranslation()
   const followSystem = useUiStore((state) => state.followSystem)
   const setFollowSystem = useUiStore((state) => state.setFollowSystem)
+  const fileDoubleClick = useUiStore((state) => state.fileDoubleClick)
+  const setFileDoubleClick = useUiStore((state) => state.setFileDoubleClick)
   const { choose, saveFailed } = useThemeChoice()
 
   return (
@@ -58,6 +60,19 @@ export function SettingsPage() {
             </option>
           ))}
         </NativeSelect>
+      </section>
+      <section aria-labelledby="explorer-title" className="flex max-w-sm flex-col gap-3">
+        <h3 id="explorer-title" className="text-sm font-semibold">
+          {t(($) => $.explorer.title)}
+        </h3>
+        <label htmlFor="file-double-click-setting" className="text-sm text-muted-foreground">
+          {t(($) => $.explorer.doubleClick)}
+        </label>
+        <NativeSelect id="file-double-click-setting" value={fileDoubleClick} onChange={(event) => setFileDoubleClick(event.target.value === 'edit' ? 'edit' : 'download')}>
+          <option value="download">{t(($) => $.explorer.download)}</option>
+          <option value="edit">{t(($) => $.explorer.edit)}</option>
+        </NativeSelect>
+        <p className="text-xs text-muted-foreground">{t(($) => $.explorer.doubleClickHint)}</p>
       </section>
       <SecuritySection />
     </div>

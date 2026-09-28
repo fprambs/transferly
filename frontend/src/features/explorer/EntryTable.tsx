@@ -26,6 +26,8 @@ export interface EntryTableProps {
   timeZone: string
   /** Called when the user opens an entry: Enter or double click. */
   onOpen: (entry: RemoteEntry) => void
+  /** Called instead of `onOpen` when the entry opened with Enter or a double click is a file: download or edit it, as the user prefers. */
+  onOpenFile?: (entry: RemoteEntry) => void
   /** Called when the user asks to go up one level with Backspace. */
   onUp: () => void
   /** Whether the server reports permissions; FTP does not, and its entries show a dash. */
@@ -40,7 +42,7 @@ export interface EntryTableProps {
   onDownload?: (entry: RemoteEntry) => void
   /** Called to download the files of a folder one by one from the context menu; the item is left out without it. */
   onDownloadEach?: (entry: RemoteEntry) => void
-  /** Called to open a file in the remote editor: double click or the context menu; the item is left out without it. */
+  /** Called to open a file in the remote editor from the context menu; the item is left out without it. */
   onEdit?: (entry: RemoteEntry) => void
   /** Called to rename an entry: F2 or the context menu; both are left out without it. */
   onRename?: (entry: RemoteEntry) => void
@@ -92,7 +94,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, onHover, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -106,14 +108,12 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, s
   const active = entries[current]
   const menuItems = active.type === 'directory' || onDownload || onEdit || onRename || onDelete || onNewFolder
 
+  const openEntry = (entry: RemoteEntry): void => (entry.type === 'file' && onOpenFile ? onOpenFile(entry) : onOpen(entry))
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      if (active.type === 'file' && onEdit) {
-        onEdit(active)
-      } else {
-        onOpen(active)
-      }
+      openEntry(active)
       return
     }
     if (event.key === 'Backspace') {
@@ -174,7 +174,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onUp, onHover, s
               aria-selected={item.index === current}
               onClick={() => onSelect(entry)}
               onContextMenu={() => onSelect(entry)}
-              onDoubleClick={() => (entry.type === 'file' && onEdit ? onEdit(entry) : onOpen(entry))}
+              onDoubleClick={() => openEntry(entry)}
               onMouseEnter={() => onHover?.(entry)}
               draggable={entry.type === 'file' || (dragFolders === true && entry.type === 'directory')}
               onDragStart={(event) => onDragEntry(entry, event.dataTransfer)}

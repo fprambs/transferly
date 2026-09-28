@@ -51,6 +51,7 @@
   },
   "toolbar": {
     "newFolder": "New folder",
+    "edit": "Edit",
     "rename": "Rename",
     "delete": "Delete",
     "upload": "Upload",
@@ -112,8 +113,11 @@
     "title": "Connecting to {{name}}…",
     "hint": "Opening the connection and reading the first folder"
   },
-  "preparing_one": "Preparing the download of {{name}}…",
-  "preparing_other": "Preparing {{count}} downloads…",
+  "downloads": {
+    "label": "Downloads being prepared",
+    "preparing": "Preparing the download",
+    "started": "Download started"
+  },
   "opening": "Opening {{path}}…",
   "split": {
     "open": "Split view",

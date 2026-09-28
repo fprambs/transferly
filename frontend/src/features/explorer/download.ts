@@ -7,7 +7,7 @@ export const maxEachFiles = 500
 export const eachDelayMs = 300
 
 /** Milliseconds a download is shown as being prepared at most, in case the server never reports it as a transfer. */
-export const preparingTimeoutMs = 60_000
+export const preparingTimeoutMs = 20_000
 
 /** A folder holds more files than may be downloaded one by one. */
 export class TooManyFiles extends Error {}

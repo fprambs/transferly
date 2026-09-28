@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import type { RemoteEntry, Site } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
+import { useUiStore } from '@/state/ui-store'
 
 import { Explorer } from './Explorer'
 
@@ -75,7 +76,8 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - a folder lists directories first with their kind, size, modification time in the account's time zone, and permissions
  * - times without a precise clock show only the day, and the time zone falls back to the browser's without a session
  * - an empty folder, a loading folder and every kind of entry are shown
- * - directories open with double click and Enter, files do not, and Backspace goes up
+ * - directories open with double click and Enter, files do not navigate, and Backspace goes up
+ * - a double click or Enter downloads a file by default and opens it in the editor when the user prefers; the details panel always offers Edit
  * - the arrow keys, Home and End move the selection and other keys are ignored
  * - the path steps, the up button and the refresh button navigate and reload
  * - only the rows near the window are drawn in a long folder
@@ -87,6 +89,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  */
 describe('explorer', () => {
   beforeEach(() => {
+    useUiStore.setState({ fileDoubleClick: 'download' })
     mockSession(adminSession)
     mockWorkspaceData({ sites: [prod] })
   })
@@ -338,7 +341,33 @@ describe('explorer', () => {
     expect(onNavigate).not.toHaveBeenCalled()
   })
 
-  it('opens a file in the remote editor with a double click, saves it and reloads the folder on close', async () => {
+  it('downloads a file with a double click and with Enter by default, and opens it in the editor when the user prefers', async () => {
+    mockListing([entry('notes.txt', { size: 5 })])
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files/content', () => HttpResponse.text('hello')),
+      http.get('/api/v1/workspaces/:id/sites/s1/files/entry', () => HttpResponse.json(entry('notes.txt', { size: 5 }))),
+    )
+    const links: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      links.push(this.href)
+    })
+    const { user } = await renderExplorer()
+    const grid = await screen.findByRole('grid')
+
+    await user.dblClick(within(grid).getByText('notes.txt'))
+    grid.focus()
+    await user.keyboard('{Enter}')
+    expect(links).toHaveLength(2)
+    expect(links.every((link) => new URL(link).searchParams.get('path') === '/www/notes.txt')).toBe(true)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    act(() => useUiStore.getState().setFileDoubleClick('edit'))
+    await user.dblClick(within(grid).getByText('notes.txt'))
+    expect(await screen.findByRole('dialog')).toHaveTextContent('/www/notes.txt')
+    expect(links).toHaveLength(2)
+  })
+
+  it('opens a file in the remote editor from the details panel, saves it and reloads the folder on close', async () => {
     mockListing([entry('notes.txt', { size: 5 })])
     server.use(
       http.get('/api/v1/workspaces/:id/sites/s1/files/content', () => HttpResponse.text('hello')),
@@ -348,7 +377,8 @@ describe('explorer', () => {
     const { user } = await renderExplorer()
     const grid = await screen.findByRole('grid')
 
-    await user.dblClick(within(grid).getByText('notes.txt'))
+    await user.click(within(grid).getByText('notes.txt'))
+    await user.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Edit' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('/www/notes.txt')).toBeInTheDocument()
 

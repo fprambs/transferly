@@ -1,4 +1,4 @@
-import { Copy, Download, Files, Hash, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Download, FilePen, Files, Hash, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -26,6 +26,8 @@ export interface InspectorProps {
   onDownloadEach: (entry: RemoteEntry) => void
   /** Called to compute the checksum of the entry when it is a file. */
   onChecksum: (entry: RemoteEntry, algorithm: ChecksumAlgorithm) => Promise<Checksum>
+  /** Called to open the entry in the remote editor when it is a file; the button is left out without it. */
+  onEdit?: (entry: RemoteEntry) => void
   /** Called to rename the entry. */
   onRename: (entry: RemoteEntry) => void
   /** Called to delete the entry. */
@@ -33,7 +35,7 @@ export interface InspectorProps {
 }
 
 /** Side panel with the details of the selected entry and its actions. */
-export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onRename, onDelete }: InspectorProps) {
+export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onEdit, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
   const [algorithm, setAlgorithm] = useState<ChecksumAlgorithm>('sha256')
   const [result, setResult] = useState<{ path: string; algorithm: ChecksumAlgorithm; state: 'working' | 'done' | 'failed'; sum?: string } | null>(null)
@@ -114,6 +116,12 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
           <Button variant="outline" size="sm" onClick={() => onDownload(entry)}>
             <Download />
             {entry.type === 'file' ? t(($) => $.toolbar.download) : t(($) => $.toolbar.downloadZip)}
+          </Button>
+        ) : null}
+        {entry.type === 'file' && onEdit ? (
+          <Button variant="outline" size="sm" onClick={() => onEdit(entry)}>
+            <FilePen />
+            {t(($) => $.toolbar.edit)}
           </Button>
         ) : null}
         {entry.type === 'directory' ? (
