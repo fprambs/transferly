@@ -29,12 +29,13 @@ export const charsetOptions: ReadonlyArray<{ value: Charset; label: string }> = 
   { value: 'euc-kr', label: 'EUC-KR (Korean)' },
 ]
 
-/** How the site signs in, as FileZilla names it: with a password, with a private key (SFTP only), or anonymously (FTP and FTPS only). */
-export type AccessMode = 'normal' | 'key' | 'anonymous'
+/** How the site signs in, as FileZilla names it: with a stored password, with a password asked for when connecting (ADR-0010), with a
+ * private key (SFTP only), or anonymously (FTP and FTPS only). */
+export type AccessMode = 'normal' | 'ask' | 'key' | 'anonymous'
 
 /** The access modes a protocol offers, in the order they are listed. */
 export function accessModesOf(protocol: SiteValues['protocol']): readonly AccessMode[] {
-  return protocol === 'sftp' ? ['normal', 'key'] : ['normal', 'anonymous']
+  return protocol === 'sftp' ? ['normal', 'ask', 'key'] : ['normal', 'ask', 'anonymous']
 }
 
 /** The access mode a site really uses: one its protocol does not offer falls back to a password. */
@@ -59,7 +60,7 @@ export const siteSchema = z
     host: z.string().trim().min(1, 'hostRequired'),
     port: z.string().trim().refine(validPort, 'portInvalid'),
     username: z.string().trim(),
-    accessMode: z.enum(['normal', 'key', 'anonymous']),
+    accessMode: z.enum(['normal', 'ask', 'key', 'anonymous']),
     password: z.string(),
     privateKey: z.string(),
     passphrase: z.string(),
@@ -104,10 +105,10 @@ export const siteSchema = z
 /** Values of the site form. */
 export type SiteValues = z.infer<typeof siteSchema>
 
-/** The access mode of a saved site: its key, or anonymous when it is an FTP site of the anonymous user with no password saved. */
+/** The access mode of a saved site: its key, asking for the password, or anonymous when it is an FTP site of the anonymous user with no password saved. */
 function accessModeOf(site: Site | undefined): AccessMode {
-  if (site?.authMethod === 'key') {
-    return 'key'
+  if (site?.authMethod === 'key' || site?.authMethod === 'ask') {
+    return site.authMethod
   }
   return site !== undefined && site.protocol !== 'sftp' && site.username === anonymousUser && !site.secrets.includes('password') ? 'anonymous' : 'normal'
 }
@@ -154,7 +155,8 @@ export const defaultProxyPort = 1080
 /** Default port of a jump host that did not say its own: the SSH port, since only SFTP sites may have one. */
 export const defaultJumpPort = 22
 
-/** Builds the request body of a site: an empty port means the default and blank secrets are left out; an anonymous site clears its password. */
+/** Builds the request body of a site: an empty port means the default and blank secrets are left out; an anonymous site, or one that asks
+ * for its password, clears the stored one. */
 export function toSiteInput(values: SiteValues): SiteInput {
   const mode = effectiveMode(values)
   const usesKey = mode === 'key'
@@ -166,11 +168,11 @@ export function toSiteInput(values: SiteValues): SiteInput {
     host: values.host.trim(),
     port: values.port.trim() === '' ? defaultPorts[values.protocol] : Number(values.port),
     username: mode === 'anonymous' ? anonymousUser : values.username.trim(),
-    authMethod: usesKey ? 'key' : 'password',
+    authMethod: usesKey ? 'key' : mode === 'ask' ? 'ask' : 'password',
     listTimezone: values.listTimezone === '' ? 'UTC' : values.listTimezone,
     charset: values.protocol === 'sftp' ? 'utf-8' : (values.charset as Charset),
     speedLimitBps: values.speedLimit.trim() === '' ? 0 : Math.round(Number(values.speedLimit) * mebibyte),
-    password: mode === 'anonymous' ? '' : usesKey ? undefined : secret(values.password),
+    password: mode === 'anonymous' || mode === 'ask' ? '' : usesKey ? undefined : secret(values.password),
     privateKey: usesKey ? secret(values.privateKey) : undefined,
     passphrase: usesKey ? secret(values.passphrase) : undefined,
     ...proxyInput(values),

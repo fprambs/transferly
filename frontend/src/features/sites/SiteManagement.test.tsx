@@ -67,7 +67,8 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * - a rejected save shows its message and Cancel closes the dialog
  * - a locked vault is explained once a secret is typed, in place of a bare error
  * - editing prefills the site without secrets and saves the changes
- * - the connection test reports success, failures, asks to trust a new server key before testing again, and asks for the master password when the vault is locked
+ * - the connection test reports success, failures, asks to trust a new server key before testing again, asks for the master password when the vault is locked, and
+ *   for the site's password when it asks for one
  * - deleting asks for confirmation, reports failures and can be cancelled
  */
 describe('site management', () => {
@@ -166,13 +167,13 @@ describe('site management', () => {
       'FTPS - FTP over TLS',
       'FTP - File Transfer Protocol (not encrypted)',
     ])
-    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Key file'])
+    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Key file'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
     await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '21')
     expect(within(dialog).getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
-    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Anonymous'])
+    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Anonymous'])
 
     expect(within(dialog).getByLabelText('Character set of file names')).toHaveValue('utf-8')
     await user.selectOptions(within(dialog).getByLabelText('Character set of file names'), 'windows-1252')
@@ -421,6 +422,34 @@ describe('site management', () => {
     const again = await screen.findByRole('dialog', { name: 'Unlock the vault' })
     await user.type(within(again).getByLabelText('Master password'), 'correct horse battery')
     await user.click(within(again).getByRole('button', { name: 'Unlock' }))
+    expect(await within(dialog).findByText(/Connected. The server answered/)).toBeInTheDocument()
+  })
+
+  it('asks for the password of a site that asks for it when testing, and tests again once it is given', async () => {
+    mockWorkspaceData({ sites: [{ ...prod, authMethod: 'ask', secrets: [] }], collections: [] })
+    let given = false
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', () => (given ? HttpResponse.json([]) : problem(409, 'credentials_required'))),
+      http.put('/api/v1/workspaces/:id/sites/s1/credential', () => {
+        given = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = await renderSidebar()
+    await pick(user, 'Prod', 'Edit')
+    const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
+    expect(within(dialog).getByLabelText('Logon type')).toHaveValue('ask')
+    expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    const ask = await screen.findByRole('dialog', { name: 'Enter the password' })
+    await user.click(within(ask).getByRole('button', { name: 'Cancel' }))
+    expect(await within(dialog).findByText('This site asks for its password when connecting.')).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    const again = await screen.findByRole('dialog', { name: 'Enter the password' })
+    await user.type(within(again).getByLabelText('Password', { exact: true }), 'typed')
+    await user.click(within(again).getByRole('button', { name: 'Connect' }))
     expect(await within(dialog).findByText(/Connected. The server answered/)).toBeInTheDocument()
   })
 

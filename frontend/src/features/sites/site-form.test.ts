@@ -33,8 +33,9 @@ const stored: Site = {
  * - the speed limit is shown in MiB/s and sent back in bytes per second, and a blank one means no cap
  * - FTP and FTPS sites use their own default port, never a key, and keep the protocol of a stored site
  * - password sites send only the password and key sites only the key and its passphrase, and blank secrets are left out
- * - SFTP offers a key and FTP and FTPS the anonymous user; an anonymous site sends the anonymous user and clears its password, and a stored
- *   one is read back as anonymous only when it has no password
+ * - every protocol may ask for the password when connecting, which sends and keeps none; SFTP offers a key and FTP and FTPS the anonymous
+ *   user; an anonymous site sends the anonymous user and clears its password, and a stored one is read back as anonymous only when it has
+ *   no password
  * - the character set tab is shown to FTP and FTPS only, and the tabs of the fields that are wrong are found
  * - a stored proxy and jump host are shown prefilled and sent back, in both authentication methods, with their own
  *   default ports when left blank, and neither is sent when not set
@@ -208,10 +209,17 @@ describe('site form', () => {
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: 'u' }).success).toBe(true)
   })
 
-  it('offers a key to SFTP and the anonymous user to FTP and FTPS', () => {
-    expect(accessModesOf('sftp')).toEqual(['normal', 'key'])
-    expect(accessModesOf('ftp')).toEqual(['normal', 'anonymous'])
-    expect(accessModesOf('ftps')).toEqual(['normal', 'anonymous'])
+  it('offers asking for the password to every protocol, a key to SFTP and the anonymous user to FTP and FTPS', () => {
+    expect(accessModesOf('sftp')).toEqual(['normal', 'ask', 'key'])
+    expect(accessModesOf('ftp')).toEqual(['normal', 'ask', 'anonymous'])
+    expect(accessModesOf('ftps')).toEqual(['normal', 'ask', 'anonymous'])
+  })
+
+  it('builds a site that asks for its password: no password sent, clearing a stored one', () => {
+    const values = { ...siteDefaults(undefined, undefined), name: 'Asks', host: 'h', username: 'u', accessMode: 'ask' as const, password: 'typed' }
+
+    expect(toSiteInput(values)).toMatchObject({ username: 'u', authMethod: 'ask', password: '' })
+    expect(siteDefaults({ ...stored, authMethod: 'ask', secrets: [] }, undefined).accessMode).toBe('ask')
   })
 
   it('builds an anonymous FTP site: the anonymous user and no password, clearing a stored one', () => {

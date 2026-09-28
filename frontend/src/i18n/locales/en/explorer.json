@@ -47,7 +47,8 @@
     "nameRequired": "Enter a name.",
     "nameInvalid": "The name cannot contain a slash or be . or ..",
     "tree_too_large": "This folder is too big to copy or archive: it holds too many items or goes too deep.",
-    "time_zone_inconclusive": "The times of the server do not match the clock, so no time zone fits."
+    "time_zone_inconclusive": "The times of the server do not match the clock, so no time zone fits.",
+    "credentials_required": "This site asks for its password when connecting."
   },
   "toolbar": {
     "newFolder": "New folder",

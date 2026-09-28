@@ -22,6 +22,8 @@ const siteErrorKeys = [
   'invalid_auth_method',
   'secret_too_large',
   'vault_locked',
+  'credentials_required',
+  'credentials_not_asked',
   'host_key_changed',
   'remote_auth_failed',
   'remote_unavailable',

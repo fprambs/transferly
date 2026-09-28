@@ -9,6 +9,8 @@ import { useApi } from '@/lib/api/use-api'
 import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { VaultDialog } from '../vault/VaultDialog'
 
+import { CredentialDialog } from './CredentialDialog'
+
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
 
 /** Where a connection test stands. */
@@ -18,6 +20,7 @@ type TestState =
   | { step: 'ok'; entries: number }
   | { step: 'trust'; hostKey: UnknownHostKey }
   | { step: 'unlock' }
+  | { step: 'credential' }
   | { step: 'failed'; key: SiteErrorKey }
 
 /** Props of {@link ConnectionTest}. */
@@ -28,7 +31,8 @@ export interface ConnectionTestProps {
   site: Site
 }
 
-/** Tries a saved site by listing its root; it asks to trust a new server key on the way, and for the master password when the vault is locked. */
+/** Tries a saved site by listing its root; it asks to trust a new server key on the way, for the master password when the vault is locked,
+ * and for the site's password when it asks for one when connecting. */
 export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
   const { t } = useTranslation('sites')
   const api = useApi()
@@ -42,7 +46,7 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
     } catch (error) {
       const hostKey = unknownHostKeyOf(error)
       const key = siteErrorKeyOf(error)
-      setState(hostKey !== undefined ? { step: 'trust', hostKey } : key === 'vault_locked' ? { step: 'unlock' } : { step: 'failed', key })
+      setState(hostKey !== undefined ? { step: 'trust', hostKey } : key === 'vault_locked' ? { step: 'unlock' } : key === 'credentials_required' ? { step: 'credential' } : { step: 'failed', key })
     }
   }
 
@@ -94,6 +98,12 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
         target={site}
         onClose={() => setState({ step: 'failed', key: 'vault_locked' })}
         onUnlocked={() => void run()}
+      />
+      <CredentialDialog
+        workspaceId={workspaceId}
+        target={state.step === 'credential' ? site : null}
+        onClose={() => setState({ step: 'failed', key: 'credentials_required' })}
+        onGiven={() => void run()}
       />
     </div>
   )

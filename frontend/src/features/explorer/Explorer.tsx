@@ -31,6 +31,7 @@ import { EntryNameDialog } from './EntryNameDialog'
 import { ConnectingState } from './ExplorerLoading'
 import { DownloadNotices, type RequestedDownload } from './DownloadNotices'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
+import { CredentialNotice } from '../sites/CredentialNotice'
 import { useUiStore } from '@/state/ui-store'
 
 import { SearchDialog } from '../search/SearchDialog'
@@ -93,6 +94,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const hostKey = unknownHostKeyOf(listing.error)
   const timeZone = useTimeZone()
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
+  const asksPassword = target !== undefined && (failure === 'credentials_required' || (failure === 'remote_auth_failed' && target.authMethod === 'ask'))
 
   const trust = async (key: UnknownHostKey, connection: { host: string; port: number }): Promise<void> => {
     try {
@@ -377,10 +379,19 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
           </Button>
         </div>
       )}
+      {asksPassword && target !== undefined && (
+        <CredentialNotice
+          key={listing.errorUpdateCount}
+          workspaceId={workspaceId}
+          target={target}
+          refused={failure === 'remote_auth_failed'}
+          onGiven={() => void listing.refetch()}
+        />
+      )}
       {failure === 'vault_locked' && (
         <VaultLockedNotice need="connect" layout="page" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
       )}
-      {failure !== null && failure !== 'vault_locked' && (hostKey === undefined || target === undefined) && (
+      {failure !== null && failure !== 'vault_locked' && !asksPassword && (hostKey === undefined || target === undefined) && (
         <div role="alert" className="m-4 flex max-w-xl flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
           <p className="text-destructive">{t(($) => $.errors[failure])}</p>
           <Button variant="outline" className="self-start" onClick={() => void listing.refetch()}>

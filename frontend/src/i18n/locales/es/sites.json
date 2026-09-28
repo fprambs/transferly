@@ -34,7 +34,9 @@
     "invalid_charset": "El juego de caracteres no es válido aquí.",
     "invalid_speed_limit": "El límite de velocidad debe ser de al menos 1 KiB/s y como máximo 1 TiB/s.",
     "invalid_proxy": "El tipo, host o puerto del proxy no es válido.",
-    "invalid_jump": "El host de salto no es válido, o está configurado en un protocolo distinto de SFTP."
+    "invalid_jump": "El host de salto no es válido, o está configurado en un protocolo distinto de SFTP.",
+    "credentials_required": "Este sitio pide su contraseña al conectar.",
+    "credentials_not_asked": "Este sitio ya no pide contraseña; ábrelo de nuevo."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -130,14 +132,16 @@
     "accessModes": {
       "normal": "Normal",
       "key": "Archivo de clave",
-      "anonymous": "Anónimo"
+      "anonymous": "Anónimo",
+      "ask": "Preguntar la contraseña"
     },
     "anonymousHint": "Entra como anonymous sin guardar contraseña, como esperan los servidores públicos.",
     "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
     "keepKey": "Dejar en blanco para mantener la clave existente.",
     "keepPassphrase": "Dejar en blanco para mantener la frase existente.",
     "timezoneHint": "La zona horaria en la que el servidor muestra las horas. La mayoría usa UTC.",
-    "proxyTitle": "Proxy"
+    "proxyTitle": "Proxy",
+    "askHint": "No se guarda ninguna contraseña. Se pide al conectar y vive solo en la memoria del servidor durante tu sesión."
   },
   "import": {
     "open": "Importar de FileZilla",
@@ -184,5 +188,18 @@
       "collection_too_deep": "Carpetas demasiado anidadas",
       "collection_name_taken": "El nombre de la carpeta ya está en uso"
     }
+  },
+  "credential": {
+    "title": "Escribe la contraseña",
+    "description": "Este sitio no guarda su contraseña. Se mantiene solo en la memoria del servidor durante esta sesión, nunca se escribe en ningún lado.",
+    "target": "Sitio que pide su contraseña",
+    "remember": "Recordar hasta que cierre sesión",
+    "rememberHint": "Si no, se olvida en cuanto no quede nada conectado al sitio.",
+    "submit": "Conectar",
+    "passwordRequired": "Escribe la contraseña.",
+    "cardTitle": "Este sitio pide su contraseña",
+    "cardBody": "Su contraseña no se guarda. Escríbela para conectar; queda solo en la memoria del servidor durante esta sesión.",
+    "cardAction": "Escribir la contraseña",
+    "refused": "El servidor rechazó esa contraseña. Escríbela de nuevo."
   }
 }

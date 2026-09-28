@@ -34,7 +34,9 @@
     "invalid_charset": "The character set is not supported here.",
     "invalid_speed_limit": "The speed limit must be at least 1 KiB/s and at most 1 TiB/s.",
     "invalid_proxy": "The proxy's kind, host or port is not valid.",
-    "invalid_jump": "The jump host is not valid, or is set on a protocol other than SFTP."
+    "invalid_jump": "The jump host is not valid, or is set on a protocol other than SFTP.",
+    "credentials_required": "This site asks for its password when connecting.",
+    "credentials_not_asked": "This site no longer asks for a password; open it again."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -130,14 +132,16 @@
     "accessModes": {
       "normal": "Normal",
       "key": "Key file",
-      "anonymous": "Anonymous"
+      "anonymous": "Anonymous",
+      "ask": "Ask for password"
     },
     "anonymousHint": "Signs in as anonymous with no password saved, as public servers expect.",
     "keepPassword": "Leave blank to keep the existing password.",
     "keepKey": "Leave blank to keep the existing key.",
     "keepPassphrase": "Leave blank to keep the existing passphrase.",
     "timezoneHint": "The time zone the server lists times in. Most servers use UTC.",
-    "proxyTitle": "Proxy"
+    "proxyTitle": "Proxy",
+    "askHint": "No password is saved. It is asked for when connecting and kept only in the server's memory for your session."
   },
   "import": {
     "open": "Import from FileZilla",
@@ -184,5 +188,18 @@
       "collection_too_deep": "Folders nested too deeply",
       "collection_name_taken": "Folder name already used"
     }
+  },
+  "credential": {
+    "title": "Enter the password",
+    "description": "This site does not save its password. It is kept only in the server's memory for this session, never written anywhere.",
+    "target": "Site that asks for its password",
+    "remember": "Remember until I sign out",
+    "rememberHint": "Otherwise it is forgotten as soon as nothing is connected to the site.",
+    "submit": "Connect",
+    "passwordRequired": "Enter the password.",
+    "cardTitle": "This site asks for its password",
+    "cardBody": "Its password is not saved. Enter it to connect; it stays only in the server's memory for this session.",
+    "cardAction": "Enter the password",
+    "refused": "The server refused that password. Enter it again."
   }
 }

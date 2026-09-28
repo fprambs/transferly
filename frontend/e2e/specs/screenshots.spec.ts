@@ -41,7 +41,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - editing a site's speed limit
  * - editing a site's proxy and jump host
  * - the remote editor
- * - the site dialog on its General and Advanced tabs
+ * - the site dialog on its General and Advanced tabs, with an anonymous FTP site and a site that asks for its password, and that site asking for it
  * - a folder with many files, with the transfers panel still in view
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
@@ -470,6 +470,17 @@ test.describe('screenshots', () => {
     await shoot(page, '46-site-dialog-ftp-anonymous')
     await dialog.getByRole('tab', { name: 'Proxy and jump host' }).click()
     await shoot(page, '47-site-dialog-proxy')
+    await dialog.getByRole('tab', { name: 'General' }).click()
+    await dialog.getByLabel('Protocol').selectOption('sftp')
+    await dialog.getByLabel('Name', { exact: true }).fill(`Asks ${Date.now()}`)
+    await dialog.getByLabel('Host', { exact: true }).fill('sftp')
+    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Logon type').selectOption('ask')
+    await shoot(page, '48-site-dialog-ask')
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await page.getByRole('treeitem', { name: /Asks/ }).first().click()
+    await expect(page.getByRole('dialog', { name: 'Enter the password' })).toBeVisible()
+    await shoot(page, '49-asks-for-password')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {

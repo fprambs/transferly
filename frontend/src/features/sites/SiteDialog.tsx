@@ -247,7 +247,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
             </Row>
           </Group>
           <Group>
-            <Row id="site-access" label={t(($) => $.site.accessMode)} hint={mode === 'anonymous' ? t(($) => $.site.anonymousHint) : undefined}>
+            <Row id="site-access" label={t(($) => $.site.accessMode)} hint={mode === 'anonymous' ? t(($) => $.site.anonymousHint) : mode === 'ask' ? t(($) => $.site.askHint) : undefined}>
               <NativeSelect id="site-access" value={mode} {...register('accessMode')}>
                 {accessModesOf(protocol).map((candidate) => (
                   <option key={candidate} value={candidate}>

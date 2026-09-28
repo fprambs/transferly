@@ -204,6 +204,7 @@
       "siteCreated": "creó el sitio {{target}}",
       "siteUpdated": "cambió el sitio {{target}}",
       "siteDeleted": "eliminó el sitio {{target}}",
+      "siteCredentialProvided": "dio la contraseña del sitio {{target}} para su sesión",
       "sitesImported": "importó {{sites}} sitios de FileZilla",
       "hostKeyTrusted": "confió en el servidor {{target}}",
       "hostKeyForgotten": "olvidó el servidor {{target}}",

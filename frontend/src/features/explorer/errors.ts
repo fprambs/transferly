@@ -13,6 +13,7 @@ const explorerErrorKeys = [
   'destination_blocked',
   'host_unresolvable',
   'vault_locked',
+  'credentials_required',
   'site_not_found',
   'quick_connection_not_found',
   'tree_too_large',

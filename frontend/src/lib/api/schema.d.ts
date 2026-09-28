@@ -917,6 +917,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sites/{siteId}/credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Give the password of a site that asks for it when connecting
+         * @description Held in server memory for this session only, never stored (ADR-0010). The site must use the ask logon type.
+         */
+        put: operations["setSiteCredential"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files": {
         parameters: {
             query?: never;
@@ -1376,6 +1396,12 @@ export interface components {
             /** @description Sent to the server only; never returned. */
             masterPassword: string;
         };
+        SiteCredentialRequest: {
+            /** @description Sent to the server only; never returned or stored. */
+            password: string;
+            /** @description Keep it for the rest of the session; otherwise it goes once no connection to the site is open. */
+            remember: boolean;
+        };
         ChangeMasterPasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -1425,7 +1451,7 @@ export interface components {
             port: number;
             username: string;
             /** @enum {string} */
-            authMethod: "password" | "key";
+            authMethod: "password" | "key" | "ask";
             /** @description IANA zone in which the server prints listing times. */
             listTimezone: string;
             charset: components["schemas"]["Charset"];
@@ -1459,10 +1485,10 @@ export interface components {
             port?: number;
             username: string;
             /**
-             * @description Defaults to password; key is for SFTP only.
+             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010).
              * @enum {string}
              */
-            authMethod?: "password" | "key";
+            authMethod?: "password" | "key" | "ask";
             /** @description IANA zone of the server's listing times; defaults to UTC. */
             listTimezone?: string;
             charset?: components["schemas"]["Charset"];
@@ -5096,6 +5122,81 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setSiteCredential: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+                /** @description Identifier of the site. */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Password held for this session. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
