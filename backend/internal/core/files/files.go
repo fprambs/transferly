@@ -86,6 +86,9 @@ type Target struct {
 	Session string
 	// Observer follows uploads and downloads; nil follows nothing.
 	Observer Observer
+	// Ready is called once the connection is open and the operation is about to run, so the connection log can tell
+	// what runs after connecting; nil calls nothing.
+	Ready func()
 }
 
 // key returns the pool key of the target.
@@ -142,6 +145,9 @@ func run[T any](ctx context.Context, s *Service, t Target, action workspace.Acti
 	lease, err := s.begin(ctx, t, action, paths...)
 	if err != nil {
 		return zero, err
+	}
+	if t.Ready != nil {
+		t.Ready()
 	}
 	result, err := op(lease.FS())
 	lease.Release(err)

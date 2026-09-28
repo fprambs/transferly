@@ -16,6 +16,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
@@ -73,6 +74,8 @@ type Deps struct {
 	Workspaces *workspace.Service
 	// Events delivers events to the clients connected through the WebSocket.
 	Events *events.Hub
+	// ConnectionLog tells the user what each connection is doing (ADR-0011); nil tells nothing.
+	ConnectionLog *connlog.Recorder
 	// WebSocket tunes the event stream.
 	WebSocket WebSocketConfig
 	// Quick keeps the servers users try without saving them.

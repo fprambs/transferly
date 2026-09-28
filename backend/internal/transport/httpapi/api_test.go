@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
@@ -133,29 +134,30 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	invites.UseQuota(quotas)
 	transferService.UseQuota(quotas)
 	deps := httpapi.Deps{
-		Logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Readiness:   store,
-		Auth:        service,
-		Workspaces:  workspaces,
-		Vault:       vaults,
-		Keys:        keys,
-		HostKeys:    hostkey.NewService(store, workspaces, clock),
-		Connections: pool,
-		Credentials: asked,
-		Sites:       sites,
-		Files:       files.NewService(workspaces, pool),
-		Transfers:   transferService,
-		Activity:    activityLog,
-		Import:      fzimport.NewService(workspaces, sites),
-		Audit:       auditTrail,
-		Admin:       admin.NewService(store, policy, quotas, clock),
-		Quotas:      quotas,
-		MFA:         mfa.NewService(store, instanceKey, rand.Reader, clock),
-		Passkeys:    passkeys,
-		Invites:     invites,
-		Quick:       quickConnections,
-		Events:      hub,
-		WebSocket:   httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},
+		Logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Readiness:     store,
+		Auth:          service,
+		Workspaces:    workspaces,
+		Vault:         vaults,
+		Keys:          keys,
+		HostKeys:      hostkey.NewService(store, workspaces, clock),
+		Connections:   pool,
+		Credentials:   asked,
+		Sites:         sites,
+		Files:         files.NewService(workspaces, pool),
+		Transfers:     transferService,
+		Activity:      activityLog,
+		Import:        fzimport.NewService(workspaces, sites),
+		Audit:         auditTrail,
+		Admin:         admin.NewService(store, policy, quotas, clock),
+		Quotas:        quotas,
+		MFA:           mfa.NewService(store, instanceKey, rand.Reader, clock),
+		Passkeys:      passkeys,
+		Invites:       invites,
+		Quick:         quickConnections,
+		Events:        hub,
+		ConnectionLog: connlog.New(hub, clock),
+		WebSocket:     httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
 			LoginIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),

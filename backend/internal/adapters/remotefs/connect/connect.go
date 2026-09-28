@@ -25,6 +25,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
@@ -48,6 +49,7 @@ type Connector struct {
 	policy   *netguard.Policy
 	timeout  time.Duration
 	asked    *credentials.Store
+	log      *connlog.Recorder
 }
 
 // Option adjusts a [Connector].
@@ -145,19 +147,27 @@ var tlsModes = map[site.FTPEncryption]ftpfs.TLSMode{
 // password.
 func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target site.Site, s secrets) (remotefs.RemoteFS, error) {
 	mode := tlsModes[target.FTPEncryption]
-	return ftpfs.Dial(ctx, ftpfs.Config{
-		Address:     net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
-		Username:    target.Username,
-		Password:    string(s.password),
-		TLS:         mode,
-		Location:    location(target.ListTimezone),
-		Charset:     charsetOf(target.Charset),
-		DialContext: c.baseDialer(target, s),
-		Timeout:     c.timeout,
-		VerifyHostKey: func(keyType, fingerprint string) error {
-			return c.verifyHost(ctx, key.WorkspaceID, target.Host, target.Port, keyType, fingerprint)
-		},
+	leg := hop{c: c, key: key}
+	leg.connecting(target, target.Host, target.Port, viaOf(target))
+	fsys, err := ftpfs.Dial(ctx, ftpfs.Config{
+		Address:       net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
+		Username:      target.Username,
+		Password:      string(s.password),
+		TLS:           mode,
+		Location:      location(target.ListTimezone),
+		Charset:       charsetOf(target.Charset),
+		DialContext:   leg.dialer(c.baseDialer(target, s)),
+		Timeout:       c.timeout,
+		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
 	})
+	if err != nil {
+		return nil, err
+	}
+	if !fsys.Secure() && mode == ftpfs.TLSOptional {
+		leg.record(connlog.Warn, connlog.PlainText, map[string]string{})
+	}
+	leg.authenticated(target.AuthMethod, target.Username)
+	return fsys, nil
 }
 
 // charsetOf returns the character set named by a site for its file names; UTF-8, and any name that is not known, need no conversion.
@@ -208,21 +218,27 @@ func (c *Connector) dialSFTP(ctx context.Context, key connections.Key, target si
 	if err != nil {
 		return nil, err
 	}
+	leg := hop{c: c, key: key}
 	cfg := sftpfs.Config{
 		Address: address, Username: target.Username, Timeout: c.timeout, HostKeyAlgorithms: algorithmsFor(types),
 		Password: string(s.password), PrivateKey: s.privateKey, Passphrase: s.passphrase,
-		VerifyHostKey: func(keyType, fingerprint string) error {
-			return c.verifyHost(ctx, key.WorkspaceID, target.Host, target.Port, keyType, fingerprint)
-		},
+		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
 	}
 	if !target.Jump.Set() {
-		cfg.DialContext = c.baseDialer(target, s)
-		return sftpfs.Dial(ctx, cfg)
+		leg.connecting(target, target.Host, target.Port, viaOf(target))
+		cfg.DialContext = leg.dialer(c.baseDialer(target, s))
+		fsys, err := sftpfs.Dial(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		leg.authenticated(target.AuthMethod, target.Username)
+		return fsys, nil
 	}
 	jump, err := c.dialJump(ctx, key, target, s)
 	if err != nil {
 		return nil, err
 	}
+	leg.connecting(target, target.Host, target.Port, "jump")
 	tunnel, err := jump.DialContext(ctx, "tcp", address)
 	if err != nil {
 		_ = jump.Close()
@@ -234,6 +250,7 @@ func (c *Connector) dialSFTP(ctx context.Context, key connections.Key, target si
 		_ = jump.Close()
 		return nil, err
 	}
+	leg.authenticated(target.AuthMethod, target.Username)
 	return &jumpedFS{FS: fsys, jump: jump}, nil
 }
 
@@ -244,14 +261,19 @@ func (c *Connector) dialJump(ctx context.Context, key connections.Key, target si
 	if err != nil {
 		return nil, err
 	}
-	return sftpfs.DialSSH(ctx, sftpfs.Config{
+	leg := hop{c: c, key: key, jump: true}
+	leg.connecting(target, target.Jump.Host, target.Jump.Port, viaOf(target))
+	client, err := sftpfs.DialSSH(ctx, sftpfs.Config{
 		Address: address, Username: target.Jump.Username, Timeout: c.timeout, HostKeyAlgorithms: algorithmsFor(types),
-		DialContext: c.baseDialer(target, s),
+		DialContext: leg.dialer(c.baseDialer(target, s)),
 		Password:    string(s.jumpPassword), PrivateKey: s.jumpPrivateKey, Passphrase: s.jumpPassphrase,
-		VerifyHostKey: func(keyType, fingerprint string) error {
-			return c.verifyHost(ctx, key.WorkspaceID, target.Jump.Host, target.Jump.Port, keyType, fingerprint)
-		},
+		VerifyHostKey: leg.verify(ctx, target.Jump.Host, target.Jump.Port),
 	})
+	if err != nil {
+		return nil, err
+	}
+	leg.authenticated(target.Jump.AuthMethod, target.Jump.Username)
+	return client, nil
 }
 
 // jumpedFS is the file system of a site reached through a jump host: closing it also closes the SSH client that

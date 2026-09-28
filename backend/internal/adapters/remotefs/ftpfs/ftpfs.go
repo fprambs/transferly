@@ -102,6 +102,7 @@ type FS struct {
 	closed  atomic.Bool
 	broken  atomic.Bool
 	chtimes bool
+	secure  bool
 	codec   codec
 }
 
@@ -285,7 +286,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		return nil, dialError(cfg.Address, session.verifier, cfg.TLS == TLSExplicit && !greeted, err)
 	}
 	session.ctx.Store(&parent)
-	return &FS{turn: make(chan struct{}, 1), conn: conn, link: session, chtimes: conn.IsSetTimeSupported(), codec: codec{encoding: cfg.Charset}}, nil
+	return &FS{turn: make(chan struct{}, 1), conn: conn, link: session, chtimes: conn.IsSetTimeSupported(), secure: cfg.TLS != TLSNone, codec: codec{encoding: cfg.Charset}}, nil
 }
 
 // dialOptional connects with AUTH TLS and, when the server refuses the upgrade, again in clear text.
@@ -324,6 +325,10 @@ func dialError(address string, v *verifier, upgrading bool, err error) error {
 	}
 	return fmt.Errorf("connecting to %s: %w", address, classify(err))
 }
+
+// Secure reports whether the session is protected by TLS: false for clear text, including an optional encryption that
+// went on without TLS because the server refused it.
+func (f *FS) Secure() bool { return f.secure }
 
 // guard fails when the file system is closed, its connection was cut, or the context ended.
 func (f *FS) guard(ctx context.Context) error {

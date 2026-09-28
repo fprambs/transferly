@@ -22,6 +22,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
@@ -111,36 +112,39 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	keys.OnRotate(rotationLogger(auditTrail, logger))
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
 	askedPasswords := credentials.New(system, cfg.SessionMax)
-	pool := connections.New(connect.New(sites, quickConnections, hostKeys, policy, connectTimeout, connect.AskedPasswords(askedPasswords)), system, connections.Config{})
+	connectionLog := connlog.New(hub, system)
+	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout, connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog))
+	pool := connections.New(connector, system, connections.Config{})
 
 	return wiring{
 		pool:    pool,
 		hub:     hub,
 		recover: transfers.Recover,
 		deps: httpapi.Deps{
-			Logger:      logger,
-			Readiness:   store,
-			Web:         webui.Handler(),
-			Auth:        authService,
-			Workspaces:  workspaces,
-			Vault:       vaults,
-			Keys:        keys,
-			Sites:       sites,
-			HostKeys:    hostKeys,
-			Connections: pool,
-			Credentials: askedPasswords,
-			Files:       files.NewService(workspaces, pool),
-			Transfers:   transfers,
-			Activity:    activityLog,
-			Import:      fzimport.NewService(workspaces, sites),
-			Invites:     invites,
-			Audit:       auditTrail,
-			Admin:       admin.NewService(store, policy, quotas, system),
-			Quotas:      quotas,
-			MFA:         second,
-			Passkeys:    passkeys,
-			Quick:       quickConnections,
-			Events:      hub,
+			Logger:        logger,
+			Readiness:     store,
+			Web:           webui.Handler(),
+			Auth:          authService,
+			Workspaces:    workspaces,
+			Vault:         vaults,
+			Keys:          keys,
+			Sites:         sites,
+			HostKeys:      hostKeys,
+			Connections:   pool,
+			Credentials:   askedPasswords,
+			Files:         files.NewService(workspaces, pool),
+			Transfers:     transfers,
+			Activity:      activityLog,
+			Import:        fzimport.NewService(workspaces, sites),
+			Invites:       invites,
+			Audit:         auditTrail,
+			Admin:         admin.NewService(store, policy, quotas, system),
+			Quotas:        quotas,
+			MFA:           second,
+			Passkeys:      passkeys,
+			Quick:         quickConnections,
+			Events:        hub,
+			ConnectionLog: connectionLog,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

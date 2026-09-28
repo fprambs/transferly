@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/activity"
+	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/transfer"
@@ -53,9 +54,20 @@ func remoteEntryDTO(e remotefs.Entry) RemoteEntry {
 	}
 }
 
-// ListFiles lists a remote directory.
+// ListFiles lists a remote directory, telling the connection log of the site the folder it reads once the connection is
+// open, and how that went (ADR-0011).
 func (s *server) ListFiles(ctx context.Context, request ListFilesRequestObject) (ListFilesResponseObject, error) {
-	entries, err := s.deps.Files.List(ctx, target(ctx, request.WorkspaceId, request.SiteId), request.Params.Path)
+	t := target(ctx, request.WorkspaceId, request.SiteId)
+	logTarget := connlog.Target{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site}
+	t.Ready = func() {
+		s.deps.ConnectionLog.Record(logTarget, connlog.Info, connlog.Listing, map[string]string{"path": request.Params.Path})
+	}
+	entries, err := s.deps.Files.List(ctx, t, request.Params.Path)
+	if err != nil {
+		s.deps.ConnectionLog.Record(logTarget, connlog.Error, connlog.Failed, map[string]string{"path": request.Params.Path, "code": problemCode(err)})
+	} else {
+		s.deps.ConnectionLog.Record(logTarget, connlog.Info, connlog.Listed, map[string]string{"path": request.Params.Path, "count": strconv.Itoa(len(entries))})
+	}
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
