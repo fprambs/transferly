@@ -14,18 +14,20 @@ import { TimeZoneProbe } from './TimeZoneProbe'
 /** Workspace the mock server answers for. */
 const workspaceId = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
 
-/** A saved FTP site. */
+/** A saved FTP site, with settings that saving its time zone must keep. */
 const ftp: Site = {
   id: 's1',
   name: 'Legacy',
   protocol: 'ftp',
+  ftpEncryption: 'plain',
   host: 'legacy.example.com',
   port: 21,
   username: 'deploy',
   authMethod: 'password',
   listTimezone: 'UTC',
-  charset: 'utf-8',
-  speedLimitBps: 0,
+  charset: 'windows-1252',
+  speedLimitBps: 1048576,
+  proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080 },
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -84,7 +86,7 @@ describe('time zone probe', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('saves the suggested zone on a saved site', async () => {
+  it('saves the suggested zone on a saved site, keeping every other setting of the site', async () => {
     mockProbe({ exact: false, offsetMinutes: -180, suggestedZone: 'Etc/GMT+3' })
     const bodies: unknown[] = []
     server.use(
@@ -100,7 +102,21 @@ describe('time zone probe', () => {
     await user.click(screen.getByRole('button', { name: 'Use Etc/GMT+3 for this site' }))
 
     expect(await screen.findByText('Saved. The listing now uses Etc/GMT+3.')).toBeInTheDocument()
-    expect(bodies).toEqual([{ name: 'Legacy', protocol: 'ftp', host: 'legacy.example.com', port: 21, username: 'deploy', authMethod: 'password', listTimezone: 'Etc/GMT+3' }])
+    expect(bodies).toEqual([
+      {
+        name: 'Legacy',
+        protocol: 'ftp',
+        ftpEncryption: 'plain',
+        host: 'legacy.example.com',
+        port: 21,
+        username: 'deploy',
+        authMethod: 'password',
+        listTimezone: 'Etc/GMT+3',
+        charset: 'windows-1252',
+        speedLimitBps: 1048576,
+        proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080 },
+      },
+    ])
     expect(onApplied).toHaveBeenCalledTimes(1)
   })
 

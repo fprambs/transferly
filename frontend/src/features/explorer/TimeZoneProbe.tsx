@@ -8,6 +8,7 @@ import { Loading } from '@/components/ui/loading'
 import type { Site, TimeZoneProbe as Probe } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
+import { siteDefaults, toSiteInput } from '../sites/site-form'
 import { sitesKeys } from '../sites/use-sites-data'
 
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
@@ -55,16 +56,7 @@ export function TimeZoneProbe({ workspaceId, siteId, path, site, onApplied }: Ti
   const apply = async (zone: string): Promise<void> => {
     const current = site as Site
     try {
-      await api.sites.update(workspaceId, current.id, {
-        name: current.name,
-        protocol: current.protocol,
-        host: current.host,
-        port: current.port,
-        username: current.username,
-        authMethod: current.authMethod,
-        listTimezone: zone,
-        collectionId: current.collectionId,
-      })
+      await api.sites.update(workspaceId, current.id, { ...toSiteInput(siteDefaults(current, undefined)), listTimezone: zone })
       await queryClient.invalidateQueries({ queryKey: sitesKeys.sites(workspaceId) })
       setState({ kind: 'applied', zone })
       onApplied()
