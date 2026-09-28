@@ -29,6 +29,8 @@ type Options struct {
 	HostKey ssh.Signer
 	// KeyboardOnly disables password authentication, leaving keyboard-interactive.
 	KeyboardOnly bool
+	// Anonymous lets the anonymous user in with the SSH "none" method, with no password or key.
+	Anonymous bool
 	// NoSFTP makes the server refuse the sftp subsystem.
 	NoSFTP bool
 	// Ciphers restricts the ciphers the server offers; nil keeps the library defaults.
@@ -102,6 +104,15 @@ func Start(t testing.TB, opt Options) *Server {
 	}
 	if opt.KeyboardOnly {
 		config.PasswordCallback = nil
+	}
+	if opt.Anonymous {
+		config.NoClientAuth = true
+		config.NoClientAuthCallback = func(c ssh.ConnMetadata) (*ssh.Permissions, error) {
+			if c.User() == "anonymous" {
+				return nil, nil
+			}
+			return nil, errors.New("not anonymous")
+		}
 	}
 	config.AddHostKey(hostKey)
 

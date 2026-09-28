@@ -57,7 +57,13 @@ const (
 	// AuthAsk logs in with a password that is never stored: it is asked for when connecting and kept in memory for the
 	// session (ADR-0010).
 	AuthAsk AuthMethod = "ask"
+	// AuthAnonymous logs in to a public server as the anonymous user, with no stored secret: SFTP servers are offered the
+	// SSH "none" method and then FileZilla's anonymous password, FTP servers that password.
+	AuthAnonymous AuthMethod = "anonymous"
 )
+
+// AnonymousUser is the account name of every anonymous site.
+const AnonymousUser = "anonymous"
 
 // SecretKind is the type of a stored secret.
 type SecretKind string

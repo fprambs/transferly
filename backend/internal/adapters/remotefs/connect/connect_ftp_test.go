@@ -30,7 +30,8 @@ func (e *env) trustCertificate(address, fingerprint string) {
 //
 // Scenarios:
 //   - a plain FTP site connects with its stored password, and asks for no key
-//   - an FTP account with an empty password connects without a stored secret
+//   - an FTP account with an empty password connects without a stored secret, and an anonymous site answers FileZilla's
+//     anonymous password
 //   - an FTPS site reports the certificate it met, with its fingerprint under the certificate key type, and connects once trusted
 //   - a certificate other than the trusted one is refused as a mismatch
 //   - a legacy FTPS site off port 990 upgrades with AUTH TLS, and a site with implicit encryption starts with TLS on any port
@@ -56,6 +57,14 @@ func TestConnector_FTP(t *testing.T) {
 	anonymous := e.addSiteAt(public.Addr, site.Input{Name: "Public", Protocol: site.FTP, Username: "anonymous"}, site.SecretChanges{})
 	if fsys, err := c.Connect(t.Context(), e.key(anonymous), session); err != nil {
 		t.Errorf("Connect() to an anonymous FTP site = %v", err)
+	} else {
+		_ = fsys.Close()
+	}
+
+	guests := ftptest.Start(t, ftptest.Options{Users: map[string]string{"anonymous": "anonymous@example.com"}})
+	guest := e.addSiteAt(guests.Addr, site.Input{Name: "Guests", Protocol: site.FTP, AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	if fsys, err := c.Connect(t.Context(), e.key(guest), session); err != nil {
+		t.Errorf("Connect() to an FTP site of the anonymous logon type = %v", err)
 	} else {
 		_ = fsys.Close()
 	}

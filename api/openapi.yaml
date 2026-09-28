@@ -4122,7 +4122,7 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key, ask]
+          enum: [password, key, ask, anonymous]
         listTimezone:
           type: string
           description: IANA zone in which the server prints listing times.
@@ -4175,8 +4175,8 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key, ask]
-          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010).
+          enum: [password, key, ask, anonymous]
+          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP).
         listTimezone:
           type: string
           description: IANA zone of the server's listing times; defaults to UTC.

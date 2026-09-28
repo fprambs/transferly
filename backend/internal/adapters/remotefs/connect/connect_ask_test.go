@@ -69,3 +69,40 @@ func TestConnector_AskForPassword(t *testing.T) {
 		t.Error("a refused password was kept")
 	}
 }
+
+// TestConnector_Anonymous covers sites of the [site.AuthAnonymous] logon type in [connect.Connector.Connect].
+//
+// Use cases:
+//   - an anonymous SFTP site logs in with the SSH "none" method, with no secret stored and the vault locked
+//   - a server that refuses "none" is offered FileZilla's anonymous password next
+//   - a server that takes neither refuses the site with ErrAuth
+func TestConnector_Anonymous(t *testing.T) {
+	e := newEnv(t)
+	c := e.connector(e.allow)
+	e.vaults.Lock(session)
+
+	open := sftptest.Start(t, sftptest.Options{Anonymous: true})
+	e.trust(open)
+	public := e.addSite(open, site.Input{Name: "Public", AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	fsys, err := c.Connect(t.Context(), e.key(public), session)
+	if err != nil {
+		t.Fatalf("Connect() with the none method = %v", err)
+	}
+	_ = fsys.Close()
+
+	byPassword := sftptest.Start(t, sftptest.Options{Users: map[string]string{"anonymous": "anonymous@example.com"}})
+	e.trust(byPassword)
+	fallback := e.addSite(byPassword, site.Input{Name: "Password", AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	fsys, err = c.Connect(t.Context(), e.key(fallback), session)
+	if err != nil {
+		t.Fatalf("Connect() with the anonymous password = %v", err)
+	}
+	_ = fsys.Close()
+
+	closed := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
+	e.trust(closed)
+	refused := e.addSite(closed, site.Input{Name: "Closed", AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	if _, err := c.Connect(t.Context(), e.key(refused), session); !errors.Is(err, remotefs.ErrAuth) {
+		t.Errorf("Connect() to a server with no anonymous access = %v; want ErrAuth", err)
+	}
+}

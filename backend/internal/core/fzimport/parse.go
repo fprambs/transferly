@@ -51,6 +51,9 @@ type Server struct {
 	Port int
 	// Username is the account name.
 	Username string
+	// AuthMethod is how the site logs in, as FileZilla's logon type says: anonymous, asking for the password, or with a
+	// password.
+	AuthMethod site.AuthMethod
 	// Password is the account password when the file holds one that could be read.
 	Password string
 	// PasswordSkipped says the file has a password that was not read, because it cannot be decoded.
@@ -278,11 +281,13 @@ func convert(raw rawServer, name string, path []string) (Server, string) {
 	server.Protocol, server.FTPEncryption = known.protocol, known.encryption
 	switch strings.TrimSpace(raw.Logontype) {
 	case "0":
-		server.Username = "anonymous"
+		server.Username, server.AuthMethod = site.AnonymousUser, site.AuthAnonymous
 	case "5":
 		return Server{}, "key_file_login"
-	case "2", "3":
+	case "2":
+		server.AuthMethod = site.AuthAsk
 	default:
+		server.AuthMethod = site.AuthPassword
 		readPassword(&server, raw)
 	}
 	return server, ""

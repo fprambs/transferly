@@ -590,6 +590,43 @@ func TestService_AskForPassword(t *testing.T) {
 	}
 }
 
+// TestService_Anonymous covers the [site.AuthAnonymous] logon type of [site.Service.Create] and [site.Service.Update].
+//
+// Use cases:
+//   - SFTP and FTP sites may log in anonymously, always as the anonymous user whatever name the request sends
+//   - an anonymous site stores no secret, even when the request sends some, and needs no unlocked vault for it
+//   - switching a site that logs in with a key to anonymous removes its private key and passphrase
+func TestService_Anonymous(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	for _, protocol := range []site.Protocol{site.SFTP, site.FTP} {
+		in := valid()
+		in.Name, in.Protocol, in.Username, in.AuthMethod = "Anonymous "+string(protocol), protocol, "someone", site.AuthAnonymous
+		created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{Password: text("typed")})
+		if err != nil {
+			t.Fatalf("Create(%s, anonymous) = %v", protocol, err)
+		}
+		if created.AuthMethod != site.AuthAnonymous || created.Username != site.AnonymousUser || len(created.Secrets) != 0 {
+			t.Errorf("Create(%s, anonymous) = %s as %q with secrets %v; want anonymous as anonymous with none", protocol, created.AuthMethod, created.Username, created.Secrets)
+		}
+	}
+
+	keyed := valid()
+	keyed.Name, keyed.AuthMethod = "Keyed", site.AuthKey
+	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: text("key"), Passphrase: text("phrase")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyed.AuthMethod = site.AuthAnonymous
+	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", keyed, site.SecretChanges{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Secrets) != 0 {
+		t.Errorf("a site switched to anonymous kept %v", updated.Secrets)
+	}
+}
+
 // TestService_KeyAndStoreFailures verifies that failures of collaborators are returned.
 //
 // Scenarios:

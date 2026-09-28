@@ -49,6 +49,7 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 // Scenarios:
 //   - the sites of the file are read with their folders, protocols, ports, users and passwords, in the order of the file
 //   - passwords may be base64 or plain, the ones that cannot be decoded are reported, and asking for the password or anonymous logins keep no password
+//   - FileZilla's logon types become the logon of the site: 0 anonymous as the anonymous user, 2 asking for the password, the rest a password
 //   - names default to the host, folder names are trimmed and CDATA is read
 //   - FileZilla's protocol numbers keep their encryption: 0 explicit TLS if available, 3 implicit TLS on any port, 4 required explicit TLS and 6 plain
 //   - sites that cannot be represented are reported with a reason: unsupported protocols, key file logins and a missing host
@@ -66,7 +67,7 @@ func TestParse(t *testing.T) {
 		t.Fatalf("read %d servers and %d skipped; want 8 and 3: %+v %+v", len(servers), len(skipped), servers, skipped)
 	}
 	top := byName["Top level"]
-	if top.Host != "top.example.com" || top.Port != 2121 || top.Protocol != site.FTP || top.FTPEncryption != site.EncryptionOptional || top.Username != "alice" || top.Password != "secret" || len(top.Path) != 0 {
+	if top.Host != "top.example.com" || top.Port != 2121 || top.Protocol != site.FTP || top.FTPEncryption != site.EncryptionOptional || top.Username != "alice" || top.Password != "secret" || top.AuthMethod != site.AuthPassword || len(top.Path) != 0 {
 		t.Errorf("top level = %+v", top)
 	}
 	if box := byName["SFTP box"]; box.Protocol != site.SFTP || box.Password != "páss" || len(box.Path) != 1 || box.Path[0] != "Work" {
@@ -79,10 +80,10 @@ func TestParse(t *testing.T) {
 	if implicit := byName["implicit.example.com"]; implicit.FTPEncryption != site.EncryptionImplicit || implicit.Port != 990 {
 		t.Errorf("implicit = %+v", implicit)
 	}
-	if anon := byName["Anonymous"]; anon.Username != "anonymous" || anon.FTPEncryption != site.EncryptionPlain || anon.Password != "" {
+	if anon := byName["Anonymous"]; anon.Username != "anonymous" || anon.AuthMethod != site.AuthAnonymous || anon.FTPEncryption != site.EncryptionPlain || anon.Password != "" {
 		t.Errorf("anonymous = %+v", anon)
 	}
-	if asks := byName["Asks"]; asks.Password != "" || asks.Username != "eve" {
+	if asks := byName["Asks"]; asks.Password != "" || asks.Username != "eve" || asks.AuthMethod != site.AuthAsk {
 		t.Errorf("asks = %+v", asks)
 	}
 	if bad := byName["Bad password"]; !bad.PasswordSkipped || bad.Password != "" || bad.Port != 0 {

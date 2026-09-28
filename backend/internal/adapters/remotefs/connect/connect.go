@@ -59,6 +59,9 @@ func AskedPasswords(store *credentials.Store) Option {
 	return func(c *Connector) { c.asked = store }
 }
 
+// anonymousPassword is what anonymous sites answer when a server asks for a password, the address FileZilla sends too.
+const anonymousPassword = "anonymous@example.com"
+
 var (
 	_ connections.Connector = (*Connector)(nil)
 	_ connections.Admitter  = (*Connector)(nil)
@@ -341,6 +344,8 @@ func (c *Connector) open(ctx context.Context, key connections.Key, session strin
 	}
 	var err error
 	switch target.AuthMethod {
+	case site.AuthAnonymous:
+		s.password = []byte(anonymousPassword)
 	case site.AuthAsk:
 		if s.password, err = c.askedPassword(key, session, target); err != nil {
 			return secrets{}, err

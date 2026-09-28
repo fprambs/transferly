@@ -95,8 +95,8 @@ func allZero(b []byte) bool {
 // Scenarios:
 //   - a valid connection is named after its host, gets the defaults and an identifier, and is kept
 //   - viewers and strangers cannot create
-//   - malformed settings, forbidden destinations and asking for the password (a quick connection always has it) are
-//     refused with their errors and nothing is kept
+//   - malformed settings, forbidden destinations and asking for the password or anonymous logon (neither offered for
+//     quick connections) are refused with their errors and nothing is kept
 //   - a user may keep five connections at once, others are unaffected, and closing one makes room
 //   - a failing identifier generator is returned
 func TestService_Create(t *testing.T) {
@@ -132,6 +132,10 @@ func TestService_Create(t *testing.T) {
 	asking.AuthMethod = site.AuthAsk
 	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
 		t.Errorf("ask for password on a quick connection = %v; want ErrInvalidAuthMethod", err)
+	}
+	asking.AuthMethod = site.AuthAnonymous
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
+		t.Errorf("anonymous quick connection = %v; want ErrInvalidAuthMethod", err)
 	}
 	if list, _ := f.svc.List(ctx, f.editor, f.ws); len(list) != 1 {
 		t.Errorf("%d connections kept after refusals; want 1", len(list))

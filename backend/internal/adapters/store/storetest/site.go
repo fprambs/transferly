@@ -133,7 +133,7 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 			t.Fatal(err)
 		}
 		changed := s
-		changed.Name, changed.Host, changed.Port, changed.Protocol, changed.AuthMethod = "Prod", "other.example.com", 22, site.FTP, site.AuthPassword
+		changed.Name, changed.Host, changed.Port, changed.Protocol, changed.AuthMethod = "Prod", "other.example.com", 22, site.FTP, site.AuthAnonymous
 		changed.FTPEncryption = site.EncryptionImplicit
 		changed.SpeedLimit = 4096
 		changed.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "other-proxy.example.com", Port: 8080, Username: "other"}
@@ -144,7 +144,7 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 			t.Fatalf("UpdateSite() = %v", err)
 		}
 		got, err := store.Site(ctx, ws, s.ID)
-		if err != nil || got.Name != "Prod" || got.Host != "other.example.com" || got.Port != 22 || got.Protocol != site.FTP || got.FTPEncryption != site.EncryptionImplicit ||
+		if err != nil || got.Name != "Prod" || got.Host != "other.example.com" || got.Port != 22 || got.Protocol != site.FTP || got.AuthMethod != site.AuthAnonymous || got.FTPEncryption != site.EncryptionImplicit ||
 			got.SpeedLimit != 4096 || got.Proxy != changed.Proxy || got.Jump != changed.Jump ||
 			!got.CreatedAt.Equal(now) || !got.UpdatedAt.Equal(now.Add(time.Second)) || len(got.Secrets) != 1 || got.Secrets[0] != site.SecretPassword {
 			t.Fatalf("Site() after update = %+v, %v", got, err)

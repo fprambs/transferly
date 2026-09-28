@@ -154,6 +154,9 @@ func Normalize(in Input) (Input, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Host = strings.TrimSpace(in.Host)
 	in.Username = strings.TrimSpace(in.Username)
+	if in.AuthMethod == AuthAnonymous {
+		in.Username = AnonymousUser
+	}
 	if n := utf8.RuneCountInString(in.Name); n == 0 || n > maxNameRunes {
 		return in, ErrInvalidName
 	}
@@ -182,7 +185,7 @@ func Normalize(in Input) (Input, error) {
 	if in.AuthMethod == "" {
 		in.AuthMethod = AuthPassword
 	}
-	if in.AuthMethod != AuthPassword && in.AuthMethod != AuthAsk && (in.AuthMethod != AuthKey || in.Protocol != SFTP) {
+	if !slices.Contains([]AuthMethod{AuthPassword, AuthAsk, AuthAnonymous}, in.AuthMethod) && (in.AuthMethod != AuthKey || in.Protocol != SFTP) {
 		return in, ErrInvalidAuthMethod
 	}
 	if in.Charset == "" {
@@ -465,11 +468,15 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 }
 
 // withoutStoredPassword makes a site that asks for its password when connecting drop any stored one, whatever the
-// request said: its password must never be written anywhere (ADR-0010).
+// request said: its password must never be written anywhere (ADR-0010). An anonymous site drops its password, private
+// key and passphrase alike, since it has no secret to use them for.
 func withoutStoredPassword(in Input, changes SecretChanges) SecretChanges {
-	if in.AuthMethod == AuthAsk {
-		none := ""
+	none := ""
+	switch in.AuthMethod {
+	case AuthAsk:
 		changes.Password = &none
+	case AuthAnonymous:
+		changes.Password, changes.PrivateKey, changes.Passphrase = &none, &none, &none
 	}
 	return changes
 }
