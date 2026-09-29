@@ -1,3 +1,4 @@
+import { createAccount } from '../accounts.ts'
 import { expect, test } from '../fixtures.ts'
 
 /**
@@ -9,6 +10,7 @@ import { expect, test } from '../fixtures.ts'
  * - following the system wears the light theme when the browser prefers light
  * - choosing Spanish translates the interface and survives a reload
  * - the theme is saved to the account: it comes back when the browser's own storage is empty
+ * - what a double click on a file does is saved to the account too (4.14a), on an account of its own so other tests keep downloading
  * - the transfer queue can be collapsed and expanded
  */
 test.describe('preferences', () => {
@@ -26,6 +28,27 @@ test.describe('preferences', () => {
 
       await shell.setTheme('sentinel-dark')
     })
+  })
+
+  test('brings the double click action back from the account when the browser storage is empty', async ({ request, playwright, browser, baseURL }) => {
+    const stamp = Date.now()
+    const guest = await playwright.request.newContext({ baseURL, storageState: { cookies: [], origins: [] } })
+    await createAccount(request, guest, `double-click-${stamp}@example.com`, `Double click team ${stamp}`)
+    const context = await browser.newContext({ baseURL, storageState: await guest.storageState() })
+    const page = await context.newPage()
+    await page.goto('/settings')
+    const select = page.getByLabel('Double click on a file')
+    await expect(select).toHaveValue('download')
+    const saved = page.waitForResponse((response) => response.url().endsWith('/api/v1/me') && response.request().method() === 'PATCH')
+    await select.selectOption('edit')
+    expect((await saved).ok()).toBe(true)
+
+    await page.evaluate(() => globalThis.localStorage.clear())
+    await page.reload()
+
+    await expect(page.getByLabel('Double click on a file')).toHaveValue('edit')
+    await context.close()
+    await guest.dispose()
   })
 
   test('keeps the chosen dark theme after a reload', async ({ shell, page }) => {
