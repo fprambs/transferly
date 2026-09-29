@@ -2,7 +2,7 @@
   "label": "Explorer",
   "empty": {
     "title": "Pick a site to start",
-    "body": "Choose a saved site in the sidebar, or use quick connect to try a server."
+    "body": "Double-click a saved site in the sidebar to connect, or use quick connect to try a server."
   },
   "breadcrumbs": "Path",
   "columns": {

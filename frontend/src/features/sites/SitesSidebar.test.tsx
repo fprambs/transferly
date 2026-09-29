@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -35,8 +35,8 @@ function site(id: string, name: string, collectionId?: string): Site {
  * - a workspace without sites shows the empty message
  * - collections, sites and quick connections appear as a tree with counts and the "not saved" mark
  * - opening a collection reveals its children and closing it hides them again; choosing in its menu does not open or close it
- * - clicking a row selects it and only one row is selected at a time; Enter and Space select the row with focus
- * - selecting a site or a quick connection opens it, and selecting a collection does not
+ * - clicking a row selects it and only one row is selected at a time; Space selects the row with focus
+ * - a double click or Enter connects a site or a quick connection, Ctrl with the double click opens it in a new tab, and a click only selects (4.14f)
  * - the toolbar offers quick connect and the create actions
  * - the labels follow the interface language
  * - connected sites and quick connections carry a green dot named for screen readers, and connected sites offer to disconnect in their menu
@@ -168,7 +168,20 @@ describe('SitesSidebar', () => {
     await user.keyboard(' ')
     expect(home).toHaveAttribute('aria-selected', 'true')
     expect(quick).toHaveAttribute('aria-selected', 'false')
-    expect(onOpen.mock.calls).toEqual([['s2', false], ['q1', false], ['s2', false]])
+    expect(onOpen.mock.calls).toEqual([['q1', false]])
+
+    await user.dblClick(home)
+    await user.keyboard('{Control>}')
+    await user.dblClick(quick)
+    await user.keyboard('{/Control}')
+    expect(onOpen.mock.calls).toEqual([['q1', false], ['s2', false], ['q1', true]])
+
+    await user.click(within(home).getByRole('button', { name: 'Actions for Home' }))
+    const item = await screen.findByRole('menuitem', { name: 'Open in a new tab' })
+    fireEvent.doubleClick(item)
+    expect(onOpen.mock.calls).toHaveLength(3)
+    await user.click(item)
+    expect(onOpen.mock.calls.slice(3)).toEqual([['s2', true]])
   })
 
   it('offers quick connect and the create actions', async () => {

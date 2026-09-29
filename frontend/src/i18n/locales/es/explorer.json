@@ -2,7 +2,7 @@
   "label": "Explorador",
   "empty": {
     "title": "Elige un sitio para empezar",
-    "body": "Elige un sitio guardado en la barra lateral, o usa la conexión rápida para probar un servidor."
+    "body": "Haz doble clic en un sitio guardado de la barra lateral para conectarte, o usa la conexión rápida para probar un servidor."
   },
   "breadcrumbs": "Ruta",
   "columns": {

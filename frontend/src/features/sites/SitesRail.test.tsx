@@ -83,7 +83,7 @@ describe('sites rail', () => {
     await user.click(within(rail).getByRole('button', { name: 'Browse the sites' }))
     const sheet = await screen.findByRole('dialog', { name: 'Sites' })
     expect(within(sheet).queryByRole('button', { name: 'Hide the sites panel' })).not.toBeInTheDocument()
-    await user.click(await within(sheet).findByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(await within(sheet).findByRole('treeitem', { name: /Prod/ }))
     await waitFor(() => expect(history.location.pathname).toBe('/sites/s1'))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sites' })).not.toBeInTheDocument())
 

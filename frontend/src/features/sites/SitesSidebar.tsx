@@ -69,10 +69,15 @@ function rowKey(node: TreeNode): string {
   return `${node.kind}-${node.id}`
 }
 
-/** Selects a row with Enter or Space, when the row itself has focus. */
-function onSelectKey(event: KeyboardEvent<HTMLElement>, select: () => void): void {
-  if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
-    event.preventDefault()
+/** Opens a site with Enter and selects it with Space, when the row itself has focus (4.14f). */
+function onSiteKey(event: KeyboardEvent<HTMLElement>, select: () => void, open: () => void): void {
+  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
+    return
+  }
+  event.preventDefault()
+  if (event.key === 'Enter') {
+    open()
+  } else {
     select()
   }
 }
@@ -93,26 +98,33 @@ function onCollectionKey(event: KeyboardEvent<HTMLElement>, node: CollectionNode
   }
 }
 
-/** One row of the sites tree: a collection, a saved site or a quick connection. */
+/**
+ * One row of the sites tree: a collection, a saved site or a quick connection. A click selects a site and a double click or Enter connects
+ * it, as in FileZilla (4.14f); Ctrl with the double click, or a middle click, opens it in a new tab. A click opens or closes a collection.
+ */
 function Row({ node, actions }: RowProps) {
   const { t } = useTranslation('shell')
   const { t: sites } = useTranslation('sites')
   const selected = actions.selected === rowKey(node)
-  const select = (newTab = false) => {
-    actions.onSelect(rowKey(node))
-    if (node.kind !== 'collection') {
-      actions.onOpen(node.id, newTab)
-    }
+  const select = (): void => actions.onSelect(rowKey(node))
+  const open = (newTab = false): void => {
+    select()
+    actions.onOpen(node.id, newTab)
   }
   const click = (event: MouseEvent<HTMLElement>): void => {
     if (inRow(event)) {
-      select(event.ctrlKey || event.metaKey)
+      select()
+    }
+  }
+  const doubleClick = (event: MouseEvent<HTMLElement>): void => {
+    if (inRow(event)) {
+      open(event.ctrlKey || event.metaKey)
     }
   }
   const middle = (event: MouseEvent<HTMLElement>): void => {
     if (event.button === 1 && inRow(event)) {
       event.preventDefault()
-      select(true)
+      open(true)
     }
   }
   const style = { paddingInlineStart: `${node.depth * indentPerLevel + 8}px` }
@@ -167,8 +179,9 @@ function Row({ node, actions }: RowProps) {
         aria-selected={selected}
         tabIndex={0}
         onClick={click}
+        onDoubleClick={doubleClick}
         onAuxClick={middle}
-        onKeyDown={(event) => onSelectKey(event, select)}
+        onKeyDown={(event) => onSiteKey(event, select, open)}
         className={cn(base, 'italic')}
         style={style}
       >
@@ -187,8 +200,9 @@ function Row({ node, actions }: RowProps) {
       aria-selected={selected}
       tabIndex={0}
       onClick={click}
+      onDoubleClick={doubleClick}
       onAuxClick={middle}
-      onKeyDown={(event) => onSelectKey(event, select)}
+      onKeyDown={(event) => onSiteKey(event, select, open)}
       className={cn(base, 'group')}
       style={style}
     >

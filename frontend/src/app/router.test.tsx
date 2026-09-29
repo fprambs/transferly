@@ -207,7 +207,7 @@ describe('routes', () => {
     const user = userEvent.setup()
     const { history } = await renderApp()
 
-    await user.click(await screen.findByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(await screen.findByRole('treeitem', { name: /Prod/ }))
     await user.dblClick(within(await screen.findByRole('grid')).getByText('www'))
 
     expect(await within(await screen.findByRole('grid')).findByText('index.html')).toBeInTheDocument()

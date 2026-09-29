@@ -161,7 +161,7 @@ describe('Toolbar', () => {
 
     await user.click(toolbar().getByRole('button', { name: 'Disconnect from the server' }))
     await waitFor(() => expect(history.location.pathname).toBe('/'))
-    await user.click(screen.getByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(screen.getByRole('treeitem', { name: /Prod/ }))
     expect(await within(await screen.findByRole('grid')).findByText('s1-.txt')).toBeInTheDocument()
 
     reply = () => problem(500, 'internal_error')
@@ -202,19 +202,19 @@ describe('Toolbar', () => {
     )
     const user = userEvent.setup()
     const { history } = await renderApp({ path: '/' })
-    await user.click(await screen.findByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(await screen.findByRole('treeitem', { name: /Prod/ }))
     await within(await screen.findByRole('grid')).findByText('s1-.txt')
     expect(disconnected).toEqual([])
 
-    await user.click(screen.getByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(screen.getByRole('treeitem', { name: /Prod/ }))
     expect(disconnected).toEqual([])
-    await user.click(screen.getByRole('treeitem', { name: /Backup/ }))
+    await user.dblClick(screen.getByRole('treeitem', { name: /Backup/ }))
     await waitFor(() => expect(history.location.pathname).toBe('/sites/s2'))
     await waitFor(() => expect(disconnected).toEqual(['s1']))
     expect(useConnectionState.getState().disconnected).toEqual({})
 
     server.use(http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', () => problem(500, 'internal_error')))
-    await user.click(screen.getByRole('treeitem', { name: /Prod/ }))
+    await user.dblClick(screen.getByRole('treeitem', { name: /Prod/ }))
     await waitFor(() => expect(history.location.pathname).toBe('/sites/s1'))
     expect(await within(await screen.findByRole('grid')).findByText('s1-.txt')).toBeInTheDocument()
   })
