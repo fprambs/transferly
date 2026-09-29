@@ -59,7 +59,8 @@ const folderScript = `
  * in memory.
  *
  * Scenarios:
- * - a file dragged from the server onto the local pane is saved in the chosen folder with the same content, and listed
+ * - a file dragged from the server onto the local pane is saved in the chosen folder with the same content, and listed; the headers of
+ *   the local table sit on one line
  * - a file of the chosen folder dragged onto the server pane is uploaded, listed there and shown as a finished upload
  */
 test.describe('local folder pane', () => {
@@ -92,6 +93,10 @@ test.describe('local folder pane', () => {
     await remoteGrid.getByRole('row', { name: new RegExp(down) }).dragTo(local.getByRole('region', { name: 'Local folder' }))
     const localGrid = local.getByRole('grid', { name: 'Files' })
     await expect(localGrid.getByRole('row', { name: new RegExp(down) })).toBeVisible()
+    const tops = await localGrid.getByRole('columnheader').evaluateAll((cells) =>
+      cells.filter((cell) => cell.getClientRects().length > 0).map((cell) => Math.round(cell.getBoundingClientRect().top)),
+    )
+    expect(new Set(tops).size, `header rows at ${JSON.stringify(tops)}`).toBe(1)
     const saved = await page.evaluate((name) => (globalThis as unknown as { folderTools: FolderTools }).folderTools.read(name), down)
     expect(saved).toBe('from the server\n')
 
