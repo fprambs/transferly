@@ -1,6 +1,4 @@
-import { useIsFetching, useQueryClient } from '@tanstack/react-query'
-import { useMatch } from '@tanstack/react-router'
-import { CircleStop, PanelBottom, PanelLeft, PanelRight, PanelTop, RefreshCw, Unplug } from 'lucide-react'
+import { CircleStop, RefreshCw, Unplug } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -8,15 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tip } from '@/components/ui/tip'
 import { cn } from '@/lib/utils'
-import { useUiStore, type UiState } from '@/state/ui-store'
+import { useUiStore } from '@/state/ui-store'
 
-import { filesPrefix } from '../explorer/files-key'
-import { localSiteId } from '../local/local-fs'
-import { useSitesData } from '../sites/use-sites-data'
-import { useWorkspace } from '../workspace/use-workspace'
 
-import { useConnectionState, useDisconnected, type SiteRef } from './connection-store'
-import { useDisconnect } from './use-disconnect'
+import { panelSwitches, useCommandTarget, useConnectionCommands } from './commands'
+import type { SiteRef } from './connection-store'
 
 /** Props of {@link ToolButton}. */
 interface ToolButtonProps {
@@ -61,21 +55,6 @@ function ToolButton({ label, icon: Icon, disabled = false, pressed, tone, onClic
   )
 }
 
-/** The site the toolbar acts on: the pane in focus when it is one of the remote panes in view, otherwise the main pane. */
-function useTarget(): SiteRef | null {
-  const workspace = useWorkspace()
-  const focused = useConnectionState((state) => state.focused)
-  const match = useMatch({ from: '/shell/sites/$siteId', shouldThrow: false })
-  if (workspace === undefined || match === undefined) {
-    return null
-  }
-  const shown = [match.params.siteId, match.search.split].filter((id) => id !== undefined && id !== localSiteId)
-  if (focused !== null && focused.workspaceId === workspace.id && shown.includes(focused.siteId)) {
-    return focused
-  }
-  return { workspaceId: workspace.id, siteId: match.params.siteId }
-}
-
 /**
  * The toolbar above the view, as in FileZilla (4.9b): actions on the connection in focus (refresh its folder, cancel what it is doing,
  * disconnect) and switches for the panels. It says which connection it acts on. Disconnecting takes the site out of the address, so a
@@ -83,7 +62,7 @@ function useTarget(): SiteRef | null {
  */
 export function Toolbar() {
   const { t } = useTranslation('explorer')
-  const target = useTarget()
+  const target = useCommandTarget()
   return (
     <div role="toolbar" aria-label={t(($) => $.commands.label)} className="flex h-9 flex-none items-center gap-1 border-b bg-card px-3">
       {target === null ? <ConnectionActions /> : <ConnectionActions key={`${target.workspaceId}/${target.siteId}`} target={target} />}
@@ -102,25 +81,14 @@ interface ConnectionActionsProps {
 /** Refresh, cancel and disconnect, for the connection in focus. */
 function ConnectionActions({ target }: ConnectionActionsProps) {
   const { t } = useTranslation('explorer')
-  const queryClient = useQueryClient()
-  const { sites, quick } = useSitesData(target?.workspaceId)
-  const prefix = target === undefined ? ['none'] : filesPrefix(target.workspaceId, target.siteId)
-  const busy = useIsFetching({ queryKey: prefix }) > 0
-  const disconnected = useDisconnected(target ?? { workspaceId: '', siteId: '' })
-  const disconnectFrom = useDisconnect()
+  const { name, busy, disconnected, idle, refresh, cancel, disconnect } = useConnectionCommands(target)
   const [failed, setFailed] = useState(false)
-  const name = [...sites, ...quick].find((connection) => connection.id === target?.siteId)?.name
-  const idle = target === undefined || disconnected
-
-  const disconnect = async (site: SiteRef): Promise<void> => {
-    setFailed(!(await disconnectFrom(site)))
-  }
 
   return (
     <>
-      <ToolButton label={t(($) => $.commands.refresh)} icon={RefreshCw} tone="accent" disabled={idle} onClick={() => void queryClient.invalidateQueries({ queryKey: prefix })} />
-      <ToolButton label={t(($) => $.commands.cancel)} icon={CircleStop} tone="stop" disabled={!busy} onClick={() => void queryClient.cancelQueries({ queryKey: prefix })} />
-      <ToolButton label={t(($) => $.commands.disconnect)} icon={Unplug} tone="cut" disabled={idle} onClick={() => void disconnect(target as SiteRef)} />
+      <ToolButton label={t(($) => $.commands.refresh)} icon={RefreshCw} tone="accent" disabled={idle} onClick={refresh} />
+      <ToolButton label={t(($) => $.commands.cancel)} icon={CircleStop} tone="stop" disabled={!busy} onClick={cancel} />
+      <ToolButton label={t(($) => $.commands.disconnect)} icon={Unplug} tone="cut" disabled={idle} onClick={async () => setFailed(!(await disconnect()))} />
       {name !== undefined && (
         <span className="ms-1 max-w-56 truncate text-xs text-muted-foreground">
           {disconnected ? t(($) => $.commands.disconnectedFrom, { name }) : t(($) => $.commands.connection, { name })}
@@ -134,14 +102,6 @@ function ConnectionActions({ target }: ConnectionActionsProps) {
     </>
   )
 }
-
-/** The panels the toolbar shows or hides, with their preference, its setter and their icon. */
-const panelSwitches = [
-  { key: 'sites', icon: PanelLeft, open: (state: UiState) => state.sitesOpen, set: (state: UiState) => state.setSitesOpen },
-  { key: 'log', icon: PanelTop, open: (state: UiState) => state.logOpen, set: (state: UiState) => state.setLogOpen },
-  { key: 'details', icon: PanelRight, open: (state: UiState) => state.detailsOpen, set: (state: UiState) => state.setDetailsOpen },
-  { key: 'transfers', icon: PanelBottom, open: (state: UiState) => state.queueOpen, set: (state: UiState) => state.setQueueOpen },
-] as const
 
 /** Switches that show or hide the panels around the files (4.10). */
 function PanelSwitches() {
