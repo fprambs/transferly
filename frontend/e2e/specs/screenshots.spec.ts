@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test'
 import { createAccountWithSecondStep } from '../accounts.ts'
 import { expect, test } from '../fixtures.ts'
 import { totpCode } from '../totp.ts'
+import { choose } from '../select.ts'
 
 /** Where the screenshots are written, relative to the frontend folder. */
 const folder = 'shots'
@@ -45,6 +46,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the warning of a server key other than the trusted one, with add, replace and cancel
  * - the bookmarks of a saved site as chips in the toolbar, and their menu
  * - a toolbar button under the pointer
+ * - the interface's own select open, in a dialog and in the calendar of the filter
  * - a folder with many files, with the transfers panel still in view
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
@@ -329,7 +331,7 @@ test.describe('screenshots', () => {
     await page.goto(`/sites/${quickId}?path=%2Fupload%2F${folder}`)
     await page.getByRole('button', { name: 'Split view' }).click()
     const second = page.getByRole('group', { name: 'Second pane' })
-    await second.getByRole('combobox', { name: 'Site of the second pane' }).selectOption({ label: `Backup ${stamp}` })
+    await choose(second.getByRole('combobox', { name: 'Site of the second pane' }), `Backup ${stamp}`)
     await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ }).dblclick()
     await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(folder) }).dblclick()
     await expect(second.getByRole('button', { name: folder, exact: true })).toHaveAttribute('aria-current', 'page')
@@ -468,17 +470,17 @@ test.describe('screenshots', () => {
     await dialog.getByRole('tab', { name: 'Advanced' }).click()
     await shoot(page, '40-site-dialog-advanced')
     await dialog.getByRole('tab', { name: 'General' }).click()
-    await dialog.getByLabel('Protocol').selectOption('ftp')
-    await dialog.getByLabel('Logon type').selectOption('anonymous')
+    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
+    await choose(dialog.getByLabel('Logon type'), 'Anonymous')
     await shoot(page, '46-site-dialog-ftp-anonymous')
     await dialog.getByRole('tab', { name: 'Proxy and jump host' }).click()
     await shoot(page, '47-site-dialog-proxy')
     await dialog.getByRole('tab', { name: 'General' }).click()
-    await dialog.getByLabel('Protocol').selectOption('sftp')
+    await choose(dialog.getByLabel('Protocol'), 'SFTP - SSH File Transfer Protocol')
     await dialog.getByLabel('Name', { exact: true }).fill(`Asks ${Date.now()}`)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-    await dialog.getByLabel('Logon type').selectOption('ask')
+    await choose(dialog.getByLabel('Logon type'), 'Ask for password')
     await shoot(page, '48-site-dialog-ask')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await page.getByRole('treeitem', { name: /Asks/ }).first().dblclick()
@@ -494,7 +496,7 @@ test.describe('screenshots', () => {
     await dialog.getByLabel('Name', { exact: true }).fill('Deploy')
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-    await dialog.getByLabel('Logon type').selectOption('key')
+    await choose(dialog.getByLabel('Logon type'), 'Key file')
     await shoot(page, '50-key-file-empty')
     await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.pub')
     await expect(dialog.getByRole('alert')).toBeVisible()
@@ -617,6 +619,27 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'New folder' }).hover()
     await page.waitForTimeout(300)
     await shoot(page, '63-button-hover')
+  })
+
+  test('own selects', async ({ shell, quickId }) => {
+    const { page } = shell
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByLabel('Logon type').click()
+    await page.getByRole('option', { name: 'Key file' }).waitFor()
+    await page.waitForTimeout(300)
+    await shoot(page, '64-select-open')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    await page.getByRole('button', { name: /Filters, 0 in use/ }).click()
+    const menu = page.getByRole('dialog')
+    await menu.getByRole('button', { name: 'Between dates' }).click()
+    await menu.getByRole('combobox', { name: 'Choose the Month' }).click()
+    await page.getByRole('option').first().waitFor()
+    await page.waitForTimeout(300)
+    await shoot(page, '65-calendar-month-select')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {

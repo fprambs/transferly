@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
+import { choose } from '../select.ts'
 
 /** A language the interface can be switched to, by its code. */
 export type Language = 'en' | 'es'
@@ -39,7 +40,7 @@ export class ShellPage {
   /** Selects the interface language in the settings and returns to the page the test was on. */
   async setLanguage(language: Language): Promise<void> {
     await this.inSettings(async () => {
-      await this.page.locator('#language-setting').selectOption(language)
+      await choose(this.page.locator('#language-setting'), language === 'es' ? 'Español' : 'English')
     })
   }
 

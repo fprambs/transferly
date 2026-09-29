@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * Private keys given as files (4.8g), against a real OpenSSH server that authorizes the test PuTTY key.
@@ -16,7 +17,7 @@ test.describe('key files', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Logon type').selectOption('key')
+    await choose(dialog.getByLabel('Logon type'), 'Key file')
     await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
 
     await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.pub')

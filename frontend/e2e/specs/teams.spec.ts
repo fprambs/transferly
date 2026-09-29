@@ -2,6 +2,7 @@ import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /** Chooses the team in the workspace switcher of a page and opens its members. */
 async function openTeamMembers(page: Page, name: string): Promise<void> {
@@ -110,7 +111,7 @@ test.describe('teams', () => {
     await expect(log).toContainText(`removed ${invitee}`)
     await expect(log.getByRole('listitem').first()).toContainText('e2e@example.com')
 
-    await page.getByLabel('Show').selectOption({ label: 'Invitations' })
+    await choose(page.getByLabel('Show'), 'Invitations')
     await expect(log).not.toContainText('created the workspace')
     await expect(log).toContainText(`invited ${invitee}`)
   })

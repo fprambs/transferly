@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * The anonymous logon type over SFTP, against a real OpenSSH server that lets the anonymous user in with the SSH "none" method.
@@ -15,7 +16,7 @@ test.describe('anonymous sftp', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Logon type').selectOption('anonymous')
+    await choose(dialog.getByLabel('Logon type'), 'Anonymous')
     await expect(dialog.getByLabel('Username', { exact: true })).toHaveValue('anonymous')
     await expect(dialog.getByLabel('Password', { exact: true })).toHaveCount(0)
     await dialog.getByRole('button', { name: 'Create site' }).click()

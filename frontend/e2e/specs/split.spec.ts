@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * The second pane and the copy between panes against the SFTP server of the isolated test stack.
@@ -47,7 +48,7 @@ test.describe('split view', () => {
     await page.goto(`/sites/${quickId}?path=%2Fupload%2F${source}`)
     await page.getByRole('button', { name: 'Split view' }).click()
     const second = page.getByRole('group', { name: 'Second pane' })
-    await second.getByRole('combobox', { name: 'Site of the second pane' }).selectOption({ label: `split-${stamp}` })
+    await choose(second.getByRole('combobox', { name: 'Site of the second pane' }), `split-${stamp}`)
     const secondGrid = second.getByRole('grid', { name: 'Files' })
     await secondGrid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(second.getByRole('button', { name: 'upload', exact: true })).toHaveAttribute('aria-current', 'page')

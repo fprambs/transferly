@@ -3,6 +3,7 @@ import type { APIRequestContext, Page } from '@playwright/test'
 
 import { createAccountWithSecondStep } from '../accounts.ts'
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /** Opens the administration page from the account menu and waits for its accounts. */
 async function openAdmin(page: Page): Promise<void> {
@@ -170,7 +171,7 @@ test.describe('administration', () => {
     await expect(log).toContainText('changed the limits of the instance')
     await expect(log.getByRole('listitem').first()).toContainText('e2e@example.com')
 
-    await page.getByLabel('Show').selectOption({ label: 'Networks' })
+    await choose(page.getByLabel('Show'), 'Networks')
     await expect(log).not.toContainText('disabled the account')
     await expect(log).toContainText('changed the allowed networks')
   })

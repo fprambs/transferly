@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * The live connection log (ADR-0011), against the real servers of the isolated stack.
@@ -50,10 +51,10 @@ test.describe('connection log', () => {
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await dialog.getByLabel('Protocol').selectOption('ftp')
-    await dialog.getByLabel('Encryption').selectOption('optional')
+    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
+    await choose(dialog.getByLabel('Encryption'), 'Use explicit FTP over TLS if available')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
-    await dialog.getByLabel('Logon type').selectOption('anonymous')
+    await choose(dialog.getByLabel('Logon type'), 'Anonymous')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 

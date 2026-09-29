@@ -1,5 +1,6 @@
 import { createAccount } from '../accounts.ts'
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * Persisted interface preferences.
@@ -39,19 +40,19 @@ test.describe('preferences', () => {
     const page = await context.newPage()
     await page.goto('/settings')
     const select = page.getByLabel('Double click on a file')
-    await expect(select).toHaveValue('download')
+    await expect(select).toHaveText('Download it')
     const saved = page.waitForResponse((response) => response.url().endsWith('/api/v1/me') && response.request().method() === 'PATCH')
-    await select.selectOption('edit')
+    await choose(select, 'Open it in the editor')
     expect((await saved).ok()).toBe(true)
     const language = page.waitForResponse((response) => response.url().endsWith('/api/v1/me') && response.request().method() === 'PATCH')
-    await page.locator('#language-setting').selectOption('es')
+    await choose(page.locator('#language-setting'), 'Español')
     expect((await language).ok()).toBe(true)
 
     await page.evaluate(() => globalThis.localStorage.clear())
     await page.reload()
 
     await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()
-    await expect(page.getByLabel('Doble clic en un archivo')).toHaveValue('edit')
+    await expect(page.getByLabel('Doble clic en un archivo')).toHaveText('Abrirlo en el editor')
     await context.close()
     await guest.dispose()
   })

@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /** What the page offers the test to reach the folder a fake picker answers with. */
 interface FolderTools {
@@ -87,7 +88,7 @@ test.describe('compare and sync', () => {
     await page.goto(`/sites/${quickId}?path=%2Fupload%2F${folder}`)
     await page.getByRole('button', { name: 'Split view' }).click()
     const second = page.getByRole('group', { name: 'Second pane' })
-    await second.getByRole('combobox', { name: 'Site of the second pane' }).selectOption({ label: `sync-${stamp}` })
+    await choose(second.getByRole('combobox', { name: 'Site of the second pane' }), `sync-${stamp}`)
     await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ }).dblclick()
     await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(folder) }).dblclick()
     await expect(second.getByRole('button', { name: folder, exact: true })).toHaveAttribute('aria-current', 'page')

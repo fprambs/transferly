@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * Checksums of files on the SFTP server of the isolated test stack.
@@ -35,7 +36,7 @@ test.describe('checksums', () => {
 
     await inspector.getByRole('button', { name: 'Checksum' }).click()
     await expect(inspector.getByLabel('Checksum value')).toHaveText(createHash('sha256').update(content).digest('hex'))
-    await inspector.getByRole('combobox', { name: 'Checksum algorithm' }).selectOption('md5')
+    await choose(inspector.getByRole('combobox', { name: 'Checksum algorithm' }), 'MD5')
     await inspector.getByRole('button', { name: 'Checksum' }).click()
     await expect(inspector.getByLabel('Checksum value')).toHaveText(createHash('md5').update(content).digest('hex'))
 

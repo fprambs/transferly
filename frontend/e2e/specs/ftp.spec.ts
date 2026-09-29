@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /** Fills the quick connect dialog for a server of the test stack and presses Connect. */
 async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string): Promise<void> {
@@ -59,10 +60,10 @@ test.describe('ftp and ftps', () => {
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await dialog.getByLabel('Protocol').selectOption('ftp')
-    await dialog.getByLabel('Encryption').selectOption('optional')
+    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
+    await choose(dialog.getByLabel('Encryption'), 'Use explicit FTP over TLS if available')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
-    await dialog.getByLabel('Logon type').selectOption('anonymous')
+    await choose(dialog.getByLabel('Logon type'), 'Anonymous')
     await expect(dialog.getByLabel('Username', { exact: true })).toHaveValue('anonymous')
     await expect(dialog.getByLabel('Password', { exact: true })).toHaveCount(0)
     await dialog.getByRole('button', { name: 'Create site' }).click()
@@ -80,8 +81,8 @@ test.describe('ftp and ftps', () => {
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await dialog.getByLabel('Protocol').selectOption('ftp')
-    await dialog.getByLabel('Encryption').selectOption('implicit')
+    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
+    await choose(dialog.getByLabel('Encryption'), 'Require implicit FTP over TLS')
     await expect(dialog.getByLabel('Port', { exact: true })).toHaveAttribute('placeholder', '990')
     await dialog.getByLabel('Host', { exact: true }).fill('ftps-implicit')
     await dialog.getByLabel('Username', { exact: true }).fill('sentinel')

@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /**
  * The logon type that asks for the password when connecting (ADR-0010), against a real SFTP server.
@@ -16,7 +17,7 @@ test.describe('ask for password', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Logon type').selectOption('ask')
+    await choose(dialog.getByLabel('Logon type'), 'Ask for password')
     await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
     await expect(dialog.getByLabel('Password', { exact: true })).toHaveCount(0)
     await dialog.getByRole('button', { name: 'Create site' }).click()

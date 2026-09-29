@@ -4,6 +4,7 @@ import http from 'node:http'
 import type { APIRequestContext } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /** Address of the application under test. */
 const baseURL = process.env.SENTINEL_E2E_URL as string
@@ -85,8 +86,8 @@ test.describe('transfer queue', () => {
     const waiting = dock.getByRole('listitem').filter({ hasText: name })
     await expect(waiting).toContainText('Waiting for a free slot')
 
-    await waiting.getByRole('combobox', { name: `Priority of ${name}` }).selectOption('High')
-    await expect(waiting.getByRole('combobox', { name: `Priority of ${name}` })).toHaveValue('1')
+    await choose(waiting.getByRole('combobox', { name: `Priority of ${name}` }), 'High')
+    await expect(waiting.getByRole('combobox', { name: `Priority of ${name}` })).toHaveText('High')
     await waiting.getByRole('button', { name: `Pause ${name}` }).click()
     await expect(waiting).toContainText('Paused')
 

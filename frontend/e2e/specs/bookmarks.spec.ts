@@ -9,6 +9,8 @@ import { expect, test } from '../fixtures.ts'
  * - the bookmarks bar shows it as a chip, marked while its folder is in view, and the chip opens the folder (4.14g)
  */
 test.describe('bookmarks', () => {
+  test.use({ viewport: { width: 1600, height: 900 } })
+
   test('bookmarks a folder, opens it again and removes it', async ({ shell, request }) => {
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }

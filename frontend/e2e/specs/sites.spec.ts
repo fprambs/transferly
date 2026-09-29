@@ -1,6 +1,7 @@
 import type { Locator } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
+import { choose } from '../select.ts'
 
 /** Reads the computed background color of an element in the page. */
 function background(locator: Locator): Promise<string> {
@@ -121,7 +122,7 @@ test.describe('sites sidebar', () => {
     await dialog.getByRole('tab', { name: 'Transfer' }).click()
     await dialog.getByLabel('Speed limit (MiB/s)').fill('4')
     await dialog.getByRole('tab', { name: 'Proxy and jump host' }).click()
-    await dialog.getByLabel('Proxy', { exact: true }).selectOption('socks5')
+    await choose(dialog.getByLabel('Proxy', { exact: true }), 'SOCKS5')
     await dialog.getByLabel('Proxy host').fill('9.9.9.9')
     await dialog.getByLabel('Jump host', { exact: true }).fill('1.1.1.1')
     await dialog.getByLabel('Jump username').fill('bastion')
@@ -142,7 +143,7 @@ test.describe('sites sidebar', () => {
     await edit.getByRole('tab', { name: 'Transfer' }).click()
     await expect(edit.getByLabel('Speed limit (MiB/s)')).toHaveValue('4')
     await edit.getByRole('tab', { name: 'Proxy and jump host' }).click()
-    await expect(edit.getByLabel('Proxy', { exact: true })).toHaveValue('socks5')
+    await expect(edit.getByLabel('Proxy', { exact: true })).toHaveText('SOCKS5')
     await expect(edit.getByLabel('Proxy host')).toHaveValue('9.9.9.9')
     await expect(edit.getByLabel('Jump host', { exact: true })).toHaveValue('1.1.1.1')
     await expect(edit.getByLabel('Jump username')).toHaveValue('bastion')
