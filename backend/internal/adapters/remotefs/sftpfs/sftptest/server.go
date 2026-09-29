@@ -29,6 +29,11 @@ type Options struct {
 	HostKey ssh.Signer
 	// KeyboardOnly disables password authentication, leaving keyboard-interactive.
 	KeyboardOnly bool
+	// PasswordOnly disables keyboard-interactive authentication, leaving the password method.
+	PasswordOnly bool
+	// Code, when set, makes keyboard-interactive ask for a one-time code too: first a banner without questions, then
+	// the password and the code in one challenge named "Two steps".
+	Code string
 	// Anonymous lets the anonymous user in with the SSH "none" method, with no password or key.
 	Anonymous bool
 	// NoSFTP makes the server refuse the sftp subsystem.
@@ -87,6 +92,9 @@ func Start(t testing.TB, opt Options) *Server {
 			return nil, errors.New("wrong password")
 		},
 		KeyboardInteractiveCallback: func(c ssh.ConnMetadata, ask ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
+			if opt.Code != "" {
+				return askCode(c, ask, opt)
+			}
 			answers, err := ask(c.User(), "", []string{"Password: "}, []bool{false})
 			if want, ok := opt.Users[c.User()]; err == nil && ok && len(answers) == 1 && answers[0] == want {
 				return nil, nil
@@ -104,6 +112,9 @@ func Start(t testing.TB, opt Options) *Server {
 	}
 	if opt.KeyboardOnly {
 		config.PasswordCallback = nil
+	}
+	if opt.PasswordOnly {
+		config.KeyboardInteractiveCallback = nil
 	}
 	if opt.Anonymous {
 		config.NoClientAuth = true
@@ -371,4 +382,17 @@ func (h *handlers) Lstat(r *sftp.Request) (sftp.ListerAt, error) {
 		return nil, wire(err)
 	}
 	return lister{info}, nil
+}
+
+// askCode is the keyboard-interactive exchange of a server that asks for a one-time code: a banner, then the password
+// and the code together.
+func askCode(c ssh.ConnMetadata, ask ssh.KeyboardInteractiveChallenge, opt Options) (*ssh.Permissions, error) {
+	if _, err := ask(c.User(), "Welcome", nil, nil); err != nil {
+		return nil, err
+	}
+	answers, err := ask("Two steps", "Enter your password and the code of your app", []string{"Password: ", "Code: "}, []bool{false, true})
+	if want, ok := opt.Users[c.User()]; err == nil && ok && len(answers) == 2 && answers[0] == want && answers[1] == opt.Code {
+		return nil, nil
+	}
+	return nil, errors.New("wrong password or code")
 }

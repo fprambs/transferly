@@ -28,6 +28,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 )
 
@@ -95,12 +96,16 @@ func newKeyPair(t *testing.T, passphrase string) keyPair {
 	return keyPair{public: public, plain: pem.EncodeToMemory(plain), protected: pem.EncodeToMemory(protected)}
 }
 
+// connectTimeout bounds each connection of a test. Decrypting a protected key runs bcrypt inside Dial, which the race detector and
+// coverage slow down to many seconds when the whole suite runs at once.
+const connectTimeout = time.Minute
+
 // connect dials with the given credentials on top of the defaults for a test server.
 func connect(t *testing.T, s *sftptest.Server, mutate func(*sftpfs.Config)) (*sftpfs.FS, error) {
 	t.Helper()
 	cfg := sftpfs.Config{Address: s.Addr, Username: testUser, VerifyHostKey: trustAll}
 	mutate(&cfg)
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), connectTimeout)
 	defer cancel()
 	fsys, err := sftpfs.Dial(ctx, cfg)
 	if err == nil {
@@ -163,6 +168,58 @@ func TestDial_Authentication(t *testing.T) {
 		if !errors.Is(err, remotefs.ErrAuth) || remotefs.Retryable(err) {
 			t.Errorf("%s: Dial() = %v; want a non-retryable ErrAuth", name, err)
 		}
+	}
+}
+
+// TestDial_Prompt covers asking the person connecting whatever the server asks (ADR-0016).
+//
+// Use cases:
+//   - each keyboard-interactive challenge reaches the prompt with its name, instruction, questions and whether each
+//     answer may be shown, and the answers sign in; a banner without questions is not asked
+//   - a server that only takes the password method gets the password asked with one hidden question
+//   - a prompt that fails, declined or unanswered, is a non-retryable ErrAuth
+//   - a connection whose context ends while the person is asked fails with the context error
+func TestDial_Prompt(t *testing.T) {
+	otp := startServer(t, sftptest.Options{KeyboardOnly: true, Code: "123456"})
+	var asked []prompts.Challenge
+	answer := func(c prompts.Challenge) ([]string, error) {
+		asked = append(asked, c)
+		return []string{testPassword, "123456"}, nil
+	}
+	if _, err := connect(t, otp, func(c *sftpfs.Config) { c.Prompt = answer }); err != nil {
+		t.Fatalf("Dial() with a code = %v", err)
+	}
+	if len(asked) != 1 || asked[0].Name != "Two steps" || asked[0].Instruction == "" || len(asked[0].Questions) != 2 ||
+		asked[0].Questions[0].Text != "Password: " || asked[0].Questions[0].Echo || !asked[0].Questions[1].Echo {
+		t.Errorf("asked = %+v", asked)
+	}
+
+	passwordOnly := startServer(t, sftptest.Options{PasswordOnly: true})
+	var question prompts.Challenge
+	if _, err := connect(t, passwordOnly, func(c *sftpfs.Config) {
+		c.Prompt = func(ch prompts.Challenge) ([]string, error) { question = ch; return []string{testPassword}, nil }
+	}); err != nil {
+		t.Fatalf("Dial() asking the password = %v", err)
+	}
+	if len(question.Questions) != 1 || question.Questions[0].Echo || question.Questions[0].Text != "Password:" {
+		t.Errorf("password question = %+v", question)
+	}
+
+	for name, server := range map[string]*sftptest.Server{"keyboard-interactive": otp, "password": passwordOnly} {
+		_, err := connect(t, server, func(c *sftpfs.Config) {
+			c.Prompt = func(prompts.Challenge) ([]string, error) { return nil, prompts.ErrCanceled }
+		})
+		if !errors.Is(err, remotefs.ErrAuth) || remotefs.Retryable(err) {
+			t.Errorf("%s declined = %v; want a non-retryable ErrAuth", name, err)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	_, err := sftpfs.Dial(ctx, sftpfs.Config{Address: otp.Addr, Username: testUser, VerifyHostKey: trustAll,
+		Prompt: func(prompts.Challenge) ([]string, error) { cancel(); return nil, context.Canceled },
+	})
+	if !errors.Is(err, context.Canceled) || errors.Is(err, remotefs.ErrAuth) {
+		t.Errorf("Dial() canceled while asking = %v; want context.Canceled", err)
 	}
 }
 

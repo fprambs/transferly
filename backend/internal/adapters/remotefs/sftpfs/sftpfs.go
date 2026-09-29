@@ -24,6 +24,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 )
 
@@ -58,6 +59,9 @@ type Config struct {
 	Conn net.Conn
 	// Timeout bounds establishing the TCP connection; zero means no limit.
 	Timeout time.Duration
+	// Prompt, when set, asks the person connecting whatever the server asks (ADR-0016): each keyboard-interactive
+	// challenge, then the password for servers that only take that. Its failures are refused credentials.
+	Prompt func(prompts.Challenge) ([]string, error)
 }
 
 // FS is a connection to an SFTP server. It is safe for concurrent use.
@@ -95,6 +99,9 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 	if cfg.Password != "" {
 		methods = append(methods, ssh.Password(cfg.Password), ssh.KeyboardInteractive(passwordAnswers(cfg.Password)))
 	}
+	if cfg.Prompt != nil {
+		methods = append(methods, ssh.KeyboardInteractive(relay(cfg.Prompt)), ssh.PasswordCallback(askPassword(cfg.Prompt)))
+	}
 	if len(methods) == 0 {
 		return nil, fmt.Errorf("%w: no password or private key given", remotefs.ErrAuth)
 	}
@@ -120,6 +127,40 @@ func passwordAnswers(password string) ssh.KeyboardInteractiveChallenge {
 			answers[i] = password
 		}
 		return answers, nil
+	}
+}
+
+// relay hands each keyboard-interactive challenge to the person connecting, as the server words it. Challenges without
+// questions, such as a banner, are acknowledged without asking.
+func relay(prompt func(prompts.Challenge) ([]string, error)) ssh.KeyboardInteractiveChallenge {
+	return func(name, instruction string, questions []string, echos []bool) ([]string, error) {
+		if len(questions) == 0 {
+			return nil, nil
+		}
+		challenge := prompts.Challenge{Name: name, Instruction: instruction, Questions: make([]prompts.Question, len(questions))}
+		for i, text := range questions {
+			challenge.Questions[i] = prompts.Question{Text: text, Echo: i < len(echos) && echos[i]}
+		}
+		answers, err := prompt(challenge)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", remotefs.ErrAuth, err)
+		}
+		return answers, nil
+	}
+}
+
+// passwordQuestion is how the password is asked for when the server takes the password method.
+const passwordQuestion = "Password:"
+
+// askPassword asks the person connecting for the password, for servers that take the password method but not
+// keyboard-interactive.
+func askPassword(prompt func(prompts.Challenge) ([]string, error)) func() (string, error) {
+	return func() (string, error) {
+		answers, err := prompt(prompts.Challenge{Questions: []prompts.Question{{Text: passwordQuestion}}})
+		if err != nil {
+			return "", fmt.Errorf("%w: %w", remotefs.ErrAuth, err)
+		}
+		return answers[0], nil
 	}
 }
 
@@ -206,9 +247,10 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	sshConn, channels, requests, err := ssh.NewClientConn(conn, cfg.Address, clientConfig)
-	if !stop() {
+	stop()
+	if ctxErr := ctx.Err(); ctxErr != nil {
 		_ = conn.Close()
-		return nil, ctx.Err()
+		return nil, ctxErr
 	}
 	if err != nil {
 		_ = conn.Close()

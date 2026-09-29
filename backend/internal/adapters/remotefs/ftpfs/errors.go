@@ -38,7 +38,7 @@ func classify(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded), errors.Is(err, remotefs.ErrAuth):
 		return err
 	case !errors.As(err, &reply):
 		return fmt.Errorf("%w: %w", remotefs.ErrConnectionLost, err)

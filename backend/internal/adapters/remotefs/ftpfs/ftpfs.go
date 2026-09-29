@@ -32,6 +32,7 @@ import (
 	"github.com/jlaffaye/ftp"
 
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 )
 
@@ -94,6 +95,28 @@ type Config struct {
 	// Timeout bounds establishing each TCP connection and, as a whole, connecting: the greeting and the login too, so a
 	// server that accepts the connection and never answers, or answers in another dialect of TLS, cannot hang it. Zero means no limit.
 	Timeout time.Duration
+	// Prompt, when set, asks the person connecting for the password instead of using Password, showing the server's reply
+	// to USER, where one-time password servers put their challenge (ADR-0016). Its failures are refused credentials.
+	Prompt func(prompts.Challenge) ([]string, error)
+	// PromptWait extends Timeout while Prompt waits for the person, so a slow answer is not a server that never answered.
+	PromptWait time.Duration
+}
+
+// passwordQuestion is how the password is asked for when the site's logon is interactive.
+const passwordQuestion = "Password:"
+
+// password returns how the login gets the password: the one of cfg, or asked through its prompt.
+func (cfg Config) password() func(message string) (string, error) {
+	if cfg.Prompt == nil {
+		return func(string) (string, error) { return cfg.Password, nil }
+	}
+	return func(message string) (string, error) {
+		answers, err := cfg.Prompt(prompts.Challenge{Instruction: message, Questions: []prompts.Question{{Text: passwordQuestion}}})
+		if err != nil {
+			return "", fmt.Errorf("%w: %w", remotefs.ErrAuth, err)
+		}
+		return answers[0], nil
+	}
 }
 
 // FS is a connection to an FTP server. It is safe for concurrent use; operations take turns.
@@ -262,8 +285,12 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 
 	parent := ctx
 	if cfg.Timeout > 0 {
+		limit := cfg.Timeout
+		if cfg.Prompt != nil {
+			limit += cfg.PromptWait
+		}
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, limit)
 		defer cancel()
 		session.ctx.Store(&ctx)
 	}
@@ -271,7 +298,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	conn, err := ftp.Dial(cfg.Address, options...)
 	greeted := err == nil
 	if err == nil {
-		err = conn.LoginWithAccount(cfg.Username, cfg.Password, cfg.Account)
+		err = conn.LoginInteractive(cfg.Username, cfg.password(), cfg.Account)
 		if err != nil {
 			_ = conn.Quit()
 		}
