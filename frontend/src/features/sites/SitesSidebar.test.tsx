@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { Site } from '@/lib/api'
+import type { QuickConnection, Site } from '@/lib/api'
 import { mockWorkspaceData } from '@/test/handlers'
 import { renderWithProviders } from '@/test/render'
 
@@ -34,13 +34,46 @@ function site(id: string, name: string, collectionId?: string): Site {
  * Scenarios:
  * - a workspace without sites shows the empty message
  * - collections, sites and quick connections appear as a tree with counts and the "not saved" mark
- * - opening a collection reveals its children and closing it hides them again
+ * - opening a collection reveals its children and closing it hides them again; choosing in its menu does not open or close it
  * - clicking a row selects it and only one row is selected at a time; Enter and Space select the row with focus
  * - selecting a site or a quick connection opens it, and selecting a collection does not
  * - the toolbar offers quick connect and the create actions
  * - the labels follow the interface language
+ * - connected sites and quick connections carry a green dot named for screen readers, and connected sites offer to disconnect in their menu
  */
 describe('SitesSidebar', () => {
+  it('marks the connected sites in green and offers to disconnect them', async () => {
+    const quick: QuickConnection = { id: 'q1', name: 'q.example.com', protocol: 'sftp', host: 'q.example.com', port: 22, username: 'u', authMethod: 'password', listTimezone: 'UTC', charset: 'utf-8', createdAt: '2026-01-01T00:00:00Z' }
+    mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Stage')], quick: [quick], connected: ['s1', 'q1'] })
+    const disconnected: string[] = []
+    const user = userEvent.setup()
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} onDisconnect={(id) => disconnected.push(id)} />)
+
+    const prod = await screen.findByRole('treeitem', { name: /Prod/ })
+    await within(prod).findByText('Connected')
+    expect(within(screen.getByRole('treeitem', { name: /q\.example\.com/ })).getByText('Connected')).toBeInTheDocument()
+    expect(within(screen.getByRole('treeitem', { name: /Stage/ })).queryByText('Connected')).not.toBeInTheDocument()
+
+    await user.click(within(prod).getByRole('button', { name: 'Actions for Prod' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Disconnect' }))
+    expect(disconnected).toEqual(['s1'])
+
+    await user.click(within(screen.getByRole('treeitem', { name: /Stage/ })).getByRole('button', { name: 'Actions for Stage' }))
+    await screen.findByRole('menuitem', { name: 'Edit' })
+    expect(screen.queryByRole('menuitem', { name: 'Disconnect' })).not.toBeInTheDocument()
+  })
+
+  it('offers no way to disconnect when none is given', async () => {
+    mockWorkspaceData({ sites: [site('s1', 'Prod')], connected: ['s1'] })
+    const user = userEvent.setup()
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
+    const prod = await screen.findByRole('treeitem', { name: /Prod/ })
+    await within(prod).findByText('Connected')
+    await user.click(within(prod).getByRole('button', { name: 'Actions for Prod' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Disconnect' }))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('shows the empty message for a workspace without sites', async () => {
     mockWorkspaceData()
 
@@ -85,6 +118,10 @@ describe('SitesSidebar', () => {
 
     await user.click(work)
     expect(within(tree).queryByText('Staging')).not.toBeInTheDocument()
+
+    await user.click(within(work).getByRole('button', { name: /Work/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+    expect(work).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('selects one row at a time', async () => {

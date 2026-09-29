@@ -65,6 +65,8 @@ export type SiteInput = Schemas['SiteInput']
 export type QuickConnection = Schemas['QuickConnection']
 /** Settings and credentials of a quick connection. */
 export type QuickConnectInput = Schemas['QuickConnectInput']
+/** The sites of a workspace to which the user has connections open (4.11). */
+export type OpenConnections = Schemas['OpenConnections']
 /** What a key file holds, as the server read it (4.8g). */
 export type SshKeyInfo = Schemas['SshKeyInfo']
 /** A server key the workspace trusts. */
@@ -237,6 +239,9 @@ export function createApi(transport: Transport) {
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/connection` }),
       setCredential: (workspaceId: string, siteId: string, password: string, remember: boolean) =>
         transport.request<void>({ method: 'PUT', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/credential`, body: { password, remember } }),
+    },
+    connections: {
+      list: (workspaceId: string) => transport.request<OpenConnections>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/connections` }),
     },
     sshKeys: {
       inspect: (key: string, passphrase?: string) => transport.request<SshKeyInfo>({ method: 'POST', path: `${root}/ssh-keys/inspect`, body: { key, passphrase } }),

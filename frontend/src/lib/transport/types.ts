@@ -32,6 +32,7 @@ export type ServerEvent =
   | { type: 'transfer.progress'; data: { id: string; bytesDone: number; totalBytes: number } }
   | { type: 'vault.locked'; data: null }
   | { type: 'connection.log'; data: ConnectionLogEntry }
+  | { type: 'connection.state'; data: { workspaceId: string; siteId: string; open: boolean } }
 
 /** What to do with the events of the server's stream and with the life of its connection. */
 export interface EventHandlers {

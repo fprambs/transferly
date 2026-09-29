@@ -198,7 +198,8 @@
         "argon2d": "Esta clave de PuTTY usa Argon2d. Guárdala de nuevo en PuTTYgen con el valor por defecto, Argon2id.",
         "cost": "Abrir esta clave pide más trabajo del que Sentinel permite. Guárdala de nuevo con los valores por defecto."
       }
-    }
+    },
+    "disconnect": "Desconectar"
   },
   "import": {
     "open": "Importar de FileZilla",

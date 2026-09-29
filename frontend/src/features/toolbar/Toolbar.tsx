@@ -1,5 +1,5 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
-import { useMatch, useNavigate } from '@tanstack/react-router'
+import { useMatch } from '@tanstack/react-router'
 import { CircleStop, PanelBottom, PanelLeft, PanelRight, PanelTop, RefreshCw, Unplug } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tip } from '@/components/ui/tip'
-import { useApi } from '@/lib/api/use-api'
 import { cn } from '@/lib/utils'
 import { useUiStore, type UiState } from '@/state/ui-store'
 
@@ -17,6 +16,7 @@ import { useSitesData } from '../sites/use-sites-data'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { useConnectionState, useDisconnected, type SiteRef } from './connection-store'
+import { useDisconnect } from './use-disconnect'
 
 /** Props of {@link ToolButton}. */
 interface ToolButtonProps {
@@ -84,20 +84,9 @@ function useTarget(): SiteRef | null {
 export function Toolbar() {
   const { t } = useTranslation('explorer')
   const target = useTarget()
-  const match = useMatch({ from: '/shell/sites/$siteId', shouldThrow: false })
-  const navigate = useNavigate()
-
-  const leave = (site: SiteRef): void => {
-    if (match?.params.siteId === site.siteId) {
-      void navigate({ to: '/' })
-    } else {
-      void navigate({ to: '.', search: (previous: Record<string, unknown>) => ({ ...previous, split: undefined, splitPath: undefined }) })
-    }
-  }
-
   return (
     <div role="toolbar" aria-label={t(($) => $.commands.label)} className="flex h-9 flex-none items-center gap-1 border-b bg-card px-3">
-      {target === null ? <ConnectionActions onDisconnected={leave} /> : <ConnectionActions key={`${target.workspaceId}/${target.siteId}`} target={target} onDisconnected={leave} />}
+      {target === null ? <ConnectionActions /> : <ConnectionActions key={`${target.workspaceId}/${target.siteId}`} target={target} />}
       <Separator orientation="vertical" className="mx-1 h-5" />
       <PanelSwitches />
     </div>
@@ -108,36 +97,23 @@ export function Toolbar() {
 interface ConnectionActionsProps {
   /** The connection acted on; none when no site is open. */
   target?: SiteRef
-  /** Called once the user disconnected from the site, to take it out of the view. */
-  onDisconnected: (site: SiteRef) => void
 }
 
 /** Refresh, cancel and disconnect, for the connection in focus. */
-function ConnectionActions({ target, onDisconnected }: ConnectionActionsProps) {
+function ConnectionActions({ target }: ConnectionActionsProps) {
   const { t } = useTranslation('explorer')
-  const api = useApi()
   const queryClient = useQueryClient()
   const { sites, quick } = useSitesData(target?.workspaceId)
   const prefix = target === undefined ? ['none'] : filesPrefix(target.workspaceId, target.siteId)
   const busy = useIsFetching({ queryKey: prefix }) > 0
   const disconnected = useDisconnected(target ?? { workspaceId: '', siteId: '' })
-  const markDisconnected = useConnectionState((state) => state.markDisconnected)
+  const disconnectFrom = useDisconnect()
   const [failed, setFailed] = useState(false)
   const name = [...sites, ...quick].find((connection) => connection.id === target?.siteId)?.name
   const idle = target === undefined || disconnected
 
   const disconnect = async (site: SiteRef): Promise<void> => {
-    setFailed(false)
-    await queryClient.cancelQueries({ queryKey: prefix })
-    try {
-      await api.sites.disconnect(site.workspaceId, site.siteId)
-    } catch {
-      setFailed(true)
-      return
-    }
-    queryClient.removeQueries({ queryKey: prefix })
-    markDisconnected(site)
-    onDisconnected(site)
+    setFailed(!(await disconnectFrom(site)))
   }
 
   return (

@@ -20,7 +20,8 @@
     "hide": "Hide the sites panel",
     "show": "Show the sites panel",
     "browse": "Browse the sites",
-    "rail": "Sites, panel hidden"
+    "rail": "Sites, panel hidden",
+    "connected": "Connected"
   },
   "queue": {
     "title": "Transfers",

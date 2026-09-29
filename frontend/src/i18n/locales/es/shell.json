@@ -20,7 +20,8 @@
     "hide": "Ocultar el panel de sitios",
     "show": "Mostrar el panel de sitios",
     "browse": "Explorar los sitios",
-    "rail": "Sitios, panel oculto"
+    "rail": "Sitios, panel oculto",
+    "connected": "Conectado"
   },
   "queue": {
     "title": "Transferencias",

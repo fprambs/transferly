@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { RemoteEntry, Site } from '@/lib/api'
 import { useUiStore } from '@/state/ui-store'
-import { adminSession, mockSession, mockWorkspaceData, personalWorkspace, problem } from '@/test/handlers'
+import { adminSession, mockSecurity, mockSession, mockWorkspaceData, personalWorkspace, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 
@@ -68,6 +68,8 @@ function toolbar() {
  *   the second pane closes), so a reload does not connect again; coming back to it shows it disconnected until the user connects again,
  *   and opening it from the sidebar connects it again too; a failed disconnect says so and changes nothing
  * - the toolbar acts on the pane the user clicked last, the second pane included
+ * - opening another site from the sidebar closes the connections of the one it replaces, and reopening the same site does not; a connected
+ *   site disconnects from its menu too
  */
 describe('Toolbar', () => {
   beforeEach(() => {
@@ -99,6 +101,7 @@ describe('Toolbar', () => {
   })
 
   it('is shown with the explorer only, not on the settings page', async () => {
+    mockSecurity()
     await renderApp({ path: '/settings' })
     await screen.findByRole('heading', { level: 2, name: 'Settings' })
     expect(screen.queryByRole('toolbar', { name: 'Toolbar' })).not.toBeInTheDocument()
@@ -186,6 +189,53 @@ describe('Toolbar', () => {
     useConnectionState.setState({ disconnected: { [`${personalWorkspace.id}/gone`]: true } })
     await renderApp({ path: '/sites/gone?path=%2F' })
     expect(await screen.findByText('Disconnected from gone')).toBeInTheDocument()
+  })
+
+  it('closes the connections of the site it leaves when another is opened from the sidebar', async () => {
+    mockListings()
+    const disconnected: string[] = []
+    server.use(
+      http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', ({ params }) => {
+        disconnected.push(params.siteId as string)
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/' })
+    await user.click(await screen.findByRole('treeitem', { name: /Prod/ }))
+    await within(await screen.findByRole('grid')).findByText('s1-.txt')
+    expect(disconnected).toEqual([])
+
+    await user.click(screen.getByRole('treeitem', { name: /Prod/ }))
+    expect(disconnected).toEqual([])
+    await user.click(screen.getByRole('treeitem', { name: /Backup/ }))
+    await waitFor(() => expect(history.location.pathname).toBe('/sites/s2'))
+    await waitFor(() => expect(disconnected).toEqual(['s1']))
+    expect(useConnectionState.getState().disconnected).toEqual({})
+
+    server.use(http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', () => problem(500, 'internal_error')))
+    await user.click(screen.getByRole('treeitem', { name: /Prod/ }))
+    await waitFor(() => expect(history.location.pathname).toBe('/sites/s1'))
+    expect(await within(await screen.findByRole('grid')).findByText('s1-.txt')).toBeInTheDocument()
+  })
+
+  it('disconnects from the menu of a connected site in the sidebar', async () => {
+    mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Backup')], connected: ['s1', 's2'] })
+    mockListings()
+    server.use(http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', () => new HttpResponse(null, { status: 204 })))
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/sites/s1?path=%2F' })
+    const backup = await screen.findByRole('treeitem', { name: /Backup/ })
+    await within(backup).findByText('Connected')
+    await user.click(within(backup).getByRole('button', { name: 'Actions for Backup' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Disconnect' }))
+    await waitFor(() => expect(useConnectionState.getState().disconnected).not.toEqual({}))
+    expect(history.location.pathname).toBe('/sites/s1')
+
+    const prod = screen.getByRole('treeitem', { name: /Prod/ })
+    await user.click(within(prod).getByRole('button', { name: 'Actions for Prod' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Disconnect' }))
+    await waitFor(() => expect(history.location.pathname).toBe('/'))
   })
 
   it('acts on the pane clicked last', async () => {

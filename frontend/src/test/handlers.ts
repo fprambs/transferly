@@ -53,16 +53,19 @@ export interface WorkspaceData {
   sites?: Site[]
   /** Open quick connections. */
   quick?: QuickConnection[]
+  /** Sites and quick connections with connections open. */
+  connected?: string[]
 }
 
-/** Answers the workspace, collection, site and quick connection lists; whatever is not given is empty. */
-export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [] }: WorkspaceData = {}): void {
+/** Answers the workspace, collection, site, quick connection and open connection lists; whatever is not given is empty. */
+export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [], connected = [] }: WorkspaceData = {}): void {
   mockVault()
   server.use(
     http.get('/api/v1/workspaces', () => HttpResponse.json(workspaces)),
     http.get('/api/v1/workspaces/:id/collections', () => HttpResponse.json(collections)),
     http.get('/api/v1/workspaces/:id/sites', () => HttpResponse.json(sites)),
     http.get('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(quick)),
+    http.get('/api/v1/workspaces/:id/connections', () => HttpResponse.json({ siteIds: connected })),
   )
 }
 

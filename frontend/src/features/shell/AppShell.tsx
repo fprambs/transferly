@@ -1,14 +1,20 @@
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import { Outlet, useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
+import type { Workspace } from '@/lib/api'
+import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
 
 import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { Toolbar } from '@/features/toolbar/Toolbar'
 import { useConnectionState } from '@/features/toolbar/connection-store'
+import { useDisconnect } from '@/features/toolbar/use-disconnect'
 import { TopBar } from '@/features/topbar/TopBar'
+import { filesPrefix } from '@/features/explorer/files-key'
+import { useWorkspace } from '@/features/workspace/use-workspace'
 import { SitesRail } from '@/features/sites/SitesRail'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import { TransfersDock } from '@/features/transfers/TransfersDock'
@@ -29,13 +35,19 @@ function typing(target: EventTarget | null): boolean {
 /**
  * Application layout: top bar, sites panel, the toolbar above the explorer (on the start page and the sites, not on settings or
  * administration), and the transfer queue. The sites and transfers panels are resizable, remember their sizes in the browser, and collapse
- * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it.
+ * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it, and closes the
+ * connections of the site it replaces (4.11); a transfer running on them finishes first.
  */
 export function AppShell() {
   const { t: explorer } = useTranslation('explorer')
   const { t: shell } = useTranslation('shell')
   const navigate = useNavigate()
   const reconnectSite = useConnectionState((state) => state.reconnectSite)
+  const match = useMatch({ from: '/shell/sites/$siteId', shouldThrow: false })
+  const workspace = useWorkspace()
+  const api = useApi()
+  const queryClient = useQueryClient()
+  const disconnectFrom = useDisconnect()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const explorerView = pathname === '/' || pathname.startsWith('/sites/')
   const sitesOpen = useUiStore((state) => state.sitesOpen)
@@ -60,9 +72,18 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', toggle)
   }, [setSitesOpen])
 
+  const disconnect = (siteId: string): void => {
+    void disconnectFrom({ workspaceId: (workspace as Workspace).id, siteId })
+  }
+
   const open = (siteId: string): void => {
     reconnectSite(siteId)
+    const previous = match?.params.siteId
     void navigate({ to: '/sites/$siteId', params: { siteId }, search: { path: '/' } })
+    if (workspace !== undefined && previous !== undefined && previous !== siteId) {
+      queryClient.removeQueries({ queryKey: filesPrefix(workspace.id, previous) })
+      api.sites.disconnect(workspace.id, previous).catch(() => undefined)
+    }
   }
 
   return (
@@ -72,7 +93,7 @@ export function AppShell() {
         <Panel id="work" minSize={160}>
           <Group id="sentinel-work" className="h-full" {...inner}>
             <Panel id="sites" collapsible collapsedSize={railPx} defaultSize={248} minSize={180} maxSize="45%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...sites}>
-              {sitesOpen ? <SitesSidebar onOpen={open} onHide={() => setSitesOpen(false)} /> : <SitesRail onOpen={open} />}
+              {sitesOpen ? <SitesSidebar onOpen={open} onHide={() => setSitesOpen(false)} onDisconnect={disconnect} /> : <SitesRail onOpen={open} onDisconnect={disconnect} />}
             </Panel>
             <ResizeHandle aria-label={shell(($) => $.panels.sites)} />
             <Panel id="main" minSize="30%" className="h-full">

@@ -14,13 +14,15 @@ import { SitesSidebar } from './SitesSidebar'
 export interface SitesRailProps {
   /** Called with the identifier of the saved site or quick connection the user opens. */
   onOpen: (siteId: string) => void
+  /** Closes the connections of a site, from its menu in the sheet. */
+  onDisconnect: (siteId: string) => void
 }
 
 /**
  * What stays of the sites panel while it is hidden, as in VS Code: a narrow rail that shows the panel again, opens the sites in a sheet over
  * the page (closed as soon as one is picked), or starts a quick connection. The files keep the room the panel had.
  */
-export function SitesRail({ onOpen }: SitesRailProps) {
+export function SitesRail({ onOpen, onDisconnect }: SitesRailProps) {
   const { t } = useTranslation('shell')
   const [browsing, setBrowsing] = useState(false)
   const setSitesOpen = useUiStore((state) => state.setSitesOpen)
@@ -49,6 +51,7 @@ export function SitesRail({ onOpen }: SitesRailProps) {
             setBrowsing(false)
             onOpen(siteId)
           }}
+          onDisconnect={onDisconnect}
         />
       </Sheet>
     </nav>

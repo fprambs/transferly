@@ -198,7 +198,8 @@
         "argon2d": "This PuTTY key uses Argon2d. Save it again in PuTTYgen with the default, Argon2id.",
         "cost": "This key asks for more work to open than Sentinel allows. Save it again with the default settings."
       }
-    }
+    },
+    "disconnect": "Disconnect"
   },
   "import": {
     "open": "Import from FileZilla",

@@ -1,5 +1,5 @@
 import { ChevronRight, Ellipsis, FileInput, Folder, FolderPlus, PanelLeftClose, Plus, Zap } from 'lucide-react'
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { DeleteSiteDialog } from './DeleteSiteDialog'
 import { ImportDialog } from './ImportDialog'
 import { SiteDialog, type SiteTarget } from './SiteDialog'
 import { buildTree, type CollectionNode, type TreeNode } from './tree'
+import { useOpenConnections } from './use-open-connections'
 import { useSitesData } from './use-sites-data'
 
 /** Indentation of each nesting level, in pixels. */
@@ -44,6 +45,10 @@ interface CollectionActions {
   onEditSite: (id: string) => void
   /** Called to delete a saved site. */
   onDeleteSite: (id: string) => void
+  /** Sites and quick connections with connections open, marked in green (4.11). */
+  connected: ReadonlySet<string>
+  /** Called to close the connections to a site. */
+  onDisconnect: (id: string) => void
 }
 
 /** Props of {@link Row}. */
@@ -52,6 +57,11 @@ interface RowProps {
   node: TreeNode
   /** What the row's collection can do. */
   actions: CollectionActions
+}
+
+/** Whether a click happened on the row itself: a click in the row's menu, drawn elsewhere in a portal, still bubbles to the row through React. */
+function inRow(event: MouseEvent<HTMLElement>): boolean {
+  return event.currentTarget.contains(event.target as Node)
 }
 
 /** Returns the key that identifies a row in the selection. */
@@ -106,9 +116,11 @@ function Row({ node, actions }: RowProps) {
         aria-level={node.depth + 1}
         aria-selected={selected}
         tabIndex={0}
-        onClick={() => {
-          select()
-          actions.onToggle(node.id)
+        onClick={(event) => {
+          if (inRow(event)) {
+            select()
+            actions.onToggle(node.id)
+          }
         }}
         onKeyDown={(event) => onCollectionKey(event, node, actions.onToggle)}
         className={cn(base, 'group cursor-pointer font-medium')}
@@ -151,6 +163,7 @@ function Row({ node, actions }: RowProps) {
         <span className="w-3 shrink-0" />
         <Zap className="size-[15px] shrink-0 text-warn" />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
+        {actions.connected.has(node.id) && <ConnectedDot />}
         <span className="text-[11px] text-muted-foreground">{t(($) => $.sidebar.notSaved)}</span>
       </div>
     )
@@ -161,28 +174,40 @@ function Row({ node, actions }: RowProps) {
       aria-level={node.depth + 1}
       aria-selected={selected}
       tabIndex={0}
-      onClick={select}
+      onClick={(event) => inRow(event) && select()}
       onKeyDown={(event) => onSelectKey(event, select)}
       className={cn(base, 'group')}
       style={style}
     >
       <span className="w-3 shrink-0" />
-      <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />
+      {actions.connected.has(node.id) ? <ConnectedDot /> : <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />}
       <span className="min-w-0 flex-1 truncate">{node.name}</span>
       <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={sites(($) => $.site.actions, { name: node.name })}
+          onClick={(event) => event.stopPropagation()}
           className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background data-popup-open:bg-background data-popup-open:opacity-100"
         >
           <Ellipsis className="size-3.5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-40">
+          {actions.connected.has(node.id) && <DropdownMenuItem onClick={() => actions.onDisconnect(node.id)}>{sites(($) => $.site.disconnect)}</DropdownMenuItem>}
           <DropdownMenuItem onClick={() => actions.onEditSite(node.id)}>{sites(($) => $.site.edit)}</DropdownMenuItem>
           <DropdownMenuItem onClick={() => actions.onDeleteSite(node.id)}>{sites(($) => $.site.delete)}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  )
+}
+
+/** The green dot of a connected site, with its meaning for screen readers. */
+function ConnectedDot() {
+  const { t } = useTranslation('shell')
+  return (
+    <span className="mx-[3px] size-2 shrink-0 rounded-full bg-ok ring-3 ring-ok/20">
+      <span className="sr-only">{t(($) => $.sidebar.connected)}</span>
+    </span>
   )
 }
 
@@ -197,14 +222,17 @@ export interface SitesSidebarProps {
   onOpen: (siteId: string) => void
   /** Hides the sites panel; without it, the sidebar offers no way to hide itself, as when it is shown in a sheet. */
   onHide?: () => void
+  /** Closes the connections of a site, offered in the menu of a connected site. */
+  onDisconnect?: (siteId: string) => void
 }
 
 /** Sidebar of the shell: quick connect and the tree of collections and sites. */
-export function SitesSidebar({ onOpen, onHide }: SitesSidebarProps) {
+export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }: SitesSidebarProps) {
   const { t } = useTranslation('shell')
   const workspace = useWorkspace()
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
   const { collections, sites, quick } = useSitesData(workspace?.id)
+  const connected = useOpenConnections(workspace?.id)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [target, setTarget] = useState<CollectionTarget | null>(null)
   const [deleting, setDeleting] = useState<Collection | null>(null)
@@ -230,6 +258,8 @@ export function SitesSidebar({ onOpen, onHide }: SitesSidebarProps) {
     },
     onEditSite: (id) => setSiteTarget({ mode: 'edit', site: sites.find((site) => site.id === id) as Site }),
     onDeleteSite: (id) => setDeletingSite(sites.find((site) => site.id === id) as Site),
+    connected,
+    onDisconnect,
   }
 
   return (
