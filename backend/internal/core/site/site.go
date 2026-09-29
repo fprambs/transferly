@@ -63,6 +63,10 @@ const (
 	// AuthAccount logs in to an FTP server with a password and an account, which some older servers ask for after the
 	// password (ACCT, reply 332), as FileZilla's account logon type (4.8e). The account is sealed like the password.
 	AuthAccount AuthMethod = "account"
+	// AuthInteractive stores no secret: whatever the server asks while signing in, the password, a one-time code or a
+	// custom challenge, is asked to the person who is connecting and never kept, as FileZilla's interactive logon type
+	// (ADR-0016).
+	AuthInteractive AuthMethod = "interactive"
 )
 
 // AnonymousUser is the account name of every anonymous site.

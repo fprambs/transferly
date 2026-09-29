@@ -194,7 +194,7 @@ func Normalize(in Input) (Input, error) {
 	if in.AuthMethod == "" {
 		in.AuthMethod = AuthPassword
 	}
-	if !slices.Contains([]AuthMethod{AuthPassword, AuthAsk, AuthAnonymous}, in.AuthMethod) && (in.AuthMethod != AuthKey || in.Protocol != SFTP) && (in.AuthMethod != AuthAccount || in.Protocol == SFTP) {
+	if !slices.Contains([]AuthMethod{AuthPassword, AuthAsk, AuthAnonymous, AuthInteractive}, in.AuthMethod) && (in.AuthMethod != AuthKey || in.Protocol != SFTP) && (in.AuthMethod != AuthAccount || in.Protocol == SFTP) {
 		return in, ErrInvalidAuthMethod
 	}
 	if in.Charset == "" {
@@ -558,7 +558,8 @@ func checkKey(key, passphrase *string) (*string, *string, error) {
 
 // withoutStoredPassword makes a site that asks for its password when connecting drop any stored one, whatever the
 // request said: its password must never be written anywhere (ADR-0010). An anonymous site drops its password, private
-// key and passphrase alike, since it has no secret to use them for. Only the account logon type keeps an account.
+// key and passphrase alike, since it has no secret to use them for, and so does an interactive one, whose answers are
+// never kept (ADR-0016). Only the account logon type keeps an account.
 func withoutStoredPassword(in Input, changes SecretChanges) SecretChanges {
 	none := ""
 	if in.AuthMethod != AuthAccount {
@@ -567,7 +568,7 @@ func withoutStoredPassword(in Input, changes SecretChanges) SecretChanges {
 	switch in.AuthMethod {
 	case AuthAsk:
 		changes.Password = &none
-	case AuthAnonymous:
+	case AuthAnonymous, AuthInteractive:
 		changes.Password, changes.PrivateKey, changes.Passphrase = &none, &none, &none
 	}
 	return changes

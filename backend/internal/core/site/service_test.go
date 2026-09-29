@@ -645,6 +645,43 @@ func TestService_Anonymous(t *testing.T) {
 	}
 }
 
+// TestService_Interactive covers the [site.AuthInteractive] logon type of [site.Service.Create] and [site.Service.Update]
+// (ADR-0016).
+//
+// Use cases:
+//   - SFTP and FTP sites may ask whatever the server asks when connecting, keeping the username the request sends
+//   - an interactive site stores no secret, even when the request sends some, and needs no unlocked vault for it
+//   - switching a site with a stored password to interactive removes the password
+func TestService_Interactive(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	for _, protocol := range []site.Protocol{site.SFTP, site.FTP} {
+		in := valid()
+		in.Name, in.Protocol, in.Username, in.AuthMethod = "Interactive "+string(protocol), protocol, "someone", site.AuthInteractive
+		created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{Password: text("typed")})
+		if err != nil {
+			t.Fatalf("Create(%s, interactive) = %v", protocol, err)
+		}
+		if created.AuthMethod != site.AuthInteractive || created.Username != "someone" || len(created.Secrets) != 0 {
+			t.Errorf("Create(%s, interactive) = %s as %q with secrets %v", protocol, created.AuthMethod, created.Username, created.Secrets)
+		}
+	}
+
+	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("secret")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	switched := valid()
+	switched.AuthMethod = site.AuthInteractive
+	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", switched, site.SecretChanges{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Secrets) != 0 {
+		t.Errorf("a site switched to interactive kept %v", updated.Secrets)
+	}
+}
+
 // TestService_PrivateKeys covers how [site.Service.Create] and [site.Service.Update] read the private keys they save (4.8g).
 //
 // Use cases:

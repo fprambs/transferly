@@ -51,8 +51,8 @@ type Server struct {
 	Port int
 	// Username is the account name.
 	Username string
-	// AuthMethod is how the site logs in, as FileZilla's logon type says: anonymous, asking for the password, or with a
-	// password.
+	// AuthMethod is how the site logs in, as FileZilla's logon type says: anonymous, asking for the password, asking
+	// whatever the server asks (interactive), or with a password.
 	AuthMethod site.AuthMethod
 	// Password is the account password when the file holds one that could be read.
 	Password string
@@ -292,6 +292,8 @@ func convert(raw rawServer, name string, path []string) (Server, string) {
 		return Server{}, "key_file_login"
 	case "2":
 		server.AuthMethod = site.AuthAsk
+	case "3":
+		server.AuthMethod = site.AuthInteractive
 	case "4":
 		server.AuthMethod, server.Account = site.AuthAccount, strings.TrimSpace(raw.Account)
 		readPassword(&server, raw)

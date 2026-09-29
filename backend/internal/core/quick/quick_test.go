@@ -139,6 +139,10 @@ func TestService_Create(t *testing.T) {
 	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
 		t.Errorf("anonymous quick connection = %v; want ErrInvalidAuthMethod", err)
 	}
+	asking.AuthMethod = site.AuthInteractive
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
+		t.Errorf("interactive quick connection = %v; want ErrInvalidAuthMethod", err)
+	}
 	if list, _ := f.svc.List(ctx, f.editor, f.ws); len(list) != 1 {
 		t.Errorf("%d connections kept after refusals; want 1", len(list))
 	}
