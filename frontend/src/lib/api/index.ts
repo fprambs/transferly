@@ -234,6 +234,8 @@ export function createApi(transport: Transport) {
     },
     sites: {
       list: (workspaceId: string) => transport.request<Site[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites` }),
+      move: (workspaceId: string, siteId: string, collectionId?: string) =>
+        transport.request<Site>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/move`, body: { collectionId } }),
       get: (workspaceId: string, siteId: string) =>
         transport.request<Site>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites/${siteId}` }),
       create: (workspaceId: string, input: SiteInput) =>

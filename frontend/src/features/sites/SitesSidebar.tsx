@@ -1,14 +1,17 @@
 import { ChevronRight, Ellipsis, FileInput, Folder, FolderPlus, PanelLeftClose, Plus, Zap } from 'lucide-react'
-import { useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { Collection, Site } from '@/lib/api'
+import type { Collection, Site, Workspace } from '@/lib/api'
+import { useApi } from '@/lib/api/use-api'
 import { cn } from '@/lib/utils'
 import { useDialogsStore } from '@/state/dialogs-store'
 
+import { canManageSites } from '../teams/roles'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { CollectionDialog, type CollectionTarget } from './CollectionDialog'
@@ -16,9 +19,11 @@ import { DeleteCollectionDialog } from './DeleteCollectionDialog'
 import { DeleteSiteDialog } from './DeleteSiteDialog'
 import { ImportDialog } from './ImportDialog'
 import { SiteDialog, type SiteTarget } from './SiteDialog'
+import { siteErrorKeyOf, type SiteErrorKey } from './errors'
 import { buildTree, type CollectionNode, type TreeNode } from './tree'
+import { canDrop, treeDragType, type TreeDrag } from './tree-drag'
 import { useOpenConnections } from './use-open-connections'
-import { useSitesData } from './use-sites-data'
+import { sitesKeys, useSitesData } from './use-sites-data'
 
 /** Indentation of each nesting level, in pixels. */
 const indentPerLevel = 14
@@ -49,6 +54,14 @@ interface CollectionActions {
   connected: ReadonlySet<string>
   /** Called to close the connections to a site. */
   onDisconnect: (id: string) => void
+  /** Whether saved sites and collections can be dragged to another collection (4.14h). */
+  draggable: boolean
+  /** Called when the user starts dragging a row. */
+  onDragRow: (drag: TreeDrag, data: DataTransfer) => void
+  /** Called when a drag of a row ends, dropped or not. */
+  onDragEnd: () => void
+  /** Collection the dragged row would go into, marked while it is over it. */
+  dropTarget: string | null | undefined
 }
 
 /** Props of {@link Row}. */
@@ -139,6 +152,10 @@ function Row({ node, actions }: RowProps) {
         aria-level={node.depth + 1}
         aria-selected={selected}
         tabIndex={0}
+        data-drop-target={node.id}
+        draggable={actions.draggable}
+        onDragStart={(event) => actions.onDragRow({ kind: 'collection', id: node.id }, event.dataTransfer)}
+        onDragEnd={actions.onDragEnd}
         onClick={(event) => {
           if (inRow(event)) {
             select()
@@ -146,7 +163,7 @@ function Row({ node, actions }: RowProps) {
           }
         }}
         onKeyDown={(event) => onCollectionKey(event, node, actions.onToggle)}
-        className={cn(base, 'group cursor-pointer font-medium')}
+        className={cn(base, 'group cursor-pointer font-medium', actions.dropTarget === node.id && 'bg-primary/10 ring-2 ring-primary/60')}
         style={style}
       >
         <ChevronRight className={cn('size-3 shrink-0 text-faint transition-transform rtl:-scale-x-100', node.expanded && 'rotate-90 rtl:rotate-90')} />
@@ -199,6 +216,10 @@ function Row({ node, actions }: RowProps) {
       aria-level={node.depth + 1}
       aria-selected={selected}
       tabIndex={0}
+      data-drop-target={node.collectionId ?? ''}
+      draggable={actions.draggable}
+      onDragStart={(event) => actions.onDragRow({ kind: 'site', id: node.id }, event.dataTransfer)}
+      onDragEnd={actions.onDragEnd}
       onClick={click}
       onDoubleClick={doubleClick}
       onAuxClick={middle}
@@ -254,9 +275,13 @@ export interface SitesSidebarProps {
   onDisconnect?: (siteId: string) => void
 }
 
-/** Sidebar of the shell: quick connect and the tree of collections and sites. */
+/**
+ * Sidebar of the shell: quick connect and the tree of collections and sites. Whoever may manage the sites drags a saved site or a collection
+ * into another collection, or to the empty room of the tree for the top level (4.14h); the tree stays in alphabetical order.
+ */
 export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }: SitesSidebarProps) {
   const { t } = useTranslation('shell')
+  const { t: sitesT } = useTranslation('sites')
   const workspace = useWorkspace()
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
   const { collections, sites, quick } = useSitesData(workspace?.id)
@@ -269,6 +294,50 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
   const [importing, setImporting] = useState(false)
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
   const [selected, setSelected] = useState<string | null>(null)
+  const api = useApi()
+  const queryClient = useQueryClient()
+  const [dragging, setDragging] = useState<TreeDrag | null>(null)
+  const [over, setOver] = useState<string | null | undefined>(undefined)
+  const [moveFailure, setMoveFailure] = useState<SiteErrorKey | null>(null)
+  const endDrag = (): void => {
+    setDragging(null)
+    setOver(undefined)
+  }
+  const targetOf = (event: DragEvent<HTMLElement>): string | null => (event.target as HTMLElement).closest('[data-drop-target]')?.getAttribute('data-drop-target') || null
+  const dragOver = (event: DragEvent<HTMLElement>): void => {
+    const target = targetOf(event)
+    if (dragging === null || !canDrop(dragging, target, collections, sites)) {
+      setOver(undefined)
+      return
+    }
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setOver(target)
+  }
+  const drop = async (event: DragEvent<HTMLElement>): Promise<void> => {
+    event.preventDefault()
+    const drag = dragging
+    const target = targetOf(event)
+    endDrag()
+    if (drag === null || !canDrop(drag, target, collections, sites)) {
+      return
+    }
+    setMoveFailure(null)
+    const id = (workspace as Workspace).id
+    try {
+      if (drag.kind === 'site') {
+        await api.sites.move(id, drag.id, target ?? undefined)
+      } else {
+        await api.collections.update(id, drag.id, target === null ? { moveToTop: true } : { parentId: target })
+      }
+      if (target !== null) {
+        setExpanded((open) => new Set([...open, target]))
+      }
+    } catch (error) {
+      setMoveFailure(siteErrorKeyOf(error))
+    }
+    await Promise.all([queryClient.invalidateQueries({ queryKey: sitesKeys.sites(id) }), queryClient.invalidateQueries({ queryKey: sitesKeys.collections(id) })])
+  }
   const actions: CollectionActions = {
     selected,
     onSelect: setSelected,
@@ -288,6 +357,14 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
     onDeleteSite: (id) => setDeletingSite(sites.find((site) => site.id === id) as Site),
     connected,
     onDisconnect,
+    draggable: workspace !== undefined && canManageSites(workspace.role),
+    onDragRow: (drag, data) => {
+      data.setData(treeDragType, drag.id)
+      data.effectAllowed = 'move'
+      setDragging(drag)
+    },
+    onDragEnd: endDrag,
+    dropTarget: over,
   }
 
   return (
@@ -320,7 +397,19 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           <kbd className="rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground">⌘⇧K</kbd>
         </Button>
       </div>
-      <div role="tree" aria-label={t(($) => $.sidebar.sites)} className="flex min-h-0 flex-col gap-px overflow-y-auto px-2">
+      {moveFailure !== null && (
+        <p role="alert" className="mx-2 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {sitesT(($) => $.errors[moveFailure])}
+        </p>
+      )}
+      <div
+        role="tree"
+        aria-label={t(($) => $.sidebar.sites)}
+        onDragOver={dragOver}
+        onDragLeave={(event) => !event.currentTarget.contains(event.relatedTarget as Node | null) && setOver(undefined)}
+        onDrop={(event) => void drop(event)}
+        className={cn('flex min-h-0 flex-1 flex-col gap-px overflow-y-auto rounded-md px-2 pb-4', over === null && 'bg-primary/5 ring-2 ring-primary/40 ring-inset')}
+      >
         {rows.map((node) => (
           <Row key={`${node.kind}-${node.id}`} node={node} actions={actions} />
         ))}

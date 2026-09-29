@@ -28,6 +28,8 @@ export interface SiteNode {
   depth: number
   /** Host shown next to the name. */
   host: string
+  /** Collection that holds the site, left out at the top level. */
+  collectionId?: string
 }
 
 /** A quick connection row of the sites tree; it is not saved. */
@@ -101,7 +103,7 @@ function visit(
     }
   }
   for (const site of sites.get(parent) ?? []) {
-    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host })
+    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host, collectionId: site.collectionId })
   }
 }
 
