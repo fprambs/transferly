@@ -42,6 +42,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - editing a site's proxy and jump host
  * - the remote editor
  * - the site dialog on its General and Advanced tabs, with an anonymous FTP site and a site that asks for its password, and that site asking for it
+ * - the warning of a server key other than the trusted one, with add, replace and cancel
  * - a folder with many files, with the transfers panel still in view
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
@@ -562,6 +563,27 @@ test.describe('screenshots', () => {
     await expect(page.getByRole('navigation', { name: 'Connection tabs' })).toBeVisible()
     await page.waitForTimeout(500)
     await shoot(page, '59-connection-tabs')
+  })
+
+  test('changed server key', async ({ shell, quickId }) => {
+    const { page } = shell
+    await page.route(`**/sites/${quickId}/files?**`, (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: 'application/problem+json',
+        json: {
+          type: 'about:blank',
+          title: 'Conflict',
+          status: 409,
+          code: 'host_key_changed',
+          params: { keyType: 'ssh-ed25519', fingerprint: 'SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8', trusted: ['SHA256:uU0nuZNNPgilLlLX2n2r+sSE7+N6U4DukIj3rOLvzek'] },
+        },
+      }),
+    )
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    await page.getByRole('button', { name: 'Replace the trusted keys' }).waitFor()
+    await page.waitForTimeout(500)
+    await shoot(page, '60-changed-host-key')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {

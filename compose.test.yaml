@@ -86,6 +86,10 @@ services:
     volumes:
       - ./testenv/sftp/anonymous.sh:/etc/sftp.d/anonymous.sh:ro
       - ./frontend/e2e/keys/sentinel.pub:/home/sentinel/.ssh/keys/sentinel.pub:ro
+    networks:
+      default:
+        # A second name for the same server, whose trusted keys only the host key e2e test touches (4.13b).
+        aliases: [sftp-rotating]
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 22"]
       interval: 3s
