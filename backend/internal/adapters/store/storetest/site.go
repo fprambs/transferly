@@ -28,7 +28,7 @@ type SiteFactory func(t *testing.T) SiteStore
 func newSite(workspaceID uuid.UUID, name string) site.Site {
 	return site.Site{
 		ID: uuid.New(), WorkspaceID: workspaceID, Name: name, Protocol: site.SFTP, Host: "files.example.com", Port: 2222,
-		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", Charset: "koi8-r", SpeedLimit: 65536,
+		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", Charset: "koi8-r", SpeedLimit: 65536, RemoteDir: "/srv/www",
 		Proxy:     site.Proxy{Kind: site.ProxySOCKS5, Host: "proxy.example.com", Port: 1080, Username: "proxyuser"},
 		Jump:      site.Jump{Host: "bastion.example.com", Port: 2222, Username: "bastion", AuthMethod: site.AuthKey},
 		CreatedAt: now, UpdatedAt: now,

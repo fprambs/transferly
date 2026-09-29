@@ -58,6 +58,8 @@ type Server struct {
 	Password string
 	// PasswordSkipped says the file has a password that was not read, because it cannot be decoded.
 	PasswordSkipped bool
+	// RemoteDir is the folder the site opens in, from FileZilla's default remote directory; empty for the root or when it cannot be read.
+	RemoteDir string
 }
 
 // Skipped is a site of the file that cannot be imported, and why.
@@ -81,7 +83,8 @@ type rawServer struct {
 		Encoding string `xml:"encoding,attr"`
 		Value    string `xml:",chardata"`
 	} `xml:"Pass"`
-	Name string `xml:"Name"`
+	Name      string `xml:"Name"`
+	RemoteDir string `xml:"RemoteDir"`
 }
 
 // parser walks the tokens of the file.
@@ -265,7 +268,7 @@ var fileZillaProtocols = map[string]struct {
 
 // convert maps the settings of FileZilla to the ones of a site, or gives the reason why that cannot be done.
 func convert(raw rawServer, name string, path []string) (Server, string) {
-	server := Server{Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User)}
+	server := Server{Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User), RemoteDir: remoteDir(raw.RemoteDir)}
 	if server.Host == "" {
 		return Server{}, "missing_host"
 	}
@@ -309,4 +312,39 @@ func readPassword(server *Server, raw rawServer) {
 		return
 	}
 	server.Password = string(decoded)
+}
+
+// remoteDir reads FileZilla's encoding of a server path, such as "1 0 4 home 4 user" for /home/user: the server type, the length of a
+// prefix and the prefix, then the length of each folder and the folder, so a name may hold spaces. Malformed text reads as the root.
+func remoteDir(encoded string) string {
+	rest := strings.TrimSpace(encoded)
+	next := func() (string, bool) {
+		size, tail, found := strings.Cut(rest, " ")
+		n, err := strconv.Atoi(size)
+		if !found || err != nil || n < 0 || n > len(tail) {
+			return "", false
+		}
+		rest = strings.TrimPrefix(tail[n:], " ")
+		return tail[:n], true
+	}
+	if _, tail, found := strings.Cut(rest, " "); found {
+		rest = tail
+	} else {
+		return ""
+	}
+	if _, ok := next(); !ok {
+		return ""
+	}
+	var folders []string
+	for rest != "" {
+		folder, ok := next()
+		if !ok {
+			return ""
+		}
+		folders = append(folders, folder)
+	}
+	if len(folders) == 0 {
+		return ""
+	}
+	return "/" + strings.Join(folders, "/")
 }

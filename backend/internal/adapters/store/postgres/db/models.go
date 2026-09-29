@@ -100,6 +100,7 @@ type Site struct {
 	JumpUsername   string
 	JumpAuthMethod string
 	FtpEncryption  string
+	RemoteDir      string
 }
 
 type SiteBookmark struct {

@@ -266,3 +266,30 @@ func TestSites_Charset(t *testing.T) {
 	sftp["charset"] = "iso-8859-1"
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), sftp, cookie, csrf), 422, "invalid_charset")
 }
+
+// TestSites_RemoteDir verifies the folder a site opens in (4.14i).
+//
+// Scenarios:
+//   - a site without one opens at the root and does not say so; one given is returned cleaned and kept when the site is changed
+//   - setting the root removes it, and a relative folder is 422 invalid_remote_dir
+func TestSites_RemoteDir(t *testing.T) {
+	a := newAPI(t)
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+
+	if plain := a.send(http.MethodPost, sitesPath(ws), siteBody("Plain"), cookie, csrf).site(t); plain.RemoteDir != nil {
+		t.Errorf("a site without a folder says %q", *plain.RemoteDir)
+	}
+	body := siteBody("Web")
+	body["remoteDir"] = "/var/www/html/"
+	made := a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf)
+	if got := made.site(t).RemoteDir; made.Status != http.StatusCreated || got == nil || *got != "/var/www/html" {
+		t.Fatalf("created = %d %s", made.Status, made.Body)
+	}
+	body["remoteDir"] = "/"
+	if r := a.send(http.MethodPut, sitesPath(ws, made.site(t).Id.String()), body, cookie, csrf); r.Status != http.StatusOK || r.site(t).RemoteDir != nil {
+		t.Errorf("setting the root = %d %s", r.Status, r.Body)
+	}
+	body["remoteDir"] = "var/www"
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_remote_dir")
+}

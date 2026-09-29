@@ -215,6 +215,7 @@ var domainProblems = []struct {
 	{site.ErrInvalidEncryption, http.StatusUnprocessableEntity, "invalid_ftp_encryption"},
 	{site.ErrInvalidCharset, http.StatusUnprocessableEntity, "invalid_charset"},
 	{site.ErrInvalidTimezone, http.StatusUnprocessableEntity, "invalid_timezone"},
+	{site.ErrInvalidRemoteDir, http.StatusUnprocessableEntity, "invalid_remote_dir"},
 	{site.ErrInvalidSpeedLimit, http.StatusUnprocessableEntity, "invalid_speed_limit"},
 	{site.ErrInvalidProxy, http.StatusUnprocessableEntity, "invalid_proxy"},
 	{site.ErrInvalidJump, http.StatusUnprocessableEntity, "invalid_jump"},

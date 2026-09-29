@@ -1596,6 +1596,8 @@ export interface components {
              * @description Bytes per second the site's transfers move together, on top of the global and per-user caps of the instance; 0 means the site has no cap of its own.
              */
             speedLimitBps: number;
+            /** @description Folder the site opens in, as FileZilla's default remote directory (4.14i). Left out when it opens at the root. */
+            remoteDir?: string;
             /** @description Left out when the connection is made directly. */
             proxy?: components["schemas"]["SiteProxy"];
             /** @description Left out when the connection is made directly, without a jump host. */
@@ -1637,6 +1639,8 @@ export interface components {
              * @description Bytes per second the site's transfers move together; left out or 0 means no cap of its own.
              */
             speedLimitBps?: number;
+            /** @description Absolute folder the site opens in; left out, empty or / opens the root. Stored cleaned; invalid_remote_dir otherwise. */
+            remoteDir?: string;
             /** @description Left out to connect directly, without a proxy. */
             proxy?: components["schemas"]["SiteProxy"];
             /** @description Left out to connect directly, without a jump host; only valid for SFTP. */

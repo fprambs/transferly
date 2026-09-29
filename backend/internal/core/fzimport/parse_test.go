@@ -17,12 +17,12 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
   <Servers>
     <Server>
       <Host>top.example.com</Host><Port>2121</Port><Protocol>0</Protocol><Logontype>1</Logontype>
-      <User>alice</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Top level</Name><Comments>ignored</Comments>
+      <User>alice</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Top level</Name><Comments>ignored</Comments><RemoteDir>1 0 3 var 3 www</RemoteDir>
     </Server>
     <Folder expanded="1">Work
       <Server>
         <Host>sftp.example.com</Host><Port>22</Port><Protocol>1</Protocol><Logontype>1</Logontype>
-        <User>bob</User><Pass encoding="base64">cMOhc3M=</Pass><Name>SFTP box</Name>
+        <User>bob</User><Pass encoding="base64">cMOhc3M=</Pass><Name>SFTP box</Name><RemoteDir>1 0 7 my docs</RemoteDir>
       </Server>
       <Folder>Nested <![CDATA[Deep]]>
         <Server>
@@ -34,12 +34,12 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
         <Comment>skipped element</Comment>
       </Folder>
     </Folder>
-    <Server><Host>anon.example.com</Host><Protocol>6</Protocol><Logontype>0</Logontype><Name>Anonymous</Name></Server>
-    <Server><Host>ask.example.com</Host><Protocol>1</Protocol><Logontype>2</Logontype><User>eve</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Asks</Name></Server>
-    <Server><Host>bad.example.com</Host><Protocol>0</Protocol><Logontype>1</Logontype><User>frank</User><Pass encoding="base64">%%%</Pass><Name>Bad password</Name><Port>not-a-number</Port></Server>
+    <Server><Host>anon.example.com</Host><Protocol>6</Protocol><Logontype>0</Logontype><Name>Anonymous</Name><RemoteDir>1</RemoteDir></Server>
+    <Server><Host>ask.example.com</Host><Protocol>1</Protocol><Logontype>2</Logontype><User>eve</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Asks</Name><RemoteDir>1 0 9 x</RemoteDir></Server>
+    <Server><Host>bad.example.com</Host><Protocol>0</Protocol><Logontype>1</Logontype><User>frank</User><Pass encoding="base64">%%%</Pass><Name>Bad password</Name><Port>not-a-number</Port><RemoteDir>1 x 3 abc</RemoteDir></Server>
     <Server><Host>key.example.com</Host><Protocol>1</Protocol><Logontype>5</Logontype><User>gina</User><Name>Key login</Name></Server>
     <Server><Host>web.example.com</Host><Protocol>2</Protocol><Logontype>1</Logontype><User>hank</User><Name>WebDAV</Name></Server>
-    <Server><Host>implicit.example.com</Host><Port>9990</Port><Protocol>3</Protocol><Logontype>1</Logontype><User>ivy</User><Name>Odd implicit</Name></Server>
+    <Server><Host>implicit.example.com</Host><Port>9990</Port><Protocol>3</Protocol><Logontype>1</Logontype><User>ivy</User><Name>Odd implicit</Name><RemoteDir>1 1 /</RemoteDir></Server>
     <Server><Protocol>0</Protocol><User>nobody</User><Name>No host</Name></Server>
   </Servers>
 </FileZilla3>`
@@ -54,6 +54,8 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 //   - FileZilla's protocol numbers keep their encryption: 0 explicit TLS if available, 3 implicit TLS on any port, 4 required explicit TLS and 6 plain
 //   - sites that cannot be represented are reported with a reason: unsupported protocols, key file logins and a missing host
 //   - a port that is not a number is left for the default
+//   - FileZilla's default remote directory is read by the length of each folder, names with spaces included; a malformed one, or one
+//     without folders, is the root
 func TestParse(t *testing.T) {
 	servers, skipped, err := fzimport.Parse(strings.NewReader(sample))
 	if err != nil {
@@ -94,6 +96,11 @@ func TestParse(t *testing.T) {
 	}
 	if box := byName["SFTP box"]; box.FTPEncryption != "" {
 		t.Errorf("an SFTP site got the encryption %q", box.FTPEncryption)
+	}
+	for name, want := range map[string]string{"Top level": "/var/www", "SFTP box": "/my docs", "Anonymous": "", "Asks": "", "Bad password": "", "Odd implicit": "", "ftps.example.com": ""} {
+		if got := byName[name].RemoteDir; got != want {
+			t.Errorf("remote folder of %q = %q; want %q", name, got, want)
+		}
 	}
 	reasons := map[string]string{}
 	for _, s := range skipped {

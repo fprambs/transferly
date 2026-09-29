@@ -161,6 +161,8 @@ var (
 	ErrInvalidTimezone = errors.New("invalid time zone")
 	// ErrInvalidSpeedLimit means the speed limit is negative, below the smallest cap or above the largest one.
 	ErrInvalidSpeedLimit = errors.New("invalid speed limit")
+	// ErrInvalidRemoteDir means the default remote folder is not absolute, is too long or holds control characters.
+	ErrInvalidRemoteDir = errors.New("invalid default remote folder")
 	// ErrInvalidProxy means the proxy's kind, host or port is invalid.
 	ErrInvalidProxy = errors.New("invalid proxy")
 	// ErrInvalidJump means the jump host's host, port or authentication method is invalid, or one was given for a
@@ -207,6 +209,8 @@ type Site struct {
 	// SpeedLimit caps the bytes per second the site's transfers move together, on top of the global and per-user caps of the
 	// instance; zero means the site has no cap of its own.
 	SpeedLimit int64
+	// RemoteDir is the folder the site opens in, as FileZilla's default remote directory; empty opens the root (4.14i).
+	RemoteDir string
 	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
 	Proxy Proxy
 	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects directly.

@@ -4486,6 +4486,9 @@ components:
           type: integer
           format: int64
           description: Bytes per second the site's transfers move together, on top of the global and per-user caps of the instance; 0 means the site has no cap of its own.
+        remoteDir:
+          type: string
+          description: Folder the site opens in, as FileZilla's default remote directory (4.14i). Left out when it opens at the root.
         proxy:
           allOf: [$ref: "#/components/schemas/SiteProxy"]
           description: Left out when the connection is made directly.
@@ -4541,6 +4544,9 @@ components:
           format: int64
           minimum: 0
           description: Bytes per second the site's transfers move together; left out or 0 means no cap of its own.
+        remoteDir:
+          type: string
+          description: Absolute folder the site opens in; left out, empty or / opens the root. Stored cleaned; invalid_remote_dir otherwise.
         proxy:
           allOf: [$ref: "#/components/schemas/SiteProxy"]
           description: Left out to connect directly, without a proxy.

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -21,11 +23,13 @@ import (
 )
 
 const (
-	maxNameRunes     = 100
-	maxUsernameRunes = 255
-	maxHostLength    = 253
-	maxSecretBytes   = 1024
-	maxKeyBytes      = 64 * 1024
+	// maxRemoteDirBytes is the longest default remote folder.
+	maxRemoteDirBytes = 4096
+	maxNameRunes      = 100
+	maxUsernameRunes  = 255
+	maxHostLength     = 253
+	maxSecretBytes    = 1024
+	maxKeyBytes       = 64 * 1024
 	// minSpeedLimit is the smallest speed limit a site may have, in bytes per second (1 KiB): below it a single chunk of
 	// data would keep a request waiting for hours.
 	minSpeedLimit = 1024
@@ -87,6 +91,8 @@ type Input struct {
 	Charset string
 	// SpeedLimit caps the bytes per second the site's transfers move together; zero means no cap of its own.
 	SpeedLimit int64
+	// RemoteDir is the folder the site opens in; empty, or the root, opens the root. It is stored cleaned.
+	RemoteDir string
 	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
 	Proxy Proxy
 	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects
@@ -205,6 +211,11 @@ func Normalize(in Input) (Input, error) {
 	if in.SpeedLimit != 0 && (in.SpeedLimit < minSpeedLimit || in.SpeedLimit > maxSpeedLimit) {
 		return in, ErrInvalidSpeedLimit
 	}
+	remoteDir, err := normalizeRemoteDir(in.RemoteDir)
+	if err != nil {
+		return in, err
+	}
+	in.RemoteDir = remoteDir
 	proxy, err := normalizeProxy(in.Proxy)
 	if err != nil {
 		return in, err
@@ -403,12 +414,28 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	return created, nil
 }
 
+// normalizeRemoteDir checks the default remote folder of a site and cleans it: empty and the root both mean the root and are
+// stored empty, anything else must be an absolute path without control characters.
+func normalizeRemoteDir(dir string) (string, error) {
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(dir, "/") || len(dir) > maxRemoteDirBytes || !utf8.ValidString(dir) || strings.ContainsFunc(dir, unicode.IsControl) {
+		return "", ErrInvalidRemoteDir
+	}
+	if dir = path.Clean(dir); dir == "/" {
+		return "", nil
+	}
+	return dir, nil
+}
+
 // build assembles a site from validated input.
 func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) Site {
 	return Site{
 		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, FTPEncryption: in.FTPEncryption, Host: in.Host,
 		Port: in.Port, Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
-		Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
+		RemoteDir: in.RemoteDir, Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 }
 

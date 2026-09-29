@@ -24,6 +24,9 @@ func siteDTO(s site.Site) Site {
 		Secrets: secrets, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
 	out.FtpEncryption = encryptionDTO(s.FTPEncryption)
+	if s.RemoteDir != "" {
+		out.RemoteDir = &s.RemoteDir
+	}
 	if s.CollectionID != uuid.Nil {
 		out.CollectionId = &s.CollectionID
 	}
@@ -68,6 +71,9 @@ func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	}
 	if in.SpeedLimitBps != nil {
 		settings.SpeedLimit = *in.SpeedLimitBps
+	}
+	if in.RemoteDir != nil {
+		settings.RemoteDir = *in.RemoteDir
 	}
 	if in.Proxy != nil {
 		settings.Proxy = site.Proxy{Kind: site.ProxyKind(in.Proxy.Kind), Host: in.Proxy.Host, Port: in.Proxy.Port}

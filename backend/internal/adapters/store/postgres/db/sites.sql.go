@@ -46,9 +46,9 @@ func (q *Queries) DeleteSite(ctx context.Context, arg DeleteSiteParams) (int64, 
 const insertSite = `-- name: InsertSite :exec
 INSERT INTO sites (
   id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
-  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method, ftp_encryption
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method, ftp_encryption, remote_dir
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $12, $10, $10, $11, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 `
 
 type InsertSiteParams struct {
@@ -74,6 +74,7 @@ type InsertSiteParams struct {
 	JumpUsername   string
 	JumpAuthMethod string
 	FtpEncryption  string
+	RemoteDir      string
 }
 
 func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
@@ -100,6 +101,7 @@ func (q *Queries) InsertSite(ctx context.Context, arg InsertSiteParams) error {
 		arg.JumpUsername,
 		arg.JumpAuthMethod,
 		arg.FtpEncryption,
+		arg.RemoteDir,
 	)
 	return err
 }
@@ -159,7 +161,7 @@ func (q *Queries) SecretKindsByWorkspace(ctx context.Context, workspaceID uuid.U
 
 const siteByID = `-- name: SiteByID :one
 SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
-  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method, ftp_encryption
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method, ftp_encryption, remote_dir
 FROM sites WHERE id = $1 AND workspace_id = $2
 `
 
@@ -192,6 +194,7 @@ type SiteByIDRow struct {
 	JumpUsername   string
 	JumpAuthMethod string
 	FtpEncryption  string
+	RemoteDir      string
 }
 
 func (q *Queries) SiteByID(ctx context.Context, arg SiteByIDParams) (SiteByIDRow, error) {
@@ -221,13 +224,14 @@ func (q *Queries) SiteByID(ctx context.Context, arg SiteByIDParams) (SiteByIDRow
 		&i.JumpUsername,
 		&i.JumpAuthMethod,
 		&i.FtpEncryption,
+		&i.RemoteDir,
 	)
 	return i, err
 }
 
 const sitesByWorkspace = `-- name: SitesByWorkspace :many
 SELECT id, workspace_id, name, protocol, host, port, username, auth_method, list_timezone, charset, created_at, updated_at, folder_id, speed_limit,
-  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method, ftp_encryption
+  proxy_kind, proxy_host, proxy_port, proxy_username, jump_host, jump_port, jump_username, jump_auth_method, ftp_encryption, remote_dir
 FROM sites WHERE workspace_id = $1 ORDER BY lower(name), id
 `
 
@@ -255,6 +259,7 @@ type SitesByWorkspaceRow struct {
 	JumpUsername   string
 	JumpAuthMethod string
 	FtpEncryption  string
+	RemoteDir      string
 }
 
 func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]SitesByWorkspaceRow, error) {
@@ -290,6 +295,7 @@ func (q *Queries) SitesByWorkspace(ctx context.Context, workspaceID uuid.UUID) (
 			&i.JumpUsername,
 			&i.JumpAuthMethod,
 			&i.FtpEncryption,
+			&i.RemoteDir,
 		); err != nil {
 			return nil, err
 		}
@@ -305,7 +311,7 @@ const updateSite = `-- name: UpdateSite :execrows
 UPDATE sites
 SET name = $3, protocol = $4, host = $5, port = $6, username = $7, auth_method = $8, list_timezone = $9, charset = $12, updated_at = $10, folder_id = $11, speed_limit = $13,
   proxy_kind = $14, proxy_host = $15, proxy_port = $16, proxy_username = $17, jump_host = $18, jump_port = $19, jump_username = $20, jump_auth_method = $21,
-  ftp_encryption = $22
+  ftp_encryption = $22, remote_dir = $23
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -332,6 +338,7 @@ type UpdateSiteParams struct {
 	JumpUsername   string
 	JumpAuthMethod string
 	FtpEncryption  string
+	RemoteDir      string
 }
 
 func (q *Queries) UpdateSite(ctx context.Context, arg UpdateSiteParams) (int64, error) {
@@ -358,6 +365,7 @@ func (q *Queries) UpdateSite(ctx context.Context, arg UpdateSiteParams) (int64, 
 		arg.JumpUsername,
 		arg.JumpAuthMethod,
 		arg.FtpEncryption,
+		arg.RemoteDir,
 	)
 	if err != nil {
 		return 0, err

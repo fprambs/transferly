@@ -294,6 +294,8 @@ func text(s string) *string { return &s }
 //
 // Scenarios:
 //   - valid input is stored with defaults: port by protocol, password authentication, UTC listings, trimmed fields
+//   - the default remote folder is stored cleaned, the root is stored empty, and a relative, too long, control-character or invalid UTF-8
+//     one is refused with ErrInvalidRemoteDir
 //   - empty or oversized names, unknown protocols, malformed hosts, ports out of range, empty user names,
 //     unknown or protocol-incompatible authentication methods and unknown time zones are each refused with their error
 //   - the character set defaults to UTF-8, is case insensitive, and only UTF-8 is accepted for SFTP
@@ -324,6 +326,13 @@ func TestService_CreateValidation(t *testing.T) {
 	}
 	if capped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Capped"; in.SpeedLimit = 65536; return in }(), site.SecretChanges{}); err != nil || capped.SpeedLimit != 65536 {
 		t.Errorf("site with a speed limit = %+v, %v", capped, err)
+	}
+	for dir, want := range map[string]string{" /var/www/./html/ ": "/var/www/html", "/": "", "": ""} {
+		in := valid()
+		in.Name, in.RemoteDir = "Dir "+uuid.NewString(), dir
+		if got, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{}); err != nil || got.RemoteDir != want {
+			t.Errorf("remote folder %q = %q, %v; want %q", dir, got.RemoteDir, err, want)
+		}
 	}
 	proxied, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input {
 		in := valid()
@@ -370,6 +379,10 @@ func TestService_CreateValidation(t *testing.T) {
 		{"negative speed limit", func(in *site.Input) { in.SpeedLimit = -1 }, site.ErrInvalidSpeedLimit},
 		{"speed limit below the smallest cap", func(in *site.Input) { in.SpeedLimit = 1023 }, site.ErrInvalidSpeedLimit},
 		{"speed limit above the largest cap", func(in *site.Input) { in.SpeedLimit = 1<<40 + 1 }, site.ErrInvalidSpeedLimit},
+		{"relative remote folder", func(in *site.Input) { in.RemoteDir = "var/www" }, site.ErrInvalidRemoteDir},
+		{"remote folder with a control character", func(in *site.Input) { in.RemoteDir = "/var/\nwww" }, site.ErrInvalidRemoteDir},
+		{"remote folder too long", func(in *site.Input) { in.RemoteDir = "/" + strings.Repeat("d", 4096) }, site.ErrInvalidRemoteDir},
+		{"remote folder not UTF-8", func(in *site.Input) { in.RemoteDir = "/bad\xff" }, site.ErrInvalidRemoteDir},
 		{"private host", func(in *site.Input) { in.Host = "private.example" }, netguard.ErrBlocked},
 		{"private address", func(in *site.Input) { in.Host = "192.168.1.1" }, netguard.ErrBlocked},
 		{"unresolvable host", func(in *site.Input) { in.Host = "nowhere.example" }, netguard.ErrUnresolvable},
