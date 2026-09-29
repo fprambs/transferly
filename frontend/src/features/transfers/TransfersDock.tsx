@@ -53,7 +53,7 @@ export function TransfersDock() {
   const remove = (id: string): void => void api.transfers.remove(id).then(() => forget(id)).catch(() => undefined)
 
   return (
-    <section aria-labelledby="queue-title" className="border-t bg-card">
+    <section aria-labelledby="queue-title" className="flex h-full min-h-0 flex-col bg-card">
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-baseline gap-3">
           <h2 id="queue-title" className="text-sm font-medium">
@@ -84,8 +84,8 @@ export function TransfersDock() {
         </div>
       )}
       {open ? (
-        <div id="queue-body" className="border-t">
-          <Tabs value={tab} onValueChange={(value) => setTab(value === 'finished' || value === 'activity' ? value : 'active')}>
+        <div id="queue-body" className="flex min-h-0 flex-1 flex-col border-t">
+          <Tabs className="min-h-0 flex-1" value={tab} onValueChange={(value) => setTab(value === 'finished' || value === 'activity' ? value : 'active')}>
             <TabsList className="mx-4 mt-2 self-start">
               <TabsTrigger value="active" className="text-foreground">
                 {transfers(($) => $.tabs.active)} ({active.length})
@@ -97,7 +97,7 @@ export function TransfersDock() {
                 {transfers(($) => $.tabs.activity)}
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="active" className="max-h-[25svh] overflow-y-auto">
+            <TabsContent value="active" className="min-h-0 flex-1 overflow-y-auto">
               {shown.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
               ) : (
@@ -108,7 +108,7 @@ export function TransfersDock() {
                 </ul>
               )}
             </TabsContent>
-            <TabsContent value="finished" className="max-h-[25svh] overflow-y-auto">
+            <TabsContent value="finished" className="min-h-0 flex-1 overflow-y-auto">
               {finished.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyFinished)}</p>
               ) : (
@@ -119,7 +119,7 @@ export function TransfersDock() {
                 </ul>
               )}
             </TabsContent>
-            <TabsContent value="activity" className="max-h-[25svh] overflow-y-auto">
+            <TabsContent value="activity" className="min-h-0 flex-1 overflow-y-auto">
               {workspace !== undefined ? (
                 <ActivityList workspaceId={workspace.id} locale={i18n.language} timeZone={timeZone} />
               ) : null}

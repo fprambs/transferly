@@ -25,6 +25,10 @@ export interface UiState {
   fileDoubleClick: FileDoubleClick
   /** Whether the connection log panel is expanded. */
   logOpen: boolean
+  /** Whether the sites panel is shown. */
+  sitesOpen: boolean
+  /** Whether the details panel beside the files is shown. */
+  detailsOpen: boolean
   /** Chooses a theme. */
   setTheme: (themeId: string) => void
   /** Turns following the operating system on or off. */
@@ -43,10 +47,18 @@ export interface UiState {
   setFileDoubleClick: (action: FileDoubleClick) => void
   /** Expands or collapses the connection log panel. */
   toggleLog: () => void
+  /** Expands or collapses the transfer queue panel. */
+  setQueueOpen: (open: boolean) => void
+  /** Expands or collapses the connection log panel. */
+  setLogOpen: (open: boolean) => void
+  /** Shows or hides the sites panel. */
+  setSitesOpen: (open: boolean) => void
+  /** Shows or hides the details panel. */
+  setDetailsOpen: (open: boolean) => void
 }
 
 /** The subset of {@link UiState} that is persisted. */
-type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'logOpen'>
+type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'logOpen' | 'sitesOpen' | 'detailsOpen'>
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
@@ -72,8 +84,10 @@ function sanitize(raw: unknown): Partial<PersistedUi> {
   if (typeof value.queueOpen === 'boolean') {
     clean.queueOpen = value.queueOpen
   }
-  if (typeof value.logOpen === 'boolean') {
-    clean.logOpen = value.logOpen
+  for (const panel of ['logOpen', 'sitesOpen', 'detailsOpen'] as const) {
+    if (typeof value[panel] === 'boolean') {
+      clean[panel] = value[panel]
+    }
   }
   if (typeof value.workspaceId === 'string') {
     clean.workspaceId = value.workspaceId
@@ -95,6 +109,8 @@ export const useUiStore = create<UiState>()(
       workspaceId: null,
       fileDoubleClick: 'download',
       logOpen: true,
+      sitesOpen: true,
+      detailsOpen: true,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen })),
@@ -104,16 +120,22 @@ export const useUiStore = create<UiState>()(
       clearWorkspace: () => set({ workspaceId: null }),
       setFileDoubleClick: (fileDoubleClick) => set({ fileDoubleClick }),
       toggleLog: () => set((state) => ({ logOpen: !state.logOpen })),
+      setQueueOpen: (queueOpen) => set({ queueOpen }),
+      setLogOpen: (logOpen) => set({ logOpen }),
+      setSitesOpen: (sitesOpen) => set({ sitesOpen }),
+      setDetailsOpen: (detailsOpen) => set({ detailsOpen }),
     }),
     {
       name: 'sentinel-ui',
-      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, logOpen }): PersistedUi => ({
+      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, logOpen, sitesOpen, detailsOpen }): PersistedUi => ({
         themeId,
         followSystem,
         queueOpen,
         workspaceId,
         fileDoubleClick,
         logOpen,
+        sitesOpen,
+        detailsOpen,
       }),
       merge: (persisted, current) => ({ ...current, ...sanitize(persisted) }),
     },

@@ -1,8 +1,9 @@
-import { ChevronRight, Ellipsis, FileInput, Folder, FolderPlus, Plus, Zap } from 'lucide-react'
+import { ChevronRight, Ellipsis, FileInput, Folder, FolderPlus, PanelLeftClose, Plus, Zap } from 'lucide-react'
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Tip } from '@/components/ui/tip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Collection, Site } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -194,10 +195,12 @@ function toggled(open: ReadonlySet<string>, id: string): ReadonlySet<string> {
 export interface SitesSidebarProps {
   /** Called with the identifier of the saved site or quick connection the user opens. */
   onOpen: (siteId: string) => void
+  /** Hides the sites panel; without it, the sidebar offers no way to hide itself, as when it is shown in a sheet. */
+  onHide?: () => void
 }
 
 /** Sidebar of the shell: quick connect and the tree of collections and sites. */
-export function SitesSidebar({ onOpen }: SitesSidebarProps) {
+export function SitesSidebar({ onOpen, onHide }: SitesSidebarProps) {
   const { t } = useTranslation('shell')
   const workspace = useWorkspace()
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
@@ -230,7 +233,7 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
   }
 
   return (
-    <nav aria-label={t(($) => $.sidebar.label)} className="flex min-h-0 w-62 shrink-0 flex-col border-e bg-card">
+    <nav aria-label={t(($) => $.sidebar.label)} className="flex h-full min-h-0 w-full flex-col bg-card">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
         <h2 className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">{t(($) => $.sidebar.sites)}</h2>
         <div className="flex gap-1">
@@ -243,6 +246,13 @@ export function SitesSidebar({ onOpen }: SitesSidebarProps) {
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
             <Plus />
           </Button>
+          {onHide !== undefined && (
+            <Tip label={t(($) => $.sidebar.hide)} shortcut="Ctrl+B">
+              <Button variant="ghost" size="icon-xs" aria-label={t(($) => $.sidebar.hide)} onClick={onHide}>
+                <PanelLeftClose />
+              </Button>
+            </Tip>
+          )}
         </div>
       </div>
       <div className="px-2 pb-2.5">

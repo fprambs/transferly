@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { PanelState } from '@/components/ui/panel-state'
+import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { Loading } from '@/components/ui/loading'
 import { cn } from '@/lib/utils'
@@ -61,10 +62,12 @@ export interface ExplorerProps {
   onNavigate: (path: string) => void
   /** Extra controls shown at the end of the toolbar. */
   actions?: ReactNode
+  /** Which pane of the view this is; each pane remembers the width of its details panel on its own. */
+  pane?: 'main' | 'second'
 }
 
-/** Browser of the files of one connection: path, toolbar and a table of the folder in view. */
-export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: ExplorerProps) {
+/** Browser of the files of one connection: path, toolbar, a table of the folder in view and a resizable details panel beside it. */
+export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane = 'main' }: ExplorerProps) {
   const { t, i18n } = useTranslation('explorer')
   const api = useApi()
   const queryClient = useQueryClient()
@@ -84,6 +87,10 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
   const picker = useRef<HTMLInputElement>(null)
   const folderPicker = useRef<HTMLInputElement>(null)
   const disconnected = useDisconnected({ workspaceId, siteId })
+  const detailsOpen = useUiStore((state) => state.detailsOpen)
+  const setDetailsOpen = useUiStore((state) => state.setDetailsOpen)
+  const details = useCollapsible(detailsOpen, setDetailsOpen)
+  const beside = useDefaultLayout({ id: `sentinel-details-${pane}`, storage: layoutStorage })
   const reconnect = useConnectionState((state) => state.reconnect)
   const focus = useConnectionState((state) => state.focus)
   const listing = useQuery({
@@ -248,7 +255,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       onDrop={drop}
       onPointerDownCapture={() => focus({ workspaceId, siteId })}
       onFocusCapture={() => focus({ workspaceId, siteId })}
-      className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+      className="@container relative flex min-h-0 min-w-0 flex-1 flex-col"
     >
       {dragging !== null ? (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
@@ -260,7 +267,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
           <ArrowUp />
         </Button>
         <Breadcrumbs path={path} onNavigate={onNavigate} />
-        <span className="font-mono text-xs text-muted-foreground">{t(($) => $.rows, { count: entries.length })}</span>
+        <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
         <input
           ref={picker}
           type="file"
@@ -274,7 +281,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         />
         <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
           <Upload />
-          {t(($) => $.toolbar.upload)}
+          <span className="@max-3xl:sr-only">{t(($) => $.toolbar.upload)}</span>
         </Button>
         <input
           ref={folderPicker}
@@ -292,11 +299,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         />
         <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (folderPicker.current as HTMLInputElement).click()}>
           <FolderUp />
-          {t(($) => $.upload.folder)}
+          <span className="@max-3xl:sr-only">{t(($) => $.upload.folder)}</span>
         </Button>
         <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
           <FolderPlus />
-          {t(($) => $.toolbar.newFolder)}
+          <span className="@max-3xl:sr-only">{t(($) => $.toolbar.newFolder)}</span>
         </Button>
         <Button
           variant="ghost"
@@ -308,7 +315,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setSearching(true)}>
           <Search />
-          {t(($) => $.search.title)}
+          <span className="@max-3xl:sr-only">{t(($) => $.search.title)}</span>
         </Button>
         {target !== undefined && target.protocol !== 'sftp' ? (
           <TimeZoneProbe workspaceId={workspaceId} siteId={siteId} path={path} site={sites.find((saved) => saved.id === siteId)} onApplied={() => void reload()} />
@@ -414,40 +421,50 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions }: Exp
       )}
       {listing.isSuccess && !canceled && !opening && entries.length === 0 && <PanelState icon={FolderOpen} tone="muted" role="none" title={t(($) => $.emptyDir)} />}
       {listing.isSuccess && !canceled && entries.length > 0 && (
-        <div aria-busy={opening} className={cn('flex min-h-0 flex-1 transition-opacity', opening && 'pointer-events-none opacity-50')}>
-          <EntryTable
-            key={path}
-            entries={entries}
-            locale={i18n.language}
-            timeZone={timeZone}
-            onOpen={open}
-            onOpenFile={(entry) => (fileDoubleClick === 'edit' ? edit(entry) : download(entry))}
-            onUp={() => onNavigate(parentPath(path))}
-            showPermissions={showPermissions}
-            selectedPath={selectedPath}
-            onSelect={(entry) => setSelectedPath(entry.path)}
-            onDownload={download}
-            onDownloadEach={(entry) => void downloadEach(entry)}
-            onEdit={edit}
-            onRename={(entry) => setDialog({ kind: 'rename', entry })}
-            onDelete={(entry) => setDialog({ kind: 'delete', entry })}
-            onNewFolder={() => setDialog({ kind: 'newFolder' })}
-            dragFolders
-            onDragEntry={dragEntry}
-          />
-          <Inspector
-            entry={entries[resolveSelection(entries, selectedPath)]}
-            showPermissions={showPermissions}
-            locale={i18n.language}
-            timeZone={timeZone}
-            onDownload={download}
-            onDownloadEach={(entry) => void downloadEach(entry)}
-            onChecksum={(entry, algorithm) => api.files.checksum(workspaceId, siteId, entry.path, algorithm)}
-            onEdit={edit}
-            onRename={(entry) => setDialog({ kind: 'rename', entry })}
-            onDelete={(entry) => setDialog({ kind: 'delete', entry })}
-          />
-        </div>
+        <Group
+          id={`sentinel-details-${pane}`}
+          aria-busy={opening}
+          className={cn('min-h-0 flex-1 transition-opacity', opening && 'pointer-events-none opacity-50')}
+          {...beside}
+        >
+          <Panel id="entries" minSize={380} className="flex h-full min-h-0 min-w-0 flex-col">
+              <EntryTable
+                key={path}
+                entries={entries}
+                locale={i18n.language}
+                timeZone={timeZone}
+                onOpen={open}
+                onOpenFile={(entry) => (fileDoubleClick === 'edit' ? edit(entry) : download(entry))}
+                onUp={() => onNavigate(parentPath(path))}
+                showPermissions={showPermissions}
+                selectedPath={selectedPath}
+                onSelect={(entry) => setSelectedPath(entry.path)}
+                onDownload={download}
+                onDownloadEach={(entry) => void downloadEach(entry)}
+                onEdit={edit}
+                onRename={(entry) => setDialog({ kind: 'rename', entry })}
+                onDelete={(entry) => setDialog({ kind: 'delete', entry })}
+                onNewFolder={() => setDialog({ kind: 'newFolder' })}
+                dragFolders
+                onDragEntry={dragEntry}
+              />
+          </Panel>
+          <ResizeHandle aria-label={t(($) => $.panels.details)} />
+          <Panel id="details" collapsible collapsedSize={0} defaultSize={260} minSize={200} maxSize="45%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...details}>
+              <Inspector
+                entry={entries[resolveSelection(entries, selectedPath)]}
+                showPermissions={showPermissions}
+                locale={i18n.language}
+                timeZone={timeZone}
+                onDownload={download}
+                onDownloadEach={(entry) => void downloadEach(entry)}
+                onChecksum={(entry, algorithm) => api.files.checksum(workspaceId, siteId, entry.path, algorithm)}
+                onEdit={edit}
+                onRename={(entry) => setDialog({ kind: 'rename', entry })}
+                onDelete={(entry) => setDialog({ kind: 'delete', entry })}
+              />
+          </Panel>
+        </Group>
       )}
       {dialog?.kind === 'newFolder' && (
         <EntryNameDialog

@@ -16,11 +16,19 @@
     "newSite": "New site",
     "collectionCount": "{{count}} sites",
     "loading": "Loading sites…",
-    "importSites": "Import from FileZilla"
+    "importSites": "Import from FileZilla",
+    "hide": "Hide the sites panel",
+    "show": "Show the sites panel",
+    "browse": "Browse the sites",
+    "rail": "Sites, panel hidden"
   },
   "queue": {
     "title": "Transfers",
     "show": "Show transfers",
     "hide": "Hide transfers"
+  },
+  "panels": {
+    "sites": "Resize the sites panel",
+    "transfers": "Resize the transfers panel"
   }
 }

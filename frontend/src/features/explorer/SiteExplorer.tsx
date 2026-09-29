@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
 import { NativeSelect } from '@/components/ui/native-select'
+import { useUiStore } from '@/state/ui-store'
 
 import { ConnectionLog } from '../connlog/ConnectionLog'
 import { LocalExplorer } from '../local/LocalExplorer'
@@ -17,6 +19,9 @@ import { useConnectionState } from '../toolbar/connection-store'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { Explorer } from './Explorer'
+
+/** Height of the log panel while collapsed: its header, which keeps the button that opens it again. */
+const logHeaderPx = 33
 
 /** Access to the address of the site route: its site, its folder and the second pane. */
 const siteRoute = getRouteApi('/shell/sites/$siteId')
@@ -32,6 +37,11 @@ export function SiteExplorer() {
   const localRoot = useLocalRoot((state) => state.root)
   const [comparing, setComparing] = useState(false)
   const focus = useConnectionState((state) => state.focus)
+  const logOpen = useUiStore((state) => state.logOpen)
+  const setLogOpen = useUiStore((state) => state.setLogOpen)
+  const log = useCollapsible(logOpen, setLogOpen)
+  const stack = useDefaultLayout({ id: 'sentinel-explorer', storage: layoutStorage })
+  const panes = useDefaultLayout({ id: 'sentinel-split', panelIds: split === undefined ? ['left'] : ['left', 'right'], storage: layoutStorage })
   const workspaceId = workspace?.id
 
   useEffect(() => {
@@ -81,42 +91,56 @@ export function SiteExplorer() {
   )
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <ConnectionLog workspaceId={workspace.id} siteId={siteId} />
-      <div className="flex min-h-0 min-w-0 flex-1">
-        <Explorer
-          workspaceId={workspace.id}
-          siteId={siteId}
-          path={path}
-          onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, path: next }) })}
-          actions={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t(($) => $.split.open)}
-              aria-pressed={split !== undefined}
-              onClick={() => void navigate({ search: (previous) => ({ ...previous, split: split === undefined ? siteId : undefined, splitPath: undefined }) })}
-            >
-              <Columns2 />
-            </Button>
-          }
-        />
-        {split === undefined ? null : (
-          <div role="group" aria-label={t(($) => $.split.pane)} className="flex min-h-0 min-w-0 flex-1 flex-col border-s">
-            {split === localSiteId ? (
-              <LocalExplorer workspaceId={workspace.id} path={splitPath ?? '/'} onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })} actions={paneActions} />
-            ) : (
+      <Group orientation="vertical" id="sentinel-explorer" className="min-h-0 flex-1" {...stack}>
+        <Panel id="log" collapsible collapsedSize={logHeaderPx} defaultSize={150} minSize={64} maxSize="60%" groupResizeBehavior="preserve-pixel-size" className="flex h-full flex-col" {...log}>
+          <ConnectionLog workspaceId={workspace.id} siteId={siteId} />
+        </Panel>
+        <ResizeHandle aria-label={t(($) => $.panels.log)} />
+        <Panel id="files" minSize={160} className="flex h-full min-h-0 flex-col">
+          <Group id="sentinel-split" className="min-h-0 flex-1" {...panes}>
+            <Panel id="left" minSize="20%" className="flex h-full min-h-0 min-w-0 flex-col">
               <Explorer
-                key={split}
+                pane="main"
                 workspaceId={workspace.id}
-                siteId={split}
-                path={splitPath ?? '/'}
-                onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })}
-                actions={paneActions}
+                siteId={siteId}
+                path={path}
+                onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, path: next }) })}
+                actions={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t(($) => $.split.open)}
+                    aria-pressed={split !== undefined}
+                    onClick={() => void navigate({ search: (previous) => ({ ...previous, split: split === undefined ? siteId : undefined, splitPath: undefined }) })}
+                  >
+                    <Columns2 />
+                  </Button>
+                }
               />
+            </Panel>
+            {split === undefined ? null : <ResizeHandle aria-label={t(($) => $.panels.split)} />}
+            {split === undefined ? null : (
+              <Panel id="right" minSize="20%" className="flex h-full min-h-0 min-w-0 flex-col">
+                <div role="group" aria-label={t(($) => $.split.pane)} className="flex min-h-0 min-w-0 flex-1 flex-col">
+                  {split === localSiteId ? (
+                    <LocalExplorer workspaceId={workspace.id} path={splitPath ?? '/'} onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })} actions={paneActions} />
+                  ) : (
+                    <Explorer
+                      key={split}
+                      pane="second"
+                      workspaceId={workspace.id}
+                      siteId={split}
+                      path={splitPath ?? '/'}
+                      onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })}
+                      actions={paneActions}
+                    />
+                  )}
+                </div>
+              </Panel>
             )}
-          </div>
-        )}
-      </div>
+          </Group>
+        </Panel>
+      </Group>
       {comparing && otherSide !== null && (
         <CompareDialog
           left={{ kind: 'remote', workspaceId: workspace.id, siteId, path }}

@@ -1,6 +1,6 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useMatch, useNavigate } from '@tanstack/react-router'
-import { CircleStop, PanelTop, RefreshCw, Unplug } from 'lucide-react'
+import { CircleStop, PanelBottom, PanelLeft, PanelRight, PanelTop, RefreshCw, Unplug } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tip } from '@/components/ui/tip'
 import { useApi } from '@/lib/api/use-api'
 import { cn } from '@/lib/utils'
-import { useUiStore } from '@/state/ui-store'
+import { useUiStore, type UiState } from '@/state/ui-store'
 
 import { filesPrefix } from '../explorer/files-key'
 import { localSiteId } from '../local/local-fs'
@@ -159,11 +159,25 @@ function ConnectionActions({ target, onDisconnected }: ConnectionActionsProps) {
   )
 }
 
-/** Switches that show or hide panels. */
+/** The panels the toolbar shows or hides, with their preference, its setter and their icon. */
+const panelSwitches = [
+  { key: 'sites', icon: PanelLeft, open: (state: UiState) => state.sitesOpen, set: (state: UiState) => state.setSitesOpen },
+  { key: 'log', icon: PanelTop, open: (state: UiState) => state.logOpen, set: (state: UiState) => state.setLogOpen },
+  { key: 'details', icon: PanelRight, open: (state: UiState) => state.detailsOpen, set: (state: UiState) => state.setDetailsOpen },
+  { key: 'transfers', icon: PanelBottom, open: (state: UiState) => state.queueOpen, set: (state: UiState) => state.setQueueOpen },
+] as const
+
+/** Switches that show or hide the panels around the files (4.10). */
 function PanelSwitches() {
   const { t } = useTranslation('explorer')
-  const logOpen = useUiStore((state) => state.logOpen)
-  const toggleLog = useUiStore((state) => state.toggleLog)
+  const ui = useUiStore()
 
-  return <ToolButton label={t(($) => $.commands.log)} icon={PanelTop} tone="panel" pressed={logOpen} onClick={toggleLog} />
+  return (
+    <>
+      {panelSwitches.map((panel) => {
+        const open = panel.open(ui)
+        return <ToolButton key={panel.key} label={t(($) => $.commands.panels[panel.key])} icon={panel.icon} tone="panel" pressed={open} onClick={() => panel.set(ui)(!open)} />
+      })}
+    </>
+  )
 }

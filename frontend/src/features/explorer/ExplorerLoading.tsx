@@ -11,7 +11,7 @@ function SkeletonRows({ count }: { count: number }) {
   return (
     <div aria-hidden="true" className="flex flex-col">
       {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="grid h-8 grid-cols-[minmax(0,1fr)_88px_160px_112px] items-center gap-3 px-4">
+        <div key={index} className="grid h-8 grid-cols-[minmax(10rem,1fr)_88px_160px_112px] items-center gap-3 px-4">
           <span className="flex items-center gap-2">
             <Skeleton className="size-4 rounded" />
             <Skeleton className={`h-3 ${nameWidths[index % nameWidths.length]}`} />

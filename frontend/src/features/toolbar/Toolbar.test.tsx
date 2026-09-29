@@ -61,7 +61,7 @@ function toolbar() {
  * Covers {@link Toolbar} and the connection states it drives in the explorer (4.9b).
  *
  * Scenarios:
- * - with no site open the connection actions are off, and the log switch still works; the toolbar is not shown outside the explorer
+ * - with no site open the connection actions are off, and the switches of the sites, log, details and transfers panels still work; the toolbar is not shown outside the explorer
  * - refresh lists the folder in view again; the toolbar names the connection it acts on
  * - cancel is on only while the connection is busy, stops the listing, and the explorer says it was canceled with a way to try again
  * - disconnect asks the server to close the connections and takes the site out of the address (the main pane leaves for the start page,
@@ -74,7 +74,7 @@ describe('Toolbar', () => {
     mockSession(adminSession)
     mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Backup')] })
     useConnectionState.setState({ focused: null, disconnected: {} })
-    useUiStore.setState({ logOpen: true })
+    useUiStore.setState({ logOpen: true, sitesOpen: true, detailsOpen: true, queueOpen: true })
   })
 
   it('is off with no site open, except the panel switches', async () => {
@@ -85,9 +85,17 @@ describe('Toolbar', () => {
     expect(toolbar().getByRole('button', { name: 'Refresh the folder' })).toBeDisabled()
     expect(toolbar().getByRole('button', { name: 'Cancel the current operation' })).toBeDisabled()
     expect(toolbar().getByRole('button', { name: 'Disconnect from the server' })).toBeDisabled()
-    await user.click(toolbar().getByRole('button', { name: 'Log panel' }))
-    expect(useUiStore.getState().logOpen).toBe(false)
-    expect(toolbar().getByRole('button', { name: 'Log panel' })).toHaveAttribute('aria-pressed', 'false')
+    for (const [name, key] of [
+      ['Sites panel', 'sitesOpen'],
+      ['Log panel', 'logOpen'],
+      ['Details panel', 'detailsOpen'],
+      ['Transfers panel', 'queueOpen'],
+    ] as const) {
+      expect(toolbar().getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true')
+      await user.click(toolbar().getByRole('button', { name }))
+      expect(useUiStore.getState()[key]).toBe(false)
+      expect(toolbar().getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false')
+    }
   })
 
   it('is shown with the explorer only, not on the settings page', async () => {

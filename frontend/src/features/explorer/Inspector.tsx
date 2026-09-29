@@ -43,7 +43,7 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
   const [copied, setCopied] = useState(false)
 
   return (
-    <aside aria-label={t(($) => $.inspector.label)} className="hidden w-72 shrink-0 flex-col gap-4 border-s bg-card p-4 lg:flex">
+    <aside aria-label={t(($) => $.inspector.label)} className="flex h-full w-full flex-col gap-4 overflow-y-auto bg-card p-4">
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
         <dt className="text-muted-foreground">{t(($) => $.inspector.name)}</dt>
         <dd className="font-mono break-all">{entry.name}</dd>

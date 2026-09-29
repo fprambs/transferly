@@ -14,7 +14,7 @@ import { formatSize, resolveSelection } from './entries'
 const rowHeight = 32
 
 /** Column layout shared by the header and the rows. */
-const columns = 'grid grid-cols-[minmax(0,1fr)_88px_160px_112px] items-center gap-3 px-4'
+const columns = 'grid grid-cols-[minmax(10rem,1fr)_88px_160px_112px] items-center gap-3 px-4'
 
 /** Props of {@link EntryTable}. */
 export interface EntryTableProps {

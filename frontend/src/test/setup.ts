@@ -20,6 +20,26 @@ configure({ asyncUtilTimeout: 4000 })
 
 window.scrollTo = () => undefined
 
+/** jsdom lacks it and the resizable panels observe their groups with it; nothing is measured in unit tests, so it observes nothing. */
+class NoResizeObserver {
+  /** Starts observing nothing. */
+  observe(): void {}
+  /** Stops observing nothing. */
+  unobserve(): void {}
+  /** Forgets every observation, of which there are none. */
+  disconnect(): void {}
+}
+window.ResizeObserver ??= NoResizeObserver
+
+/**
+ * jsdom measures every element as an empty box at the origin, where the pointer of user-event also lands, so the resizable panels would take
+ * every click for the start of a drag. Their groups, panels and separators are measured far off screen instead.
+ */
+const measure = Element.prototype.getBoundingClientRect
+Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+  return this.matches('[data-group], [data-panel], [data-separator]') ? new DOMRect(-10_000, -10_000, 0, 0) : measure.call(this)
+}
+
 Object.defineProperties(HTMLElement.prototype, {
   offsetWidth: { configurable: true, get: () => 900 },
   offsetHeight: { configurable: true, get: () => 400 },

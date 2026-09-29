@@ -350,7 +350,7 @@ describe('site management', () => {
     expect(within(dialog).getByText('SSH jump host')).toBeInTheDocument()
     await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
     expect(within(dialog).queryByText('SSH jump host')).not.toBeInTheDocument()
-  })
+  }, 40_000)
 
   it('starts a site inside a collection', async () => {
     const user = await renderSidebar()

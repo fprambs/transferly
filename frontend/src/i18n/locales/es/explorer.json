@@ -257,10 +257,20 @@
     "refresh": "Actualizar la carpeta",
     "cancel": "Cancelar la operación en curso",
     "disconnect": "Desconectar del servidor",
-    "log": "Panel del registro",
     "connection": "Conexión: {{name}}",
     "disconnectedFrom": "Desconectado: {{name}}",
-    "disconnectFailed": "No se pudo desconectar. Inténtalo de nuevo."
+    "disconnectFailed": "No se pudo desconectar. Inténtalo de nuevo.",
+    "panels": {
+      "sites": "Panel de sitios",
+      "log": "Panel del registro",
+      "details": "Panel de detalles",
+      "transfers": "Panel de transferencias"
+    }
   },
-  "failedTitle": "No se pudo listar esta carpeta"
+  "failedTitle": "No se pudo listar esta carpeta",
+  "panels": {
+    "log": "Cambiar el tamaño del panel del registro",
+    "split": "Cambiar el tamaño de los paneles",
+    "details": "Cambiar el tamaño del panel de detalles"
+  }
 }

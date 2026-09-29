@@ -257,10 +257,20 @@
     "refresh": "Refresh the folder",
     "cancel": "Cancel the current operation",
     "disconnect": "Disconnect from the server",
-    "log": "Log panel",
     "connection": "Connection: {{name}}",
     "disconnectedFrom": "Disconnected: {{name}}",
-    "disconnectFailed": "Could not disconnect. Try again."
+    "disconnectFailed": "Could not disconnect. Try again.",
+    "panels": {
+      "sites": "Sites panel",
+      "log": "Log panel",
+      "details": "Details panel",
+      "transfers": "Transfers panel"
+    }
   },
-  "failedTitle": "Could not list this folder"
+  "failedTitle": "Could not list this folder",
+  "panels": {
+    "log": "Resize the log panel",
+    "split": "Resize the panes",
+    "details": "Resize the details panel"
+  }
 }

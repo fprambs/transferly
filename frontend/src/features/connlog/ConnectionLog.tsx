@@ -52,8 +52,8 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
   }
 
   return (
-    <section aria-label={t(($) => $.log.title)} className="flex shrink-0 flex-col border-b bg-surface/40">
-      <div className="flex h-8 items-center gap-1 px-2 text-xs">
+    <section aria-label={t(($) => $.log.title)} className="flex h-full min-h-0 flex-col bg-surface/40">
+      <div className="flex h-8 shrink-0 items-center gap-1 px-2 text-xs">
         <Button variant="ghost" size="xs" aria-expanded={open} onClick={toggle} className="gap-1.5 font-medium">
           {open ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
           <ScrollText aria-hidden="true" />
@@ -91,7 +91,7 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
             const list = event.currentTarget
             following.current = list.scrollHeight - list.scrollTop - list.clientHeight < 4
           }}
-          className="h-28 overflow-y-auto px-3 pb-1.5 font-mono text-[11px] leading-5"
+          className="min-h-0 flex-1 overflow-y-auto px-3 pb-1.5 font-mono text-[11px] leading-5"
         >
           {lines.length === 0 ? (
             <li className="text-muted-foreground">{t(($) => $.log.empty)}</li>
