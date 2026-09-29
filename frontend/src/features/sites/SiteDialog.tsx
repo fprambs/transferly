@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ import {
   tabsOf,
   tabsWithErrors,
   toSiteInput,
+  type AccessMode,
   type SiteTab,
   type SiteValues,
 } from './site-form'
@@ -117,6 +119,20 @@ const keyFailures: readonly SiteErrorKey[] = [
   'jump_private_key_unreadable',
   'jump_private_key_unsupported',
 ]
+
+/** The hint under the logon type, for the modes that store no secret. */
+function accessHintOf(mode: AccessMode, t: TFunction<'sites'>): string | undefined {
+  switch (mode) {
+    case 'anonymous':
+      return t(($) => $.site.anonymousHint)
+    case 'ask':
+      return t(($) => $.site.askHint)
+    case 'interactive':
+      return t(($) => $.site.interactiveHint)
+    default:
+      return undefined
+  }
+}
 
 /** Time zones the browser knows, offered as suggestions. */
 const timeZones = Intl.supportedValuesOf('timeZone')
@@ -279,7 +295,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
             )}
           </Group>
           <Group>
-            <Row id="site-access" label={t(($) => $.site.accessMode)} hint={mode === 'anonymous' ? t(($) => $.site.anonymousHint) : mode === 'ask' ? t(($) => $.site.askHint) : undefined}>
+            <Row id="site-access" label={t(($) => $.site.accessMode)} hint={accessHintOf(mode, t)}>
               <FormSelect
                 id="site-access"
                 control={control}

@@ -222,9 +222,17 @@ describe('site form', () => {
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: 'u' }).success).toBe(true)
   })
 
-  it('offers asking for the password and the anonymous user to every protocol, a key to SFTP and an account to FTP', () => {
-    expect(accessModesOf('sftp')).toEqual(['normal', 'ask', 'key', 'anonymous'])
-    expect(accessModesOf('ftp')).toEqual(['normal', 'ask', 'account', 'anonymous'])
+  it('offers asking for the password, the interactive logon and the anonymous user to every protocol, a key to SFTP and an account to FTP', () => {
+    expect(accessModesOf('sftp')).toEqual(['normal', 'ask', 'interactive', 'key', 'anonymous'])
+    expect(accessModesOf('ftp')).toEqual(['normal', 'ask', 'interactive', 'account', 'anonymous'])
+  })
+
+  it('builds an interactive site of either protocol with no secret sent', () => {
+    const values = { ...siteDefaults(undefined, undefined), name: 'OTP', host: 'h', username: 'u', accessMode: 'interactive' as const, password: 'typed' }
+
+    expect(toSiteInput(values)).toMatchObject({ username: 'u', authMethod: 'interactive', password: undefined, privateKey: undefined })
+    expect(toSiteInput({ ...values, protocol: 'ftp' })).toMatchObject({ authMethod: 'interactive', password: undefined, account: undefined })
+    expect(siteDefaults({ ...stored, authMethod: 'interactive', secrets: [] }, undefined).accessMode).toBe('interactive')
   })
 
   it('builds an FTP site of the account logon type with its password and account, and no account for SFTP', () => {

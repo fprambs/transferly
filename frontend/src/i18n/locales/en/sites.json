@@ -143,7 +143,8 @@
       "key": "Key file",
       "anonymous": "Anonymous",
       "ask": "Ask for password",
-      "account": "Account"
+      "account": "Account",
+      "interactive": "Interactive"
     },
     "anonymousHint": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
     "keepPassword": "Leave blank to keep the existing password.",
@@ -208,7 +209,8 @@
     "remoteDirHint": "The folder the site opens in each time it connects. Leave it blank to start at the root.",
     "account": "Account",
     "accountHint": "Some older FTP servers ask for an account after the password (ACCT). It is kept in the vault like the password.",
-    "keepAccount": "Leave blank to keep the existing account."
+    "keepAccount": "Leave blank to keep the existing account.",
+    "interactiveHint": "No secret is saved. Whatever the server asks when connecting, the password or a one-time code, is asked to you then and never kept."
   },
   "import": {
     "open": "Import from FileZilla",
@@ -267,5 +269,18 @@
     "cardBody": "Its password is not saved. Enter it to connect; it stays only in the server's memory for this session.",
     "cardAction": "Enter the password",
     "refused": "The server refused that password. Enter it again."
+  },
+  "prompt": {
+    "title": "{{site}} asks",
+    "titleUnknown": "The server asks",
+    "description": "The server needs an answer to let you in. It goes to this connection only and is never saved.",
+    "submit": "Answer",
+    "cancel": "Cancel",
+    "required": "Answer every question.",
+    "failed": "The answer did not reach the connection. It may have ended.",
+    "expired": "The connection stopped waiting for this answer.",
+    "show": "Show",
+    "hide": "Hide",
+    "queue": "{{count}} more waiting"
   }
 }

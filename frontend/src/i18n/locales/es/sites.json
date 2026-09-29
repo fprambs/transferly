@@ -143,7 +143,8 @@
       "key": "Archivo de clave",
       "anonymous": "Anónimo",
       "ask": "Preguntar la contraseña",
-      "account": "Cuenta"
+      "account": "Cuenta",
+      "interactive": "Interactivo"
     },
     "anonymousHint": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
     "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
@@ -208,7 +209,8 @@
     "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz.",
     "account": "Cuenta",
     "accountHint": "Algunos servidores FTP antiguos piden una cuenta después de la contraseña (ACCT). Se guarda en el vault como la contraseña.",
-    "keepAccount": "Déjala vacía para conservar la cuenta guardada."
+    "keepAccount": "Déjala vacía para conservar la cuenta guardada.",
+    "interactiveHint": "No se guarda ningún secreto. Lo que el servidor pregunte al conectar, la contraseña o un código de un solo uso, se te pide en ese momento y nunca se guarda."
   },
   "import": {
     "open": "Importar de FileZilla",
@@ -267,5 +269,18 @@
     "cardBody": "Su contraseña no se guarda. Escríbela para conectar; queda solo en la memoria del servidor durante esta sesión.",
     "cardAction": "Escribir la contraseña",
     "refused": "El servidor rechazó esa contraseña. Escríbela de nuevo."
+  },
+  "prompt": {
+    "title": "{{site}} pregunta",
+    "titleUnknown": "El servidor pregunta",
+    "description": "El servidor necesita una respuesta para dejarte entrar. Va solo a esta conexión y nunca se guarda.",
+    "submit": "Responder",
+    "cancel": "Cancelar",
+    "required": "Responde todas las preguntas.",
+    "failed": "La respuesta no llegó a la conexión. Puede que haya terminado.",
+    "expired": "La conexión dejó de esperar esta respuesta.",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "queue": "{{count}} más esperando"
   }
 }

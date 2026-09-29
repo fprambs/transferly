@@ -245,7 +245,7 @@ describe('site management', () => {
       'SFTP - SSH File Transfer Protocol',
       'FTP - File Transfer Protocol',
     ])
-    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Key file', 'Anonymous'])
+    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Interactive', 'Key file', 'Anonymous'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
     await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
@@ -260,7 +260,7 @@ describe('site management', () => {
     expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
     expect(within(dialog).getByText(/upgrades with AUTH TLS before signing in/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '21')
-    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Account', 'Anonymous'])
+    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Interactive', 'Account', 'Anonymous'])
 
     await choose(user, encryption, 'Require implicit FTP over TLS')
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '990')
@@ -307,6 +307,31 @@ describe('site management', () => {
     expect(body).toMatchObject({ protocol: 'sftp', authMethod: 'anonymous' })
     expect(body).not.toHaveProperty('password')
     expect(body).not.toHaveProperty('privateKey')
+  })
+
+  it('saves an interactive site with its user and no secret', async () => {
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ...prod, id: 's3' }, { status: 201 })
+      }),
+    )
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog')
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Bastion')
+    await user.type(within(dialog).getByLabelText('Host'), 'bastion.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'deploy')
+    await choose(user, within(dialog).getByLabelText('Logon type'), 'Interactive')
+    expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/a one-time code, is asked to you then/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+
+    await waitFor(() => expect(body.authMethod).toBe('interactive'))
+    expect(body).toMatchObject({ protocol: 'sftp', username: 'deploy' })
+    expect(body).not.toHaveProperty('password')
   })
 
   it('says a stored key is kept unless another file is chosen', async () => {
