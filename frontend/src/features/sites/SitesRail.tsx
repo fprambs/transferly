@@ -30,7 +30,7 @@ export function SitesRail({ onOpen, onDisconnect }: SitesRailProps) {
 
   return (
     <nav aria-label={t(($) => $.sidebar.rail)} className="flex h-full flex-col items-center gap-1 bg-card py-2">
-      <Tip label={t(($) => $.sidebar.show)} shortcut="Ctrl+B" side="right">
+      <Tip label={t(($) => $.sidebar.show)} shortcut="Mod+B" side="right">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.sidebar.show)} onClick={() => setSitesOpen(true)}>
           <PanelLeftOpen />
         </Button>

@@ -8,6 +8,7 @@ import { Tip } from '@/components/ui/tip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Collection, Site, Workspace } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
+import { formatShortcut } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useDialogsStore } from '@/state/dialogs-store'
 
@@ -382,7 +383,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
             <Plus />
           </Button>
           {onHide !== undefined && (
-            <Tip label={t(($) => $.sidebar.hide)} shortcut="Ctrl+B">
+            <Tip label={t(($) => $.sidebar.hide)} shortcut="Mod+B">
               <Button variant="ghost" size="icon-xs" aria-label={t(($) => $.sidebar.hide)} onClick={onHide}>
                 <PanelLeftClose />
               </Button>
@@ -394,7 +395,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
         <Button variant="outline" className="h-8 w-full justify-start gap-2 bg-muted/40" onClick={() => setQuickConnectOpen(true)}>
           <Zap className="text-warn" />
           <span className="flex-1 text-start">{t(($) => $.sidebar.quickConnect)}</span>
-          <kbd className="rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground">⌘⇧K</kbd>
+          <kbd className="rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground">{formatShortcut('Mod+Shift+K')}</kbd>
         </Button>
       </div>
       {moveFailure !== null && (
