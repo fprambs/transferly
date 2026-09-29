@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, type KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -8,6 +8,7 @@ import { formatInstant } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
 import { formatSize, resolveSelection } from './entries'
+import { matchRanges } from './entry-filter'
 import { fileTypeOf } from './file-types'
 import { FileTypeIcon } from './FileTypeIcon'
 import { useDescribeType } from './use-file-type'
@@ -54,6 +55,20 @@ export interface EntryTableProps {
   dragFolders?: boolean
   /** Called when the user starts dragging an entry, to put what it carries in the drag data. */
   onDragEntry: (entry: RemoteEntry, data: DataTransfer) => void
+  /** Text of the filter of the folder, whose words are highlighted in the names (4.14d). */
+  highlight?: string
+}
+
+/** A name with the words of the filter highlighted. */
+function HighlightedName({ name, query }: { name: string; query: string }) {
+  const parts: ReactNode[] = []
+  let at = 0
+  for (const [start, end] of matchRanges(name, query)) {
+    parts.push(name.slice(at, start), <mark key={start} className="rounded-sm bg-warn/30 text-foreground">{name.slice(start, end)}</mark>)
+    at = end
+  }
+  parts.push(name.slice(at))
+  return <span className="truncate">{parts}</span>
 }
 
 /** Formats the modification time of an entry, leaving out the time when the server only gave the day. */
@@ -78,7 +93,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onRename, onDelete, onNewFolder, dragFolders, onDragEntry, highlight = '' }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const describeType = useDescribeType()
   const scroller = useRef<HTMLDivElement>(null)
@@ -173,7 +188,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
             >
               <span role="gridcell" className="flex min-w-0 items-center gap-2">
                 <FileTypeIcon type={fileTypeOf(entry)} />
-                <span className="truncate">{entry.name}</span>
+                <HighlightedName name={entry.name} query={highlight} />
               </span>
               <span role="gridcell" className="text-end font-mono text-xs text-muted-foreground">
                 {entry.type === 'directory' ? '—' : formatSize(entry.size)}

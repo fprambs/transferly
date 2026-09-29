@@ -357,5 +357,53 @@
     "named": "{{name}}",
     "unknown": "{{name}} file",
     "plain": "File"
+  },
+  "filter": {
+    "label": "Filter this folder",
+    "placeholder": "Filter this folder…",
+    "help": "Words must all appear; * and ? are wildcards (*.log, report-202?.pdf); -word leaves it out.",
+    "clearText": "Clear the filter text",
+    "facets_one": "Filters, {{count}} in use",
+    "facets_other": "Filters, {{count}} in use",
+    "facetsButton": "Filters",
+    "kind": "Type",
+    "modified": "Modified",
+    "size": "Size",
+    "from": "From",
+    "to": "To",
+    "kinds": {
+      "folders": "Folders",
+      "images": "Images",
+      "media": "Audio and video",
+      "documents": "Documents",
+      "code": "Code",
+      "archives": "Archives",
+      "other": "Other"
+    },
+    "modifiedPresets": {
+      "any": "Any time",
+      "today": "Today",
+      "week": "Last 7 days",
+      "month": "Last 30 days",
+      "year": "This year",
+      "custom": "Between dates"
+    },
+    "sizePresets": {
+      "any": "Any size",
+      "small": "Under 1 MB",
+      "medium": "1 to 100 MB",
+      "large": "Over 100 MB"
+    },
+    "sizeHint": "A size keeps files only, since folders have none. Dates are days in your time zone.",
+    "clearFacets": "Clear these filters",
+    "range": "{{from}} to {{to}}",
+    "shown": "{{shown}} of {{total}}",
+    "remove": "Remove the filter: {{facet}}",
+    "listed": "Listed {{age}}",
+    "refresh": "Refresh",
+    "clear": "Clear filters",
+    "noneTitle": "Nothing matches the filter",
+    "noneBody": "None of the {{total}} entries of this folder matches. Change or clear the filter.",
+    "text": "Text"
   }
 }

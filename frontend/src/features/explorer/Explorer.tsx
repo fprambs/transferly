@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, CircleAlert, CircleStop, FolderOpen, FolderPlus, FolderUp, Plug, RefreshCw, Search, ShieldQuestion, Unplug, Upload } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { ArrowUp, CircleAlert, CircleStop, FolderOpen, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, Unplug, Upload } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -49,6 +49,10 @@ import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
 import { joinPath, parentPath, resolveSelection, sortEntries } from './entries'
 import { filesKey, filesPrefix, listingFreshMs, listingKeepMs } from './files-key'
+import { emptyFilter, filterEntries, isActive, type EntryFilter } from './entry-filter'
+import { FilterBox } from './FilterBox'
+import { FilterMenu } from './FilterMenu'
+import { FilterSummary } from './FilterSummary'
 
 /** The dialog that is open over the explorer. */
 type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry } | { kind: 'edit'; entry: RemoteEntry }
@@ -117,12 +121,33 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const opening = listing.isFetching && listing.isPlaceholderData
   const canceled = !listing.isFetching && (listing.isPending || listing.isPlaceholderData)
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
+  const [filtered, setFiltered] = useState<{ path: string; filter: EntryFilter }>({ path, filter: emptyFilter })
+  const filter = filtered.path === path ? filtered.filter : emptyFilter
+  const setFilter = (next: EntryFilter): void => setFiltered({ path, filter: next })
+  const filterField = useRef<HTMLInputElement>(null)
+  const section = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (pane !== 'main') {
+      return
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === '/' && event.target === document.body && filterField.current !== null) {
+        event.preventDefault()
+        filterField.current.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pane])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const savedSite = sites.find((saved) => saved.id === siteId)
   const showPermissions = target === undefined || target.protocol === 'sftp'
   const hostKey = unknownHostKeyOf(listing.error)
   const changedKey = changedHostKeyOf(listing.error)
   const timeZone = useTimeZone()
+  const visible = useMemo(() => filterEntries(entries, filter, new Date(), timeZone), [entries, filter, timeZone])
+  const filtering = isActive(filter)
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
   const asksPassword = target !== undefined && (failure === 'credentials_required' || (failure === 'remote_auth_failed' && target.authMethod === 'ask'))
 
@@ -261,7 +286,16 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
 
   return (
     <section
+      ref={section}
       aria-label={t(($) => $.list)}
+      onKeyDown={(event) => {
+        const typingHere = event.target instanceof HTMLElement && (event.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName))
+        const find = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f'
+        if (find || (event.key === '/' && !typingHere)) {
+          event.preventDefault()
+          ;(filterField.current as HTMLInputElement).focus()
+        }
+      }}
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(isEntryDrag(event.dataTransfer) ? 'copy' : 'upload')
@@ -287,6 +321,13 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         </div>
         {savedSite !== undefined && <BookmarksMenu workspaceId={workspaceId} siteId={siteId} siteName={savedSite.name} path={path} onNavigate={onNavigate} />}
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
+        <FilterBox
+          value={filter.text}
+          onChange={(text) => setFilter({ ...filter, text })}
+          onLeave={() => section.current?.querySelector<HTMLElement>('[role="grid"]')?.focus()}
+          inputRef={filterField}
+        />
+        <FilterMenu filter={filter} onChange={setFilter} timeZone={timeZone} />
         <input
           ref={picker}
           type="file"
@@ -446,8 +487,18 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           </Button>
         </PanelState>
       )}
+      {filtering && listing.isSuccess && !canceled && entries.length > 0 && (
+        <FilterSummary filter={filter} shown={visible.length} total={entries.length} listedAt={listing.dataUpdatedAt} onChange={setFilter} onRefresh={() => void reload()} />
+      )}
       {listing.isSuccess && !canceled && !opening && entries.length === 0 && <PanelState icon={FolderOpen} tone="muted" role="none" title={t(($) => $.emptyDir)} />}
-      {listing.isSuccess && !canceled && entries.length > 0 && (
+      {listing.isSuccess && !canceled && entries.length > 0 && visible.length === 0 && (
+        <PanelState icon={SearchX} tone="muted" title={t(($) => $.filter.noneTitle)} description={t(($) => $.filter.noneBody, { total: entries.length })}>
+          <Button variant="outline" onClick={() => setFilter(emptyFilter)}>
+            {t(($) => $.filter.clear)}
+          </Button>
+        </PanelState>
+      )}
+      {listing.isSuccess && !canceled && visible.length > 0 && (
         <Group
           id={`sentinel-details-${pane}`}
           aria-busy={opening}
@@ -457,7 +508,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           <Panel id="entries" minSize={380} className="flex h-full min-h-0 min-w-0 flex-col">
               <EntryTable
                 key={path}
-                entries={entries}
+                entries={visible}
+                highlight={filter.text}
                 locale={i18n.language}
                 timeZone={timeZone}
                 onOpen={open}
@@ -479,7 +531,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           <ResizeHandle aria-label={t(($) => $.panels.details)} />
           <Panel id="details" collapsible collapsedSize={0} defaultSize={260} minSize={200} maxSize="45%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...details}>
               <Inspector
-                entry={entries[resolveSelection(entries, selectedPath)]}
+                entry={visible[resolveSelection(visible, selectedPath)]}
                 showPermissions={showPermissions}
                 locale={i18n.language}
                 timeZone={timeZone}

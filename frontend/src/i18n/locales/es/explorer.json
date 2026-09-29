@@ -357,5 +357,53 @@
     "named": "{{name}}",
     "unknown": "Archivo {{name}}",
     "plain": "Archivo"
+  },
+  "filter": {
+    "label": "Filtrar esta carpeta",
+    "placeholder": "Filtrar esta carpeta…",
+    "help": "Deben aparecer todas las palabras; * y ? son comodines (*.log, informe-202?.pdf); -palabra la excluye.",
+    "clearText": "Borrar el texto del filtro",
+    "facets_one": "Filtros, {{count}} en uso",
+    "facets_other": "Filtros, {{count}} en uso",
+    "facetsButton": "Filtros",
+    "kind": "Tipo",
+    "modified": "Modificado",
+    "size": "Tamaño",
+    "from": "Desde",
+    "to": "Hasta",
+    "kinds": {
+      "folders": "Carpetas",
+      "images": "Imágenes",
+      "media": "Audio y video",
+      "documents": "Documentos",
+      "code": "Código",
+      "archives": "Comprimidos",
+      "other": "Otros"
+    },
+    "modifiedPresets": {
+      "any": "Cualquier fecha",
+      "today": "Hoy",
+      "week": "Últimos 7 días",
+      "month": "Últimos 30 días",
+      "year": "Este año",
+      "custom": "Entre fechas"
+    },
+    "sizePresets": {
+      "any": "Cualquier tamaño",
+      "small": "Menos de 1 MB",
+      "medium": "De 1 a 100 MB",
+      "large": "Más de 100 MB"
+    },
+    "sizeHint": "El tamaño deja solo archivos, porque las carpetas no tienen. Las fechas son días en tu zona horaria.",
+    "clearFacets": "Quitar estos filtros",
+    "range": "{{from}} a {{to}}",
+    "shown": "{{shown}} de {{total}}",
+    "remove": "Quitar el filtro: {{facet}}",
+    "listed": "Listado {{age}}",
+    "refresh": "Actualizar",
+    "clear": "Quitar filtros",
+    "noneTitle": "Nada coincide con el filtro",
+    "noneBody": "Ninguno de los {{total}} elementos de esta carpeta coincide. Cambia o quita el filtro.",
+    "text": "Texto"
   }
 }
