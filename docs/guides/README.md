@@ -39,6 +39,7 @@ Before using a library for the first time, read its official documentation and r
 | [sqlc and pgx](sqlc-pgx.md) | done |
 | [Protocol specifications (SFTP, SSH, FTP, FTPS)](protocol-specifications.md) | done |
 | [SSH key files](ssh-keys.md) | done |
+| [Resizable panels (react-resizable-panels)](resizable-panels.md) | done |
 | TanStack Router, Table, Virtual; react-hook-form and zod; dnd-kit; react-arborist; Vitest; MSW | before use |
 | jlaffaye/ftp (see the FTPS spike), coder/websocket, `x/text` | before first use |
 
