@@ -2177,6 +2177,12 @@ paths:
           description: Key algorithm, such as ssh-ed25519.
           schema:
             type: string
+        - name: fingerprint
+          in: query
+          required: false
+          description: The key to forget when several of the type are trusted; left out, every key of the type is forgotten.
+          schema:
+            type: string
       responses:
         "204":
           description: Forgotten.
@@ -4401,6 +4407,13 @@ components:
           type: string
         fingerprint:
           type: string
+        mode:
+          type: string
+          enum: [add, replace]
+          description: >-
+            What to do when a different key of the same type is already trusted (4.13b): add this one next to it, for a service with
+            several servers behind one name, or replace it, for a server whose key changed. Left out, such a key is refused with
+            host_key_changed.
     RemoteEntry:
       type: object
       required: [name, path, type, size, mode, modifiedAt, modifiedPrecision]

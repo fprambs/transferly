@@ -9,6 +9,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
@@ -21,7 +22,7 @@ const ftpUser, ftpPassword = "sentinel", "sentinel"
 func (e *env) trustCertificate(address, fingerprint string) {
 	e.t.Helper()
 	host, port, _ := splitAddr(address)
-	if _, err := e.hostKeys.Trust(e.t.Context(), e.user, e.workspace, host, port, ftpfs.CertificateKeyType, fingerprint); err != nil {
+	if _, err := e.hostKeys.Trust(e.t.Context(), e.user, e.workspace, host, port, ftpfs.CertificateKeyType, fingerprint, hostkey.TrustNew); err != nil {
 		e.t.Fatalf("Trust() = %v", err)
 	}
 }

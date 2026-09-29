@@ -3,6 +3,7 @@ package storetest
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -26,9 +27,9 @@ type HostKeyFactory func(t *testing.T) HostKeyStore
 // Scenarios:
 //   - a key round trips with UTC time and the user who trusted it
 //   - keys are found per host and port, ordered by type, and listed per workspace ordered by host, port and type
-//   - adding a key that exists is ignored and keeps the first one
+//   - adding a key that exists is ignored and keeps the first one, while another key of the same type is kept next to it, oldest first
 //   - workspaces are isolated from each other
-//   - deleting removes one key only, and deleting a missing key is ErrNotFound
+//   - deleting with a fingerprint removes that key only, without one every key of the type, and deleting a missing key is ErrNotFound
 //   - a key whose accepting user was deleted is still listed, with the nil identifier
 func RunHostKey(t *testing.T, newStore HostKeyFactory) {
 	t.Helper()
@@ -93,34 +94,51 @@ func RunHostKey(t *testing.T, newStore HostKeyFactory) {
 		if err := store.Add(ctx, ws, first); err != nil {
 			t.Fatal(err)
 		}
-		if err := store.Add(ctx, ws, key("a.example", 22, "ssh-ed25519", "SHA256:second", alice.ID)); err != nil {
+		again := first
+		again.FirstSeen = now.Add(time.Hour)
+		if err := store.Add(ctx, ws, again); err != nil {
 			t.Fatalf("adding an existing key = %v; want it ignored", err)
 		}
-		if got, _ := store.Trusted(ctx, ws, "a.example", 22); len(got) != 1 || got[0].Fingerprint != "SHA256:first" {
-			t.Errorf("Trusted() after a duplicate = %+v; want the first key", got)
+		second := key("a.example", 22, "ssh-ed25519", "SHA256:second", alice.ID)
+		second.FirstSeen = now.Add(time.Minute)
+		if err := store.Add(ctx, ws, second); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := store.Trusted(ctx, ws, "a.example", 22); len(got) != 2 || got[0] != first || got[1].Fingerprint != "SHA256:second" {
+			t.Errorf("Trusted() with two keys of a type = %+v; want both, the first one as it was", got)
 		}
 		if got, _ := store.List(ctx, other); len(got) != 0 {
 			t.Errorf("another workspace sees %+v", got)
 		}
-		if err := store.Delete(ctx, other, "a.example", 22, "ssh-ed25519"); !errors.Is(err, hostkey.ErrNotFound) {
+		if err := store.Delete(ctx, other, "a.example", 22, "ssh-ed25519", ""); !errors.Is(err, hostkey.ErrNotFound) {
 			t.Errorf("delete through another workspace = %v; want ErrNotFound", err)
 		}
 	})
 
 	t.Run("delete", func(t *testing.T) {
 		store, ws, _, alice := setup(t)
-		for _, typ := range []string{"ssh-ed25519", "ssh-rsa"} {
-			if err := store.Add(ctx, ws, key("a.example", 22, typ, "SHA256:"+typ, alice.ID)); err != nil {
+		for _, k := range []hostkey.Key{
+			key("a.example", 22, "ssh-ed25519", "SHA256:ed", alice.ID),
+			key("a.example", 22, "ssh-rsa", "SHA256:rsa1", alice.ID),
+			key("a.example", 22, "ssh-rsa", "SHA256:rsa2", alice.ID),
+		} {
+			if err := store.Add(ctx, ws, k); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if err := store.Delete(ctx, ws, "a.example", 22, "ssh-rsa"); err != nil {
-			t.Fatalf("Delete() = %v", err)
+		if err := store.Delete(ctx, ws, "a.example", 22, "ssh-rsa", "SHA256:rsa1"); err != nil {
+			t.Fatalf("Delete() of one key = %v", err)
+		}
+		if got, _ := store.Trusted(ctx, ws, "a.example", 22); len(got) != 2 || got[1].Fingerprint != "SHA256:rsa2" {
+			t.Errorf("Trusted() after deleting one key = %+v", got)
+		}
+		if err := store.Delete(ctx, ws, "a.example", 22, "ssh-rsa", ""); err != nil {
+			t.Fatalf("Delete() of a type = %v", err)
 		}
 		if got, _ := store.Trusted(ctx, ws, "a.example", 22); len(got) != 1 || got[0].Type != "ssh-ed25519" {
 			t.Errorf("Trusted() after delete = %+v", got)
 		}
-		if err := store.Delete(ctx, ws, "a.example", 22, "ssh-rsa"); !errors.Is(err, hostkey.ErrNotFound) {
+		if err := store.Delete(ctx, ws, "a.example", 22, "ssh-rsa", ""); !errors.Is(err, hostkey.ErrNotFound) {
 			t.Errorf("second delete = %v; want ErrNotFound", err)
 		}
 	})

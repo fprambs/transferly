@@ -338,7 +338,7 @@ func (brokenHostKeys) List(context.Context, uuid.UUID) ([]hostkey.Key, error) {
 }
 
 // Delete always fails.
-func (brokenHostKeys) Delete(context.Context, uuid.UUID, string, int, string) error {
+func (brokenHostKeys) Delete(context.Context, uuid.UUID, string, int, string, string) error {
 	return errInjected
 }
 
@@ -394,7 +394,7 @@ func fileCalls(ws, siteID uuid.UUID) []request {
 //
 // Scenarios:
 //   - a lost connection is 502 remote_unavailable and bad credentials are 502 remote_auth_failed, on every endpoint
-//   - an untrusted or a changed server key is 409 host_key_unknown or host_key_changed with the fingerprint
+//   - an untrusted or a changed server key is 409 host_key_unknown or host_key_changed with the fingerprint, and a changed one lists the trusted keys
 //   - a forbidden destination is 422 destination_blocked, a locked vault 409 vault_locked
 //   - an unexpected error is a 500 without details, on every endpoint
 func TestRemoteFileFailures(t *testing.T) {
@@ -407,7 +407,7 @@ func TestRemoteFileFailures(t *testing.T) {
 		{"lost", fmt.Errorf("%w: down", remotefs.ErrConnectionLost), 502, "remote_unavailable"},
 		{"auth", remotefs.ErrAuth, 502, "remote_auth_failed"},
 		{"unknown key", &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc"}, 409, "host_key_unknown"},
-		{"changed key", &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc", Changed: true}, 409, "host_key_changed"},
+		{"changed key", &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:abc", Changed: true, Trusted: []string{"SHA256:old"}}, 409, "host_key_changed"},
 		{"blocked", netguard.ErrBlocked, 422, "destination_blocked"},
 		{"locked", site.ErrLocked, 409, "vault_locked"},
 		{"quota", remotefs.ErrQuota, 507, "remote_quota_exceeded"},
@@ -431,6 +431,9 @@ func TestRemoteFileFailures(t *testing.T) {
 			}
 			if tt.name == "unknown key" && !strings.Contains(string(r.Body), "SHA256:abc") {
 				t.Errorf("%s: the response does not carry the fingerprint: %s", tt.name, r.Body)
+			}
+			if tt.name == "changed key" && !strings.Contains(string(r.Body), `"trusted":["SHA256:old"]`) {
+				t.Errorf("%s: the response does not list the trusted keys: %s", tt.name, r.Body)
 			}
 		}
 	}

@@ -19,9 +19,10 @@ var errStore = errors.New("store failure")
 
 // memStore is an in-memory hostkey.Store with switchable failures.
 type memStore struct {
-	keys    []hostkey.Key
-	failGet bool
-	failAdd bool
+	keys       []hostkey.Key
+	failGet    bool
+	failAdd    bool
+	failDelete bool
 }
 
 // Trusted returns the keys of a host and port.
@@ -56,14 +57,21 @@ func (m *memStore) Add(_ context.Context, _ uuid.UUID, k hostkey.Key) error {
 }
 
 // Delete removes a key.
-func (m *memStore) Delete(_ context.Context, _ uuid.UUID, host string, port int, keyType string) error {
-	for i, k := range m.keys {
-		if k.Host == host && k.Port == port && k.Type == keyType {
-			m.keys = append(m.keys[:i], m.keys[i+1:]...)
-			return nil
+func (m *memStore) Delete(_ context.Context, _ uuid.UUID, host string, port int, keyType, fingerprint string) error {
+	if m.failDelete {
+		return errStore
+	}
+	kept := m.keys[:0]
+	for _, k := range m.keys {
+		if k.Host != host || k.Port != port || k.Type != keyType || (fingerprint != "" && k.Fingerprint != fingerprint) {
+			kept = append(kept, k)
 		}
 	}
-	return hostkey.ErrNotFound
+	if len(kept) == len(m.keys) {
+		return hostkey.ErrNotFound
+	}
+	m.keys = kept
+	return nil
 }
 
 // roles is a fake authorizer answering from a table of roles by user, using the real permission matrix.
@@ -84,6 +92,7 @@ func (r roles) Authorize(_ context.Context, user, _ uuid.UUID, action workspace.
 const (
 	fpA = "SHA256:uU0nuZNNPgilLlLX2n2r+sSE7+N6U4DukIj3rOLvzek"
 	fpB = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8"
+	fpC = "SHA256:Cccccccccccccccccccccccccccccccccccccccccc0"
 )
 
 // fixture bundles a service with its store and actors.
@@ -112,7 +121,7 @@ func TestFingerprint(t *testing.T) {
 		t.Fatalf("Fingerprint() = %q", got)
 	}
 	f := newFixture()
-	if _, err := f.svc.Trust(context.Background(), f.editor, f.ws, "a.example", 22, "ssh-ed25519", got); err != nil {
+	if _, err := f.svc.Trust(context.Background(), f.editor, f.ws, "a.example", 22, "ssh-ed25519", got, hostkey.TrustNew); err != nil {
 		t.Errorf("a generated fingerprint was refused: %v", err)
 	}
 }
@@ -132,33 +141,33 @@ func TestService_TrustCheckForget(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture()
 
-	if v, err := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); err != nil || v != hostkey.Unknown {
+	if v, _, err := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); err != nil || v != hostkey.Unknown {
 		t.Fatalf("Check(unseen) = %v, %v", v, err)
 	}
-	key, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA)
+	key, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA, hostkey.TrustNew)
 	if err != nil || key.AcceptedBy != f.editor || key.FirstSeen.IsZero() {
 		t.Fatalf("Trust() = %+v, %v", key, err)
 	}
-	if v, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); v != hostkey.Trusted {
+	if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); v != hostkey.Trusted {
 		t.Errorf("Check(trusted) = %v", v)
 	}
 	if types, err := f.svc.Algorithms(ctx, f.ws, "a.example", 22); err != nil || len(types) != 1 || types[0] != "ssh-ed25519" {
 		t.Errorf("Algorithms() = %v, %v", types, err)
 	}
-	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA); err != nil || len(f.store.keys) != 1 {
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA, hostkey.TrustNew); err != nil || len(f.store.keys) != 1 {
 		t.Errorf("trusting twice = %v with %d stored", err, len(f.store.keys))
 	}
 
-	if v, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpB); v != hostkey.Changed {
+	if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpB); v != hostkey.Changed {
 		t.Errorf("Check(changed) = %v; want Changed", v)
 	}
-	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpB); !errors.Is(err, hostkey.ErrChanged) {
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpB, hostkey.TrustNew); !errors.Is(err, hostkey.ErrChanged) {
 		t.Errorf("Trust(changed) = %v; want ErrChanged", err)
 	}
-	if v, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-rsa", fpB); v != hostkey.Unknown {
+	if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-rsa", fpB); v != hostkey.Unknown {
 		t.Errorf("Check(other type) = %v; want Unknown", v)
 	}
-	if v, _ := f.svc.Check(ctx, f.ws, "a.example", 2222, "ssh-ed25519", fpB); v != hostkey.Unknown {
+	if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 2222, "ssh-ed25519", fpB); v != hostkey.Unknown {
 		t.Errorf("Check(other port) = %v; want Unknown", v)
 	}
 
@@ -169,7 +178,7 @@ func TestService_TrustCheckForget(t *testing.T) {
 		"type":        {"a.example", 22, "Bad Type", fpA},
 		"fingerprint": {"a.example", 22, "ssh-ed25519", "MD5:aa:bb"},
 	} {
-		if _, err := f.svc.Trust(ctx, f.editor, f.ws, args[0].(string), args[1].(int), args[2].(string), args[3].(string)); !errors.Is(err, hostkey.ErrInvalid) {
+		if _, err := f.svc.Trust(ctx, f.editor, f.ws, args[0].(string), args[1].(int), args[2].(string), args[3].(string), hostkey.TrustNew); !errors.Is(err, hostkey.ErrInvalid) {
 			t.Errorf("invalid %s = %v; want ErrInvalid", name, err)
 		}
 	}
@@ -178,41 +187,95 @@ func TestService_TrustCheckForget(t *testing.T) {
 	if list, err := f.svc.List(ctx, f.viewer, f.ws); err != nil || len(list) != 1 {
 		t.Errorf("viewer List() = %v, %v", list, err)
 	}
-	if _, err := f.svc.Trust(ctx, f.viewer, f.ws, "b.example", 22, "ssh-ed25519", fpA); !errors.Is(err, workspace.ErrForbidden) {
+	if _, err := f.svc.Trust(ctx, f.viewer, f.ws, "b.example", 22, "ssh-ed25519", fpA, hostkey.TrustNew); !errors.Is(err, workspace.ErrForbidden) {
 		t.Errorf("viewer Trust() = %v; want ErrForbidden", err)
 	}
-	if err := f.svc.Forget(ctx, f.viewer, f.ws, "a.example", 22, "ssh-ed25519"); !errors.Is(err, workspace.ErrForbidden) {
+	if err := f.svc.Forget(ctx, f.viewer, f.ws, "a.example", 22, "ssh-ed25519", ""); !errors.Is(err, workspace.ErrForbidden) {
 		t.Errorf("viewer Forget() = %v; want ErrForbidden", err)
 	}
 	if _, err := f.svc.List(ctx, stranger, f.ws); !errors.Is(err, workspace.ErrNotFound) {
 		t.Errorf("stranger List() = %v; want ErrNotFound", err)
 	}
 
-	if err := f.svc.Forget(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519"); err != nil {
+	if err := f.svc.Forget(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", ""); err != nil {
 		t.Fatalf("Forget() = %v", err)
 	}
-	if err := f.svc.Forget(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519"); !errors.Is(err, hostkey.ErrNotFound) {
+	if err := f.svc.Forget(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", ""); !errors.Is(err, hostkey.ErrNotFound) {
 		t.Errorf("second Forget() = %v; want ErrNotFound", err)
 	}
-	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpB); err != nil {
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpB, hostkey.TrustNew); err != nil {
 		t.Errorf("trusting the new key after forgetting the old one = %v", err)
 	}
 
 	f.store.failAdd = true
-	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "c.example", 22, "ssh-ed25519", fpA); !errors.Is(err, errStore) {
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "c.example", 22, "ssh-ed25519", fpA, hostkey.TrustNew); !errors.Is(err, errStore) {
 		t.Errorf("Trust() add failure = %v", err)
 	}
 	f.store.failGet = true
-	if _, err := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); !errors.Is(err, errStore) {
+	if _, _, err := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); !errors.Is(err, errStore) {
 		t.Errorf("Check() failure = %v", err)
 	}
 	if _, err := f.svc.Algorithms(ctx, f.ws, "a.example", 22); !errors.Is(err, errStore) {
 		t.Errorf("Algorithms() failure = %v", err)
 	}
-	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA); !errors.Is(err, errStore) {
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA, hostkey.TrustNew); !errors.Is(err, errStore) {
 		t.Errorf("Trust() read failure = %v", err)
 	}
 	if _, err := f.svc.List(ctx, f.editor, f.ws); !errors.Is(err, errStore) {
 		t.Errorf("List() failure = %v", err)
+	}
+}
+
+// TestService_SeveralKeys covers servers that present one of several keys (4.13b).
+//
+// Use cases:
+//   - a key of a trusted type that is not trusted is changed, and the check names the keys trusted for the type
+//   - adding it keeps the old key trusted too, so either passes; replacing drops the other keys of the type
+//   - forgetting one key keeps the others of its type
+//   - an unknown mode is invalid, and a store that fails while replacing fails the trust
+func TestService_SeveralKeys(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture()
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA, hostkey.TrustNew); err != nil {
+		t.Fatal(err)
+	}
+	if v, trusted, err := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpB); err != nil || v != hostkey.Changed || len(trusted) != 1 || trusted[0] != fpA {
+		t.Fatalf("Check() of another key = %v, %v, %v", v, trusted, err)
+	}
+
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpB, hostkey.TrustAdd); err != nil {
+		t.Fatalf("Trust(add) = %v", err)
+	}
+	for _, fp := range []string{fpA, fpB} {
+		if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fp); v != hostkey.Trusted {
+			t.Errorf("Check(%s) after adding = %v; want trusted", fp, v)
+		}
+	}
+	if _, trusted, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpC); len(trusted) != 2 {
+		t.Errorf("trusted keys of the type = %v; want both", trusted)
+	}
+
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpC, hostkey.TrustReplace); err != nil {
+		t.Fatalf("Trust(replace) = %v", err)
+	}
+	if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpA); v != hostkey.Changed {
+		t.Errorf("an old key after replacing = %v; want changed", v)
+	}
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA, hostkey.TrustAdd); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.Forget(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpA); err != nil {
+		t.Fatalf("Forget() of one key = %v", err)
+	}
+	if v, _, _ := f.svc.Check(ctx, f.ws, "a.example", 22, "ssh-ed25519", fpC); v != hostkey.Trusted {
+		t.Errorf("the other key after forgetting one = %v; want trusted", v)
+	}
+
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "b.example", 22, "ssh-ed25519", fpA, "merge"); !errors.Is(err, hostkey.ErrInvalid) {
+		t.Errorf("Trust() with an unknown mode = %v; want ErrInvalid", err)
+	}
+	f.store.failDelete = true
+	if _, err := f.svc.Trust(ctx, f.editor, f.ws, "a.example", 22, "ssh-ed25519", fpB, hostkey.TrustReplace); !errors.Is(err, errStore) {
+		t.Errorf("Trust(replace) with a failing store = %v; want the store error", err)
 	}
 }

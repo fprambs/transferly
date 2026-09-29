@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	fingerprintC = "SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU"
 	fingerprintA = "SHA256:uU0nuZNNPgilLlLX2n2r+sSE7+N6U4DukIj3rOLvzek"
 	fingerprintB = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8"
 )
@@ -25,6 +26,12 @@ func hostKeysPath(ws uuid.UUID) string {
 // forgetPath returns the path that forgets one key.
 func forgetPath(ws uuid.UUID, host string, port int, keyType string) string {
 	q := url.Values{"host": {host}, "port": {strconv.Itoa(port)}, "keyType": {keyType}}
+	return hostKeysPath(ws) + "?" + q.Encode()
+}
+
+// forgetOnePath returns the path that forgets one key of a type by its fingerprint.
+func forgetOnePath(ws uuid.UUID, host string, keyType, fingerprint string) string {
+	q := url.Values{"host": {host}, "port": {"22"}, "keyType": {keyType}, "fingerprint": {fingerprint}}
 	return hostKeysPath(ws) + "?" + q.Encode()
 }
 
@@ -133,5 +140,76 @@ func TestKnownHosts_AuthorizationMatrix(t *testing.T) {
 	mustDecode(t, a.do(request{method: http.MethodGet, path: hostKeysPath(a.personal(strangerCookie)), cookie: strangerCookie}).Body, &strangerKeys)
 	if len(strangerKeys) != 0 {
 		t.Errorf("another workspace sees keys: %+v", strangerKeys)
+	}
+}
+
+// TestKnownHosts_SeveralKeys verifies servers that present several keys of the same type (4.13b).
+//
+// Scenarios:
+//   - trusting a changed key with mode add keeps both keys, and with mode replace leaves only the new one
+//   - an unknown mode is 422 invalid_host_key
+//   - forgetting by fingerprint removes only that key, and a fingerprint that is not trusted is 404 host_key_not_found
+//   - each decision is audited with the fingerprint and the mode
+func TestKnownHosts_SeveralKeys(t *testing.T) {
+	a := newAPI(t)
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	host := "rotating.example.com"
+	withMode := func(fingerprint, mode string) map[string]any {
+		body := hostKeyBody(host, fingerprint)
+		body["mode"] = mode
+		return body
+	}
+	list := func() []string {
+		var keys []httpapi.KnownHost
+		mustDecode(t, a.do(request{method: http.MethodGet, path: hostKeysPath(ws), cookie: cookie}).Body, &keys)
+		out := make([]string, 0, len(keys))
+		for _, k := range keys {
+			if k.Host == host {
+				out = append(out, k.Fingerprint)
+			}
+		}
+		return out
+	}
+
+	a.send(http.MethodPost, hostKeysPath(ws), hostKeyBody(host, fingerprintA), cookie, csrf)
+	if r := a.send(http.MethodPost, hostKeysPath(ws), withMode(fingerprintB, "add"), cookie, csrf); r.Status != http.StatusCreated {
+		t.Fatalf("add = %d %s", r.Status, r.Body)
+	}
+	if got := list(); len(got) != 2 {
+		t.Fatalf("keys after add = %v; want two", got)
+	}
+	expectProblem(t, a.send(http.MethodPost, hostKeysPath(ws), withMode(fingerprintC, "merge"), cookie, csrf), 422, "invalid_host_key")
+	if r := a.send(http.MethodPost, hostKeysPath(ws), withMode(fingerprintC, "replace"), cookie, csrf); r.Status != http.StatusCreated {
+		t.Fatalf("replace = %d %s", r.Status, r.Body)
+	}
+	if got := list(); len(got) != 1 || got[0] != fingerprintC {
+		t.Fatalf("keys after replace = %v; want only %s", got, fingerprintC)
+	}
+
+	a.send(http.MethodPost, hostKeysPath(ws), withMode(fingerprintA, "add"), cookie, csrf)
+	expectProblem(t, a.send(http.MethodDelete, forgetOnePath(ws, host, "ssh-ed25519", fingerprintB), nil, cookie, csrf), 404, "host_key_not_found")
+	if r := a.send(http.MethodDelete, forgetOnePath(ws, host, "ssh-ed25519", fingerprintA), nil, cookie, csrf); r.Status != http.StatusNoContent {
+		t.Fatalf("forget one = %d %s", r.Status, r.Body)
+	}
+	if got := list(); len(got) != 1 || got[0] != fingerprintC {
+		t.Errorf("keys after forgetting one = %v; want only %s", got, fingerprintC)
+	}
+
+	var events []httpapi.AuditEvent
+	mustDecode(t, a.do(request{method: http.MethodGet, path: "/api/v1/workspaces/" + ws.String() + "/audit", cookie: cookie}).Body, &events)
+	modes := map[string]bool{}
+	forgotten := false
+	for _, e := range events {
+		meta := e.Meta
+		if e.Action == "host_key.trusted" && meta["fingerprint"] != "" {
+			modes[meta["mode"]] = true
+		}
+		if e.Action == "host_key.forgotten" && meta["fingerprint"] == fingerprintA {
+			forgotten = true
+		}
+	}
+	if !modes[""] || !modes["add"] || !modes["replace"] || !forgotten {
+		t.Errorf("audited modes = %v, forgotten by fingerprint = %v; events = %+v", modes, forgotten, events)
 	}
 }

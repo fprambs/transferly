@@ -182,7 +182,7 @@ func (e *env) connector(p *netguard.Policy) *connect.Connector {
 func (e *env) trust(s *sftptest.Server) {
 	e.t.Helper()
 	host, port, _ := splitAddr(s.Addr)
-	if _, err := e.hostKeys.Trust(e.t.Context(), e.user, e.workspace, host, port, s.HostKey.Type(), ssh.FingerprintSHA256(s.HostKey)); err != nil {
+	if _, err := e.hostKeys.Trust(e.t.Context(), e.user, e.workspace, host, port, s.HostKey.Type(), ssh.FingerprintSHA256(s.HostKey), hostkey.TrustNew); err != nil {
 		e.t.Fatalf("Trust() = %v", err)
 	}
 }
@@ -223,7 +223,7 @@ func TestConnector_Password(t *testing.T) {
 	impostor := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	other := e.addSite(impostor, site.Input{Name: "Impostor"}, site.SecretChanges{Password: text(sshPassword)})
 	host, port, _ := splitAddr(impostor.Addr)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, port, impostor.HostKey.Type(), ssh.FingerprintSHA256(server.HostKey)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, port, impostor.HostKey.Type(), ssh.FingerprintSHA256(server.HostKey), hostkey.TrustNew); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.Connect(t.Context(), e.key(other), session); !errors.Is(err, remotefs.ErrHostKeyMismatch) {

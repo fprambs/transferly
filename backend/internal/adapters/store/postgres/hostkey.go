@@ -54,8 +54,8 @@ func (s *Store) Add(ctx context.Context, workspaceID uuid.UUID, k hostkey.Key) e
 }
 
 // Delete implements [hostkey.Store].
-func (s *Store) Delete(ctx context.Context, workspaceID uuid.UUID, host string, port int, keyType string) error {
-	rows, err := s.queries.DeleteKnownHost(ctx, db.DeleteKnownHostParams{WorkspaceID: workspaceID, Host: host, Port: int32(port), KeyType: keyType})
+func (s *Store) Delete(ctx context.Context, workspaceID uuid.UUID, host string, port int, keyType, fingerprint string) error {
+	rows, err := s.queries.DeleteKnownHost(ctx, db.DeleteKnownHostParams{WorkspaceID: workspaceID, Host: host, Port: int32(port), KeyType: keyType, Fingerprint: fingerprint})
 	if err != nil {
 		return err
 	}

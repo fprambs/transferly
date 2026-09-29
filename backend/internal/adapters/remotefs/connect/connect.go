@@ -331,14 +331,14 @@ func (s secrets) require(target site.Site) error {
 // verifyHost compares the key a server presents with the ones the workspace trusts for host:port, whether that is a
 // site, its proxy or its jump host.
 func (c *Connector) verifyHost(ctx context.Context, workspaceID uuid.UUID, host string, port int, keyType, fingerprint string) error {
-	verdict, err := c.hostKeys.Check(ctx, workspaceID, host, port, keyType, fingerprint)
+	verdict, trusted, err := c.hostKeys.Check(ctx, workspaceID, host, port, keyType, fingerprint)
 	switch {
 	case err != nil:
 		return err
 	case verdict == hostkey.Trusted:
 		return nil
 	}
-	return &remotefs.HostKeyError{Type: keyType, Fingerprint: fingerprint, Changed: verdict == hostkey.Changed}
+	return &remotefs.HostKeyError{Type: keyType, Fingerprint: fingerprint, Changed: verdict == hostkey.Changed, Trusted: trusted}
 }
 
 // secrets are the decrypted credentials of a site, its jump host and its proxy.

@@ -35,14 +35,22 @@ func (s *server) ListKnownHosts(ctx context.Context, request ListKnownHostsReque
 func (s *server) TrustHostKey(ctx context.Context, request TrustHostKeyRequestObject) (TrustHostKeyResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	b := request.Body
-	key, err := s.deps.HostKeys.Trust(ctx, p.User.ID, request.WorkspaceId, b.Host, b.Port, b.KeyType, b.Fingerprint)
+	mode := hostkey.TrustNew
+	if b.Mode != nil {
+		mode = hostkey.TrustMode(*b.Mode)
+	}
+	key, err := s.deps.HostKeys.Trust(ctx, p.User.ID, request.WorkspaceId, b.Host, b.Port, b.KeyType, b.Fingerprint, mode)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	s.record(ctx, p.User.ID, request.WorkspaceId, audit.HostKeyTrusted, hostPort(b.Host, b.Port), map[string]string{"type": b.KeyType})
+	meta := map[string]string{"type": b.KeyType, "fingerprint": b.Fingerprint}
+	if mode != hostkey.TrustNew {
+		meta["mode"] = string(mode)
+	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.HostKeyTrusted, hostPort(b.Host, b.Port), meta)
 	return TrustHostKey201JSONResponse(knownHostDTO(key)), nil
 }
 
@@ -50,14 +58,22 @@ func (s *server) TrustHostKey(ctx context.Context, request TrustHostKeyRequestOb
 func (s *server) ForgetHostKey(ctx context.Context, request ForgetHostKeyRequestObject) (ForgetHostKeyResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	q := request.Params
-	err := s.deps.HostKeys.Forget(ctx, p.User.ID, request.WorkspaceId, q.Host, q.Port, q.KeyType)
+	fingerprint := ""
+	if q.Fingerprint != nil {
+		fingerprint = *q.Fingerprint
+	}
+	err := s.deps.HostKeys.Forget(ctx, p.User.ID, request.WorkspaceId, q.Host, q.Port, q.KeyType, fingerprint)
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	s.record(ctx, p.User.ID, request.WorkspaceId, audit.HostKeyForgotten, hostPort(q.Host, q.Port), map[string]string{"type": q.KeyType})
+	meta := map[string]string{"type": q.KeyType}
+	if fingerprint != "" {
+		meta["fingerprint"] = fingerprint
+	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.HostKeyForgotten, hostPort(q.Host, q.Port), meta)
 	return ForgetHostKey204Response{}, nil
 }
 

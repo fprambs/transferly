@@ -13,6 +13,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/sentinel/internal/core/connlog"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/testutil"
@@ -110,7 +111,7 @@ func TestConnector_ConnectionLog(t *testing.T) {
 
 	changed := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	host, port, _ := splitAddr(changed.Addr)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, port, changed.HostKey.Type(), "SHA256:"+strings.Repeat("A", 43)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, port, changed.HostKey.Type(), "SHA256:"+strings.Repeat("A", 43), hostkey.TrustNew); err != nil {
 		t.Fatal(err)
 	}
 	moved := e.addSite(changed, site.Input{Name: "Changed"}, site.SecretChanges{Password: text(sshPassword)})
@@ -121,7 +122,7 @@ func TestConnector_ConnectionLog(t *testing.T) {
 
 	jump, jumpKey := jumpTestHost(t, "bastion", "let-me-through")
 	jumpHost, jumpPort, _ := splitAddr(jump)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey), hostkey.TrustNew); err != nil {
 		t.Fatal(err)
 	}
 	proxy := socks5TestProxy(t, nil)

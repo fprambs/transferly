@@ -266,7 +266,11 @@ func asProblem(err error) (domainProblem, bool) {
 		if hostKey.Changed {
 			code = "host_key_changed"
 		}
-		return domainProblem{status: http.StatusConflict, code: code, params: map[string]any{"keyType": hostKey.Type, "fingerprint": hostKey.Fingerprint}}, true
+		params := map[string]any{"keyType": hostKey.Type, "fingerprint": hostKey.Fingerprint}
+		if hostKey.Changed {
+			params["trusted"] = hostKey.Trusted
+		}
+		return domainProblem{status: http.StatusConflict, code: code, params: params}, true
 	case errors.As(err, &badRange):
 		return domainProblem{status: http.StatusRequestedRangeNotSatisfiable, code: "range_not_satisfiable",
 			headers: map[string]string{"Content-Range": fmt.Sprintf("bytes */%d", badRange.Size)}}, true

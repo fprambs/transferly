@@ -13,7 +13,8 @@ import (
 )
 
 const deleteKnownHost = `-- name: DeleteKnownHost :execrows
-DELETE FROM known_hosts WHERE workspace_id = $1 AND host = $2 AND port = $3 AND key_type = $4
+DELETE FROM known_hosts
+WHERE workspace_id = $1 AND host = $2 AND port = $3 AND key_type = $4 AND ($5::text = '' OR fingerprint_sha256 = $5::text)
 `
 
 type DeleteKnownHostParams struct {
@@ -21,6 +22,7 @@ type DeleteKnownHostParams struct {
 	Host        string
 	Port        int32
 	KeyType     string
+	Fingerprint string
 }
 
 func (q *Queries) DeleteKnownHost(ctx context.Context, arg DeleteKnownHostParams) (int64, error) {
@@ -29,6 +31,7 @@ func (q *Queries) DeleteKnownHost(ctx context.Context, arg DeleteKnownHostParams
 		arg.Host,
 		arg.Port,
 		arg.KeyType,
+		arg.Fingerprint,
 	)
 	if err != nil {
 		return 0, err
@@ -39,7 +42,7 @@ func (q *Queries) DeleteKnownHost(ctx context.Context, arg DeleteKnownHostParams
 const insertKnownHost = `-- name: InsertKnownHost :exec
 INSERT INTO known_hosts (workspace_id, host, port, key_type, fingerprint_sha256, first_seen, accepted_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (workspace_id, host, port, key_type) DO NOTHING
+ON CONFLICT (workspace_id, host, port, key_type, fingerprint_sha256) DO NOTHING
 `
 
 type InsertKnownHostParams struct {
@@ -67,7 +70,7 @@ func (q *Queries) InsertKnownHost(ctx context.Context, arg InsertKnownHostParams
 
 const knownHosts = `-- name: KnownHosts :many
 SELECT host, port, key_type, fingerprint_sha256, first_seen, accepted_by
-FROM known_hosts WHERE workspace_id = $1 ORDER BY host, port, key_type
+FROM known_hosts WHERE workspace_id = $1 ORDER BY host, port, key_type, first_seen, fingerprint_sha256
 `
 
 type KnownHostsRow struct {
@@ -108,7 +111,7 @@ func (q *Queries) KnownHosts(ctx context.Context, workspaceID uuid.UUID) ([]Know
 
 const knownHostsFor = `-- name: KnownHostsFor :many
 SELECT host, port, key_type, fingerprint_sha256, first_seen, accepted_by
-FROM known_hosts WHERE workspace_id = $1 AND host = $2 AND port = $3 ORDER BY key_type
+FROM known_hosts WHERE workspace_id = $1 AND host = $2 AND port = $3 ORDER BY key_type, first_seen, fingerprint_sha256
 `
 
 type KnownHostsForParams struct {

@@ -1628,6 +1628,11 @@ export interface components {
             port: number;
             keyType: string;
             fingerprint: string;
+            /**
+             * @description What to do when a different key of the same type is already trusted (4.13b): add this one next to it, for a service with several servers behind one name, or replace it, for a server whose key changed. Left out, such a key is refused with host_key_changed.
+             * @enum {string}
+             */
+            mode?: "add" | "replace";
         };
         RemoteEntry: {
             name: string;
@@ -5176,6 +5181,8 @@ export interface operations {
                 port: number;
                 /** @description Key algorithm, such as ssh-ed25519. */
                 keyType: string;
+                /** @description The key to forget when several of the type are trusted; left out, every key of the type is forgotten. */
+                fingerprint?: string;
             };
             header?: {
                 /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */

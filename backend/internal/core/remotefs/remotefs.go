@@ -138,6 +138,8 @@ type HostKeyError struct {
 	Fingerprint string
 	// Changed is true when a different key of the same type was trusted before.
 	Changed bool
+	// Trusted are the fingerprints trusted for the type, shown next to the new one when it changed (4.13b).
+	Trusted []string
 }
 
 // Error describes the rejected key.

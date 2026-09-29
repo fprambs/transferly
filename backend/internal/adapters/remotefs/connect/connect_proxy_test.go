@@ -14,6 +14,7 @@ import (
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
 	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -301,7 +302,7 @@ func TestConnector_Jump(t *testing.T) {
 
 	jump, jumpKey := jumpTestHost(t, "bastion", "let-me-through")
 	jumpHost, jumpPort, _ := splitAddr(jump)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey), hostkey.TrustNew); err != nil {
 		t.Fatalf("Trust() of the jump host = %v", err)
 	}
 	viaJump := e.addSite(server, site.Input{
@@ -324,7 +325,7 @@ func TestConnector_Jump(t *testing.T) {
 	}
 	keyJump, keyJumpHostKey := jumpTestHostWithKey(t, "bastion", private)
 	keyJumpHost, keyJumpPort, _ := splitAddr(keyJump)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, keyJumpHost, keyJumpPort, keyJumpHostKey.Type(), ssh.FingerprintSHA256(keyJumpHostKey)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, keyJumpHost, keyJumpPort, keyJumpHostKey.Type(), ssh.FingerprintSHA256(keyJumpHostKey), hostkey.TrustNew); err != nil {
 		t.Fatalf("Trust() of the key jump host = %v", err)
 	}
 	pemKey, passphrase := marshalKey(t, private, "open sesame")
@@ -439,7 +440,7 @@ func TestConnector_JumpEdgeCases(t *testing.T) {
 	e.trust(server)
 	jump, jumpKey := jumpTestHost(t, "bastion", "let-me-through")
 	jumpHost, jumpPort, _ := splitAddr(jump)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey), hostkey.TrustNew); err != nil {
 		t.Fatalf("Trust() of the jump host = %v", err)
 	}
 
@@ -504,7 +505,7 @@ func TestConnector_JumpEdgeCases(t *testing.T) {
 	}
 	plainKeyJump, plainKeyJumpHostKey := jumpTestHostWithKey(t, "bastion", unencrypted)
 	plainKeyJumpHost, plainKeyJumpPort, _ := splitAddr(plainKeyJump)
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, plainKeyJumpHost, plainKeyJumpPort, plainKeyJumpHostKey.Type(), ssh.FingerprintSHA256(plainKeyJumpHostKey)); err != nil {
+	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, plainKeyJumpHost, plainKeyJumpPort, plainKeyJumpHostKey.Type(), ssh.FingerprintSHA256(plainKeyJumpHostKey), hostkey.TrustNew); err != nil {
 		t.Fatalf("Trust() of the plain key jump host = %v", err)
 	}
 	plainBlock, err := ssh.MarshalPrivateKey(unencrypted, "")

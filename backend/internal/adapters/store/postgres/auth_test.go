@@ -404,7 +404,7 @@ func TestHostKeyStore_ReportsDatabaseFailures(t *testing.T) {
 		"Trusted": second(store.Trusted(ctx, id, "h", 22)),
 		"List":    second(store.List(ctx, id)),
 		"Add":     store.Add(ctx, id, hostkey.Key{}),
-		"Delete":  store.Delete(ctx, id, "h", 22, "t"),
+		"Delete":  store.Delete(ctx, id, "h", 22, "t", ""),
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, hostkey.ErrNotFound) {
