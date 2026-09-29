@@ -43,7 +43,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the remote editor
  * - the site dialog on its General and Advanced tabs, with an anonymous FTP site and a site that asks for its password, and that site asking for it
  * - the warning of a server key other than the trusted one, with add, replace and cancel
- * - the bookmarks menu of a saved site
+ * - the bookmarks of a saved site as chips in the toolbar, and their menu
  * - a folder with many files, with the transfers panel still in view
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
@@ -600,10 +600,13 @@ test.describe('screenshots', () => {
       await request.post(`/api/v1/workspaces/${workspace}/sites/${siteId}/bookmarks`, { headers: { 'X-CSRF-Token': csrf }, data: { name, path } })
     }
     await page.goto(`/sites/${siteId}?path=%2Fupload`)
+    await page.getByRole('navigation', { name: 'Bookmarks bar' }).getByRole('button', { name: 'Nginx logs' }).waitFor()
+    await page.waitForTimeout(400)
+    await shoot(page, '61-site-bookmarks')
     await page.getByRole('button', { name: 'Bookmarks' }).click()
     await page.getByRole('menuitem', { name: /Nginx logs/ }).waitFor()
     await page.waitForTimeout(400)
-    await shoot(page, '61-site-bookmarks')
+    await shoot(page, '62-site-bookmarks-menu')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {

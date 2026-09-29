@@ -6,6 +6,7 @@ import { expect, test } from '../fixtures.ts'
  * Scenarios:
  * - the folder in view is bookmarked with its name suggested, the icon fills, and from the root the bookmark opens that folder again
  * - the bookmark is kept on the server: it is still there after a reload, and removing it from the manage dialog leaves none
+ * - the bookmarks bar shows it as a chip, marked while its folder is in view, and the chip opens the folder (4.14g)
  */
 test.describe('bookmarks', () => {
   test('bookmarks a folder, opens it again and removes it', async ({ shell, request }) => {
@@ -32,9 +33,15 @@ test.describe('bookmarks', () => {
     await expect(dialog).toBeHidden()
     await expect(bookmarks.locator('svg')).toHaveClass(/fill-warn/)
 
+    const chip = page.getByRole('navigation', { name: 'Bookmarks bar' }).getByRole('button', { name: 'upload' })
+    await expect(chip).toHaveAttribute('aria-current', 'location')
     await page.getByRole('button', { name: 'Up one level' }).click()
     await expect(page).toHaveURL(/path=%2F(&|$)/)
     await expect(bookmarks.locator('svg')).not.toHaveClass(/fill-warn/)
+    await expect(chip).not.toHaveAttribute('aria-current', 'location')
+    await chip.click()
+    await expect(page).toHaveURL(/path=%2Fupload/)
+    await page.getByRole('button', { name: 'Up one level' }).click()
     await page.reload()
     await bookmarks.click()
     await page.getByRole('menuitem', { name: /upload/ }).click()
