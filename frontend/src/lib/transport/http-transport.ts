@@ -77,7 +77,25 @@ export class HttpTransport implements Transport {
 
   /** Performs an API call, sending the session cookie and, for changes, the anti-CSRF token. */
   async request<T>(request: ApiRequest): Promise<T> {
-    const headers: Record<string, string> = { Accept: 'application/json' }
+    const response = await this.call(request, 'application/json')
+    if (response.status === 204) {
+      return undefined as T
+    }
+    return (await this.parse(response)) as T
+  }
+
+  /** Performs an API call like {@link request} and returns the body as a stream, for downloads. */
+  async stream(request: ApiRequest): Promise<ReadableStream<Uint8Array>> {
+    const response = await this.call(request, '*/*')
+    if (response.body === null) {
+      throw new ApiError({ type: 'about:blank', title: 'Invalid Response', status: response.status, code: 'invalid_response' })
+    }
+    return response.body
+  }
+
+  /** Sends a call with its body and the anti-CSRF token for changes, and returns a successful response; a failure throws its problem. */
+  private async call(request: ApiRequest, accept: string): Promise<Response> {
+    const headers: Record<string, string> = { Accept: accept }
     let body: BodyInit | undefined
     if (isBinary(request.body)) {
       body = request.body as BodyInit
@@ -98,27 +116,7 @@ export class HttpTransport implements Transport {
     if (!response.ok) {
       throw new ApiError(await readProblem(response))
     }
-    if (response.status === 204) {
-      return undefined as T
-    }
-    return (await this.parse(response)) as T
-  }
-
-  /** Performs a GET call and returns the body as a stream, with the session cookie. */
-  async stream(request: ApiRequest): Promise<ReadableStream<Uint8Array>> {
-    let response: Response
-    try {
-      response = await this.send(this.url(request.path, request.query), { method: 'GET', signal: request.signal })
-    } catch {
-      throw new ApiError({ type: 'about:blank', title: 'Network Error', status: 0, code: 'network_error' })
-    }
-    if (!response.ok) {
-      throw new ApiError(await readProblem(response))
-    }
-    if (response.body === null) {
-      throw new ApiError({ type: 'about:blank', title: 'Invalid Response', status: response.status, code: 'invalid_response' })
-    }
-    return response.body
+    return response
   }
 
   /** Calls `GET /healthz`. */

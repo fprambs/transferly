@@ -107,7 +107,7 @@ export interface Transport {
    */
   request<T>(request: ApiRequest): Promise<T>
   /**
-   * Performs a GET call and returns the body of the answer as a stream of bytes, as file downloads need it.
+   * Performs a call and returns the body of the answer as a stream of bytes, as file downloads need it.
    * Failures, and answers without a body, are thrown as {@link ApiError}.
    */
   stream(request: ApiRequest): Promise<ReadableStream<Uint8Array>>
