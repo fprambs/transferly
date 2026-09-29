@@ -29,6 +29,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -50,6 +51,7 @@ type Connector struct {
 	timeout  time.Duration
 	asked    *credentials.Store
 	log      *connlog.Recorder
+	prompts  *prompts.Broker
 }
 
 // Option adjusts a [Connector].
@@ -59,6 +61,23 @@ type Option func(*Connector)
 // it, those sites always fail with [credentials.ErrRequired].
 func AskedPasswords(store *credentials.Store) Option {
 	return func(c *Connector) { c.asked = store }
+}
+
+// Prompts sets who relays what servers ask to the person connecting to an interactive site (ADR-0016). Without it, those
+// sites always fail as refused credentials.
+func Prompts(broker *prompts.Broker) Option {
+	return func(c *Connector) { c.prompts = broker }
+}
+
+// errNoPrompts fails an interactive site when nobody can relay the server's questions.
+var errNoPrompts = fmt.Errorf("%w: nobody can answer what the server asks", remotefs.ErrAuth)
+
+// promptWait is how long a question to the person connecting may wait.
+func (c *Connector) promptWait() time.Duration {
+	if c.prompts == nil {
+		return 0
+	}
+	return c.prompts.Wait()
 }
 
 // anonymousPassword is what anonymous sites answer when a server asks for a password, the address FileZilla sends too.
@@ -160,6 +179,8 @@ func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target sit
 		DialContext:   leg.dialer(c.baseDialer(target, s)),
 		Timeout:       c.timeout,
 		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
+		Prompt:        leg.ask(ctx, target.AuthMethod),
+		PromptWait:    c.promptWait(),
 	})
 	if err != nil {
 		return nil, err
@@ -224,6 +245,7 @@ func (c *Connector) dialSFTP(ctx context.Context, key connections.Key, target si
 		Address: address, Username: target.Username, Timeout: c.timeout, HostKeyAlgorithms: algorithmsFor(types),
 		Password: string(s.password), PrivateKey: s.privateKey, Passphrase: s.passphrase,
 		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
+		Prompt:        leg.ask(ctx, target.AuthMethod),
 	}
 	if !target.Jump.Set() {
 		leg.connecting(target, target.Host, target.Port, viaOf(target))
@@ -366,6 +388,7 @@ func (c *Connector) open(ctx context.Context, key connections.Key, session strin
 	}
 	var err error
 	switch target.AuthMethod {
+	case site.AuthInteractive:
 	case site.AuthAnonymous:
 		s.password = []byte(anonymousPassword)
 	case site.AuthAsk:

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
 )
@@ -35,6 +36,21 @@ func (h hop) record(level connlog.Level, step connlog.Step, params map[string]st
 		params["hop"] = "jump"
 	}
 	h.c.log.Record(connlog.Target{UserID: h.key.UserID, WorkspaceID: h.key.WorkspaceID, SiteID: h.key.SiteID}, level, step, params)
+}
+
+// ask returns the prompt of an interactive site, which records that the server asked and relays the challenge to the
+// user who connects; nil for the other logon types, which never ask.
+func (h hop) ask(ctx context.Context, method site.AuthMethod) func(prompts.Challenge) ([]string, error) {
+	if method != site.AuthInteractive {
+		return nil
+	}
+	return func(challenge prompts.Challenge) ([]string, error) {
+		h.record(connlog.Info, connlog.Prompted, map[string]string{"name": challenge.Name})
+		if h.c.prompts == nil {
+			return nil, errNoPrompts
+		}
+		return h.c.prompts.Ask(ctx, prompts.Target{UserID: h.key.UserID, WorkspaceID: h.key.WorkspaceID, SiteID: h.key.SiteID}, challenge)
+	}
 }
 
 // connecting records the start of a connection to host:port, and how it is reached: directly, through the site's

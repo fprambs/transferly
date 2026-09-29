@@ -33,6 +33,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/passkey"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/scheduler"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -114,7 +115,9 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
 	askedPasswords := credentials.New(system, cfg.SessionMax)
 	connectionLog := connlog.New(hub, system)
-	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout, connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog))
+	broker := prompts.New(hub, prompts.DefaultWait)
+	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout,
+		connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog), connect.Prompts(broker))
 	pool := connections.New(connector, system, connections.Config{OnChange: connections.PublishTo(hub)})
 
 	return wiring{
@@ -147,6 +150,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Quick:         quickConnections,
 			Events:        hub,
 			ConnectionLog: connectionLog,
+			Prompts:       broker,
 			Limits: httpapi.Limits{
 				SetupIP:       ratelimit.New(system, setupRule, maxTrackedClients),
 				LoginIP:       ratelimit.New(system, loginIPRule, maxTrackedClients),

@@ -42,6 +42,9 @@ const (
 	HostKeyChanged Step = "host_key_changed"
 	// PlainText means an FTP site with optional encryption went on without TLS because the server offers none.
 	PlainText Step = "plain_text"
+	// Prompted means the server asked the person connecting something, which an interactive site relays to them
+	// (ADR-0016): params name, the server's title of the challenge, which may be empty. The answers are never logged.
+	Prompted Step = "prompted"
 	// Authenticated means the account signed in: params method, username.
 	Authenticated Step = "authenticated"
 	// Listing means a folder is being read: params path.
