@@ -21,6 +21,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
@@ -130,6 +131,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Keys:          keys,
 			Sites:         sites,
 			HostKeys:      hostKeys,
+			Bookmarks:     bookmark.NewService(store, store, workspaces, system, nil),
 			Connections:   pool,
 			Credentials:   askedPasswords,
 			Files:         files.NewService(workspaces, pool),

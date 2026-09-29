@@ -50,6 +50,13 @@ const (
 	HostKeyTrusted = "host_key.trusted"
 	// HostKeyForgotten is a server key that was forgotten.
 	HostKeyForgotten = "host_key.forgotten"
+	// BookmarkCreated is a folder of a saved site that was bookmarked; the target is the bookmark's name, the site and path are in the
+	// metadata.
+	BookmarkCreated = "bookmark.created"
+	// BookmarkUpdated is a bookmark that was renamed or pointed at another folder.
+	BookmarkUpdated = "bookmark.updated"
+	// BookmarkDeleted is a bookmark that was removed.
+	BookmarkDeleted = "bookmark.deleted"
 	// AdminUserDisabled is an account an administrator of the instance disabled; the target is its email. It belongs to no workspace.
 	AdminUserDisabled = "admin.user_disabled"
 	// AdminUserEnabled is an account an administrator of the instance enabled again.

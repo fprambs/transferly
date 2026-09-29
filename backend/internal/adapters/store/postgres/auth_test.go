@@ -18,6 +18,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/limits"
@@ -490,6 +491,34 @@ func TestCollectionStore_ReportsDatabaseFailures(t *testing.T) {
 	}
 	for name, err := range calls {
 		if err == nil || errors.Is(err, site.ErrCollectionNotFound) || errors.Is(err, site.ErrCollectionNameTaken) || errors.Is(err, site.ErrCollectionNotEmpty) {
+			t.Errorf("%s = %v; want a database error", name, err)
+		}
+	}
+}
+
+// TestBookmarkStore_Conformance runs the shared bookmark store suite against Postgres.
+func TestBookmarkStore_Conformance(t *testing.T) {
+	storetest.RunBookmark(t, func(t *testing.T) storetest.BookmarkStore { return openMigrated(t) })
+}
+
+// TestBookmarkStore_ReportsDatabaseFailures verifies that every bookmark operation returns the database error instead of hiding it,
+// using a store whose connection pool is closed.
+func TestBookmarkStore_ReportsDatabaseFailures(t *testing.T) {
+	store := openMigrated(t)
+	store.Close()
+	ctx := context.Background()
+	id := uuid.New()
+	b := bookmark.Bookmark{ID: id, WorkspaceID: id, SiteID: id, Name: "x", Path: "/"}
+
+	calls := map[string]error{
+		"CreateBookmark": store.CreateBookmark(ctx, b),
+		"UpdateBookmark": store.UpdateBookmark(ctx, b),
+		"Bookmark":       second(store.Bookmark(ctx, id, id, id)),
+		"Bookmarks":      second(store.Bookmarks(ctx, id, id)),
+		"DeleteBookmark": store.DeleteBookmark(ctx, id, id, id),
+	}
+	for name, err := range calls {
+		if err == nil || errors.Is(err, bookmark.ErrNotFound) || errors.Is(err, bookmark.ErrNameTaken) {
 			t.Errorf("%s = %v; want a database error", name, err)
 		}
 	}

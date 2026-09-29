@@ -2098,7 +2098,7 @@ paths:
       security:
         - sessionCookie: []
       summary: Trust a server key
-      description: Records the key a user saw and confirmed. A different key of the same type must be forgotten first.
+      description: Records the key a user saw and confirmed. A different key of a type already trusted needs a mode, add or replace (4.13b).
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/CsrfToken"
@@ -3696,6 +3696,187 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/bookmarks:
+    get:
+      operationId: listBookmarks
+      security:
+        - sessionCookie: []
+      summary: Bookmarked folders of a saved site
+      description: Whoever may browse the workspace sees its bookmarks (4.14b). A quick connection has none and is site_not_found.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+      responses:
+        "200":
+          description: The bookmarks of the site by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bookmark"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: createBookmark
+      security:
+        - sessionCookie: []
+      summary: Bookmark a folder of a saved site
+      description: Needs the right to manage sites. The name is unique on the site regardless of case (bookmark_name_taken); a site keeps up to 200 bookmarks (bookmark_limit_reached). The path is absolute and stored cleaned.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkInput"
+      responses:
+        "201":
+          description: The new bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/bookmarks/{bookmarkId}:
+    patch:
+      operationId: updateBookmark
+      security:
+        - sessionCookie: []
+      summary: Rename a bookmark or point it at another folder
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/BookmarkId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkChanges"
+      responses:
+        "200":
+          description: The bookmark after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteBookmark
+      security:
+        - sessionCookie: []
+      summary: Remove a bookmark
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/BookmarkId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: The bookmark was removed.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/collections/{collectionId}:
     patch:
       operationId: updateCollection
@@ -4047,6 +4228,14 @@ components:
       in: path
       required: true
       description: Identifier of the collection.
+      schema:
+        type: string
+        format: uuid
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      description: Identifier of the bookmark.
       schema:
         type: string
         format: uuid
@@ -4649,6 +4838,37 @@ components:
           type: string
           format: uuid
           description: Left out for collections at the top level.
+    Bookmark:
+      type: object
+      required: [id, name, path, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Display name, unique on the site regardless of case, up to 100 characters.
+        path:
+          type: string
+          description: Absolute remote path of the folder.
+        createdAt:
+          type: string
+          format: date-time
+    BookmarkInput:
+      type: object
+      required: [name, path]
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+    BookmarkChanges:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
     CollectionInput:
       type: object
       required: [name]

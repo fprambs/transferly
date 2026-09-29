@@ -15,6 +15,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
@@ -106,6 +107,8 @@ type Deps struct {
 	Credentials *credentials.Store
 	// HostKeys is the trusted server keys service.
 	HostKeys *hostkey.Service
+	// Bookmarks is the service of the bookmarked folders of saved sites.
+	Bookmarks *bookmark.Service
 	// Sites is the saved connections service.
 	Sites *site.Service
 	// Keys hands out the keys that seal the secrets of each workspace.

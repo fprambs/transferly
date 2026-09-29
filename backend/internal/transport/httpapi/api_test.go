@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
@@ -143,6 +144,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Vault:         vaults,
 		Keys:          keys,
 		HostKeys:      hostkey.NewService(store, workspaces, clock),
+		Bookmarks:     bookmark.NewService(store, store, workspaces, clock, nil),
 		Connections:   pool,
 		Credentials:   asked,
 		Sites:         sites,

@@ -15,6 +15,7 @@ import (
 
 	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/hostkey"
@@ -356,6 +357,39 @@ func TestHostKeyFailures(t *testing.T) {
 	expectProblem(t, a.do(request{method: http.MethodGet, path: hostKeysPath(ws), cookie: cookie}), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodPost, hostKeysPath(ws), hostKeyBody("files.example.com", fingerprintA), cookie, csrf), 500, "internal_error")
 	expectProblem(t, a.send(http.MethodDelete, forgetPath(ws, "files.example.com", 22, "ssh-ed25519"), nil, cookie, csrf), 500, "internal_error")
+}
+
+// brokenBookmarks is a store whose bookmark reads fail.
+type brokenBookmarks struct{ *postgres.Store }
+
+// Bookmarks always fails.
+func (brokenBookmarks) Bookmarks(context.Context, uuid.UUID, uuid.UUID) ([]bookmark.Bookmark, error) {
+	return nil, errInjected
+}
+
+// Bookmark always fails.
+func (brokenBookmarks) Bookmark(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (bookmark.Bookmark, error) {
+	return bookmark.Bookmark{}, errInjected
+}
+
+// TestBookmarkFailures verifies that store failures inside the bookmark handlers are 500 problems.
+//
+// Scenarios:
+//   - listing, creating, updating and removing answer 500 when the store fails
+func TestBookmarkFailures(t *testing.T) {
+	a := newAPI(t, func(d *httpapi.Deps) {
+		store := d.Readiness.(*postgres.Store)
+		d.Bookmarks = bookmark.NewService(brokenBookmarks{store}, store, d.Workspaces, realClock{}, nil)
+	})
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	siteID := a.send(http.MethodPost, sitesPath(ws), siteBody("Prod"), cookie, csrf).site(t).Id.String()
+	one := bookmarksPath(ws, siteID, uuid.NewString())
+
+	expectProblem(t, a.do(request{method: http.MethodGet, path: bookmarksPath(ws, siteID), cookie: cookie}), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPost, bookmarksPath(ws, siteID), map[string]string{"name": "Home", "path": "/home"}, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodPatch, one, map[string]string{"name": "x"}, cookie, csrf), 500, "internal_error")
+	expectProblem(t, a.send(http.MethodDelete, one, nil, cookie, csrf), 500, "internal_error")
 }
 
 // failingConnector fails every connection with a chosen error.

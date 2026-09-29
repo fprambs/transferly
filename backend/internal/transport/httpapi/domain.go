@@ -9,6 +9,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
@@ -96,6 +97,18 @@ func (p domainProblem) VisitUpdateCollectionResponse(w http.ResponseWriter) erro
 
 // VisitDeleteCollectionResponse implements [DeleteCollectionResponseObject].
 func (p domainProblem) VisitDeleteCollectionResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListBookmarksResponse implements [ListBookmarksResponseObject].
+func (p domainProblem) VisitListBookmarksResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCreateBookmarkResponse implements [CreateBookmarkResponseObject].
+func (p domainProblem) VisitCreateBookmarkResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitUpdateBookmarkResponse implements [UpdateBookmarkResponseObject].
+func (p domainProblem) VisitUpdateBookmarkResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitDeleteBookmarkResponse implements [DeleteBookmarkResponseObject].
+func (p domainProblem) VisitDeleteBookmarkResponse(w http.ResponseWriter) error { return p.write(w) }
 
 // VisitGetTransferResponse implements [GetTransferResponseObject].
 func (p domainProblem) VisitGetTransferResponse(w http.ResponseWriter) error { return p.write(w) }
@@ -186,6 +199,11 @@ var domainProblems = []struct {
 	{site.ErrCollectionNotEmpty, http.StatusConflict, "collection_not_empty"},
 	{site.ErrCollectionCycle, http.StatusUnprocessableEntity, "collection_cycle"},
 	{site.ErrCollectionTooDeep, http.StatusUnprocessableEntity, "collection_too_deep"},
+	{bookmark.ErrNotFound, http.StatusNotFound, "bookmark_not_found"},
+	{bookmark.ErrNameTaken, http.StatusConflict, "bookmark_name_taken"},
+	{bookmark.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_bookmark_name"},
+	{bookmark.ErrInvalidPath, http.StatusUnprocessableEntity, "invalid_bookmark_path"},
+	{bookmark.ErrLimit, http.StatusConflict, "bookmark_limit_reached"},
 	{site.ErrLocked, http.StatusConflict, "vault_locked"},
 	{site.ErrSecretTooLarge, http.StatusUnprocessableEntity, "secret_too_large"},
 	{site.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_name"},

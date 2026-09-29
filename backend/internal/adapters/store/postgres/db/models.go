@@ -102,6 +102,16 @@ type Site struct {
 	FtpEncryption  string
 }
 
+type SiteBookmark struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	SiteID      uuid.UUID
+	Name        string
+	Path        string
+	CreatedBy   uuid.NullUUID
+	CreatedAt   time.Time
+}
+
 type SiteFolder struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
