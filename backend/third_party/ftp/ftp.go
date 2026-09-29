@@ -369,13 +369,25 @@ func (c *ServerConn) Login(user, password string) error {
 // that ask for an account (reply 332, RFC 959 section 4.1.1) with ACCT, after
 // USER or after PASS. Sentinel patch: see backend/third_party/ftp/PATCHES.md.
 func (c *ServerConn) LoginWithAccount(user, password, account string) error {
+	return c.LoginInteractive(user, func(string) (string, error) { return password, nil }, account)
+}
+
+// LoginInteractive authenticates the client like LoginWithAccount, but asks for
+// the password only when the server wants one, passing the message of its reply
+// to USER, where one-time password servers put their challenge. An error of
+// password stops the login. Sentinel patch: see backend/third_party/ftp/PATCHES.md.
+func (c *ServerConn) LoginInteractive(user string, password func(message string) (string, error), account string) error {
 	code, message, err := c.cmd(-1, "USER %s", user)
 	if err != nil {
 		return err
 	}
 
 	if code == StatusUserOK {
-		code, message, err = c.cmd(-1, "PASS %s", password)
+		answer, err := password(message)
+		if err != nil {
+			return err
+		}
+		code, message, err = c.cmd(-1, "PASS %s", answer)
 		if err != nil {
 			return err
 		}
