@@ -9,22 +9,26 @@ import { renderApp } from '@/test/render-app'
 import { useUiStore } from '@/state/ui-store'
 
 /**
- * Covers the settings page, {@link useThemeChoice}, {@link useFileDoubleClickChoice} and {@link useAccountPreferences}.
+ * Covers the settings page, {@link useThemeChoice}, {@link useSavePreferences} and {@link useAccountPreferences}.
  *
  * Scenarios:
  * - the page lists every theme as a choice, with the current one checked
  * - choosing a theme applies it at once and saves it to the account; a failure to save is shown, applied theme stays, and clears next time
  * - following the system turns the theme choices off
  * - the account's theme wins when the session loads, unless it is not a theme this version knows
- * - the language changes from the page
+ * - the language changes from the page and is saved to the account; a failure to save is shown and the language stays
+ * - the account's language wins when the session loads, a regional tag such as es-CL included, unless the interface is not translated
+ *   into it
  * - what a double click on a file does is chosen on the page and saved to the account; a failure to save is shown and the choice stays
  * - the account's double click action wins when the session loads; the first time, a browser that chose the editor while the account has
  *   the default moves that choice to the account, even if saving fails, and later the account alone decides
+ * - the first time, a browser in another language than the English every account starts with moves its language to the account, in the
+ *   same request as the double click action; later the account's English wins
  * - the user menu opens the settings
  */
 describe('settings', () => {
   beforeEach(() => {
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, fileDoubleClick: 'download', fileDoubleClickSynced: true })
+    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, fileDoubleClick: 'download', preferencesSynced: true })
     mockSession(adminSession)
     mockWorkspaceData()
     mockSecurity()
@@ -98,14 +102,57 @@ describe('settings', () => {
     expect(useUiStore.getState().themeId).toBe('dracula')
   })
 
-  it('changes the language', async () => {
-    mockUpdateMe()
+  it('changes the language and saves it to the account', async () => {
+    const saved = mockUpdateMe()
     const user = userEvent.setup()
     await renderApp({ path: '/settings' })
 
     await user.selectOptions(await screen.findByLabelText('Interface language'), 'es')
 
     expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    await waitFor(() => expect(saved).toEqual([{ locale: 'es' }]))
+  })
+
+  it('keeps the language and says so when saving it fails', async () => {
+    server.use(http.patch('/api/v1/me', () => problem(500, 'internal')))
+    const user = userEvent.setup()
+    await renderApp({ path: '/settings' })
+
+    await user.selectOptions(await screen.findByLabelText('Interface language'), 'es')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El idioma se aplicó aquí, pero no se pudo guardar en tu cuenta.')
+  })
+
+  it('speaks the language of the account when the session loads', async () => {
+    mockSession({ ...adminSession, user: { ...adminSession.user, locale: 'es-CL' } })
+
+    await renderApp({ path: '/settings' })
+
+    expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+  })
+
+  it('keeps the language of the browser when the interface is not translated into the account language', async () => {
+    const saved = mockUpdateMe()
+    mockSession({ ...adminSession, user: { ...adminSession.user, locale: 'fr' } })
+
+    await renderApp({ path: '/settings', language: 'es' })
+
+    expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(saved).toEqual([])
+  })
+
+  it('moves the language of this browser to the account the first time, with the double click action, then follows the account', async () => {
+    const saved = mockUpdateMe()
+    useUiStore.setState({ fileDoubleClick: 'edit', preferencesSynced: false })
+    await renderApp({ path: '/settings', language: 'es' })
+
+    await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit', locale: 'es' }]))
+    expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    cleanup()
+
+    await renderApp({ path: '/settings', language: 'es' })
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(saved).toHaveLength(1)
   })
 
   it('chooses what a double click on a file does and saves it to the account', async () => {
@@ -146,11 +193,11 @@ describe('settings', () => {
 
   it('moves a choice made in this browser to the account the first time, then follows the account', async () => {
     const saved = mockUpdateMe()
-    useUiStore.setState({ fileDoubleClick: 'edit', fileDoubleClickSynced: false })
+    useUiStore.setState({ fileDoubleClick: 'edit', preferencesSynced: false })
     await renderApp({ path: '/settings' })
 
     await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit' }]))
-    expect(useUiStore.getState()).toMatchObject({ fileDoubleClick: 'edit', fileDoubleClickSynced: true })
+    expect(useUiStore.getState()).toMatchObject({ fileDoubleClick: 'edit', preferencesSynced: true })
     cleanup()
 
     useUiStore.setState({ fileDoubleClick: 'edit' })
@@ -167,12 +214,12 @@ describe('settings', () => {
         return problem(500, 'internal')
       }),
     )
-    useUiStore.setState({ fileDoubleClick: 'edit', fileDoubleClickSynced: false })
+    useUiStore.setState({ fileDoubleClick: 'edit', preferencesSynced: false })
 
     await renderApp({ path: '/settings' })
 
     await waitFor(() => expect(attempts).toBe(1))
-    expect(useUiStore.getState()).toMatchObject({ fileDoubleClick: 'edit', fileDoubleClickSynced: true })
+    expect(useUiStore.getState()).toMatchObject({ fileDoubleClick: 'edit', preferencesSynced: true })
   })
 
   it('opens from the user menu', async () => {

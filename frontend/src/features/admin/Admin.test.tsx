@@ -443,6 +443,7 @@ describe('administration', () => {
 
   it('is translated to Spanish', async () => {
     mockAdmin()
+    mockSession({ ...adminSession, user: { ...adminSession.user, locale: 'es' } })
     await renderApp({ path: '/admin', language: 'es' })
 
     expect(await screen.findByRole('heading', { name: 'Administración' })).toBeInTheDocument()

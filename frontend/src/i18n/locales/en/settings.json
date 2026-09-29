@@ -14,7 +14,8 @@
   },
   "language": {
     "title": "Language",
-    "label": "Interface language"
+    "label": "Interface language",
+    "saveFailed": "The language applies here, but it could not be saved to your account."
   },
   "servers": {
     "title": "Trusted servers",

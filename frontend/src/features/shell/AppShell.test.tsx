@@ -56,6 +56,7 @@ describe('AppShell', () => {
   })
 
   it('sets a right-to-left document direction for a right-to-left language', async () => {
+    mockSession({ ...adminSession, user: { ...adminSession.user, locale: 'ar' } })
     const i18n = createInstance()
     await i18n.use(initReactI18next).init({
       lng: 'ar',

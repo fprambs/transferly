@@ -14,7 +14,8 @@
   },
   "language": {
     "title": "Idioma",
-    "label": "Idioma de la interfaz"
+    "label": "Idioma de la interfaz",
+    "saveFailed": "El idioma se aplicó aquí, pero no se pudo guardar en tu cuenta."
   },
   "servers": {
     "title": "Servidores de confianza",

@@ -23,8 +23,8 @@ export interface UiState {
   workspaceId: string | null
   /** What a double click, or Enter, does on a file. */
   fileDoubleClick: FileDoubleClick
-  /** Whether this browser has taken the double click action from the account, after which the account alone decides it (4.14a). */
-  fileDoubleClickSynced: boolean
+  /** Whether this browser has taken its preferences from the account (language, double click), after which the account alone decides them (4.14a). */
+  preferencesSynced: boolean
   /** Whether the connection log panel is expanded. */
   logOpen: boolean
   /** Whether the sites panel is shown. */
@@ -47,8 +47,8 @@ export interface UiState {
   clearWorkspace: () => void
   /** Chooses what a double click, or Enter, does on a file. */
   setFileDoubleClick: (action: FileDoubleClick) => void
-  /** Records that the double click action now comes from the account. */
-  markFileDoubleClickSynced: () => void
+  /** Records that the preferences now come from the account. */
+  markPreferencesSynced: () => void
   /** Expands or collapses the connection log panel. */
   toggleLog: () => void
   /** Expands or collapses the transfer queue panel. */
@@ -62,7 +62,7 @@ export interface UiState {
 }
 
 /** The subset of {@link UiState} that is persisted. */
-type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'fileDoubleClickSynced' | 'logOpen' | 'sitesOpen' | 'detailsOpen'>
+type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'preferencesSynced' | 'logOpen' | 'sitesOpen' | 'detailsOpen'>
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
@@ -99,8 +99,8 @@ function sanitize(raw: unknown): Partial<PersistedUi> {
   if (value.fileDoubleClick === 'download' || value.fileDoubleClick === 'edit') {
     clean.fileDoubleClick = value.fileDoubleClick
   }
-  if (typeof value.fileDoubleClickSynced === 'boolean') {
-    clean.fileDoubleClickSynced = value.fileDoubleClickSynced
+  if (typeof value.preferencesSynced === 'boolean') {
+    clean.preferencesSynced = value.preferencesSynced
   }
   return clean
 }
@@ -115,7 +115,7 @@ export const useUiStore = create<UiState>()(
       queueTab: 'active',
       workspaceId: null,
       fileDoubleClick: 'download',
-      fileDoubleClickSynced: false,
+      preferencesSynced: false,
       logOpen: true,
       sitesOpen: true,
       detailsOpen: true,
@@ -127,7 +127,7 @@ export const useUiStore = create<UiState>()(
       setWorkspace: (workspaceId) => set({ workspaceId }),
       clearWorkspace: () => set({ workspaceId: null }),
       setFileDoubleClick: (fileDoubleClick) => set({ fileDoubleClick }),
-      markFileDoubleClickSynced: () => set({ fileDoubleClickSynced: true }),
+      markPreferencesSynced: () => set({ preferencesSynced: true }),
       toggleLog: () => set((state) => ({ logOpen: !state.logOpen })),
       setQueueOpen: (queueOpen) => set({ queueOpen }),
       setLogOpen: (logOpen) => set({ logOpen }),
@@ -136,13 +136,13 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'sentinel-ui',
-      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, fileDoubleClickSynced, logOpen, sitesOpen, detailsOpen }): PersistedUi => ({
+      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, preferencesSynced, logOpen, sitesOpen, detailsOpen }): PersistedUi => ({
         themeId,
         followSystem,
         queueOpen,
         workspaceId,
         fileDoubleClick,
-        fileDoubleClickSynced,
+        preferencesSynced,
         logOpen,
         sitesOpen,
         detailsOpen,
