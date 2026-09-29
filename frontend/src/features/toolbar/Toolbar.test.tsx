@@ -66,7 +66,8 @@ function toolbar() {
  * - cancel is on only while the connection is busy, stops the listing, and the explorer says it was canceled with a way to try again
  * - disconnect asks the server to close the connections and takes the site out of the address (the main pane leaves for the start page,
  *   the second pane closes), so a reload does not connect again; coming back to it shows it disconnected until the user connects again,
- *   and opening it from the sidebar connects it again too; a failed disconnect says so and changes nothing
+ *   and opening it from the sidebar connects it again too, at the folder the site opens in rather than where the user left (4.14i); a
+ *   failed disconnect says so and changes nothing
  * - the toolbar acts on the pane the user clicked last, the second pane included
  * - opening another site from the sidebar closes the connections of the one it replaces, and reopening the same site does not; a connected
  *   site disconnects from its menu too
@@ -168,6 +169,30 @@ describe('Toolbar', () => {
     await user.click(toolbar().getByRole('button', { name: 'Disconnect from the server' }))
     expect(await toolbar().findByRole('alert')).toHaveTextContent('Could not disconnect. Try again.')
     expect(history.location.pathname).toBe('/sites/s1')
+  })
+
+  it('connects a disconnected site again at the folder it opens in, not where the user left', async () => {
+    mockListings()
+    mockWorkspaceData({ sites: [{ ...site('s1', 'Prod'), remoteDir: '/srv' }, site('s2', 'Backup')] })
+    server.use(http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', () => new HttpResponse(null, { status: 204 })))
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/' })
+
+    await user.dblClick(await screen.findByRole('treeitem', { name: /Prod/ }))
+    await waitFor(() => expect(history.location.search).toContain('path=%2Fsrv'))
+    await within(await screen.findByRole('grid')).findByText('s1-srv.txt')
+    await user.click(screen.getByRole('button', { name: 'Up one level' }))
+    await waitFor(() => expect(history.location.search).toBe('?path=%2F'))
+    await user.click(toolbar().getByRole('button', { name: 'Disconnect from the server' }))
+    await waitFor(() => expect(history.location.pathname).toBe('/'))
+
+    await user.dblClick(screen.getByRole('treeitem', { name: /Prod/ }))
+    await waitFor(() => expect(history.location.search).toContain('path=%2Fsrv'))
+    await user.keyboard('{Control>}')
+    await user.dblClick(screen.getByRole('treeitem', { name: /Backup/ }))
+    await user.keyboard('{/Control}')
+    await waitFor(() => expect(history.location.pathname).toBe('/sites/s2'))
+    expect(history.location.search).toContain('path=%2F')
   })
 
   it('closes the second pane when it is the one disconnected', async () => {

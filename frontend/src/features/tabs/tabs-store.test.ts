@@ -23,6 +23,8 @@ function tabOf(siteId: string) {
  * - opening a tab for a site adds it at the end, or activates the one that shows it
  * - closing the active tab activates its neighbor, the last one leaves none active, and closing another keeps the active one
  * - the selection of a tab is remembered, and leaving the sites makes no tab active
+ * - a tab opens at the folder asked for, and restarting a site sends the tabs that show it, in either pane of its workspace, back to a
+ *   folder and forgets their selection
  * - stored tabs come back, dropping malformed ones and an active tab that no longer exists
  */
 describe('tabs store', () => {
@@ -79,6 +81,23 @@ describe('tabs store', () => {
     expect(summary()).toBe('a*')
     expect(close(a.id)).toBeUndefined()
     expect(useTabs.getState().activeId).toBeNull()
+  })
+
+  it('opens tabs at a folder and restarts the tabs of a site', () => {
+    const { openTab, restart } = useTabs.getState()
+    expect(openTab('w1', 'a', '/srv').path).toBe('/srv')
+    useTabs.setState({
+      tabs: [
+        { id: 't1', workspaceId: 'w1', siteId: 'a', path: '/deep', selection: '/deep/x' },
+        { id: 't2', workspaceId: 'w1', siteId: 'b', path: '/', split: 'a', splitPath: '/deep' },
+        { id: 't3', workspaceId: 'w2', siteId: 'a', path: '/deep' },
+      ],
+    })
+    restart('w1', 'a', '/srv')
+    const [first, second, third] = useTabs.getState().tabs
+    expect(first).toMatchObject({ path: '/srv', selection: undefined })
+    expect(second).toMatchObject({ path: '/', splitPath: '/srv' })
+    expect(third.path).toBe('/deep')
   })
 
   it('brings back stored tabs and drops what is malformed', async () => {

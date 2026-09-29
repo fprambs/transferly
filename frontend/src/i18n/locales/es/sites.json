@@ -46,7 +46,9 @@
     "jump_passphrase_required": "Escribe la frase de paso de la clave del salto.",
     "jump_wrong_passphrase": "La frase de paso no abre la clave del salto.",
     "jump_private_key_unreadable": "No se puede leer el archivo de la clave del salto.",
-    "jump_private_key_unsupported": "La clave del salto no se puede usar."
+    "jump_private_key_unsupported": "La clave del salto no se puede usar.",
+    "remoteDirInvalid": "La carpeta debe empezar con /.",
+    "invalid_remote_dir": "La carpeta remota inicial debe ser una ruta absoluta."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -200,7 +202,9 @@
       }
     },
     "disconnect": "Desconectar",
-    "openInNewTab": "Abrir en una pestaña nueva"
+    "openInNewTab": "Abrir en una pestaña nueva",
+    "remoteDir": "Carpeta remota inicial",
+    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz."
   },
   "import": {
     "open": "Importar de FileZilla",

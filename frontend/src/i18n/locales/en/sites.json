@@ -46,7 +46,9 @@
     "jump_passphrase_required": "Enter the passphrase of the jump host key.",
     "jump_wrong_passphrase": "The passphrase does not open the jump host key.",
     "jump_private_key_unreadable": "The jump host key file cannot be read.",
-    "jump_private_key_unsupported": "The jump host key cannot be used."
+    "jump_private_key_unsupported": "The jump host key cannot be used.",
+    "remoteDirInvalid": "The folder must start with /.",
+    "invalid_remote_dir": "The default remote folder must be an absolute path."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -200,7 +202,9 @@
       }
     },
     "disconnect": "Disconnect",
-    "openInNewTab": "Open in a new tab"
+    "openInNewTab": "Open in a new tab",
+    "remoteDir": "Default remote folder",
+    "remoteDirHint": "The folder the site opens in each time it connects. Leave it blank to start at the root."
   },
   "import": {
     "open": "Import from FileZilla",

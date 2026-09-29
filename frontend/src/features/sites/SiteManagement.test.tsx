@@ -66,6 +66,7 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  *
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
+ * - the default remote folder, on Advanced, must be absolute and is sent as typed (4.14i)
  * - what is needed to connect is on the first tab, the rest on Advanced, Transfer, Character set and Proxy and jump host, and a wrong field opens
  *   its tab and marks it
  * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with the
@@ -127,6 +128,7 @@ describe('site management', () => {
       username: 'deploy',
       authMethod: 'password',
       listTimezone: 'UTC',
+      remoteDir: '',
       charset: 'utf-8',
       speedLimitBps: 0,
       password: 'secret',
@@ -162,6 +164,31 @@ describe('site management', () => {
     expect(within(dialog).getByLabelText('Proxy')).toBeVisible()
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
     await waitFor(() => expect(within(dialog).getByRole('tab', { name: /Proxy and jump host/ })).toHaveAttribute('aria-selected', 'false'))
+  })
+
+  it('asks for an absolute default remote folder on the Advanced tab and sends it', async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>)
+        return HttpResponse.json({ ...prod, id: 's9' }, { status: 201 })
+      }),
+    )
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.type(within(dialog).getByLabelText('Name'), 'Web')
+    await user.type(within(dialog).getByLabelText('Host'), 'web.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'deploy')
+    await user.click(within(dialog).getByRole('tab', { name: 'Advanced' }))
+    await user.type(within(dialog).getByLabelText('Default remote folder'), 'var/www')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    expect(await within(dialog).findByText('The folder must start with /.')).toBeVisible()
+
+    await user.clear(within(dialog).getByLabelText('Default remote folder'))
+    await user.type(within(dialog).getByLabelText('Default remote folder'), '/var/www')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    await waitFor(() => expect(bodies[0]).toMatchObject({ remoteDir: '/var/www' }))
   })
 
   it('creates FTP sites with the encryption FileZilla offers, their own port and no key option', async () => {

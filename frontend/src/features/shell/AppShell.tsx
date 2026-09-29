@@ -17,6 +17,8 @@ import { useGoToTab } from '@/features/tabs/use-go-to-tab'
 import { TopBar } from '@/features/topbar/TopBar'
 import { useWorkspace } from '@/features/workspace/use-workspace'
 import { SitesRail } from '@/features/sites/SitesRail'
+import { startPath } from '@/features/sites/start-path'
+import { useSitesData } from '@/features/sites/use-sites-data'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import { TransfersDock } from '@/features/transfers/TransfersDock'
 import { useAccountPreferences } from '@/features/settings/use-account-preferences'
@@ -50,6 +52,7 @@ export function AppShell() {
   const disconnectFrom = useDisconnect()
   const goToTab = useGoToTab()
   const closeUnused = useCloseUnused()
+  const { sites: savedSites } = useSitesData(workspace?.id)
   const deactivate = useTabs((state) => state.deactivate)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const explorerView = pathname === '/' || pathname.startsWith('/sites/')
@@ -90,12 +93,13 @@ export function AppShell() {
     const tabs = useTabs.getState()
     const workspaceId = (workspace as Workspace).id
     const existing = tabs.tabs.find((tab) => tab.workspaceId === workspaceId && tab.siteId === siteId)
+    const start = startPath(savedSites.find((saved) => saved.id === siteId))
     if (existing !== undefined || newTab) {
-      goToTab(existing ?? tabs.openTab(workspaceId, siteId))
+      goToTab(existing ?? tabs.openTab(workspaceId, siteId, start))
       return
     }
     const previous = match?.params.siteId
-    void navigate({ to: '/sites/$siteId', params: { siteId }, search: { path: '/' } })
+    void navigate({ to: '/sites/$siteId', params: { siteId }, search: { path: start } })
     closeUnused(
       workspaceId,
       [previous, match?.search.split].filter((id) => id !== siteId),

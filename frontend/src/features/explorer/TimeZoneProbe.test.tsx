@@ -112,6 +112,7 @@ describe('time zone probe', () => {
         username: 'deploy',
         authMethod: 'password',
         listTimezone: 'Etc/GMT+3',
+        remoteDir: '',
         charset: 'windows-1252',
         speedLimitBps: 1048576,
         proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080 },

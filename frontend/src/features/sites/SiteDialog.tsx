@@ -86,7 +86,7 @@ function Row({ id, label, errors = [], hint, children }: RowProps) {
           .filter((error) => error !== undefined)
           .map((error) => (
             <p key={error} className="text-xs text-destructive">
-              {t(($) => $.errors[error as 'nameRequired' | 'hostRequired' | 'portInvalid' | 'usernameRequired' | 'speedLimitInvalid'])}
+              {t(($) => $.errors[error as 'nameRequired' | 'hostRequired' | 'portInvalid' | 'usernameRequired' | 'speedLimitInvalid' | 'remoteDirInvalid'])}
             </p>
           ))}
       </div>
@@ -317,6 +317,9 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                   <option key={zone} value={zone} />
                 ))}
               </datalist>
+            </Row>
+            <Row id="site-remote-dir" label={t(($) => $.site.remoteDir)} errors={[errors.remoteDir?.message]} hint={t(($) => $.site.remoteDirHint)}>
+              <Input id="site-remote-dir" className="font-mono" autoComplete="off" spellCheck={false} placeholder="/" aria-invalid={errors.remoteDir !== undefined} {...register('remoteDir')} />
             </Row>
           </Group>
         </TabsContent>

@@ -31,8 +31,10 @@ interface TabsState {
   /** Makes the active tab show a place: the active tab of the workspace follows it, a tab that already shows the site becomes active, and
    * otherwise a tab is opened for it. */
   follow: (place: TabPlace) => void
-  /** Opens a tab for a site, or activates the one that shows it, and returns it. */
-  openTab: (workspaceId: string, siteId: string) => ConnectionTab
+  /** Opens a tab for a site at a folder, the root by default, or activates the one that shows it, and returns it. */
+  openTab: (workspaceId: string, siteId: string, path?: string) => ConnectionTab
+  /** Sends the tabs that show a site, in either pane, back to a folder and forgets their selection: a disconnected site starts over (4.14i). */
+  restart: (workspaceId: string, siteId: string, path: string) => void
   /** Activates a tab. */
   activate: (id: string) => void
   /** Closes a tab and returns the tab that becomes active, if any. */
@@ -86,12 +88,22 @@ export const useTabs = create<TabsState>()(
             activeId: target.id,
           }
         }),
-      openTab: (workspaceId, siteId) => {
+      openTab: (workspaceId, siteId, path = '/') => {
         const existing = tabOf(get().tabs, workspaceId, siteId)
-        const tab = existing ?? { id: newId(), workspaceId, siteId, path: '/' }
+        const tab = existing ?? { id: newId(), workspaceId, siteId, path }
         set((state) => ({ tabs: existing === undefined ? [...state.tabs, tab] : state.tabs, activeId: tab.id }))
         return tab
       },
+      restart: (workspaceId, siteId, path) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) => {
+            if (tab.workspaceId !== workspaceId) {
+              return tab
+            }
+            const main = tab.siteId === siteId ? { path, selection: undefined } : {}
+            return { ...tab, ...main, ...(tab.split === siteId ? { splitPath: path } : {}) }
+          }),
+        })),
       activate: (id) => set({ activeId: id }),
       close: (id) => {
         const { tabs, activeId } = get()
