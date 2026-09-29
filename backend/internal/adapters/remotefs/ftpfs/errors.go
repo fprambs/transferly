@@ -20,6 +20,7 @@ const (
 	codeFileBusy         = 450
 	codeLocalError       = 451
 	codeNoSpace          = 452
+	codeLoginNeedAccount = 332
 	codeNotLoggedIn      = 530
 	codeNeedAccount      = 532
 	codeFileUnavailable  = 550
@@ -45,7 +46,7 @@ func classify(err error) error {
 	switch reply.Code {
 	case codeServiceClosing, codeCannotOpenData, codeTransferAborted:
 		return fmt.Errorf("%w: %w", remotefs.ErrConnectionLost, err)
-	case codeNotLoggedIn, codeNeedAccount:
+	case codeLoginNeedAccount, codeNotLoggedIn, codeNeedAccount:
 		return fmt.Errorf("%w: %w", remotefs.ErrAuth, err)
 	case codeNoSpace, codeQuotaExceeded:
 		return fmt.Errorf("%w: %w", remotefs.ErrQuota, err)

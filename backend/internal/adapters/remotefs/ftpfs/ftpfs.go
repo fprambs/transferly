@@ -75,6 +75,8 @@ type Config struct {
 	Username string
 	// Password is the account password; it may be empty.
 	Password string
+	// Account answers servers that ask for an account after the password (ACCT, reply 332); empty for the rest (4.8e).
+	Account string
 	// TLS selects clear text, explicit FTPS or implicit FTPS.
 	TLS TLSMode
 	// VerifyHostKey judges the fingerprint of the certificate the server presents, under [CertificateKeyType]. It returns nil
@@ -269,7 +271,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	conn, err := ftp.Dial(cfg.Address, options...)
 	greeted := err == nil
 	if err == nil {
-		err = conn.Login(cfg.Username, cfg.Password)
+		err = conn.LoginWithAccount(cfg.Username, cfg.Password, cfg.Account)
 		if err != nil {
 			_ = conn.Quit()
 		}
