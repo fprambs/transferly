@@ -272,5 +272,10 @@
     "log": "Cambiar el tamaño del panel del registro",
     "split": "Cambiar el tamaño de los paneles",
     "details": "Cambiar el tamaño del panel de detalles"
+  },
+  "tabs": {
+    "label": "Pestañas de conexión",
+    "close": "Cerrar {{name}}",
+    "connected": "Conectado"
   }
 }

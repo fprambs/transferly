@@ -168,7 +168,7 @@ describe('SitesSidebar', () => {
     await user.keyboard(' ')
     expect(home).toHaveAttribute('aria-selected', 'true')
     expect(quick).toHaveAttribute('aria-selected', 'false')
-    expect(onOpen.mock.calls).toEqual([['s2'], ['q1'], ['s2']])
+    expect(onOpen.mock.calls).toEqual([['s2', false], ['q1', false], ['s2', false]])
   })
 
   it('offers quick connect and the create actions', async () => {

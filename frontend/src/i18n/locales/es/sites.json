@@ -199,7 +199,8 @@
         "cost": "Abrir esta clave pide más trabajo del que Sentinel permite. Guárdala de nuevo con los valores por defecto."
       }
     },
-    "disconnect": "Desconectar"
+    "disconnect": "Desconectar",
+    "openInNewTab": "Abrir en una pestaña nueva"
   },
   "import": {
     "open": "Importar de FileZilla",

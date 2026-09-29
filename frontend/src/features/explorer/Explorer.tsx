@@ -64,16 +64,24 @@ export interface ExplorerProps {
   actions?: ReactNode
   /** Which pane of the view this is; each pane remembers the width of its details panel on its own. */
   pane?: 'main' | 'second'
+  /** Path of the entry selected when the explorer opens, as its tab remembered it. */
+  initialSelection?: string
+  /** Called with the path of the entry the user selects. */
+  onSelectionChange?: (path: string) => void
 }
 
 /** Browser of the files of one connection: path, toolbar, a table of the folder in view and a resizable details panel beside it. */
-export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane = 'main' }: ExplorerProps) {
+export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane = 'main', initialSelection, onSelectionChange }: ExplorerProps) {
   const { t, i18n } = useTranslation('explorer')
   const api = useApi()
   const queryClient = useQueryClient()
   const { sites, quick } = useSitesData(workspaceId)
   const [trustFailure, setTrustFailure] = useState<ExplorerErrorKey | null>(null)
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [selectedPath, setSelection] = useState<string | null>(initialSelection ?? null)
+  const setSelectedPath = (selection: string): void => {
+    setSelection(selection)
+    onSelectionChange?.(selection)
+  }
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [dragging, setDragging] = useState<'upload' | 'copy' | null>(null)
   const [each, setEach] = useState<{ count: number } | ExplorerErrorKey | 'tooMany' | null>(null)

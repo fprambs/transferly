@@ -543,6 +543,27 @@ test.describe('screenshots', () => {
     await page.keyboard.press('Control+b')
   })
 
+  test('connection tabs', async ({ shell }) => {
+    const { page } = shell
+    await page.goto('/')
+    for (const name of ['Production', 'Backup']) {
+      await page.getByRole('button', { name: 'New site' }).click()
+      const dialog = page.getByRole('dialog', { name: 'New site' })
+      await dialog.getByLabel('Name', { exact: true }).fill(`${name} ${Date.now()}`)
+      await dialog.getByLabel('Host', { exact: true }).fill('sftp')
+      await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+      await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+      await dialog.getByRole('button', { name: 'Create site' }).click()
+      await expect(dialog).toBeHidden()
+    }
+    await page.getByRole('treeitem', { name: /^Production/ }).first().click()
+    await page.getByRole('treeitem', { name: /^Backup/ }).first().click({ modifiers: ['ControlOrMeta'] })
+    await page.getByRole('grid', { name: 'Files' }).waitFor()
+    await expect(page.getByRole('navigation', { name: 'Connection tabs' })).toBeVisible()
+    await page.waitForTimeout(500)
+    await shoot(page, '59-connection-tabs')
+  })
+
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }

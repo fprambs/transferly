@@ -12,6 +12,9 @@ import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { Toolbar } from '@/features/toolbar/Toolbar'
 import { useConnectionState } from '@/features/toolbar/connection-store'
 import { useDisconnect } from '@/features/toolbar/use-disconnect'
+import { TabBar } from '@/features/tabs/TabBar'
+import { useTabs } from '@/features/tabs/tabs-store'
+import { useGoToTab } from '@/features/tabs/use-go-to-tab'
 import { TopBar } from '@/features/topbar/TopBar'
 import { filesPrefix } from '@/features/explorer/files-key'
 import { useWorkspace } from '@/features/workspace/use-workspace'
@@ -35,8 +38,9 @@ function typing(target: EventTarget | null): boolean {
 /**
  * Application layout: top bar, sites panel, the toolbar above the explorer (on the start page and the sites, not on settings or
  * administration), and the transfer queue. The sites and transfers panels are resizable, remember their sizes in the browser, and collapse
- * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it, and closes the
- * connections of the site it replaces (4.11); a transfer running on them finishes first.
+ * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it: in the active tab,
+ * closing the connections of the site it replaces unless the second pane of another tab shows it (4.11, a transfer running on them finishes first), or in a new
+ * tab with Ctrl+click, a middle click or its menu; a site that has a tab already activates it (4.12).
  */
 export function AppShell() {
   const { t: explorer } = useTranslation('explorer')
@@ -48,8 +52,16 @@ export function AppShell() {
   const api = useApi()
   const queryClient = useQueryClient()
   const disconnectFrom = useDisconnect()
+  const goToTab = useGoToTab()
+  const deactivate = useTabs((state) => state.deactivate)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const explorerView = pathname === '/' || pathname.startsWith('/sites/')
+
+  useEffect(() => {
+    if (pathname === '/') {
+      deactivate()
+    }
+  }, [pathname, deactivate])
   const sitesOpen = useUiStore((state) => state.sitesOpen)
   const setSitesOpen = useUiStore((state) => state.setSitesOpen)
   const queueOpen = useUiStore((state) => state.queueOpen)
@@ -76,13 +88,21 @@ export function AppShell() {
     void disconnectFrom({ workspaceId: (workspace as Workspace).id, siteId })
   }
 
-  const open = (siteId: string): void => {
+  const open = (siteId: string, newTab = false): void => {
     reconnectSite(siteId)
+    const tabs = useTabs.getState()
+    const workspaceId = (workspace as Workspace).id
+    const existing = tabs.tabs.find((tab) => tab.workspaceId === workspaceId && tab.siteId === siteId)
+    if (existing !== undefined || newTab) {
+      goToTab(existing ?? tabs.openTab(workspaceId, siteId))
+      return
+    }
     const previous = match?.params.siteId
     void navigate({ to: '/sites/$siteId', params: { siteId }, search: { path: '/' } })
-    if (workspace !== undefined && previous !== undefined && previous !== siteId) {
-      queryClient.removeQueries({ queryKey: filesPrefix(workspace.id, previous) })
-      api.sites.disconnect(workspace.id, previous).catch(() => undefined)
+    const elsewhere = tabs.tabs.some((tab) => tab.id !== tabs.activeId && tab.workspaceId === workspaceId && tab.split === previous)
+    if (previous !== undefined && previous !== siteId && !elsewhere) {
+      queryClient.removeQueries({ queryKey: filesPrefix(workspaceId, previous) })
+      api.sites.disconnect(workspaceId, previous).catch(() => undefined)
     }
   }
 
@@ -99,6 +119,7 @@ export function AppShell() {
             <Panel id="main" minSize="30%" className="h-full">
               <main aria-label={explorer(($) => $.label)} className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto bg-background">
                 {explorerView && <Toolbar />}
+                {explorerView && <TabBar />}
                 <Outlet />
               </main>
             </Panel>

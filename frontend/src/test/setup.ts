@@ -3,6 +3,8 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 
+import { useTabs } from '@/features/tabs/tabs-store'
+
 import { FakeSocket } from './fake-socket'
 import { server } from './msw'
 
@@ -50,6 +52,7 @@ const emptyRects: DOMRectList = Object.assign([] as DOMRect[], { item: () => nul
 Range.prototype.getClientRects = () => emptyRects
 
 beforeEach(() => {
+  useTabs.setState({ tabs: [], activeId: null })
   FakeSocket.reset()
   vi.stubGlobal('WebSocket', FakeSocket)
 })

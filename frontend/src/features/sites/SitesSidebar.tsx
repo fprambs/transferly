@@ -29,8 +29,8 @@ interface CollectionActions {
   selected: string | null
   /** Called when a row is selected. */
   onSelect: (key: string) => void
-  /** Called to open a saved site or a quick connection. */
-  onOpen: (siteId: string) => void
+  /** Called to open a saved site or a quick connection, in a new tab when asked to. */
+  onOpen: (siteId: string, newTab?: boolean) => void
   /** Called when a collection is opened or closed. */
   onToggle: (id: string) => void
   /** Called to create a collection inside another. */
@@ -98,10 +98,21 @@ function Row({ node, actions }: RowProps) {
   const { t } = useTranslation('shell')
   const { t: sites } = useTranslation('sites')
   const selected = actions.selected === rowKey(node)
-  const select = () => {
+  const select = (newTab = false) => {
     actions.onSelect(rowKey(node))
     if (node.kind !== 'collection') {
-      actions.onOpen(node.id)
+      actions.onOpen(node.id, newTab)
+    }
+  }
+  const click = (event: MouseEvent<HTMLElement>): void => {
+    if (inRow(event)) {
+      select(event.ctrlKey || event.metaKey)
+    }
+  }
+  const middle = (event: MouseEvent<HTMLElement>): void => {
+    if (event.button === 1 && inRow(event)) {
+      event.preventDefault()
+      select(true)
     }
   }
   const style = { paddingInlineStart: `${node.depth * indentPerLevel + 8}px` }
@@ -155,7 +166,8 @@ function Row({ node, actions }: RowProps) {
         aria-level={1}
         aria-selected={selected}
         tabIndex={0}
-        onClick={select}
+        onClick={click}
+        onAuxClick={middle}
         onKeyDown={(event) => onSelectKey(event, select)}
         className={cn(base, 'italic')}
         style={style}
@@ -174,7 +186,8 @@ function Row({ node, actions }: RowProps) {
       aria-level={node.depth + 1}
       aria-selected={selected}
       tabIndex={0}
-      onClick={(event) => inRow(event) && select()}
+      onClick={click}
+      onAuxClick={middle}
       onKeyDown={(event) => onSelectKey(event, select)}
       className={cn(base, 'group')}
       style={style}
@@ -192,6 +205,7 @@ function Row({ node, actions }: RowProps) {
           <Ellipsis className="size-3.5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-40">
+          <DropdownMenuItem onClick={() => actions.onOpen(node.id, true)}>{sites(($) => $.site.openInNewTab)}</DropdownMenuItem>
           {actions.connected.has(node.id) && <DropdownMenuItem onClick={() => actions.onDisconnect(node.id)}>{sites(($) => $.site.disconnect)}</DropdownMenuItem>}
           <DropdownMenuItem onClick={() => actions.onEditSite(node.id)}>{sites(($) => $.site.edit)}</DropdownMenuItem>
           <DropdownMenuItem onClick={() => actions.onDeleteSite(node.id)}>{sites(($) => $.site.delete)}</DropdownMenuItem>
@@ -206,7 +220,7 @@ function ConnectedDot() {
   const { t } = useTranslation('shell')
   return (
     <span className="mx-[3px] size-2 shrink-0 rounded-full bg-ok ring-3 ring-ok/20">
-      <span className="sr-only">{t(($) => $.sidebar.connected)}</span>
+      <span className="sr-only">{t(($) => $.sidebar.connected)} </span>
     </span>
   )
 }
@@ -218,8 +232,8 @@ function toggled(open: ReadonlySet<string>, id: string): ReadonlySet<string> {
 
 /** Props of {@link SitesSidebar}. */
 export interface SitesSidebarProps {
-  /** Called with the identifier of the saved site or quick connection the user opens. */
-  onOpen: (siteId: string) => void
+  /** Called with the identifier of the saved site or quick connection the user opens, in a new tab when asked to. */
+  onOpen: (siteId: string, newTab?: boolean) => void
   /** Hides the sites panel; without it, the sidebar offers no way to hide itself, as when it is shown in a sheet. */
   onHide?: () => void
   /** Closes the connections of a site, offered in the menu of a connected site. */

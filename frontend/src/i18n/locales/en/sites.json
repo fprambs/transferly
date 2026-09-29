@@ -199,7 +199,8 @@
         "cost": "This key asks for more work to open than Sentinel allows. Save it again with the default settings."
       }
     },
-    "disconnect": "Disconnect"
+    "disconnect": "Disconnect",
+    "openInNewTab": "Open in a new tab"
   },
   "import": {
     "open": "Import from FileZilla",

@@ -272,5 +272,10 @@
     "log": "Resize the log panel",
     "split": "Resize the panes",
     "details": "Resize the details panel"
+  },
+  "tabs": {
+    "label": "Connection tabs",
+    "close": "Close {{name}}",
+    "connected": "Connected"
   }
 }

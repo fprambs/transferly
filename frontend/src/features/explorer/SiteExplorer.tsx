@@ -15,6 +15,7 @@ import { useLocalRoot } from '../local/local-root-store'
 import { useSitesData } from '../sites/use-sites-data'
 import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
+import { useTabs } from '../tabs/tabs-store'
 import { useConnectionState } from '../toolbar/connection-store'
 import { useWorkspace } from '../workspace/use-workspace'
 
@@ -44,11 +45,17 @@ export function SiteExplorer() {
   const panes = useDefaultLayout({ id: 'sentinel-split', panelIds: split === undefined ? ['left'] : ['left', 'right'], storage: layoutStorage })
   const workspaceId = workspace?.id
 
+  const follow = useTabs((state) => state.follow)
+  const selectInTab = useTabs((state) => state.select)
+  const active = useTabs((state) => state.tabs.find((candidate) => candidate.id === state.activeId))
+  const tab = active?.siteId === siteId && active.workspaceId === workspaceId ? active : undefined
+
   useEffect(() => {
     if (workspaceId !== undefined) {
       focus({ workspaceId, siteId })
+      follow({ workspaceId, siteId, path, split, splitPath })
     }
-  }, [focus, workspaceId, siteId])
+  }, [focus, follow, workspaceId, siteId, path, split, splitPath])
 
   if (workspace === undefined) {
     return null
@@ -100,7 +107,10 @@ export function SiteExplorer() {
           <Group id="sentinel-split" className="min-h-0 flex-1" {...panes}>
             <Panel id="left" minSize="20%" className="flex h-full min-h-0 min-w-0 flex-col">
               <Explorer
+                key={`${workspace.id}/${siteId}`}
                 pane="main"
+                initialSelection={tab?.selection}
+                onSelectionChange={(selection) => tab !== undefined && selectInTab(tab.id, selection)}
                 workspaceId={workspace.id}
                 siteId={siteId}
                 path={path}

@@ -12,8 +12,8 @@ import { SitesSidebar } from './SitesSidebar'
 
 /** Props of {@link SitesRail}. */
 export interface SitesRailProps {
-  /** Called with the identifier of the saved site or quick connection the user opens. */
-  onOpen: (siteId: string) => void
+  /** Called with the identifier of the saved site or quick connection the user opens, in a new tab when asked to. */
+  onOpen: (siteId: string, newTab?: boolean) => void
   /** Closes the connections of a site, from its menu in the sheet. */
   onDisconnect: (siteId: string) => void
 }
@@ -47,9 +47,9 @@ export function SitesRail({ onOpen, onDisconnect }: SitesRailProps) {
       </Tip>
       <Sheet open={browsing} onOpenChange={setBrowsing} title={t(($) => $.sidebar.sites)}>
         <SitesSidebar
-          onOpen={(siteId) => {
+          onOpen={(siteId, newTab) => {
             setBrowsing(false)
-            onOpen(siteId)
+            onOpen(siteId, newTab)
           }}
           onDisconnect={onDisconnect}
         />
