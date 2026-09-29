@@ -115,6 +115,7 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
   const match = useMatch({ from: '/shell/sites/$siteId', shouldThrow: false })
   const bookmarkedSite = sites.find((site) => site.id === target?.siteId)
   const bookmarks = useBookmarks(workspace?.id ?? '', bookmarkedSite?.id ?? '', open && bookmarkedSite !== undefined)
+  const bookmarkList = bookmarks.data ?? []
   const names = new Map([...sites, ...quick].map((connection) => [connection.id, connection.name]))
 
   useEffect(() => {
@@ -179,9 +180,9 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
                 })}
               </Command.Group>
             )}
-            {bookmarkedSite !== undefined && (bookmarks.data ?? []).length > 0 && (
+            {bookmarkedSite !== undefined && bookmarkList.length > 0 && (
               <Command.Group heading={t(($) => $.palette.groups.bookmarks, { site: bookmarkedSite.name })}>
-                {(bookmarks.data ?? []).map((bookmark) => (
+                {bookmarkList.map((bookmark) => (
                   <Item key={bookmark.id} value={`bookmark-${bookmark.id}`} keywords={[bookmark.name, bookmark.path]} icon={Bookmark} iconClassName="text-warn" label={bookmark.name} detail={bookmark.path} onSelect={run(() => openBookmark(bookmark.path))} />
                 ))}
               </Command.Group>

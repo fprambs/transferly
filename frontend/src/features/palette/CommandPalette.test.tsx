@@ -182,11 +182,17 @@ describe('command palette', () => {
 
   it('finds a site by its host and opens it', async () => {
     mockServer()
+    mockWorkspaceData({
+      sites: [site('s1', 'Prod'), site('s2', 'Backup')],
+      connected: ['s2'],
+      quick: [{ id: 'q1', name: '198.51.100.7', protocol: 'sftp', host: '198.51.100.7', port: 22, username: 'deploy', authMethod: 'password', listTimezone: 'UTC', charset: 'utf-8', createdAt: '2026-01-01T00:00:00Z' }],
+    })
     const user = userEvent.setup()
     const { history } = await renderApp({ path: '/' })
     const palette = await openPalette()
 
     expect(await option(palette, /Backup.*Connected/)).toBeInTheDocument()
+    expect(await option(palette, /198\.51\.100\.7/)).toBeInTheDocument()
     await user.type(within(palette).getByRole('combobox'), 's1.example')
     await user.click(await option(palette, /Prod/))
     await waitFor(() => expect(history.location.pathname).toBe('/sites/s1'))
