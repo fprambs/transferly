@@ -21,6 +21,7 @@ function unique(prefix: string): string {
  * - the menu opens below its button, or above it when there is no room, and the dialogs it opens are centered in the window
  * - rows show a pointer, a visible hover shade and a selected state, and menu items highlight under the pointer
  * - a site is created inside a collection with a speed limit, a proxy and a jump host, all of which are kept, and edited from its menu
+ * - a site is dragged into a collection and back to the top level of the tree, and the server keeps each move (4.14h)
  */
 test.describe('sites sidebar', () => {
   test('creates a collection', async ({ shell }) => {
@@ -147,5 +148,31 @@ test.describe('sites sidebar', () => {
     await expect(edit.getByLabel('Jump username')).toHaveValue('bastion')
     const editBox = (await edit.boundingBox())!
     expect(Math.abs(editBox.x + editBox.width / 2 - viewport.width / 2)).toBeLessThan(4)
+  })
+
+  test('moves a site between collections by dragging it', async ({ shell, request }) => {
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
+    const headers = { 'X-CSRF-Token': me.csrfToken }
+    const collection = unique('Drop here')
+    const name = unique('Dragged')
+    const made = (await (await request.post(`/api/v1/workspaces/${workspace}/collections`, { headers, data: { name: collection } })).json()) as { id: string }
+    const created = (await (await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+      headers,
+      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+    })).json()) as { id: string }
+    await page.reload()
+    const siteRow = page.getByRole('treeitem', { name: new RegExp(name) })
+    const collectionRow = page.getByRole('treeitem', { name: new RegExp(collection) })
+
+    await siteRow.dragTo(collectionRow)
+    await expect(collectionRow).toHaveAttribute('aria-expanded', 'true')
+    await expect(siteRow).toHaveAttribute('aria-level', '2')
+    const inside = (await (await request.get(`/api/v1/workspaces/${workspace}/sites/${created.id}`)).json()) as { collectionId?: string }
+    expect(inside.collectionId).toBe(made.id)
+
+    await siteRow.dragTo(page.getByRole('tree', { name: 'Sites' }), { targetPosition: { x: 20, y: 5 } })
+    await expect(siteRow).toHaveAttribute('aria-level', '1')
   })
 })
