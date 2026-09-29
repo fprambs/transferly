@@ -31,5 +31,40 @@
   "panels": {
     "sites": "Cambiar el tamaño del panel de sitios",
     "transfers": "Cambiar el tamaño del panel de transferencias"
+  },
+  "palette": {
+    "button": "Buscar o ejecutar un comando…",
+    "title": "Paleta de comandos",
+    "placeholder": "Busca sitios, pestañas, marcadores y comandos…",
+    "empty": "Ningún comando ni sitio coincide.",
+    "current": "Actual",
+    "show": "Mostrar {{panel}}",
+    "hide": "Ocultar {{panel}}",
+    "groups": {
+      "actions": "Acciones",
+      "tabs": "Pestañas",
+      "bookmarks": "Marcadores de {{site}}",
+      "sites": "Sitios",
+      "panels": "Paneles",
+      "pages": "Ir a"
+    },
+    "pages": {
+      "settings": "Ajustes",
+      "servers": "Servidores de confianza",
+      "members": "Miembros",
+      "audit": "Registro de auditoría",
+      "admin": "Administración"
+    },
+    "hints": {
+      "move": "para moverte",
+      "run": "para ejecutar",
+      "close": "para cerrar"
+    },
+    "panelNames": {
+      "sites": "el panel de sitios",
+      "log": "el panel del registro",
+      "details": "el panel de detalles",
+      "transfers": "el panel de transferencias"
+    }
   }
 }

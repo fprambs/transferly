@@ -18,6 +18,7 @@ import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quic
 import { useSitesData } from '../sites/use-sites-data'
 
 import { BookmarksBar } from '../bookmarks/BookmarksBar'
+import { focusFilterEvent } from '../palette/focus-filter'
 import { BookmarksMenu } from '../bookmarks/BookmarksMenu'
 import { Breadcrumbs } from './Breadcrumbs'
 import { TimeZoneProbe } from './TimeZoneProbe'
@@ -137,8 +138,15 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         filterField.current.focus()
       }
     }
+    const onAsk = (): void => {
+      window.setTimeout(() => (filterField.current as HTMLInputElement).focus())
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener(focusFilterEvent, onAsk)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener(focusFilterEvent, onAsk)
+    }
   }, [pane])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const savedSite = sites.find((saved) => saved.id === siteId)

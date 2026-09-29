@@ -6,6 +6,7 @@ import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLa
 import type { Workspace } from '@/lib/api'
 import { useUiStore } from '@/state/ui-store'
 
+import { CommandPalette } from '@/features/palette/CommandPalette'
 import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { Toolbar } from '@/features/toolbar/Toolbar'
 import { useConnectionState } from '@/features/toolbar/connection-store'
@@ -132,6 +133,7 @@ export function AppShell() {
         </Panel>
       </Group>
       <QuickConnectFlow />
+      <CommandPalette onOpenSite={open} />
     </div>
   )
 }

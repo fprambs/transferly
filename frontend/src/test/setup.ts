@@ -4,6 +4,7 @@ import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 
 import { useTabs } from '@/features/tabs/tabs-store'
+import { useDialogsStore } from '@/state/dialogs-store'
 
 import { FakeSocket } from './fake-socket'
 import { server } from './msw'
@@ -21,6 +22,9 @@ Object.defineProperty(window, 'matchMedia', {
 configure({ asyncUtilTimeout: 4000 })
 
 window.scrollTo = () => undefined
+
+/** jsdom lacks it and the command palette scrolls its selected item into view with it; nothing scrolls in unit tests. */
+Element.prototype.scrollIntoView ??= () => undefined
 
 /** jsdom lacks it and the resizable panels observe their groups with it; nothing is measured in unit tests, so it observes nothing. */
 class NoResizeObserver {
@@ -53,6 +57,7 @@ Range.prototype.getClientRects = () => emptyRects
 
 beforeEach(() => {
   useTabs.setState({ tabs: [], activeId: null })
+  useDialogsStore.setState({ quickConnectOpen: false, paletteOpen: false })
   FakeSocket.reset()
   vi.stubGlobal('WebSocket', FakeSocket)
 })

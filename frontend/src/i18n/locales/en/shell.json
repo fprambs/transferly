@@ -31,5 +31,40 @@
   "panels": {
     "sites": "Resize the sites panel",
     "transfers": "Resize the transfers panel"
+  },
+  "palette": {
+    "button": "Search or run a command…",
+    "title": "Command palette",
+    "placeholder": "Search sites, tabs, bookmarks and commands…",
+    "empty": "No command or site matches.",
+    "current": "Current",
+    "show": "Show {{panel}}",
+    "hide": "Hide {{panel}}",
+    "groups": {
+      "actions": "Actions",
+      "tabs": "Tabs",
+      "bookmarks": "Bookmarks of {{site}}",
+      "sites": "Sites",
+      "panels": "Panels",
+      "pages": "Go to"
+    },
+    "pages": {
+      "settings": "Settings",
+      "servers": "Trusted servers",
+      "members": "Members",
+      "audit": "Audit log",
+      "admin": "Administration"
+    },
+    "hints": {
+      "move": "to move",
+      "run": "to run",
+      "close": "to close"
+    },
+    "panelNames": {
+      "sites": "the sites panel",
+      "log": "the log panel",
+      "details": "the details panel",
+      "transfers": "the transfers panel"
+    }
   }
 }
