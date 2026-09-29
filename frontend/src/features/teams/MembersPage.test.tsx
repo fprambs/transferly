@@ -294,9 +294,13 @@ describe('members page', () => {
 
   it('shows the loading state while the invitations arrive', async () => {
     mockTeam()
+    let release: () => void = () => undefined
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
     server.use(
       http.get(`/api/v1/workspaces/${teamId}/invitations`, async () => {
-        await new Promise((resolve) => setTimeout(resolve, 1200))
+        await held
         return HttpResponse.json([])
       }),
     )
@@ -305,6 +309,7 @@ describe('members page', () => {
     await user.click(screen.getByRole('tab', { name: /Invitations/ }))
 
     expect(await screen.findByText('Loading invitations…')).toBeInTheDocument()
+    release()
     expect(await screen.findByText('No invitations are waiting.')).toBeInTheDocument()
   })
 

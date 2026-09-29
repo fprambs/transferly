@@ -32,6 +32,9 @@ function check(rule: (file: string, text: string) => Violation[]): string[] {
   })
 }
 
+/** How long each guard may take: it reads every source file, and the project keeps growing. */
+const guardTimeoutMs = 60_000
+
 /**
  * Repository-wide documentation guards for the frontend sources.
  *
@@ -42,9 +45,9 @@ function check(rule: (file: string, text: string) => Violation[]): string[] {
 describe('frontend documentation', () => {
   it('has no comments inside function bodies', () => {
     expect(check(findCommentsInsideBodies)).toEqual([])
-  })
+  }, guardTimeoutMs)
 
   it('documents every declaration', () => {
     expect(check(findUndocumentedDeclarations)).toEqual([])
-  })
+  }, guardTimeoutMs)
 })
