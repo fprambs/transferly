@@ -54,6 +54,7 @@
     "doubleClick": "Doble clic en un archivo",
     "download": "Descargarlo",
     "edit": "Abrirlo en el editor",
-    "doubleClickHint": "Enter hace lo mismo. La otra acción sigue en el menú del clic derecho y en el panel de detalles."
+    "doubleClickHint": "Enter hace lo mismo. La otra acción sigue en el menú del clic derecho y en el panel de detalles.",
+    "saveFailed": "La elección se aplicó aquí, pero no se pudo guardar en tu cuenta."
   }
 }

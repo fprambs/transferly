@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -9,7 +9,7 @@ import { renderApp } from '@/test/render-app'
 import { useUiStore } from '@/state/ui-store'
 
 /**
- * Covers the settings page, {@link useThemeChoice} and {@link useAccountTheme}.
+ * Covers the settings page, {@link useThemeChoice}, {@link useFileDoubleClickChoice} and {@link useAccountPreferences}.
  *
  * Scenarios:
  * - the page lists every theme as a choice, with the current one checked
@@ -17,12 +17,14 @@ import { useUiStore } from '@/state/ui-store'
  * - following the system turns the theme choices off
  * - the account's theme wins when the session loads, unless it is not a theme this version knows
  * - the language changes from the page
- * - what a double click on a file does is chosen on the page
+ * - what a double click on a file does is chosen on the page and saved to the account; a failure to save is shown and the choice stays
+ * - the account's double click action wins when the session loads; the first time, a browser that chose the editor while the account has
+ *   the default moves that choice to the account, even if saving fails, and later the account alone decides
  * - the user menu opens the settings
  */
 describe('settings', () => {
   beforeEach(() => {
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false })
+    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, fileDoubleClick: 'download', fileDoubleClickSynced: true })
     mockSession(adminSession)
     mockWorkspaceData()
     mockSecurity()
@@ -106,7 +108,8 @@ describe('settings', () => {
     expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
   })
 
-  it('chooses what a double click on a file does', async () => {
+  it('chooses what a double click on a file does and saves it to the account', async () => {
+    const saved = mockUpdateMe()
     const user = userEvent.setup()
     await renderApp({ path: '/settings' })
 
@@ -116,6 +119,60 @@ describe('settings', () => {
     expect(useUiStore.getState().fileDoubleClick).toBe('edit')
     await user.selectOptions(select, 'download')
     expect(useUiStore.getState().fileDoubleClick).toBe('download')
+    await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit' }, { fileDoubleClick: 'download' }]))
+  })
+
+  it('keeps the double click choice and says so when saving fails', async () => {
+    server.use(http.patch('/api/v1/me', () => problem(500, 'internal')))
+    const user = userEvent.setup()
+    await renderApp({ path: '/settings' })
+
+    await user.selectOptions(await screen.findByLabelText('Double click on a file'), 'edit')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The choice applies here, but it could not be saved to your account.')
+    expect(useUiStore.getState().fileDoubleClick).toBe('edit')
+  })
+
+  it('takes the double click action of the account when the session loads', async () => {
+    const saved = mockUpdateMe()
+    mockSession({ ...adminSession, user: { ...adminSession.user, fileDoubleClick: 'edit' } })
+
+    await renderApp({ path: '/settings' })
+
+    await waitFor(() => expect(useUiStore.getState().fileDoubleClick).toBe('edit'))
+    expect(screen.getByLabelText('Double click on a file')).toHaveValue('edit')
+    expect(saved).toEqual([])
+  })
+
+  it('moves a choice made in this browser to the account the first time, then follows the account', async () => {
+    const saved = mockUpdateMe()
+    useUiStore.setState({ fileDoubleClick: 'edit', fileDoubleClickSynced: false })
+    await renderApp({ path: '/settings' })
+
+    await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit' }]))
+    expect(useUiStore.getState()).toMatchObject({ fileDoubleClick: 'edit', fileDoubleClickSynced: true })
+    cleanup()
+
+    useUiStore.setState({ fileDoubleClick: 'edit' })
+    await renderApp({ path: '/settings' })
+    await waitFor(() => expect(useUiStore.getState().fileDoubleClick).toBe('download'))
+    expect(saved).toHaveLength(1)
+  })
+
+  it('keeps the choice of this browser when moving it to the account fails', async () => {
+    let attempts = 0
+    server.use(
+      http.patch('/api/v1/me', () => {
+        attempts++
+        return problem(500, 'internal')
+      }),
+    )
+    useUiStore.setState({ fileDoubleClick: 'edit', fileDoubleClickSynced: false })
+
+    await renderApp({ path: '/settings' })
+
+    await waitFor(() => expect(attempts).toBe(1))
+    expect(useUiStore.getState()).toMatchObject({ fileDoubleClick: 'edit', fileDoubleClickSynced: true })
   })
 
   it('opens from the user menu', async () => {

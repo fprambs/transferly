@@ -54,6 +54,7 @@
     "doubleClick": "Double click on a file",
     "download": "Download it",
     "edit": "Open it in the editor",
-    "doubleClickHint": "Enter does the same. The other action stays in the right-click menu and in the details panel."
+    "doubleClickHint": "Enter does the same. The other action stays in the right-click menu and in the details panel.",
+    "saveFailed": "The choice applies here, but it could not be saved to your account."
   }
 }

@@ -21,7 +21,7 @@ import { useWorkspace } from '@/features/workspace/use-workspace'
 import { SitesRail } from '@/features/sites/SitesRail'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import { TransfersDock } from '@/features/transfers/TransfersDock'
-import { useAccountTheme } from '@/features/settings/use-account-theme'
+import { useAccountPreferences } from '@/features/settings/use-account-preferences'
 import { useTransferStream } from '@/features/transfers/use-transfer-stream'
 
 /** Height of the transfers panel while collapsed: its header, which keeps the button that opens it again. */
@@ -71,7 +71,7 @@ export function AppShell() {
   const outer = useDefaultLayout({ id: 'sentinel-shell', storage: layoutStorage })
   const inner = useDefaultLayout({ id: 'sentinel-work', storage: layoutStorage })
   useTransferStream()
-  useAccountTheme()
+  useAccountPreferences()
 
   useEffect(() => {
     const toggle = (event: KeyboardEvent): void => {

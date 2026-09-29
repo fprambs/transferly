@@ -8,16 +8,17 @@ import { useUiStore } from '@/state/ui-store'
 import { SecuritySection } from '../security/SecuritySection'
 
 import { ThemeList } from './ThemeList'
+import { useFileDoubleClickChoice } from './use-file-double-click-choice'
 import { useThemeChoice } from './use-theme-choice'
 
-/** Settings of the interface: the theme, following the system, the language, and what a double click on a file does. */
+/** Settings of the interface: the theme, following the system, the language, and what a double click on a file does; the theme and the double click are kept with the account. */
 export function SettingsPage() {
   const { t, i18n } = useTranslation('settings')
   const { t: common } = useTranslation()
   const followSystem = useUiStore((state) => state.followSystem)
   const setFollowSystem = useUiStore((state) => state.setFollowSystem)
   const fileDoubleClick = useUiStore((state) => state.fileDoubleClick)
-  const setFileDoubleClick = useUiStore((state) => state.setFileDoubleClick)
+  const doubleClick = useFileDoubleClickChoice()
   const { choose, saveFailed } = useThemeChoice()
 
   return (
@@ -68,11 +69,16 @@ export function SettingsPage() {
         <label htmlFor="file-double-click-setting" className="text-sm text-muted-foreground">
           {t(($) => $.explorer.doubleClick)}
         </label>
-        <NativeSelect id="file-double-click-setting" value={fileDoubleClick} onChange={(event) => setFileDoubleClick(event.target.value === 'edit' ? 'edit' : 'download')}>
+        <NativeSelect id="file-double-click-setting" value={fileDoubleClick} onChange={(event) => void doubleClick.choose(event.target.value === 'edit' ? 'edit' : 'download')}>
           <option value="download">{t(($) => $.explorer.download)}</option>
           <option value="edit">{t(($) => $.explorer.edit)}</option>
         </NativeSelect>
         <p className="text-xs text-muted-foreground">{t(($) => $.explorer.doubleClickHint)}</p>
+        {doubleClick.saveFailed ? (
+          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {t(($) => $.explorer.saveFailed)}
+          </p>
+        ) : null}
       </section>
       <SecuritySection />
     </div>
