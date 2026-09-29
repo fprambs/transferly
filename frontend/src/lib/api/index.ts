@@ -264,6 +264,10 @@ export function createApi(transport: Transport) {
       remove: (workspaceId: string, siteId: string, bookmarkId: string) =>
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/bookmarks/${bookmarkId}` }),
     },
+    prompts: {
+      answer: (promptId: string, answers: string[]) => transport.request<void>({ method: 'POST', path: `${root}/prompts/${promptId}`, body: { answers } }),
+      cancel: (promptId: string) => transport.request<void>({ method: 'DELETE', path: `${root}/prompts/${promptId}` }),
+    },
     hostKeys: {
       list: (workspaceId: string) => transport.request<KnownHost[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/known-hosts` }),
       trust: (workspaceId: string, key: { host: string; port: number; keyType: string; fingerprint: string; mode?: HostKeyTrustMode }) =>

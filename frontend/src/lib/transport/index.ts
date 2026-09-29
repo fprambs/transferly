@@ -7,6 +7,8 @@ export {
   type ApiQuery,
   type ApiRequest,
   type ConnectionLogEntry,
+  type ConnectionPrompt,
+  type PromptQuestion,
   type EventHandlers,
   type ServerEvent,
   type TransferRecord,

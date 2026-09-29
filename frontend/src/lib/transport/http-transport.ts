@@ -168,7 +168,7 @@ export class HttpTransport implements Transport {
 }
 
 /** Event types the server sends. */
-const eventTypes = ['snapshot', 'transfer.state', 'transfer.progress', 'vault.locked', 'connection.log', 'connection.state']
+const eventTypes = ['snapshot', 'transfer.state', 'transfer.progress', 'vault.locked', 'connection.log', 'connection.state', 'connection.prompt', 'connection.prompt_closed']
 
 /** Builds the address of the event stream: `ws` or `wss` to match the page, or the base URL. */
 function eventsUrl(baseUrl: string): string {

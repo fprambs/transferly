@@ -128,6 +128,8 @@ describe('createApi', () => {
     { name: 'sites.create', call: (a) => a.sites.create(ws, { name: 'S', protocol: 'sftp', host: 'h', username: 'u' }), method: 'POST', path: `/api/v1/workspaces/${ws}/sites`, body: { name: 'S', protocol: 'sftp', host: 'h', username: 'u' } },
     { name: 'sites.update', call: (a) => a.sites.update(ws, site, { name: 'S', protocol: 'sftp', host: 'h', username: 'u' }), method: 'PUT', path: `/api/v1/workspaces/${ws}/sites/${site}`, body: { name: 'S', protocol: 'sftp', host: 'h', username: 'u' } },
     { name: 'sites.remove', call: (a) => a.sites.remove(ws, site), method: 'DELETE', path: `/api/v1/workspaces/${ws}/sites/${site}` },
+    { name: 'prompts.answer', call: (a) => a.prompts.answer('p1', ['secret', '123456']), method: 'POST', path: '/api/v1/prompts/p1', body: { answers: ['secret', '123456'] } },
+    { name: 'prompts.cancel', call: (a) => a.prompts.cancel('p1'), method: 'DELETE', path: '/api/v1/prompts/p1' },
     { name: 'hostKeys.list', call: (a) => a.hostKeys.list(ws), method: 'GET', path: `/api/v1/workspaces/${ws}/known-hosts` },
     { name: 'hostKeys.trust', call: (a) => a.hostKeys.trust(ws, { host: 'h', port: 22, keyType: 'ssh-ed25519', fingerprint: 'SHA256:x' }), method: 'POST', path: `/api/v1/workspaces/${ws}/known-hosts`, body: { host: 'h', port: 22, keyType: 'ssh-ed25519', fingerprint: 'SHA256:x' } },
     { name: 'hostKeys.forget', call: (a) => a.hostKeys.forget(ws, { host: 'h', port: 22, keyType: 'ssh-ed25519' }), method: 'DELETE', path: `/api/v1/workspaces/${ws}/known-hosts`, query: '?host=h&port=22&keyType=ssh-ed25519' },

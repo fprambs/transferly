@@ -10,6 +10,7 @@ import { renderWithProviders } from '@/test/render'
 
 import { useUiStore } from '@/state/ui-store'
 import { logKey, useConnectionLog } from '../connlog/connection-log-store'
+import { usePrompts } from '../prompts/prompts-store'
 import { useOpenConnections } from '../sites/use-open-connections'
 import { useVaultStatus } from '../vault/use-vault'
 
@@ -67,6 +68,7 @@ async function renderProbe() {
  * - snapshots and state events add transfers and progress events update them
  * - a copy between sites that ends reloads the folder listings of its workspace, and other transfers and states do not
  * - a vault lock event refreshes the vault state
+ * - a prompt of an interactive site waits for an answer until the server says it closed (ADR-0016)
  * - connection state events keep the connected sites of their workspace current, and opening the stream reloads them
  * - a transfer that starts opens a closed queue on its active tab, while updates of a running one, finished ones and progress leave it as the user set it
  * - a dropped stream reconnects after a growing wait that is capped, and the wait starts again after a successful open
@@ -176,6 +178,16 @@ describe('useTransferStream', () => {
     act(() => FakeSocket.opened[0].emit('connection.log', entry))
 
     expect(useConnectionLog.getState().lines[logKey('w1', 's1')]).toEqual([expect.objectContaining({ step: 'connected', params: { address: '10.0.0.1:22' } })])
+  })
+
+  it('queues the prompts of the stream until they close', async () => {
+    await renderProbe()
+    const prompt = { id: 'p1', workspaceId: 'w1', siteId: 's1', name: '', instruction: '', questions: [{ text: 'Password:', echo: false }] }
+
+    act(() => FakeSocket.opened[0].emit('connection.prompt', prompt))
+    expect(usePrompts.getState().waiting).toEqual([prompt])
+    act(() => FakeSocket.opened[0].emit('connection.prompt_closed', { id: 'p1' }))
+    expect(usePrompts.getState().waiting).toEqual([])
   })
 
   it('keeps the connected sites current and reloads them whenever the stream opens', async () => {

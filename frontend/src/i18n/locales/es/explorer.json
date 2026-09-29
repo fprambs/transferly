@@ -228,7 +228,9 @@
       "password": "contraseña",
       "key": "archivo de clave",
       "ask": "contraseña pedida al conectar",
-      "anonymous": "anónimo"
+      "anonymous": "anónimo",
+      "account": "contraseña y cuenta",
+      "interactive": "interactivo"
     },
     "steps": {
       "connecting": {
@@ -250,6 +252,10 @@
         "certificate": "El certificado del servidor cambió: {{fingerprint}}. Se rechazó la conexión."
       },
       "plain_text": "El servidor no ofrece TLS: se sigue en texto claro, contraseña incluida.",
+      "prompted": {
+        "named": "El servidor pregunta: {{name}}. Esperando tu respuesta…",
+        "plain": "El servidor pide una respuesta. Esperándola…"
+      },
       "authenticated": "Sesión iniciada como {{username}} ({{method}}).",
       "listing": "Listando {{path}}…",
       "listed": "Listado {{path}}: {{count}} elementos.",

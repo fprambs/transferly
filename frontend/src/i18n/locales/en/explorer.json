@@ -228,7 +228,9 @@
       "password": "password",
       "key": "key file",
       "ask": "password asked for",
-      "anonymous": "anonymous"
+      "anonymous": "anonymous",
+      "account": "password and account",
+      "interactive": "interactive"
     },
     "steps": {
       "connecting": {
@@ -250,6 +252,10 @@
         "certificate": "The server certificate changed: {{fingerprint}}. The connection was refused."
       },
       "plain_text": "The server offers no TLS: going on in clear text, the password included.",
+      "prompted": {
+        "named": "The server asks: {{name}}. Waiting for your answer…",
+        "plain": "The server asks for an answer. Waiting for it…"
+      },
       "authenticated": "Signed in as {{username}} ({{method}}).",
       "listing": "Listing {{path}}…",
       "listed": "Listed {{path}}: {{count}} entries.",

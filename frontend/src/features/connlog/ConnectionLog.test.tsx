@@ -34,8 +34,8 @@ function shown(): string[] {
  * Covers {@link ConnectionLog} and its store (ADR-0011).
  *
  * Scenarios:
- * - every step is written in words with its values: how a connection is reached, the key or certificate verdict, clear text, the account and
- *   its logon type, listings, and failures with the message of their code; jump host steps say so; unknown steps and logon types show as they came
+ * - every step is written in words with its values: how a connection is reached, the key or certificate verdict, clear text, what the server
+ *   asks, the account and its logon type, listings, and failures with the message of their code; jump host steps say so; unknown steps and logon types show as they came
  * - each site has its own log, which keeps its newest lines only, and the panel says when it is empty
  * - a connection that starts after the site was disconnected starts the log again, while one that starts after a failure keeps the failure
  * - lines of problems are colored, times use the clock of the browser, and the newest line stays in view unless the user scrolled up
@@ -61,6 +61,9 @@ describe('ConnectionLog', () => {
       entry('plain_text', {}, 'warn'),
       entry('authenticated', { method: 'key', username: 'deploy' }),
       entry('authenticated', { method: 'kerberos', username: 'deploy' }),
+      entry('prompted', { name: 'Two steps' }),
+      entry('prompted', { name: '' }),
+      entry('authenticated', { method: 'interactive', username: 'deploy' }),
       entry('listing', { path: '/srv' }),
       entry('listed', { path: '/srv', count: '4' }),
       entry('failed', { path: '/x', code: 'path_not_found' }, 'error'),
@@ -80,6 +83,9 @@ describe('ConnectionLog', () => {
       'The server offers no TLS: going on in clear text, the password included.',
       'Signed in as deploy (key file).',
       'Signed in as deploy (kerberos).',
+      'The server asks: Two steps. Waiting for your answer…',
+      'The server asks for an answer. Waiting for it…',
+      'Signed in as deploy (interactive).',
       'Listing /srv…',
       'Listed /srv: 4 entries.',
       expect.stringMatching(/^Failed: .+ \(path_not_found\)$/),

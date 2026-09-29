@@ -8,10 +8,10 @@ import type { LogLine } from './connection-log-store'
 const certificateKeyType = 'tls-certificate'
 
 /** Steps whose message the log knows; any other is shown by its code. */
-const knownSteps = ['connecting', 'connected', 'host_key_verified', 'host_key_unknown', 'host_key_changed', 'plain_text', 'authenticated', 'listing', 'listed', 'failed', 'canceled', 'disconnected'] as const
+const knownSteps = ['connecting', 'connected', 'host_key_verified', 'host_key_unknown', 'host_key_changed', 'plain_text', 'prompted', 'authenticated', 'listing', 'listed', 'failed', 'canceled', 'disconnected'] as const
 
 /** Logon types the log names; any other is shown as it came. */
-const knownMethods = ['password', 'key', 'ask', 'anonymous'] as const
+const knownMethods = ['password', 'key', 'ask', 'anonymous', 'account', 'interactive'] as const
 
 /** Writes the message of one line in the language of the interface. */
 export function messageOf(line: LogLine, t: TFunction<'explorer'>): string {
@@ -29,6 +29,9 @@ export function messageOf(line: LogLine, t: TFunction<'explorer'>): string {
     case 'host_key_unknown':
     case 'host_key_changed':
       text = t(($) => $.log.steps[step][params.keyType === certificateKeyType ? 'certificate' : 'key'], params)
+      break
+    case 'prompted':
+      text = t(($) => $.log.steps.prompted[params.name ? 'named' : 'plain'], params)
       break
     case 'authenticated': {
       const method = knownMethods.find((known) => known === params.method)

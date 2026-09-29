@@ -25,6 +25,30 @@ export interface ConnectionLogEntry {
   params: Record<string, string>
 }
 
+/** One question of a {@link ConnectionPrompt}. */
+export interface PromptQuestion {
+  /** The question as the server words it, such as "Verification code:". */
+  text: string
+  /** Whether the answer may be shown while typed; a password or a code is not. */
+  echo: boolean
+}
+
+/** What a server asks while an interactive site connects (ADR-0016), for the person connecting to answer. */
+export interface ConnectionPrompt {
+  /** Identifier to answer or decline it with. */
+  id: string
+  /** Workspace of the site. */
+  workspaceId: string
+  /** Site, or quick connection, that asks. */
+  siteId: string
+  /** The server's title of the challenge; may be empty. */
+  name: string
+  /** The server's explanation of the challenge; may be empty. */
+  instruction: string
+  /** The questions, answered in order. */
+  questions: PromptQuestion[]
+}
+
 /** A message of the server's event stream. */
 export type ServerEvent =
   | { type: 'snapshot'; data: { transfers: TransferRecord[] } }
@@ -33,6 +57,8 @@ export type ServerEvent =
   | { type: 'vault.locked'; data: null }
   | { type: 'connection.log'; data: ConnectionLogEntry }
   | { type: 'connection.state'; data: { workspaceId: string; siteId: string; open: boolean } }
+  | { type: 'connection.prompt'; data: ConnectionPrompt }
+  | { type: 'connection.prompt_closed'; data: { id: string } }
 
 /** What to do with the events of the server's stream and with the life of its connection. */
 export interface EventHandlers {

@@ -4,6 +4,7 @@ import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 
 import { useTabs } from '@/features/tabs/tabs-store'
+import { usePrompts } from '@/features/prompts/prompts-store'
 import { useDialogsStore } from '@/state/dialogs-store'
 
 import { FakeSocket } from './fake-socket'
@@ -58,6 +59,7 @@ Range.prototype.getClientRects = () => emptyRects
 beforeEach(() => {
   useTabs.setState({ tabs: [], activeId: null })
   useDialogsStore.setState({ quickConnectOpen: false, paletteOpen: false })
+  usePrompts.setState({ waiting: [] })
   FakeSocket.reset()
   vi.stubGlobal('WebSocket', FakeSocket)
 })

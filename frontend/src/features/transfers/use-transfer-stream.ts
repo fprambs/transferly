@@ -6,6 +6,7 @@ import { useApi } from '@/lib/api/use-api'
 import { useTransport, type ServerEvent, type TransferRecord } from '@/lib/transport'
 
 import { useConnectionLog } from '../connlog/connection-log-store'
+import { usePrompts } from '../prompts/prompts-store'
 import { openConnectionsKey, withState } from '../sites/use-open-connections'
 import { vaultKey } from '../vault/use-vault'
 
@@ -35,8 +36,8 @@ function startedNow(record: TransferRecord): boolean {
   return activeStatuses.includes(record.status) && (known === undefined || !activeStatuses.includes(known.record.status))
 }
 
-/** Applies an event of the stream to the transfer list, or to the connection log of its site; a vault lock is reported through
- * `onVaultLocked`. */
+/** Applies an event of the stream to the transfer list, to the connection log of its site, or to the prompts waiting for an answer; a vault
+ * lock is reported through `onVaultLocked`. */
 export function applyEvent(event: ServerEvent, onVaultLocked: () => void): void {
   const store = useTransfersStore.getState()
   if (event.type === 'snapshot') {
@@ -55,6 +56,10 @@ export function applyEvent(event: ServerEvent, onVaultLocked: () => void): void 
     store.progress(event.data.id, event.data.bytesDone, event.data.totalBytes, nowMs())
   } else if (event.type === 'connection.log') {
     useConnectionLog.getState().add(event.data)
+  } else if (event.type === 'connection.prompt') {
+    usePrompts.getState().add(event.data)
+  } else if (event.type === 'connection.prompt_closed') {
+    usePrompts.getState().close(event.data.id)
   } else if (event.type === 'vault.locked') {
     onVaultLocked()
   }
