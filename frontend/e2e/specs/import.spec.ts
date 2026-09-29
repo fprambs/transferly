@@ -94,7 +94,7 @@ test.describe('import and export sites', () => {
     await expect(dialog.getByText('Sentinel export, encrypted')).toBeVisible()
     await dialog.getByLabel('File password').fill('not the export password')
     await dialog.getByRole('button', { name: 'Preview' }).click()
-    await expect(dialog.getByRole('alert')).toHaveText('That password does not open the file, or the file was changed.')
+    await expect(dialog.getByRole('alert')).toContainText('That password does not open the file, or the file was changed.')
     await dialog.getByLabel('File password').fill('a long export password')
     await dialog.getByRole('button', { name: 'Preview' }).click()
     await expect(dialog.getByRole('listitem').filter({ hasText: name })).toContainText('Name already used')

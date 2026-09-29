@@ -51,6 +51,7 @@ test.describe('ask for password', () => {
     await dialog.getByLabel('Username').fill('sentinel')
     await dialog.getByLabel('Password').fill('not the password')
     await dialog.getByRole('button', { name: 'Connect' }).click()
-    await expect(dialog.getByRole('alert')).toHaveText('The server refused the username or password.')
+    await expect(dialog.getByRole('alert')).toContainText('The server refused the username or password.')
+    await expect(dialog.getByRole('alert')).toContainText('What to do')
   })
 })
