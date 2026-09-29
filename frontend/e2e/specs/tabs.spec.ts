@@ -18,7 +18,7 @@ async function saveSite(page: Page, name: string): Promise<void> {
  * Connection tabs (4.12) against the SFTP server of the isolated stack.
  *
  * Scenarios:
- * - Ctrl+click opens a site in a new tab next to the one open, both stay connected, and clicking a tab goes back to its site and folder
+ * - Ctrl with a double click opens a site in a new tab next to the one open, both stay connected, and clicking a tab goes back to its site and folder
  * - the tabs and the active one come back after a reload
  * - closing the active tab shows the other one and disconnects its site, whose green dot goes out
  */
@@ -32,10 +32,10 @@ test.describe('connection tabs', () => {
     await saveSite(page, second)
     const grid = page.getByRole('grid', { name: 'Files' })
 
-    await page.getByRole('treeitem', { name: new RegExp(first) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(first) }).dblclick()
     await grid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(page).toHaveURL(/path=%2Fupload/)
-    await page.getByRole('treeitem', { name: new RegExp(second) }).click({ modifiers: ['ControlOrMeta'] })
+    await page.getByRole('treeitem', { name: new RegExp(second) }).dblclick({ modifiers: ['ControlOrMeta'] })
     await expect(grid.getByRole('row', { name: /upload/ })).toBeVisible()
     const tabs = page.getByRole('navigation', { name: 'Connection tabs' })
     await expect(tabs.getByRole('button', { name: new RegExp(`^(Connected\\s*)?${first}$`) })).toBeVisible()

@@ -22,7 +22,7 @@ test.describe('connection log', () => {
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const log = page.getByRole('list', { name: 'Connection log' })
     await expect(log.getByText(/^Listed \/: \d+ entries\.$/)).toBeVisible()
     const lines = await log.getByRole('listitem').locator('span').allTextContents()
@@ -37,7 +37,7 @@ test.describe('connection log', () => {
 
     await page.getByRole('button', { name: 'Disconnect from the server' }).click()
     await expect(page).toHaveURL(/\/$/)
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     await expect(log.getByText(/^Listed \/: \d+ entries\.$/)).toBeVisible()
     const again = await log.getByRole('listitem').locator('span').allTextContents()
     expect(again[0]).toBe('Connecting to sftp:22…')
@@ -57,7 +57,7 @@ test.describe('connection log', () => {
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const warning = page.getByRole('list', { name: 'Connection log' }).getByText('The server offers no TLS: going on in clear text, the password included.')
     await expect(warning).toBeVisible()
     await expect(warning.locator('..')).toHaveClass(/text-warn/)

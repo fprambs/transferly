@@ -62,7 +62,7 @@ test.describe('explorer', () => {
 
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
-    await page.getByRole('treeitem', { name: /sftp/ }).last().click()
+    await page.getByRole('treeitem', { name: /sftp/ }).last().dblclick()
     await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
   })
 

@@ -25,7 +25,7 @@ test.describe('anonymous sftp', () => {
     const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; authMethod: string; username: string; secrets: string[] }>
     expect(sites.find((site) => site.name === name)).toMatchObject({ authMethod: 'anonymous', username: 'anonymous', secrets: [] })
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.getByRole('row', { name: /pub/ }).dblclick()
     await expect(grid.getByRole('row', { name: /readme\.txt/ })).toBeVisible()

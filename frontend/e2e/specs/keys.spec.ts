@@ -32,7 +32,7 @@ test.describe('key files', () => {
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 })

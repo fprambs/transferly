@@ -57,7 +57,7 @@ test.describe('changed host keys', () => {
 
     await trustStranger()
     await page.reload()
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const warning = page.getByRole('alert').filter({ hasText: 'The server key is not the one you trusted' })
     await expect(warning).toBeVisible()
     await expect(warning.getByText(stranger)).toBeVisible()
@@ -75,7 +75,7 @@ test.describe('changed host keys', () => {
 
     await trustStranger()
     await page.goto('/')
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     await page.getByRole('button', { name: 'Replace the trusted keys' }).click()
     await expect(grid.getByRole('row', { name: /upload/ })).toBeVisible()
     expect(await trusted()).toEqual([real.fingerprint])

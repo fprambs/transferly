@@ -27,7 +27,7 @@ test.describe('ask for password', () => {
     const saved = sites.find((site) => site.name === name)
     expect(saved).toMatchObject({ authMethod: 'ask', secrets: [] })
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const ask = page.getByRole('dialog', { name: 'Enter the password' })
     await expect(ask).toContainText(name)
     await expect(ask).toContainText('sentinel')

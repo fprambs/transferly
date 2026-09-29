@@ -33,11 +33,11 @@ test.describe('connection state', () => {
     const firstRow = page.getByRole('treeitem', { name: new RegExp(first) })
     const secondRow = page.getByRole('treeitem', { name: new RegExp(second) })
 
-    await firstRow.click()
+    await firstRow.dblclick()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
     await expect(firstRow.getByText('Connected')).toHaveCount(1)
 
-    await secondRow.click()
+    await secondRow.dblclick()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
     await expect(secondRow.getByText('Connected')).toHaveCount(1)
     await expect(firstRow.getByText('Connected')).toHaveCount(0)

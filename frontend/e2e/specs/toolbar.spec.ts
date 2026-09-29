@@ -21,7 +21,7 @@ test.describe('toolbar', () => {
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const toolbar = page.getByRole('toolbar', { name: 'Toolbar' })
     const log = page.getByRole('list', { name: 'Connection log' })
     await expect(log.getByText(/^Listed \//)).toHaveCount(1)
@@ -36,7 +36,7 @@ test.describe('toolbar', () => {
     await page.reload()
     await expect(page.getByRole('grid', { name: 'Files' })).toHaveCount(0)
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 })

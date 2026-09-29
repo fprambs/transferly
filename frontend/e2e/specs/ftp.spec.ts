@@ -45,7 +45,7 @@ test.describe('ftp and ftps', () => {
 
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
-    await page.getByRole('treeitem', { name: /^ftp not saved/ }).first().click()
+    await page.getByRole('treeitem', { name: /^ftp not saved/ }).first().dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })
     const upload = grid.getByRole('row', { name: /upload/ })
     await expect(upload).toBeVisible()
@@ -68,7 +68,7 @@ test.describe('ftp and ftps', () => {
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.getByRole('row', { name: /pub/ }).dblclick()
     await expect(grid.getByRole('row', { name: /readme\.txt/ })).toBeVisible()
@@ -89,7 +89,7 @@ test.describe('ftp and ftps', () => {
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
-    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     await expect(page.getByText('tls-certificate')).toBeVisible()
     await page.getByRole('button', { name: 'Trust and connect' }).click()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
@@ -106,7 +106,7 @@ test.describe('ftp and ftps', () => {
     await page.getByRole('button', { name: 'Trust and connect' }).click()
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
-    await page.getByRole('treeitem', { name: /^ftps not saved/ }).click()
+    await page.getByRole('treeitem', { name: /^ftps not saved/ }).dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(page).toHaveURL(/path=%2Fupload$/)
