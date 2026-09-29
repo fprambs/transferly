@@ -44,6 +44,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the site dialog on its General and Advanced tabs, with an anonymous FTP site and a site that asks for its password, and that site asking for it
  * - the warning of a server key other than the trusted one, with add, replace and cancel
  * - the bookmarks of a saved site as chips in the toolbar, and their menu
+ * - a toolbar button under the pointer
  * - a folder with many files, with the transfers panel still in view
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
@@ -607,6 +608,15 @@ test.describe('screenshots', () => {
     await page.getByRole('menuitem', { name: /Nginx logs/ }).waitFor()
     await page.waitForTimeout(400)
     await shoot(page, '62-site-bookmarks-menu')
+  })
+
+  test('buttons under the pointer', async ({ shell, quickId }) => {
+    const { page } = shell
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    await page.getByRole('grid', { name: 'Files' }).waitFor()
+    await page.getByRole('button', { name: 'New folder' }).hover()
+    await page.waitForTimeout(300)
+    await shoot(page, '63-button-hover')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
