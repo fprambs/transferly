@@ -29,6 +29,8 @@ async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string):
  * - a public FTP server is reached anonymously from a site saved with the Anonymous logon type, with no password and no vault, and with
  *   "explicit TLS if available" it goes on in clear text because the server offers no TLS
  * - a site of the account logon type saves its password and account and connects to a server that does not ask for the account (4.8e)
+ * - a site of the interactive logon type asks for the password when connecting, showing the server's reply, and lists once it is answered
+ *   (ADR-0016)
  * - a site that requires implicit TLS defaults to port 990, shows the server's certificate for trust, and lists its folders
  * - a quick FTP connection to a server with TLS and a self-signed certificate upgrades to TLS, asks to trust the certificate first, then
  *   connects with TLS on the control and the data channels, uploads a file, hands it back with the same content, and deletes it
@@ -93,6 +95,28 @@ test.describe('ftp and ftps', () => {
     await expect(dialog).toBeHidden()
 
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
+    await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
+  })
+
+  test('asks for the password of an interactive site while connecting', async ({ shell }) => {
+    const { page } = shell
+    const name = `Asks live ${Date.now()}`
+    await page.getByRole('button', { name: 'New site' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
+    await choose(dialog.getByLabel('Encryption'), 'Only use plain FTP (insecure)')
+    await dialog.getByLabel('Host', { exact: true }).fill('ftp')
+    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await choose(dialog.getByLabel('Logon type'), 'Interactive')
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await expect(dialog).toBeHidden()
+
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
+    const prompt = page.getByRole('dialog', { name: `${name} asks` })
+    await expect(prompt).toContainText(/password/i)
+    await prompt.getByLabel('Password:').fill('sentinel')
+    await prompt.getByRole('button', { name: 'Answer' }).click()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 
