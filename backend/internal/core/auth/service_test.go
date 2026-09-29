@@ -279,37 +279,38 @@ func TestLogoutAndPurge(t *testing.T) {
 // TestUpdatePreferences verifies preference updates.
 //
 // Scenarios:
-//   - a valid language tag, IANA zone and theme are stored, the tag in canonical form, and new users start on the default theme
+//   - a valid language tag, IANA zone, theme and double click action are stored, the tag in canonical form, and new users start on the
+//     default theme and download on double click
 //   - empty values keep the current setting
-//   - invalid tags, unknown zones, the Local pseudo-zone, fixed offsets and malformed theme identifiers are rejected
+//   - invalid tags, unknown zones, the Local pseudo-zone, fixed offsets, malformed theme identifiers and unknown double click actions are rejected
 //   - a failing store is reported
 func TestUpdatePreferences(t *testing.T) {
 	h := newHarness(t, nil)
 	ctx := context.Background()
 	_, principal := signedIn(t, h)
 
-	if principal.User.Theme != "sentinel-dark" {
-		t.Errorf("a new user has the theme %q; want sentinel-dark", principal.User.Theme)
+	if principal.User.Theme != "sentinel-dark" || principal.User.FileDoubleClick != auth.FileDoubleClickDownload {
+		t.Errorf("a new user has the theme %q and double click %q; want sentinel-dark and download", principal.User.Theme, principal.User.FileDoubleClick)
 	}
-	updated, err := h.svc.UpdatePreferences(ctx, principal.User, "es-cl", "America/Santiago", "monokai")
-	if err != nil || updated.Locale != "es-CL" || updated.Timezone != "America/Santiago" || updated.Theme != "monokai" {
+	updated, err := h.svc.UpdatePreferences(ctx, principal.User, auth.Preferences{Locale: "es-cl", Timezone: "America/Santiago", Theme: "monokai", FileDoubleClick: auth.FileDoubleClickEdit})
+	if err != nil || updated.Locale != "es-CL" || updated.Timezone != "America/Santiago" || updated.Theme != "monokai" || updated.FileDoubleClick != auth.FileDoubleClickEdit {
 		t.Fatalf("UpdatePreferences() = %+v, %v", updated, err)
 	}
-	if stored := h.store.users[principal.User.ID]; stored.Locale != "es-CL" || stored.Timezone != "America/Santiago" || stored.Theme != "monokai" {
+	if stored := h.store.users[principal.User.ID]; stored.Locale != "es-CL" || stored.Timezone != "America/Santiago" || stored.Theme != "monokai" || stored.FileDoubleClick != auth.FileDoubleClickEdit {
 		t.Errorf("stored user = %+v", stored)
 	}
-	kept, err := h.svc.UpdatePreferences(ctx, updated, "", "", "")
-	if err != nil || kept.Locale != "es-CL" || kept.Timezone != "America/Santiago" || kept.Theme != "monokai" {
+	kept, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{})
+	if err != nil || kept.Locale != "es-CL" || kept.Timezone != "America/Santiago" || kept.Theme != "monokai" || kept.FileDoubleClick != auth.FileDoubleClickEdit {
 		t.Errorf("empty update = %+v, %v, want the current settings", kept, err)
 	}
 
 	for _, locale := range []string{"not a tag!", "x"} {
-		if _, err := h.svc.UpdatePreferences(ctx, updated, locale, "", ""); !errors.Is(err, auth.ErrInvalidLocale) {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{Locale: locale}); !errors.Is(err, auth.ErrInvalidLocale) {
 			t.Errorf("locale %q = %v, want ErrInvalidLocale", locale, err)
 		}
 	}
 	for _, zone := range []string{"Mars/Olympus", "Local", "+01:00", "../etc/passwd"} {
-		if _, err := h.svc.UpdatePreferences(ctx, updated, "", zone, ""); !errors.Is(err, auth.ErrInvalidTimezone) {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{Timezone: zone}); !errors.Is(err, auth.ErrInvalidTimezone) {
 			t.Errorf("time zone %q = %v, want ErrInvalidTimezone", zone, err)
 		}
 	}
@@ -317,12 +318,15 @@ func TestUpdatePreferences(t *testing.T) {
 		if theme == "" {
 			continue
 		}
-		if _, err := h.svc.UpdatePreferences(ctx, updated, "", "", theme); !errors.Is(err, auth.ErrInvalidTheme) {
+		if _, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{Theme: theme}); !errors.Is(err, auth.ErrInvalidTheme) {
 			t.Errorf("theme %q = %v, want ErrInvalidTheme", theme, err)
 		}
 	}
+	if _, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{FileDoubleClick: "open"}); !errors.Is(err, auth.ErrInvalidFileDoubleClick) {
+		t.Errorf("double click %q = %v, want ErrInvalidFileDoubleClick", "open", err)
+	}
 	h.store.failing("UpdatePreferences")
-	if _, err := h.svc.UpdatePreferences(ctx, updated, "en", "UTC", "nord"); !errors.Is(err, errBoom) {
+	if _, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{Locale: "en", Timezone: "UTC", Theme: "nord"}); !errors.Is(err, errBoom) {
 		t.Errorf("UpdatePreferences() with a failing store = %v", err)
 	}
 }

@@ -393,8 +393,9 @@ func TestCSRFTokensAreBoundToTheirSession(t *testing.T) {
 // TestUpdateMe verifies preference updates.
 //
 // Scenarios:
-//   - a valid language, zone and theme are stored and returned, the language canonicalized, and a new user has the default theme
-//   - invalid languages, zones and themes are 422 with stable codes
+//   - a valid language, zone, theme and double click action are stored and returned, the language canonicalized, and a new user has the
+//     default theme and downloads on double click
+//   - invalid languages, zones, themes and double click actions are 422 with stable codes
 //   - a missing or malformed body is 400
 func TestUpdateMe(t *testing.T) {
 	a := newAPI(t)
@@ -403,20 +404,21 @@ func TestUpdateMe(t *testing.T) {
 		return a.do(request{method: http.MethodPatch, path: "/api/v1/me", cookie: cookie, body: body, headers: map[string]string{"X-CSRF-Token": csrf}})
 	}
 
-	if first := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); first.session(t).User.Theme != "sentinel-dark" {
-		t.Errorf("the default theme = %q", first.session(t).User.Theme)
+	if first := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); first.session(t).User.Theme != "sentinel-dark" || first.session(t).User.FileDoubleClick != httpapi.UserFileDoubleClickDownload {
+		t.Errorf("the default theme and double click = %+v", first.session(t).User)
 	}
-	ok := patch(map[string]string{"locale": "es-cl", "timezone": "America/Santiago", "theme": "tokyo-night"})
+	ok := patch(map[string]string{"locale": "es-cl", "timezone": "America/Santiago", "theme": "tokyo-night", "fileDoubleClick": "edit"})
 	var user httpapi.User
-	if err := json.Unmarshal(ok.Body, &user); err != nil || ok.Status != 200 || user.Locale != "es-CL" || user.Timezone != "America/Santiago" || user.Theme != "tokyo-night" {
+	if err := json.Unmarshal(ok.Body, &user); err != nil || ok.Status != 200 || user.Locale != "es-CL" || user.Timezone != "America/Santiago" || user.Theme != "tokyo-night" || user.FileDoubleClick != httpapi.UserFileDoubleClickEdit {
 		t.Fatalf("update = %d %s", ok.Status, ok.Body)
 	}
-	if me := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); me.session(t).User.Timezone != "America/Santiago" || me.session(t).User.Theme != "tokyo-night" {
+	if me := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); me.session(t).User.Timezone != "America/Santiago" || me.session(t).User.Theme != "tokyo-night" || me.session(t).User.FileDoubleClick != httpapi.UserFileDoubleClickEdit {
 		t.Error("the update was not persisted")
 	}
 	expectProblem(t, patch(map[string]string{"locale": "not a tag!"}), 422, "invalid_locale")
 	expectProblem(t, patch(map[string]string{"timezone": "Mars/Olympus"}), 422, "invalid_timezone")
 	expectProblem(t, patch(map[string]string{"theme": "Not A Theme"}), 422, "invalid_theme")
+	expectProblem(t, patch(map[string]string{"fileDoubleClick": "open"}), 422, "invalid_file_double_click")
 	expectProblem(t, patch("{oops"), 400, "invalid_request")
 	expectProblem(t, a.do(request{method: http.MethodPatch, path: "/api/v1/me", cookie: cookie, headers: map[string]string{"X-CSRF-Token": csrf}}), 400, "invalid_request")
 }

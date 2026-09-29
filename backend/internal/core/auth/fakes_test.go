@@ -141,12 +141,12 @@ func (f *fakeStore) UpdatePasswordHash(_ context.Context, id uuid.UUID, hash str
 	return nil
 }
 
-// UpdatePreferences changes locale and time zone.
-func (f *fakeStore) UpdatePreferences(_ context.Context, id uuid.UUID, locale, timezone, theme string) error {
+// UpdatePreferences changes the preferences.
+func (f *fakeStore) UpdatePreferences(_ context.Context, id uuid.UUID, p auth.Preferences) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	u := f.users[id]
-	u.Locale, u.Timezone, u.Theme = locale, timezone, theme
+	u.Locale, u.Timezone, u.Theme, u.FileDoubleClick = p.Locale, p.Timezone, p.Theme, p.FileDoubleClick
 	f.users[id] = u
 	return f.fail["UpdatePreferences"]
 }

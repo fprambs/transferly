@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -115,7 +116,7 @@ func (s *Service) newUser(ctx context.Context, email, password string, role Role
 	}
 	return User{
 		ID: id, Email: normalized, PasswordHash: hash, Role: role,
-		Locale: defaultLocale, Timezone: defaultTimezone, Theme: defaultTheme, CreatedAt: s.clock.Now(),
+		Locale: defaultLocale, Timezone: defaultTimezone, Theme: defaultTheme, FileDoubleClick: FileDoubleClickDownload, CreatedAt: s.clock.Now(),
 	}, nil
 }
 
@@ -282,33 +283,31 @@ func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 	return s.sessions.DeleteExpiredSessions(ctx, now, now.Add(-s.config.IdleTimeout))
 }
 
-// UpdatePreferences validates and stores the locale, time zone and theme of a user and returns the updated user.
+// UpdatePreferences validates and stores the preferences of a user and returns the updated user.
 // Empty values keep the current setting.
-func (s *Service) UpdatePreferences(ctx context.Context, user User, locale, timezone, theme string) (User, error) {
-	if locale == "" {
-		locale = user.Locale
-	}
-	if timezone == "" {
-		timezone = user.Timezone
-	}
-	if theme == "" {
-		theme = user.Theme
-	}
-	if !themePattern.MatchString(theme) {
+func (s *Service) UpdatePreferences(ctx context.Context, user User, p Preferences) (User, error) {
+	p.Locale = cmp.Or(p.Locale, user.Locale)
+	p.Timezone = cmp.Or(p.Timezone, user.Timezone)
+	p.Theme = cmp.Or(p.Theme, user.Theme)
+	p.FileDoubleClick = cmp.Or(p.FileDoubleClick, user.FileDoubleClick, FileDoubleClickDownload)
+	if !themePattern.MatchString(p.Theme) {
 		return User{}, ErrInvalidTheme
 	}
-	tag, err := language.Parse(locale)
+	if p.FileDoubleClick != FileDoubleClickDownload && p.FileDoubleClick != FileDoubleClickEdit {
+		return User{}, ErrInvalidFileDoubleClick
+	}
+	tag, err := language.Parse(p.Locale)
 	if err != nil {
 		return User{}, ErrInvalidLocale
 	}
-	if _, err := time.LoadLocation(timezone); err != nil || timezone == "Local" {
+	if _, err := time.LoadLocation(p.Timezone); err != nil || p.Timezone == "Local" {
 		return User{}, ErrInvalidTimezone
 	}
-	locale = tag.String()
-	if err := s.users.UpdatePreferences(ctx, user.ID, locale, timezone, theme); err != nil {
+	p.Locale = tag.String()
+	if err := s.users.UpdatePreferences(ctx, user.ID, p); err != nil {
 		return User{}, err
 	}
-	user.Locale, user.Timezone, user.Theme = locale, timezone, theme
+	user.Locale, user.Timezone, user.Theme, user.FileDoubleClick = p.Locale, p.Timezone, p.Theme, p.FileDoubleClick
 	return user, nil
 }
 

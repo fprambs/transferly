@@ -110,20 +110,15 @@ func (s *server) GetMe(ctx context.Context, _ GetMeRequestObject) (GetMeResponse
 	return GetMe200JSONResponse(s.sessionInfo(p.Principal)), nil
 }
 
-// UpdateMe changes the interface language, time zone and theme of the signed-in user.
+// UpdateMe changes the preferences of the signed-in user: interface language, time zone, theme and what a double click on a file does.
 func (s *server) UpdateMe(ctx context.Context, request UpdateMeRequestObject) (UpdateMeResponseObject, error) {
 	p, _ := principalFrom(ctx)
-	locale, timezone, theme := "", "", ""
-	if request.Body.Locale != nil {
-		locale = *request.Body.Locale
+	b := request.Body
+	prefs := auth.Preferences{Locale: deref(b.Locale), Timezone: deref(b.Timezone), Theme: deref(b.Theme)}
+	if b.FileDoubleClick != nil {
+		prefs.FileDoubleClick = string(*b.FileDoubleClick)
 	}
-	if request.Body.Timezone != nil {
-		timezone = *request.Body.Timezone
-	}
-	if request.Body.Theme != nil {
-		theme = *request.Body.Theme
-	}
-	user, err := s.deps.Auth.UpdatePreferences(ctx, p.User, locale, timezone, theme)
+	user, err := s.deps.Auth.UpdatePreferences(ctx, p.User, prefs)
 	if code, ok := isValidation(err); ok {
 		return UpdateMe422ApplicationProblemPlusJSONResponse(problemBody(422, code, nil)), nil
 	}
@@ -131,4 +126,13 @@ func (s *server) UpdateMe(ctx context.Context, request UpdateMeRequestObject) (U
 		return nil, err
 	}
 	return UpdateMe200JSONResponse(userDTO(user)), nil
+}
+
+// deref returns the value a pointer points to, or the zero value for nil: an optional field left out of a request.
+func deref[T any](p *T) T {
+	if p == nil {
+		var zero T
+		return zero
+	}
+	return *p
 }

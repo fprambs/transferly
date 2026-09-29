@@ -137,16 +137,17 @@ type Transfer struct {
 }
 
 type User struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	Role         string
-	Status       string
-	Locale       string
-	Timezone     string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Theme        string
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    string
+	Role            string
+	Status          string
+	Locale          string
+	Timezone        string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	Theme           string
+	FileDoubleClick string
 }
 
 type UserPasskey struct {

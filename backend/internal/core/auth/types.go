@@ -43,6 +43,8 @@ var (
 	ErrInvalidTimezone = errors.New("invalid time zone")
 	// ErrInvalidTheme means the theme identifier is not made of lower case letters, digits and hyphens, up to 40.
 	ErrInvalidTheme = errors.New("invalid theme")
+	// ErrInvalidFileDoubleClick means the double click action is neither download nor edit.
+	ErrInvalidFileDoubleClick = errors.New("invalid file double click action")
 	// ErrMalformedHash means a stored password hash cannot be parsed.
 	ErrMalformedHash = errors.New("malformed password hash")
 )
@@ -66,8 +68,30 @@ type User struct {
 	// Theme is the identifier of the interface theme the user chose. The server only checks its shape: the themes
 	// themselves belong to the clients.
 	Theme string
+	// FileDoubleClick is what a double click on a file of the explorer does: [FileDoubleClickDownload] or [FileDoubleClickEdit].
+	FileDoubleClick string
 	// CreatedAt is when the account was created, in UTC.
 	CreatedAt time.Time
+}
+
+// What a double click, or Enter, on a file of the explorer does (4.6, kept with the account since 4.14a).
+const (
+	// FileDoubleClickDownload downloads the file, as FileZilla does. It is the default.
+	FileDoubleClickDownload = "download"
+	// FileDoubleClickEdit opens the file in the remote editor.
+	FileDoubleClickEdit = "edit"
+)
+
+// Preferences are the settings a user chooses for the interface. Empty values keep the current setting when updating.
+type Preferences struct {
+	// Locale is the interface language as a BCP 47 tag.
+	Locale string
+	// Timezone is the IANA time zone name.
+	Timezone string
+	// Theme is the identifier of the interface theme.
+	Theme string
+	// FileDoubleClick is what a double click on a file does.
+	FileDoubleClick string
 }
 
 // Session is a signed-in browser session. The token itself is never stored, only its hash.
@@ -120,8 +144,8 @@ type UserStore interface {
 	CountUsers(ctx context.Context) (int, error)
 	// UpdatePasswordHash replaces the stored password hash.
 	UpdatePasswordHash(ctx context.Context, id uuid.UUID, hash string) error
-	// UpdatePreferences changes the locale, time zone and theme.
-	UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone, theme string) error
+	// UpdatePreferences stores the preferences of a user, every field already validated and filled.
+	UpdatePreferences(ctx context.Context, id uuid.UUID, p Preferences) error
 }
 
 // SessionStore persists sessions.

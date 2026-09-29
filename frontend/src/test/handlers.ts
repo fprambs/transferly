@@ -12,6 +12,7 @@ export const adminSession: SessionInfo = {
     locale: 'en',
     timezone: 'UTC',
     theme: 'sentinel-dark',
+    fileDoubleClick: 'download',
   },
   csrfToken: 'csrf-token-1',
 }

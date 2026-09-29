@@ -5158,9 +5158,13 @@ components:
         theme:
           type: string
           description: Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
+        fileDoubleClick:
+          type: string
+          enum: [download, edit]
+          description: What a double click, or Enter, on a file of the explorer does. Download, as FileZilla does, is the default.
     User:
       type: object
-      required: [id, email, role, locale, timezone, theme]
+      required: [id, email, role, locale, timezone, theme, fileDoubleClick]
       properties:
         id:
           type: string
@@ -5176,6 +5180,9 @@ components:
           type: string
         theme:
           type: string
+        fileDoubleClick:
+          type: string
+          enum: [download, edit]
     SessionInfo:
       type: object
       required: [user, csrfToken]

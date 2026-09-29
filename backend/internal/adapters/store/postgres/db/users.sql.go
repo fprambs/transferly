@@ -24,20 +24,21 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const insertUser = `-- name: InsertUser :exec
-INSERT INTO users (id, email, password_hash, role, status, locale, timezone, created_at, theme)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO users (id, email, password_hash, role, status, locale, timezone, created_at, theme, file_double_click)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type InsertUserParams struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	Role         string
-	Status       string
-	Locale       string
-	Timezone     string
-	CreatedAt    time.Time
-	Theme        string
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    string
+	Role            string
+	Status          string
+	Locale          string
+	Timezone        string
+	CreatedAt       time.Time
+	Theme           string
+	FileDoubleClick string
 }
 
 func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
@@ -51,6 +52,7 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
 		arg.Timezone,
 		arg.CreatedAt,
 		arg.Theme,
+		arg.FileDoubleClick,
 	)
 	return err
 }
@@ -79,14 +81,15 @@ func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHash
 }
 
 const updatePreferences = `-- name: UpdatePreferences :exec
-UPDATE users SET locale = $2, timezone = $3, theme = $4, updated_at = now() WHERE id = $1
+UPDATE users SET locale = $2, timezone = $3, theme = $4, file_double_click = $5, updated_at = now() WHERE id = $1
 `
 
 type UpdatePreferencesParams struct {
-	ID       uuid.UUID
-	Locale   string
-	Timezone string
-	Theme    string
+	ID              uuid.UUID
+	Locale          string
+	Timezone        string
+	Theme           string
+	FileDoubleClick string
 }
 
 func (q *Queries) UpdatePreferences(ctx context.Context, arg UpdatePreferencesParams) error {
@@ -95,25 +98,27 @@ func (q *Queries) UpdatePreferences(ctx context.Context, arg UpdatePreferencesPa
 		arg.Locale,
 		arg.Timezone,
 		arg.Theme,
+		arg.FileDoubleClick,
 	)
 	return err
 }
 
 const userByEmail = `-- name: UserByEmail :one
-SELECT id, email, password_hash, role, status, locale, timezone, created_at, theme
+SELECT id, email, password_hash, role, status, locale, timezone, created_at, theme, file_double_click
 FROM users WHERE email = $1
 `
 
 type UserByEmailRow struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	Role         string
-	Status       string
-	Locale       string
-	Timezone     string
-	CreatedAt    time.Time
-	Theme        string
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    string
+	Role            string
+	Status          string
+	Locale          string
+	Timezone        string
+	CreatedAt       time.Time
+	Theme           string
+	FileDoubleClick string
 }
 
 func (q *Queries) UserByEmail(ctx context.Context, email string) (UserByEmailRow, error) {
@@ -129,25 +134,27 @@ func (q *Queries) UserByEmail(ctx context.Context, email string) (UserByEmailRow
 		&i.Timezone,
 		&i.CreatedAt,
 		&i.Theme,
+		&i.FileDoubleClick,
 	)
 	return i, err
 }
 
 const userByID = `-- name: UserByID :one
-SELECT id, email, password_hash, role, status, locale, timezone, created_at, theme
+SELECT id, email, password_hash, role, status, locale, timezone, created_at, theme, file_double_click
 FROM users WHERE id = $1
 `
 
 type UserByIDRow struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	Role         string
-	Status       string
-	Locale       string
-	Timezone     string
-	CreatedAt    time.Time
-	Theme        string
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    string
+	Role            string
+	Status          string
+	Locale          string
+	Timezone        string
+	CreatedAt       time.Time
+	Theme           string
+	FileDoubleClick string
 }
 
 func (q *Queries) UserByID(ctx context.Context, id uuid.UUID) (UserByIDRow, error) {
@@ -163,6 +170,7 @@ func (q *Queries) UserByID(ctx context.Context, id uuid.UUID) (UserByIDRow, erro
 		&i.Timezone,
 		&i.CreatedAt,
 		&i.Theme,
+		&i.FileDoubleClick,
 	)
 	return i, err
 }

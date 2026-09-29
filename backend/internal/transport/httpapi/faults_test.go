@@ -51,11 +51,11 @@ func (f *flakyStore) CreateSession(ctx context.Context, s auth.Session) error {
 }
 
 // UpdatePreferences fails when configured to.
-func (f *flakyStore) UpdatePreferences(ctx context.Context, id uuid.UUID, locale, timezone, theme string) error {
+func (f *flakyStore) UpdatePreferences(ctx context.Context, id uuid.UUID, p auth.Preferences) error {
 	if f.failPreferences {
 		return errInjected
 	}
-	return f.Store.UpdatePreferences(ctx, id, locale, timezone, theme)
+	return f.Store.UpdatePreferences(ctx, id, p)
 }
 
 // UserByID fails when configured to.

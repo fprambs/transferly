@@ -29,7 +29,7 @@ var now = time.Date(2026, 3, 8, 12, 30, 15, 123456000, time.UTC)
 func newUser(email string) auth.User {
 	return auth.User{
 		ID: uuid.New(), Email: email, PasswordHash: "$argon2id$hash", Role: auth.RoleUser,
-		Locale: "es", Timezone: "America/Santiago", Theme: "monokai", CreatedAt: now,
+		Locale: "es", Timezone: "America/Santiago", Theme: "monokai", FileDoubleClick: auth.FileDoubleClickEdit, CreatedAt: now,
 	}
 }
 
@@ -135,11 +135,11 @@ func testUpdates(t *testing.T, s AuthStore) {
 	if err := s.UpdatePasswordHash(ctx, u.ID, "$argon2id$new"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.UpdatePreferences(ctx, u.ID, "en", "UTC", "nord"); err != nil {
+	if err := s.UpdatePreferences(ctx, u.ID, auth.Preferences{Locale: "en", Timezone: "UTC", Theme: "nord", FileDoubleClick: auth.FileDoubleClickDownload}); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := s.UserByID(ctx, u.ID)
-	if got.PasswordHash != "$argon2id$new" || got.Locale != "en" || got.Timezone != "UTC" || got.Theme != "nord" || got.Email != u.Email {
+	if got.PasswordHash != "$argon2id$new" || got.Locale != "en" || got.Timezone != "UTC" || got.Theme != "nord" || got.FileDoubleClick != auth.FileDoubleClickDownload || got.Email != u.Email {
 		t.Errorf("after updates = %+v", got)
 	}
 	if untouched, _ := s.UserByID(ctx, other.ID); untouched != other {
