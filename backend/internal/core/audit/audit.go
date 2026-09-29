@@ -46,6 +46,8 @@ const (
 	SiteCredentialProvided = "site.credential_provided"
 	// SitesImported is a FileZilla site manager that was imported; the number of sites is in the metadata.
 	SitesImported = "sites.imported"
+	// SitesExported is an encrypted export of the sites and their secrets (ADR-0017); the number of sites is in the metadata.
+	SitesExported = "sites.exported"
 	// HostKeyTrusted is a server key that was trusted; the target is host:port.
 	HostKeyTrusted = "host_key.trusted"
 	// HostKeyForgotten is a server key that was forgotten.

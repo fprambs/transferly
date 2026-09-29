@@ -33,7 +33,12 @@ func (s *server) ImportFilezilla(ctx context.Context, request ImportFilezillaReq
 	if created := result.Created(); !opts.DryRun && created > 0 {
 		s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesImported, "filezilla", map[string]string{"sites": strconv.Itoa(created)})
 	}
-	out := ImportFilezilla200JSONResponse{DryRun: opts.DryRun, Items: make([]ImportItem, 0, len(result.Items))}
+	return ImportFilezilla200JSONResponse(importResultDTO(result, opts.DryRun)), nil
+}
+
+// importResultDTO renders what an import did, or would do, to each site.
+func importResultDTO(result fzimport.Result, dryRun bool) ImportResult {
+	out := ImportResult{DryRun: dryRun, Items: make([]ImportItem, 0, len(result.Items))}
 	for _, item := range result.Items {
 		dto := ImportItem{Name: item.Name, Path: item.Path, Status: ImportItemStatus(item.Status), PasswordStored: item.PasswordStored, PasswordSkipped: item.PasswordSkipped}
 		if item.Reason != "" {
@@ -41,7 +46,7 @@ func (s *server) ImportFilezilla(ctx context.Context, request ImportFilezillaReq
 		}
 		out.Items = append(out.Items, dto)
 	}
-	return out, nil
+	return out
 }
 
 // importFailure answers an import that could not run: with its problem, or as an internal error.

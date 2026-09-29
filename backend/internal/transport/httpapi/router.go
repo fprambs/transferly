@@ -15,6 +15,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
@@ -96,6 +97,8 @@ type Deps struct {
 	Admin *admin.Service
 	// Invites is the invitation service.
 	Invites *invite.Service
+	// Backup exports the sites to encrypted files and imports them back (ADR-0017).
+	Backup *backup.Service
 	// Import creates the sites of a FileZilla site manager file.
 	Import *fzimport.Service
 	// Activity keeps the log of what users did on their connections.
@@ -144,6 +147,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(originGuard(d.AllowedOrigins))
 	r.Use(clientInfo)
+	r.Use(limitSentinelImports)
 	r.Use(authenticate(d.Auth, d.Logger))
 
 	r.NotFound(notFoundHandler(d.Web))

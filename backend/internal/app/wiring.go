@@ -21,6 +21,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
@@ -115,6 +116,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
 	askedPasswords := credentials.New(system, cfg.SessionMax)
 	connectionLog := connlog.New(hub, system)
+	importer := fzimport.NewService(workspaces, sites)
 	broker := prompts.New(hub, prompts.DefaultWait)
 	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout,
 		connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog), connect.Prompts(broker))
@@ -140,7 +142,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Files:         files.NewService(workspaces, pool),
 			Transfers:     transfers,
 			Activity:      activityLog,
-			Import:        fzimport.NewService(workspaces, sites),
+			Import:        importer,
+			Backup:        backup.NewService(workspaces, sites, importer, backup.NewSealer(kdf, vault.DefaultParams, rand.Reader), system),
 			Invites:       invites,
 			Audit:         auditTrail,
 			Admin:         admin.NewService(store, policy, quotas, system),

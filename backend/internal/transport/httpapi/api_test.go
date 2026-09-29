@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
@@ -124,6 +125,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1, OnChange: connections.PublishTo(hub)})
 	recorded := &recordedEvents{}
 	broker := prompts.New(hub, time.Minute)
+	importer := fzimport.NewService(workspaces, sites)
 	activityLog := activity.NewService(store, clock, 30*24*time.Hour, nil)
 	if transfers.OnFinish == nil {
 		transfers.OnFinish = func(t transfer.Transfer) {
@@ -154,7 +156,8 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Files:         files.NewService(workspaces, pool),
 		Transfers:     transferService,
 		Activity:      activityLog,
-		Import:        fzimport.NewService(workspaces, sites),
+		Import:        importer,
+		Backup:        backup.NewService(workspaces, sites, importer, backup.NewSealer(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader), clock),
 		Audit:         auditTrail,
 		Admin:         admin.NewService(store, policy, quotas, clock),
 		Quotas:        quotas,

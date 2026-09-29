@@ -9,6 +9,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/admin"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -110,6 +111,12 @@ func (p domainProblem) VisitUpdateBookmarkResponse(w http.ResponseWriter) error 
 
 // VisitDeleteBookmarkResponse implements [DeleteBookmarkResponseObject].
 func (p domainProblem) VisitDeleteBookmarkResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitExportSitesResponse implements [ExportSitesResponseObject].
+func (p domainProblem) VisitExportSitesResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitImportSentinelResponse implements [ImportSentinelResponseObject].
+func (p domainProblem) VisitImportSentinelResponse(w http.ResponseWriter) error { return p.write(w) }
 
 // VisitAnswerPromptResponse implements [AnswerPromptResponseObject].
 func (p domainProblem) VisitAnswerPromptResponse(w http.ResponseWriter) error { return p.write(w) }
@@ -242,6 +249,10 @@ var domainProblems = []struct {
 	{transfer.ErrExists, http.StatusConflict, "transfer_id_taken"},
 	{fzimport.ErrInvalidFile, http.StatusUnprocessableEntity, "invalid_import_file"},
 	{fzimport.ErrTooLarge, http.StatusUnprocessableEntity, "import_file_too_large"},
+	{backup.ErrTooLarge, http.StatusUnprocessableEntity, "import_file_too_large"},
+	{backup.ErrInvalidFile, http.StatusUnprocessableEntity, "invalid_export"},
+	{backup.ErrWrongPassword, http.StatusUnprocessableEntity, "wrong_export_password"},
+	{backup.ErrWeakPassword, http.StatusUnprocessableEntity, "weak_export_password"},
 	{files.ErrProbeInconclusive, http.StatusUnprocessableEntity, "time_zone_inconclusive"},
 	{files.ErrUnsupportedAlgorithm, http.StatusUnprocessableEntity, "unsupported_algorithm"},
 	{files.ErrChecksumMismatch, http.StatusBadGateway, "checksum_mismatch"},
