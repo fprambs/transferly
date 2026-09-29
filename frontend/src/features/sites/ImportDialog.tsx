@@ -3,6 +3,8 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
@@ -48,13 +50,38 @@ function isKnown(code: string): code is (typeof knownReasons)[number] {
   return (knownReasons as readonly string[]).includes(code)
 }
 
-/** Imports the site manager of FileZilla: choose the file, look at what would happen, and confirm. */
+/** The kinds of file the dialog imports. */
+type ImportKind = 'filezilla' | 'sentinel'
+
+/** Tells a file exported by Sentinel (ADR-0017) from a FileZilla site manager by its content, not its name. */
+function importKindOf(text: string): ImportKind {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return typeof parsed === 'object' && parsed !== null && (parsed as { format?: unknown }).format === 'sentinel-export' ? 'sentinel' : 'filezilla'
+  } catch {
+    return 'filezilla'
+  }
+}
+
+/** The file chosen, read once: its kind and its text. */
+interface Chosen {
+  /** The file itself, sent as it is to the FileZilla import. */
+  file: File
+  /** What kind of file it is. */
+  kind: ImportKind
+  /** Its text, sent inside the Sentinel import. */
+  text: string
+}
+
+/** Imports sites from the site manager of FileZilla or from an encrypted export of Sentinel: choose the file, look at what would happen,
+ * and confirm. The kind of file is told by its content; an export also needs its password. */
 export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) {
   const { t } = useTranslation('sites')
   const api = useApi()
   const queryClient = useQueryClient()
   const picker = useRef<HTMLInputElement>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [chosen, setChosen] = useState<Chosen | null>(null)
+  const [password, setPassword] = useState('')
   const [passwords, setPasswords] = useState(false)
   const [onConflict, setOnConflict] = useState<'skip' | 'rename'>('skip')
   const [result, setResult] = useState<ImportResult | null>(null)
@@ -65,8 +92,13 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
     setWorking(true)
     setFailure(null)
     try {
+      const { file, kind, text } = chosen as Chosen
       const options: ImportOptions = { dryRun, passwords, onConflict }
-      setResult(await api.imports.filezilla(workspaceId, file as File, options))
+      setResult(
+        kind === 'sentinel'
+          ? await api.imports.sentinel(workspaceId, { password, file: text }, { dryRun, secrets: passwords, onConflict })
+          : await api.imports.filezilla(workspaceId, file, options),
+      )
       if (!dryRun) {
         await queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId] })
         await queryClient.invalidateQueries({ queryKey: sitesKeys.sites(workspaceId) })
@@ -94,20 +126,38 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           <input
             ref={picker}
             type="file"
-            accept=".xml,application/xml,text/xml"
+            accept=".xml,.json,application/xml,text/xml,application/json"
             aria-label={t(($) => $.import.file)}
             onChange={(event) => {
-              setFile((event.target.files as FileList)[0] ?? null)
+              const file = (event.target.files as FileList)[0] as File | undefined
               setResult(null)
               setFailure(null)
+              setChosen(null)
+              if (file !== undefined) {
+                void file.text().then((text) => setChosen({ file, kind: importKindOf(text), text }))
+              }
             }}
           />
+          {chosen === null ? null : <p className="text-xs text-muted-foreground">{t(($) => $.import.kind[chosen.kind])}</p>}
+          {chosen?.kind === 'sentinel' && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="import-export-password">{t(($) => $.import.exportPassword)}</Label>
+              <Input id="import-export-password" type="password" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />
+            </div>
+          )}
           <label className="flex items-start gap-2">
             <input type="checkbox" className="mt-1" checked={passwords} onChange={(event) => setPasswords(event.target.checked)} />
-            <span>
-              {t(($) => $.import.passwords)}
-              <span className="block text-xs text-muted-foreground">{t(($) => $.import.passwordsHint)}</span>
-            </span>
+            {chosen?.kind === 'sentinel' ? (
+              <span>
+                {t(($) => $.import.secrets)}
+                <span className="block text-xs text-muted-foreground">{t(($) => $.import.secretsHint)}</span>
+              </span>
+            ) : (
+              <span>
+                {t(($) => $.import.passwords)}
+                <span className="block text-xs text-muted-foreground">{t(($) => $.import.passwordsHint)}</span>
+              </span>
+            )}
           </label>
           <label className="flex items-center gap-2">
             <span className="shrink-0">{t(($) => $.import.onConflict)}</span>
@@ -158,7 +208,7 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           </Button>
           {done ? null : (
             <>
-              <Button variant="outline" disabled={file === null || working} onClick={() => void run(true)}>
+              <Button variant="outline" disabled={chosen === null || (chosen.kind === 'sentinel' && password === '') || working} onClick={() => void run(true)}>
                 {t(($) => $.import.preview)}
               </Button>
               <Button disabled={result === null || !result.dryRun || working} onClick={() => void run(false)}>

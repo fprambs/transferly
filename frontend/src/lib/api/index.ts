@@ -102,6 +102,16 @@ export interface ImportOptions {
   onConflict?: 'skip' | 'rename'
 }
 
+/** How to import a file exported by Sentinel (ADR-0017). */
+export interface SentinelImportOptions {
+  /** Only report what would happen. */
+  dryRun?: boolean
+  /** Store the secrets of the file in the vault. */
+  secrets?: boolean
+  /** What to do with a site whose name is taken. */
+  onConflict?: 'skip' | 'rename'
+}
+
 /** One line of the activity log. */
 export type ActivityEntry = Schemas['ActivityEntry']
 
@@ -315,7 +325,18 @@ export function createApi(transport: Transport) {
           signal: options.signal,
         }),
     },
+    exports: {
+      create: async (workspaceId: string, password: string) =>
+        new Response(await transport.stream({ method: 'POST', path: `${root}/workspaces/${workspaceId}/exports`, body: { password } })).blob(),
+    },
     imports: {
+      sentinel: (workspaceId: string, input: { password: string; file: string }, options: SentinelImportOptions = {}) =>
+        transport.request<ImportResult>({
+          method: 'POST',
+          path: `${root}/workspaces/${workspaceId}/imports/sentinel`,
+          query: { dryRun: options.dryRun, secrets: options.secrets, onConflict: options.onConflict },
+          body: input,
+        }),
       filezilla: (workspaceId: string, file: Blob | Uint8Array, options: ImportOptions = {}) =>
         transport.request<ImportResult>({
           method: 'POST',

@@ -48,7 +48,10 @@
     "jump_private_key_unreadable": "The jump host key file cannot be read.",
     "jump_private_key_unsupported": "The jump host key cannot be used.",
     "remoteDirInvalid": "The folder must start with /.",
-    "invalid_remote_dir": "The default remote folder must be an absolute path."
+    "invalid_remote_dir": "The default remote folder must be an absolute path.",
+    "invalid_export": "This file is not an export of Sentinel.",
+    "wrong_export_password": "That password does not open the file, or the file was changed.",
+    "weak_export_password": "The password needs at least 12 characters."
   },
   "collection": {
     "actions": "Actions for {{name}}",
@@ -214,9 +217,9 @@
   },
   "import": {
     "open": "Import from FileZilla",
-    "title": "Import from FileZilla",
-    "description": "Choose the sitemanager.xml of FileZilla. Nothing is created until you confirm the preview.",
-    "file": "Site manager file",
+    "title": "Import sites",
+    "description": "Choose the sitemanager.xml of FileZilla or a file exported by Sentinel. Nothing is created until you confirm the preview.",
+    "file": "File to import",
     "passwords": "Import the saved passwords",
     "passwordsHint": "They are stored encrypted in your vault, which must be unlocked. Without this, sites are imported without a password.",
     "onConflict": "If a site name is taken",
@@ -255,7 +258,14 @@
       "host_unresolvable": "Host name could not be resolved",
       "collection_too_deep": "Folders nested too deeply",
       "collection_name_taken": "Folder name already used"
-    }
+    },
+    "kind": {
+      "filezilla": "FileZilla site manager",
+      "sentinel": "Sentinel export, encrypted"
+    },
+    "exportPassword": "File password",
+    "secrets": "Import the passwords and keys",
+    "secretsHint": "They are sealed again in your vault, which must be unlocked. Without this, sites are imported without them."
   },
   "credential": {
     "title": "Enter the password",
@@ -282,5 +292,18 @@
     "show": "Show",
     "hide": "Hide",
     "queue": "{{count}} more waiting"
+  },
+  "export": {
+    "title": "Export sites",
+    "description": "Saves every collection and site of this workspace, with their passwords and keys, in a file encrypted with a password you choose now.",
+    "password": "File password",
+    "confirm": "Repeat the password",
+    "hint": "At least 12 characters. Sentinel does not keep it: without it the file cannot be opened.",
+    "mismatch": "The passwords do not match.",
+    "submit": "Export",
+    "working": "Encrypting…",
+    "done": "The file was saved as {{name}}. Keep it and its password apart.",
+    "close": "Close",
+    "cancel": "Cancel"
   }
 }

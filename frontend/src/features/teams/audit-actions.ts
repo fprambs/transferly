@@ -14,6 +14,7 @@ const known = {
   'site.deleted': 'siteDeleted',
   'site.credential_provided': 'siteCredentialProvided',
   'sites.imported': 'sitesImported',
+  'sites.exported': 'sitesExported',
   'host_key.trusted': 'hostKeyTrusted',
   'host_key.forgotten': 'hostKeyForgotten',
   'bookmark.created': 'bookmarkCreated',

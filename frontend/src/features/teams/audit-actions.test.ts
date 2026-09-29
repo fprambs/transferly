@@ -13,6 +13,7 @@ describe('audit actions', () => {
   it('maps known actions and falls back for unknown ones', () => {
     expect(auditActionKey('member.removed')).toBe('memberRemoved')
     expect(auditActionKey('sites.imported')).toBe('sitesImported')
+    expect(auditActionKey('sites.exported')).toBe('sitesExported')
     expect(auditActionKey('bookmark.deleted')).toBe('bookmarkDeleted')
     expect(auditActionKey('something.new')).toBe('unknown')
   })

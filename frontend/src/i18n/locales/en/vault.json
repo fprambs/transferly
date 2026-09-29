@@ -46,14 +46,16 @@
       "action": "Unlock the vault",
       "save": "Passwords and keys are sealed with the vault, so it has to be unlocked to save them. Editing other settings and quick connections do not need it.",
       "connect": "The password of this site is sealed in your vault. Unlock it with your master password to connect.",
-      "team": "The key of a team is sealed with your vault. Unlock it to create the team."
+      "team": "The key of a team is sealed with your vault. Unlock it to create the team.",
+      "export": "The secrets of the sites are sealed with your vault. Unlock it to export them."
     },
     "missing": {
       "title": "Set up your vault",
       "action": "Set up the vault",
       "save": "Passwords and keys are sealed with a vault protected by a master password. Create it to save them; quick connections do not need it.",
       "connect": "This site has a saved password, but you have no vault yet. Create one to connect.",
-      "team": "The key of a team is sealed with your vault. Create your vault to start a team."
+      "team": "The key of a team is sealed with your vault. Create your vault to start a team.",
+      "export": "Exporting takes the secrets out of your vault, and you have none yet. Create it first."
     },
     "quickHint": "Quick connections do not need the vault."
   },

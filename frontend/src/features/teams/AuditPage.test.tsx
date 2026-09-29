@@ -83,7 +83,7 @@ describe('audit page', () => {
       'created the site Production',
       'changed the site Production',
       'deleted the site Old',
-      'imported 12 sites from FileZilla',
+      'imported 12 sites',
       'trusted the server files.example.com:22',
       'forgot the server files.example.com:22',
       'thing.happened x',

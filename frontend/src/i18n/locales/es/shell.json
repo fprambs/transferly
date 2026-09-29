@@ -16,12 +16,13 @@
     "newSite": "Nuevo sitio",
     "collectionCount": "{{count}} sitios",
     "loading": "Cargando sitios…",
-    "importSites": "Importar de FileZilla",
+    "importSites": "Importar sitios",
     "hide": "Ocultar el panel de sitios",
     "show": "Mostrar el panel de sitios",
     "browse": "Explorar los sitios",
     "rail": "Sitios, panel oculto",
-    "connected": "Conectado"
+    "connected": "Conectado",
+    "exportSites": "Exportar sitios"
   },
   "queue": {
     "title": "Transferencias",

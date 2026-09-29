@@ -9,7 +9,7 @@ import { useVaultStatus } from './use-vault'
 import { VaultDialog, type VaultTarget } from './VaultDialog'
 
 /** What the user was doing when the vault turned out to be locked, which decides the wording. */
-export type VaultNeed = 'save' | 'connect' | 'team'
+export type VaultNeed = 'save' | 'connect' | 'team' | 'export'
 
 /** Props of {@link VaultLockedNotice}. */
 export interface VaultLockedNoticeProps {

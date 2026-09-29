@@ -1,4 +1,4 @@
-import { ChevronRight, Ellipsis, FileInput, Folder, FolderPlus, PanelLeftClose, Plus, Zap } from 'lucide-react'
+import { ChevronRight, Ellipsis, FileInput, FileLock2, Folder, FolderPlus, PanelLeftClose, Plus, Zap } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -18,6 +18,7 @@ import { useWorkspace } from '../workspace/use-workspace'
 import { CollectionDialog, type CollectionTarget } from './CollectionDialog'
 import { DeleteCollectionDialog } from './DeleteCollectionDialog'
 import { DeleteSiteDialog } from './DeleteSiteDialog'
+import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
 import { SiteDialog, type SiteTarget } from './SiteDialog'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
@@ -293,6 +294,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
   const [siteTarget, setSiteTarget] = useState<SiteTarget | null>(null)
   const [deletingSite, setDeletingSite] = useState<Site | null>(null)
   const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
   const [selected, setSelected] = useState<string | null>(null)
   const api = useApi()
@@ -379,6 +381,9 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.importSites)} onClick={() => setImporting(true)}>
             <FileInput />
           </Button>
+          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.exportSites)} onClick={() => setExporting(true)}>
+            <FileLock2 />
+          </Button>
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
             <Plus />
           </Button>
@@ -419,6 +424,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
       {workspace !== undefined && (
         <>
           <ImportDialog open={importing} workspaceId={workspace.id} onClose={() => setImporting(false)} />
+          <ExportDialog open={exporting} workspaceId={workspace.id} onClose={() => setExporting(false)} />
           <CollectionDialog target={target} workspaceId={workspace.id} collections={collections} onClose={() => setTarget(null)} />
           <DeleteCollectionDialog collection={deleting} workspaceId={workspace.id} onClose={() => setDeleting(null)} />
           <SiteDialog target={siteTarget} workspaceId={workspace.id} collections={collections} onClose={() => setSiteTarget(null)} />

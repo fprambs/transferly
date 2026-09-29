@@ -56,9 +56,10 @@ async function renderDialog(language: 'en' | 'es' = 'en') {
   return { user, onClose, dialog: within(dialog) }
 }
 
-/** Chooses a file in the dialog. */
-function choose(dialog: ReturnType<typeof within>, name = 'sitemanager.xml', content = '<FileZilla3/>'): void {
-  fireEvent.change(dialog.getByLabelText('Site manager file'), { target: { files: [new NodeFile([content], name)] } })
+/** Chooses a file in the dialog and waits until it was read and its kind is shown. */
+async function choose(dialog: ReturnType<typeof within>, name = 'sitemanager.xml', content = '<FileZilla3/>'): Promise<void> {
+  fireEvent.change(dialog.getByLabelText('File to import'), { target: { files: [new NodeFile([content], name)] } })
+  await dialog.findByText(content.includes('sentinel-export') ? 'Sentinel export, encrypted' : 'FileZilla site manager')
 }
 
 /**
@@ -72,6 +73,8 @@ function choose(dialog: ReturnType<typeof within>, name = 'sitemanager.xml', con
  * - a rejected file or a locked vault is explained, and choosing another file clears the preview
  * - the dialog can be cancelled, and it follows the interface language
  * - the sites sidebar opens it from its import button
+ * - a file exported by Sentinel is told apart by its content, needs its password, and goes to its own import with the secrets option
+ *   (ADR-0017); text that is not JSON, or JSON of another kind, is taken for a FileZilla file
  */
 describe('ImportDialog', () => {
   beforeEach(() => {
@@ -87,7 +90,7 @@ describe('ImportDialog', () => {
 
     expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled()
     expect(dialog.getByRole('button', { name: 'Import' })).toBeDisabled()
-    choose(dialog)
+    await choose(dialog)
     await user.click(dialog.getByRole('checkbox'))
     await chooseOption(user, dialog.getByRole('combobox'), 'Keep both, renaming the new one')
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
@@ -110,7 +113,7 @@ describe('ImportDialog', () => {
   it('imports after the preview', async () => {
     const seen = mockImport(items)
     const { user, onClose, dialog } = await renderDialog()
-    choose(dialog)
+    await choose(dialog)
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
     await dialog.findByText(/will be created/)
 
@@ -126,11 +129,11 @@ describe('ImportDialog', () => {
   it('explains a rejected file and a locked vault, and clears the preview with another file', async () => {
     mockImport(items)
     const { user, dialog } = await renderDialog()
-    choose(dialog)
+    await choose(dialog)
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
     await dialog.findByText(/will be created/)
 
-    choose(dialog, 'other.xml')
+    await choose(dialog, 'other.xml')
     expect(dialog.queryByText(/will be created/)).not.toBeInTheDocument()
     server.use(http.post('/api/v1/workspaces/:id/imports/filezilla', () => problem(422, 'invalid_import_file')))
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
@@ -148,15 +151,40 @@ describe('ImportDialog', () => {
     await waitFor(() => expect(unlocking.unlocked()).toBe(true))
     await waitFor(() => expect(dialog.queryByRole('status')).not.toBeInTheDocument())
 
-    fireEvent.change(dialog.getByLabelText('Site manager file'), { target: { files: [] } })
+    fireEvent.change(dialog.getByLabelText('File to import'), { target: { files: [] } })
     expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled()
     expect(dialog.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('imports a Sentinel export with its password', async () => {
+    const seen: Array<{ query: string; body: unknown }> = []
+    server.use(
+      http.post('/api/v1/workspaces/:id/imports/sentinel', async ({ request }) => {
+        const url = new URL(request.url)
+        seen.push({ query: url.search, body: await request.json() })
+        return HttpResponse.json({ dryRun: true, items: items.slice(0, 1) })
+      }),
+    )
+    const { user, dialog } = await renderDialog()
+    const exported = JSON.stringify({ format: 'sentinel-export', version: 1 })
+    await choose(dialog, 'sentinel-sites.json', exported)
+
+    expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled()
+    await user.type(dialog.getByLabelText('File password'), 'a long export password')
+    await user.click(dialog.getByRole('checkbox', { name: /Import the passwords and keys/ }))
+    await user.click(dialog.getByRole('button', { name: 'Preview' }))
+
+    expect(await dialog.findByText('1 sites will be created, 0 skipped.')).toBeInTheDocument()
+    expect(seen).toEqual([{ query: '?dryRun=true&secrets=true&onConflict=skip', body: { password: 'a long export password', file: exported } }])
+
+    await choose(dialog, 'other.json', '{"format":"other"}')
+    expect(dialog.queryByLabelText('File password')).not.toBeInTheDocument()
   })
 
   it('can be cancelled and speaks Spanish', async () => {
     const { user, onClose, dialog } = await renderDialog('es')
 
-    expect(dialog.getByRole('heading', { name: 'Importar de FileZilla' })).toBeInTheDocument()
+    expect(dialog.getByRole('heading', { name: 'Importar sitios' })).toBeInTheDocument()
     expect(dialog.getByRole('button', { name: 'Vista previa' })).toBeDisabled()
     await user.click(dialog.getByRole('button', { name: 'Cancelar' }))
     expect(onClose).toHaveBeenCalled()
@@ -166,9 +194,9 @@ describe('ImportDialog', () => {
     const user = userEvent.setup()
     await renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Import from FileZilla' }))
+    await user.click(await screen.findByRole('button', { name: 'Import sites' }))
 
-    expect(await screen.findByRole('dialog', { name: 'Import from FileZilla' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Import sites' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })

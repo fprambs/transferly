@@ -48,7 +48,10 @@
     "jump_private_key_unreadable": "No se puede leer el archivo de la clave del salto.",
     "jump_private_key_unsupported": "La clave del salto no se puede usar.",
     "remoteDirInvalid": "La carpeta debe empezar con /.",
-    "invalid_remote_dir": "La carpeta remota inicial debe ser una ruta absoluta."
+    "invalid_remote_dir": "La carpeta remota inicial debe ser una ruta absoluta.",
+    "invalid_export": "Este archivo no es una exportación de Sentinel.",
+    "wrong_export_password": "Esa contraseña no abre el archivo, o el archivo fue modificado.",
+    "weak_export_password": "La contraseña necesita al menos 12 caracteres."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -214,9 +217,9 @@
   },
   "import": {
     "open": "Importar de FileZilla",
-    "title": "Importar de FileZilla",
-    "description": "Elige el sitemanager.xml de FileZilla. No se crea nada hasta que confirmes la vista previa.",
-    "file": "Archivo del gestor de sitios",
+    "title": "Importar sitios",
+    "description": "Elige el sitemanager.xml de FileZilla o un archivo exportado por Sentinel. No se crea nada hasta que confirmes la vista previa.",
+    "file": "Archivo a importar",
     "passwords": "Importar las contraseñas guardadas",
     "passwordsHint": "Se guardan cifradas en tu vault, que debe estar desbloqueado. Sin esto, los sitios se importan sin contraseña.",
     "onConflict": "Si el nombre de un sitio ya existe",
@@ -255,7 +258,14 @@
       "host_unresolvable": "No se pudo resolver el servidor",
       "collection_too_deep": "Carpetas demasiado anidadas",
       "collection_name_taken": "El nombre de la carpeta ya está en uso"
-    }
+    },
+    "kind": {
+      "filezilla": "Gestor de sitios de FileZilla",
+      "sentinel": "Exportación de Sentinel, cifrada"
+    },
+    "exportPassword": "Contraseña del archivo",
+    "secrets": "Importar las contraseñas y claves",
+    "secretsHint": "Se vuelven a sellar en tu vault, que debe estar desbloqueado. Sin esto, los sitios se importan sin ellas."
   },
   "credential": {
     "title": "Escribe la contraseña",
@@ -282,5 +292,18 @@
     "show": "Mostrar",
     "hide": "Ocultar",
     "queue": "{{count}} más esperando"
+  },
+  "export": {
+    "title": "Exportar sitios",
+    "description": "Guarda todas las colecciones y sitios de este espacio de trabajo, con sus contraseñas y claves, en un archivo cifrado con una contraseña que eliges ahora.",
+    "password": "Contraseña del archivo",
+    "confirm": "Repite la contraseña",
+    "hint": "Al menos 12 caracteres. Sentinel no la guarda: sin ella el archivo no se puede abrir.",
+    "mismatch": "Las contraseñas no coinciden.",
+    "submit": "Exportar",
+    "working": "Cifrando…",
+    "done": "El archivo se guardó como {{name}}. Guárdalo separado de su contraseña.",
+    "close": "Cerrar",
+    "cancel": "Cancelar"
   }
 }
