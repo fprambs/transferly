@@ -183,3 +183,26 @@ func TestConnector_QuickFTP(t *testing.T) {
 		_ = fsys.Close()
 	}
 }
+
+// TestConnector_FTPAccount verifies FTP sites of the account logon type (4.8e).
+//
+// Scenarios:
+//   - a site with a password and an account connects to a server that does not ask for the account
+//   - an account that cannot be opened, because the vault is locked in the session, fails the connection
+func TestConnector_FTPAccount(t *testing.T) {
+	e := newEnv(t)
+	c := e.connector(e.allow)
+	plain := ftptest.Start(t, ftptest.Options{})
+
+	billed := e.addSiteAt(plain.Addr, site.Input{Name: "Billed", Protocol: site.FTP, Username: ftpUser, AuthMethod: site.AuthAccount}, site.SecretChanges{Password: text(ftpPassword), Account: text("billing")})
+	fsys, err := c.Connect(t.Context(), e.key(billed), session)
+	if err != nil {
+		t.Fatalf("Connect() to an FTP site of the account logon type = %v", err)
+	}
+	_ = fsys.Close()
+
+	only := e.addSiteAt(plain.Addr, site.Input{Name: "Account only", Protocol: site.FTP, Username: ftpUser, AuthMethod: site.AuthAccount}, site.SecretChanges{Account: text("billing")})
+	if _, err := c.Connect(t.Context(), e.key(only), "locked-session"); !errors.Is(err, site.ErrLocked) {
+		t.Errorf("Connect() with the vault locked = %v; want ErrLocked", err)
+	}
+}

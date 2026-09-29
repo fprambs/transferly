@@ -86,7 +86,7 @@ func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	}
 	return settings, site.SecretChanges{
 		Password: in.Password, PrivateKey: in.PrivateKey, Passphrase: in.Passphrase,
-		JumpPassword: in.JumpPassword, JumpPrivateKey: in.JumpPrivateKey, JumpPassphrase: in.JumpPassphrase, ProxyPassword: in.ProxyPassword,
+		JumpPassword: in.JumpPassword, JumpPrivateKey: in.JumpPrivateKey, JumpPassphrase: in.JumpPassphrase, ProxyPassword: in.ProxyPassword, Account: in.Account,
 	}
 }
 

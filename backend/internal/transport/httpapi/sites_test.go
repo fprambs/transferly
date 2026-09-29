@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -292,4 +293,28 @@ func TestSites_RemoteDir(t *testing.T) {
 	}
 	body["remoteDir"] = "var/www"
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_remote_dir")
+}
+
+// TestSites_Account verifies the account logon type over HTTP (4.8e).
+//
+// Scenarios:
+//   - an FTP site of the account logon type keeps its account as a secret, which is never returned
+//   - the account logon type is refused for SFTP
+func TestSites_Account(t *testing.T) {
+	a := newAPI(t)
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	if r := a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, csrf); r.Status != http.StatusCreated {
+		t.Fatalf("vault setup = %d %s", r.Status, r.Body)
+	}
+	body := siteBody("Billed")
+	body["protocol"], body["authMethod"], body["password"], body["account"] = "ftp", "account", "pw", "billing"
+
+	made := a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf)
+	got := made.site(t)
+	if made.Status != http.StatusCreated || got.AuthMethod != "account" || !slices.Contains(got.Secrets, httpapi.SiteSecrets("account")) || strings.Contains(string(made.Body), "billing") {
+		t.Fatalf("created = %d %s", made.Status, made.Body)
+	}
+	body["protocol"] = "sftp"
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_auth_method")
 }

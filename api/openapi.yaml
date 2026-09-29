@@ -4524,7 +4524,7 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key, ask, anonymous]
+          enum: [password, key, ask, anonymous, account]
         listTimezone:
           type: string
           description: IANA zone in which the server prints listing times.
@@ -4548,7 +4548,7 @@ components:
           description: Kinds of secret stored for the site. The secrets themselves are never returned.
           items:
             type: string
-            enum: [password, private_key, passphrase, jump_password, jump_private_key, jump_passphrase, proxy_password]
+            enum: [password, private_key, passphrase, jump_password, jump_private_key, jump_passphrase, proxy_password, account]
         createdAt:
           type: string
           format: date-time
@@ -4580,8 +4580,8 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key, ask, anonymous]
-          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP).
+          enum: [password, key, ask, anonymous, account]
+          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e).
         listTimezone:
           type: string
           description: IANA zone of the server's listing times; defaults to UTC.
@@ -4622,6 +4622,9 @@ components:
         proxyPassword:
           type: string
           description: Write only. Same rules as the password, for the proxy's account.
+        account:
+          type: string
+          description: Write only. Same rules as the password, for the account the account logon type sends with ACCT; only kept for that logon type.
     KnownHost:
       type: object
       required: [host, port, keyType, fingerprint, firstSeen]

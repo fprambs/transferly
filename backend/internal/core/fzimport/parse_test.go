@@ -37,6 +37,7 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
     <Server><Host>anon.example.com</Host><Protocol>6</Protocol><Logontype>0</Logontype><Name>Anonymous</Name><RemoteDir>1</RemoteDir></Server>
     <Server><Host>ask.example.com</Host><Protocol>1</Protocol><Logontype>2</Logontype><User>eve</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Asks</Name><RemoteDir>1 0 9 x</RemoteDir></Server>
     <Server><Host>bad.example.com</Host><Protocol>0</Protocol><Logontype>1</Logontype><User>frank</User><Pass encoding="base64">%%%</Pass><Name>Bad password</Name><Port>not-a-number</Port><RemoteDir>1 x 3 abc</RemoteDir></Server>
+    <Server><Host>acct.example.com</Host><Protocol>0</Protocol><Logontype>4</Logontype><User>jo</User><Pass encoding="base64">c2VjcmV0</Pass><Account> billing </Account><Name>Account</Name></Server>
     <Server><Host>key.example.com</Host><Protocol>1</Protocol><Logontype>5</Logontype><User>gina</User><Name>Key login</Name></Server>
     <Server><Host>web.example.com</Host><Protocol>2</Protocol><Logontype>1</Logontype><User>hank</User><Name>WebDAV</Name></Server>
     <Server><Host>implicit.example.com</Host><Port>9990</Port><Protocol>3</Protocol><Logontype>1</Logontype><User>ivy</User><Name>Odd implicit</Name><RemoteDir>1 1 /</RemoteDir></Server>
@@ -49,7 +50,8 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 // Scenarios:
 //   - the sites of the file are read with their folders, protocols, ports, users and passwords, in the order of the file
 //   - passwords may be base64 or plain, the ones that cannot be decoded are reported, and asking for the password or anonymous logins keep no password
-//   - FileZilla's logon types become the logon of the site: 0 anonymous as the anonymous user, 2 asking for the password, the rest a password
+//   - FileZilla's logon types become the logon of the site: 0 anonymous as the anonymous user, 2 asking for the password, 4 the account
+//     logon with its password and account, the rest a password
 //   - names default to the host, folder names are trimmed and CDATA is read
 //   - FileZilla's protocol numbers keep their encryption: 0 explicit TLS if available, 3 implicit TLS on any port, 4 required explicit TLS and 6 plain
 //   - sites that cannot be represented are reported with a reason: unsupported protocols, key file logins and a missing host
@@ -65,8 +67,8 @@ func TestParse(t *testing.T) {
 	for _, s := range servers {
 		byName[s.Name] = s
 	}
-	if len(servers) != 8 || len(skipped) != 3 {
-		t.Fatalf("read %d servers and %d skipped; want 8 and 3: %+v %+v", len(servers), len(skipped), servers, skipped)
+	if len(servers) != 9 || len(skipped) != 3 {
+		t.Fatalf("read %d servers and %d skipped; want 9 and 3: %+v %+v", len(servers), len(skipped), servers, skipped)
 	}
 	top := byName["Top level"]
 	if top.Host != "top.example.com" || top.Port != 2121 || top.Protocol != site.FTP || top.FTPEncryption != site.EncryptionOptional || top.Username != "alice" || top.Password != "secret" || top.AuthMethod != site.AuthPassword || len(top.Path) != 0 {
@@ -101,6 +103,9 @@ func TestParse(t *testing.T) {
 		if got := byName[name].RemoteDir; got != want {
 			t.Errorf("remote folder of %q = %q; want %q", name, got, want)
 		}
+	}
+	if account := byName["Account"]; account.AuthMethod != site.AuthAccount || account.Account != "billing" || account.Password != "secret" {
+		t.Errorf("account logon = %+v", account)
 	}
 	reasons := map[string]string{}
 	for _, s := range skipped {

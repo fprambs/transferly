@@ -285,6 +285,9 @@ func (r *run) one(server Server) (Item, error) {
 	if r.opts.Passwords && server.Password != "" {
 		changes.Password = &server.Password
 	}
+	if r.opts.Passwords && server.Account != "" {
+		changes.Account = &server.Account
+	}
 	if _, err := r.s.sites.Create(r.ctx, r.actor, r.ws, r.session, input, changes); err != nil {
 		if reason := reasonOf(err); reason != "" {
 			item.Status, item.Reason = StatusFailed, reason

@@ -60,6 +60,9 @@ const (
 	// AuthAnonymous logs in to a public server as the anonymous user, with no stored secret: SFTP servers are offered the
 	// SSH "none" method and then FileZilla's anonymous password, FTP servers that password.
 	AuthAnonymous AuthMethod = "anonymous"
+	// AuthAccount logs in to an FTP server with a password and an account, which some older servers ask for after the
+	// password (ACCT, reply 332), as FileZilla's account logon type (4.8e). The account is sealed like the password.
+	AuthAccount AuthMethod = "account"
 )
 
 // AnonymousUser is the account name of every anonymous site.
@@ -83,6 +86,8 @@ const (
 	SecretJumpPassphrase SecretKind = "jump_passphrase"
 	// SecretProxyPassword is the password of the SOCKS5 or HTTP proxy.
 	SecretProxyPassword SecretKind = "proxy_password"
+	// SecretAccount is the account an FTP site of the account logon type sends with ACCT.
+	SecretAccount SecretKind = "account"
 )
 
 // ProxyKind is a proxy protocol a site's connection can go through.

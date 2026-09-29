@@ -153,6 +153,7 @@ func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target sit
 		Address:       net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
 		Username:      target.Username,
 		Password:      string(s.password),
+		Account:       string(s.account),
 		TLS:           mode,
 		Location:      location(target.ListTimezone),
 		Charset:       charsetOf(target.Charset),
@@ -346,11 +347,12 @@ type secrets struct {
 	password, privateKey, passphrase             []byte
 	jumpPassword, jumpPrivateKey, jumpPassphrase []byte
 	proxyPassword                                []byte
+	account                                      []byte
 }
 
 // wipe overwrites the secrets in memory.
 func (s secrets) wipe() {
-	for _, b := range [][]byte{s.password, s.privateKey, s.passphrase, s.jumpPassword, s.jumpPrivateKey, s.jumpPassphrase, s.proxyPassword} {
+	for _, b := range [][]byte{s.password, s.privateKey, s.passphrase, s.jumpPassword, s.jumpPrivateKey, s.jumpPassphrase, s.proxyPassword, s.account} {
 		clear(b)
 	}
 }
@@ -385,6 +387,12 @@ func (c *Connector) open(ctx context.Context, key connections.Key, session strin
 		}
 		if err != nil {
 			return secrets{}, missing(err, "password")
+		}
+		if target.AuthMethod == site.AuthAccount {
+			if s.account, err = read(site.SecretAccount); err != nil && !errors.Is(err, site.ErrNoSecret) {
+				s.wipe()
+				return secrets{}, err
+			}
 		}
 	}
 	if err := openJump(read, target, &s); err != nil {

@@ -1106,3 +1106,39 @@ func TestService_MoveSite(t *testing.T) {
 		t.Errorf("MoveSite() with a failing store = %v", err)
 	}
 }
+
+// TestService_Account verifies the account logon type of FTP sites (4.8e).
+//
+// Scenarios:
+//   - an FTP site keeps its password and its account, sealed like every secret
+//   - the account logon type is refused for SFTP
+//   - a site switched to another logon type drops its account
+func TestService_Account(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	in := valid()
+	in.Name, in.Protocol, in.AuthMethod = "Billed", site.FTP, site.AuthAccount
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{Password: text("pw"), Account: text("billing")})
+	if err != nil {
+		t.Fatalf("Create(account) = %v", err)
+	}
+	if created.AuthMethod != site.AuthAccount || !slices.Contains(created.Secrets, site.SecretAccount) || !slices.Contains(created.Secrets, site.SecretPassword) {
+		t.Errorf("Create(account) = %s with secrets %v", created.AuthMethod, created.Secrets)
+	}
+
+	sftp := valid()
+	sftp.Name, sftp.AuthMethod = "Secure", site.AuthAccount
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", sftp, site.SecretChanges{}); !errors.Is(err, site.ErrInvalidAuthMethod) {
+		t.Errorf("Create(SFTP, account) = %v; want ErrInvalidAuthMethod", err)
+	}
+
+	in.AuthMethod = site.AuthPassword
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", in, site.SecretChanges{}); err != nil {
+		t.Fatal(err)
+	}
+	_, account := f.store.secrets[created.ID.String()+string(site.SecretAccount)]
+	_, password := f.store.secrets[created.ID.String()+string(site.SecretPassword)]
+	if account || !password {
+		t.Errorf("a site switched to the normal logon kept the account %v and the password %v; want only the password", account, password)
+	}
+}

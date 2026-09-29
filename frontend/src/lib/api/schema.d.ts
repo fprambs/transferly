@@ -1607,7 +1607,7 @@ export interface components {
             port: number;
             username: string;
             /** @enum {string} */
-            authMethod: "password" | "key" | "ask" | "anonymous";
+            authMethod: "password" | "key" | "ask" | "anonymous" | "account";
             /** @description IANA zone in which the server prints listing times. */
             listTimezone: string;
             charset: components["schemas"]["Charset"];
@@ -1623,7 +1623,7 @@ export interface components {
             /** @description Left out when the connection is made directly, without a jump host. */
             jump?: components["schemas"]["SiteJump"];
             /** @description Kinds of secret stored for the site. The secrets themselves are never returned. */
-            secrets: ("password" | "private_key" | "passphrase" | "jump_password" | "jump_private_key" | "jump_passphrase" | "proxy_password")[];
+            secrets: ("password" | "private_key" | "passphrase" | "jump_password" | "jump_private_key" | "jump_passphrase" | "proxy_password" | "account")[];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1647,10 +1647,10 @@ export interface components {
             port?: number;
             username: string;
             /**
-             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP).
+             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e).
              * @enum {string}
              */
-            authMethod?: "password" | "key" | "ask" | "anonymous";
+            authMethod?: "password" | "key" | "ask" | "anonymous" | "account";
             /** @description IANA zone of the server's listing times; defaults to UTC. */
             listTimezone?: string;
             charset?: components["schemas"]["Charset"];
@@ -1679,6 +1679,8 @@ export interface components {
             jumpPassphrase?: string;
             /** @description Write only. Same rules as the password, for the proxy's account. */
             proxyPassword?: string;
+            /** @description Write only. Same rules as the password, for the account the account logon type sends with ACCT; only kept for that logon type. */
+            account?: string;
         };
         KnownHost: {
             host: string;

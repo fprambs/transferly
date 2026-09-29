@@ -20,6 +20,7 @@ type fakeSites struct {
 	sites       []site.Site
 	collections []site.Collection
 	passwords   map[string]string
+	accounts    map[string]string
 	unlocked    bool
 	createErr   map[string]error
 	collErr     error
@@ -36,6 +37,9 @@ func (f *fakeSites) Create(_ context.Context, _, ws uuid.UUID, _ string, in site
 	f.sites = append(f.sites, created)
 	if changes.Password != nil {
 		f.passwords[in.Name] = *changes.Password
+	}
+	if changes.Account != nil {
+		f.accounts[in.Name] = *changes.Account
 	}
 	return created, nil
 }
@@ -73,7 +77,7 @@ func (a allow) Authorize(context.Context, uuid.UUID, uuid.UUID, workspace.Action
 
 // newImport returns a service over fake sites.
 func newImport() (*fzimport.Service, *fakeSites) {
-	f := &fakeSites{passwords: map[string]string{}, unlocked: true, createErr: map[string]error{}}
+	f := &fakeSites{passwords: map[string]string{}, accounts: map[string]string{}, unlocked: true, createErr: map[string]error{}}
 	return fzimport.NewService(allow{}, f), f
 }
 
@@ -82,7 +86,7 @@ func servers() []fzimport.Server {
 	return []fzimport.Server{
 		{Path: []string{"Work", "Deep"}, Name: "One", Protocol: site.SFTP, Host: "one.example.com", Username: "u", Password: "pw1"},
 		{Path: []string{"Work"}, Name: "Two", Protocol: site.FTP, Host: "two.example.com", Username: "u", PasswordSkipped: true},
-		{Name: "Three", Protocol: site.FTPS, Host: "three.example.com", Username: "u"},
+		{Name: "Three", Protocol: site.FTPS, Host: "three.example.com", Username: "u", AuthMethod: site.AuthAccount, Account: "billing"},
 	}
 }
 
@@ -98,7 +102,7 @@ func byName(r fzimport.Result) map[string]fzimport.Item {
 // TestService_Import verifies creating the sites of a file.
 //
 // Scenarios:
-//   - sites are created with their folders, which are created once and reused, and their passwords when asked for
+//   - sites are created with their folders, which are created once and reused, and their passwords and accounts when asked for
 //   - a dry run reports what would happen and writes nothing, including no folders
 //   - names that are taken are skipped by default and renamed to a free "Name (n)" when asked, and the same name twice in a file is handled the same way
 //   - folders that exist are reused, and everything can go into a chosen collection
@@ -118,6 +122,9 @@ func TestService_Import(t *testing.T) {
 	items := byName(result)
 	if len(f.sites) != 3 || len(f.collections) != 2 || f.passwords["One"] != "pw1" || len(f.passwords) != 1 {
 		t.Errorf("created %d sites, %d collections, passwords %v", len(f.sites), len(f.collections), f.passwords)
+	}
+	if f.accounts["Three"] != "billing" || len(f.accounts) != 1 {
+		t.Errorf("accounts = %v; want the account of the site of the account logon type", f.accounts)
 	}
 	if items["One"].Status != fzimport.StatusCreated || !items["One"].PasswordStored || items["One"].Path != "Work/Deep" || items["Two"].PasswordSkipped != true {
 		t.Errorf("items = %+v", items)

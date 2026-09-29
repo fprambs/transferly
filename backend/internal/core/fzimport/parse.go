@@ -60,6 +60,8 @@ type Server struct {
 	PasswordSkipped bool
 	// RemoteDir is the folder the site opens in, from FileZilla's default remote directory; empty for the root or when it cannot be read.
 	RemoteDir string
+	// Account is the account of FileZilla's account logon type, which FTP servers may ask for after the password (4.8e).
+	Account string
 }
 
 // Skipped is a site of the file that cannot be imported, and why.
@@ -85,6 +87,7 @@ type rawServer struct {
 	} `xml:"Pass"`
 	Name      string `xml:"Name"`
 	RemoteDir string `xml:"RemoteDir"`
+	Account   string `xml:"Account"`
 }
 
 // parser walks the tokens of the file.
@@ -289,6 +292,9 @@ func convert(raw rawServer, name string, path []string) (Server, string) {
 		return Server{}, "key_file_login"
 	case "2":
 		server.AuthMethod = site.AuthAsk
+	case "4":
+		server.AuthMethod, server.Account = site.AuthAccount, strings.TrimSpace(raw.Account)
+		readPassword(&server, raw)
 	default:
 		server.AuthMethod = site.AuthPassword
 		readPassword(&server, raw)
