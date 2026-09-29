@@ -44,7 +44,7 @@ async function openQuickConnection(page: Page, quickId: string): Promise<void> {
  * - a file is uploaded to the server, appears in the folder and in the transfers dock as done, downloads back with the same
  *   content, and is deleted
  * - opening a connection and moving between folders show a connecting state and a loading bar, and never a blank page
- * - a download shows its progress in the transfers dock, which opens on its own, and ends as done
+ * - a download from a site with a speed limit shows its progress in the transfers dock, which opens on its own, and ends as done
  * - an upload canceled half way leaves a partial file, and resuming it from the dock sends only the rest, so the file that
  *   comes back is identical to the one that went out
  * - the explorer has no WCAG violations in any of the twelve themes
@@ -229,16 +229,23 @@ test.describe('explorer', () => {
     test.setTimeout(120_000)
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const headers = { 'X-CSRF-Token': me.csrfToken }
     const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
     const files = `/api/v1/workspaces/${workspaces[0].id}/sites/${quickId}/files`
     const name = `e2e-download-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
     await request.put(`${files}/content`, {
       params: { path: `${folder}/${name}`, mode: 'overwrite' },
-      data: Buffer.alloc(24 * 1024 * 1024, 7),
-      headers: { 'X-CSRF-Token': me.csrfToken, 'Content-Type': 'application/octet-stream' },
+      data: Buffer.alloc(8 * 1024 * 1024, 7),
+      headers: { ...headers, 'Content-Type': 'application/octet-stream' },
     })
+    const slow = (await (
+      await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
+        data: { name: `Slow ${name}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', password: 'sentinel', speedLimitBps: 512 * 1024 },
+        headers,
+      })
+    ).json()) as { id: string }
 
-    await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
+    await page.goto(`/sites/${slow.id}?path=${encodeURIComponent(folder)}`)
     const row = page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(name) })
     await row.click()
     await expect(async () => {
@@ -247,9 +254,6 @@ test.describe('explorer', () => {
       }
       await expect(page.locator('#queue-body')).toBeHidden({ timeout: 1000 })
     }).toPass()
-    const client = await page.context().newCDPSession(page)
-    await client.send('Network.enable')
-    await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: 400 * 1024, uploadThroughput: -1 })
 
     const download = page.waitForEvent('download')
     await page.getByRole('complementary', { name: 'Details' }).getByRole('button', { name: 'Download' }).click()
@@ -261,11 +265,10 @@ test.describe('explorer', () => {
     await expect.poll(async () => Number(await active.getByRole('progressbar').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(5)
     await expect(active).toContainText('/s')
 
-    await client.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
     await (await download).path()
     await dock.getByRole('tab', { name: /Finished/ }).click()
     await expect(dock.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByRole('img', { name: 'Download' }) })).toContainText('Done', { timeout: 30_000 })
-
+    await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${slow.id}`, { headers })
   })
 
   test('has no WCAG violations in any theme', async ({ shell, quickId }) => {
