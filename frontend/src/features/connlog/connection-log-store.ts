@@ -17,7 +17,11 @@ interface ConnectionLogState {
   lines: Record<string, LogLine[]>
   /** Number given to the next line. */
   next: number
-  /** Adds an entry to the log of its site, dropping the oldest line past {@link maxLogLines}. */
+  /**
+   * Adds an entry to the log of its site, dropping the oldest line past {@link maxLogLines}. A connection that starts after the site was
+   * disconnected starts a log of its own, so opening a site again does not carry on the previous session; one that starts after a failure
+   * keeps the failure above it.
+   */
   add: (entry: ConnectionLogEntry) => void
   /** Empties the log of a site. */
   clear: (workspaceId: string, siteId: string) => void
@@ -35,7 +39,9 @@ export const useConnectionLog = create<ConnectionLogState>()((set) => ({
   add: (entry) =>
     set((state) => {
       const key = logKey(entry.workspaceId, entry.siteId)
-      const lines = [...(state.lines[key] ?? []), { ...entry, seq: state.next }].slice(-maxLogLines)
+      const previous = state.lines[key] ?? []
+      const fresh = entry.step === 'connecting' && previous.at(-1)?.step === 'disconnected'
+      const lines = [...(fresh ? [] : previous), { ...entry, seq: state.next }].slice(-maxLogLines)
       return { lines: { ...state.lines, [key]: lines }, next: state.next + 1 }
     }),
   clear: (workspaceId, siteId) => set((state) => ({ lines: { ...state.lines, [logKey(workspaceId, siteId)]: [] } })),

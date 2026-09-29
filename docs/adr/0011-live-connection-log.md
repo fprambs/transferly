@@ -29,7 +29,7 @@ Steps of a jump host carry `hop: jump`. The connector records the connection ste
 
 **Nothing secret, ever.** Parameters are chosen fields: host names, ports, addresses, fingerprints, user names, logon types, paths, counts and codes. There is no free-text field that could carry an error message with a secret in it. A test connects with passwords, keys and proxies and checks that no entry holds any secret.
 
-**The server keeps nothing.** Entries go to the clients connected now and are not stored or replayed. The client keeps the last 500 lines per site in memory, shows them in a Log panel above the explorer that follows the site being browsed, and lets the user copy or clear them.
+**The server keeps nothing.** Entries go to the clients connected now and are not stored or replayed. The client keeps the last 500 lines per site in memory, shows them in a Log panel above the explorer that follows the site being browsed, and lets the user copy or clear them. A connection that starts right after the site was disconnected starts the log again, so opening a site anew does not carry on the previous session; a retry after a failure keeps the failure above it.
 
 ## Consequences
 

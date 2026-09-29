@@ -37,6 +37,7 @@ function shown(): string[] {
  * - every step is written in words with its values: how a connection is reached, the key or certificate verdict, clear text, the account and
  *   its logon type, listings, and failures with the message of their code; jump host steps say so; unknown steps and logon types show as they came
  * - each site has its own log, which keeps its newest lines only, and the panel says when it is empty
+ * - a connection that starts after the site was disconnected starts the log again, while one that starts after a failure keeps the failure
  * - lines of problems are colored, times use the clock of the browser, and the newest line stays in view unless the user scrolled up
  * - the panel can be collapsed and opened, copied as text and cleared
  */
@@ -108,6 +109,17 @@ describe('ConnectionLog', () => {
     expect(lines).toHaveLength(maxLogLines)
     expect(lines[0].params.path).toBe('/5')
     expect(screen.getByRole('button', { name: /Log/ })).toHaveTextContent(String(maxLogLines))
+  })
+
+  it('starts again when a disconnected site connects, and keeps a failure above a new attempt', async () => {
+    await renderWithProviders(<ConnectionLog workspaceId="w1" siteId="s1" />)
+    add(entry('connecting', { host: 'prod', port: '22' }), entry('failed', { code: 'remote_unavailable' }, 'error'), entry('connecting', { host: 'prod', port: '22' }))
+    expect(shown()).toHaveLength(3)
+
+    add(entry('connected', { address: '10.0.0.1:22' }), entry('disconnected'))
+    expect(shown()).toHaveLength(5)
+    add(entry('connecting', { host: 'prod', port: '22' }))
+    expect(shown()).toEqual(['Connecting to prod:22…'])
   })
 
   it('follows the newest line unless the user scrolled up', async () => {

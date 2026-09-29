@@ -6,6 +6,7 @@ import { expect, test } from '../fixtures.ts'
  * Scenarios:
  * - opening an SFTP site tells, in order, the connection, the address reached, the verified server key, the account that signed in and the
  *   listing with its count, and the password never shows
+ * - after disconnecting, opening the site again starts the log from the first step instead of carrying on the previous session
  * - an FTP site with optional encryption, against a server without TLS, warns that it went on in clear text
  */
 test.describe('connection log', () => {
@@ -33,6 +34,14 @@ test.describe('connection log', () => {
       }
     }
     expect(at, `steps in order within ${JSON.stringify(lines)}`).toBe(order.length)
+
+    await page.getByRole('button', { name: 'Disconnect from the server' }).click()
+    await expect(page).toHaveURL(/\/$/)
+    await page.getByRole('treeitem', { name: new RegExp(name) }).click()
+    await expect(log.getByText(/^Listed \/: \d+ entries\.$/)).toBeVisible()
+    const again = await log.getByRole('listitem').locator('span').allTextContents()
+    expect(again[0]).toBe('Connecting to sftp:22…')
+    expect(again.filter((line) => line.startsWith('Connecting to'))).toHaveLength(1)
   })
 
   test('warns when FTP goes on without TLS', async ({ shell }) => {
