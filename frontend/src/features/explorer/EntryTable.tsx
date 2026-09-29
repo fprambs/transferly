@@ -149,7 +149,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
         tabIndex={0}
         aria-activedescendant={`entry-${current}`}
         onKeyDown={onKeyDown}
-        className="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="@container min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
       <div
         role="row"
