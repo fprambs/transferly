@@ -1,6 +1,6 @@
 # Remote files API
 
-Endpoints live under `/api/v1/workspaces/{workspaceId}/sites/{siteId}/files`. Every one needs a session; writes also need the anti-CSRF token. The first call connects through the pool, so the vault must be unlocked in the session and the server key must be trusted (`409 host_key_unknown` carries the fingerprint to confirm with `POST .../known-hosts`).
+Endpoints live under `/api/v1/workspaces/{workspaceId}/sites/{siteId}/files`. Every one needs a session; writes also need the anti-CSRF token. The first call connects through the pool, so the vault must be unlocked in the session and the server key must be trusted (`409 host_key_unknown` carries the fingerprint to confirm with `POST .../known-hosts`; `409 host_key_changed` also lists the trusted fingerprints in `trusted`, and trusting that key takes `mode` `add` or `replace`, see ADR-0014).
 
 | Call | Permission | Notes |
 |---|---|---|
