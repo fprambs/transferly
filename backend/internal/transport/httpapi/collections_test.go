@@ -185,3 +185,44 @@ func TestCollections_AuthorizationMatrix(t *testing.T) {
 		t.Error("another workspace lists collections that are not its own")
 	}
 }
+
+// TestSites_Move verifies moving a saved site between collections over HTTP (4.14h).
+//
+// Scenarios:
+//   - a site moves into a collection and back to the top level, and each move is audited as a change of the site
+//   - a missing collection is 404 collection_not_found, a missing site 404 site_not_found, a malformed body 400
+//   - a viewer gets 403 forbidden and a stranger 404 workspace_not_found
+func TestSites_Move(t *testing.T) {
+	a := newAPI(t)
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+	siteID := a.send(http.MethodPost, sitesPath(ws), siteBody("Prod"), cookie, csrf).site(t).Id.String()
+	var clients httpapi.Collection
+	mustDecode(t, a.send(http.MethodPost, "/api/v1/workspaces/"+ws.String()+"/collections", map[string]string{"name": "Clients"}, cookie, csrf).Body, &clients)
+	move := sitesPath(ws, siteID) + "/move"
+
+	in := a.send(http.MethodPost, move, map[string]string{"collectionId": clients.Id.String()}, cookie, csrf)
+	if got := in.site(t); in.Status != http.StatusOK || got.CollectionId == nil || *got.CollectionId != clients.Id {
+		t.Fatalf("move in = %d %s", in.Status, in.Body)
+	}
+	if out := a.send(http.MethodPost, move, map[string]string{}, cookie, csrf); out.Status != http.StatusOK || out.site(t).CollectionId != nil {
+		t.Errorf("move out = %d %s", out.Status, out.Body)
+	}
+	expectProblem(t, a.send(http.MethodPost, move, map[string]string{"collectionId": uuid.NewString()}, cookie, csrf), 404, "collection_not_found")
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws, uuid.NewString())+"/move", map[string]string{}, cookie, csrf), 404, "site_not_found")
+	expectProblem(t, a.send(http.MethodPost, move, "{oops", cookie, csrf), 400, "invalid_request")
+
+	var events []httpapi.AuditEvent
+	mustDecode(t, a.do(request{method: http.MethodGet, path: "/api/v1/workspaces/" + ws.String() + "/audit?action=site.updated", cookie: cookie}).Body, &events)
+	if len(events) != 2 {
+		t.Errorf("audited moves = %+v; want two", events)
+	}
+
+	viewerCookie, viewer := a.signIn("viewer@example.com")
+	a.addMember(ws, viewer.ID, workspace.RoleViewer)
+	viewerCSRF := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: viewerCookie}).session(t).CsrfToken
+	expectProblem(t, a.send(http.MethodPost, move, map[string]string{}, viewerCookie, viewerCSRF), 403, "forbidden")
+	strangerCookie, _ := a.signIn("stranger@example.com")
+	strangerCSRF := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: strangerCookie}).session(t).CsrfToken
+	expectProblem(t, a.send(http.MethodPost, move, map[string]string{}, strangerCookie, strangerCSRF), 404, "workspace_not_found")
+}

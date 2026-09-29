@@ -2,9 +2,11 @@ package httpapi
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/site"
 )
 
@@ -88,3 +90,24 @@ func (s *server) DeleteCollection(ctx context.Context, request DeleteCollectionR
 	}
 	return DeleteCollection204Response{}, nil
 }
+
+// MoveSite puts a saved site in another collection, or at the top level.
+func (s *server) MoveSite(ctx context.Context, request MoveSiteRequestObject) (MoveSiteResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	target := uuid.Nil
+	if request.Body.CollectionId != nil {
+		target = *request.Body.CollectionId
+	}
+	moved, err := s.deps.Sites.MoveSite(ctx, p.User.ID, request.WorkspaceId, request.SiteId, target)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, moved.Name, map[string]string{"host": moved.Host})
+	return MoveSite200JSONResponse(siteDTO(moved)), nil
+}
+
+// VisitMoveSiteResponse implements [MoveSiteResponseObject].
+func (p domainProblem) VisitMoveSiteResponse(w http.ResponseWriter) error { return p.write(w) }

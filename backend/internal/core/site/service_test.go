@@ -1060,3 +1060,49 @@ func TestNormalize_FTPEncryption(t *testing.T) {
 		})
 	}
 }
+
+// TestService_MoveSite verifies moving a saved site between collections (4.14h).
+//
+// Scenarios:
+//   - an editor moves a site into a collection and back to the top level; the other settings stay
+//   - a site whose host no longer resolves can still be moved, since the host is not checked again
+//   - a viewer is refused, and a missing collection or site is reported
+//   - failures of the store while reading or writing are reported
+func TestService_MoveSite(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	collection, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "Clients", uuid.Nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("pw")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	moved, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, collection.ID)
+	if err != nil || moved.CollectionID != collection.ID || moved.Host != created.Host {
+		t.Fatalf("MoveSite() into a collection = %+v, %v", moved, err)
+	}
+	stored := f.store.sites[created.ID]
+	stored.Host = "gone.example"
+	f.store.sites[created.ID] = stored
+	back, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil)
+	if err != nil || back.CollectionID != uuid.Nil || back.Host != "gone.example" {
+		t.Errorf("MoveSite() to the top level = %+v, %v", back, err)
+	}
+
+	if _, err := f.svc.MoveSite(ctx, f.viewer, f.ws, created.ID, uuid.Nil); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("viewer MoveSite() = %v", err)
+	}
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.New()); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("MoveSite() into a missing collection = %v", err)
+	}
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, uuid.New(), uuid.Nil); !errors.Is(err, site.ErrNotFound) {
+		t.Errorf("MoveSite() of a missing site = %v", err)
+	}
+	f.store.failUpdate = errStore
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil); !errors.Is(err, errStore) {
+		t.Errorf("MoveSite() with a failing store = %v", err)
+	}
+}

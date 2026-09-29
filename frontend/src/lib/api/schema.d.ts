@@ -1378,6 +1378,26 @@ export interface paths {
         patch: operations["updateBookmark"];
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sites/{siteId}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a saved site to another collection
+         * @description Puts the site in a collection, or at the top level when collectionId is left out, keeping every other setting (4.14h). The host is not checked again.
+         */
+        post: operations["moveSite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/collections/{collectionId}": {
         parameters: {
             query?: never;
@@ -1866,6 +1886,13 @@ export interface components {
         BookmarkChanges: {
             name?: string;
             path?: string;
+        };
+        SiteMove: {
+            /**
+             * Format: uuid
+             * @description Collection to put the site in; left out for the top level.
+             */
+            collectionId?: string;
         };
         CollectionInput: {
             name: string;
@@ -7576,6 +7603,74 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    moveSite: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+                /** @description Identifier of the site. */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteMove"];
+            };
+        };
+        responses: {
+            /** @description The site in its new collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Site"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

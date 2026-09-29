@@ -174,3 +174,23 @@ func (s *Service) DeleteCollection(ctx context.Context, actor, workspaceID, id u
 	}
 	return s.store.DeleteCollection(ctx, workspaceID, id)
 }
+
+// MoveSite puts a saved site in a collection, or at the top level for the nil identifier, leaving every other setting as it is (4.14h).
+// Unlike an update, it does not check the host again, so a site whose server cannot be reached right now can still be moved.
+func (s *Service) MoveSite(ctx context.Context, actor, workspaceID, id, collectionID uuid.UUID) (Site, error) {
+	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
+		return Site{}, err
+	}
+	if err := s.checkCollection(ctx, workspaceID, collectionID); err != nil {
+		return Site{}, err
+	}
+	current, err := s.store.Site(ctx, workspaceID, id)
+	if err != nil {
+		return Site{}, err
+	}
+	current.CollectionID, current.UpdatedAt = collectionID, s.clock.Now().UTC()
+	if err := s.store.UpdateSite(ctx, current, nil, nil); err != nil {
+		return Site{}, err
+	}
+	return current, nil
+}

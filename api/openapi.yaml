@@ -3877,6 +3877,54 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/move:
+    post:
+      operationId: moveSite
+      security:
+        - sessionCookie: []
+      summary: Move a saved site to another collection
+      description: Puts the site in a collection, or at the top level when collectionId is left out, keeping every other setting (4.14h). The host is not checked again.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteMove"
+      responses:
+        "200":
+          description: The site in its new collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Site"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/collections/{collectionId}:
     patch:
       operationId: updateCollection
@@ -4875,6 +4923,13 @@ components:
           type: string
         path:
           type: string
+    SiteMove:
+      type: object
+      properties:
+        collectionId:
+          type: string
+          format: uuid
+          description: Collection to put the site in; left out for the top level.
     CollectionInput:
       type: object
       required: [name]
