@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RemoteEntry } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose as chooseOption, optionsOf } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 
 import { maxTreeEntries } from '../local/tree'
@@ -109,9 +110,9 @@ async function renderExplorer() {
 }
 
 /** Confirms the dialog with a policy. */
-async function choose(user: ReturnType<typeof userEvent.setup>, option: string) {
+async function confirmWith(user: ReturnType<typeof userEvent.setup>, option: string) {
   const dialog = await screen.findByRole('dialog', { name: 'Copy site' })
-  await user.selectOptions(within(dialog).getByRole('combobox', { name: 'If a file exists' }), option)
+  await chooseOption(user, within(dialog).getByRole('combobox', { name: 'If a file exists' }), option)
   await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
 }
 
@@ -144,9 +145,9 @@ describe('folder uploads', () => {
     drop(region, [siteFolder()])
     const dialog = await screen.findByRole('dialog', { name: 'Copy site' })
     const select = within(dialog).getByRole('combobox', { name: 'If a file exists' })
-    expect(select).toHaveValue('skip')
+    expect(select).toHaveTextContent('Skip it')
     expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Skip it', 'Keep both, renaming the copy', 'Overwrite it', 'Stop with an error'])
+    expect(await optionsOf(user, select)).toEqual(['Skip it', 'Keep both, renaming the copy', 'Overwrite it', 'Stop with an error'])
     await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
 
     await waitFor(() => expect(calls).toHaveLength(5))
@@ -165,19 +166,19 @@ describe('folder uploads', () => {
     const { user, region } = await renderExplorer()
 
     drop(region, [siteFolder()])
-    await choose(user, 'Skip it')
+    await confirmWith(user, 'Skip it')
     await waitFor(() => expect(calls).toContain('put /www/site/sub/b.txt create'))
     expect(calls).not.toContain('put /www/site/a.txt overwrite')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
     calls.length = 0
     drop(region, [siteFolder()])
-    await choose(user, 'Overwrite it')
+    await confirmWith(user, 'Overwrite it')
     await waitFor(() => expect(calls).toContain('put /www/site/a.txt overwrite'))
 
     calls.length = 0
     drop(region, [siteFolder()])
-    await choose(user, 'Keep both, renaming the copy')
+    await confirmWith(user, 'Keep both, renaming the copy')
     await waitFor(() => expect(calls).toContain('put /www/site/a (2).txt create'))
   })
 
@@ -186,7 +187,7 @@ describe('folder uploads', () => {
     const { user, region } = await renderExplorer()
 
     drop(region, [siteFolder()])
-    await choose(user, 'Stop with an error')
+    await confirmWith(user, 'Stop with an error')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('a.txt: An item with this name already exists.')
     expect(calls).not.toContain('put /www/site/sub/b.txt create')
@@ -198,7 +199,7 @@ describe('folder uploads', () => {
     const { user, region } = await renderExplorer()
 
     drop(region, [dirEntry('site', [fileEntry('a.txt')])])
-    await choose(user, 'Keep both, renaming the copy')
+    await confirmWith(user, 'Keep both, renaming the copy')
 
     expect(await screen.findByRole('alert', undefined, { timeout: 15_000 })).toHaveTextContent('a.txt: An item with this name already exists.')
     expect(calls.filter((call) => call.startsWith('put'))).toEqual(['put /www/site/a.txt create'])
@@ -209,7 +210,7 @@ describe('folder uploads', () => {
     const { user, region } = await renderExplorer()
 
     drop(region, [siteFolder()])
-    await choose(user, 'Skip it')
+    await confirmWith(user, 'Skip it')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('site: You do not have permission to read this folder.')
     expect(calls.filter((call) => call.startsWith('put'))).toEqual([])
@@ -238,7 +239,7 @@ describe('folder uploads', () => {
     const { user, region } = await renderExplorer()
 
     drop(region, [siteFolder(), fileEntry('loose.txt')])
-    await choose(user, 'Skip it')
+    await confirmWith(user, 'Skip it')
 
     await waitFor(() => expect(calls).toContain('put /www/loose.txt create'))
     await waitFor(() => expect(calls).toContain('put /www/site/sub/b.txt create'))
@@ -255,7 +256,7 @@ describe('folder uploads', () => {
     }
 
     fireEvent.change(input, { target: { files: [picked('site/a.txt'), picked('site/sub/b.txt')] } })
-    await choose(user, 'Skip it')
+    await confirmWith(user, 'Skip it')
 
     await waitFor(() => expect(calls).toContain('put /www/site/sub/b.txt create'))
     expect(calls.slice(0, 2)).toEqual(['mkdir /www/site', 'mkdir /www/site/sub'])
@@ -282,7 +283,7 @@ describe('folder uploads', () => {
     const { user, region } = await renderExplorer()
 
     drop(region, [dirEntry('site', [fileEntry('a.txt')])])
-    await choose(user, 'Keep both, renaming the copy')
+    await confirmWith(user, 'Keep both, renaming the copy')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('a.txt: Something went wrong. Try again.')
   })

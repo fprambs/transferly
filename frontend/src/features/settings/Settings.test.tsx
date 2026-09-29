@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { adminSession, mockSecurity, mockSession, mockUpdateMe, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { renderApp } from '@/test/render-app'
 import { useUiStore } from '@/state/ui-store'
 
@@ -107,7 +108,7 @@ describe('settings', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/settings' })
 
-    await user.selectOptions(await screen.findByLabelText('Interface language'), 'es')
+    await choose(user, await screen.findByLabelText('Interface language'), 'Español')
 
     expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
     await waitFor(() => expect(saved).toEqual([{ locale: 'es' }]))
@@ -118,7 +119,7 @@ describe('settings', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/settings' })
 
-    await user.selectOptions(await screen.findByLabelText('Interface language'), 'es')
+    await choose(user, await screen.findByLabelText('Interface language'), 'Español')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('El idioma se aplicó aquí, pero no se pudo guardar en tu cuenta.')
   })
@@ -161,10 +162,10 @@ describe('settings', () => {
     await renderApp({ path: '/settings' })
 
     const select = await screen.findByLabelText('Double click on a file')
-    expect(select).toHaveValue('download')
-    await user.selectOptions(select, 'edit')
+    expect(select).toHaveTextContent('Download it')
+    await choose(user, select, 'Open it in the editor')
     expect(useUiStore.getState().fileDoubleClick).toBe('edit')
-    await user.selectOptions(select, 'download')
+    await choose(user, select, 'Download it')
     expect(useUiStore.getState().fileDoubleClick).toBe('download')
     await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit' }, { fileDoubleClick: 'download' }]))
   })
@@ -174,7 +175,7 @@ describe('settings', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/settings' })
 
-    await user.selectOptions(await screen.findByLabelText('Double click on a file'), 'edit')
+    await choose(user, await screen.findByLabelText('Double click on a file'), 'Open it in the editor')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The choice applies here, but it could not be saved to your account.')
     expect(useUiStore.getState().fileDoubleClick).toBe('edit')
@@ -187,7 +188,7 @@ describe('settings', () => {
     await renderApp({ path: '/settings' })
 
     await waitFor(() => expect(useUiStore.getState().fileDoubleClick).toBe('edit'))
-    expect(screen.getByLabelText('Double click on a file')).toHaveValue('edit')
+    expect(screen.getByLabelText('Double click on a file')).toHaveTextContent('Open it in the editor')
     expect(saved).toEqual([])
   })
 

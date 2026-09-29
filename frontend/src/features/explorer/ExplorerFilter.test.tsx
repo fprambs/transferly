@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { RemoteEntry } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 
 import { Explorer } from './Explorer'
@@ -149,8 +150,8 @@ describe('explorer filter', () => {
     await user.click(within(menu).getByRole('button', { name: 'Last 7 days' }))
     expect(names(grid)).toEqual(['access.log'])
     await user.click(within(menu).getByRole('button', { name: 'Between dates' }))
-    await user.selectOptions(within(menu).getByRole('combobox', { name: 'Choose the Year' }), '2020')
-    await user.selectOptions(within(menu).getByRole('combobox', { name: 'Choose the Month' }), '0')
+    await choose(user, within(menu).getByRole('combobox', { name: 'Choose the Year' }), '2020')
+    await choose(user, within(menu).getByRole('combobox', { name: 'Choose the Month' }), /January/i)
     await user.click(within(menu).getByRole('button', { name: /December 31st, 2019/ }))
     await user.click(within(menu).getByRole('button', { name: /January 2nd, 2020/ }))
     expect(within(menu).getByText('Dec 31, 2019')).toBeInTheDocument()
@@ -186,8 +187,8 @@ describe('explorer filter', () => {
     const menu = await screen.findByRole('dialog')
     await user.click(within(menu).getByRole('button', { name: 'Between dates' }))
     expect(screen.getByText('… to …')).toBeInTheDocument()
-    await user.selectOptions(within(menu).getByRole('combobox', { name: 'Choose the Year' }), '2020')
-    await user.selectOptions(within(menu).getByRole('combobox', { name: 'Choose the Month' }), '5')
+    await choose(user, within(menu).getByRole('combobox', { name: 'Choose the Year' }), '2020')
+    await choose(user, within(menu).getByRole('combobox', { name: 'Choose the Month' }), /June/i)
     await user.click(within(menu).getByRole('button', { name: /June 1st, 2020/ }))
     expect(screen.getByText('Jun 1, 2020 to …')).toBeInTheDocument()
     await user.click(within(menu).getByRole('button', { name: /June 1st, 2020/ }))

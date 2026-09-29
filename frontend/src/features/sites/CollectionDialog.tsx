@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
+import { FormSelect } from '@/components/ui/form-select'
 import type { Collection } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -53,6 +53,7 @@ function CollectionForm({ target, workspaceId, collections, onClose }: Collectio
   const editing = target.mode === 'edit' ? target.collection : undefined
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CollectionValues>({
@@ -86,17 +87,12 @@ function CollectionForm({ target, workspaceId, collections, onClose }: Collectio
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="collection-parent">{t(($) => $.collection.parent)}</Label>
-        <NativeSelect
+        <FormSelect
           id="collection-parent"
-          {...register('parentId')}
-        >
-          <option value="">{t(($) => $.collection.top)}</option>
-          {collectionOptions(collections, editing?.id).map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </NativeSelect>
+          control={control}
+          name="parentId"
+          options={[{ value: '', label: t(($) => $.collection.top) }, ...collectionOptions(collections, editing?.id).map((option) => ({ value: option.id, label: option.label }))]}
+        />
       </div>
       {failure !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

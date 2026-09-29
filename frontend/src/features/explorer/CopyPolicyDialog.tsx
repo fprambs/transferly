@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import type { CopyInput } from '@/lib/api'
 
 /** What a copy does with a file that already exists at the destination. */
@@ -39,13 +39,12 @@ export function CopyPolicyDialog({ allowed = policies, verifiable = false, name,
           <DialogTitle>{t(($) => $.policy.title, { name })}</DialogTitle>
           <DialogDescription>{t(($) => $.policy.body)}</DialogDescription>
         </DialogHeader>
-        <NativeSelect aria-label={t(($) => $.policy.label)} value={policy} onChange={(event) => setPolicy(event.target.value as CopyPolicy)}>
-          {policies.filter((option) => allowed.includes(option)).map((option) => (
-            <option key={option} value={option}>
-              {t(($) => $.policy[option])}
-            </option>
-          ))}
-        </NativeSelect>
+        <Select
+          aria-label={t(($) => $.policy.label)}
+          value={policy}
+          options={policies.filter((option) => allowed.includes(option)).map((option) => ({ value: option, label: t(($) => $.policy[option]) }))}
+          onValueChange={(value) => setPolicy(value as CopyPolicy)}
+        />
         {verifiable ? (
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={verify} onChange={(event) => setVerify(event.target.checked)} />

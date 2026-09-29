@@ -2,7 +2,7 @@ import { ArrowDown, ArrowLeftRight, ArrowUp, Pause, Play, RotateCw, X } from 'lu
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import type { TransferPriority } from '@/lib/api'
 import { formatSize } from '../explorer/entries'
 
@@ -91,19 +91,13 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
         <div className="flex items-center gap-1">
           {queued ? (
             <>
-              <NativeSelect
+              <Select
                 aria-label={t(($) => $.priority.label, { name: record.name })}
-                containerClassName="w-28"
-                className="h-7 text-xs"
-                value={record.priority ?? 0}
-                onChange={(event) => onPriority(record.id, Number(event.target.value) as TransferPriority)}
-              >
-                {priorities.map((priority) => (
-                  <option key={priority.value} value={priority.value}>
-                    {t(($) => $.priority[priority.key])}
-                  </option>
-                ))}
-              </NativeSelect>
+                className="h-7 w-28 text-xs"
+                value={String(record.priority ?? 0)}
+                options={priorities.map((priority) => ({ value: String(priority.value), label: t(($) => $.priority[priority.key]) }))}
+                onValueChange={(value) => onPriority(record.id, Number(value) as TransferPriority)}
+              />
               {paused ? (
                 <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.resumeQueuedLabel, { name: record.name })} onClick={() => onContinue(record.id)}>
                   <Play />

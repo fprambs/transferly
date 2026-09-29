@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RemoteEntry } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 
 import { Explorer } from './Explorer'
@@ -136,7 +137,7 @@ describe('folder downloads', () => {
     expect(written).toEqual(['abc123'])
     expect(await inspector.findByRole('button', { name: 'Checksum copied' })).toBeInTheDocument()
 
-    await user.selectOptions(inspector.getByRole('combobox', { name: 'Checksum algorithm' }), 'MD5')
+    await choose(user, inspector.getByRole('combobox', { name: 'Checksum algorithm' }), 'MD5')
     expect(inspector.queryByLabelText('Checksum value')).not.toBeInTheDocument()
     answer = () => problem(502, 'remote_unavailable')
     await user.click(inspector.getByRole('button', { name: 'Checksum' }))

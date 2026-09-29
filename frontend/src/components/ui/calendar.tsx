@@ -1,8 +1,11 @@
-import { DayPicker, type ChevronProps, type DayPickerProps } from '@daypicker/react'
+import { DayPicker, type ChevronProps, type DayPickerProps, type DropdownProps } from '@daypicker/react'
 import { enUS, es } from '@daypicker/react/locale'
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
+import type { ChangeEvent } from 'react'
 
 import { cn } from '@/lib/utils'
+
+import { Select } from './select'
 
 /** The arrows of the calendar, drawn with the icons of the rest of the interface. */
 function Chevron({ orientation, className }: ChevronProps) {
@@ -10,19 +13,34 @@ function Chevron({ orientation, className }: ChevronProps) {
   return <Icon aria-hidden="true" className={cn('size-4', className)} />
 }
 
+/** The month and year choices of the calendar, drawn with the project's own select instead of the browser's list (4.14k). */
+function Dropdown({ options = [], value, onChange, 'aria-label': ariaLabel }: DropdownProps) {
+  return (
+    <Select
+      aria-label={ariaLabel}
+      value={String(value)}
+      className="h-7 w-auto gap-1 px-2 text-xs capitalize"
+      popupClassName="max-h-64 capitalize"
+      options={options.map((option) => ({ value: String(option.value), label: option.label, disabled: option.disabled }))}
+      onValueChange={(next) => onChange?.({ target: { value: next } } as ChangeEvent<HTMLSelectElement>)}
+    />
+  )
+}
+
 /** Locales of the calendar by interface language; other languages use English. */
 const locales = { es, en: enUS } as const
 
 /**
  * A calendar in the look of the interface, built on DayPicker (docs/guides/daypicker.md): its colors come from the theme, the selected
- * days and the days of a range are marked with the brand color, and its texts follow the interface language.
+ * days and the days of a range are marked with the brand color, its texts follow the interface language, and its month and year choices
+ * use the project's own select.
  */
 export function Calendar({ language, className, classNames, ...props }: DayPickerProps & { language: string }) {
   return (
     <DayPicker
       locale={language in locales ? locales[language as keyof typeof locales] : enUS}
       showOutsideDays
-      components={{ Chevron }}
+      components={{ Chevron, Dropdown }}
       className={cn('w-fit text-sm', className)}
       classNames={{
         months: 'relative flex flex-col',
@@ -30,11 +48,9 @@ export function Calendar({ language, className, classNames, ...props }: DayPicke
         month_caption: 'flex h-8 items-center justify-center px-8',
         caption_label: 'font-medium',
         dropdowns: 'flex items-center gap-1.5',
-        dropdown_root: 'relative flex h-7 items-center rounded-md border bg-background px-2 text-xs hover:border-foreground/25 has-focus-visible:ring-2 has-focus-visible:ring-ring',
-        dropdown: 'absolute inset-0 cursor-pointer opacity-0',
-        nav: 'absolute inset-x-0 top-0 flex h-8 items-center justify-between',
-        button_previous: 'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
-        button_next: 'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+        nav: 'pointer-events-none absolute inset-x-0 top-0 z-10 flex h-8 items-center justify-between',
+        button_previous: 'pointer-events-auto flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+        button_next: 'pointer-events-auto flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
         month_grid: 'border-collapse',
         weekdays: 'flex',
         weekday: 'flex size-8 items-center justify-center text-[11px] font-medium text-muted-foreground uppercase',

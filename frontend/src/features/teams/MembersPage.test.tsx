@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useUiStore } from '@/state/ui-store'
 import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose, optionsOf } from '@/test/select'
 import { renderApp } from '@/test/render-app'
 import { failTeam, meId, member, mockTeam, teamId } from '@/test/teams'
 
@@ -110,7 +111,7 @@ describe('members page', () => {
     expect(within(me).getByText('You')).toBeInTheDocument()
     expect(within(me).getByText('Owner')).toBeInTheDocument()
     expect(within(screen.getByText('lucia@agency.io').closest('li') as HTMLElement).getByText('Waiting for vault')).toBeInTheDocument()
-    expect(within(screen.getByText('pablo@acme.dev').closest('li') as HTMLElement).getByLabelText('Role of pablo@acme.dev')).toHaveValue('viewer')
+    expect(within(screen.getByText('pablo@acme.dev').closest('li') as HTMLElement).getByLabelText('Role of pablo@acme.dev')).toHaveTextContent('Viewer')
     expect(screen.getByRole('heading', { name: 'What each role can do' })).toBeInTheDocument()
     expect(screen.getByText('Keys and membership')).toBeInTheDocument()
   })
@@ -138,12 +139,12 @@ describe('members page', () => {
     const team = mockTeam()
     const { user } = await openMembers()
 
-    await user.selectOptions(screen.getByLabelText('Role of jorge@acme.dev'), 'admin')
+    await choose(user, screen.getByLabelText('Role of jorge@acme.dev'), 'Admin')
     await waitFor(() => expect(team.calls).toContainEqual({ method: 'PATCH', path: `/api/v1/workspaces/${teamId}/members/u-jorge`, body: { role: 'admin' } }))
-    await waitFor(() => expect(screen.getByLabelText('Role of jorge@acme.dev')).toHaveValue('admin'))
+    await waitFor(() => expect(screen.getByLabelText('Role of jorge@acme.dev')).toHaveTextContent('Admin'))
 
     failTeam('patch', '/members/:userId', 403, 'forbidden')
-    await user.selectOptions(screen.getByLabelText('Role of pablo@acme.dev'), 'editor')
+    await choose(user, screen.getByLabelText('Role of pablo@acme.dev'), 'Editor')
     expect(await screen.findByRole('alert')).toHaveTextContent('Your role does not allow this.')
   })
 
@@ -211,11 +212,11 @@ describe('members page', () => {
 
     await pick(user, 'maria@acme.dev', 'Transfer ownership')
     const dialog = await screen.findByRole('dialog', { name: 'Transfer ownership' })
-    expect(within(dialog).queryByRole('option', { name: /lucia@agency.io/ })).not.toBeInTheDocument()
+    expect((await optionsOf(user, within(dialog).getByLabelText('New owner'))).join(' ')).not.toContain('lucia@agency.io')
     const confirm = within(dialog).getByRole('button', { name: 'Transfer' })
     expect(confirm).toBeDisabled()
 
-    await user.selectOptions(within(dialog).getByLabelText('New owner'), 'u-pablo')
+    await choose(user, within(dialog).getByLabelText('New owner'), /pablo@acme.dev/)
     await user.type(within(dialog).getByLabelText('Type the workspace name to confirm'), 'Acme Web')
     await user.click(confirm)
 

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import type { Member, Workspace } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
@@ -146,13 +146,12 @@ function TransferBody({ workspace, candidates, initial, onClose }: TransferDialo
         <>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="transfer-owner">{t(($) => $.transfer.newOwner)}</Label>
-            <NativeSelect id="transfer-owner" value={userId} onChange={(event) => setUserId(event.target.value)}>
-              {candidates.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.email} · {t(($) => $.roles[member.role])}
-                </option>
-              ))}
-            </NativeSelect>
+            <Select
+              id="transfer-owner"
+              value={userId}
+              options={candidates.map((member) => ({ value: member.userId, label: `${member.email} · ${t(($) => $.roles[member.role])}` }))}
+              onValueChange={setUserId}
+            />
             <p className="text-xs text-muted-foreground">{t(($) => $.transfer.onlySealed)}</p>
           </div>
           <div className="flex flex-col gap-1.5">

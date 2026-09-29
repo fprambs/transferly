@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TransferRecord } from '@/lib/transport'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 import { useUiStore } from '@/state/ui-store'
 
@@ -199,7 +200,7 @@ describe('TransfersDock', () => {
 
     const [waiting, running] = screen.getAllByRole('listitem')
     expect(waiting).toHaveTextContent('Waiting for a free slot')
-    expect(within(waiting).getByRole('combobox', { name: 'Priority of wait.bin' })).toHaveValue('1')
+    expect(within(waiting).getByRole('combobox', { name: 'Priority of wait.bin' })).toHaveTextContent('High')
     expect(within(waiting).getByRole('button', { name: 'Pause wait.bin' })).toBeInTheDocument()
     expect(within(running).queryByRole('combobox')).not.toBeInTheDocument()
     expect(within(running).queryByRole('button', { name: /Pause/ })).not.toBeInTheDocument()
@@ -245,11 +246,11 @@ describe('TransfersDock', () => {
     const user = userEvent.setup()
     await renderWithProviders(<TransfersDock />)
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Priority of a.bin' }), 'Low')
+    await choose(user, screen.getByRole('combobox', { name: 'Priority of a.bin' }), 'Low')
 
     await waitFor(() => expect(bodies).toEqual([{ priority: -1 }]))
     act(() => useTransfersStore.getState().upsert([{ ...queued, priority: -1 }]))
-    expect(screen.getByRole('combobox', { name: 'Priority of a.bin' })).toHaveValue('-1')
+    expect(screen.getByRole('combobox', { name: 'Priority of a.bin' })).toHaveTextContent('Low')
   })
 
   it('switches between the tabs', async () => {
@@ -340,7 +341,7 @@ describe('TransfersDock', () => {
     await renderWithProviders(<TransfersDock />, 'es')
 
     expect(screen.getByRole('listitem')).toHaveTextContent('En pausa')
-    expect(screen.getByRole('combobox', { name: 'Prioridad de 2.bin' })).toHaveValue('0')
+    expect(screen.getByRole('combobox', { name: 'Prioridad de 2.bin' })).toHaveTextContent('Normal')
 
     await user.click(screen.getByRole('tab', { name: 'Terminadas (1)' }))
 

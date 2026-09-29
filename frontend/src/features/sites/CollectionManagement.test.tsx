@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose, optionsOf } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 
 import { SitesSidebar } from './SitesSidebar'
@@ -79,7 +80,7 @@ describe('collection management', () => {
     await user.click(screen.getByRole('button', { name: 'New collection' }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Name'), 'New')
-    await user.selectOptions(within(dialog).getByLabelText('Inside'), 'c3')
+    await choose(user, within(dialog).getByLabelText('Inside'), 'Home')
     await user.click(within(dialog).getByRole('button', { name: 'Create' }))
 
     await waitFor(() => expect(body).toEqual({ name: 'New', parentId: 'c3' }))
@@ -91,7 +92,7 @@ describe('collection management', () => {
     await pick(user, 'Work', 'New subcollection')
 
     const dialog = await screen.findByRole('dialog', { name: 'New collection' })
-    expect(within(dialog).getByLabelText('Inside')).toHaveValue('c1')
+    expect(within(dialog).getByLabelText('Inside')).toHaveTextContent('Work')
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(await screen.findByRole('treeitem', { name: /Work/ })).toHaveAttribute('aria-expanded', 'true')
   })
@@ -109,11 +110,11 @@ describe('collection management', () => {
     await pick(user, 'Work', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit collection' })
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Work')
-    expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(['Top level', 'Home'])
+    expect(await optionsOf(user, within(dialog).getByLabelText('Inside'))).toEqual(['Top level', 'Home'])
 
     await user.clear(within(dialog).getByLabelText('Name'))
     await user.type(within(dialog).getByLabelText('Name'), 'Job')
-    await user.selectOptions(within(dialog).getByLabelText('Inside'), 'c3')
+    await choose(user, within(dialog).getByLabelText('Inside'), 'Home')
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(body).toEqual({ name: 'Job', parentId: 'c3' }))
@@ -132,8 +133,8 @@ describe('collection management', () => {
 
     await pick(user, 'Staging', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit collection' })
-    expect(within(dialog).getByLabelText('Inside')).toHaveValue('c1')
-    await user.selectOptions(within(dialog).getByLabelText('Inside'), '')
+    expect(within(dialog).getByLabelText('Inside')).toHaveTextContent('Work')
+    await choose(user, within(dialog).getByLabelText('Inside'), 'Top level')
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(body).toEqual({ name: 'Staging', moveToTop: true }))

@@ -7,6 +7,7 @@ import type { RemoteEntry, Site } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { FakeDir, offerPicker, withdrawPicker } from '@/test/fake-local'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { renderApp } from '@/test/render-app'
 
 import { entryDragType } from './entry-drag'
@@ -118,8 +119,7 @@ describe('split view', () => {
     const { history } = await renderApp({ path: '/sites/s1?path=%2F&split=s1' })
     const pane = await screen.findByRole('group', { name: 'Second pane' })
 
-    await within(pane).findByRole('option', { name: 'Backup' })
-    await user.selectOptions(within(pane).getByRole('combobox', { name: 'Site of the second pane' }), 'Backup')
+    await choose(user, within(pane).getByRole('combobox', { name: 'Site of the second pane' }), 'Backup')
     expect(await within(within(pane).getByRole('grid')).findByText('right.txt')).toBeInTheDocument()
     expect(history.location.search).toContain('split=s2')
 
@@ -166,8 +166,8 @@ describe('split view', () => {
 
     dragTo(await rowOf('docs'))
     const dialog = await screen.findByRole('dialog', { name: 'Copy docs' })
-    expect(within(dialog).getByRole('combobox', { name: 'If a file exists' })).toHaveValue('skip')
-    await user.selectOptions(within(dialog).getByRole('combobox', { name: 'If a file exists' }), 'Keep both, renaming the copy')
+    expect(within(dialog).getByRole('combobox', { name: 'If a file exists' })).toHaveTextContent('Skip it')
+    await choose(user, within(dialog).getByRole('combobox', { name: 'If a file exists' }), 'Keep both, renaming the copy')
     await user.click(within(dialog).getByRole('checkbox', { name: /Verify the copy/ }))
     await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
     await waitFor(() => expect(copies).toHaveLength(1))

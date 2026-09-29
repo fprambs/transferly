@@ -9,6 +9,7 @@ import type { RemoteEntry, Site } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { FakeDir, handleOf, offerPicker, withdrawPicker } from '@/test/fake-local'
 import { server } from '@/test/msw'
+import { choose, optionsOf } from '@/test/select'
 import { renderApp } from '@/test/render-app'
 
 import { entryDragType } from '../explorer/entry-drag'
@@ -127,7 +128,7 @@ describe('local folder pane', () => {
 
     expect(within(pane).getByRole('status')).toHaveTextContent('This browser cannot open folders of your computer')
     expect(within(pane).getByRole('button', { name: 'Choose a folder' })).toBeDisabled()
-    expect(within(pane).getByRole('option', { name: 'Local folder' })).toBeInTheDocument()
+    expect(await optionsOf(userEvent.setup(), within(pane).getByRole('combobox', { name: 'Site of the second pane' }))).toContain('Local folder')
   })
 
   it('offers the local folder in the selector only when the browser can', async () => {
@@ -136,7 +137,7 @@ describe('local folder pane', () => {
     await renderApp({ path: '/sites/s1?path=%2F&split=s1' })
     const pane = await screen.findByRole('group', { name: 'Second pane' })
 
-    expect(await within(pane).findByRole('option', { name: 'Local folder' })).toBeInTheDocument()
+    expect(await optionsOf(userEvent.setup(), within(pane).getByRole('combobox', { name: 'Site of the second pane' }))).toContain('Local folder')
     withdrawPicker()
   })
 
@@ -334,8 +335,8 @@ describe('local folder pane', () => {
 
     fireEvent.drop(section, { dataTransfer: folder })
     const dialog = await screen.findByRole('dialog', { name: 'Copy docs' })
-    expect(within(dialog).getAllByRole('option').map((option) => option.textContent)).toEqual(['Skip it', 'Keep both, renaming the copy', 'Overwrite it', 'Stop with an error'])
-    await user.selectOptions(within(dialog).getByRole('combobox', { name: 'If a file exists' }), 'Stop with an error')
+    expect(await optionsOf(user, within(dialog).getByRole('combobox', { name: 'If a file exists' }))).toEqual(['Skip it', 'Keep both, renaming the copy', 'Overwrite it', 'Stop with an error'])
+    await choose(user, within(dialog).getByRole('combobox', { name: 'If a file exists' }), 'Stop with an error')
     await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
 
     const alert = await within(pane).findByRole('alert')

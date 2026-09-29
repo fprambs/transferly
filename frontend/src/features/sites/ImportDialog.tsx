@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
 import type { ImportOptions, ImportResult } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -111,10 +111,14 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           </label>
           <label className="flex items-center gap-2">
             <span className="shrink-0">{t(($) => $.import.onConflict)}</span>
-            <NativeSelect value={onConflict} onChange={(event) => setOnConflict(event.target.value as 'skip' | 'rename')}>
-              <option value="skip">{t(($) => $.import.skip)}</option>
-              <option value="rename">{t(($) => $.import.rename)}</option>
-            </NativeSelect>
+            <Select
+              value={onConflict}
+              options={[
+                { value: 'skip', label: t(($) => $.import.skip) },
+                { value: 'rename', label: t(($) => $.import.rename) },
+              ]}
+              onValueChange={(value) => setOnConflict(value as 'skip' | 'rename')}
+            />
           </label>
           {working ? <Loading label={t(($) => $.import.working)} /> : null}
           {failure === 'vault_locked' ? (

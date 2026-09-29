@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { Site } from '@/lib/api'
 import { mockUnlocking, mockVault, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose, optionsOf } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 
 import { SitesSidebar } from './SitesSidebar'
@@ -204,37 +205,37 @@ describe('site management', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByLabelText('Character set of file names')).not.toBeInTheDocument()
     expect(within(dialog).queryByLabelText('Encryption')).not.toBeInTheDocument()
-    expect(within(within(dialog).getByLabelText('Protocol')).getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(await optionsOf(user, within(dialog).getByLabelText('Protocol'))).toEqual([
       'SFTP - SSH File Transfer Protocol',
       'FTP - File Transfer Protocol',
     ])
-    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Key file', 'Anonymous'])
+    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Key file', 'Anonymous'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
-    await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
+    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
     const encryption = within(dialog).getByLabelText('Encryption')
-    expect(within(encryption).getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(await optionsOf(user, encryption)).toEqual([
       'Use explicit FTP over TLS if available',
       'Require explicit FTP over TLS',
       'Require implicit FTP over TLS',
       'Only use plain FTP (insecure)',
     ])
-    expect(encryption).toHaveValue('explicit')
+    expect(encryption).toHaveTextContent('Require explicit FTP over TLS')
     expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
     expect(within(dialog).getByText(/upgrades with AUTH TLS before signing in/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '21')
-    expect(within(within(dialog).getByLabelText('Logon type')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Normal', 'Ask for password', 'Anonymous'])
+    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Anonymous'])
 
-    await user.selectOptions(encryption, 'implicit')
+    await choose(user, encryption, 'Require implicit FTP over TLS')
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '990')
-    await user.selectOptions(encryption, 'optional')
+    await choose(user, encryption, 'Use explicit FTP over TLS if available')
     expect(within(dialog).getByRole('note')).toHaveTextContent('someone on the network removes the offer')
-    await user.selectOptions(encryption, 'plain')
+    await choose(user, encryption, 'Only use plain FTP (insecure)')
     expect(within(dialog).getByRole('note')).toHaveTextContent('FTP sends the password and the files without encryption')
 
-    expect(within(dialog).getByLabelText('Character set of file names')).toHaveValue('utf-8')
-    await user.selectOptions(within(dialog).getByLabelText('Character set of file names'), 'windows-1252')
-    await user.selectOptions(encryption, 'implicit')
+    expect(within(dialog).getByLabelText('Character set of file names')).toHaveTextContent('UTF-8')
+    await choose(user, within(dialog).getByLabelText('Character set of file names'), 'Windows-1252 (Western European)')
+    await choose(user, encryption, 'Require implicit FTP over TLS')
     await user.type(within(dialog).getByLabelText('Name', { exact: true }), 'Secure')
     await user.type(within(dialog).getByLabelText('Host'), 'ftp.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
@@ -259,7 +260,7 @@ describe('site management', () => {
 
     await user.type(within(dialog).getByLabelText('Name'), 'Public')
     await user.type(within(dialog).getByLabelText('Host'), 'sftp.example.com')
-    await user.selectOptions(within(dialog).getByLabelText('Logon type'), 'anonymous')
+    await choose(user, within(dialog).getByLabelText('Logon type'), 'Anonymous')
     expect(within(dialog).getByLabelText('Username')).toHaveValue('anonymous')
     expect(within(dialog).getByLabelText('Username')).toBeDisabled()
     expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
@@ -278,7 +279,7 @@ describe('site management', () => {
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
 
-    expect(within(dialog).getByLabelText('Logon type')).toHaveValue('key')
+    expect(within(dialog).getByLabelText('Logon type')).toHaveTextContent('Key file')
     expect(within(dialog).getByRole('button', { name: 'Choose a key file' })).toBeInTheDocument()
     expect(within(dialog).getByText('A key is saved. Choose or drop another file to replace it.')).toBeInTheDocument()
   })
@@ -297,7 +298,7 @@ describe('site management', () => {
     const dialog = await screen.findByRole('dialog')
 
     expect(within(dialog).getByLabelText('Password')).toBeInTheDocument()
-    await user.selectOptions(within(dialog).getByLabelText('Logon type'), 'key')
+    await choose(user, within(dialog).getByLabelText('Logon type'), 'Key file')
     expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
 
     await user.type(within(dialog).getByLabelText('Name'), 'Keyed')
@@ -327,7 +328,7 @@ describe('site management', () => {
     let dialog = await screen.findByRole('dialog')
 
     expect(within(dialog).queryByLabelText('Proxy host')).not.toBeInTheDocument()
-    await user.selectOptions(within(dialog).getByLabelText('Proxy'), 'socks5')
+    await choose(user, within(dialog).getByLabelText('Proxy'), 'SOCKS5')
     await user.type(within(dialog).getByLabelText('Proxy host'), 'proxy.example.com')
     await user.clear(within(dialog).getByLabelText('Proxy port'))
     await user.type(within(dialog).getByLabelText('Proxy port'), '1080')
@@ -356,7 +357,7 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
-    await user.selectOptions(within(dialog).getByLabelText('Jump host logon type'), 'key')
+    await choose(user, within(dialog).getByLabelText('Jump host logon type'), 'Key file')
     expect(within(dialog).queryByLabelText('Jump host password')).not.toBeInTheDocument()
     await user.upload(within(dialog).getByLabelText('Key file'), new File(['KEY'], 'bastion.ppk'))
     await user.type(await within(dialog).findByLabelText('Jump host key passphrase'), 'phrase')
@@ -375,7 +376,7 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('SSH jump host')).toBeInTheDocument()
-    await user.selectOptions(within(dialog).getByLabelText('Protocol'), 'ftp')
+    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
     expect(within(dialog).queryByText('SSH jump host')).not.toBeInTheDocument()
   }, 40_000)
 
@@ -385,7 +386,7 @@ describe('site management', () => {
     await pick(user, 'Work', 'New site here')
 
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
-    expect(within(dialog).getByLabelText('Collection')).toHaveValue('c1')
+    expect(within(dialog).getByLabelText('Collection')).toHaveTextContent('Work')
   })
 
   it('shows a rejected save and can be cancelled', async () => {
@@ -516,7 +517,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
-    expect(within(dialog).getByLabelText('Logon type')).toHaveValue('ask')
+    expect(within(dialog).getByLabelText('Logon type')).toHaveTextContent('Ask for password')
     expect(within(dialog).queryByLabelText('Password')).not.toBeInTheDocument()
 
     await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))

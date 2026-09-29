@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
+import { FormSelect } from '@/components/ui/form-select'
 import type { Collection, QuickConnection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
@@ -44,6 +44,7 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
   const [failure, setFailure] = useState<QuickErrorKey | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<SaveValues>({ resolver: zodResolver(saveSchema), defaultValues: { name: connection.host, collectionId: '' } })
@@ -73,17 +74,12 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="save-collection">{t(($) => $.save.collection)}</Label>
-        <NativeSelect
+        <FormSelect
           id="save-collection"
-          {...register('collectionId')}
-        >
-          <option value="">{t(($) => $.save.noCollection)}</option>
-          {collectionOptions(collections).map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </NativeSelect>
+          control={control}
+          name="collectionId"
+          options={[{ value: '', label: t(($) => $.save.noCollection) }, ...collectionOptions(collections).map((option) => ({ value: option.id, label: option.label }))]}
+        />
       </div>
       {failure === 'vault_locked' ? (
         <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />

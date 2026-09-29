@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
@@ -87,25 +87,20 @@ function MemberRow({ workspace, member, me, actions }: MemberRowProps) {
       </div>
       <div>
         {manageable ? (
-          <NativeSelect
+          <Select
             aria-label={t(($) => $.member.roleOf, { email: member.email })}
             value={member.role}
-            containerClassName="w-32"
-            onChange={async (event) => {
+            className="w-32"
+            options={grantableRoles(workspace.role).map((role) => ({ value: role, label: t(($) => $.roles[role]) }))}
+            onValueChange={async (value) => {
               try {
-                await api.workspaces.setRole(workspace.id, member.userId, event.target.value as Exclude<Member['role'], 'owner'>)
+                await api.workspaces.setRole(workspace.id, member.userId, value as Exclude<Member['role'], 'owner'>)
                 await queryClient.invalidateQueries({ queryKey: teamKeys.members(workspace.id) })
               } catch (error) {
                 actions.fail(teamErrorKeyOf(error))
               }
             }}
-          >
-            {grantableRoles(workspace.role).map((role) => (
-              <option key={role} value={role}>
-                {t(($) => $.roles[role])}
-              </option>
-            ))}
-          </NativeSelect>
+          />
         ) : (
           <RoleBadge role={member.role} />
         )}

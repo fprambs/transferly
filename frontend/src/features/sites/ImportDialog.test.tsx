@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose as chooseOption } from '@/test/select'
 import { renderApp } from '@/test/render-app'
 import { renderWithProviders } from '@/test/render'
 
@@ -88,7 +89,7 @@ describe('ImportDialog', () => {
     expect(dialog.getByRole('button', { name: 'Import' })).toBeDisabled()
     choose(dialog)
     await user.click(dialog.getByRole('checkbox'))
-    await user.selectOptions(dialog.getByRole('combobox'), 'Keep both, renaming the new one')
+    await chooseOption(user, dialog.getByRole('combobox'), 'Keep both, renaming the new one')
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
 
     expect(await dialog.findByText('2 sites will be created, 2 skipped.')).toBeInTheDocument()

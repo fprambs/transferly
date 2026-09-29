@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
+import { FormSelect } from '@/components/ui/form-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -225,22 +225,25 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
               <Input id="site-name" autoComplete="off" aria-invalid={errors.name !== undefined} {...register('name')} />
             </Row>
             <Row id="site-collection" label={t(($) => $.site.collection)}>
-              <NativeSelect id="site-collection" {...register('collectionId')}>
-                <option value="">{t(($) => $.site.noCollection)}</option>
-                {collectionOptions(collections).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </NativeSelect>
+              <FormSelect
+                id="site-collection"
+                control={control}
+                name="collectionId"
+                options={[{ value: '', label: t(($) => $.site.noCollection) }, ...collectionOptions(collections).map((option) => ({ value: option.id, label: option.label }))]}
+              />
             </Row>
           </Group>
           <Group>
             <Row id="site-protocol" label={t(($) => $.site.protocol)}>
-              <NativeSelect id="site-protocol" {...register('protocol')}>
-                <option value="sftp">{t(($) => $.site.protocols.sftp)}</option>
-                <option value="ftp">{t(($) => $.site.protocols.ftp)}</option>
-              </NativeSelect>
+              <FormSelect
+                id="site-protocol"
+                control={control}
+                name="protocol"
+                options={[
+                  { value: 'sftp', label: t(($) => $.site.protocols.sftp) },
+                  { value: 'ftp', label: t(($) => $.site.protocols.ftp) },
+                ]}
+              />
             </Row>
             <Row id="site-host" label={t(($) => $.site.host)} errors={[errors.host?.message, errors.port?.message]}>
               <div className="flex items-center gap-3">
@@ -265,25 +268,24 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                   )
                 }
               >
-                <NativeSelect id="site-encryption" {...register('ftpEncryption')}>
-                  {ftpEncryptions.map((candidate) => (
-                    <option key={candidate} value={candidate}>
-                      {t(($) => $.site.encryptions[candidate])}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <FormSelect
+                  id="site-encryption"
+                  control={control}
+                  name="ftpEncryption"
+                  options={ftpEncryptions.map((candidate) => ({ value: candidate, label: t(($) => $.site.encryptions[candidate]) }))}
+                />
               </Row>
             )}
           </Group>
           <Group>
             <Row id="site-access" label={t(($) => $.site.accessMode)} hint={mode === 'anonymous' ? t(($) => $.site.anonymousHint) : mode === 'ask' ? t(($) => $.site.askHint) : undefined}>
-              <NativeSelect id="site-access" value={mode} {...register('accessMode')}>
-                {accessModesOf(protocol).map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {t(($) => $.site.accessModes[candidate])}
-                  </option>
-                ))}
-              </NativeSelect>
+              <FormSelect
+                id="site-access"
+                control={control}
+                name="accessMode"
+                value={mode}
+                options={accessModesOf(protocol).map((candidate) => ({ value: candidate, label: t(($) => $.site.accessModes[candidate]) }))}
+              />
             </Row>
             {mode === 'anonymous' ? (
               <Row id="site-username" label={t(($) => $.site.username)}>
@@ -334,13 +336,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
           <TabsContent value="charset" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
             <Group>
               <Row id="site-charset" label={t(($) => $.site.charset)} hint={t(($) => $.site.charsetHint)}>
-                <NativeSelect id="site-charset" {...register('charset')}>
-                  {charsetOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <FormSelect id="site-charset" control={control} name="charset" options={charsetOptions} />
               </Row>
             </Group>
           </TabsContent>
@@ -348,11 +344,16 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         <TabsContent value="network" keepMounted className="flex min-h-96 flex-col gap-4 pt-3">
           <Group title={t(($) => $.site.proxyTitle)}>
             <Row id="site-proxy-kind" label={t(($) => $.site.proxyKind)} hint={t(($) => $.site.proxyHint)}>
-              <NativeSelect id="site-proxy-kind" {...register('proxyKind')}>
-                <option value="none">{t(($) => $.site.proxyNone)}</option>
-                <option value="socks5">SOCKS5</option>
-                <option value="http">{t(($) => $.site.proxyHttp)}</option>
-              </NativeSelect>
+              <FormSelect
+                id="site-proxy-kind"
+                control={control}
+                name="proxyKind"
+                options={[
+                  { value: 'none', label: t(($) => $.site.proxyNone) },
+                  { value: 'socks5', label: 'SOCKS5' },
+                  { value: 'http', label: t(($) => $.site.proxyHttp) },
+                ]}
+              />
             </Row>
             {proxyKind !== 'none' && (
               <>
@@ -388,10 +389,15 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
               {jumpHost !== '' && (
                 <>
                   <Row id="site-jump-auth" label={t(($) => $.site.jumpAuthMethod)}>
-                    <NativeSelect id="site-jump-auth" {...register('jumpAuthMethod')}>
-                      <option value="password">{t(($) => $.site.accessModes.normal)}</option>
-                      <option value="key">{t(($) => $.site.accessModes.key)}</option>
-                    </NativeSelect>
+                    <FormSelect
+                      id="site-jump-auth"
+                      control={control}
+                      name="jumpAuthMethod"
+                      options={[
+                        { value: 'password', label: t(($) => $.site.accessModes.normal) },
+                        { value: 'key', label: t(($) => $.site.accessModes.key) },
+                      ]}
+                    />
                   </Row>
                   <Row id="site-jump-username" label={t(($) => $.site.jumpUsername)} errors={[errors.jumpUsername?.message]}>
                     <Input id="site-jump-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.jumpUsername !== undefined} {...register('jumpUsername')} />

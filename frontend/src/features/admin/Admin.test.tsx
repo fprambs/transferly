@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { AuditEvent } from '@/lib/api'
 import { adminSession, mockSession, mockWorkspaceData } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { defaultLimits, failAdmin, mockAdmin } from '@/test/admin'
 import { renderApp } from '@/test/render-app'
 import { renderWithProviders } from '@/test/render'
@@ -338,7 +339,7 @@ describe('administration', () => {
     expect(await screen.findByText(/last@acme.dev/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Show'), 'Second step')
+    await choose(user, screen.getByLabelText('Show'), 'Second step')
     await waitFor(() => expect(mock.auditQueries.some((q) => q.get('action') === 'admin.second_')).toBe(true))
     expect(mock.auditQueries[0].get('action')).toBeNull()
   })

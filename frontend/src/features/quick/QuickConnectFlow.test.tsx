@@ -7,6 +7,7 @@ import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import type { QuickConnection } from '@/lib/api'
 import { mockUnlocking, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose, optionsOf } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 import { useDialogsStore } from '@/state/dialogs-store'
 
@@ -340,11 +341,11 @@ describe('quick connect', () => {
     await user.click(await screen.findByRole('button', { name: 'Save as site…' }))
     const dialog = await screen.findByRole('dialog', { name: 'Save as site' })
     expect(within(dialog).getByLabelText('Name')).toHaveValue('198.51.100.7')
-    expect(within(dialog).getByRole('option', { name: 'Work / Staging' })).toBeInTheDocument()
+    expect(await optionsOf(user, within(dialog).getByLabelText('Collection'))).toContain('Work / Staging')
 
     await user.clear(within(dialog).getByLabelText('Name'))
     await user.type(within(dialog).getByLabelText('Name'), 'Prod')
-    await user.selectOptions(within(dialog).getByLabelText('Collection'), 'c2')
+    await choose(user, within(dialog).getByLabelText('Collection'), 'Work / Staging')
     await user.click(within(dialog).getByRole('button', { name: 'Save site' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

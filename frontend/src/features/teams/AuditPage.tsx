@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import type { AuditEvent, Workspace } from '@/lib/api'
@@ -64,13 +64,12 @@ function AuditList({ workspace }: AuditListProps) {
     <div className="flex flex-col gap-4">
       <label className="flex items-center gap-2 text-sm">
         <span className="text-muted-foreground">{t(($) => $.audit.filter)}</span>
-        <NativeSelect value={prefix} containerClassName="w-56" onChange={(event) => setPrefix(event.target.value)}>
-          {auditCategories.map((entry) => (
-            <option key={entry.key} value={entry.prefix}>
-              {t(($) => $.audit.categories[entry.key])}
-            </option>
-          ))}
-        </NativeSelect>
+        <Select
+          value={prefix}
+          className="w-56"
+          options={auditCategories.map((entry) => ({ value: entry.prefix, label: t(($) => $.audit.categories[entry.key]) }))}
+          onValueChange={setPrefix}
+        />
       </label>
       {trail.isPending ? (
         <Loading label={t(($) => $.audit.loading)} />

@@ -7,6 +7,7 @@ import type { AuditEvent } from '@/lib/api'
 import { useUiStore } from '@/state/ui-store'
 import { adminSession, mockSession, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { choose } from '@/test/select'
 import { renderApp } from '@/test/render-app'
 import { mockTeam, teamId } from '@/test/teams'
 
@@ -100,10 +101,10 @@ describe('audit page', () => {
     await renderApp({ path: '/audit' })
 
     expect(await screen.findByText('created the site Prod')).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Show'), 'Members')
+    await choose(user, screen.getByLabelText('Show'), 'Members')
     expect(await screen.findByText('a@acme.dev left')).toBeInTheDocument()
     expect(screen.queryByText('created the site Prod')).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Show'), 'Everything')
+    await choose(user, screen.getByLabelText('Show'), 'Everything')
 
     expect(await screen.findByText('created the site Prod')).toBeInTheDocument()
     expect(seen.map((query) => query.get('action'))).toEqual([null, 'member.', null].slice(0, seen.length))

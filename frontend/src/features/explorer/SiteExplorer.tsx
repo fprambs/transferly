@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import { useUiStore } from '@/state/ui-store'
 
 import { ConnectionLog } from '../connlog/ConnectionLog'
@@ -74,20 +74,16 @@ export function SiteExplorer() {
           <ArrowLeftRight />
         </Button>
       )}
-      <NativeSelect
+      <Select
         aria-label={t(($) => $.split.site)}
-        containerClassName="w-40"
-        className="h-7 text-xs"
-        value={split}
-        onChange={(event) => void navigate({ search: (previous) => ({ ...previous, split: event.target.value, splitPath: undefined }) })}
-      >
-        {connections.map((connection) => (
-          <option key={connection.id} value={connection.id}>
-            {connection.name}
-          </option>
-        ))}
-        {localSupported() || split === localSiteId ? <option value={localSiteId}>{t(($) => $.local.option)}</option> : null}
-      </NativeSelect>
+        className="h-7 w-40 text-xs"
+        value={split as string}
+        options={[
+          ...connections.map((connection) => ({ value: connection.id, label: connection.name })),
+          ...(localSupported() || split === localSiteId ? [{ value: localSiteId, label: t(($) => $.local.option) }] : []),
+        ]}
+        onValueChange={(value) => void navigate({ search: (previous) => ({ ...previous, split: value, splitPath: undefined }) })}
+      />
       <Button
         variant="ghost"
         size="icon-sm"

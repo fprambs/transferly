@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import { Checkbox } from '@/components/ui/checkbox'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select } from '@/components/ui/select'
 import { supportedLanguages } from '@/i18n'
 import { useUiStore } from '@/state/ui-store'
 
@@ -56,21 +56,15 @@ export function SettingsPage() {
         <label htmlFor="language-setting" className="text-sm text-muted-foreground">
           {t(($) => $.language.label)}
         </label>
-        <NativeSelect
+        <Select
           id="language-setting"
-          value={i18n.resolvedLanguage}
-          onChange={(event) => {
-            const locale = event.target.value
+          value={i18n.resolvedLanguage as string}
+          options={supportedLanguages.map((code) => ({ value: code, label: common(($) => $.language.names[code]) }))}
+          onValueChange={(locale) => {
             void i18n.changeLanguage(locale)
             void language.save({ locale })
           }}
-        >
-          {supportedLanguages.map((code) => (
-            <option key={code} value={code}>
-              {common(($) => $.language.names[code])}
-            </option>
-          ))}
-        </NativeSelect>
+        />
         {language.saveFailed ? (
           <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {t(($) => $.language.saveFailed)}
@@ -84,18 +78,19 @@ export function SettingsPage() {
         <label htmlFor="file-double-click-setting" className="text-sm text-muted-foreground">
           {t(($) => $.explorer.doubleClick)}
         </label>
-        <NativeSelect
+        <Select
           id="file-double-click-setting"
           value={fileDoubleClick}
-          onChange={(event) => {
-            const action = event.target.value === 'edit' ? 'edit' : 'download'
+          options={[
+            { value: 'download', label: t(($) => $.explorer.download) },
+            { value: 'edit', label: t(($) => $.explorer.edit) },
+          ]}
+          onValueChange={(value) => {
+            const action = value === 'edit' ? 'edit' : 'download'
             setFileDoubleClick(action)
             void doubleClick.save({ fileDoubleClick: action })
           }}
-        >
-          <option value="download">{t(($) => $.explorer.download)}</option>
-          <option value="edit">{t(($) => $.explorer.edit)}</option>
-        </NativeSelect>
+        />
         <p className="text-xs text-muted-foreground">{t(($) => $.explorer.doubleClickHint)}</p>
         {doubleClick.saveFailed ? (
           <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
