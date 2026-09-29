@@ -41,6 +41,7 @@ import { DownloadNotices, type RequestedDownload } from './DownloadNotices'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 import { CredentialNotice } from '../sites/CredentialNotice'
 import { useUiStore } from '@/state/ui-store'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { SearchDialog } from '../search/SearchDialog'
 import { RemoteEditor } from '../editor/RemoteEditor'
@@ -489,7 +490,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         <VaultLockedNotice need="connect" layout="page" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
       )}
       {failure !== null && failure !== 'vault_locked' && !asksPassword && ((hostKey === undefined && changedKey === undefined) || target === undefined) && (
-        <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failedTitle)} description={t(($) => $.errors[failure])}>
+        <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failedTitle)}
+          description={
+            <>
+              {t(($) => $.errors[failure])}
+              <ErrorGuide failure={listing.error} className="mx-auto mt-4 max-w-sm" />
+            </>
+          }
+        >
           <Button variant="outline" onClick={() => void listing.refetch()}>
             {t(($) => $.retry)}
           </Button>

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { QuickConnectInput, QuickConnection } from '@/lib/api'
 import { useApi, type Api } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { quickErrorKeyOf, unknownHostKeyOf, type QuickErrorKey, type UnknownHostKey } from './errors'
 import { defaultPorts, quickSchema, toQuickInput, type QuickValues, type QuickProtocol } from './schema'
@@ -157,9 +158,10 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
               {t(($) => $.memoryNote)}
             </p>
             {failure !== null && (
-              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {t(($) => $.errors[failure])}
-              </p>
+              <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p>{t(($) => $.errors[failure])}</p>
+                <ErrorGuide failure={failure} className="mt-2" />
+              </div>
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close}>

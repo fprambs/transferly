@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useApi } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import type { VaultTarget } from '../vault/VaultDialog'
 
@@ -88,9 +89,10 @@ function CredentialForm({ workspaceId, target, onClose, onGiven, refused = false
         </div>
       </div>
       {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {failure === 'passwordRequired' || failure === 'refused' ? t(($) => $.credential[failure]) : t(($) => $.errors[failure])}
-        </p>
+        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p>{failure === 'passwordRequired' || failure === 'refused' ? t(($) => $.credential[failure]) : t(($) => $.errors[failure])}</p>
+          <ErrorGuide failure={failure} className="mt-2" />
+        </div>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>

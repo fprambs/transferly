@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { VaultDialog } from '../vault/VaultDialog'
@@ -75,9 +76,10 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
         )}
       </div>
       {state.step === 'failed' && (
-        <p role="alert" className="text-sm text-destructive">
-          {t(($) => $.errors[state.key])}
-        </p>
+        <div role="alert" className="text-sm text-destructive">
+          <p>{t(($) => $.errors[state.key])}</p>
+          <ErrorGuide failure={state.key} className="mt-2" />
+        </div>
       )}
       {state.step === 'trust' && (
         <div role="alert" className="flex flex-col gap-2 text-sm">

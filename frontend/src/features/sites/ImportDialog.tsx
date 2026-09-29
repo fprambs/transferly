@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
 import type { ImportOptions, ImportResult } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
@@ -174,9 +175,10 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           {failure === 'vault_locked' ? (
             <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
           ) : failure === null ? null : (
-            <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive">
-              {t(($) => $.errors[failure])}
-            </p>
+            <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive">
+              <p>{t(($) => $.errors[failure])}</p>
+              <ErrorGuide failure={failure} className="mt-2" />
+            </div>
           )}
           {result === null ? null : (
             <div>

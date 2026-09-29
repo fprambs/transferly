@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useApi } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { vaultErrorKeyOf, type VaultErrorKey } from './errors'
 import { vaultKey } from './use-vault'
@@ -178,9 +179,10 @@ function PasswordForm({ mode, onClose, onKit, onUnlocked, target }: PasswordForm
         </div>
       )}
       {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {t(($) => $.errors[failure])}
-        </p>
+        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p>{t(($) => $.errors[failure])}</p>
+          <ErrorGuide failure={failure} className="mt-2" />
+        </div>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>

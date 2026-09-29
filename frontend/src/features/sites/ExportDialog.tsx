@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loading } from '@/components/ui/loading'
 import { useApi } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
@@ -107,9 +108,10 @@ function ExportForm({ workspaceId, onClose, save = download }: Omit<ExportDialog
       {failure === 'vault_locked' ? (
         <VaultLockedNotice need="export" onUnlocked={() => setFailure(null)} />
       ) : failure === null ? null : (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {failure === 'mismatch' ? t(($) => $.export.mismatch) : failure === 'weak' ? t(($) => $.errors.weak_export_password) : t(($) => $.errors[failure])}
-        </p>
+        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p>{failure === 'mismatch' ? t(($) => $.export.mismatch) : failure === 'weak' ? t(($) => $.errors.weak_export_password) : t(($) => $.errors[failure])}</p>
+          <ErrorGuide failure={failure} className="mt-2" />
+        </div>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>

@@ -13,6 +13,7 @@ import { FormSelect } from '@/components/ui/form-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
+import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { useVaultStatus } from '../vault/use-vault'
 import { VaultDialog } from '../vault/VaultDialog'
@@ -462,9 +463,10 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
         <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
       ) : (
         failure !== null && (
-          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {t(($) => $.errors[failure])}
-          </p>
+          <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p>{t(($) => $.errors[failure])}</p>
+            <ErrorGuide failure={failure} className="mt-2" />
+          </div>
         )
       )}
       <DialogFooter>
