@@ -231,6 +231,88 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/prompts/{promptId}:
+    post:
+      operationId: answerPrompt
+      security:
+        - sessionCookie: []
+      summary: Answer what a server asks while connecting
+      description: >-
+        Hands the answers, one per question and in order, to a connection of an interactive site that waits for them (ADR-0016). The
+        questions arrive on the event stream as connection.prompt. A prompt that no longer waits, or belongs to another account, is
+        404 prompt_not_found; a different number of answers is 422 invalid_answers. Answers are never stored or logged.
+      parameters:
+        - $ref: "#/components/parameters/PromptId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromptAnswers"
+      responses:
+        "204":
+          description: The connection got the answers.
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: cancelPrompt
+      security:
+        - sessionCookie: []
+      summary: Decline what a server asks while connecting
+      description: The connection that asked fails as refused credentials. A prompt that no longer waits is 404 prompt_not_found.
+      parameters:
+        - $ref: "#/components/parameters/PromptId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: The prompt was declined.
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces:
     get:
       operationId: listWorkspaces
@@ -4279,6 +4361,14 @@ components:
       schema:
         type: string
         format: uuid
+    PromptId:
+      name: promptId
+      in: path
+      required: true
+      description: Identifier of a prompt, from its connection.prompt event.
+      schema:
+        type: string
+        format: uuid
     BookmarkId:
       name: bookmarkId
       in: path
@@ -4313,6 +4403,17 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    PromptAnswers:
+      type: object
+      additionalProperties: false
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          maxItems: 16
+          items:
+            type: string
+            maxLength: 1024
     HealthStatus:
       type: object
       description: Status reported by a health endpoint.
@@ -4524,7 +4625,7 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key, ask, anonymous, account]
+          enum: [password, key, ask, anonymous, account, interactive]
         listTimezone:
           type: string
           description: IANA zone in which the server prints listing times.
@@ -4580,8 +4681,8 @@ components:
           type: string
         authMethod:
           type: string
-          enum: [password, key, ask, anonymous, account]
-          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e).
+          enum: [password, key, ask, anonymous, account, interactive]
+          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e); interactive stores no secret and asks whatever the server asks when connecting (ADR-0016).
         listTimezone:
           type: string
           description: IANA zone of the server's listing times; defaults to UTC.

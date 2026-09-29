@@ -27,6 +27,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/mfa"
 	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/site"
 	"github.com/fprambs/sentinel/internal/core/transfer"
@@ -107,6 +108,8 @@ type Deps struct {
 	Credentials *credentials.Store
 	// HostKeys is the trusted server keys service.
 	HostKeys *hostkey.Service
+	// Prompts relays what servers ask while an interactive site connects (ADR-0016).
+	Prompts *prompts.Broker
 	// Bookmarks is the service of the bookmarked folders of saved sites.
 	Bookmarks *bookmark.Service
 	// Sites is the saved connections service.

@@ -40,6 +40,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/netguard"
 	"github.com/fprambs/sentinel/internal/core/passkey"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -71,6 +72,7 @@ type api struct {
 	hub    *events.Hub
 	policy *netguard.Policy
 	pool   *connections.Manager
+	prompt *prompts.Broker
 }
 
 // reply is a fully read HTTP response.
@@ -121,6 +123,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	hub := events.New(64)
 	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1, OnChange: connections.PublishTo(hub)})
 	recorded := &recordedEvents{}
+	broker := prompts.New(hub, time.Minute)
 	activityLog := activity.NewService(store, clock, 30*24*time.Hour, nil)
 	if transfers.OnFinish == nil {
 		transfers.OnFinish = func(t transfer.Transfer) {
@@ -161,6 +164,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Quick:         quickConnections,
 		Events:        hub,
 		ConnectionLog: connlog.New(hub, clock),
+		Prompts:       broker,
 		WebSocket:     httpapi.WebSocketConfig{PingEvery: 50 * time.Millisecond, PingTimeout: time.Second, VerifyEvery: 20 * time.Millisecond},
 		Limits: httpapi.Limits{
 			SetupIP:       ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: time.Minute}, 100),
@@ -180,7 +184,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	}
 	srv := httptest.NewServer(httpapi.NewRouter(deps))
 	t.Cleanup(srv.Close)
-	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub, policy: policy, pool: pool}
+	return &api{t: t, srv: srv, store: store, clock: clock, auth: service, hash: hasher, events: recorded, hub: hub, policy: policy, pool: pool, prompt: broker}
 }
 
 // request describes one call.

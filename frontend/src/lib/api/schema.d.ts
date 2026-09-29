@@ -136,6 +136,30 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/api/v1/prompts/{promptId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer what a server asks while connecting
+         * @description Hands the answers, one per question and in order, to a connection of an interactive site that waits for them (ADR-0016). The questions arrive on the event stream as connection.prompt. A prompt that no longer waits, or belongs to another account, is 404 prompt_not_found; a different number of answers is 422 invalid_answers. Answers are never stored or logged.
+         */
+        post: operations["answerPrompt"];
+        /**
+         * Decline what a server asks while connecting
+         * @description The connection that asked fails as refused credentials. A prompt that no longer waits is 404 prompt_not_found.
+         */
+        delete: operations["cancelPrompt"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -1481,6 +1505,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PromptAnswers: {
+            answers: string[];
+        };
         /** @description Status reported by a health endpoint. */
         HealthStatus: {
             /** @enum {string} */
@@ -1607,7 +1634,7 @@ export interface components {
             port: number;
             username: string;
             /** @enum {string} */
-            authMethod: "password" | "key" | "ask" | "anonymous" | "account";
+            authMethod: "password" | "key" | "ask" | "anonymous" | "account" | "interactive";
             /** @description IANA zone in which the server prints listing times. */
             listTimezone: string;
             charset: components["schemas"]["Charset"];
@@ -1647,10 +1674,10 @@ export interface components {
             port?: number;
             username: string;
             /**
-             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e).
+             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e); interactive stores no secret and asks whatever the server asks when connecting (ADR-0016).
              * @enum {string}
              */
-            authMethod?: "password" | "key" | "ask" | "anonymous" | "account";
+            authMethod?: "password" | "key" | "ask" | "anonymous" | "account" | "interactive";
             /** @description IANA zone of the server's listing times; defaults to UTC. */
             listTimezone?: string;
             charset?: components["schemas"]["Charset"];
@@ -2279,6 +2306,8 @@ export interface components {
         TransferIdQuery: string;
         /** @description Identifier of the collection. */
         CollectionId: string;
+        /** @description Identifier of a prompt, from its connection.prompt event. */
+        PromptId: string;
         /** @description Identifier of the bookmark. */
         BookmarkId: string;
         /** @description Identifier of the quick connection. */
@@ -2600,6 +2629,130 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    answerPrompt: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of a prompt, from its connection.prompt event. */
+                promptId: components["parameters"]["PromptId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptAnswers"];
+            };
+        };
+        responses: {
+            /** @description The connection got the answers. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancelPrompt: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of a prompt, from its connection.prompt event. */
+                promptId: components["parameters"]["PromptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The prompt was declined. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

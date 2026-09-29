@@ -17,6 +17,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/invite"
 	"github.com/fprambs/sentinel/internal/core/limits"
 	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/quick"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/core/site"
@@ -110,6 +111,12 @@ func (p domainProblem) VisitUpdateBookmarkResponse(w http.ResponseWriter) error 
 // VisitDeleteBookmarkResponse implements [DeleteBookmarkResponseObject].
 func (p domainProblem) VisitDeleteBookmarkResponse(w http.ResponseWriter) error { return p.write(w) }
 
+// VisitAnswerPromptResponse implements [AnswerPromptResponseObject].
+func (p domainProblem) VisitAnswerPromptResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitCancelPromptResponse implements [CancelPromptResponseObject].
+func (p domainProblem) VisitCancelPromptResponse(w http.ResponseWriter) error { return p.write(w) }
+
 // VisitGetTransferResponse implements [GetTransferResponseObject].
 func (p domainProblem) VisitGetTransferResponse(w http.ResponseWriter) error { return p.write(w) }
 
@@ -200,6 +207,8 @@ var domainProblems = []struct {
 	{site.ErrCollectionCycle, http.StatusUnprocessableEntity, "collection_cycle"},
 	{site.ErrCollectionTooDeep, http.StatusUnprocessableEntity, "collection_too_deep"},
 	{bookmark.ErrNotFound, http.StatusNotFound, "bookmark_not_found"},
+	{prompts.ErrNotFound, http.StatusNotFound, "prompt_not_found"},
+	{prompts.ErrInvalidAnswers, http.StatusUnprocessableEntity, "invalid_answers"},
 	{bookmark.ErrNameTaken, http.StatusConflict, "bookmark_name_taken"},
 	{bookmark.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_bookmark_name"},
 	{bookmark.ErrInvalidPath, http.StatusUnprocessableEntity, "invalid_bookmark_path"},

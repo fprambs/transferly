@@ -15,6 +15,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/sentinel/internal/core/prompts"
 	"github.com/fprambs/sentinel/internal/core/transfer"
 )
 
@@ -76,6 +77,37 @@ type logData struct {
 	Params      map[string]string `json:"params"`
 }
 
+// questionData is one question of a prompt.
+type questionData struct {
+	Text string `json:"text"`
+	Echo bool   `json:"echo"`
+}
+
+// promptData is the payload of a connection.prompt message: what a server asks while an interactive site connects
+// (ADR-0016).
+type promptData struct {
+	ID          uuid.UUID      `json:"id"`
+	WorkspaceID uuid.UUID      `json:"workspaceId"`
+	SiteID      uuid.UUID      `json:"siteId"`
+	Name        string         `json:"name"`
+	Instruction string         `json:"instruction"`
+	Questions   []questionData `json:"questions"`
+}
+
+// promptClosedData is the payload of a connection.prompt_closed message: a prompt that no longer waits.
+type promptClosedData struct {
+	ID uuid.UUID `json:"id"`
+}
+
+// promptDTO renders a prompt as the payload of its message.
+func promptDTO(p prompts.Prompt) promptData {
+	questions := make([]questionData, len(p.Challenge.Questions))
+	for i, q := range p.Challenge.Questions {
+		questions[i] = questionData{Text: q.Text, Echo: q.Echo}
+	}
+	return promptData{ID: p.ID, WorkspaceID: p.WorkspaceID, SiteID: p.SiteID, Name: p.Challenge.Name, Instruction: p.Challenge.Instruction, Questions: questions}
+}
+
 // snapshotData is the payload of the first message: what is running right now.
 type snapshotData struct {
 	Transfers []Transfer `json:"transfers"`
@@ -94,6 +126,10 @@ func toMessage(e ports.Event) (message, bool) {
 		return message{Type: e.Type, Data: stateData{WorkspaceID: data.Key.WorkspaceID, SiteID: data.Key.SiteID, Open: data.Open}}, true
 	case connlog.Entry:
 		return message{Type: e.Type, Data: logData{WorkspaceID: data.WorkspaceID, SiteID: data.SiteID, Time: data.Time, Level: string(data.Level), Step: string(data.Step), Params: data.Params}}, true
+	case prompts.Prompt:
+		return message{Type: e.Type, Data: promptDTO(data)}, true
+	case prompts.Closed:
+		return message{Type: e.Type, Data: promptClosedData{ID: data.ID}}, true
 	}
 	return message{}, false
 }
