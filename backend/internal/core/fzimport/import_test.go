@@ -106,7 +106,7 @@ func byName(r fzimport.Result) map[string]fzimport.Item {
 //   - a dry run reports what would happen and writes nothing, including no folders
 //   - names that are taken are skipped by default and renamed to a free "Name (n)" when asked, and the same name twice in a file is handled the same way
 //   - folders that exist are reused, and everything can go into a chosen collection
-//   - passwords need an unlocked vault, checked before anything is written, unless no site has one or it is a dry run
+//   - passwords and accounts need an unlocked vault, checked before anything is written, unless no site has one or it is a dry run
 //   - values that fail validation, blocked destinations, name races and folders too deep fail their site only, and the others are still created
 //   - sites the file could not represent are listed as skipped
 //   - the actor must manage the sites, and unexpected failures stop the import with their error
@@ -184,8 +184,11 @@ func TestService_Import(t *testing.T) {
 	if _, err := locked.Import(ctx, actor, ws, "s", servers(), nil, fzimport.Options{Passwords: true}); !errors.Is(err, site.ErrLocked) || len(lockedFake.sites) != 0 || len(lockedFake.collections) != 0 {
 		t.Errorf("Import() with a locked vault = %v, %d sites, %d folders", err, len(lockedFake.sites), len(lockedFake.collections))
 	}
-	if _, err := locked.Import(ctx, actor, ws, "s", servers()[1:], nil, fzimport.Options{Passwords: true}); err != nil {
-		t.Errorf("Import() of sites without passwords with a locked vault = %v", err)
+	if _, err := locked.Import(ctx, actor, ws, "s", servers()[1:2], nil, fzimport.Options{Passwords: true}); err != nil {
+		t.Errorf("Import() of sites without secrets with a locked vault = %v", err)
+	}
+	if _, err := locked.Import(ctx, actor, ws, "s", servers()[2:], nil, fzimport.Options{Passwords: true}); !errors.Is(err, site.ErrLocked) {
+		t.Errorf("Import() of a site with only an account with a locked vault = %v; want ErrLocked", err)
 	}
 
 	failing, failingFake := newImport()
@@ -238,5 +241,54 @@ func TestResult_Created(t *testing.T) {
 	}}
 	if got := result.Created(); got != 2 {
 		t.Errorf("Created() = %d; want 2", got)
+	}
+}
+
+// TestService_ImportEntries covers importing entries of any file with their folders (ADR-0017).
+//
+// Use cases:
+//   - every folder given is created, the empty ones too, and the entries go into the folders of their paths
+//   - every secret of an entry is stored when asked for, and none otherwise, which is reported as skipped
+//   - a dry run creates no folder
+//   - a folder that fails for a reason of its own, such as nesting too deep, is left out; an unexpected failure stops the import
+func TestService_ImportEntries(t *testing.T) {
+	ctx := context.Background()
+	ws, actor := uuid.New(), uuid.New()
+	key, phrase := "KEY", "phrase"
+	entries := []fzimport.Entry{{Path: []string{"Work"}, Input: site.Input{Name: "Keyed", Protocol: site.SFTP, Host: "k.example.com", Username: "u", AuthMethod: site.AuthKey}, Secrets: site.SecretChanges{PrivateKey: &key, Passphrase: &phrase}}}
+	folders := [][]string{{"Work"}, {"Empty", "Inner"}}
+
+	svc, fake := newImport()
+	out, err := svc.ImportEntries(ctx, actor, ws, "s", folders, entries, nil, fzimport.Options{Passwords: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fake.collections) != 3 || len(fake.sites) != 1 || fake.sites[0].CollectionID != fake.collections[0].ID {
+		t.Errorf("collections = %+v, sites = %+v", fake.collections, fake.sites)
+	}
+	if item := out.Items[0]; item.Status != fzimport.StatusCreated || !item.PasswordStored || item.PasswordSkipped {
+		t.Errorf("item = %+v", item)
+	}
+
+	without, _ := newImport()
+	out, err = without.ImportEntries(ctx, actor, ws, "s", nil, entries, nil, fzimport.Options{})
+	if item := out.Items[0]; err != nil || item.PasswordStored || !item.PasswordSkipped {
+		t.Errorf("item without secrets = %+v, %v", item, err)
+	}
+
+	dry, dryFake := newImport()
+	if _, err := dry.ImportEntries(ctx, actor, ws, "s", folders, entries, nil, fzimport.Options{DryRun: true}); err != nil || len(dryFake.collections) != 0 {
+		t.Errorf("dry run = %v with %d folders", err, len(dryFake.collections))
+	}
+
+	deep, deepFake := newImport()
+	deepFake.collErr = site.ErrCollectionTooDeep
+	if _, err := deep.ImportEntries(ctx, actor, ws, "s", folders, nil, nil, fzimport.Options{}); err != nil {
+		t.Errorf("folder too deep = %v; want it left out", err)
+	}
+	broken, brokenFake := newImport()
+	brokenFake.collErr = errors.New("database down")
+	if _, err := broken.ImportEntries(ctx, actor, ws, "s", folders, nil, nil, fzimport.Options{}); err == nil {
+		t.Error("an unexpected folder failure did not stop the import")
 	}
 }

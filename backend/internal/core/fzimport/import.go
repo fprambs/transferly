@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -57,11 +58,49 @@ const (
 	StatusFailed Status = "failed"
 )
 
+// Entry is one site to import, whatever file it came from: its folders, its settings and the secrets the file gives it.
+type Entry struct {
+	// Path is the names of the folders that hold it, outermost first.
+	Path []string
+	// Input is its settings, named as it should be.
+	Input site.Input
+	// Secrets are the secrets the file gives it; stored only when the import asks for them.
+	Secrets site.SecretChanges
+	// PasswordSkipped says the file has a password that could not be read.
+	PasswordSkipped bool
+}
+
+// hasSecrets reports whether an entry carries any secret.
+func (e Entry) hasSecrets() bool {
+	c := e.Secrets
+	for _, value := range []*string{c.Password, c.PrivateKey, c.Passphrase, c.JumpPassword, c.JumpPrivateKey, c.JumpPassphrase, c.ProxyPassword, c.Account} {
+		if value != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// entryOf turns a server of a FileZilla file into an entry.
+func entryOf(server Server) Entry {
+	e := Entry{
+		Path: server.Path, PasswordSkipped: server.PasswordSkipped,
+		Input: site.Input{Name: server.Name, Protocol: server.Protocol, FTPEncryption: server.FTPEncryption, Host: server.Host, Port: server.Port, Username: server.Username, AuthMethod: server.AuthMethod, RemoteDir: server.RemoteDir},
+	}
+	if server.Password != "" {
+		e.Secrets.Password = &server.Password
+	}
+	if server.Account != "" {
+		e.Secrets.Account = &server.Account
+	}
+	return e
+}
+
 // Options tell how to import.
 type Options struct {
 	// DryRun reports what would happen without writing anything.
 	DryRun bool
-	// Passwords stores the passwords of the file in the vault; it needs the vault to be unlocked.
+	// Passwords stores the passwords, and any other secret, of the file in the vault; it needs the vault to be unlocked.
 	Passwords bool
 	// OnConflict says what to do with names that are taken; skip when empty.
 	OnConflict Conflict
@@ -155,16 +194,26 @@ type run struct {
 	children map[uuid.UUID]map[string]uuid.UUID
 }
 
-// Import creates the sites of a parsed file. Sites are independent: one that fails does not stop the others. With Passwords the
-// vault must be unlocked, which is checked before anything is written.
+// Import creates the sites of a parsed FileZilla file. Sites are independent: one that fails does not stop the others. With
+// Passwords the vault must be unlocked, which is checked before anything is written.
 func (s *Service) Import(ctx context.Context, actor, workspaceID uuid.UUID, session string, servers []Server, skipped []Skipped, opts Options) (Result, error) {
+	entries := make([]Entry, len(servers))
+	for i, server := range servers {
+		entries[i] = entryOf(server)
+	}
+	return s.ImportEntries(ctx, actor, workspaceID, session, nil, entries, skipped, opts)
+}
+
+// ImportEntries creates the folders and the sites of any file: first every folder of folders, which keeps the empty ones, then
+// each entry in the folders of its path. It works as [Service.Import] does.
+func (s *Service) ImportEntries(ctx context.Context, actor, workspaceID uuid.UUID, session string, folders [][]string, entries []Entry, skipped []Skipped, opts Options) (Result, error) {
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Result{}, err
 	}
 	if opts.OnConflict == "" {
 		opts.OnConflict = SkipName
 	}
-	if opts.Passwords && !opts.DryRun && !s.sites.CanSeal(session) && hasPassword(servers) {
+	if opts.Passwords && !opts.DryRun && !s.sites.CanSeal(session) && slices.ContainsFunc(entries, Entry.hasSecrets) {
 		return Result{}, site.ErrLocked
 	}
 	existing, err := s.sites.List(ctx, actor, workspaceID)
@@ -185,9 +234,16 @@ func (s *Service) Import(ctx context.Context, actor, workspaceID uuid.UUID, sess
 		}
 		r.children[c.ParentID][strings.ToLower(c.Name)] = c.ID
 	}
+	if !opts.DryRun {
+		for _, folder := range folders {
+			if _, err := r.folderFor(folder); err != nil && reasonOf(err) == "" {
+				return Result{}, err
+			}
+		}
+	}
 	var result Result
-	for _, server := range servers {
-		item, err := r.one(server)
+	for _, entry := range entries {
+		item, err := r.one(entry)
 		if err != nil {
 			return result, err
 		}
@@ -197,16 +253,6 @@ func (s *Service) Import(ctx context.Context, actor, workspaceID uuid.UUID, sess
 		result.Items = append(result.Items, Item{Name: out.Name, Path: strings.Join(out.Path, "/"), Status: StatusSkipped, Reason: out.Reason})
 	}
 	return result, nil
-}
-
-// hasPassword reports whether any server carries a password.
-func hasPassword(servers []Server) bool {
-	for _, server := range servers {
-		if server.Password != "" {
-			return true
-		}
-	}
-	return false
 }
 
 // freeName returns the name a site is given: its own, or the first free "Name (n)" when the policy renames, or "" to skip it.
@@ -253,26 +299,27 @@ func (r *run) folderFor(path []string) (uuid.UUID, error) {
 }
 
 // one imports, or plans, a single site.
-func (r *run) one(server Server) (Item, error) {
-	item := Item{Name: server.Name, Path: strings.Join(server.Path, "/"), PasswordSkipped: server.PasswordSkipped}
-	name := r.freeName(server.Name)
+func (r *run) one(entry Entry) (Item, error) {
+	secrets := entry.hasSecrets()
+	item := Item{Name: entry.Input.Name, Path: strings.Join(entry.Path, "/"), PasswordSkipped: entry.PasswordSkipped || (!r.opts.Passwords && secrets)}
+	name := r.freeName(entry.Input.Name)
 	if name == "" {
 		item.Status, item.Reason = StatusSkipped, "name_taken"
 		return item, nil
 	}
 	item.Name = name
-	input := site.Input{Name: name, Protocol: server.Protocol, FTPEncryption: server.FTPEncryption, Host: server.Host, Port: server.Port, Username: server.Username, AuthMethod: server.AuthMethod, RemoteDir: server.RemoteDir}
+	input := entry.Input
+	input.Name = name
 	if _, err := site.Normalize(input); err != nil {
 		item.Status, item.Reason = StatusFailed, reasonOf(err)
 		return item, nil
 	}
 	if r.opts.DryRun {
 		r.names[strings.ToLower(name)] = true
-		item.Status, item.PasswordStored = StatusWouldCreate, r.opts.Passwords && server.Password != ""
-		item.PasswordSkipped = item.PasswordSkipped || (!r.opts.Passwords && server.Password != "")
+		item.Status, item.PasswordStored = StatusWouldCreate, r.opts.Passwords && secrets
 		return item, nil
 	}
-	folder, err := r.folderFor(server.Path)
+	folder, err := r.folderFor(entry.Path)
 	if err != nil {
 		if reason := reasonOf(err); reason != "" {
 			item.Status, item.Reason = StatusFailed, reason
@@ -282,11 +329,8 @@ func (r *run) one(server Server) (Item, error) {
 	}
 	input.CollectionID = folder
 	var changes site.SecretChanges
-	if r.opts.Passwords && server.Password != "" {
-		changes.Password = &server.Password
-	}
-	if r.opts.Passwords && server.Account != "" {
-		changes.Account = &server.Account
+	if r.opts.Passwords {
+		changes = entry.Secrets
 	}
 	if _, err := r.s.sites.Create(r.ctx, r.actor, r.ws, r.session, input, changes); err != nil {
 		if reason := reasonOf(err); reason != "" {
@@ -296,7 +340,6 @@ func (r *run) one(server Server) (Item, error) {
 		return item, err
 	}
 	r.names[strings.ToLower(name)] = true
-	item.Status, item.PasswordStored = StatusCreated, changes.Password != nil
-	item.PasswordSkipped = item.PasswordSkipped || (!r.opts.Passwords && server.Password != "")
+	item.Status, item.PasswordStored = StatusCreated, r.opts.Passwords && secrets
 	return item, nil
 }
