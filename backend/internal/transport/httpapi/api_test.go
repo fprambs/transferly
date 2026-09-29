@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -677,6 +678,27 @@ type sharedFS struct{ *memfs.FS }
 
 // Close does nothing: the data outlives the connection.
 func (sharedFS) Close() error { return nil }
+
+// selfWrites counts the downloads whose file wrote itself to the response.
+var selfWrites atomic.Int64
+
+// OpenRead returns a stream that can write itself, as an SFTP file reading ahead does, so the tests see whether a download uses it.
+func (f sharedFS) OpenRead(ctx context.Context, p string, offset int64) (io.ReadCloser, error) {
+	r, err := f.FS.OpenRead(ctx, p, offset)
+	if err != nil {
+		return nil, err
+	}
+	return selfWriting{r}, nil
+}
+
+// selfWriting is a stream that writes itself to a destination.
+type selfWriting struct{ io.ReadCloser }
+
+// WriteTo copies the rest of the stream and counts the copy.
+func (s selfWriting) WriteTo(w io.Writer) (int64, error) {
+	selfWrites.Add(1)
+	return io.Copy(w, struct{ io.Reader }{s.ReadCloser})
+}
 
 // newMemConnector returns a connector over the sites service.
 func newMemConnector(clock ports.Clock, sites *site.Service, quickConnections *quick.Service, asked *credentials.Store) memConnector {

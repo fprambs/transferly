@@ -617,3 +617,100 @@ type errReader struct{ err error }
 
 // Read returns the error.
 func (e errReader) Read([]byte) (int, error) { return 0, e.err }
+
+// writingBody is a download stream that writes itself, as an SFTP file reading ahead does, failing with fail after the first byte when set.
+type writingBody struct {
+	io.Reader
+	fail error
+}
+
+// WriteTo copies the stream, or its first byte and then fail.
+func (w writingBody) WriteTo(dst io.Writer) (int64, error) {
+	if w.fail != nil {
+		n, err := io.CopyN(dst, w.Reader, 1)
+		if err != nil {
+			return n, err
+		}
+		return n, w.fail
+	}
+	return io.Copy(dst, struct{ io.Reader }{w.Reader})
+}
+
+// Close closes nothing.
+func (writingBody) Close() error { return nil }
+
+// refusingWriter refuses every write, like a browser that went away.
+type refusingWriter struct{}
+
+// Write fails.
+func (refusingWriter) Write([]byte) (int, error) { return 0, errors.New("client gone") }
+
+// TestTracker_DownloadWriteTo verifies copying a download stream as a whole (4.13).
+//
+// Use cases:
+//   - a stream that writes itself is handed the destination and the transfer ends done; one that cannot is copied chunk by chunk
+//   - a stream that fails half way fails the transfer with its code
+//   - a destination that fails leaves the transfer interrupted, and a cancellation stops the copy and ends it canceled
+func TestTracker_DownloadWriteTo(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture()
+	begin := func(path string) *transfer.Tracker {
+		in := f.input()
+		in.Path, in.Total = path, 4
+		k, _, err := f.svc.Begin(ctx, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		k.Started(4)
+		return k
+	}
+	code := func(error) string { return "remote_unavailable" }
+	status := func(k *transfer.Tracker) transfer.Status { return f.store.stored(k.ID()).Status }
+
+	for name, body := range map[string]io.ReadCloser{"/writes": writingBody{Reader: strings.NewReader("data")}, "/reads": failingBody{Reader: strings.NewReader("data")}} {
+		k := begin(name)
+		stream := k.Download(body, code)
+		var out strings.Builder
+		if _, err := io.Copy(&out, stream); err != nil || out.String() != "data" {
+			t.Errorf("%s copy = %q, %v", name, out.String(), err)
+		}
+		k.Progress(4)
+		_ = stream.Close()
+		if got := status(k); got != transfer.Done {
+			t.Errorf("%s = %s; want done", name, got)
+		}
+	}
+
+	broken := begin("/broken")
+	failing := broken.Download(writingBody{Reader: strings.NewReader("data"), fail: errStore}, code)
+	if _, err := io.Copy(io.Discard, failing); !errors.Is(err, errStore) {
+		t.Errorf("copy of a failing stream = %v", err)
+	}
+	_ = failing.Close()
+	if got := f.store.stored(broken.ID()); got.Status != transfer.Failed || got.ErrorCode != "remote_unavailable" {
+		t.Errorf("failing stream = %+v", got)
+	}
+
+	gone := begin("/gone")
+	refused := gone.Download(writingBody{Reader: strings.NewReader("data")}, code)
+	if _, err := io.Copy(refusingWriter{}, refused); err == nil {
+		t.Error("a destination that fails did not fail the copy")
+	}
+	_ = refused.Close()
+	if got := status(gone); got != transfer.Interrupted {
+		t.Errorf("destination gone = %s; want interrupted", got)
+	}
+
+	canceled := begin("/canceled")
+	stream := canceled.Download(writingBody{Reader: strings.NewReader("data")}, code)
+	if err := f.svc.Cancel(ctx, f.user, canceled.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(io.Discard, stream); err == nil {
+		t.Error("a canceled transfer kept copying")
+	}
+	_ = stream.Close()
+	if got := status(canceled); got != transfer.Canceled {
+		t.Errorf("canceled = %s; want canceled", got)
+	}
+}

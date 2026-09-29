@@ -315,6 +315,47 @@ func (b *finishingBody) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// WriteTo implements [io.WriterTo]. It hands the destination to a stream that can write itself, so a download keeps reading ahead (4.13),
+// and otherwise copies chunk by chunk through [finishingBody.Read]. A cancellation of the transfer stops it; a failure of the destination,
+// such as a browser that went away, is not a failure of the transfer, which then ends as interrupted.
+func (b *finishingBody) WriteTo(w io.Writer) (int64, error) {
+	whole, ok := b.ReadCloser.(io.WriterTo)
+	if !ok {
+		return io.Copy(w, struct{ io.Reader }{b})
+	}
+	sink := &cancelWriter{ctx: b.k.ctx, dst: w}
+	n, err := whole.WriteTo(sink)
+	switch {
+	case err == nil:
+		b.eof = true
+	case b.k.ctx.Err() != nil:
+		b.readErr = context.Cause(b.k.ctx)
+	case sink.err == nil || !errors.Is(err, sink.err):
+		b.readErr = err
+	}
+	return n, err
+}
+
+// cancelWriter writes to a destination until the transfer is canceled, remembering its own failure.
+type cancelWriter struct {
+	ctx context.Context
+	dst io.Writer
+	err error
+}
+
+// Write implements [io.Writer].
+func (w *cancelWriter) Write(p []byte) (int, error) {
+	if err := w.ctx.Err(); err != nil {
+		w.err = err
+		return 0, err
+	}
+	n, err := w.dst.Write(p)
+	if err != nil {
+		w.err = err
+	}
+	return n, err
+}
+
 // Close closes the stream and ends the transfer: done when every byte was read (or, for a stream of unknown size, when its end was reached), failed when reading failed,
 // interrupted when the reader stopped early.
 func (b *finishingBody) Close() error {

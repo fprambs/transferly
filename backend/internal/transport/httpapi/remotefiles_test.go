@@ -363,3 +363,21 @@ func TestRemoteFiles_SharedByOneUser(t *testing.T) {
 		t.Errorf("viewer listing = %s", r.Body)
 	}
 }
+
+// TestRemoteFiles_DownloadReadsAhead guards the speed of downloads (4.13): a download over HTTP must reach the file's own WriteTo through
+// the file service, the transfer tracker and the response, since that is what lets SFTP keep several reads in flight instead of one per
+// round trip, which made downloads over a link with 20 ms of latency twenty times slower than other clients.
+func TestRemoteFiles_DownloadReadsAhead(t *testing.T) {
+	e := newFileEnv(t)
+	if r := e.a.upload(e.ws, e.site, q("path", "/big.bin"), strings.Repeat("x", 1<<20), e.cookie, e.csrf); r.Status != http.StatusCreated {
+		t.Fatalf("upload = %d %s", r.Status, r.Body)
+	}
+	before := selfWrites.Load()
+	got := e.get("/content", q("path", "/big.bin"), nil)
+	if got.Status != http.StatusOK || len(got.Body) != 1<<20 {
+		t.Fatalf("download = %d with %d bytes", got.Status, len(got.Body))
+	}
+	if selfWrites.Load() != before+1 {
+		t.Error("the download copied chunk by chunk instead of letting the file write itself")
+	}
+}

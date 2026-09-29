@@ -254,6 +254,7 @@ func (d *Download) Length() int64 { return d.End - d.Start + 1 }
 type body struct {
 	ctx     context.Context
 	src     io.Reader
+	whole   io.WriterTo
 	closer  io.Closer
 	lease   *connections.Lease
 	obs     Observer
@@ -271,6 +272,45 @@ func (b *body) Read(p []byte) (int, error) {
 	progress(b.obs, int64(n))
 	if err != nil && !errors.Is(err, io.EOF) {
 		b.readErr = err
+	}
+	return n, err
+}
+
+// WriteTo implements [io.WriterTo]. When the stream runs to the end of the file and the file can write itself, the destination is handed
+// to it: SFTP then reads ahead with several requests in flight instead of one chunk per round trip, which is what makes a download as fast
+// as other clients over a link with latency (4.13). Progress, bandwidth caps and the end of the context still apply to every chunk written.
+// Otherwise it copies chunk by chunk through [body.Read].
+func (b *body) WriteTo(w io.Writer) (int64, error) {
+	if b.whole == nil {
+		return io.Copy(w, struct{ io.Reader }{b})
+	}
+	sink := &progressWriter{ctx: b.ctx, dst: w, obs: b.obs}
+	n, err := b.whole.WriteTo(sink)
+	if err != nil && (sink.err == nil || !errors.Is(err, sink.err)) {
+		b.readErr = err
+	}
+	return n, err
+}
+
+// progressWriter writes a download to its destination, reporting every chunk and stopping once the context ended. It remembers its own
+// failure, so a failure of the destination is told apart from one of the file.
+type progressWriter struct {
+	ctx context.Context
+	dst io.Writer
+	obs Observer
+	err error
+}
+
+// Write implements [io.Writer].
+func (w *progressWriter) Write(p []byte) (int, error) {
+	if err := w.ctx.Err(); err != nil {
+		w.err = err
+		return 0, err
+	}
+	n, err := w.dst.Write(p)
+	progress(w.obs, int64(n))
+	if err != nil {
+		w.err = err
 	}
 	return n, err
 }
@@ -312,7 +352,11 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 	}
 	d := &Download{Entry: entry, Start: start, End: end, Partial: r.Set}
 	started(t.Observer, d.Length())
-	d.Body = &body{ctx: ctx, src: io.LimitReader(src, d.Length()), closer: src, lease: lease, obs: t.Observer}
+	b := &body{ctx: ctx, src: io.LimitReader(src, d.Length()), closer: src, lease: lease, obs: t.Observer}
+	if whole, ok := src.(io.WriterTo); ok && end == entry.Size-1 {
+		b.whole = whole
+	}
+	d.Body = b
 	return d, nil
 }
 

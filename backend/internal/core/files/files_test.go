@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,6 +36,10 @@ type flakyFS struct {
 	failStat   bool
 	failCommit bool
 	failRemove bool
+	// writeTo makes streams that can write themselves, as SFTP files do; failWriteTo makes them fail half way.
+	writeTo, failWriteTo bool
+	// writesTo counts how many streams wrote themselves.
+	writesTo atomic.Int32
 }
 
 // Remove fails when configured to.
@@ -59,10 +64,31 @@ func (f *flakyFS) OpenRead(ctx context.Context, p string, offset int64) (io.Read
 		return nil, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
 	}
 	r, err := f.shared.OpenRead(ctx, p, offset)
-	if err != nil || !f.failRead {
+	switch {
+	case err != nil:
 		return r, err
+	case f.failRead:
+		return brokenReader{r}, nil
+	case f.writeTo:
+		return &selfWriter{ReadCloser: r, fs: f}, nil
 	}
-	return brokenReader{r}, nil
+	return r, nil
+}
+
+// selfWriter is a stream that writes itself to a destination, as an SFTP file reading ahead does.
+type selfWriter struct {
+	io.ReadCloser
+	fs *flakyFS
+}
+
+// WriteTo copies the rest of the stream, failing half way like a dropped connection when configured to.
+func (s *selfWriter) WriteTo(w io.Writer) (int64, error) {
+	s.fs.writesTo.Add(1)
+	if s.fs.failWriteTo {
+		n, _ := io.CopyN(w, s.ReadCloser, 1)
+		return n, fmt.Errorf("%w: dropped", remotefs.ErrConnectionLost)
+	}
+	return io.Copy(w, struct{ io.Reader }{s.ReadCloser})
 }
 
 // OpenWrite returns a writer whose Close fails when configured to.
@@ -705,4 +731,73 @@ func (c *cancelAfter) Read(p []byte) (int, error) {
 	c.sent++
 	p[0] = 'x'
 	return 1, nil
+}
+
+// failingWriter refuses every write, like a browser that went away.
+type failingWriter struct{}
+
+// Write fails.
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("client gone") }
+
+// TestService_Download_WriteTo covers downloads of files that write themselves (4.13).
+//
+// Use cases:
+//   - a download that runs to the end of the file lets the file write itself, so SFTP reads ahead, and every byte is still counted
+//   - a range that stops before the end copies chunk by chunk
+//   - a file that fails half way drops its connection, while a destination that fails, or a canceled context, keeps it pooled
+func TestService_Download_WriteTo(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	f.put(t, "/f", "0123456789")
+	f.fs.writeTo = true
+	obs := &recorder{}
+	target := f.editor
+	target.Observer = obs
+
+	d, err := f.svc.Download(ctx, target, "/f", files.Range{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	if _, err := io.Copy(&out, d.Body); err != nil || out.String() != "0123456789" || obs.bytes != 10 || f.fs.writesTo.Load() != 1 {
+		t.Errorf("whole download = %q, %v, %d bytes counted, %d self writes", out.String(), err, obs.bytes, f.fs.writesTo.Load())
+	}
+	_ = d.Body.Close()
+
+	d, err = f.svc.Download(ctx, target, "/f", files.Range{Set: true, Start: 0, End: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readAll(t, d); got != "012" || f.fs.writesTo.Load() != 1 {
+		t.Errorf("range = %q with %d self writes; want a chunk by chunk copy", got, f.fs.writesTo.Load())
+	}
+	if f.idle(f.editor) != 1 {
+		t.Fatalf("idle = %d; want the connection pooled", f.idle(f.editor))
+	}
+
+	d, _ = f.svc.Download(ctx, target, "/f", files.Range{})
+	if _, err := io.Copy(failingWriter{}, d.Body); err == nil {
+		t.Error("a destination that fails did not fail the copy")
+	}
+	_ = d.Body.Close()
+	canceled, cancel := context.WithCancel(ctx)
+	d, _ = f.svc.Download(canceled, target, "/f", files.Range{})
+	cancel()
+	if _, err := io.Copy(io.Discard, d.Body); !errors.Is(err, context.Canceled) {
+		t.Errorf("copy after the cancellation = %v", err)
+	}
+	_ = d.Body.Close()
+	if f.idle(f.editor) != 1 {
+		t.Errorf("idle = %d; a failing destination or a cancellation must not drop the connection", f.idle(f.editor))
+	}
+
+	f.fs.failWriteTo = true
+	d, _ = f.svc.Download(ctx, target, "/f", files.Range{})
+	if _, err := io.Copy(io.Discard, d.Body); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("copy of a file that fails = %v", err)
+	}
+	_ = d.Body.Close()
+	if f.idle(f.editor) != 0 {
+		t.Errorf("idle = %d; a lost connection must be dropped", f.idle(f.editor))
+	}
 }
