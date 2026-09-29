@@ -9,12 +9,12 @@ import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLa
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { Loading } from '@/components/ui/loading'
 import { cn } from '@/lib/utils'
-import type { RemoteEntry } from '@/lib/api'
+import type { HostKeyTrustMode, RemoteEntry } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { uuid } from '@/lib/uuid'
 
 import { useTimeZone } from '../auth/use-time-zone'
-import { unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
+import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { Breadcrumbs } from './Breadcrumbs'
@@ -32,6 +32,7 @@ import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { EntryNameDialog } from './EntryNameDialog'
 import { useConnectionState, useDisconnected } from '../toolbar/connection-store'
 
+import { ChangedHostKeyNotice } from './ChangedHostKeyNotice'
 import { ConnectingState } from './ExplorerLoading'
 import { DownloadNotices, type RequestedDownload } from './DownloadNotices'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
@@ -68,10 +69,12 @@ export interface ExplorerProps {
   initialSelection?: string
   /** Called with the path of the entry the user selects. */
   onSelectionChange?: (path: string) => void
+  /** Disconnects the site, offered when the user refuses a changed server key; without it that choice is not offered. */
+  onDisconnect?: () => void
 }
 
 /** Browser of the files of one connection: path, toolbar, a table of the folder in view and a resizable details panel beside it. */
-export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane = 'main', initialSelection, onSelectionChange }: ExplorerProps) {
+export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane = 'main', initialSelection, onSelectionChange, onDisconnect }: ExplorerProps) {
   const { t, i18n } = useTranslation('explorer')
   const api = useApi()
   const queryClient = useQueryClient()
@@ -115,13 +118,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const showPermissions = target === undefined || target.protocol === 'sftp'
   const hostKey = unknownHostKeyOf(listing.error)
+  const changedKey = changedHostKeyOf(listing.error)
   const timeZone = useTimeZone()
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
   const asksPassword = target !== undefined && (failure === 'credentials_required' || (failure === 'remote_auth_failed' && target.authMethod === 'ask'))
 
-  const trust = async (key: UnknownHostKey, connection: { host: string; port: number }): Promise<void> => {
+  const trust = async (key: UnknownHostKey, connection: { host: string; port: number }, mode?: HostKeyTrustMode): Promise<void> => {
     try {
-      await api.hostKeys.trust(workspaceId, { host: connection.host, port: connection.port, ...key })
+      await api.hostKeys.trust(workspaceId, { host: connection.host, port: connection.port, keyType: key.keyType, fingerprint: key.fingerprint, mode })
     } catch (error) {
       setTrustFailure(explorerErrorKeyOf(error))
       return
@@ -408,6 +412,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           </Button>
         </PanelState>
       )}
+      {failure !== null && changedKey !== undefined && target !== undefined && (
+        <ChangedHostKeyNotice
+          hostKey={changedKey}
+          failure={trustFailure}
+          onTrust={(mode) => trust(changedKey, target, mode)}
+          onCancel={onDisconnect}
+        />
+      )}
       {asksPassword && target !== undefined && (
         <CredentialNotice
           key={listing.errorUpdateCount}
@@ -420,7 +432,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       {failure === 'vault_locked' && (
         <VaultLockedNotice need="connect" layout="page" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
       )}
-      {failure !== null && failure !== 'vault_locked' && !asksPassword && (hostKey === undefined || target === undefined) && (
+      {failure !== null && failure !== 'vault_locked' && !asksPassword && ((hostKey === undefined && changedKey === undefined) || target === undefined) && (
         <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failedTitle)} description={t(($) => $.errors[failure])}>
           <Button variant="outline" onClick={() => void listing.refetch()}>
             {t(($) => $.retry)}

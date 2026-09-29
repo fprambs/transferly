@@ -58,12 +58,20 @@ function unknownKey() {
   )
 }
 
+/** Answers the listing with a server key other than the one trusted for it. */
+function changedKey() {
+  return HttpResponse.json(
+    { type: 'about:blank', title: 'x', status: 409, code: 'host_key_changed', params: { keyType: 'ssh-ed25519', fingerprint: 'SHA256:new', trusted: ['SHA256:old'] } },
+    { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+  )
+}
+
 /** Renders the explorer of the mock site at a path. */
-async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es' = 'en') {
+async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es' = 'en', onDisconnect?: () => void) {
   const onNavigate = vi.fn()
   const user = userEvent.setup()
   await renderWithProviders(
-    <Explorer workspaceId={workspaceId} siteId={siteId} path={path} onNavigate={onNavigate} />,
+    <Explorer workspaceId={workspaceId} siteId={siteId} path={path} onNavigate={onNavigate} onDisconnect={onDisconnect} />,
     language,
   )
   return { user, onNavigate }
@@ -83,6 +91,8 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - only the rows near the window are drawn in a long folder
  * - failures are explained and can be retried
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
+ * - a changed server key shows the trusted and the new fingerprints and lets the user add the key, replace the trusted ones or cancel and
+ *   disconnect (only when the view can disconnect), with no way to connect without deciding (4.13b); a failure to trust is shown
  * - FTP and FTPS report no permissions, so their entries and details show a dash instead of nominal ones
  * - the dates follow the interface language
  * - the search button opens a search of the folder in view, and a chosen match navigates there
@@ -280,6 +290,47 @@ describe('explorer', () => {
     await user.click(await screen.findByRole('button', { name: 'Trust and connect' }))
 
     expect(await screen.findByText('Unlock the vault to use the saved credentials.')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['Trust this key too', 'add'],
+    ['Replace the trusted keys', 'replace'],
+  ])('asks what to do with a changed server key: %s', async (button, mode) => {
+    let listed = 0
+    let trusted: unknown
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', () => (++listed === 1 ? changedKey() : HttpResponse.json([entry('a')]))),
+      http.post('/api/v1/workspaces/:id/known-hosts', async ({ request }) => {
+        trusted = await request.json()
+        return HttpResponse.json({}, { status: 201 })
+      }),
+    )
+    const { user } = await renderExplorer()
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('The server key is not the one you trusted')
+    expect(within(alert).getByText('SHA256:old')).toBeInTheDocument()
+    expect(within(alert).getByText('SHA256:new')).toBeInTheDocument()
+    expect(within(alert).queryByRole('button', { name: 'Trust and connect' })).not.toBeInTheDocument()
+    expect(within(alert).queryByRole('button', { name: 'Cancel and disconnect' })).not.toBeInTheDocument()
+    await user.click(within(alert).getByRole('button', { name: button }))
+
+    expect(await screen.findByRole('grid')).toBeInTheDocument()
+    expect(trusted).toEqual({ host: 'prod.example.com', port: 2222, keyType: 'ssh-ed25519', fingerprint: 'SHA256:new', mode })
+  })
+
+  it('shows a failure to trust a changed key, and cancels by disconnecting', async () => {
+    const onDisconnect = vi.fn()
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', () => changedKey()),
+      http.post('/api/v1/workspaces/:id/known-hosts', () => problem(403, 'vault_locked')),
+    )
+    const { user } = await renderExplorer('/www', 's1', 'en', onDisconnect)
+
+    await user.click(await screen.findByRole('button', { name: 'Replace the trusted keys' }))
+    expect(await screen.findByText('Unlock the vault to use the saved credentials.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancel and disconnect' }))
+    expect(onDisconnect).toHaveBeenCalledOnce()
   })
 
   it('cannot offer to trust a connection it does not know', async () => {

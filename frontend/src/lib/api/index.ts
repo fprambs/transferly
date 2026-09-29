@@ -71,6 +71,9 @@ export type OpenConnections = Schemas['OpenConnections']
 export type SshKeyInfo = Schemas['SshKeyInfo']
 /** A server key the workspace trusts. */
 export type KnownHost = Schemas['KnownHost']
+
+/** What trusting a key does when a different key of the same type is trusted already (4.13b): keep both, or keep only the new one. */
+export type HostKeyTrustMode = NonNullable<Schemas['HostKeyInput']['mode']>
 /** A file or directory on a remote server. */
 export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
@@ -248,9 +251,9 @@ export function createApi(transport: Transport) {
     },
     hostKeys: {
       list: (workspaceId: string) => transport.request<KnownHost[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/known-hosts` }),
-      trust: (workspaceId: string, key: { host: string; port: number; keyType: string; fingerprint: string }) =>
+      trust: (workspaceId: string, key: { host: string; port: number; keyType: string; fingerprint: string; mode?: HostKeyTrustMode }) =>
         transport.request<KnownHost>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/known-hosts`, body: key }),
-      forget: (workspaceId: string, key: { host: string; port: number; keyType: string }) =>
+      forget: (workspaceId: string, key: { host: string; port: number; keyType: string; fingerprint?: string }) =>
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/known-hosts`, query: key }),
     },
     quick: {

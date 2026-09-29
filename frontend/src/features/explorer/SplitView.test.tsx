@@ -78,6 +78,7 @@ function mockServer(copyReply: () => Response = () => HttpResponse.json({}, { st
  * - a copy the server refuses is explained and can be dismissed, and a later copy clears the message
  * - the compare button offers to sync the second pane against the first, only once it has something to compare against, whether the
  *   second pane is another site or a local folder that was actually chosen
+ * - refusing a changed server key disconnects the site of that pane: the second pane closes, and the first leaves the site (4.13b)
  */
 describe('split view', () => {
   beforeEach(() => {
@@ -251,5 +252,30 @@ describe('split view', () => {
     await user.click(await within(pane).findByRole('button', { name: 'Compare and sync with the other pane' }))
 
     expect(await screen.findByText('Files that differ between Prod and Local folder, or exist only on one side.')).toBeInTheDocument()
+  })
+
+  it('disconnects the site of the pane whose changed server key the user refuses', async () => {
+    const disconnected: string[] = []
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/:siteId/files', () =>
+        HttpResponse.json(
+          { type: 'about:blank', title: 'x', status: 409, code: 'host_key_changed', params: { keyType: 'ssh-ed25519', fingerprint: 'SHA256:new', trusted: ['SHA256:old'] } },
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+      http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', ({ params }) => {
+        disconnected.push(params.siteId as string)
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    const { history } = await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
+    const pane = await screen.findByRole('group', { name: 'Second pane' })
+
+    await user.click(await within(pane).findByRole('button', { name: 'Cancel and disconnect' }))
+    await waitFor(() => expect(history.location.search).not.toContain('split'))
+    await user.click(screen.getByRole('button', { name: 'Cancel and disconnect' }))
+    await waitFor(() => expect(history.location.pathname).toBe('/'))
+    expect(disconnected).toEqual(['s2', 's1'])
   })
 })

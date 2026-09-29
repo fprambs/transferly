@@ -28,6 +28,17 @@
     "fingerprint": "Huella",
     "confirm": "Confiar y conectar"
   },
+  "changedKey": {
+    "title": "La clave del servidor no es la que aceptaste",
+    "body": "Alguien podría estar haciéndose pasar por este servidor. Compara la huella nueva con la que te dio quien administra el servidor antes de decidir.",
+    "trusted_one": "Clave de confianza",
+    "trusted_other": "Claves de confianza",
+    "presented": "Clave nueva",
+    "help": "Agrégala si el servicio tiene varios servidores con un mismo nombre, cada uno con su clave. Reemplaza las claves de confianza si la clave del servidor cambió de verdad. Cancela si no estás seguro.",
+    "cancel": "Cancelar y desconectar",
+    "add": "Confiar también en esta clave",
+    "replace": "Reemplazar las claves de confianza"
+  },
   "errors": {
     "host_key_changed": "La clave del servidor cambió desde que confiaste en ella. Podría ser un ataque: no te conectes.",
     "remote_auth_failed": "El servidor rechazó las credenciales.",

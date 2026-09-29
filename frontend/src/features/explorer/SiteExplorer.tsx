@@ -17,6 +17,7 @@ import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
 import { useTabs } from '../tabs/tabs-store'
 import { useConnectionState } from '../toolbar/connection-store'
+import { useDisconnect } from '../toolbar/use-disconnect'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { Explorer } from './Explorer'
@@ -38,6 +39,7 @@ export function SiteExplorer() {
   const localRoot = useLocalRoot((state) => state.root)
   const [comparing, setComparing] = useState(false)
   const focus = useConnectionState((state) => state.focus)
+  const disconnect = useDisconnect()
   const logOpen = useUiStore((state) => state.logOpen)
   const setLogOpen = useUiStore((state) => state.setLogOpen)
   const log = useCollapsible(logOpen, setLogOpen)
@@ -114,6 +116,7 @@ export function SiteExplorer() {
                 workspaceId={workspace.id}
                 siteId={siteId}
                 path={path}
+                onDisconnect={() => void disconnect({ workspaceId: workspace.id, siteId })}
                 onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, path: next }) })}
                 actions={
                   <Button
@@ -141,6 +144,7 @@ export function SiteExplorer() {
                       workspaceId={workspace.id}
                       siteId={split}
                       path={splitPath ?? '/'}
+                      onDisconnect={() => void disconnect({ workspaceId: workspace.id, siteId: split })}
                       onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })}
                       actions={paneActions}
                     />

@@ -42,3 +42,21 @@ export function unknownHostKeyOf(error: unknown): UnknownHostKey | undefined {
   const { keyType, fingerprint } = error.problem.params ?? {}
   return typeof keyType === 'string' && typeof fingerprint === 'string' ? { keyType, fingerprint } : undefined
 }
+
+/** What the server reported about a key that differs from the ones trusted for it (4.13b). */
+export interface ChangedHostKey extends UnknownHostKey {
+  /** Fingerprints of the keys of the same type already trusted for the server. */
+  trusted: string[]
+}
+
+/** Extracts the key of a `host_key_changed` failure and the keys trusted before it, or `undefined` for any other error. */
+export function changedHostKeyOf(error: unknown): ChangedHostKey | undefined {
+  if (!(error instanceof ApiError) || error.code !== 'host_key_changed') {
+    return undefined
+  }
+  const { keyType, fingerprint, trusted } = error.problem.params ?? {}
+  if (typeof keyType !== 'string' || typeof fingerprint !== 'string') {
+    return undefined
+  }
+  return { keyType, fingerprint, trusted: Array.isArray(trusted) ? trusted.filter((item): item is string => typeof item === 'string') : [] }
+}

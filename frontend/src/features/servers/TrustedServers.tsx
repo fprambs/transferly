@@ -36,7 +36,7 @@ function ForgetDialog({ host, workspaceId, onClose }: ForgetDialogProps) {
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>{t(($) => $.servers.forgetTitle)}</DialogTitle>
-          <DialogDescription>{t(($) => $.servers.forgetBody, { host: `${host.host}:${host.port}` })}</DialogDescription>
+          <DialogDescription>{t(($) => $.servers.forgetBody, { host: `${host.host}:${host.port}`, fingerprint: host.fingerprint })}</DialogDescription>
         </DialogHeader>
         {failure !== null && (
           <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -51,7 +51,7 @@ function ForgetDialog({ host, workspaceId, onClose }: ForgetDialogProps) {
             variant="destructive"
             onClick={async () => {
               try {
-                await api.hostKeys.forget(workspaceId, { host: host.host, port: host.port, keyType: host.keyType })
+                await api.hostKeys.forget(workspaceId, { host: host.host, port: host.port, keyType: host.keyType, fingerprint: host.fingerprint })
                 await queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'known-hosts'] })
                 onClose()
               } catch (error) {
@@ -73,7 +73,7 @@ interface TrustedServersListProps {
   workspaceId: string
 }
 
-/** The trusted server keys of a workspace, each with the action to forget it. */
+/** The trusted server keys of a workspace, each with the action to forget it; a server may have several keys (4.13b), each forgotten on its own. */
 function TrustedServersList({ workspaceId }: TrustedServersListProps) {
   const { t, i18n } = useTranslation('settings')
   const api = useApi()
@@ -113,7 +113,7 @@ function TrustedServersList({ workspaceId }: TrustedServersListProps) {
         </thead>
         <tbody>
           {hosts.data.map((host) => (
-            <tr key={`${host.host}:${host.port}:${host.keyType}`} className="border-b last:border-b-0">
+            <tr key={`${host.host}:${host.port}:${host.keyType}:${host.fingerprint}`} className="border-b last:border-b-0">
               <td className="py-2 pe-3 font-mono">
                 {host.host}:{host.port}
               </td>
@@ -123,7 +123,7 @@ function TrustedServersList({ workspaceId }: TrustedServersListProps) {
                 {formatInstant(host.firstSeen, { locale: i18n.language, timeZone, dateStyle: 'medium', timeStyle: 'short' })}
               </td>
               <td className="py-2 text-end">
-                <Button variant="ghost" size="sm" aria-label={t(($) => $.servers.forgetLabel, { host: `${host.host}:${host.port}` })} onClick={() => setForgetting(host)}>
+                <Button variant="ghost" size="sm" aria-label={t(($) => $.servers.forgetLabel, { host: `${host.host}:${host.port}`, fingerprint: host.fingerprint })} onClick={() => setForgetting(host)}>
                   {t(($) => $.servers.forget)}
                 </Button>
               </td>

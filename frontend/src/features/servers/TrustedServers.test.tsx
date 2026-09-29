@@ -26,7 +26,8 @@ function mockHosts(hosts: KnownHost[]): void {
  * - the trusted servers are listed with key type, fingerprint and the date in the account's time zone
  * - without a session the dates use the browser's time zone
  * - nothing is shown as a list while loading, an empty workspace says so, and a failed load says so too
- * - forgetting asks for confirmation, then calls the server with the key and refreshes the list
+ * - forgetting asks for confirmation, then calls the server with the key and its fingerprint and refreshes the list; a server with several
+ *   keys lists each one and forgets only the one chosen (4.13b)
  * - a failure is explained, and the dialog can be cancelled
  * - the user menu opens the page
  * - an address that leads nowhere shows the not found screen with a way home
@@ -78,26 +79,29 @@ describe('trusted servers', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('The trusted servers could not be loaded.')
   })
 
-  it('forgets a server after confirmation', async () => {
-    let hosts = [key]
+  it('forgets a key after confirmation', async () => {
+    const other: KnownHost = { ...key, fingerprint: 'SHA256:def' }
+    let hosts = [key, other]
     let forgotten = ''
     server.use(
       http.get('/api/v1/workspaces/:id/known-hosts', () => HttpResponse.json(hosts)),
       http.delete('/api/v1/workspaces/:id/known-hosts', ({ request }) => {
         forgotten = new URL(request.url).search
-        hosts = []
+        hosts = hosts.filter((host) => host.fingerprint !== new URL(request.url).searchParams.get('fingerprint'))
         return new HttpResponse(null, { status: 204 })
       }),
     )
     const user = userEvent.setup()
     await renderApp({ path: '/servers' })
 
-    await user.click(await screen.findByRole('button', { name: 'Forget prod.example.com:2222' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Forget this server?' })
+    await user.click(await screen.findByRole('button', { name: 'Forget prod.example.com:2222 SHA256:abc' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Forget this key?' })
+    expect(dialog).toHaveTextContent('SHA256:abc')
     await user.click(within(dialog).getByRole('button', { name: 'Forget' }))
 
-    await waitFor(() => expect(screen.getByText('No server has been trusted yet.')).toBeInTheDocument())
-    expect(forgotten).toBe('?host=prod.example.com&port=2222&keyType=ssh-ed25519')
+    await waitFor(() => expect(screen.queryByText('SHA256:abc')).not.toBeInTheDocument())
+    expect(screen.getByText('SHA256:def')).toBeInTheDocument()
+    expect(forgotten).toBe('?host=prod.example.com&port=2222&keyType=ssh-ed25519&fingerprint=SHA256%3Aabc')
   })
 
   it.each([
@@ -110,7 +114,7 @@ describe('trusted servers', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/servers' })
 
-    await user.click(await screen.findByRole('button', { name: 'Forget prod.example.com:2222' }))
+    await user.click(await screen.findByRole('button', { name: 'Forget prod.example.com:2222 SHA256:abc' }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Forget' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(message)

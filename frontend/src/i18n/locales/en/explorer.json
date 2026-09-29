@@ -28,6 +28,17 @@
     "fingerprint": "Fingerprint",
     "confirm": "Trust and connect"
   },
+  "changedKey": {
+    "title": "The server key is not the one you trusted",
+    "body": "Someone could be pretending to be this server. Compare the new fingerprint with the one your server administrator gave you before deciding.",
+    "trusted_one": "Trusted key",
+    "trusted_other": "Trusted keys",
+    "presented": "New key",
+    "help": "Add it if the service has several servers behind one name, each with its own key. Replace the trusted keys if the server's key really changed. Cancel if you are not sure.",
+    "cancel": "Cancel and disconnect",
+    "add": "Trust this key too",
+    "replace": "Replace the trusted keys"
+  },
   "errors": {
     "host_key_changed": "The server key changed since it was trusted. This could be an attack: do not connect.",
     "remote_auth_failed": "The server refused the credentials.",
