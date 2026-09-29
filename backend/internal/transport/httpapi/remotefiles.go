@@ -482,3 +482,22 @@ func (s *server) DisconnectSite(ctx context.Context, request DisconnectSiteReque
 
 // VisitDisconnectSiteResponse implements [DisconnectSiteResponseObject].
 func (p domainProblem) VisitDisconnectSiteResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// ListOpenConnections answers the sites and quick connections of a workspace to which the caller has connections open
+// (4.11). A workspace the caller does not belong to is not found.
+func (s *server) ListOpenConnections(ctx context.Context, request ListOpenConnectionsRequestObject) (ListOpenConnectionsResponseObject, error) {
+	p, _ := principalFrom(ctx)
+	_, err := s.deps.Workspaces.Authorize(ctx, p.User.ID, request.WorkspaceId, workspace.ActionBrowse)
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return ListOpenConnections200JSONResponse{SiteIds: s.deps.Connections.Open(p.User.ID, request.WorkspaceId)}, nil
+}
+
+// VisitListOpenConnectionsResponse implements [ListOpenConnectionsResponseObject].
+func (p domainProblem) VisitListOpenConnectionsResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}

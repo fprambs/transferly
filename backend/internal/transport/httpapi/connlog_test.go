@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/transport/httpapi"
 )
 
 // logMessage is the payload of a connection.log message.
@@ -116,4 +117,48 @@ func TestConnectionLog_Canceled(t *testing.T) {
 	if entry := conn.nextLog(t); entry.Step != "canceled" || entry.Level != "warn" || entry.Params["path"] != "/" || entry.SiteID != slow {
 		t.Errorf("log of a canceled listing = %+v", entry)
 	}
+}
+
+// TestOpenConnections covers telling which sites are connected (4.11).
+//
+// Use cases:
+//   - listing a site opens a connection, which the event stream tells and the list of open connections shows
+//   - disconnecting tells it closed and empties the list
+//   - a workspace the caller does not belong to is not found
+func TestOpenConnections(t *testing.T) {
+	e := newFileEnv(t)
+	conn, _ := e.a.connectEvents(e.cookie)
+	path := "/api/v1/workspaces/" + e.ws.String() + "/connections"
+	open := func() []uuid.UUID {
+		var got httpapi.OpenConnections
+		mustDecode(t, e.a.do(request{method: http.MethodGet, path: path, cookie: e.cookie}).Body, &got)
+		return got.SiteIds
+	}
+	if got := open(); len(got) != 0 {
+		t.Fatalf("open before listing = %v", got)
+	}
+
+	e.get("", q("path", "/"), nil)
+	var state struct {
+		WorkspaceID uuid.UUID `json:"workspaceId"`
+		SiteID      uuid.UUID `json:"siteId"`
+		Open        bool      `json:"open"`
+	}
+	mustDecode(t, conn.expect(t, "connection.state").Data, &state)
+	if !state.Open || state.SiteID != e.site || state.WorkspaceID != e.ws {
+		t.Errorf("state after listing = %+v", state)
+	}
+	if got := open(); len(got) != 1 || got[0] != e.site {
+		t.Errorf("open after listing = %v", got)
+	}
+
+	e.a.send(http.MethodDelete, sitesPath(e.ws, e.site.String())+"/connection", nil, e.cookie, e.csrf)
+	mustDecode(t, conn.expect(t, "connection.state").Data, &state)
+	if state.Open {
+		t.Errorf("state after disconnecting = %+v", state)
+	}
+	if got := open(); len(got) != 0 {
+		t.Errorf("open after disconnecting = %v", got)
+	}
+	expectProblem(t, e.a.do(request{method: http.MethodGet, path: "/api/v1/workspaces/" + uuid.NewString() + "/connections", cookie: e.cookie}), http.StatusNotFound, "workspace_not_found")
 }

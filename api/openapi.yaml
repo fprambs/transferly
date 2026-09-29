@@ -2249,6 +2249,36 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/connections:
+    get:
+      operationId: listOpenConnections
+      summary: The sites and quick connections of the workspace to which the caller has connections open
+      description: >-
+        Lets the sidebar mark the connected sites (4.11). Changes arrive afterwards as connection.state messages on the
+        event stream.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: The connected sites.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenConnections"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/connection:
     delete:
       operationId: disconnectSite
@@ -4100,6 +4130,15 @@ components:
         masterPassword:
           type: string
           description: Sent to the server only; never returned.
+    OpenConnections:
+      type: object
+      required: [siteIds]
+      properties:
+        siteIds:
+          type: array
+          items:
+            type: string
+            format: uuid
     SshKeyInspectRequest:
       type: object
       required: [key]

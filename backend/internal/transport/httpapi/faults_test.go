@@ -138,6 +138,7 @@ type failingWorkspaces struct {
 	failList      bool
 	failCreate    bool
 	failWorkspace bool
+	failRole      bool
 	failPersonal  bool
 }
 
@@ -155,6 +156,14 @@ func (f *failingWorkspaces) Workspace(ctx context.Context, id uuid.UUID) (worksp
 		return workspace.Workspace{}, errInjected
 	}
 	return f.Store.Workspace(ctx, id)
+}
+
+// RoleOf fails when configured to.
+func (f *failingWorkspaces) RoleOf(ctx context.Context, workspaceID, userID uuid.UUID) (workspace.Role, error) {
+	if f.failRole {
+		return "", errInjected
+	}
+	return f.Store.RoleOf(ctx, workspaceID, userID)
 }
 
 // WorkspacesForUser fails when configured to.
@@ -196,7 +205,8 @@ func withFailingWorkspaces(configure func(*failingWorkspaces)) func(*httpapi.Dep
 // Scenarios:
 //   - a personal workspace that cannot be created fails setup and login
 //   - a workspace listing that fails fails the list and get endpoints
-//   - a team that cannot be created, and a workspace that cannot be read, fail creating, listing, changing, removing, leaving and transferring
+//   - a team that cannot be created, and a workspace that cannot be read, fail creating, listing, changing, removing, leaving, transferring and
+//     listing the open connections
 func TestWorkspaceFailures(t *testing.T) {
 	create := newAPI(t, withFailingWorkspaces(func(f *failingWorkspaces) { f.failCreate = true }))
 	expectProblem(t, create.do(request{method: http.MethodPost, path: "/api/v1/setup", body: map[string]string{"email": adminEmail, "password": adminPassword}}), 500, "internal_error")
@@ -234,6 +244,8 @@ func TestWorkspaceFailures(t *testing.T) {
 	} {
 		expectProblem(t, list.send(c.method, base+c.path, c.body, cookie, csrf(list, cookie)), 500, "internal_error")
 	}
+	toggle.failRole = true
+	expectProblem(t, list.do(request{method: http.MethodGet, path: base + "/connections", cookie: cookie}), 500, "internal_error")
 }
 
 // csrf returns the anti-CSRF token of a session.

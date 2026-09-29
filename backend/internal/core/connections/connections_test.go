@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/remotefs"
 	"github.com/fprambs/sentinel/internal/testutil"
 )
@@ -798,5 +800,83 @@ func TestManager_Admitter(t *testing.T) {
 	}
 	if conn.count() != 1 {
 		t.Errorf("connections opened = %d; want 1", conn.count())
+	}
+}
+
+// TestManager_OnChange covers telling which sites have connections open (4.11).
+//
+// Use cases:
+//   - the first connection of a key is told as open, reusing or pooling it again tells nothing, and losing the last
+//     connection is told as closed
+//   - closing a key is told as closed at once, even while a connection is still borrowed, and releasing that one later
+//     tells nothing more
+//   - Open lists the sites of a workspace with connections open, for their user only
+func TestManager_OnChange(t *testing.T) {
+	var mu sync.Mutex
+	var told []connections.State
+	f := newFixture(t, connections.Config{OnChange: func(state connections.State) {
+		mu.Lock()
+		defer mu.Unlock()
+		told = append(told, state)
+	}})
+	states := func() []bool {
+		mu.Lock()
+		defer mu.Unlock()
+		out := make([]bool, 0, len(told))
+		for _, s := range told {
+			if s.Key != f.key {
+				t.Errorf("told about %v; want %v", s.Key, f.key)
+			}
+			out = append(out, s.Open)
+		}
+		return out
+	}
+
+	first := f.acquire(t)
+	first.Release(nil)
+	f.acquire(t).Release(nil)
+	if got := states(); !slices.Equal(got, []bool{true}) {
+		t.Fatalf("after opening and reusing = %v; want [true]", got)
+	}
+	if open := f.m.Open(f.key.UserID, f.key.WorkspaceID); len(open) != 1 || open[0] != f.key.SiteID {
+		t.Errorf("Open() = %v; want the site", open)
+	}
+	if open := f.m.Open(uuid.New(), f.key.WorkspaceID); len(open) != 0 {
+		t.Errorf("Open() of another user = %v; want none", open)
+	}
+
+	f.acquire(t).Release(fmt.Errorf("op: %w", remotefs.ErrConnectionLost))
+	if got := states(); !slices.Equal(got, []bool{true, false}) {
+		t.Fatalf("after losing the connection = %v; want [true false]", got)
+	}
+
+	borrowed := f.acquire(t)
+	f.m.CloseKey(f.key)
+	if got := states(); !slices.Equal(got, []bool{true, false, true, false}) {
+		t.Fatalf("after closing with a borrowed connection = %v", got)
+	}
+	if open := f.m.Open(f.key.UserID, f.key.WorkspaceID); len(open) != 0 {
+		t.Errorf("Open() after closing = %v; want none", open)
+	}
+	borrowed.Release(nil)
+	if got := states(); len(got) != 4 {
+		t.Errorf("releasing a connection of a closed pool told %v", got)
+	}
+}
+
+// sink keeps the events published to it.
+type sink struct{ events []ports.Event }
+
+// Publish implements [ports.EventSink].
+func (s *sink) Publish(e ports.Event) { s.events = append(s.events, e) }
+
+// TestPublishTo verifies that changes of the open connections are told to the user of the key as connection.state
+// events carrying the change.
+func TestPublishTo(t *testing.T) {
+	events := &sink{}
+	state := connections.State{Key: connections.Key{UserID: uuid.New(), WorkspaceID: uuid.New(), SiteID: uuid.New()}, Open: true}
+	connections.PublishTo(events)(state)
+	if len(events.events) != 1 || events.events[0].Type != connections.EventState || events.events[0].UserID != state.Key.UserID || events.events[0].Data != state {
+		t.Errorf("events = %+v", events.events)
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/adapters/events"
+	"github.com/fprambs/sentinel/internal/core/connections"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/ports"
 	"github.com/fprambs/sentinel/internal/core/transfer"
@@ -58,6 +59,13 @@ type progressData struct {
 	TotalBytes *int64    `json:"totalBytes,omitempty"`
 }
 
+// stateData is the payload of a connection.state message: whether the user has connections open to a site (4.11).
+type stateData struct {
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	SiteID      uuid.UUID `json:"siteId"`
+	Open        bool      `json:"open"`
+}
+
 // logData is the payload of a connection log message: one step of a connection to a site (ADR-0011).
 type logData struct {
 	WorkspaceID uuid.UUID         `json:"workspaceId"`
@@ -82,6 +90,8 @@ func toMessage(e ports.Event) (message, bool) {
 		return message{Type: e.Type, Data: transferDTO(data)}, true
 	case transfer.Progress:
 		return message{Type: e.Type, Data: progressData{ID: data.ID, BytesDone: data.BytesDone, TotalBytes: data.TotalBytes}}, true
+	case connections.State:
+		return message{Type: e.Type, Data: stateData{WorkspaceID: data.Key.WorkspaceID, SiteID: data.Key.SiteID, Open: data.Open}}, true
 	case connlog.Entry:
 		return message{Type: e.Type, Data: logData{WorkspaceID: data.WorkspaceID, SiteID: data.SiteID, Time: data.Time, Level: string(data.Level), Step: string(data.Step), Params: data.Params}}, true
 	}

@@ -66,6 +66,28 @@ type Config struct {
 	Sleep func(ctx context.Context, d time.Duration) error
 	// Jitter returns a number in [0, 1) that spreads each wait by up to 20 percent; nil uses no jitter.
 	Jitter func() float64
+	// OnChange is told when a key gets its first open connection or loses its last one, so clients can show which
+	// sites are connected (4.11); nil tells nothing. It must not block.
+	OnChange func(state State)
+}
+
+// EventState is the type of the events that carry a [State].
+const EventState = "connection.state"
+
+// PublishTo returns a [Config.OnChange] that tells each change to the user of the key through sink, as an event of
+// type [EventState].
+func PublishTo(sink ports.EventSink) func(State) {
+	return func(state State) {
+		sink.Publish(ports.Event{Type: EventState, UserID: state.Key.UserID, Data: state})
+	}
+}
+
+// State says whether a user has connections open to a site.
+type State struct {
+	// Key is the user and site.
+	Key Key
+	// Open says at least one connection is open.
+	Open bool
 }
 
 // withDefaults fills in the zero values.
@@ -119,12 +141,16 @@ type conn struct {
 // pool holds the connections of one key. Every field but users is guarded by mu; users is guarded by the
 // mutex of the manager and counts the acquisitions in progress, which keep the pool from being forgotten.
 type pool struct {
+	key     Key
 	mu      sync.Mutex
 	idle    []*conn
 	total   int
 	changed chan struct{}
 	closed  bool
 	users   int
+
+	announcing sync.Mutex
+	announced  bool
 }
 
 // notify wakes every goroutine waiting for a change; the caller holds the lock.
@@ -159,7 +185,7 @@ func (m *Manager) pool(key Key) *pool {
 	}
 	p, ok := m.pools[key]
 	if !ok {
-		p = &pool{changed: make(chan struct{})}
+		p = &pool{key: key, changed: make(chan struct{})}
 		m.pools[key] = p
 	}
 	p.users++
@@ -210,6 +236,7 @@ func (m *Manager) putIdle(p *pool, c *conn) {
 		p.notify()
 		p.mu.Unlock()
 		_ = c.fs.Close()
+		m.announce(p)
 		return
 	}
 	p.idle = append(p.idle, c)
@@ -224,6 +251,45 @@ func (m *Manager) drop(p *pool, c *conn) {
 	p.notify()
 	p.mu.Unlock()
 	_ = c.fs.Close()
+	m.announce(p)
+}
+
+// announce tells [Config.OnChange] when the pool became open or closed since it last told; announcements of one pool
+// are made one at a time, so they arrive in the order the changes happened.
+func (m *Manager) announce(p *pool) {
+	if m.cfg.OnChange == nil {
+		return
+	}
+	p.announcing.Lock()
+	defer p.announcing.Unlock()
+	p.mu.Lock()
+	open := !p.closed && p.total > 0
+	p.mu.Unlock()
+	if open != p.announced {
+		p.announced = open
+		m.cfg.OnChange(State{Key: p.key, Open: open})
+	}
+}
+
+// Open returns the sites of a workspace to which a user has connections open.
+func (m *Manager) Open(userID, workspaceID uuid.UUID) []uuid.UUID {
+	m.mu.Lock()
+	var pools []*pool
+	for key, p := range m.pools {
+		if key.UserID == userID && key.WorkspaceID == workspaceID {
+			pools = append(pools, p)
+		}
+	}
+	m.mu.Unlock()
+	open := []uuid.UUID{}
+	for _, p := range pools {
+		p.mu.Lock()
+		if !p.closed && p.total > 0 {
+			open = append(open, p.key.SiteID)
+		}
+		p.mu.Unlock()
+	}
+	return open
 }
 
 // ping checks that a connection still answers.
@@ -276,6 +342,7 @@ func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease,
 				p.mu.Unlock()
 				return nil, err
 			}
+			m.announce(p)
 			return &Lease{m: m, p: p, c: &conn{fs: fsys, lastUsed: m.clock.Now()}}, nil
 		}
 		changed := p.changed
@@ -437,6 +504,7 @@ func (m *Manager) closePools(pools []*pool) {
 		for _, c := range idle {
 			_ = c.fs.Close()
 		}
+		m.announce(p)
 	}
 }
 

@@ -114,7 +114,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	askedPasswords := credentials.New(system, cfg.SessionMax)
 	connectionLog := connlog.New(hub, system)
 	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout, connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog))
-	pool := connections.New(connector, system, connections.Config{})
+	pool := connections.New(connector, system, connections.Config{OnChange: connections.PublishTo(hub)})
 
 	return wiring{
 		pool:    pool,

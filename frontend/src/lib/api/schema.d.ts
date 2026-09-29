@@ -937,6 +937,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The sites and quick connections of the workspace to which the caller has connections open
+         * @description Lets the sidebar mark the connected sites (4.11). Changes arrive afterwards as connection.state messages on the event stream.
+         */
+        get: operations["listOpenConnections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}/connection": {
         parameters: {
             query?: never;
@@ -1435,6 +1455,9 @@ export interface components {
         MasterPasswordRequest: {
             /** @description Sent to the server only; never returned. */
             masterPassword: string;
+        };
+        OpenConnections: {
+            siteIds: string[];
         };
         SshKeyInspectRequest: {
             /** @description The text of the key file. Never returned, stored or logged. */
@@ -5256,6 +5279,47 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listOpenConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connected sites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenConnections"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

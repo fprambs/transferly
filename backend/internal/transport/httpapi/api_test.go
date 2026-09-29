@@ -116,9 +116,9 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	sites := site.NewService(store, workspaces, keys, policy, clock, rand.Reader, nil)
 	quickConnections := quick.NewService(workspaces, policy, sites, clock, nil)
 	asked := credentials.New(clock, 8*time.Hour)
-	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1})
-	recorded := &recordedEvents{}
 	hub := events.New(64)
+	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1, OnChange: connections.PublishTo(hub)})
+	recorded := &recordedEvents{}
 	activityLog := activity.NewService(store, clock, 30*24*time.Hour, nil)
 	if transfers.OnFinish == nil {
 		transfers.OnFinish = func(t transfer.Transfer) {
