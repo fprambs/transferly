@@ -15,6 +15,7 @@ RUN pnpm build
 FROM golang:${GO_VERSION}-bookworm AS build
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
+COPY backend/third_party/ ./third_party/
 RUN go mod download
 COPY backend/ ./
 COPY --from=web /src/frontend/dist/ ./internal/transport/webui/dist/

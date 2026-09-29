@@ -5,6 +5,7 @@ go 1.27.1
 require (
 	github.com/coder/websocket v1.8.15
 	github.com/fclairamb/ftpserverlib v0.32.4
+	github.com/fxamacker/cbor/v2 v2.9.4
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-webauthn/webauthn v0.18.2
@@ -21,7 +22,6 @@ require (
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
@@ -45,3 +45,6 @@ require (
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 )
+
+// The FTP client carries a patch that answers servers asking for an account (ACCT); see third_party/ftp/PATCHES.md.
+replace github.com/jlaffaye/ftp => ./third_party/ftp

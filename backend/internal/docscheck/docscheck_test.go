@@ -77,12 +77,18 @@ func TestEveryDeclarationIsDocumented(t *testing.T) {
 }
 
 // forEachGoFile parses every Go file under the module root, comments included,
-// and calls visit for each of them.
+// and calls visit for each of them. Nested modules, such as the patched copy of a
+// dependency in third_party, are not ours to document and are left out.
 func forEachGoFile(t *testing.T, fset *token.FileSet, visit func(path string, file *ast.File)) {
 	t.Helper()
 	err := filepath.WalkDir(moduleRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if d.IsDir() && path != moduleRoot {
+			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+				return filepath.SkipDir
+			}
 		}
 		if d.IsDir() || !strings.HasSuffix(path, ".go") {
 			return nil
