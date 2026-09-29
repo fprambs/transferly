@@ -10,6 +10,7 @@ import { useSitesData } from '../sites/use-sites-data'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { useTabs, type ConnectionTab } from './tabs-store'
+import { useCloseUnused } from './use-close-unused'
 import { useGoToTab } from './use-go-to-tab'
 
 /** Whether a key press happens while typing, where the shortcuts belong to the field. */
@@ -19,7 +20,8 @@ function typing(target: EventTarget | null): boolean {
 
 /**
  * The tabs of the open connections of the workspace, above the log (4.12). Each shows its site with the green dot of an open connection,
- * activates on click, and closes with its button or a middle click; closing does not cut the connection, which the pool closes once idle.
+ * activates on click, and closes with its button or a middle click; closing disconnects the sites of its panes that no other tab shows, so
+ * their green dot goes out.
  * Ctrl+Tab and Ctrl+Shift+Tab move between tabs and Ctrl+W closes the active one where the browser allows it, and Alt+Page Down, Alt+Page Up
  * and Alt+W everywhere.
  */
@@ -31,20 +33,19 @@ export function TabBar() {
   const allTabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
   const closeTab = useTabs((state) => state.close)
+  const closeUnused = useCloseUnused()
   const { sites, quick } = useSitesData(workspace?.id)
   const connected = useOpenConnections(workspace?.id)
   const tabs = allTabs.filter((tab) => tab.workspaceId === workspace?.id)
 
   const close = (tab: ConnectionTab): void => {
     const next = closeTab(tab.id)
-    if (tab.id !== activeId) {
-      return
-    }
-    if (next === undefined) {
+    if (tab.id === activeId && next === undefined) {
       void navigate({ to: '/' })
-    } else {
-      goTo(next)
+    } else if (tab.id === activeId) {
+      goTo(next as ConnectionTab)
     }
+    closeUnused(tab.workspaceId, [tab.siteId, tab.split])
   }
 
   useEffect(() => {

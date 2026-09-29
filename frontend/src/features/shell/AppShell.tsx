@@ -1,11 +1,9 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { Outlet, useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
 import type { Workspace } from '@/lib/api'
-import { useApi } from '@/lib/api/use-api'
 import { useUiStore } from '@/state/ui-store'
 
 import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
@@ -14,9 +12,9 @@ import { useConnectionState } from '@/features/toolbar/connection-store'
 import { useDisconnect } from '@/features/toolbar/use-disconnect'
 import { TabBar } from '@/features/tabs/TabBar'
 import { useTabs } from '@/features/tabs/tabs-store'
+import { useCloseUnused } from '@/features/tabs/use-close-unused'
 import { useGoToTab } from '@/features/tabs/use-go-to-tab'
 import { TopBar } from '@/features/topbar/TopBar'
-import { filesPrefix } from '@/features/explorer/files-key'
 import { useWorkspace } from '@/features/workspace/use-workspace'
 import { SitesRail } from '@/features/sites/SitesRail'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
@@ -39,7 +37,7 @@ function typing(target: EventTarget | null): boolean {
  * Application layout: top bar, sites panel, the toolbar above the explorer (on the start page and the sites, not on settings or
  * administration), and the transfer queue. The sites and transfers panels are resizable, remember their sizes in the browser, and collapse
  * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it: in the active tab,
- * closing the connections of the site it replaces unless the second pane of another tab shows it (4.11, a transfer running on them finishes first), or in a new
+ * closing the connections of the sites it replaces in either pane unless another tab shows them (4.11, a transfer running on them finishes first), or in a new
  * tab with Ctrl+click, a middle click or its menu; a site that has a tab already activates it (4.12).
  */
 export function AppShell() {
@@ -49,10 +47,9 @@ export function AppShell() {
   const reconnectSite = useConnectionState((state) => state.reconnectSite)
   const match = useMatch({ from: '/shell/sites/$siteId', shouldThrow: false })
   const workspace = useWorkspace()
-  const api = useApi()
-  const queryClient = useQueryClient()
   const disconnectFrom = useDisconnect()
   const goToTab = useGoToTab()
+  const closeUnused = useCloseUnused()
   const deactivate = useTabs((state) => state.deactivate)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const explorerView = pathname === '/' || pathname.startsWith('/sites/')
@@ -99,11 +96,11 @@ export function AppShell() {
     }
     const previous = match?.params.siteId
     void navigate({ to: '/sites/$siteId', params: { siteId }, search: { path: '/' } })
-    const elsewhere = tabs.tabs.some((tab) => tab.id !== tabs.activeId && tab.workspaceId === workspaceId && tab.split === previous)
-    if (previous !== undefined && previous !== siteId && !elsewhere) {
-      queryClient.removeQueries({ queryKey: filesPrefix(workspaceId, previous) })
-      api.sites.disconnect(workspaceId, previous).catch(() => undefined)
-    }
+    closeUnused(
+      workspaceId,
+      [previous, match?.search.split].filter((id) => id !== siteId),
+      tabs.activeId ?? undefined,
+    )
   }
 
   return (

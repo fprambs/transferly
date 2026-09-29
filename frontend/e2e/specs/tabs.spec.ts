@@ -20,7 +20,7 @@ async function saveSite(page: Page, name: string): Promise<void> {
  * Scenarios:
  * - Ctrl+click opens a site in a new tab next to the one open, both stay connected, and clicking a tab goes back to its site and folder
  * - the tabs and the active one come back after a reload
- * - closing the active tab shows the other one
+ * - closing the active tab shows the other one and disconnects its site, whose green dot goes out
  */
 test.describe('connection tabs', () => {
   test('opens, switches, remembers and closes tabs', async ({ shell }) => {
@@ -53,5 +53,7 @@ test.describe('connection tabs', () => {
     await tabs.getByRole('button', { name: `Close ${first}` }).click()
     await expect(tabs.getByRole('button', { name: new RegExp(`^(Connected\\s*)?${second}$`) })).toHaveAttribute('aria-current', 'page')
     await expect(tabs.getByRole('button', { name: `Close ${first}` })).toHaveCount(0)
+    await expect(page.getByRole('treeitem', { name: new RegExp(first) }).getByText('Connected')).toHaveCount(0)
+    await expect(page.getByRole('treeitem', { name: new RegExp(second) }).getByText('Connected')).toHaveCount(1)
   })
 })

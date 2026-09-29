@@ -69,10 +69,13 @@ async function showing(siteId: string): Promise<void> {
  * - a click shows a site in the active tab and closes the connections of the site it replaces; Ctrl+click, a middle click or the menu open it
  *   in a new tab and keep the others connected; a site that has a tab activates it
  * - a click on a tab shows its site at its folder, and its selection comes back
- * - closing the active tab shows its neighbor, closing the last leaves the sites, a middle click closes, and closing does not disconnect
+ * - closing the active tab shows its neighbor, closing the last leaves the sites, a middle click closes, and closing disconnects its site
+ * - closing a tab keeps its site connected while another tab shows it in either pane, and disconnects the site of its second pane that no
+ *   other tab shows; the local folder has nothing to disconnect
  * - Ctrl+Tab, Ctrl+Shift+Tab, Alt+Page Down and Alt+Page Up move between tabs, Ctrl+W and Alt+W close the active one, except while typing
  * - a tab shows the green dot of a connected site, and the identifier of a site it does not know
  * - the site a click replaces stays connected while the second pane of another tab shows it, and a right click opens nothing
+ * - a click also disconnects the site of the second pane it replaces, unless that is the site it opens
  */
 describe('connection tabs', () => {
   beforeEach(() => {
@@ -141,7 +144,30 @@ describe('connection tabs', () => {
     await user.pointer({ keys: '[MouseMiddle]', target: bar().getByRole('button', { name: 'Backup' }) })
     await waitFor(() => expect(history.location.pathname).toBe('/'))
     expect(screen.queryByRole('navigation', { name: 'Connection tabs' })).not.toBeInTheDocument()
+    await waitFor(() => expect(disconnected).toEqual(['s1', 's3', 's2']))
+  })
+
+  it('keeps a site connected while another tab shows it, and disconnects the second pane of a closed tab', async () => {
+    const disconnected = mockServer()
+    useTabs.setState({
+      tabs: [
+        { id: 't1', workspaceId: personalWorkspace.id, siteId: 's1', path: '/', split: 's2' },
+        { id: 't2', workspaceId: personalWorkspace.id, siteId: 's3', path: '/', split: 's1' },
+        { id: 't3', workspaceId: personalWorkspace.id, siteId: 's2', path: '/', split: 'local' },
+      ],
+      activeId: 't1',
+    })
+    const user = userEvent.setup()
+    await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
+    await showing('s1')
+
+    await user.click(bar().getByRole('button', { name: 'Close Prod' }))
+    await waitFor(() => expect(tabs()).toEqual(['Stage*', 'Backup']))
     expect(disconnected).toEqual([])
+    await user.click(bar().getByRole('button', { name: 'Close Stage' }))
+    await waitFor(() => expect(disconnected).toEqual(['s3', 's1']))
+    await user.click(bar().getByRole('button', { name: 'Close Backup' }))
+    await waitFor(() => expect(disconnected).toEqual(['s3', 's1', 's2']))
   })
 
   it('moves between tabs and closes them from the keyboard', async () => {
@@ -199,6 +225,19 @@ describe('connection tabs', () => {
     await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('treeitem', { name: /Stage/ }) })
     expect(tabs()).toEqual(['Backup*', 'Stage'])
     expect(disconnected).toEqual([])
+  })
+
+  it('disconnects the second pane a click replaces, unless it shows the site opened', async () => {
+    const disconnected = mockServer()
+    useTabs.setState({ tabs: [{ id: 't1', workspaceId: personalWorkspace.id, siteId: 's1', path: '/', split: 's2' }], activeId: 't1' })
+    const user = userEvent.setup()
+    await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
+    await showing('s1')
+
+    await user.click(screen.getByRole('treeitem', { name: /Backup/ }))
+    await waitFor(() => expect(disconnected).toEqual(['s1']))
+    await user.click(screen.getByRole('treeitem', { name: /Stage/ }))
+    await waitFor(() => expect(disconnected).toEqual(['s1', 's2']))
   })
 
   it('names a site it does not know by its identifier', async () => {
