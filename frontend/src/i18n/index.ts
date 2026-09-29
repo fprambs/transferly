@@ -6,6 +6,7 @@ import enAdmin from './locales/en/admin.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
 import enEditor from './locales/en/editor.json'
+import enErrors from './locales/en/errors.json'
 import enExplorer from './locales/en/explorer.json'
 import enQuick from './locales/en/quick.json'
 import enTeams from './locales/en/teams.json'
@@ -20,6 +21,7 @@ import esAdmin from './locales/es/admin.json'
 import esAuth from './locales/es/auth.json'
 import esCommon from './locales/es/common.json'
 import esEditor from './locales/es/editor.json'
+import esErrors from './locales/es/errors.json'
 import esExplorer from './locales/es/explorer.json'
 import esQuick from './locales/es/quick.json'
 import esTeams from './locales/es/teams.json'
@@ -42,8 +44,8 @@ export const defaultNS = 'common'
 
 /** Translation resources by language and namespace. */
 export const resources = {
-  en: { admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, explorer: enExplorer, quick: enQuick, security: enSecurity, settings: enSettings, shell: enShell, sites: enSites, sync: enSync, teams: enTeams, transfers: enTransfers, vault: enVault },
-  es: { admin: esAdmin, auth: esAuth, common: esCommon, editor: esEditor, explorer: esExplorer, quick: esQuick, security: esSecurity, settings: esSettings, shell: esShell, sites: esSites, sync: esSync, teams: esTeams, transfers: esTransfers, vault: esVault },
+  en: { admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, errors: enErrors, explorer: enExplorer, quick: enQuick, security: enSecurity, settings: enSettings, shell: enShell, sites: enSites, sync: enSync, teams: enTeams, transfers: enTransfers, vault: enVault },
+  es: { admin: esAdmin, auth: esAuth, common: esCommon, editor: esEditor, errors: esErrors, explorer: esExplorer, quick: esQuick, security: esSecurity, settings: esSettings, shell: esShell, sites: esSites, sync: esSync, teams: esTeams, transfers: esTransfers, vault: esVault },
 } as const
 
 /** Subset of an i18next instance needed to describe the document language. */

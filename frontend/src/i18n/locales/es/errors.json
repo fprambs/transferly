@@ -1,0 +1,505 @@
+{
+  "guide": {
+    "cause": "Causa probable",
+    "next": "Qué hacer",
+    "code": "Código: {{code}}"
+  },
+  "codes": {
+    "account_exists": {
+      "cause": "Ya hay una cuenta con este correo.",
+      "next": "Inicia sesión con esa cuenta y acepta la invitación desde ahí."
+    },
+    "account_not_found": {
+      "cause": "La cuenta fue eliminada o la lista está desactualizada.",
+      "next": "Recarga la lista de cuentas."
+    },
+    "already_member": {
+      "cause": "Esa persona ya pertenece a este equipo.",
+      "next": "Cambia su rol desde la lista de miembros."
+    },
+    "bookmark_limit_reached": {
+      "cause": "Un sitio guarda como máximo 200 marcadores.",
+      "next": "Elimina marcadores que ya no uses."
+    },
+    "bookmark_name_taken": {
+      "cause": "Este sitio ya tiene un marcador con ese nombre, sin importar mayúsculas.",
+      "next": "Elige otro nombre o renombra el marcador existente."
+    },
+    "bookmark_not_found": {
+      "cause": "El marcador fue eliminado, quizá desde otra pestaña o por alguien del equipo.",
+      "next": "Recarga los marcadores."
+    },
+    "ceremony_expired": {
+      "cause": "La solicitud de la passkey tardó demasiado o se inició en otro lugar.",
+      "next": "Vuelve a empezar a agregar la passkey."
+    },
+    "checksum_mismatch": {
+      "cause": "El archivo cambió en el servidor durante la transferencia, o los datos se dañaron en el camino.",
+      "next": "Vuelve a transferir el archivo y compara los checksums."
+    },
+    "collection_cycle": {
+      "cause": "Una colección no puede ir dentro de sí misma ni de una de sus colecciones.",
+      "next": "Elige una colección fuera de la que estás moviendo."
+    },
+    "collection_name_taken": {
+      "cause": "Otra colección del mismo nivel ya tiene ese nombre.",
+      "next": "Elige otro nombre o ponla en otra colección."
+    },
+    "collection_not_empty": {
+      "cause": "La colección todavía tiene sitios o colecciones.",
+      "next": "Mueve o elimina primero lo que contiene."
+    },
+    "collection_not_found": {
+      "cause": "La colección fue eliminada, quizá desde otra pestaña o por alguien del equipo.",
+      "next": "Recarga los sitios."
+    },
+    "collection_too_deep": {
+      "cause": "Las colecciones se anidan como máximo 12 niveles.",
+      "next": "Ponla en una colección más cercana a la raíz."
+    },
+    "credentials_not_asked": {
+      "cause": "Este sitio guarda su contraseña, así que no la pide al conectar.",
+      "next": "Edita el sitio para cambiar su contraseña o su tipo de acceso."
+    },
+    "credentials_required": {
+      "cause": "El sitio pide su contraseña al conectar y no se dio ninguna en esta sesión.",
+      "next": "Ingresa la contraseña cuando se pida."
+    },
+    "cross_site_request": {
+      "cause": "La solicitud vino de una página de otro sitio, y Sentinel la rechaza para proteger tu sesión.",
+      "next": "Usa Sentinel desde su propia dirección."
+    },
+    "csrf_invalid": {
+      "cause": "La página es más antigua que tu sesión actual, o la sesión cambió en otra pestaña.",
+      "next": "Recarga la página e inténtalo de nuevo."
+    },
+    "daily_quota_reached": {
+      "cause": "El espacio de trabajo ya transfirió todos los datos que el administrador permite por día.",
+      "next": "Espera hasta mañana o pide a un administrador que suba la cuota."
+    },
+    "destination_blocked": {
+      "cause": "La política de red de este Sentinel no permite llegar a esa dirección.",
+      "next": "Revisa la dirección o pide a un administrador que permita su red."
+    },
+    "directory_not_empty": {
+      "cause": "La carpeta todavía tiene archivos, y el servidor solo elimina carpetas vacías de esta forma.",
+      "next": "Elimina primero su contenido, o elimínala con todo lo que tiene."
+    },
+    "empty_patch": {
+      "cause": "El cambio no tenía nada que cambiar.",
+      "next": "Elige al menos un ajuste para cambiar."
+    },
+    "forbidden": {
+      "cause": "Tu rol no permite esto aquí.",
+      "next": "Pídelo a un dueño o administrador del espacio de trabajo."
+    },
+    "host_key_changed": {
+      "cause": "El servidor presenta una clave distinta de la confiable: fue reinstalado o alguien está interceptando la conexión.",
+      "next": "Confirma la nueva clave con el administrador del servidor antes de confiar en ella."
+    },
+    "host_key_not_found": {
+      "cause": "La clave ya no es confiable, quizá se olvidó desde otra pestaña.",
+      "next": "Recarga las claves confiables."
+    },
+    "host_key_unknown": {
+      "cause": "Es la primera conexión al servidor, así que su clave aún no es confiable.",
+      "next": "Compara la huella con la que te dé el administrador del servidor y luego confía en ella."
+    },
+    "host_unresolvable": {
+      "cause": "El nombre del host no existe o el DNS no respondió.",
+      "next": "Revisa cómo está escrito el host o usa su dirección IP."
+    },
+    "import_file_too_large": {
+      "cause": "El archivo supera 4 MiB, mucho más de lo que necesita una lista de sitios.",
+      "next": "Revisa que elegiste el archivo correcto."
+    },
+    "internal_error": {
+      "cause": "Algo falló dentro de Sentinel; tu solicitud no tenía nada mal.",
+      "next": "Inténtalo de nuevo; si sigue fallando, dile a tu administrador la hora en que pasó."
+    },
+    "invalid_answers": {
+      "cause": "Las respuestas no coinciden con las preguntas del servidor, o una era demasiado larga.",
+      "next": "Responde cada pregunta una vez."
+    },
+    "invalid_auth_method": {
+      "cause": "Ese tipo de acceso no existe para este protocolo, como un archivo de clave para FTP.",
+      "next": "Elige un tipo de acceso que el protocolo ofrezca."
+    },
+    "invalid_bookmark_name": {
+      "cause": "El nombre está vacío o supera los 200 caracteres.",
+      "next": "Dale al marcador un nombre más corto."
+    },
+    "invalid_bookmark_path": {
+      "cause": "Un marcador necesita la ruta absoluta de una carpeta, empezando con /.",
+      "next": "Escribe la ruta completa de la carpeta."
+    },
+    "invalid_challenge": {
+      "cause": "El paso de inicio de sesión expiró o ya se usó.",
+      "next": "Vuelve a iniciar sesión desde el principio."
+    },
+    "invalid_charset": {
+      "cause": "Ese juego de caracteres no se conoce, o el protocolo solo usa UTF-8.",
+      "next": "Elige un juego de caracteres de la lista; SFTP siempre usa UTF-8."
+    },
+    "invalid_code": {
+      "cause": "El código es incorrecto o expiró; los códigos cambian cada 30 segundos.",
+      "next": "Revisa la hora de tu dispositivo e ingresa el código actual."
+    },
+    "invalid_credentials": {
+      "cause": "El correo o la contraseña son incorrectos.",
+      "next": "Revisa ambos; después de varios intentos hay que esperar un momento."
+    },
+    "invalid_email": {
+      "cause": "La dirección de correo no es válida.",
+      "next": "Revisa la dirección."
+    },
+    "invalid_export": {
+      "cause": "El archivo no es una exportación de Sentinel, o la hizo una versión más nueva.",
+      "next": "Elige el archivo que descargó la exportación."
+    },
+    "invalid_filter": {
+      "cause": "Un filtro del registro tiene un valor que no conoce.",
+      "next": "Limpia los filtros y vuelve a elegirlos."
+    },
+    "invalid_ftp_encryption": {
+      "cause": "Ese cifrado no existe para FTP.",
+      "next": "Elige uno de los cifrados ofrecidos."
+    },
+    "invalid_host": {
+      "cause": "El host está vacío o tiene caracteres que un nombre de servidor no puede tener.",
+      "next": "Escribe solo el nombre o la dirección, sin ftp:// ni ruta."
+    },
+    "invalid_host_key": {
+      "cause": "El tipo de clave o la huella no es uno que Sentinel acepte.",
+      "next": "Confía en la clave desde la conexión que la muestra."
+    },
+    "invalid_import_file": {
+      "cause": "El archivo no es un sitemanager.xml de FileZilla, o está dañado.",
+      "next": "Vuelve a exportar el gestor de sitios desde FileZilla y elige ese archivo."
+    },
+    "invalid_jump": {
+      "cause": "El salto está incompleto, o el sitio no es SFTP.",
+      "next": "Dale al salto su host, puerto y usuario, o quítalo."
+    },
+    "invalid_limits": {
+      "cause": "Un límite es negativo o demasiado grande.",
+      "next": "Usa cero para no limitar, o un valor menor."
+    },
+    "invalid_mode": {
+      "cause": "La subida pidió una forma de escribir el archivo que no existe.",
+      "next": "Vuelve a elegir qué hacer con el archivo que existe."
+    },
+    "invalid_name": {
+      "cause": "El nombre está vacío o es demasiado largo.",
+      "next": "Dale un nombre de hasta 200 caracteres."
+    },
+    "invalid_network": {
+      "cause": "Eso no es una red en notación CIDR, como 10.0.0.0/8.",
+      "next": "Escribe la red con la longitud de su prefijo."
+    },
+    "invalid_offset": {
+      "cause": "Una subida reanudada empezó en un punto que el archivo no alcanza.",
+      "next": "Vuelve a subir el archivo desde el principio."
+    },
+    "invalid_passkey": {
+      "cause": "La passkey no fue aceptada: es de otro sitio o cuenta, o el navegador canceló.",
+      "next": "Inténtalo de nuevo con una passkey de esta cuenta."
+    },
+    "invalid_password": {
+      "cause": "La contraseña de tu cuenta es incorrecta.",
+      "next": "Ingresa la contraseña con la que inicias sesión."
+    },
+    "invalid_path": {
+      "cause": "La ruta está vacía, es relativa o tiene caracteres que el servidor rechaza.",
+      "next": "Usa una ruta absoluta, que empiece con /."
+    },
+    "invalid_port": {
+      "cause": "El puerto no está entre 1 y 65535.",
+      "next": "Déjalo vacío para usar el puerto por defecto del protocolo."
+    },
+    "invalid_priority": {
+      "cause": "Esa prioridad no existe.",
+      "next": "Vuelve a mover la transferencia desde la cola."
+    },
+    "invalid_protocol": {
+      "cause": "Ese protocolo no está soportado.",
+      "next": "Elige SFTP o FTP."
+    },
+    "invalid_proxy": {
+      "cause": "El proxy está incompleto o es de un tipo desconocido.",
+      "next": "Dale al proxy su tipo, host y puerto, o quítalo."
+    },
+    "invalid_remote_dir": {
+      "cause": "La carpeta por defecto es relativa, demasiado larga o tiene caracteres de control.",
+      "next": "Escribe una ruta absoluta, o déjala vacía para la raíz."
+    },
+    "invalid_request": {
+      "cause": "La solicitud estaba mal formada o era demasiado grande, normalmente porque la página está desactualizada.",
+      "next": "Recarga la página e inténtalo de nuevo."
+    },
+    "invalid_role": {
+      "cause": "Ese rol no existe, o no se puede dar de esta forma.",
+      "next": "Elige uno de los roles ofrecidos."
+    },
+    "invalid_secret": {
+      "cause": "La contraseña maestra o el kit de recuperación son incorrectos.",
+      "next": "Revisa la contraseña maestra; si la perdiste, usa el kit de recuperación."
+    },
+    "invalid_size": {
+      "cause": "La subida anunció un tamaño que no coincide con sus datos.",
+      "next": "Vuelve a subir el archivo."
+    },
+    "invalid_speed_limit": {
+      "cause": "El límite de velocidad es negativo o demasiado grande.",
+      "next": "Usa cero para no limitar."
+    },
+    "invalid_timezone": {
+      "cause": "Esa zona horaria no se conoce.",
+      "next": "Elige una zona de la lista, como UTC o America/Santiago."
+    },
+    "invalid_username": {
+      "cause": "El usuario está vacío o es demasiado largo.",
+      "next": "Escribe el nombre de cuenta que te dio el servidor."
+    },
+    "invitation_not_found": {
+      "cause": "La invitación expiró, fue revocada o es para otro correo.",
+      "next": "Pide una nueva invitación."
+    },
+    "last_admin": {
+      "cause": "La instancia siempre conserva al menos un administrador.",
+      "next": "Haz administrador a otra persona primero."
+    },
+    "member_not_found": {
+      "cause": "Esa persona ya no pertenece al equipo.",
+      "next": "Recarga los miembros."
+    },
+    "member_quota_reached": {
+      "cause": "El equipo tiene todos los miembros que el administrador permite.",
+      "next": "Quita a un miembro o pide a un administrador que suba el límite."
+    },
+    "method_not_allowed": {
+      "cause": "Esa dirección no acepta este tipo de solicitud, normalmente porque la página está desactualizada.",
+      "next": "Recarga la página."
+    },
+    "network_error": {
+      "cause": "Sentinel no respondió: tu conexión se cortó o el servidor se está reiniciando.",
+      "next": "Revisa tu conexión e inténtalo de nuevo."
+    },
+    "no_passkeys": {
+      "cause": "Esta cuenta aún no tiene passkeys.",
+      "next": "Inicia sesión con tu contraseña y agrega una passkey en Seguridad."
+    },
+    "not_a_directory": {
+      "cause": "La ruta es un archivo, no una carpeta.",
+      "next": "Abre la carpeta que lo contiene."
+    },
+    "not_found": {
+      "cause": "Esa dirección no existe, normalmente porque la página está desactualizada.",
+      "next": "Recarga la página."
+    },
+    "own_account": {
+      "cause": "Los administradores no pueden cambiar ni desactivar su propia cuenta aquí.",
+      "next": "Pídelo a otro administrador."
+    },
+    "owner_bound": {
+      "cause": "El dueño de un equipo no puede ser quitado, cambiar de rol ni salir.",
+      "next": "Transfiere primero la propiedad a otro miembro."
+    },
+    "passkey_not_found": {
+      "cause": "La passkey ya fue eliminada.",
+      "next": "Recarga tus passkeys."
+    },
+    "passphrase_required": {
+      "cause": "La clave privada está cifrada y no se dio su frase.",
+      "next": "Ingresa la frase de la clave."
+    },
+    "password_required": {
+      "cause": "Un sitio que pide su contraseña necesita que se escriba una.",
+      "next": "Ingresa la contraseña."
+    },
+    "path_exists": {
+      "cause": "Ya existe un archivo o carpeta con ese nombre ahí.",
+      "next": "Elige otro nombre, o elimina o renombra el existente."
+    },
+    "path_not_found": {
+      "cause": "El archivo o carpeta no existe: se movió, renombró o eliminó en el servidor.",
+      "next": "Actualiza la carpeta."
+    },
+    "personal_workspace": {
+      "cause": "Un espacio personal solo te tiene a ti, así que no puede tener miembros, renombrarse ni eliminarse.",
+      "next": "Crea un equipo para trabajar con otras personas."
+    },
+    "private_key_is_public": {
+      "cause": "El archivo tiene una clave pública, la que va en el servidor.",
+      "next": "Elige la clave privada, normalmente el archivo sin .pub."
+    },
+    "private_key_unreadable": {
+      "cause": "El archivo no es una clave privada que Sentinel pueda leer.",
+      "next": "Elige un archivo de clave OpenSSH, PEM o PuTTY."
+    },
+    "private_key_unsupported": {
+      "cause": "La clave usa un tipo o protección que Sentinel no usa, como DSA.",
+      "next": "Crea una clave Ed25519 o RSA e instálala en el servidor."
+    },
+    "prompt_not_found": {
+      "cause": "La conexión dejó de esperar: se respondió en otra pestaña, se canceló o tardó demasiado.",
+      "next": "Vuelve a conectar."
+    },
+    "quick_connection_not_found": {
+      "cause": "La conexión rápida se cerró, ya que duran solo tu sesión.",
+      "next": "Vuelve a conectar o guarda el servidor como sitio."
+    },
+    "range_not_satisfiable": {
+      "cause": "El archivo del servidor es más corto que la parte pedida; cambió desde que empezó la transferencia.",
+      "next": "Vuelve a descargar el archivo desde el principio."
+    },
+    "rate_limited": {
+      "cause": "Demasiados intentos en poco tiempo.",
+      "next": "Espera un minuto e inténtalo de nuevo."
+    },
+    "remote_auth_failed": {
+      "cause": "El servidor rechazó el usuario, la contraseña o la clave.",
+      "next": "Revisa las credenciales del sitio; el servidor también puede bloquear cuentas tras intentos fallidos."
+    },
+    "remote_permission_denied": {
+      "cause": "La cuenta del servidor no tiene permiso sobre este archivo o carpeta.",
+      "next": "Pide acceso al administrador del servidor o usa otra carpeta."
+    },
+    "remote_quota_exceeded": {
+      "cause": "La cuenta del servidor o su disco están llenos.",
+      "next": "Libera espacio en el servidor o pide más a su administrador."
+    },
+    "remote_unavailable": {
+      "cause": "El servidor no respondió, cerró la conexión o no es alcanzable desde Sentinel.",
+      "next": "Revisa el host y el puerto, y que el servidor esté encendido; luego inténtalo de nuevo."
+    },
+    "secret_too_large": {
+      "cause": "La contraseña o la clave es más grande que cualquiera real.",
+      "next": "Revisa que pegaste solo el secreto."
+    },
+    "setup_complete": {
+      "cause": "Este Sentinel ya tiene un administrador.",
+      "next": "Inicia sesión en su lugar."
+    },
+    "site_name_taken": {
+      "cause": "Otro sitio del espacio de trabajo ya tiene ese nombre, sin importar mayúsculas.",
+      "next": "Elige otro nombre."
+    },
+    "site_not_found": {
+      "cause": "El sitio fue eliminado, quizá desde otra pestaña o por alguien del equipo.",
+      "next": "Recarga los sitios."
+    },
+    "site_quota_reached": {
+      "cause": "El espacio de trabajo tiene todos los sitios que el administrador permite.",
+      "next": "Elimina sitios que ya no uses o pide a un administrador que suba el límite."
+    },
+    "team_quota_reached": {
+      "cause": "Eres dueño de todos los equipos que el administrador permite.",
+      "next": "Elimina un equipo o pide a un administrador que suba el límite."
+    },
+    "time_zone_inconclusive": {
+      "cause": "El listado del servidor no mostró lo suficiente para saber su zona horaria.",
+      "next": "Elige la zona del sitio a mano; la mayoría de los servidores usa UTC."
+    },
+    "too_many_invitations": {
+      "cause": "El equipo tiene demasiadas invitaciones abiertas.",
+      "next": "Revoca invitaciones que no se aceptaron."
+    },
+    "too_many_networks": {
+      "cause": "La instancia permite un número limitado de redes.",
+      "next": "Quita redes que ya no se necesiten."
+    },
+    "too_many_passkeys": {
+      "cause": "Una cuenta guarda un número limitado de passkeys.",
+      "next": "Elimina passkeys de dispositivos que ya no uses."
+    },
+    "too_many_quick_connections": {
+      "cause": "Tienes demasiadas conexiones rápidas abiertas a la vez.",
+      "next": "Cierra una o guarda como sitios los servidores que usas."
+    },
+    "totp_not_enabled": {
+      "cause": "Tu cuenta no tiene una app autenticadora configurada.",
+      "next": "Configura primero el segundo factor."
+    },
+    "totp_not_started": {
+      "cause": "La configuración de la app autenticadora no se inició o expiró.",
+      "next": "Vuelve a empezar a configurar el segundo factor."
+    },
+    "transfer_active": {
+      "cause": "La transferencia todavía está en curso.",
+      "next": "Cancélala primero o espera a que termine."
+    },
+    "transfer_canceled": {
+      "cause": "La transferencia se canceló antes de terminar.",
+      "next": "Vuelve a iniciarla si todavía la necesitas."
+    },
+    "transfer_id_taken": {
+      "cause": "Otra transferencia ya usa ese identificador, normalmente por un doble clic.",
+      "next": "Revisa la cola; probablemente la transferencia ya está ahí."
+    },
+    "transfer_not_active": {
+      "cause": "La transferencia ya terminó.",
+      "next": "Mira su resultado en la cola."
+    },
+    "transfer_not_found": {
+      "cause": "La transferencia ya no está en el historial.",
+      "next": "Recarga la cola."
+    },
+    "transfer_not_queued": {
+      "cause": "Solo se pueden mover transferencias que todavía esperan.",
+      "next": "Espera a que termine o cancélala."
+    },
+    "tree_too_large": {
+      "cause": "La carpeta tiene más archivos de los que acepta una operación.",
+      "next": "Trabaja con sus subcarpetas de a una."
+    },
+    "unauthenticated": {
+      "cause": "Tu sesión terminó: cerraste sesión o estuvo inactiva demasiado tiempo.",
+      "next": "Vuelve a iniciar sesión."
+    },
+    "unsupported_algorithm": {
+      "cause": "El servidor no calcula ese checksum.",
+      "next": "Elige otro algoritmo."
+    },
+    "user_disabled": {
+      "cause": "Un administrador desactivó esta cuenta.",
+      "next": "Pídelo a un administrador de este Sentinel."
+    },
+    "vault_exists": {
+      "cause": "Tu vault ya está configurado.",
+      "next": "Desbloquéalo con tu contraseña maestra."
+    },
+    "vault_locked": {
+      "cause": "Las contraseñas y claves están selladas en tu vault, que está bloqueado en esta sesión.",
+      "next": "Desbloquea el vault con tu contraseña maestra."
+    },
+    "vault_not_initialized": {
+      "cause": "Aún no tienes un vault.",
+      "next": "Configura el vault con una contraseña maestra."
+    },
+    "weak_export_password": {
+      "cause": "La contraseña del archivo tiene menos de 12 caracteres.",
+      "next": "Elige una contraseña más larga, como una frase."
+    },
+    "weak_password": {
+      "cause": "La contraseña tiene menos de 12 caracteres.",
+      "next": "Elige una contraseña más larga, como una frase."
+    },
+    "workspace_key_pending": {
+      "cause": "La clave de este equipo aún no se compartió contigo; un dueño lo hace cuando tu vault está configurado.",
+      "next": "Pide a un dueño del equipo que abra Sentinel con el vault desbloqueado."
+    },
+    "workspace_not_found": {
+      "cause": "El espacio de trabajo fue eliminado, o ya no perteneces a él.",
+      "next": "Elige otro espacio de trabajo."
+    },
+    "wrong_export_password": {
+      "cause": "La contraseña no es la del archivo, o el archivo cambió después de exportarlo.",
+      "next": "Ingresa la contraseña que elegiste al exportar."
+    },
+    "wrong_passphrase": {
+      "cause": "La frase no abre la clave privada.",
+      "next": "Revisa la frase de la clave."
+    }
+  }
+}
