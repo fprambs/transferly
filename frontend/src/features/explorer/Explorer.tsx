@@ -17,6 +17,7 @@ import { useTimeZone } from '../auth/use-time-zone'
 import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
+import { BookmarksBar } from '../bookmarks/BookmarksBar'
 import { BookmarksMenu } from '../bookmarks/BookmarksMenu'
 import { Breadcrumbs } from './Breadcrumbs'
 import { TimeZoneProbe } from './TimeZoneProbe'
@@ -281,6 +282,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           <ArrowUp />
         </Button>
         <Breadcrumbs path={path} onNavigate={onNavigate} />
+        <div className="flex min-w-0 flex-1 items-center">
+          {savedSite !== undefined && <BookmarksBar workspaceId={workspaceId} siteId={siteId} path={path} onNavigate={onNavigate} />}
+        </div>
         {savedSite !== undefined && <BookmarksMenu workspaceId={workspaceId} siteId={siteId} siteName={savedSite.name} path={path} onNavigate={onNavigate} />}
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
         <input

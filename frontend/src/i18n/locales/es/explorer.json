@@ -325,7 +325,10 @@
       "forbidden": "No tienes permiso para cambiar los marcadores de este espacio de trabajo.",
       "network_error": "No se pudo contactar al servidor. Revisa tu conexión.",
       "unknown": "Algo salió mal. Inténtalo de nuevo."
-    }
+    },
+    "bar": "Barra de marcadores",
+    "more_one": "{{count}} marcador más",
+    "more_other": "{{count}} marcadores más"
   },
   "fileTypes": {
     "directory": "Carpeta",

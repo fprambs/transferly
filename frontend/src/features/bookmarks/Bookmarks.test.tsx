@@ -88,6 +88,8 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
  * - managing lists the bookmarks, edits one and goes back to the list, removes one, explains a failed removal, says when none is left and
  *   closes
  * - whoever may only browse the workspace opens bookmarks but cannot add or manage them, and a quick connection has no bookmarks
+ * - the bookmarks bar shows a chip per bookmark, marks the one of the folder in view and opens a chip; it is left out without bookmarks
+ * - chips that do not fit go to a button that lists and opens them
  */
 describe('bookmarks', () => {
   beforeEach(() => {
@@ -222,6 +224,42 @@ describe('bookmarks', () => {
     expect(within(menu).getByRole('menuitem', { name: /Logs/ })).toBeInTheDocument()
     expect(within(menu).queryByRole('menuitem', { name: 'Bookmark this folder' })).not.toBeInTheDocument()
     expect(within(menu).queryByRole('menuitem', { name: 'Manage bookmarks…' })).not.toBeInTheDocument()
+  })
+
+  it('shows the bookmarks as chips and opens one', async () => {
+    mockBookmarks([mark('b1', 'Web root', '/www'), mark('b2', 'Logs', '/var/log')])
+    const { user, onNavigate } = await renderExplorer()
+
+    const bar = await screen.findByRole('navigation', { name: 'Bookmarks bar' })
+    expect(await within(bar).findByRole('button', { name: 'Web root' })).toHaveAttribute('aria-current', 'location')
+    expect(within(bar).getByRole('button', { name: 'Logs' })).not.toHaveAttribute('aria-current')
+    expect(within(bar).queryByRole('button', { name: /more bookmark/ })).not.toBeInTheDocument()
+    await user.click(within(bar).getByRole('button', { name: 'Logs' }))
+
+    expect(onNavigate).toHaveBeenCalledWith('/var/log')
+  })
+
+  it('leaves the bar out without bookmarks', async () => {
+    mockBookmarks([])
+    await renderExplorer()
+
+    expect(screen.queryByRole('navigation', { name: 'Bookmarks bar' })).not.toBeInTheDocument()
+  })
+
+  it('moves the chips that do not fit to a button', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(100)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(250)
+    mockBookmarks([mark('b1', 'One', '/1'), mark('b2', 'Two', '/2'), mark('b3', 'Three', '/3')])
+    const { user, onNavigate } = await renderExplorer()
+
+    const bar = await screen.findByRole('navigation', { name: 'Bookmarks bar' })
+    await within(bar).findByRole('button', { name: 'Two' })
+    expect(within(bar).queryByRole('button', { name: 'Three' })).not.toBeInTheDocument()
+    await user.click(within(bar).getByRole('button', { name: '1 more bookmark' }))
+    await user.click(await screen.findByRole('menuitem', { name: /Three/ }))
+
+    expect(onNavigate).toHaveBeenCalledWith('/3')
+    vi.restoreAllMocks()
   })
 
   it('offers no bookmarks on a quick connection', async () => {

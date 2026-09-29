@@ -20,7 +20,7 @@ export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
   const segments = pathSegments(path)
 
   return (
-    <nav aria-label={t(($) => $.breadcrumbs)} className="min-w-20 flex-1 overflow-hidden">
+    <nav aria-label={t(($) => $.breadcrumbs)} className="max-w-[60%] min-w-20 shrink overflow-hidden">
       <ol className="flex flex-nowrap items-center gap-1 font-mono text-[13px] whitespace-nowrap">
         {segments.map((segment, index) => {
           const current = index === segments.length - 1

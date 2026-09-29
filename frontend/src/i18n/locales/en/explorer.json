@@ -325,7 +325,10 @@
       "forbidden": "You do not have permission to change the bookmarks of this workspace.",
       "network_error": "The server could not be reached. Check your connection.",
       "unknown": "Something went wrong. Try again."
-    }
+    },
+    "bar": "Bookmarks bar",
+    "more_one": "{{count}} more bookmark",
+    "more_other": "{{count}} more bookmarks"
   },
   "fileTypes": {
     "directory": "Folder",
