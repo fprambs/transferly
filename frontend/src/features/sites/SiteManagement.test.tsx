@@ -68,6 +68,7 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
  * - the default remote folder, on Advanced, must be absolute and is sent as typed (4.14i)
+ * - an FTP site of the account logon type sends its password and account, and an edited one keeps its stored account (4.8e)
  * - what is needed to connect is on the first tab, the rest on Advanced, Transfer, Character set and Proxy and jump host, and a wrong field opens
  *   its tab and marks it
  * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with the
@@ -167,6 +168,41 @@ describe('site management', () => {
     await waitFor(() => expect(within(dialog).getByRole('tab', { name: /Proxy and jump host/ })).toHaveAttribute('aria-selected', 'false'))
   })
 
+  it('saves an FTP site of the account logon type with its password and account', async () => {
+    const bodies: Array<Record<string, unknown>> = []
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
+        bodies.push((await request.json()) as Record<string, unknown>)
+        return HttpResponse.json({ ...prod, id: 's9' }, { status: 201 })
+      }),
+    )
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.type(within(dialog).getByLabelText('Name'), 'Billed')
+    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
+    await user.type(within(dialog).getByLabelText('Host'), 'ftp.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'u')
+    expect(within(dialog).queryByLabelText('Account')).not.toBeInTheDocument()
+    await choose(user, within(dialog).getByLabelText('Logon type'), 'Account')
+    await user.type(within(dialog).getByLabelText('Password'), 'pw')
+    await user.type(within(dialog).getByLabelText('Account'), 'billing')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+
+    await waitFor(() => expect(bodies[0]).toMatchObject({ authMethod: 'account', password: 'pw', account: 'billing' }))
+  })
+
+  it('keeps the stored account of a site unless another is typed', async () => {
+    mockWorkspaceData({ sites: [{ ...prod, protocol: 'ftp', authMethod: 'account', secrets: ['password', 'account'] }], collections: [] })
+    const user = await renderSidebar()
+    await user.click(within(await screen.findByRole('treeitem', { name: /Prod/ })).getByRole('button', { name: 'Actions for Prod' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
+
+    expect(within(dialog).getByLabelText('Logon type')).toHaveTextContent('Account')
+    expect(within(dialog).getByLabelText('Account')).toHaveAttribute('placeholder', 'Leave blank to keep the existing account.')
+  })
+
   it('asks for an absolute default remote folder on the Advanced tab and sends it', async () => {
     const bodies: Array<Record<string, unknown>> = []
     server.use(
@@ -224,7 +260,7 @@ describe('site management', () => {
     expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
     expect(within(dialog).getByText(/upgrades with AUTH TLS before signing in/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '21')
-    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Anonymous'])
+    expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Account', 'Anonymous'])
 
     await choose(user, encryption, 'Require implicit FTP over TLS')
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '990')

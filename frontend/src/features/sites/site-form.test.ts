@@ -61,6 +61,7 @@ describe('site form', () => {
       username: 'deploy',
       accessMode: 'key',
       password: '',
+      account: '',
       privateKey: '',
       passphrase: '',
       listTimezone: 'Europe/Madrid',
@@ -221,9 +222,18 @@ describe('site form', () => {
     expect(siteSchema.safeParse({ ...base, jumpHost: 'b.example', jumpPort: '22', jumpUsername: 'u' }).success).toBe(true)
   })
 
-  it('offers asking for the password and the anonymous user to every protocol, and a key to SFTP', () => {
+  it('offers asking for the password and the anonymous user to every protocol, a key to SFTP and an account to FTP', () => {
     expect(accessModesOf('sftp')).toEqual(['normal', 'ask', 'key', 'anonymous'])
-    expect(accessModesOf('ftp')).toEqual(['normal', 'ask', 'anonymous'])
+    expect(accessModesOf('ftp')).toEqual(['normal', 'ask', 'account', 'anonymous'])
+  })
+
+  it('builds an FTP site of the account logon type with its password and account, and no account for SFTP', () => {
+    const values = { ...siteDefaults(undefined, undefined), name: 'Billed', host: 'h', username: 'u', protocol: 'ftp' as const, accessMode: 'account' as const, password: 'pw', account: 'billing' }
+
+    expect(toSiteInput(values)).toMatchObject({ authMethod: 'account', password: 'pw', account: 'billing' })
+    expect(toSiteInput({ ...values, account: '' }).account).toBeUndefined()
+    expect(toSiteInput({ ...values, protocol: 'sftp' })).toMatchObject({ authMethod: 'password', account: undefined })
+    expect(siteDefaults({ ...stored, protocol: 'ftp', authMethod: 'account', secrets: ['password', 'account'] }, undefined).accessMode).toBe('account')
   })
 
   it('builds a site that asks for its password: no password sent, clearing a stored one', () => {

@@ -148,6 +148,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
   const accessMode = useWatch({ control, name: 'accessMode' })
   const mode = effectiveMode({ protocol, accessMode })
   const hasPassword = editing?.secrets.includes('password') === true
+  const hasAccount = editing?.secrets.includes('account') === true
   const hasKey = editing?.secrets.includes('private_key') === true
   const hasJumpKey = editing?.secrets.includes('jump_private_key') === true
   const proxyKind = useWatch({ control, name: 'proxyKind' })
@@ -296,9 +297,14 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                 <Input key="username" id="site-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.username !== undefined} {...register('username')} />
               </Row>
             )}
-            {mode === 'normal' && (
+            {(mode === 'normal' || mode === 'account') && (
               <Row id="site-password" label={t(($) => $.site.password)}>
                 <Input id="site-password" type="password" autoComplete="off" placeholder={hasPassword ? t(($) => $.site.keepPassword) : undefined} {...register('password')} />
+              </Row>
+            )}
+            {mode === 'account' && (
+              <Row id="site-account" label={t(($) => $.site.account)} hint={t(($) => $.site.accountHint)}>
+                <Input id="site-account" type="password" autoComplete="off" placeholder={hasAccount ? t(($) => $.site.keepAccount) : undefined} {...register('account')} />
               </Row>
             )}
             {mode === 'key' && (

@@ -47,12 +47,13 @@ export const charsetOptions: ReadonlyArray<{ value: Charset; label: string }> = 
 ]
 
 /** How the site signs in, as FileZilla names it: with a stored password, with a password asked for when connecting (ADR-0010), with a
- * private key (SFTP only), or anonymously with no secret (the SSH "none" method first for SFTP). */
-export type AccessMode = 'normal' | 'ask' | 'key' | 'anonymous'
+ * private key (SFTP only), anonymously with no secret (the SSH "none" method first for SFTP), or with a password and an account that
+ * some FTP servers ask for (ACCT, FTP only, 4.8e). */
+export type AccessMode = 'normal' | 'ask' | 'key' | 'anonymous' | 'account'
 
 /** The access modes a protocol offers, in the order they are listed. */
 export function accessModesOf(protocol: SiteValues['protocol']): readonly AccessMode[] {
-  return protocol === 'sftp' ? ['normal', 'ask', 'key', 'anonymous'] : ['normal', 'ask', 'anonymous']
+  return protocol === 'sftp' ? ['normal', 'ask', 'key', 'anonymous'] : ['normal', 'ask', 'account', 'anonymous']
 }
 
 /** The access mode a site really uses: one its protocol does not offer falls back to a password. */
@@ -78,8 +79,9 @@ export const siteSchema = z
     host: z.string().trim().min(1, 'hostRequired'),
     port: z.string().trim().refine(validPort, 'portInvalid'),
     username: z.string().trim(),
-    accessMode: z.enum(['normal', 'ask', 'key', 'anonymous']),
+    accessMode: z.enum(['normal', 'ask', 'key', 'anonymous', 'account']),
     password: z.string(),
+    account: z.string(),
     privateKey: z.string(),
     passphrase: z.string(),
     listTimezone: z.string().trim(),
@@ -141,6 +143,7 @@ export function siteDefaults(site: Site | undefined, collectionId: string | unde
     username: site?.username ?? '',
     accessMode: accessModeOf(site),
     password: '',
+    account: '',
     privateKey: '',
     passphrase: '',
     listTimezone: site?.listTimezone ?? 'UTC',
@@ -192,7 +195,8 @@ export function toSiteInput(values: SiteValues): SiteInput {
     remoteDir: values.remoteDir,
     charset: values.protocol === 'sftp' ? 'utf-8' : (values.charset as Charset),
     speedLimitBps: values.speedLimit.trim() === '' ? 0 : Math.round(Number(values.speedLimit) * mebibyte),
-    password: mode === 'normal' ? secret(values.password) : mode === 'ask' ? '' : undefined,
+    password: mode === 'normal' || mode === 'account' ? secret(values.password) : mode === 'ask' ? '' : undefined,
+    account: mode === 'account' ? secret(values.account) : undefined,
     privateKey: usesKey ? secret(values.privateKey) : undefined,
     passphrase: usesKey ? secret(values.passphrase) : undefined,
     ...proxyInput(values),
@@ -258,6 +262,7 @@ const fieldTabs: Record<keyof SiteValues, SiteTab> = {
   username: 'general',
   accessMode: 'general',
   password: 'general',
+  account: 'general',
   privateKey: 'general',
   passphrase: 'general',
   charset: 'charset',

@@ -142,7 +142,8 @@
       "normal": "Normal",
       "key": "Archivo de clave",
       "anonymous": "Anónimo",
-      "ask": "Preguntar la contraseña"
+      "ask": "Preguntar la contraseña",
+      "account": "Cuenta"
     },
     "anonymousHint": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
     "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
@@ -204,7 +205,10 @@
     "disconnect": "Desconectar",
     "openInNewTab": "Abrir en una pestaña nueva",
     "remoteDir": "Carpeta remota inicial",
-    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz."
+    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz.",
+    "account": "Cuenta",
+    "accountHint": "Algunos servidores FTP antiguos piden una cuenta después de la contraseña (ACCT). Se guarda en el vault como la contraseña.",
+    "keepAccount": "Déjala vacía para conservar la cuenta guardada."
   },
   "import": {
     "open": "Importar de FileZilla",
