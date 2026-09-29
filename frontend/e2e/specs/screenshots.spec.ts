@@ -43,6 +43,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - the remote editor
  * - the site dialog on its General and Advanced tabs, with an anonymous FTP site and a site that asks for its password, and that site asking for it
  * - the warning of a server key other than the trusted one, with add, replace and cancel
+ * - the bookmarks menu of a saved site
  * - a folder with many files, with the transfers panel still in view
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
@@ -584,6 +585,25 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'Replace the trusted keys' }).waitFor()
     await page.waitForTimeout(500)
     await shoot(page, '60-changed-host-key')
+  })
+
+  test('site bookmarks', async ({ shell, request }) => {
+    const { page } = shell
+    const csrf = await csrfOf(page)
+    const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
+    const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+      headers: { 'X-CSRF-Token': csrf },
+      data: { name: `Production ${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+    })
+    const { id: siteId } = (await created.json()) as { id: string }
+    for (const [name, path] of [['Uploads', '/upload'], ['Web root', '/var/www/html'], ['Nginx logs', '/var/log/nginx']]) {
+      await request.post(`/api/v1/workspaces/${workspace}/sites/${siteId}/bookmarks`, { headers: { 'X-CSRF-Token': csrf }, data: { name, path } })
+    }
+    await page.goto(`/sites/${siteId}?path=%2Fupload`)
+    await page.getByRole('button', { name: 'Bookmarks' }).click()
+    await page.getByRole('menuitem', { name: /Nginx logs/ }).waitFor()
+    await page.waitForTimeout(400)
+    await shoot(page, '61-site-bookmarks')
   })
 
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
