@@ -526,6 +526,23 @@ test.describe('screenshots', () => {
     await shoot(page, '55-disconnected')
   })
 
+  test('resizable panels', async ({ shell, quickId }) => {
+    const { page } = shell
+    await page.goto(`/sites/${quickId}?path=%2F`)
+    await page.getByRole('grid', { name: 'Files' }).waitFor()
+    await shoot(page, '56-panels')
+    await page.keyboard.press('Control+b')
+    await expect(page.getByRole('navigation', { name: 'Sites, panel hidden' })).toBeVisible()
+    await page.waitForTimeout(300)
+    await shoot(page, '57-sites-rail')
+    await page.getByRole('button', { name: 'Browse the sites' }).click()
+    await expect(page.getByRole('dialog', { name: 'Sites' })).toBeVisible()
+    await page.waitForTimeout(400)
+    await shoot(page, '58-sites-sheet')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Control+b')
+  })
+
   test('long folder keeps the transfers panel in view', async ({ shell, quickId, request }) => {
     const { page } = shell
     const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
