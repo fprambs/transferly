@@ -8,6 +8,7 @@
   "columns": {
     "name": "Nombre",
     "size": "Tamaño",
+    "type": "Tipo",
     "modified": "Modificado",
     "mode": "Permisos"
   },
@@ -325,5 +326,33 @@
       "network_error": "No se pudo contactar al servidor. Revisa tu conexión.",
       "unknown": "Algo salió mal. Inténtalo de nuevo."
     }
+  },
+  "fileTypes": {
+    "directory": "Carpeta",
+    "symlink": "Enlace",
+    "other": "Otro",
+    "image": "Imagen {{name}}",
+    "audio": "Audio {{name}}",
+    "video": "Video {{name}}",
+    "archive": "Archivo comprimido {{name}}",
+    "package": "Paquete {{name}}",
+    "disk": "Imagen de disco {{name}}",
+    "font": "Fuente {{name}}",
+    "code": "Código fuente {{name}}",
+    "script": "Script {{name}}",
+    "document": "Documento {{name}}",
+    "spreadsheet": "Hoja de cálculo {{name}}",
+    "presentation": "Presentación {{name}}",
+    "data": "Archivo {{name}}",
+    "config": "Configuración {{name}}",
+    "text": "Archivo de texto",
+    "log": "Archivo de registro",
+    "backup": "Copia de respaldo",
+    "key": "Clave {{name}}",
+    "certificate": "Certificado {{name}}",
+    "executable": "Binario {{name}}",
+    "named": "{{name}}",
+    "unknown": "Archivo {{name}}",
+    "plain": "Archivo"
   }
 }

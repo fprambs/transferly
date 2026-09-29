@@ -69,7 +69,7 @@ async function renderExplorer() {
  * Covers the file operations of the explorer: {@link EntryNameDialog}, {@link DeleteEntryDialog}, {@link Inspector} and the context menu.
  *
  * Scenarios:
- * - the inspector describes the selected entry and follows the selection, for every kind of entry
+ * - the inspector describes the selected entry, its type named after its format as in the table, and follows the selection, for every kind of entry
  * - a folder is created from the toolbar and from the context menu
  * - an entry is renamed from the inspector, with F2 and from the context menu, inside its own folder
  * - the new or renamed entry becomes the selected one
@@ -95,7 +95,8 @@ describe('file operations', () => {
     await user.click(within(grid).getByText('index.html'))
     expect(inspector).toHaveTextContent('/www/index.html')
     expect(inspector).toHaveTextContent('2.0 KB')
-    expect(inspector).toHaveTextContent('File')
+    expect(inspector).toHaveTextContent('HTML source file')
+    expect(within(grid).getByRole('row', { name: /index\.html/ })).toHaveTextContent('HTML source file')
     expect(inspector).toHaveTextContent('Mar 8, 2026, 7:30:00 AM')
     expect(inspector).toHaveTextContent('-rw-r--r--')
 

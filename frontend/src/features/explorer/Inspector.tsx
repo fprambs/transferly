@@ -9,6 +9,7 @@ import type { Checksum, ChecksumAlgorithm, RemoteEntry } from '@/lib/api'
 import { formatInstant } from '@/lib/datetime'
 
 import { formatSize } from './entries'
+import { useDescribeType } from './use-file-type'
 
 /** Props of {@link Inspector}. */
 export interface InspectorProps {
@@ -37,6 +38,7 @@ export interface InspectorProps {
 /** Side panel with the details of the selected entry and its actions. */
 export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onEdit, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
+  const describeType = useDescribeType()
   const [algorithm, setAlgorithm] = useState<ChecksumAlgorithm>('sha256')
   const [result, setResult] = useState<{ path: string; algorithm: ChecksumAlgorithm; state: 'working' | 'done' | 'failed'; sum?: string } | null>(null)
   const checksum = result?.path === entry.path && result.algorithm === algorithm ? result : null
@@ -50,7 +52,7 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
         <dt className="text-muted-foreground">{t(($) => $.inspector.path)}</dt>
         <dd className="font-mono break-all">{entry.path}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.kind)}</dt>
-        <dd>{t(($) => $[entry.type])}</dd>
+        <dd>{describeType(entry)}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.size)}</dt>
         <dd className="font-mono">{entry.type === 'directory' ? '—' : formatSize(entry.size)}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.modified)}</dt>

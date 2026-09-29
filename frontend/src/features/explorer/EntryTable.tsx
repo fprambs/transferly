@@ -1,5 +1,4 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { File, FileQuestion, Folder, Link2 } from 'lucide-react'
 import { useRef, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,12 +8,15 @@ import { formatInstant } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
 import { formatSize, resolveSelection } from './entries'
+import { fileTypeOf } from './file-types'
+import { FileTypeIcon } from './FileTypeIcon'
+import { useDescribeType } from './use-file-type'
 
 /** Height of every row, in pixels. */
 const rowHeight = 32
 
-/** Column layout shared by the header and the rows. */
-const columns = 'grid grid-cols-[minmax(10rem,1fr)_88px_160px_112px] items-center gap-3 px-4'
+/** Column layout shared by the header and the rows; the type column shows once the pane is wide enough (4.14e). */
+const columns = 'grid grid-cols-[minmax(10rem,1fr)_88px_160px_112px] @3xl:grid-cols-[minmax(10rem,1fr)_88px_150px_160px_112px] items-center gap-3 px-4'
 
 /** Props of {@link EntryTable}. */
 export interface EntryTableProps {
@@ -54,22 +56,6 @@ export interface EntryTableProps {
   onDragEntry: (entry: RemoteEntry, data: DataTransfer) => void
 }
 
-/** Icon that tells the kind of an entry. */
-function EntryIcon({ type }: { type: RemoteEntry['type'] }) {
-  const className = 'size-4 shrink-0'
-  if (type === 'directory') {
-    return <Folder aria-hidden="true" className={cn(className, 'text-accent-text')} />
-  }
-  if (type === 'symlink') {
-    return <Link2 aria-hidden="true" className={cn(className, 'text-info')} />
-  }
-  return type === 'file' ? (
-    <File aria-hidden="true" className={cn(className, 'text-muted-foreground')} />
-  ) : (
-    <FileQuestion aria-hidden="true" className={cn(className, 'text-muted-foreground')} />
-  )
-}
-
 /** Formats the modification time of an entry, leaving out the time when the server only gave the day. */
 function modified(entry: RemoteEntry, locale: string, timeZone: string): string {
   return formatInstant(entry.modifiedAt, {
@@ -94,6 +80,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
 export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onRename, onDelete, onNewFolder, dragFolders, onDragEntry }: EntryTableProps) {
   const { t } = useTranslation('explorer')
+  const describeType = useDescribeType()
   const scroller = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: entries.length,
@@ -157,6 +144,9 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
         <span role="columnheader" className="text-end">
           {t(($) => $.columns.size)}
         </span>
+        <span role="columnheader" className="@max-3xl:hidden">
+          {t(($) => $.columns.type)}
+        </span>
         <span role="columnheader">{t(($) => $.columns.modified)}</span>
         <span role="columnheader">{t(($) => $.columns.mode)}</span>
       </div>
@@ -182,11 +172,14 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
               )}
             >
               <span role="gridcell" className="flex min-w-0 items-center gap-2">
-                <EntryIcon type={entry.type} />
+                <FileTypeIcon type={fileTypeOf(entry)} />
                 <span className="truncate">{entry.name}</span>
               </span>
               <span role="gridcell" className="text-end font-mono text-xs text-muted-foreground">
                 {entry.type === 'directory' ? '—' : formatSize(entry.size)}
+              </span>
+              <span role="gridcell" className="truncate text-xs text-muted-foreground @max-3xl:hidden">
+                {describeType(entry)}
               </span>
               <span role="gridcell" className="truncate text-xs text-muted-foreground">
                 {modified(entry, locale, timeZone)}

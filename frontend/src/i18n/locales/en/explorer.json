@@ -8,6 +8,7 @@
   "columns": {
     "name": "Name",
     "size": "Size",
+    "type": "Type",
     "modified": "Modified",
     "mode": "Permissions"
   },
@@ -103,7 +104,7 @@
     "label": "Details",
     "name": "Name",
     "path": "Path",
-    "kind": "Kind",
+    "kind": "Type",
     "size": "Size",
     "modified": "Modified",
     "mode": "Permissions"
@@ -325,5 +326,33 @@
       "network_error": "The server could not be reached. Check your connection.",
       "unknown": "Something went wrong. Try again."
     }
+  },
+  "fileTypes": {
+    "directory": "Folder",
+    "symlink": "Link",
+    "other": "Other",
+    "image": "{{name}} image",
+    "audio": "{{name}} audio",
+    "video": "{{name}} video",
+    "archive": "{{name}} archive",
+    "package": "{{name}} package",
+    "disk": "{{name}} disk image",
+    "font": "{{name}} font",
+    "code": "{{name}} source file",
+    "script": "{{name}} script",
+    "document": "{{name}} document",
+    "spreadsheet": "{{name}} spreadsheet",
+    "presentation": "{{name}} presentation",
+    "data": "{{name}} file",
+    "config": "{{name}} configuration",
+    "text": "Text file",
+    "log": "Log file",
+    "backup": "Backup file",
+    "key": "{{name}} key",
+    "certificate": "{{name}} certificate",
+    "executable": "{{name}} binary",
+    "named": "{{name}}",
+    "unknown": "{{name}} file",
+    "plain": "File"
   }
 }
