@@ -82,7 +82,7 @@ export function TabBar() {
             key={tab.id}
             className={cn(
               'group flex h-8 max-w-56 min-w-0 shrink-0 items-center gap-1 rounded-t-md border border-b-0 ps-2.5 pe-1 text-xs transition-colors',
-              active ? 'border-border bg-background font-medium text-foreground' : 'border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+              active ? 'border-border bg-background font-medium text-foreground' : 'border-transparent text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
             <button
@@ -101,7 +101,7 @@ export function TabBar() {
               type="button"
               aria-label={t(($) => $.tabs.close, { name })}
               onClick={() => close(tab)}
-              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-60 hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:opacity-100"
+              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-60 hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:opacity-100"
             >
               <X aria-hidden="true" className="size-3.5" />
             </button>

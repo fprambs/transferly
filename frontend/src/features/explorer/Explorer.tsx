@@ -298,7 +298,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             event.target.value = ''
           }}
         />
-        <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
+        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
           <Upload />
           <span className="@max-3xl:sr-only">{t(($) => $.toolbar.upload)}</span>
         </Button>
@@ -316,11 +316,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             event.target.value = ''
           }}
         />
-        <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (folderPicker.current as HTMLInputElement).click()}>
+        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (folderPicker.current as HTMLInputElement).click()}>
           <FolderUp />
           <span className="@max-3xl:sr-only">{t(($) => $.upload.folder)}</span>
         </Button>
-        <Button variant="ghost" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
+        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
           <FolderPlus />
           <span className="@max-3xl:sr-only">{t(($) => $.toolbar.newFolder)}</span>
         </Button>
@@ -332,7 +332,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         >
           <RefreshCw />
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => setSearching(true)}>
+        <Button variant="outline" size="sm" onClick={() => setSearching(true)}>
           <Search />
           <span className="@max-3xl:sr-only">{t(($) => $.search.title)}</span>
         </Button>
