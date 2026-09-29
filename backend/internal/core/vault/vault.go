@@ -262,6 +262,17 @@ func Wipe(b []byte) {
 	clear(b)
 }
 
+// Seal encrypts plaintext with AES-256-GCM under a key of [KeyLength] bytes, binding aad, with a random nonce drawn from random
+// in front of the result. It is the seal of every secret of the vault, for callers that manage their own keys.
+func Seal(random io.Reader, key, plaintext, aad []byte) ([]byte, error) {
+	return seal(random, key, plaintext, aad)
+}
+
+// Open reverses [Seal], returning [ErrCorrupt] when the data or aad were changed or the key is not the one that sealed it.
+func Open(key, sealed, aad []byte) ([]byte, error) {
+	return open(key, sealed, aad)
+}
+
 // seal encrypts plaintext with AES-256-GCM under key, prefixing a random nonce to the result.
 func seal(random io.Reader, key, plaintext, aad []byte) ([]byte, error) {
 	aead, err := newAEAD(key)
