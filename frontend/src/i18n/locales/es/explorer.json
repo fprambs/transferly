@@ -288,5 +288,42 @@
     "label": "Pestañas de conexión",
     "close": "Cerrar {{name}}",
     "connected": "Conectado"
+  },
+  "bookmarks": {
+    "title": "Marcadores",
+    "empty": "Este sitio aún no tiene marcadores.",
+    "name": "Nombre",
+    "path": "Carpeta",
+    "dialogHint": "Una carpeta de {{site}}, guardada para todo el espacio de trabajo.",
+    "add": {
+      "menu": "Marcar esta carpeta",
+      "title": "Marcar esta carpeta",
+      "submit": "Agregar marcador"
+    },
+    "edit": {
+      "title": "Editar marcador",
+      "submit": "Guardar"
+    },
+    "manage": {
+      "menu": "Administrar marcadores…",
+      "title": "Administrar marcadores",
+      "description": "Cambia el nombre, la carpeta o elimina los marcadores de {{site}}.",
+      "edit": "Editar {{name}}",
+      "remove": "Eliminar {{name}}",
+      "close": "Listo"
+    },
+    "errors": {
+      "nameRequired": "Ponle un nombre al marcador.",
+      "nameTooLong": "Usa hasta 100 caracteres.",
+      "pathAbsolute": "La carpeta debe empezar con /.",
+      "bookmark_name_taken": "Este sitio ya tiene un marcador con ese nombre.",
+      "bookmark_not_found": "Este marcador ya no existe.",
+      "bookmark_limit_reached": "Este sitio ya tiene 200 marcadores. Elimina uno primero.",
+      "invalid_bookmark_name": "Ese nombre no se puede usar.",
+      "invalid_bookmark_path": "Esa carpeta no se puede marcar.",
+      "forbidden": "No tienes permiso para cambiar los marcadores de este espacio de trabajo.",
+      "network_error": "No se pudo contactar al servidor. Revisa tu conexión.",
+      "unknown": "Algo salió mal. Inténtalo de nuevo."
+    }
   }
 }

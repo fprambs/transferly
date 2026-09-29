@@ -34,7 +34,7 @@ function AuditEventRow({ event }: AuditEventRowProps) {
       </time>
       <span className="truncate">{event.actor ?? <span className="text-muted-foreground">{t(($) => $.audit.deletedAccount)}</span>}</span>
       <span className="min-w-0 break-words">
-        {t(($) => $.audit.actions[key], { target: event.target, action: event.action, role: t(($) => $.roles[(event.meta.role ?? 'viewer') as 'owner' | 'admin' | 'editor' | 'viewer']), version: event.meta.version, sites: event.meta.sites })}
+        {t(($) => $.audit.actions[key], { target: event.target, action: event.action, role: t(($) => $.roles[(event.meta.role ?? 'viewer') as 'owner' | 'admin' | 'editor' | 'viewer']), version: event.meta.version, sites: event.meta.sites, path: event.meta.path })}
       </span>
       <span className="truncate font-mono text-xs text-muted-foreground">{event.ip}</span>
     </li>

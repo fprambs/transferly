@@ -179,6 +179,7 @@
       "sites": "Sitios",
       "keys": "Claves",
       "servers": "Servidores de confianza",
+      "bookmarks": "Marcadores",
       "workspace": "Workspace"
     },
     "time": "Cuándo",
@@ -208,7 +209,10 @@
       "sitesImported": "importó {{sites}} sitios de FileZilla",
       "hostKeyTrusted": "confió en el servidor {{target}}",
       "hostKeyForgotten": "olvidó el servidor {{target}}",
-      "unknown": "{{action}} {{target}}"
+      "unknown": "{{action}} {{target}}",
+      "bookmarkCreated": "creó el marcador {{target}} ({{path}})",
+      "bookmarkUpdated": "cambió el marcador {{target}} ({{path}})",
+      "bookmarkDeleted": "eliminó el marcador {{target}} ({{path}})"
     }
   }
 }

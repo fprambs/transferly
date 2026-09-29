@@ -16,6 +16,9 @@ const known = {
   'sites.imported': 'sitesImported',
   'host_key.trusted': 'hostKeyTrusted',
   'host_key.forgotten': 'hostKeyForgotten',
+  'bookmark.created': 'bookmarkCreated',
+  'bookmark.updated': 'bookmarkUpdated',
+  'bookmark.deleted': 'bookmarkDeleted',
 } as const
 
 /** Translation key of the sentence that describes an action; an action the interface does not know gets the generic one. */
@@ -34,6 +37,7 @@ export const auditCategories = [
   { key: 'sites', prefix: 'site' },
   { key: 'keys', prefix: 'key.' },
   { key: 'servers', prefix: 'host_key.' },
+  { key: 'bookmarks', prefix: 'bookmark.' },
   { key: 'workspace', prefix: 'workspace.' },
 ] as const
 

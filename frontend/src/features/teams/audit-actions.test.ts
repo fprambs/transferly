@@ -13,11 +13,12 @@ describe('audit actions', () => {
   it('maps known actions and falls back for unknown ones', () => {
     expect(auditActionKey('member.removed')).toBe('memberRemoved')
     expect(auditActionKey('sites.imported')).toBe('sitesImported')
+    expect(auditActionKey('bookmark.deleted')).toBe('bookmarkDeleted')
     expect(auditActionKey('something.new')).toBe('unknown')
   })
 
   it('offers categories that select something', () => {
-    const actions = ['workspace.created', 'member.left', 'invitation.created', 'site.created', 'sites.imported', 'key.rotated', 'host_key.trusted']
+    const actions = ['workspace.created', 'member.left', 'invitation.created', 'site.created', 'sites.imported', 'key.rotated', 'host_key.trusted', 'bookmark.created']
     for (const category of auditCategories.filter((c) => c.prefix !== '')) {
       expect(actions.some((action) => action.startsWith(category.prefix)), category.key).toBe(true)
     }

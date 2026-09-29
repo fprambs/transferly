@@ -17,6 +17,11 @@ export function canManageMembers(role: Role): boolean {
   return rank[role] >= rank.admin
 }
 
+/** Tells whether a role may change the saved sites of a workspace and what hangs from them, such as bookmarks: editors and above may. */
+export function canManageSites(role: Role): boolean {
+  return rank[role] >= rank.editor
+}
+
 /** Tells whether a member with the role `mine` may change or remove a member with the role `theirs`. */
 export function canManage(mine: Role, theirs: Role): boolean {
   return canManageMembers(mine) && rank[mine] > rank[theirs]

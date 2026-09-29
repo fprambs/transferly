@@ -288,5 +288,42 @@
     "label": "Connection tabs",
     "close": "Close {{name}}",
     "connected": "Connected"
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "empty": "No bookmarks on this site yet.",
+    "name": "Name",
+    "path": "Folder",
+    "dialogHint": "A folder of {{site}}, kept for everyone in the workspace.",
+    "add": {
+      "menu": "Bookmark this folder",
+      "title": "Bookmark this folder",
+      "submit": "Add bookmark"
+    },
+    "edit": {
+      "title": "Edit bookmark",
+      "submit": "Save"
+    },
+    "manage": {
+      "menu": "Manage bookmarks…",
+      "title": "Manage bookmarks",
+      "description": "Rename, move or remove the bookmarks of {{site}}.",
+      "edit": "Edit {{name}}",
+      "remove": "Remove {{name}}",
+      "close": "Done"
+    },
+    "errors": {
+      "nameRequired": "Give the bookmark a name.",
+      "nameTooLong": "Use up to 100 characters.",
+      "pathAbsolute": "The folder must start with /.",
+      "bookmark_name_taken": "This site already has a bookmark with that name.",
+      "bookmark_not_found": "This bookmark is already gone.",
+      "bookmark_limit_reached": "This site already has 200 bookmarks. Remove one first.",
+      "invalid_bookmark_name": "That name cannot be used.",
+      "invalid_bookmark_path": "That folder cannot be bookmarked.",
+      "forbidden": "You do not have permission to change the bookmarks of this workspace.",
+      "network_error": "The server could not be reached. Check your connection.",
+      "unknown": "Something went wrong. Try again."
+    }
   }
 }

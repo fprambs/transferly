@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { canManage, canManageMembers, grantableRoles, permissionRows, roles } from './roles'
+import { canManage, canManageMembers, canManageSites, grantableRoles, permissionRows, roles } from './roles'
 
 /**
  * Covers the role rules of {@link roles}.
  *
  * Scenarios:
- * - only admins and the owner manage members
+ * - only admins and the owner manage members, and editors and above manage sites and their bookmarks
  * - a member acts only on members ranked below them, so nobody acts on an equal, and the owner is never acted on
  * - the owner can give admin, editor and viewer, an admin editor and viewer, and an editor only viewer, and a viewer nothing
  * - the table of permissions matches the roles the server allows for each action
@@ -14,6 +14,7 @@ import { canManage, canManageMembers, grantableRoles, permissionRows, roles } fr
 describe('roles', () => {
   it('lets only admins and the owner manage members', () => {
     expect(roles.filter(canManageMembers)).toEqual(['owner', 'admin'])
+    expect(roles.filter(canManageSites)).toEqual(['owner', 'admin', 'editor'])
   })
 
   it('lets a member act only on members ranked below them', () => {

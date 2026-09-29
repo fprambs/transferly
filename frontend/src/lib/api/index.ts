@@ -55,6 +55,10 @@ export type InstanceLimitsView = Schemas['InstanceLimitsView']
 export type Networks = Schemas['Networks']
 /** A collection that groups sites. */
 export type Collection = Schemas['Collection']
+
+/** A bookmarked folder of a saved site (4.14b). */
+export type Bookmark = Schemas['Bookmark']
+
 /** What to change in a collection. */
 export type CollectionChanges = Schemas['CollectionChanges']
 /** A saved connection. */
@@ -248,6 +252,15 @@ export function createApi(transport: Transport) {
     },
     sshKeys: {
       inspect: (key: string, passphrase?: string) => transport.request<SshKeyInfo>({ method: 'POST', path: `${root}/ssh-keys/inspect`, body: { key, passphrase } }),
+    },
+    bookmarks: {
+      list: (workspaceId: string, siteId: string) => transport.request<Bookmark[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/bookmarks` }),
+      create: (workspaceId: string, siteId: string, input: { name: string; path: string }) =>
+        transport.request<Bookmark>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/bookmarks`, body: input }),
+      update: (workspaceId: string, siteId: string, bookmarkId: string, changes: { name?: string; path?: string }) =>
+        transport.request<Bookmark>({ method: 'PATCH', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/bookmarks/${bookmarkId}`, body: changes }),
+      remove: (workspaceId: string, siteId: string, bookmarkId: string) =>
+        transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/bookmarks/${bookmarkId}` }),
     },
     hostKeys: {
       list: (workspaceId: string) => transport.request<KnownHost[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/known-hosts` }),

@@ -17,6 +17,7 @@ import { useTimeZone } from '../auth/use-time-zone'
 import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { useSitesData } from '../sites/use-sites-data'
 
+import { BookmarksMenu } from '../bookmarks/BookmarksMenu'
 import { Breadcrumbs } from './Breadcrumbs'
 import { TimeZoneProbe } from './TimeZoneProbe'
 import { localSiteId, readLocalFile } from '../local/local-fs'
@@ -116,6 +117,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const canceled = !listing.isFetching && (listing.isPending || listing.isPlaceholderData)
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
+  const savedSite = sites.find((saved) => saved.id === siteId)
   const showPermissions = target === undefined || target.protocol === 'sftp'
   const hostKey = unknownHostKeyOf(listing.error)
   const changedKey = changedHostKeyOf(listing.error)
@@ -279,6 +281,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           <ArrowUp />
         </Button>
         <Breadcrumbs path={path} onNavigate={onNavigate} />
+        {savedSite !== undefined && <BookmarksMenu workspaceId={workspaceId} siteId={siteId} siteName={savedSite.name} path={path} onNavigate={onNavigate} />}
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
         <input
           ref={picker}

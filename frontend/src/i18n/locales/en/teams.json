@@ -179,6 +179,7 @@
       "sites": "Sites",
       "keys": "Keys",
       "servers": "Trusted servers",
+      "bookmarks": "Bookmarks",
       "workspace": "Workspace"
     },
     "time": "When",
@@ -208,7 +209,10 @@
       "sitesImported": "imported {{sites}} sites from FileZilla",
       "hostKeyTrusted": "trusted the server {{target}}",
       "hostKeyForgotten": "forgot the server {{target}}",
-      "unknown": "{{action}} {{target}}"
+      "unknown": "{{action}} {{target}}",
+      "bookmarkCreated": "bookmarked {{target}} ({{path}})",
+      "bookmarkUpdated": "changed the bookmark {{target}} ({{path}})",
+      "bookmarkDeleted": "removed the bookmark {{target}} ({{path}})"
     }
   }
 }

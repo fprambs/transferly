@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
+import type { Bookmark, VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
 import { server } from './msw'
 
 /** A signed-in administrator with an anti-CSRF token. */
@@ -56,10 +56,12 @@ export interface WorkspaceData {
   quick?: QuickConnection[]
   /** Sites and quick connections with connections open. */
   connected?: string[]
+  /** Bookmarks every saved site has (4.14b). */
+  bookmarks?: Bookmark[]
 }
 
-/** Answers the workspace, collection, site, quick connection and open connection lists; whatever is not given is empty. */
-export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [], connected = [] }: WorkspaceData = {}): void {
+/** Answers the workspace, collection, site, quick connection, open connection and bookmark lists; whatever is not given is empty. */
+export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [], connected = [], bookmarks = [] }: WorkspaceData = {}): void {
   mockVault()
   server.use(
     http.get('/api/v1/workspaces', () => HttpResponse.json(workspaces)),
@@ -67,6 +69,7 @@ export function mockWorkspaceData({ workspaces = [personalWorkspace], collection
     http.get('/api/v1/workspaces/:id/sites', () => HttpResponse.json(sites)),
     http.get('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(quick)),
     http.get('/api/v1/workspaces/:id/connections', () => HttpResponse.json({ siteIds: connected })),
+    http.get('/api/v1/workspaces/:id/sites/:siteId/bookmarks', () => HttpResponse.json(bookmarks)),
   )
 }
 
