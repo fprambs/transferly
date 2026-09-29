@@ -10,7 +10,8 @@ import { expect, test } from '../fixtures.ts'
  * - following the system wears the light theme when the browser prefers light
  * - choosing Spanish translates the interface and survives a reload
  * - the theme is saved to the account: it comes back when the browser's own storage is empty
- * - what a double click on a file does is saved to the account too (4.14a), on an account of its own so other tests keep downloading
+ * - the language and what a double click on a file does are saved to the account too (4.14a), on an account of its own so other tests
+ *   keep their language and keep downloading
  * - the transfer queue can be collapsed and expanded
  */
 test.describe('preferences', () => {
@@ -30,7 +31,7 @@ test.describe('preferences', () => {
     })
   })
 
-  test('brings the double click action back from the account when the browser storage is empty', async ({ request, playwright, browser, baseURL }) => {
+  test('brings the language and the double click action back from the account when the browser storage is empty', async ({ request, playwright, browser, baseURL }) => {
     const stamp = Date.now()
     const guest = await playwright.request.newContext({ baseURL, storageState: { cookies: [], origins: [] } })
     await createAccount(request, guest, `double-click-${stamp}@example.com`, `Double click team ${stamp}`)
@@ -42,11 +43,15 @@ test.describe('preferences', () => {
     const saved = page.waitForResponse((response) => response.url().endsWith('/api/v1/me') && response.request().method() === 'PATCH')
     await select.selectOption('edit')
     expect((await saved).ok()).toBe(true)
+    const language = page.waitForResponse((response) => response.url().endsWith('/api/v1/me') && response.request().method() === 'PATCH')
+    await page.locator('#language-setting').selectOption('es')
+    expect((await language).ok()).toBe(true)
 
     await page.evaluate(() => globalThis.localStorage.clear())
     await page.reload()
 
-    await expect(page.getByLabel('Double click on a file')).toHaveValue('edit')
+    await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()
+    await expect(page.getByLabel('Doble clic en un archivo')).toHaveValue('edit')
     await context.close()
     await guest.dispose()
   })

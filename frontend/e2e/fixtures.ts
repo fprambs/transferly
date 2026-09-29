@@ -6,23 +6,23 @@ import { quickConnectionPath } from './global-setup.ts'
 import { ShellPage } from './pages/shell-page.ts'
 
 /**
- * Test fixtures: the account's saved theme, kept per test so parallel tests cannot change each other's look (a test that
- * wants the real account passes `accountTheme: 'real'`), an application shell that is already open, signed in by the global setup, the shared quick connection,
+ * Test fixtures: the account's saved preferences (theme, language, double click), kept per test so parallel tests cannot change each
+ * other's look or language (a test that wants the real account passes `accountTheme: 'real'`), an application shell that is already open, signed in by the global setup, the shared quick connection,
  * and an empty folder of the test's own on the SFTP server of the test stack, removed when the test ends, so what a test lists never depends on what other
  * tests left behind. */
 export const test = base.extend<{ shell: ShellPage; quickId: string; folder: string; accountTheme: 'mocked' | 'real' }>({
   accountTheme: ['mocked', { option: true }],
   page: async ({ page, accountTheme }, use) => {
     if (accountTheme === 'mocked') {
-      let theme = 'sentinel-dark'
+      const preferences: Record<string, unknown> = { theme: 'sentinel-dark' }
       await page.route('**/api/v1/me', async (route) => {
         const request = route.request()
         if (request.method() === 'PATCH') {
-          theme = (request.postDataJSON() as { theme?: string }).theme ?? theme
+          Object.assign(preferences, request.postDataJSON() as Record<string, unknown>)
         }
         const response = await route.fetch({ method: 'GET', postData: undefined })
         const body = (await response.json()) as { user: Record<string, unknown> }
-        const user = { ...body.user, theme }
+        const user = { ...body.user, ...preferences }
         await route.fulfill({ status: 200, json: request.method() === 'PATCH' ? user : { ...body, user } })
       })
     }
