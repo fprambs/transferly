@@ -50,3 +50,19 @@ docker compose -f compose.dev.yaml run --rm -e SENTINEL_TEST_SFTP_ADDR=sftp:22 t
 ```
 
 - The in-process server is not a security boundary and only follows the parts of the protocol the adapter uses. Anything that differs on a real server is a bug of `sftptest`: fix it there and keep the real-server run green.
+
+## Download speed (4.13)
+
+`File.Read` sends one request per call, so a copy through `Read` moves one 32 KB chunk per round trip: over a link with 20 ms of latency that caps a download at about 1.6 MB/s whatever the bandwidth. `File.WriteTo` keeps several requests in flight (`UseConcurrentReads`, `MaxConcurrentRequestsPerFile`) and is what makes SFTP fast. Every wrapper between the file and the HTTP response must therefore keep `WriteTo`, or `io.Copy` falls back to `Read`: `io.LimitReader` does not have it, which is how downloads ended up twenty times slower than other clients.
+
+- `files.body` hands the destination to the file when the stream runs to the end of the file, reporting progress, bandwidth caps and cancellation on each chunk written; a range that stops earlier copies chunk by chunk.
+- The transfer tracker's download wrapper keeps `WriteTo` too, and tells a failing destination (a browser that left, which ends the transfer as interrupted) from a failing file (failed, with its code).
+- `TestRemoteFiles_DownloadReadsAhead` fails if a download over HTTP stops reaching the file's `WriteTo`.
+
+Measured with `scripts/bench-sftp-download.sh` against the isolated test stack, 64 MiB, 2026-09-29:
+
+| | local network | 20 ms added |
+|---|---|---|
+| OpenSSH `sftp` | 33–55 MB/s | 28–31 MB/s |
+| Sentinel before | 20–27 MB/s | 1.5 MB/s |
+| Sentinel after | — | 39–57 MB/s |
