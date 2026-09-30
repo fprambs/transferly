@@ -96,7 +96,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - FTP and FTPS report no permissions, so their entries and details show a dash instead of nominal ones
  * - the dates follow the interface language
  * - the search button opens a search of the folder in view, and a chosen match navigates there
- * - Space, the menu and, when the user prefers, a double click show a file in the viewer, which walks the files of the folder, keeps the
+ * - Space, the menu, the details panel and, when the user prefers, a double click show a file in the viewer, which walks the files of the folder, keeps the
  *   selection with it, downloads and opens the editor
  */
 describe('explorer', () => {
@@ -420,7 +420,7 @@ describe('explorer', () => {
     expect(links).toHaveLength(2)
   })
 
-  it('shows files in the viewer with Space, from the menu and with a double click when the user prefers', async () => {
+  it('shows files in the viewer with Space, from the menu, from the details panel and with a double click when the user prefers', async () => {
     mockListing([entry('a.txt', { size: 5 }), entry('b.bin', { size: 3 }), entry('docs', { type: 'directory', size: 0 })])
     server.use(
       http.get('/api/v1/workspaces/:id/sites/s1/files/content', ({ request }) => {
@@ -453,6 +453,12 @@ describe('explorer', () => {
     expect(await screen.findByRole('dialog', { name: 'a.txt' })).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: 'Open in the editor' }))
     expect(await screen.findByRole('dialog', { name: '/www/a.txt' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await user.click(within(grid).getByText('b.bin'))
+    await user.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Preview' }))
+    expect(await screen.findByRole('dialog', { name: 'b.bin' })).toHaveTextContent('2 of 2')
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 

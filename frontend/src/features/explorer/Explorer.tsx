@@ -563,6 +563,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
                 onDownload={download}
                 onDownloadEach={(entry) => void downloadEach(entry)}
                 onChecksum={(entry, algorithm) => api.files.checksum(workspaceId, siteId, entry.path, algorithm)}
+                onPreview={preview}
                 onEdit={edit}
                 onRename={(entry) => setDialog({ kind: 'rename', entry })}
                 onDelete={(entry) => setDialog({ kind: 'delete', entry })}

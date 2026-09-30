@@ -1,4 +1,4 @@
-import { Copy, Download, FilePen, Files, Hash, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Download, Eye, FilePen, Files, Hash, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -27,6 +27,8 @@ export interface InspectorProps {
   onDownloadEach: (entry: RemoteEntry) => void
   /** Called to compute the checksum of the entry when it is a file. */
   onChecksum: (entry: RemoteEntry, algorithm: ChecksumAlgorithm) => Promise<Checksum>
+  /** Called to show the entry in the viewer when it is a file; the button is left out without it. */
+  onPreview?: (entry: RemoteEntry) => void
   /** Called to open the entry in the remote editor when it is a file; the button is left out without it. */
   onEdit?: (entry: RemoteEntry) => void
   /** Called to rename the entry. */
@@ -36,7 +38,7 @@ export interface InspectorProps {
 }
 
 /** Side panel with the details of the selected entry and its actions. */
-export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onEdit, onRename, onDelete }: InspectorProps) {
+export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onPreview, onEdit, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
   const describeType = useDescribeType()
   const [algorithm, setAlgorithm] = useState<ChecksumAlgorithm>('sha256')
@@ -114,6 +116,12 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
+        {entry.type === 'file' && onPreview ? (
+          <Button variant="outline" size="sm" onClick={() => onPreview(entry)}>
+            <Eye />
+            {t(($) => $.menu.preview)}
+          </Button>
+        ) : null}
         {entry.type === 'file' || entry.type === 'directory' ? (
           <Button variant="outline" size="sm" onClick={() => onDownload(entry)}>
             <Download />
