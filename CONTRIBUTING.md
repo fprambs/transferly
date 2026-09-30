@@ -17,6 +17,10 @@ By contributing you agree that your work is licensed under the [Apache License 2
 
 See the quality policy in [docs/ROADMAP.md](docs/ROADMAP.md): tests with every change, 100 percent coverage of production code, English documentation on every declaration, and no comments inside function bodies. Library conventions live in [docs/guides](docs/guides/README.md).
 
+## Translations
+
+To add or improve a language of the interface, follow [Adding a language](docs/guides/i18n.md#adding-a-language): copy the English folder, translate it, register the language in one line and run the translation tests.
+
 ## Common commands
 
 | Command | Purpose |
