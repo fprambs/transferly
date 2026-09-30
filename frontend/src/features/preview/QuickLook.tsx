@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, CircleAlert, Download, PencilLine, X } from 'lucide-react'
-import type { KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -79,11 +79,12 @@ function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?: (sour
 /**
  * Shows a file inside Sentinel without downloading it, full screen in the style of Quick Look (ADR-0018). The arrows move to the previous
  * and next file of the folder and Escape closes; the bar names the file and offers to download it. The viewer is chosen by what the file
- * holds, read from its first bytes. A viewer with a text field of its own stops the arrow keys typed in it from reaching the viewer.
+ * holds, read from its first bytes. It opens with the focus on the file, not on a button, so the first Escape closes it. A viewer with a text field of its own stops the arrow keys typed in it from reaching the viewer.
  */
 export function QuickLook({ sources, index, onIndexChange, onClose, onDownload, onEdit }: QuickLookProps) {
   const { t } = useTranslation('preview')
   const source = index === null ? undefined : sources[index]
+  const body = useRef<HTMLDivElement>(null)
   const go = (from: number, step: number): void => {
     if (sources[from + step] !== undefined) {
       onIndexChange(from + step)
@@ -104,7 +105,10 @@ export function QuickLook({ sources, index, onIndexChange, onClose, onDownload, 
         }
   return (
     <Dialog open={source !== undefined} onOpenChange={() => onClose()}>
-      <DialogContent showCloseButton={false} className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none" onKeyDown={onKeyDown}>
+      <DialogContent showCloseButton={false} className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none"
+        initialFocus={body}
+        onKeyDown={onKeyDown}
+      >
         {source !== undefined && index !== null && (
           <>
             <header className="flex items-center gap-3 border-b px-4 py-2.5">
@@ -138,7 +142,7 @@ export function QuickLook({ sources, index, onIndexChange, onClose, onDownload, 
                 </Button>
               </Tip>
             </header>
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div ref={body} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
               <PreviewBody key={source.key} source={source} onEdit={onEdit} />
             </div>
           </>

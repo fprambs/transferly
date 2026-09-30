@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -96,6 +96,8 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - FTP and FTPS report no permissions, so their entries and details show a dash instead of nominal ones
  * - the dates follow the interface language
  * - the search button opens a search of the folder in view, and a chosen match navigates there
+ * - Space, the menu and, when the user prefers, a double click show a file in the viewer, which walks the files of the folder, keeps the
+ *   selection with it, downloads and opens the editor
  */
 describe('explorer', () => {
   beforeEach(() => {
@@ -416,6 +418,47 @@ describe('explorer', () => {
     await user.dblClick(within(grid).getByText('notes.txt'))
     expect(await screen.findByRole('dialog')).toHaveTextContent('/www/notes.txt')
     expect(links).toHaveLength(2)
+  })
+
+  it('shows files in the viewer with Space, from the menu and with a double click when the user prefers', async () => {
+    mockListing([entry('a.txt', { size: 5 }), entry('b.bin', { size: 3 }), entry('docs', { type: 'directory', size: 0 })])
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files/content', ({ request }) => {
+        const path = new URL(request.url).searchParams.get('path')
+        return new HttpResponse(path === '/www/a.txt' ? 'hello' : new Uint8Array([0, 1, 2]), { status: 206 })
+      }),
+      http.get('/api/v1/workspaces/:id/sites/s1/files/entry', () => HttpResponse.json(entry('a.txt', { size: 5 }))),
+    )
+    const links: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      links.push(this.href)
+    })
+    const { user } = await renderExplorer()
+    const grid = await screen.findByRole('grid')
+
+    await user.click(within(grid).getByText('a.txt'))
+    await user.keyboard(' ')
+    const viewer = await screen.findByRole('dialog', { name: 'a.txt' })
+    expect(viewer).toHaveTextContent('1 of 2')
+    await user.keyboard('{ArrowRight}')
+    expect(await screen.findByRole('dialog', { name: 'b.bin' })).toBeInTheDocument()
+    expect(within(grid).getByText('b.bin').closest('[role="row"]')).toHaveAttribute('aria-selected', 'true')
+    await user.click(screen.getByRole('button', { name: 'Download' }))
+    expect(links.at(-1)).toContain('path=%2Fwww%2Fb.bin')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.contextMenu(within(grid).getByText('a.txt'))
+    await user.click(await screen.findByRole('menuitem', { name: 'Preview' }))
+    expect(await screen.findByRole('dialog', { name: 'a.txt' })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Open in the editor' }))
+    expect(await screen.findByRole('dialog', { name: '/www/a.txt' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    act(() => useUiStore.getState().setFileDoubleClick('preview'))
+    await user.dblClick(within(grid).getByText('b.bin'))
+    expect(await screen.findByRole('dialog', { name: 'b.bin' })).toHaveTextContent('2 of 2')
   })
 
   it('opens a file in the remote editor from the details panel, saves it and reloads the folder on close', async () => {

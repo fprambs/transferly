@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware'
 import { defaultThemeId, findTheme } from '@/lib/theme'
 
 /** What a double click, or Enter, does on a file of the explorer: download it, as FileZilla does, or open it in the remote editor. */
-export type FileDoubleClick = 'download' | 'edit'
+export type FileDoubleClick = 'download' | 'edit' | 'preview'
 
 /** The tabs of the transfer queue panel. */
 export type QueueTab = 'active' | 'finished' | 'activity'

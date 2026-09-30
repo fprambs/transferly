@@ -16,7 +16,8 @@ const entry: RemoteEntry = { name: 'a.bin', path: '/d/a.bin', type: 'file', size
  *
  * Scenarios:
  * - a remote source reads a range of the file with a ranged request, cut to its size, and an empty range asks nothing
- * - a local source reads slices of the file, cut to its size, and knows its name, size and time
+ * - a local source opens the file on its first read only, reads slices of it cut to its size, and takes its name, size and time from the
+ *   listing
  */
 describe('preview sources', () => {
   it('reads ranges of a remote file', async () => {
@@ -36,12 +37,15 @@ describe('preview sources', () => {
     expect(ranges).toHaveLength(1)
   })
 
-  it('reads slices of a local file', async () => {
-    const file = new File(['hello world'], 'hi.txt', { lastModified: Date.UTC(2026, 8, 29) })
-    const source = localSource(file, '/docs/hi.txt')
+  it('reads slices of a local file, opening it once', async () => {
+    let opened = 0
+    const open = async () => (opened++, new File(['hello world'], 'hi.txt'))
+    const source = localSource({ ...entry, name: 'hi.txt', path: '/docs/hi.txt', size: 11 }, open)
 
-    expect(source).toMatchObject({ key: 'local:/docs/hi.txt', name: 'hi.txt', size: 11, modifiedAt: '2026-09-29T00:00:00.000Z' })
+    expect(source).toMatchObject({ key: 'local:/docs/hi.txt', name: 'hi.txt', size: 11, modifiedAt: '2026-09-29T12:00:00Z' })
+    expect(opened).toBe(0)
     expect(new TextDecoder().decode(await source.read(6, 100))).toBe('world')
     expect(await source.read(-5, 0)).toHaveLength(0)
+    expect(opened).toBe(1)
   })
 })

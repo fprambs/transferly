@@ -37,16 +37,19 @@ export function remoteSource(api: Api, workspaceId: string, siteId: string, entr
   }
 }
 
-/** A file of the local panel, read by slices of the file the browser gave access to. */
-export function localSource(file: File, path: string): PreviewSource {
+/** A file of the local panel, read by slices of the file the browser gives access to; the file is opened on the first read only. */
+export function localSource(entry: RemoteEntry, open: () => Promise<File>): PreviewSource {
+  let file: Promise<File> | undefined
   return {
-    key: `local:${path}`,
-    name: file.name,
-    size: file.size,
-    modifiedAt: new Date(file.lastModified).toISOString(),
+    key: `local:${entry.path}`,
+    name: entry.name,
+    size: entry.size,
+    modifiedAt: entry.modifiedAt,
     read: async (start, end) => {
-      const [from, to] = clamp(file.size, start, end)
-      return new Uint8Array(await file.slice(from, to).arrayBuffer())
+      file ??= open()
+      const opened = await file
+      const [from, to] = clamp(opened.size, start, end)
+      return new Uint8Array(await opened.slice(from, to).arrayBuffer())
     },
   }
 }

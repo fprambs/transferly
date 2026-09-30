@@ -99,7 +99,8 @@ async function chooseFolder(user: ReturnType<typeof userEvent.setup>, pane: HTML
  *
  * Scenarios:
  * - without a folder picker the pane says so and the selector does not offer it; with one it does, and asks to choose a folder first
- * - choosing a folder lists it, folders open and the path steps, Backspace goes up, refresh works, and a closed dialog changes nothing
+ * - choosing a folder lists it, folders open and the path steps, a file opens in the viewer, Backspace goes up, refresh works, and a closed
+ *   dialog changes nothing
  * - changing the folder shows the new one
  * - a folder that cannot be read is reported
  * - a remote file dropped on the pane is downloaded into the folder in view, with a hint while over it, and the listing shows it
@@ -161,6 +162,9 @@ describe('local folder pane', () => {
     expect(await within(await within(pane).findByRole('grid')).findByText('cat.png')).toBeInTheDocument()
     expect(history.location.search).toContain('splitPath=%2Fphotos')
     await user.dblClick(within(within(pane).getByRole('grid')).getByText('cat.png'))
+    expect(await screen.findByRole('dialog', { name: 'cat.png' })).toHaveTextContent('1 of 1')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(history.location.search).toContain('splitPath=%2Fphotos')
 
     within(pane).getByRole('grid').focus()

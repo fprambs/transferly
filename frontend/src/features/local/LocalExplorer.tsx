@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { PanelState } from '@/components/ui/panel-state'
 import { LoadingBar } from '@/components/ui/loading-bar'
+import type { RemoteEntry } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { ApiError } from '@/lib/transport'
 import { uuid } from '@/lib/uuid'
@@ -18,9 +19,11 @@ import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from '../explorer
 import { parentPath, sortEntries } from '../explorer/entries'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from '../explorer/errors'
 import { resolveTimeZone } from '@/lib/datetime'
+import { QuickLook } from '../preview/QuickLook'
+import { localSource } from '../preview/source'
 
 import { downloadFolderToLocal, type LocalPolicy, type SaveFailure } from './download-tree'
-import { listLocal, LocalNameTaken, localSiteId, localSupported, pickLocalDirectory, saveToLocal } from './local-fs'
+import { listLocal, LocalNameTaken, localSiteId, localSupported, pickLocalDirectory, readLocalFile, saveToLocal } from './local-fs'
 import { useLocalRoot } from './local-root-store'
 
 /** Props of {@link LocalExplorer}. */
@@ -59,6 +62,10 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
     enabled: root !== null,
   })
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
+  const [previewing, setPreviewing] = useState<number | null>(null)
+  const files = useMemo(() => entries.filter((entry) => entry.type === 'file'), [entries])
+  const sources = useMemo(() => files.map((entry) => localSource(entry, () => readLocalFile(root as FileSystemDirectoryHandle, entry.path))), [files, root])
+  const preview = (entry: RemoteEntry): void => setPreviewing(files.findIndex((file) => file.path === entry.path))
   const timeZone = resolveTimeZone()
 
   const choose = async (): Promise<void> => {
@@ -200,11 +207,22 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
             showPermissions={false}
             selectedPath={selectedPath}
             onSelect={(entry) => setSelectedPath(entry.path)}
+            onOpenFile={preview}
+            onPreview={preview}
             dragFolders
             onDragEntry={(entry, data) => writeDrag(data, { workspaceId, siteId: localSiteId, path: entry.path, isFolder: entry.type === 'directory' })}
           />
         </div>
       )}
+      <QuickLook
+        sources={sources}
+        index={previewing}
+        onIndexChange={(index) => {
+          setPreviewing(index)
+          setSelectedPath(files[index].path)
+        }}
+        onClose={() => setPreviewing(null)}
+      />
     </section>
   )
 }

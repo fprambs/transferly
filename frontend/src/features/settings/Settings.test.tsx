@@ -165,9 +165,11 @@ describe('settings', () => {
     expect(select).toHaveTextContent('Download it')
     await choose(user, select, 'Open it in the editor')
     expect(useUiStore.getState().fileDoubleClick).toBe('edit')
+    await choose(user, select, 'Show it in the viewer')
+    expect(useUiStore.getState().fileDoubleClick).toBe('preview')
     await choose(user, select, 'Download it')
     expect(useUiStore.getState().fileDoubleClick).toBe('download')
-    await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit' }, { fileDoubleClick: 'download' }]))
+    await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit' }, { fileDoubleClick: 'preview' }, { fileDoubleClick: 'download' }]))
   })
 
   it('keeps the double click choice and says so when saving fails', async () => {

@@ -45,6 +45,8 @@ import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { SearchDialog } from '../search/SearchDialog'
 import { RemoteEditor } from '../editor/RemoteEditor'
+import { QuickLook } from '../preview/QuickLook'
+import { remoteSource, type PreviewSource } from '../preview/source'
 
 import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
@@ -183,6 +185,12 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   }
 
   const edit = (entry: RemoteEntry): void => setDialog({ kind: 'edit', entry })
+
+  const [previewing, setPreviewing] = useState<number | null>(null)
+  const files = useMemo(() => visible.filter((entry) => entry.type === 'file'), [visible])
+  const sources = useMemo(() => files.map((entry) => remoteSource(api, workspaceId, siteId, entry)), [files, api, workspaceId, siteId])
+  const preview = (entry: RemoteEntry): void => setPreviewing(files.findIndex((file) => file.path === entry.path))
+  const entryOf = (source: PreviewSource): RemoteEntry => files[sources.indexOf(source)]
 
   const downloadEach = async (folder: RemoteEntry): Promise<void> => {
     try {
@@ -529,7 +537,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
                 locale={i18n.language}
                 timeZone={timeZone}
                 onOpen={open}
-                onOpenFile={(entry) => (fileDoubleClick === 'edit' ? edit(entry) : download(entry))}
+                onOpenFile={(entry) => (fileDoubleClick === 'edit' ? edit(entry) : fileDoubleClick === 'preview' ? preview(entry) : download(entry))}
                 onUp={() => onNavigate(parentPath(path))}
                 showPermissions={showPermissions}
                 selectedPath={selectedPath}
@@ -537,6 +545,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
                 onDownload={download}
                 onDownloadEach={(entry) => void downloadEach(entry)}
                 onEdit={edit}
+                onPreview={preview}
                 onRename={(entry) => setDialog({ kind: 'rename', entry })}
                 onDelete={(entry) => setDialog({ kind: 'delete', entry })}
                 onNewFolder={() => setDialog({ kind: 'newFolder' })}
@@ -561,6 +570,20 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           </Panel>
         </Group>
       )}
+      <QuickLook
+        sources={sources}
+        index={previewing}
+        onIndexChange={(index) => {
+          setPreviewing(index)
+          setSelectedPath(files[index].path)
+        }}
+        onClose={() => setPreviewing(null)}
+        onDownload={(source) => download(entryOf(source))}
+        onEdit={(source) => {
+          setPreviewing(null)
+          edit(entryOf(source))
+        }}
+      />
       {dialog?.kind === 'newFolder' && (
         <EntryNameDialog
           mode="newFolder"

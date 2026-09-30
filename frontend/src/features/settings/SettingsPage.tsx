@@ -83,9 +83,10 @@ export function SettingsPage() {
           options={[
             { value: 'download', label: t(($) => $.explorer.download) },
             { value: 'edit', label: t(($) => $.explorer.edit) },
+            { value: 'preview', label: t(($) => $.explorer.preview) },
           ]}
           onValueChange={(value) => {
-            const action = value === 'edit' ? 'edit' : 'download'
+            const action = value === 'edit' || value === 'preview' ? value : 'download'
             setFileDoubleClick(action)
             void doubleClick.save({ fileDoubleClick: action })
           }}
