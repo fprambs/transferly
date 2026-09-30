@@ -20,6 +20,7 @@ import { parentPath, sortEntries } from '../explorer/entries'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from '../explorer/errors'
 import { resolveTimeZone } from '@/lib/datetime'
 import { QuickLook } from '../preview/QuickLook'
+import { withLocalArchive } from '../preview/local-archive'
 import { localSource } from '../preview/source'
 
 import { downloadFolderToLocal, type LocalPolicy, type SaveFailure } from './download-tree'
@@ -64,7 +65,14 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
   const [previewing, setPreviewing] = useState<number | null>(null)
   const files = useMemo(() => entries.filter((entry) => entry.type === 'file'), [entries])
-  const sources = useMemo(() => files.map((entry) => localSource(entry, () => readLocalFile(root as FileSystemDirectoryHandle, entry.path))), [files, root])
+  const sources = useMemo(
+    () =>
+      files.map((entry) => {
+        const open = () => readLocalFile(root as FileSystemDirectoryHandle, entry.path)
+        return withLocalArchive(localSource(entry, open), open)
+      }),
+    [files, root],
+  )
   const preview = (entry: RemoteEntry): void => setPreviewing(files.findIndex((file) => file.path === entry.path))
   const timeZone = resolveTimeZone()
 

@@ -17,6 +17,7 @@ import { ErrorGuide } from '../../errors/ErrorGuide'
 import { formatSize } from '../../explorer/entries'
 import { FileTypeIcon } from '../../explorer/FileTypeIcon'
 import { fileTypeOf } from '../../explorer/file-types'
+import { LocalArchiveUnsupported } from '../local-archive'
 import { PreviewBody } from '../PreviewBody'
 import { EntryTooLarge, maxEntryBytes, type ArchiveAccess, type PreviewSource } from '../source'
 
@@ -297,6 +298,9 @@ function ArchiveBrowser({ source, archive }: { source: PreviewSource; archive: A
   })
   if (listing.isPending) {
     return <Loading label={t(($) => $.archive.loading)} className="m-auto" />
+  }
+  if (listing.error instanceof LocalArchiveUnsupported) {
+    return <PanelState icon={FileArchive} tone="warn" title={t(($) => $.archive.localUnsupported)} description={t(($) => $.archive.localUnsupportedBody)} />
   }
   if (listing.isError) {
     return <Failure error={listing.error} title={t(($) => $.archive.failed)} onRetry={() => void listing.refetch()} />

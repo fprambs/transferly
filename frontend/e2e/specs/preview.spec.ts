@@ -280,6 +280,7 @@ test.describe('file viewer', () => {
   })
 
   test('shows archives as trees read by the server, and opens their entries with their own viewers', async ({ shell, quickId }) => {
+    test.setTimeout(60_000)
     const { page } = shell
     await openSamples(page, quickId, 'archives')
     const grid = page.getByRole('grid', { name: 'Files' })

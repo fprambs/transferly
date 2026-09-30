@@ -141,6 +141,8 @@
       "modified": "Modified"
     },
     "bomb": "decompression bomb?",
-    "bombHint": "It claims to grow more than 200 times once extracted, which no real file does. The server refuses to extract it."
+    "bombHint": "It claims to grow more than 200 times once extracted, which no real file does. The server refuses to extract it.",
+    "localUnsupported": "The browser cannot open this archive",
+    "localUnsupportedBody": "It reads ZIP, TAR and gzip archives of your computer. Open 7z, RAR, bzip2, xz and zstd archives from a server, which reads them all."
   }
 }

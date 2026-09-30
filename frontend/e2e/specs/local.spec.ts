@@ -1,11 +1,13 @@
+import { readFileSync } from 'node:fs'
+
 import { expect, test } from '../fixtures.ts'
 
 /** What the page offers the test to reach the folder that the picker answers with. */
 interface FolderTools {
   /** Reads the text of a file of the folder. */
   read: (name: string) => Promise<string>
-  /** Creates or replaces a file of the folder. */
-  write: (name: string, text: string) => void
+  /** Creates or replaces a file of the folder, with text or bytes. */
+  write: (name: string, content: string | Uint8Array) => void
   /** Removes a file of the folder. */
   remove: (name: string) => void
 }
@@ -62,6 +64,8 @@ const folderScript = `
  * - a file dragged from the server onto the local pane is saved in the chosen folder with the same content, and listed; the headers of
  *   the local table sit on one line
  * - a file of the chosen folder dragged onto the server pane is uploaded, listed there and shown as a finished upload
+ * - a ZIP of the folder opens in the viewer as a tree read by the browser, and its files open with their own viewers; a 7z, which the
+ *   browser does not read, points to the server
  */
 test.describe('local folder pane', () => {
   test('exchanges files between the server and a local folder by dragging', async ({ shell, quickId, request }) => {
@@ -111,5 +115,35 @@ test.describe('local folder pane', () => {
 
     await page.evaluate((names) => names.forEach((name) => (globalThis as unknown as { folderTools: FolderTools }).folderTools.remove(name)), [down, up])
     await request.delete(files, { params: { path: `/upload/${source}`, recursive: true }, headers })
+  })
+
+  test('shows archives of the folder read by the browser', async ({ shell, quickId }) => {
+    const { page } = shell
+    await page.addInitScript(folderScript)
+    await page.goto(`/sites/${quickId}?path=%2F&split=local`)
+    const local = page.getByRole('group', { name: 'Second pane' })
+    await local.getByRole('button', { name: 'Choose a folder' }).click()
+    for (const name of ['project.zip', 'project.7z']) {
+      const bytes = [...readFileSync(`../testenv/preview-samples/archives/${name}`)]
+      await page.evaluate(([file, content]) => (globalThis as unknown as { folderTools: FolderTools }).folderTools.write(file as string, new Uint8Array(content as number[])), [name, bytes])
+    }
+    await local.getByRole('button', { name: 'Refresh' }).click()
+    const localGrid = local.getByRole('grid', { name: 'Files' })
+    await localGrid.getByRole('row', { name: /^project\.zip/ }).click()
+    await page.keyboard.press(' ')
+    const viewer = page.getByRole('dialog', { name: 'project.zip' })
+    const tree = viewer.getByRole('tree', { name: 'Contents of project.zip' })
+    await expect(viewer).toContainText('8 files')
+    await tree.getByRole('treeitem', { name: 'src' }).dblclick()
+    await tree.getByRole('treeitem', { name: 'code.go' }).dblclick()
+    await expect(viewer.getByLabel('Contents of code.go')).toContainText('func hello')
+    await page.screenshot({ path: 'shots/preview-archive-local.png' })
+    await page.keyboard.press('Escape')
+
+    await localGrid.getByRole('row', { name: /^project\.7z/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'project.7z' })).toContainText('The browser cannot open this archive')
+    await page.keyboard.press('Escape')
+    await page.evaluate(() => ['project.zip', 'project.7z'].forEach((name) => (globalThis as unknown as { folderTools: FolderTools }).folderTools.remove(name)))
   })
 })

@@ -141,6 +141,8 @@
       "modified": "Modificado"
     },
     "bomb": "¿bomba de descompresión?",
-    "bombHint": "Declara crecer más de 200 veces al extraerse, algo que ningún archivo real hace. El servidor se niega a extraerla."
+    "bombHint": "Declara crecer más de 200 veces al extraerse, algo que ningún archivo real hace. El servidor se niega a extraerla.",
+    "localUnsupported": "El navegador no puede abrir este archivo comprimido",
+    "localUnsupportedBody": "Lee archivos ZIP, TAR y gzip de tu equipo. Abre los 7z, RAR, bzip2, xz y zstd desde un servidor, que los lee todos."
   }
 }

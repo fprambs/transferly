@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/transport'
 import { bytesSource } from '@/test/preview'
 import { renderWithProviders } from '@/test/render'
 
+import { LocalArchiveUnsupported } from '../local-archive'
 import { EntryTooLarge, type ArchiveAccess, type PreviewSource } from '../source'
 
 import { ArchiveViewer } from './ArchiveViewer'
@@ -52,6 +53,7 @@ const openAsText = async (entry: ArchiveEntry): Promise<PreviewSource> => bytesS
  * - a filter narrows the tree, and says when nothing matches; an empty archive says so; a truncated listing says so
  * - an opened entry shows with its own viewer under a bar with its path and download, and Backspace or the back button return to the tree,
  *   while Backspace typed in a field does not
+ * - an archive of the computer in a format the browser does not read points to the server
  * - a listing or an entry that fails shows its guidance and can be tried again; an entry over the cap says it is too large
  */
 describe('ArchiveViewer', () => {
@@ -106,6 +108,11 @@ describe('ArchiveViewer', () => {
     expect(screen.getAllByRole('treeitem').map((item) => item.getAttribute('aria-label'))).toEqual(['project', 'src', 'main.go'])
     await user.type(filter, 'zzz')
     expect(screen.getByText('No entry matches the filter.')).toBeInTheDocument()
+  })
+
+  it('leaves archives of the computer the browser cannot read to the server', async () => {
+    await show(fakeArchive(async () => Promise.reject(new LocalArchiveUnsupported()), openAsText))
+    expect(await screen.findByText('The browser cannot open this archive')).toBeInTheDocument()
   })
 
   it('says when the archive is empty', async () => {
