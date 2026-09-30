@@ -13,7 +13,7 @@ A workspace's sites are only in Sentinel's database, and their secrets are seale
 
 **The content holds the settings of every site, the path of names of its collection, the empty collections, and the secrets in clear text inside the seal.** Secrets are opened with the key of the session and sealed again under the export key; the workspace key, the vault's DEK and the sealed blobs of the database never leave. Paths are names, not identifiers, so the file imports into any workspace of any instance. Bookmarks, trusted server keys and transfer history stay out.
 
-**Exporting needs the right to manage the sites and the vault unlocked,** is audited with the number of sites, and is answered as a download. Nothing is kept on the server.
+**Exporting needs the admin or owner role and the vault unlocked,** is audited with the number of sites, and is answered as a download. Nothing is kept on the server. Editors manage and connect with the sites, but the API never shows them a secret; an export shows every one, so it stays with the roles that manage the members (security review of phase 4).
 
 **Importing a Sentinel file reuses the FileZilla import:** the same dry run, conflict policy (skip or rename), target collection and one result per site. Storing its secrets needs the vault unlocked. A wrong password and a file that was tampered with are the same refusal, `wrong_export_password`; a file that is not an export is `invalid_export`. A cost above 256 MiB, 10 passes or 8 lanes is refused before deriving anything, so a crafted file cannot exhaust the server, and derivations share the vault's bounded pool.
 

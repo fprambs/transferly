@@ -101,6 +101,7 @@ func TestCan(t *testing.T) {
 		workspace.ActionModify:          {false, true, true, true},
 		workspace.ActionManageSites:     {false, true, true, true},
 		workspace.ActionManageMembers:   {false, false, true, true},
+		workspace.ActionExportSecrets:   {false, false, true, true},
 		workspace.ActionManageWorkspace: {false, false, false, true},
 	}
 	for action, row := range matrix {

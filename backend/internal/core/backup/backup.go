@@ -122,9 +122,10 @@ func NewService(authz Authorizer, sites Sites, importer Importer, sealer *Sealer
 }
 
 // Export writes every collection and site of a workspace, with their secrets, to a file sealed with password, and says how many
-// sites it holds. It needs the right to manage the sites and, when a site has a secret, the vault unlocked in the session.
+// sites it holds. It needs the right to export secrets, which a team gives its admins and owner only, and, when a site has a secret,
+// the vault unlocked in the session.
 func (s *Service) Export(ctx context.Context, actor, workspaceID uuid.UUID, session, password string) ([]byte, int, error) {
-	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
+	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionExportSecrets); err != nil {
 		return nil, 0, err
 	}
 	if err := checkPassword(password); err != nil {

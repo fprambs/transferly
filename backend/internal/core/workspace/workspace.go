@@ -52,6 +52,9 @@ const (
 	ActionManageSites Action = "manage_sites"
 	// ActionManageMembers manages members, limits and reads the audit log.
 	ActionManageMembers Action = "manage_members"
+	// ActionExportSecrets exports the sites with their secrets in clear text inside an encrypted file (ADR-0017). It is kept above
+	// managing the sites, since editors use the secrets to connect but never read them otherwise.
+	ActionExportSecrets Action = "export_secrets"
 	// ActionManageWorkspace deletes the workspace or transfers its ownership.
 	ActionManageWorkspace Action = "manage_workspace"
 )
@@ -64,6 +67,7 @@ var permissions = map[Action][]Role{
 	ActionModify:          {RoleEditor, RoleAdmin, RoleOwner},
 	ActionManageSites:     {RoleEditor, RoleAdmin, RoleOwner},
 	ActionManageMembers:   {RoleAdmin, RoleOwner},
+	ActionExportSecrets:   {RoleAdmin, RoleOwner},
 	ActionManageWorkspace: {RoleOwner},
 }
 

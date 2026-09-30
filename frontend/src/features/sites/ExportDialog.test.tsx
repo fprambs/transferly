@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, problem } from '@/test/handlers'
+import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, personalWorkspace, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 import { renderWithProviders } from '@/test/render'
@@ -43,6 +43,7 @@ async function renderDialog() {
  * - the export sends the password, saves the file under a name with the day, and says where it went
  * - a locked vault offers to unlock it in place, and other failures are explained
  * - the dialog closes from its button and with Escape, and the sites sidebar opens it
+ * - the sidebar offers the export to admins and owners only, since it shows every secret of a team
  */
 describe('ExportDialog', () => {
   beforeEach(() => {
@@ -115,5 +116,12 @@ describe('ExportDialog', () => {
 
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('offers the export to admins and owners only', async () => {
+    mockWorkspaceData({ workspaces: [{ ...personalWorkspace, kind: 'team', name: 'Acme', role: 'editor' }] })
+    await renderApp()
+    expect(await screen.findByRole('button', { name: 'Import sites' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Export sites' })).not.toBeInTheDocument()
   })
 })

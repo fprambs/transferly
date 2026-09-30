@@ -28,3 +28,20 @@ func TestPhaseFour_BodyLimits(t *testing.T) {
 
 	expectProblem(t, a.sentinelImport(ws, "", exportPassword, strings.Repeat("y", 3<<19), cookie, csrf), http.StatusUnprocessableEntity, "invalid_export")
 }
+
+// TestPhaseFour_ExportNeedsAdmin is the regression net of the export rule of the security review of phase 4: an export shows every
+// secret of a team in clear text inside its file, which editors never read otherwise, so it stays with the admins and the owner.
+//
+// Scenarios:
+//   - editors and viewers are refused with forbidden, and a stranger does not learn that the team exists
+//   - the owner exports the sites of the team
+func TestPhaseFour_ExportNeedsAdmin(t *testing.T) {
+	e := newTeamEnv(t)
+	for _, role := range []string{"editor", "viewer"} {
+		expectProblem(t, e.a.exportCall(e.ws, exportPassword, e.cookie[role], e.csrf[role]), http.StatusForbidden, "forbidden")
+	}
+	expectProblem(t, e.a.exportCall(e.ws, exportPassword, e.cookie["stranger"], e.csrf["stranger"]), http.StatusNotFound, "workspace_not_found")
+	if r := e.a.exportCall(e.ws, exportPassword, e.cookie["owner"], e.csrf["owner"]); r.Status != http.StatusOK {
+		t.Errorf("owner export = %d %s", r.Status, r.Body)
+	}
+}

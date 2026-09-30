@@ -1231,7 +1231,7 @@ export interface paths {
         put?: never;
         /**
          * Export the sites and their secrets to an encrypted file
-         * @description Answers a file with every collection and site of the workspace and their secrets, sealed with the password given, which is never stored (ADR-0017). The password needs at least 12 characters (weak_export_password). Needs the right to manage the sites and, when a site has a secret, the vault unlocked (vault_locked). Audited with the number of sites.
+         * @description Answers a file with every collection and site of the workspace and their secrets, sealed with the password given, which is never stored (ADR-0017). The password needs at least 12 characters (weak_export_password). Needs the admin or owner role and, when a site has a secret, the vault unlocked (vault_locked). Audited with the number of sites.
          */
         post: operations["exportSites"];
         delete?: never;

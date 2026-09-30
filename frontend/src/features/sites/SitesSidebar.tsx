@@ -27,6 +27,11 @@ import { canDrop, treeDragType, type TreeDrag } from './tree-drag'
 import { useOpenConnections } from './use-open-connections'
 import { sitesKeys, useSitesData } from './use-sites-data'
 
+/** Tells whether the user may export the sites of a workspace with their secrets: its admins and owner only (ADR-0017). */
+function canExport(workspace: Workspace | undefined): boolean {
+  return workspace?.role === 'admin' || workspace?.role === 'owner'
+}
+
 /** Indentation of each nesting level, in pixels. */
 const indentPerLevel = 14
 
@@ -381,9 +386,11 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.importSites)} onClick={() => setImporting(true)}>
             <FileInput />
           </Button>
-          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.exportSites)} onClick={() => setExporting(true)}>
-            <FileLock2 />
-          </Button>
+          {canExport(workspace) && (
+            <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.exportSites)} onClick={() => setExporting(true)}>
+              <FileLock2 />
+            </Button>
+          )}
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
             <Plus />
           </Button>
