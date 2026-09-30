@@ -23,6 +23,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   not navigate, and its source is a click away
  * - JSON, YAML, XML and JSON Lines are trees; broken JSON and a YAML alias bomb say they do not parse
  * - CSV and TSV are tables that tell rows, columns and delimiter, and sort by column
+ * - images show with their size, zoom, rotation and camera metadata: PNG, JPEG, GIF, WebP, AVIF, BMP, ICO, SVG and TIFF (on a canvas); a
+ *   hostile SVG runs nothing, and a truncated PNG never breaks the viewer
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -134,6 +136,46 @@ test.describe('file viewer', () => {
     await page.keyboard.press(' ')
     await expect(page.getByRole('dialog', { name: 'semicolon.csv' })).toContainText('separated by semicolons')
     await expect(page.getByRole('dialog', { name: 'semicolon.csv' }).getByRole('cell', { name: '1.299,90' })).toBeVisible()
+  })
+
+  test('shows images with their size, zoom, rotation and camera metadata', async ({ shell, quickId }) => {
+    const { page } = shell
+    await openSamples(page, quickId, 'images')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /sample\.jpg/ }).click()
+    await page.keyboard.press(' ')
+    const viewer = page.getByRole('dialog', { name: 'sample.jpg' })
+    await expect(viewer).toContainText('640 × 400 px')
+    await viewer.getByRole('button', { name: 'Info' }).click()
+    await expect(viewer.getByRole('complementary', { name: 'Info' })).toContainText('Sentinel Camera Preview One')
+    await expect(viewer.getByRole('complementary', { name: 'Info' })).toContainText('200')
+    await page.screenshot({ path: `${shots}/preview-image.png` })
+    await viewer.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(viewer).toContainText('150%')
+    await viewer.getByRole('button', { name: 'Rotate right' }).click()
+    await expect(viewer.getByRole('img', { name: 'sample.jpg' })).toHaveAttribute('style', /rotate\(90deg\)/)
+    await page.keyboard.press('Escape')
+
+    for (const name of ['sample.png', 'sample.webp', 'sample.avif', 'sample.bmp', 'sample.tiff', 'animated.gif', 'sample.ico', 'logo.svg']) {
+      await grid.getByRole('row', { name: new RegExp(name.replace('.', '\\.')) }).click()
+      await page.keyboard.press(' ')
+      await expect(page.getByRole('dialog', { name }).getByText(/\d+ × \d+ px/).first()).toBeVisible()
+      if (name === 'sample.tiff') {
+        await page.screenshot({ path: `${shots}/preview-tiff.png` })
+      }
+      await page.keyboard.press('Escape')
+    }
+
+    await grid.getByRole('row', { name: /hostile\.svg/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'hostile.svg' }).getByText('320 × 200 px')).toBeVisible()
+    expect(await page.title()).toBe('Sentinel')
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /truncated\.png/ }).click()
+    await page.keyboard.press(' ')
+    const truncated = page.getByRole('dialog', { name: 'truncated.png' })
+    await expect(truncated.getByText('This image cannot be shown').or(truncated.getByText(/\d+ × \d+ px/))).toBeVisible()
   })
 
   test('keeps the isolated page of the viewers away from the session', async ({ shell }) => {
