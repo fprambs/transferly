@@ -49,7 +49,7 @@ test.describe('ftp and ftps', () => {
 
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
-    await page.getByRole('treeitem', { name: /^ftp not saved/ }).first().dblclick()
+    await page.getByRole('treeitem', { name: /^ftp (Connected )?not saved/ }).first().dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })
     const upload = grid.getByRole('row', { name: /upload/ })
     await expect(upload).toBeVisible()
@@ -152,7 +152,7 @@ test.describe('ftp and ftps', () => {
     await page.getByRole('button', { name: 'Trust and connect' }).click()
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
-    await page.getByRole('treeitem', { name: /^ftps not saved/ }).dblclick()
+    await page.getByRole('treeitem', { name: /^ftps (Connected )?not saved/ }).dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.getByRole('row', { name: /upload/ }).dblclick()
     await expect(page).toHaveURL(/path=%2Fupload$/)
