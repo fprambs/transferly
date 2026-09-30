@@ -1,6 +1,6 @@
 # Libraries of the file viewers
 
-Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs). Architecture in [ADR-0018](../adr/0018-file-preview.md).
+Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr). Architecture in [ADR-0018](../adr/0018-file-preview.md).
 
 ## marked and DOMPurify (Markdown)
 
@@ -20,3 +20,11 @@ Sources: the README and type definitions of each package: [marked](https://marke
 - `Papa.parse(text, { skipEmptyLines: true })` guesses the delimiter among comma, tab, pipe and semicolon; `.tsv` files force the tab.
 - Parse in the main thread only up to the size limit of the table viewer (20 MiB); the rows are drawn virtually, so the limit is the parse, not the drawing.
 - Cells are always drawn as text.
+
+## Images
+
+- The browser decodes every format it knows (PNG, JPEG, GIF, WebP, AVIF, BMP, ICO) from a `blob:` URL, which the policy of the page allows for images only; the URL is revoked when the viewer closes.
+- SVG is shown as an `<img>` with the `image/svg+xml` type: an image never runs the scripts, handlers or links of the SVG, and loads nothing from the network.
+- TIFF, which browsers do not draw, is decoded by UTIF.js (`UTIF.decode`, `UTIF.decodeImage` on the first page, `UTIF.toRGBA8`) onto a canvas; images over 100 megapixels are refused before decoding, so a crafted header cannot ask for gigabytes of pixels. UTIF.js ships no types; `src/types/utif.d.ts` declares the three functions used.
+- EXIF is read with the `lite` bundle of exifr, the one its README recommends for browsers (IFD0, EXIF and GPS), keeping only the tags the viewer shows; its `pick` option fails in the lite bundle, so it is not used. A file whose metadata cannot be read simply shows none.
+
