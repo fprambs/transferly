@@ -1,20 +1,44 @@
 import './viewer.css'
 
-import { renderMarkdown } from './markdown'
-import { isRenderMessage, type PageMessage, type RenderMessage } from './protocol'
-
-/** The renderers of the kinds the isolated page shows; each stage of D2 that needs the page adds its own (ADR-0018). */
-const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLElement) => Promise<void>>> = {
-  markdown: (message, root) => renderMarkdown(new TextDecoder().decode(message.bytes), root),
-}
+import type { RangeReader } from './pdf'
+import { isRangeReply, isRenderMessage, type PageMessage, type RenderMessage } from './protocol'
 
 /** Sends a message to the explorer that embeds the page. */
 function tell(message: PageMessage): void {
   window.parent.postMessage(message, '*')
 }
 
+/** The ranges asked for and not answered yet, by request. */
+const waiting = new Map<number, (bytes: ArrayBuffer | null) => void>()
+
+/** The identifier of the next range asked for. */
+let nextRange = 0
+
+/** Asks the parent for a range of the file being shown: the page itself has no network. */
+const readRange: RangeReader = (begin, end) =>
+  new Promise((resolve, reject) => {
+    const id = nextRange++
+    waiting.set(id, (bytes) => (bytes === null ? reject(new Error('range not read')) : resolve(new Uint8Array(bytes))))
+    tell({ type: 'sentinel:range', id, begin, end })
+  })
+
+/** The renderers of the kinds the isolated page shows, each loaded only when a file needs it; each stage of D2 that needs the page adds
+ * its own (ADR-0018). */
+const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLElement) => Promise<void>>> = {
+  markdown: async (message, root) => (await import('./markdown')).renderMarkdown(new TextDecoder().decode(message.bytes), root),
+  pdf: async (message, root) => (await import('./pdf')).renderPdf(new Uint8Array(message.bytes), message.size, readRange, root, message.labels),
+}
+
 window.addEventListener('message', (event) => {
-  if (event.source !== window.parent || !isRenderMessage(event.data)) {
+  if (event.source !== window.parent) {
+    return
+  }
+  if (isRangeReply(event.data)) {
+    waiting.get(event.data.id)?.(event.data.bytes)
+    waiting.delete(event.data.id)
+    return
+  }
+  if (!isRenderMessage(event.data)) {
     return
   }
   const message = event.data
@@ -30,8 +54,16 @@ window.addEventListener('message', (event) => {
   }
   render(message, root).then(
     () => tell({ type: 'sentinel:rendered' }),
-    () => tell({ type: 'sentinel:failed', reason: 'render' }),
+    (error: unknown) => tell({ type: 'sentinel:failed', reason: error instanceof Error && error.name === 'ProtectedPdf' ? 'password' : 'render' }),
   )
+})
+
+document.addEventListener('keydown', (event) => {
+  const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+  const walks = (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !typing && !event.altKey && !event.ctrlKey && !event.metaKey
+  if (event.key === 'Escape' || walks) {
+    tell({ type: 'sentinel:key', key: event.key })
+  }
 })
 
 tell({ type: 'sentinel:ready' })

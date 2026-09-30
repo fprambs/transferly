@@ -79,3 +79,114 @@ body {
   border: 0;
   border-top: 1px solid var(--border);
 }
+
+.pdf {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-size: 13px;
+}
+
+.pdf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pdf-button {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pdf-button:hover {
+  background: var(--muted);
+}
+
+.pdf-position,
+.pdf-zoom,
+.pdf-found {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-zoom {
+  min-width: 3.5em;
+  text-align: center;
+}
+
+.pdf-search {
+  margin-inline-start: auto;
+  width: 14em;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: inherit;
+  font: inherit;
+}
+
+.pdf-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pdf-thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 150px;
+  padding: 10px;
+  overflow: auto;
+  border-inline-end: 1px solid var(--border);
+}
+
+.pdf-thumbs[hidden] {
+  display: none;
+}
+
+.pdf-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.pdf-thumb:hover {
+  border-color: var(--border);
+}
+
+.pdf-thumb .pdf-canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.pdf-pages {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.pdf-page {
+  margin: 0 auto 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
+}
+
+.pdf-canvas {
+  display: block;
+}

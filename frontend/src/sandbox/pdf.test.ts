@@ -1,0 +1,184 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+/** The fakes of pdf.js the renderer is driven with. */
+const fakes = vi.hoisted(() => {
+  class PasswordException extends Error {}
+  class PDFDataRangeTransport {
+    onDataRange = vi.fn()
+    length: number
+    initialData: Uint8Array
+    constructor(length: number, initialData: Uint8Array) {
+      this.length = length
+      this.initialData = initialData
+    }
+    requestDataRange(begin: number, end: number): void {
+      void [begin, end]
+    }
+  }
+  return { getDocument: vi.fn(), GlobalWorkerOptions: { workerPort: null as unknown }, PasswordException, PDFDataRangeTransport }
+})
+
+vi.mock('pdfjs-dist', () => fakes)
+vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?worker&inline', () => ({ default: class {} }))
+
+import { ProtectedPdf, renderPdf } from './pdf'
+
+/** The observers created by the renderer, to drive what comes into view. */
+const observers: Array<{ callback: IntersectionObserverCallback; observed: Set<Element> }> = []
+
+/** A fake page of `words`, 600 by 800 at scale 1. */
+function page(words: string) {
+  return {
+    getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
+    render: vi.fn(() => ({ promise: Promise.resolve() })),
+    getTextContent: vi.fn(async () => ({ items: [{ str: words }, { type: 'beginMarkedContent' }] })),
+  }
+}
+
+/** Labels as the parent sends them. */
+const labels = {
+  thumbnails: 'Pages',
+  fitWidth: 'Fit width',
+  zoomIn: 'Zoom in',
+  zoomOut: 'Zoom out',
+  search: 'Search',
+  page: 'Page {{number}}',
+  position: 'Page {{page}} of {{total}}',
+  matches: 'Found on page {{page}} · {{total}} pages',
+  noMatches: 'Not found',
+}
+
+/** Opens a document of pages with the given words, and returns what the tests use. */
+async function open(words: string[]) {
+  const pages = words.map(page)
+  fakes.getDocument.mockReturnValueOnce({ promise: Promise.resolve({ numPages: pages.length, getPage: async (number: number) => pages[number - 1] }) })
+  const root = document.createElement('main')
+  document.body.append(root)
+  const read = vi.fn(async (begin: number, end: number) => new Uint8Array(end - begin))
+  await renderPdf(new Uint8Array(10), 1000, read, root, labels)
+  return { root, pages, read, observer: observers.at(-1) as (typeof observers)[number] }
+}
+
+/** Tells the observer that pages came into view, or left it. */
+function see(observer: (typeof observers)[number], root: HTMLElement, visible: number[], hidden: number[] = []): void {
+  const entry = (number: number, isIntersecting: boolean) => ({ target: root.querySelector(`[data-page="${number}"]`) as Element, isIntersecting })
+  observer.callback([...visible.map((number) => entry(number, true)), ...hidden.map((number) => entry(number, false))] as IntersectionObserverEntry[], {} as IntersectionObserver)
+}
+
+/** Waits for pending promises. */
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+/**
+ * Covers {@link renderPdf} (ADR-0018).
+ *
+ * Scenarios:
+ * - the document is opened by ranges read through the parent, with forms, XFA and WASM off, and the worker started once
+ * - every page gets a frame of its size; pages are drawn once as they come into view, and the bar tells the first page in view
+ * - zoom steps in and out, stops at its ends, and fits the width, drawing the pages again
+ * - thumbnails are drawn once, when first shown, and jump to their page
+ * - the search finds the pages with the words, walks them, says when nothing matches, and ignores an empty query and other keys
+ * - a document that asks for a password fails with ProtectedPdf, and other failures are thrown as they are
+ */
+describe('renderPdf', () => {
+  beforeEach(() => {
+    observers.length = 0
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observed = new Set<Element>()
+        callback: IntersectionObserverCallback
+        constructor(callback: IntersectionObserverCallback) {
+          this.callback = callback
+          observers.push(this)
+        }
+        observe(element: Element): void {
+          this.observed.add(element)
+        }
+        unobserve(element: Element): void {
+          this.observed.delete(element)
+        }
+      },
+    )
+  })
+
+  it('opens by ranges and draws the pages in view', async () => {
+    const { root, pages, read, observer } = await open(['one', 'two', 'three'])
+    const options = fakes.getDocument.mock.calls[0][0] as { range: InstanceType<typeof fakes.PDFDataRangeTransport>; enableXfa: boolean; useWasm: boolean }
+    expect(options).toMatchObject({ enableXfa: false, useWasm: false })
+    expect(options.range.length).toBe(1000)
+    expect(fakes.GlobalWorkerOptions.workerPort).not.toBeNull()
+    options.range.requestDataRange(100, 200)
+    await settle()
+    expect(read).toHaveBeenCalledWith(100, 200)
+    expect(options.range.onDataRange).toHaveBeenCalledWith(100, expect.any(Uint8Array))
+
+    const frames = root.querySelectorAll('.pdf-page')
+    expect(frames).toHaveLength(3)
+    expect((frames[0] as HTMLElement).style.width).toBe('750px')
+    expect(root.querySelector('.pdf-position')?.textContent).toBe('Page 1 of 3')
+    see(observer, root, [2, 3], [1])
+    see(observer, root, [2])
+    expect(pages[1].render).toHaveBeenCalledTimes(1)
+    expect(root.querySelector('.pdf-position')?.textContent).toBe('Page 2 of 3')
+    see(observer, root, [], [2])
+    expect(root.querySelector('.pdf-position')?.textContent).toBe('Page 2 of 3')
+  })
+
+  it('zooms, fits the width and shows thumbnails', async () => {
+    const { root, pages, observer } = await open(['one', 'two'])
+    const button = (name: string) => [...root.querySelectorAll('button')].find((node) => node.textContent === name || node.getAttribute('aria-label') === name) as HTMLButtonElement
+    button('Zoom in').click()
+    expect(root.querySelector('.pdf-zoom')?.textContent).toBe('150%')
+    for (let step = 0; step < 5; step++) button('Zoom in').click()
+    expect(root.querySelector('.pdf-zoom')?.textContent).toBe('300%')
+    for (let step = 0; step < 8; step++) button('Zoom out').click()
+    expect(root.querySelector('.pdf-zoom')?.textContent).toBe('50%')
+    Object.defineProperty(root.querySelector('.pdf-pages'), 'clientWidth', { value: 648 })
+    button('Fit width').click()
+    expect(root.querySelector('.pdf-zoom')?.textContent).toBe('100%')
+    expect(observer.observed.size).toBe(2)
+
+    const thumbs = root.querySelector('.pdf-thumbs') as HTMLElement
+    button('Pages').click()
+    expect(thumbs.hidden).toBe(false)
+    expect(thumbs.querySelectorAll('.pdf-thumb')).toHaveLength(2)
+    expect(pages[0].render).toHaveBeenCalled()
+    ;(thumbs.querySelectorAll('.pdf-thumb')[1] as HTMLButtonElement).click()
+    button('Pages').click()
+    button('Pages').click()
+    expect(thumbs.querySelectorAll('.pdf-thumb')).toHaveLength(2)
+  })
+
+  it('searches the text', async () => {
+    const { root, pages } = await open(['alpha', 'the rare quetzal', 'Quetzal again'])
+    const search = root.querySelector('.pdf-search') as HTMLInputElement
+    const press = async (key: string) => {
+      search.dispatchEvent(new KeyboardEvent('keydown', { key }))
+      await settle()
+    }
+    search.value = 'quetzal'
+    await press('Enter')
+    expect(root.querySelector('.pdf-found')?.textContent).toBe('Found on page 2 · 2 pages')
+    await press('Enter')
+    expect(root.querySelector('.pdf-found')?.textContent).toBe('Found on page 3 · 2 pages')
+    expect(pages[0].getTextContent).toHaveBeenCalledTimes(1)
+    search.value = 'missing'
+    await press('Enter')
+    expect(root.querySelector('.pdf-found')?.textContent).toBe('Not found')
+    search.value = '  '
+    await press('Enter')
+    expect(root.querySelector('.pdf-found')?.textContent).toBe('')
+    await press('a')
+  })
+
+  it('tells a protected document from other failures', async () => {
+    const root = document.createElement('main')
+    fakes.getDocument.mockReturnValueOnce({ promise: Promise.reject(new fakes.PasswordException('password')) })
+    await expect(renderPdf(new Uint8Array(1), 1, vi.fn(), root, labels)).rejects.toBeInstanceOf(ProtectedPdf)
+    fakes.getDocument.mockReturnValueOnce({ promise: Promise.reject(new Error('Invalid PDF structure')) })
+    await expect(renderPdf(new Uint8Array(1), 1, vi.fn(), root, labels)).rejects.toThrow('Invalid PDF structure')
+    expect(new ProtectedPdf().name).toBe('ProtectedPdf')
+  })
+})
