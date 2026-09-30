@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="320" height="200" onload="document.title='owned'">
+  <script>document.title = 'owned'</script>
+  <rect width="320" height="200" fill="#9d174d"/>
+  <image href="https://example.com/tracker.png" width="10" height="10"/>
+  <a xlink:href="javascript:alert(1)"><text x="20" y="110" font-family="sans-serif" font-size="22" fill="#ffffff">Scripts here never run</text></a>
+</svg>
