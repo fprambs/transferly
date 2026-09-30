@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/fprambs/sentinel/internal/core/admin"
+	"github.com/fprambs/sentinel/internal/core/archives"
 	"github.com/fprambs/sentinel/internal/core/audit"
 	"github.com/fprambs/sentinel/internal/core/auth"
 	"github.com/fprambs/sentinel/internal/core/backup"
@@ -257,6 +258,11 @@ var domainProblems = []struct {
 	{files.ErrUnsupportedAlgorithm, http.StatusUnprocessableEntity, "unsupported_algorithm"},
 	{files.ErrChecksumMismatch, http.StatusBadGateway, "checksum_mismatch"},
 	{files.ErrTreeTooLarge, http.StatusUnprocessableEntity, "tree_too_large"},
+	{archives.ErrNotArchive, http.StatusUnprocessableEntity, "archive_unsupported"},
+	{archives.ErrEntryNotFound, http.StatusNotFound, "archive_entry_not_found"},
+	{archives.ErrTooLarge, http.StatusUnprocessableEntity, "archive_too_large"},
+	{archives.ErrBomb, http.StatusUnprocessableEntity, "archive_bomb"},
+	{archives.ErrEncrypted, http.StatusUnprocessableEntity, "archive_encrypted"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
 	{remotefs.ErrNotEmpty, http.StatusConflict, "directory_not_empty"},
@@ -324,6 +330,16 @@ func asProblem(err error) (domainProblem, bool) {
 
 // VisitCreateCopyResponse implements [CreateCopyResponseObject].
 func (p domainProblem) VisitCreateCopyResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitListArchiveEntriesResponse implements [ListArchiveEntriesResponseObject].
+func (p domainProblem) VisitListArchiveEntriesResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
+
+// VisitDownloadArchiveEntryResponse implements [DownloadArchiveEntryResponseObject].
+func (p domainProblem) VisitDownloadArchiveEntryResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}
 
 // VisitDownloadArchiveResponse implements [DownloadArchiveResponseObject].
 func (p domainProblem) VisitDownloadArchiveResponse(w http.ResponseWriter) error { return p.write(w) }

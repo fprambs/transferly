@@ -116,3 +116,18 @@ func TestAttachment(t *testing.T) {
 		}
 	}
 }
+
+// TestProblemOr verifies that a failure with no problem of its own is left for the internal error handler.
+//
+// Use cases:
+//   - a domain error becomes its problem as a response of the operation
+//   - any other error is returned as it is, with no response
+func TestProblemOr(t *testing.T) {
+	if response, err := problemOr[ListArchiveEntriesResponseObject](remotefs.ErrNotFound); err != nil || response.(domainProblem).code != "path_not_found" {
+		t.Errorf("problemOr(ErrNotFound) = %v, %v", response, err)
+	}
+	internal := errors.New("broken")
+	if response, err := problemOr[DownloadArchiveEntryResponseObject](internal); response != nil || !errors.Is(err, internal) {
+		t.Errorf("problemOr(internal) = %v, %v", response, err)
+	}
+}

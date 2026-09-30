@@ -1079,6 +1079,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/archive-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the entries of a remote archive
+         * @description Lists a ZIP, 7z, RAR, TAR (plain or compressed with gzip, bzip2, xz or zstd) or single compressed file without downloading it: ZIP and 7z are read from their index at the end of the file, the others from the start. It needs the download right, and records no transfer. At most 10 000 entries are listed; names are listed as the archive stores them and are never used as paths on the server.
+         */
+        get: operations["listArchiveEntries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/archive-entry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one file entry of a remote archive
+         * @description Streams one file of a remote archive as an attachment, extracted on the fly and never written to disk. Entries larger than 512 MiB, declaring a compression ratio no real file has, or protected with a password are refused. It needs the download right, and records no transfer.
+         */
+        get: operations["downloadArchiveEntry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}/files/checksum": {
         parameters: {
             query?: never;
@@ -1849,6 +1889,34 @@ export interface components {
             errorCode?: string;
             /** Format: date-time */
             at: string;
+        };
+        ArchiveEntry: {
+            /** @description Path of the entry inside the archive, with slashes, as the archive stores it. */
+            name: string;
+            /** @enum {string} */
+            type: "file" | "directory" | "symlink";
+            /**
+             * Format: int64
+             * @description Size once extracted, or -1 when the archive does not tell it.
+             */
+            size: number;
+            /**
+             * Format: int64
+             * @description Size inside the archive, or -1 when the archive does not tell it.
+             */
+            packed: number;
+            /**
+             * Format: date-time
+             * @description When it last changed, when the archive tells it.
+             */
+            modified?: string;
+        };
+        ArchiveListing: {
+            /** @enum {string} */
+            format: "zip" | "7z" | "rar" | "tar" | "tar.gz" | "tar.bz2" | "tar.xz" | "tar.zst" | "gz" | "bz2" | "xz" | "zst";
+            entries: components["schemas"]["ArchiveEntry"][];
+            /** @description The archive holds more entries than the listing. */
+            truncated: boolean;
         };
         Checksum: {
             /** @enum {string} */
@@ -6073,6 +6141,195 @@ export interface operations {
                 };
                 content: {
                     "application/zip": string;
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listArchiveEntries: {
+        parameters: {
+            query: {
+                /** @description Path on the remote server. */
+                path: components["parameters"]["RemotePath"];
+                /** @description Entries naming archives nested in one another, from the outside in: the request works on the last of them. Each nested archive is read into memory, up to 64 MiB, and at most four levels deep. */
+                inner?: string[];
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+                /** @description Identifier of the site. */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entries of the archive. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveListing"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    downloadArchiveEntry: {
+        parameters: {
+            query: {
+                /** @description Path on the remote server. */
+                path: components["parameters"]["RemotePath"];
+                /** @description Entries naming archives nested in one another, from the outside in: the request works on the last of them. Each nested archive is read into memory, up to 64 MiB, and at most four levels deep. */
+                inner?: string[];
+                /** @description Name of the entry, as the listing gives it. */
+                entry: string;
+            };
+            header?: never;
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+                /** @description Identifier of the site. */
+                siteId: components["parameters"]["SiteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bytes of the entry. */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
             /** @description An error. The stable code tells the client what happened. */

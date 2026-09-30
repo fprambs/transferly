@@ -17,6 +17,26 @@
       "cause": "Esa persona ya pertenece a este equipo.",
       "next": "Cambia su rol desde la lista de miembros."
     },
+    "archive_bomb": {
+      "cause": "La entrada declara una compresión que ningún archivo real tiene: parece una bomba de descompresión.",
+      "next": "No la extraigas; descarga el archivo solo si confías en su origen."
+    },
+    "archive_encrypted": {
+      "cause": "El archivo comprimido, o esta entrada, está protegido con contraseña.",
+      "next": "Descárgalo y ábrelo con un compresor que pida la contraseña."
+    },
+    "archive_entry_not_found": {
+      "cause": "El archivo comprimido ya no tiene un archivo con ese nombre.",
+      "next": "Vuelve a cargar el archivo para ver lo que contiene ahora."
+    },
+    "archive_too_large": {
+      "cause": "La entrada, o el archivo comprimido que la contiene, es más grande de lo que el visor lee.",
+      "next": "Descarga el archivo y extráelo en tu equipo."
+    },
+    "archive_unsupported": {
+      "cause": "No es un archivo comprimido que el visor lea, o está dañado.",
+      "next": "Descárgalo y ábrelo con un compresor."
+    },
     "bookmark_limit_reached": {
       "cause": "Un sitio guarda como máximo 200 marcadores.",
       "next": "Elimina marcadores que ya no uses."

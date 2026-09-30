@@ -17,6 +17,26 @@
       "cause": "That person already belongs to this team.",
       "next": "Change their role from the members list instead."
     },
+    "archive_bomb": {
+      "cause": "The entry claims a compression ratio no real file has: it looks like a decompression bomb.",
+      "next": "Do not extract it; download the archive only if you trust where it came from."
+    },
+    "archive_encrypted": {
+      "cause": "The archive, or this entry, is protected with a password.",
+      "next": "Download it and open it with an archiver that asks for the password."
+    },
+    "archive_entry_not_found": {
+      "cause": "The archive has no file with that name any more.",
+      "next": "Reload the archive to see what it holds now."
+    },
+    "archive_too_large": {
+      "cause": "The entry, or the archive nested around it, is bigger than the viewer reads.",
+      "next": "Download the archive and extract it on your computer."
+    },
+    "archive_unsupported": {
+      "cause": "The file is not an archive the viewer reads, or it is damaged.",
+      "next": "Download it and open it with an archiver."
+    },
     "bookmark_limit_reached": {
       "cause": "A site keeps at most 200 bookmarks.",
       "next": "Remove bookmarks you no longer use."
