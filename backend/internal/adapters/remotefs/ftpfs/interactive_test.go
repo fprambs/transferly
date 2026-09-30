@@ -74,6 +74,7 @@ func serveOTP(conn net.Conn) {
 //     signs in, even when answering takes longer than the connect timeout, which the answer window extends
 //   - the stored password is not used when the site asks
 //   - a prompt that fails, declined or unanswered, and a wrong answer are authentication failures
+//   - an answer, user, password or account with a line break or NUL is refused, so it cannot smuggle a command into the login
 func TestDial_Prompt(t *testing.T) {
 	address := otpServer(t)
 	var asked prompts.Challenge
@@ -97,6 +98,16 @@ func TestDial_Prompt(t *testing.T) {
 	} {
 		if _, err := Dial(t.Context(), Config{Address: address, Username: "u", Prompt: prompt, Timeout: 5 * time.Second}); !isErr(err, remotefs.ErrAuth) {
 			t.Errorf("%s: Dial() = %v; want ErrAuth", name, err)
+		}
+	}
+	smuggling := func(prompts.Challenge) ([]string, error) { return []string{"one-time\r\nDELE /x"}, nil }
+	if _, err := Dial(t.Context(), Config{Address: address, Username: "u", Prompt: smuggling, Timeout: 5 * time.Second}); !isErr(err, remotefs.ErrAuth) {
+		t.Errorf("an answer with a line break = %v; want ErrAuth", err)
+	}
+	for _, cfg := range []Config{{Username: "u\r\nDELE /x"}, {Username: "u", Password: "p\nQUIT"}, {Username: "u", Account: "a\x00"}} {
+		cfg.Address, cfg.Timeout = address, 5*time.Second
+		if _, err := Dial(t.Context(), cfg); !isErr(err, remotefs.ErrAuth) {
+			t.Errorf("Dial(%q, %q, %q) = %v; want ErrAuth before connecting", cfg.Username, cfg.Password, cfg.Account, err)
 		}
 	}
 	if got := classify(fmt.Errorf("%w: %w", remotefs.ErrAuth, prompts.ErrExpired)); !errors.Is(got, prompts.ErrExpired) || errors.Is(got, remotefs.ErrConnectionLost) {

@@ -115,6 +115,9 @@ func (cfg Config) password() func(message string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("%w: %w", remotefs.ErrAuth, err)
 		}
+		if smuggles(answers[0]) {
+			return "", errSmuggled
+		}
 		return answers[0], nil
 	}
 }
@@ -248,6 +251,9 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	}
 	if cfg.Username == "" {
 		return nil, fmt.Errorf("%w: no user name given", remotefs.ErrAuth)
+	}
+	if smuggles(cfg.Username, cfg.Password, cfg.Account) {
+		return nil, errSmuggled
 	}
 	if cfg.TLS != TLSNone && cfg.VerifyHostKey == nil {
 		return nil, fmt.Errorf("%w: certificate verification is required with TLS", remotefs.ErrInvalid)
@@ -453,6 +459,20 @@ func (f *FS) sp(p string) string {
 // wrap names the operation and path in an error that is already classified.
 func wrap(op, p string, err error) error {
 	return fmt.Errorf("%s %s: %w", op, p, err)
+}
+
+// errSmuggled refuses credentials that would end the login command early and send another one after it.
+var errSmuggled = fmt.Errorf("%w: the credentials have line breaks or NUL characters", remotefs.ErrAuth)
+
+// smuggles reports whether any value has a line break or a NUL character, which would end a command of the control connection
+// early and let the rest of the value run as another command (security review of phase 4).
+func smuggles(values ...string) bool {
+	for _, value := range values {
+		if strings.ContainsAny(value, "\r\n\x00") {
+			return true
+		}
+	}
+	return false
 }
 
 // validPath rejects paths that could smuggle a second command into the control connection or are not absolute.
