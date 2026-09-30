@@ -26,6 +26,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  * - images show with their size, zoom, rotation and camera metadata: PNG, JPEG, GIF, WebP, AVIF, BMP, ICO, SVG and TIFF (on a canvas); a
  *   hostile SVG runs nothing, and a truncated PNG never breaks the viewer
  * - audio and video play streamed by ranges, with their length, picture size and speed; an AVI the browser cannot play says so
+ * - PDFs open in the isolated page with pages, thumbnails, zoom and search; a large one is read by ranges, not whole; the JavaScript of a
+ *   document never runs; protected and broken PDFs say so
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -213,6 +215,62 @@ test.describe('file viewer', () => {
       if (name === 'tone.mp3') {
         await page.screenshot({ path: `${shots}/preview-audio.png` })
       }
+      await page.keyboard.press('Escape')
+    }
+  })
+
+  test('shows PDFs read by ranges in the isolated page, and never runs their JavaScript', async ({ shell, quickId }) => {
+    const { page } = shell
+    const dialogs: string[] = []
+    page.on('dialog', (dialog) => {
+      dialogs.push(dialog.message())
+      void dialog.dismiss()
+    })
+    await openSamples(page, quickId, 'pdf')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /manual\.pdf/ }).click()
+    await page.keyboard.press(' ')
+    const manual = page.frameLocator('iframe[title="Document manual.pdf"]')
+    await expect(manual.locator('.pdf-position')).toHaveText('Page 1 of 30')
+    await expect(manual.locator('.pdf-page[data-page="1"] canvas')).toBeVisible()
+    await manual.getByRole('button', { name: 'Pages' }).click()
+    await expect(manual.locator('.pdf-thumb')).toHaveCount(30)
+    await page.screenshot({ path: `${shots}/preview-pdf.png` })
+    await manual.getByRole('searchbox', { name: 'Search the text' }).fill('quetzal')
+    await manual.getByRole('searchbox', { name: 'Search the text' }).press('Enter')
+    await expect(manual.locator('.pdf-found')).toHaveText('Found on page 17 · 1 pages')
+    await manual.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(manual.locator('.pdf-zoom')).toHaveText('150%')
+    await page.keyboard.press('Escape')
+
+    let ranged = 0
+    page.on('response', async (response) => {
+      if (response.url().includes('large.pdf') && response.status() === 206) {
+        ranged += Number(response.headers()['content-length'] ?? 0)
+      }
+    })
+    await grid.getByRole('row', { name: /large\.pdf/ }).click()
+    await page.keyboard.press(' ')
+    const large = page.frameLocator('iframe[title="Document large.pdf"]')
+    await expect(large.locator('.pdf-position')).toHaveText('Page 1 of 400')
+    await expect(large.locator('.pdf-page[data-page="1"] canvas')).toBeVisible()
+    expect(ranged).toBeGreaterThan(0)
+    expect(ranged).toBeLessThan(3_700_000 / 2)
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /with-javascript\.pdf/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.frameLocator('iframe[title="Document with-javascript.pdf"]').locator('.pdf-position')).toHaveText('Page 1 of 1')
+    await page.keyboard.press('Escape')
+    expect(dialogs).toEqual([])
+
+    for (const [name, message] of [
+      ['protected.pdf', 'This PDF is protected with a password'],
+      ['broken.pdf', 'This PDF cannot be opened'],
+    ] as const) {
+      await grid.getByRole('row', { name: new RegExp(name.replace('.', '\\.')) }).click()
+      await page.keyboard.press(' ')
+      await expect(page.getByRole('dialog', { name })).toContainText(message)
       await page.keyboard.press('Escape')
     }
   })
