@@ -74,5 +74,29 @@
   },
   "markdown": {
     "label": "Rendered {{name}}"
+  },
+  "image": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit",
+    "actual": "100%",
+    "rotateLeft": "Rotate left",
+    "rotateRight": "Rotate right",
+    "info": "Info",
+    "size": "{{width}} × {{height}} px",
+    "broken": "This image cannot be shown",
+    "brokenBody": "The file is damaged, truncated, too large to decode, or in a format the browser does not draw.",
+    "noMetadata": "No camera metadata in this file.",
+    "fields": {
+      "dimensions": "Dimensions",
+      "camera": "Camera",
+      "taken": "Taken",
+      "exposure": "Exposure",
+      "aperture": "Aperture",
+      "iso": "ISO",
+      "focal": "Focal length",
+      "software": "Software",
+      "location": "Location"
+    }
   }
 }

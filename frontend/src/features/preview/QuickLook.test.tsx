@@ -83,10 +83,10 @@ describe('QuickLook', () => {
   })
 
   it('shows a kind without a viewer yet as bytes, and says so', async () => {
-    await renderWithProviders(<Harness sources={[bytesSource('photo.png', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0]))]} />)
-    expect(await screen.findByText('Image')).toBeInTheDocument()
+    await renderWithProviders(<Harness sources={[bytesSource('doc.pdf', new TextEncoder().encode('%PDF-1.7'))]} />)
+    expect(await screen.findByText('PDF document')).toBeInTheDocument()
     expect(screen.getByText(/no viewer of this kind of file exists yet/)).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: 'Bytes of photo.png' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Bytes of doc.pdf' })).toBeInTheDocument()
   })
 
   it('leaves out the actions it was not given, and closes from its button', async () => {

@@ -74,5 +74,29 @@
   },
   "markdown": {
     "label": "{{name}} renderizado"
+  },
+  "image": {
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "fit": "Ajustar",
+    "actual": "100%",
+    "rotateLeft": "Rotar a la izquierda",
+    "rotateRight": "Rotar a la derecha",
+    "info": "Info",
+    "size": "{{width}} × {{height}} px",
+    "broken": "Esta imagen no se puede mostrar",
+    "brokenBody": "El archivo está dañado, cortado, es demasiado grande para decodificar o está en un formato que el navegador no dibuja.",
+    "noMetadata": "Este archivo no tiene datos de la cámara.",
+    "fields": {
+      "dimensions": "Dimensiones",
+      "camera": "Cámara",
+      "taken": "Tomada",
+      "exposure": "Exposición",
+      "aperture": "Apertura",
+      "iso": "ISO",
+      "focal": "Distancia focal",
+      "software": "Programa",
+      "location": "Ubicación"
+    }
   }
 }

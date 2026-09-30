@@ -4,6 +4,7 @@ import type { PreviewKind } from '../detect'
 
 import { CsvViewer } from './CsvViewer'
 import { HexViewer } from './HexViewer'
+import { ImageViewer } from './ImageViewer'
 import { MarkdownViewer } from './MarkdownViewer'
 import { StructuredViewer } from './StructuredViewer'
 import { TextViewer } from './TextViewer'
@@ -20,6 +21,8 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   yaml: StructuredViewer,
   xml: StructuredViewer,
   csv: CsvViewer,
+  image: ImageViewer,
+  svg: ImageViewer,
 }
 
 /** The viewer of a kind, and whether it is the hexadecimal fallback standing in for a viewer that does not exist yet. */
