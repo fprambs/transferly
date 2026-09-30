@@ -1,4 +1,4 @@
-import { getDocument, GlobalWorkerOptions, PasswordException, PDFDataRangeTransport, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist'
+import { getDocument, GlobalWorkerOptions, PasswordResponses, PDFDataRangeTransport, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist'
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline'
 
 /** Reads a range of the file being shown, through the parent: the page itself has no network. */
@@ -12,12 +12,6 @@ const thumbScale = 0.2
 
 /** Bytes pdf.js asks for at once. */
 const chunkSize = 64 * 1024
-
-/** A PDF that asks for a password, which the viewer does not open. Its name tells it apart across the chunks of the page. */
-export class ProtectedPdf extends Error {
-  /** Names the error. */
-  override name = 'ProtectedPdf'
-}
 
 /** Creates an element with a class and, optionally, its text; text is always set as text, never as HTML. */
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -68,6 +62,44 @@ async function draw(page: PDFPageProxy, scale: number, canvas: HTMLCanvasElement
   await page.render({ canvas, viewport }).promise
 }
 
+/**
+ * Asks for the password of a protected PDF inside the isolated page, and hands what is typed to pdf.js. The password never leaves the
+ * page: it is not sent to the parent, the server or anywhere else, and it is forgotten when the viewer closes. A wrong password says so and
+ * asks again.
+ */
+function askPassword(root: HTMLElement, labels: Record<string, string>, wrong: boolean, answer: (password: string) => void): void {
+  root.querySelector('.pdf-password')?.remove()
+  const card = element('div', 'pdf-password')
+  card.setAttribute('role', 'dialog')
+  card.setAttribute('aria-label', labels.passwordTitle)
+  const input = element('input', 'pdf-search')
+  input.type = 'password'
+  input.autocomplete = 'off'
+  input.setAttribute('aria-label', labels.password)
+  input.placeholder = labels.password
+  const open = element('button', 'pdf-button', labels.open)
+  open.type = 'button'
+  const submit = (): void => {
+    if (input.value !== '') {
+      answer(input.value)
+    }
+  }
+  open.addEventListener('click', submit)
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      submit()
+    }
+  })
+  card.append(element('p', 'pdf-password-title', labels.passwordTitle), element('p', 'pdf-password-body', labels.passwordBody), input, open)
+  if (wrong) {
+    const error = element('p', 'pdf-password-wrong', labels.wrongPassword)
+    error.setAttribute('role', 'alert')
+    card.append(error)
+  }
+  root.append(card)
+  input.focus()
+}
+
 /** Reads the text of a page, joined, for the search. */
 async function pageText(page: PDFPageProxy): Promise<string> {
   const content = await page.getTextContent()
@@ -78,7 +110,7 @@ async function pageText(page: PDFPageProxy): Promise<string> {
  * Opens a PDF inside the isolated page (ADR-0018) with pdf.js, reading it by ranges through the parent, so a large file shows its first
  * page without being fetched whole. Pages are drawn onto canvases as they come into view; the bar moves between pages, zooms, fits the
  * width, searches the text and shows thumbnails. JavaScript of the document never runs: the display layer of pdf.js does not run it, and
- * forms and XFA are left off. A PDF that asks for a password fails with {@link ProtectedPdf}.
+ * forms and XFA are left off. A PDF protected with a password asks for it inside the page, where it stays.
  */
 export async function renderPdf(first: Uint8Array, size: number, read: RangeReader, root: HTMLElement, labels: Record<string, string>): Promise<void> {
   await ensureWorker()
@@ -86,12 +118,10 @@ export async function renderPdf(first: Uint8Array, size: number, read: RangeRead
   transport.requestDataRange = (begin: number, end: number): void => {
     void read(begin, end).then((chunk) => transport.onDataRange(begin, chunk))
   }
-  let doc: PDFDocumentProxy
-  try {
-    doc = await getDocument({ range: transport, rangeChunkSize: chunkSize, disableAutoFetch: true, useSystemFonts: true, useWasm: false, enableXfa: false, stopAtErrors: false }).promise
-  } catch (error) {
-    throw error instanceof PasswordException ? new ProtectedPdf() : error
-  }
+  const task = getDocument({ range: transport, rangeChunkSize: chunkSize, disableAutoFetch: true, useSystemFonts: true, useWasm: false, enableXfa: false, stopAtErrors: false })
+  task.onPassword = (answer: (password: string) => void, reason: number): void => askPassword(root, labels, reason === PasswordResponses.INCORRECT_PASSWORD, answer)
+  const doc: PDFDocumentProxy = await task.promise
+  root.querySelector('.pdf-password')?.remove()
   const pages = await Promise.all(Array.from({ length: doc.numPages }, (_, index) => doc.getPage(index + 1)))
   let scale = 1.25
   const texts = new Map<number, string>()

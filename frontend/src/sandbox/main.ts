@@ -33,7 +33,7 @@ const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLEleme
 }
 
 /** The errors of the renderers that mean the file is protected with a password. */
-const protectedErrors = new Set(['ProtectedPdf', 'ProtectedDocument'])
+const protectedErrors = new Set(['ProtectedDocument'])
 
 window.addEventListener('message', (event) => {
   if (event.source !== window.parent) {

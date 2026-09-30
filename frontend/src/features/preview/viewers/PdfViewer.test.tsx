@@ -18,7 +18,7 @@ function fromFrame(title: string, data: unknown): void {
  *
  * Scenarios:
  * - the first MiB is read and the document opens in the isolated page with the words of the interface
- * - a document that asks for a password says so, and one that cannot be opened says so; both offer their bytes
+ * - a document that cannot be opened says so and offers its bytes
  */
 describe('PdfViewer', () => {
   it('opens in the isolated page', async () => {
@@ -29,22 +29,15 @@ describe('PdfViewer', () => {
     const sent: Array<Record<string, unknown>> = []
     ;(frame.contentWindow as Window).postMessage = (message: Record<string, unknown>) => void sent.push(message)
     fromFrame('Document doc.pdf', { type: 'sentinel:ready' })
-    expect(sent[0]).toMatchObject({ kind: 'pdf', labels: { thumbnails: 'Pages', position: 'Page {{page}} of {{total}}', page: 'Page {{number}}' } })
+    expect(sent[0]).toMatchObject({ kind: 'pdf', labels: { thumbnails: 'Pages', position: 'Page {{page}} of {{total}}', page: 'Page {{number}}', open: 'Open', password: 'Password' } })
   })
 
-  it('explains protected and broken documents', async () => {
-    await renderWithProviders(
-      <>
-        <PdfViewer source={bytesSource('locked.pdf', new Uint8Array(8))} kind="pdf" />
-        <PdfViewer source={bytesSource('bad.pdf', new Uint8Array(8))} kind="pdf" />
-      </>,
-    )
-    await screen.findByTitle('Document locked.pdf')
-    fromFrame('Document locked.pdf', { type: 'sentinel:failed', reason: 'password' })
+  it('explains broken documents', async () => {
+    await renderWithProviders(<PdfViewer source={bytesSource('bad.pdf', new Uint8Array(8))} kind="pdf" />)
+    await screen.findByTitle('Document bad.pdf')
     fromFrame('Document bad.pdf', { type: 'sentinel:failed', reason: 'render' })
-    expect(await screen.findByText('This PDF is protected with a password')).toBeInTheDocument()
-    expect(screen.getByText('This PDF cannot be opened')).toBeInTheDocument()
-    await userEvent.setup().click(screen.getAllByRole('button', { name: 'Show as bytes' })[0])
-    await waitFor(() => expect(screen.getByRole('table', { name: 'Bytes of locked.pdf' })).toBeInTheDocument())
+    expect(await screen.findByText('This PDF cannot be opened')).toBeInTheDocument()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Show as bytes' }))
+    await waitFor(() => expect(screen.getByRole('table', { name: 'Bytes of bad.pdf' })).toBeInTheDocument())
   })
 })

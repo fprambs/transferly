@@ -396,3 +396,44 @@ body {
   color: #ffffff;
   font-weight: bold;
 }
+
+.pdf-password {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  width: min(26rem, calc(100% - 2rem));
+  padding: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--background);
+  text-align: center;
+}
+
+.pdf-password-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.pdf-password-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.pdf-password .pdf-search {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pdf-password-wrong {
+  margin: 0;
+  font-size: 13px;
+  color: var(--warn);
+}

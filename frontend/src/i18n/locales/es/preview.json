@@ -113,10 +113,13 @@
     "position": "Página {{page}} de {{total}}",
     "matches": "Encontrado en la página {{page}} · {{total}} páginas",
     "noMatches": "No encontrado",
-    "protected": "Este PDF está protegido con contraseña",
-    "protectedBody": "Sentinel no abre documentos protegidos. Descárgalo para abrirlo con su contraseña.",
     "broken": "Este PDF no se puede abrir",
-    "brokenBody": "El archivo está dañado o no es un PDF que el visor pueda leer."
+    "brokenBody": "El archivo está dañado o no es un PDF que el visor pueda leer.",
+    "passwordTitle": "Este PDF está protegido con contraseña",
+    "passwordBody": "Escribe su contraseña para abrirlo. La contraseña queda dentro del visor: no se envía a ningún lado y se olvida al cerrarlo.",
+    "password": "Contraseña",
+    "open": "Abrir",
+    "wrongPassword": "Esa contraseña no es correcta. Vuelve a intentarlo."
   },
   "archive": {
     "loading": "Leyendo el archivo comprimido…",

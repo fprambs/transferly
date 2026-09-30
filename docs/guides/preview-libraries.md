@@ -33,7 +33,7 @@ Sources: the README and type definitions of each package: [marked](https://marke
 - Runs only inside the isolated page. Its worker is bundled into the page (`pdfjs-dist/build/pdf.worker.min.mjs?worker&inline`) and started from a `blob:` URL through `GlobalWorkerOptions.workerPort`, since the page cannot load scripts from the network.
 - The file is read with a `PDFDataRangeTransport`: the page gets the first MiB and the size, and pdf.js asks for the rest in chunks of 64 KiB (`rangeChunkSize`, `disableAutoFetch`), which the page asks the parent for by message. The parent reads them from the file, at most 4 MiB at a time.
 - Options that would need the network stay off: `useWasm: false`, `useSystemFonts: true` (no standard font data or CMaps are fetched, so some CJK documents may show with fallback fonts), `enableXfa: false`. The display layer of PDF.js 6 never runs the JavaScript of a document.
-- A `PasswordException` is reported as a protected document; the viewer does not ask for passwords.
+- A protected PDF asks for its password through `loadingTask.onPassword(updatePassword, reason)`: the page shows its own field and hands what is typed to `updatePassword`, and `PasswordResponses.INCORRECT_PASSWORD` shows that the password was wrong. The password is typed inside the isolated page and never leaves it: it is not sent to the parent, the server or anywhere else, and it is forgotten when the viewer closes.
 - The renderer is loaded with a dynamic import only when a PDF opens, so the Markdown viewer does not carry it.
 
 

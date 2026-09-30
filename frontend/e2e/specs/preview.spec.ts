@@ -27,7 +27,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   hostile SVG runs nothing, and a truncated PNG never breaks the viewer
  * - audio and video play streamed by ranges, with their length, picture size and speed; an AVI the browser cannot play says so
  * - PDFs open in the isolated page with pages, thumbnails, zoom and search; a large one is read by ranges, not whole; the JavaScript of a
- *   document never runs; protected and broken PDFs say so
+ *   document never runs; a protected PDF asks for its password inside the isolated page, says when it is wrong and opens with the right
+ *   one; a broken PDF says so
  * - archives read by the server show as trees with their format, totals, sizes and compression: ZIP, 7z, RAR, TAR and compressed TARs,
  *   and a single compressed file; an entry opens with its own viewer, an archive nested in another included, and Backspace goes back;
  *   hostile names are marked, a bomb, an encrypted entry, a truncated ZIP and a 7z with encrypted headers are refused with guidance, and
@@ -272,15 +273,25 @@ test.describe('file viewer', () => {
     await page.keyboard.press('Escape')
     expect(dialogs).toEqual([])
 
-    for (const [name, message] of [
-      ['protected.pdf', 'This PDF is protected with a password'],
-      ['broken.pdf', 'This PDF cannot be opened'],
-    ] as const) {
-      await grid.getByRole('row', { name: new RegExp(name.replace('.', '\\.')) }).click()
-      await page.keyboard.press(' ')
-      await expect(page.getByRole('dialog', { name })).toContainText(message)
-      await page.keyboard.press('Escape')
-    }
+    await grid.getByRole('row', { name: /protected\.pdf/ }).click()
+    await page.keyboard.press(' ')
+    const locked = page.frameLocator('iframe[title="Document protected.pdf"]')
+    const password = locked.getByRole('dialog', { name: 'This PDF is protected with a password' })
+    await expect(password).toBeVisible()
+    await locked.getByRole('textbox', { name: 'Password' }).fill('wrong')
+    await locked.getByRole('textbox', { name: 'Password' }).press('Enter')
+    await expect(locked.getByRole('alert')).toHaveText('That password is not right. Try again.')
+    await page.screenshot({ path: `${shots}/preview-pdf-password.png` })
+    await locked.getByRole('textbox', { name: 'Password' }).fill('sentinel')
+    await locked.getByRole('button', { name: 'Open' }).click()
+    await expect(locked.locator('.pdf-position')).toHaveText(/^Page 1 of \d+$/)
+    await expect(password).toBeHidden()
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /broken\.pdf/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'broken.pdf' })).toContainText('This PDF cannot be opened')
+    await page.keyboard.press('Escape')
   })
 
   test('shows archives as trees read by the server, and opens their entries with their own viewers', async ({ shell, quickId }) => {

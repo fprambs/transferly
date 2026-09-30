@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /** The fakes of pdf.js the renderer is driven with. */
 const fakes = vi.hoisted(() => {
-  class PasswordException extends Error {}
   class PDFDataRangeTransport {
     onDataRange = vi.fn()
     length: number
@@ -15,14 +14,14 @@ const fakes = vi.hoisted(() => {
       void [begin, end]
     }
   }
-  return { getDocument: vi.fn(), GlobalWorkerOptions: { workerPort: null as unknown }, PasswordException, PDFDataRangeTransport }
+  return { getDocument: vi.fn(), GlobalWorkerOptions: { workerPort: null as unknown }, PasswordResponses: { NEED_PASSWORD: 1, INCORRECT_PASSWORD: 2 }, PDFDataRangeTransport }
 })
 
 vi.mock('pdfjs-dist', () => fakes)
 vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?worker&inline', () => ({ default: class {} }))
 vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?raw', () => ({ default: `self.onmessage = null // ${'ñ'.repeat(40_000)}` }))
 
-import { ProtectedPdf, renderPdf, startWorker } from './pdf'
+import { renderPdf, startWorker } from './pdf'
 
 /** The observers created by the renderer, to drive what comes into view. */
 const observers: Array<{ callback: IntersectionObserverCallback; observed: Set<Element> }> = []
@@ -47,6 +46,11 @@ const labels = {
   position: 'Page {{page}} of {{total}}',
   matches: 'Found on page {{page}} · {{total}} pages',
   noMatches: 'Not found',
+  passwordTitle: 'Protected',
+  passwordBody: 'Type it',
+  password: 'Password',
+  open: 'Open',
+  wrongPassword: 'Wrong',
 }
 
 /** Opens a document of pages with the given words, and returns what the tests use. */
@@ -112,7 +116,8 @@ describe('startWorker', () => {
  * - zoom steps in and out, stops at its ends, and fits the width, drawing the pages again
  * - thumbnails are drawn once, when first shown, and jump to their page
  * - the search finds the pages with the words, walks them, says when nothing matches, and ignores an empty query and other keys
- * - a document that asks for a password fails with ProtectedPdf, and other failures are thrown as they are
+ * - a protected document asks for its password inside the page, says when it is wrong and asks again, ignores an empty one, opens with
+ *   the right one and leaves no prompt behind; other failures are thrown as they are
  */
 describe('renderPdf', () => {
   beforeEach(() => {
@@ -214,12 +219,43 @@ describe('renderPdf', () => {
     await press('a')
   })
 
-  it('tells a protected document from other failures', async () => {
+  it('asks for the password of a protected document inside the page', async () => {
     const root = document.createElement('main')
-    fakes.getDocument.mockReturnValueOnce({ promise: Promise.reject(new fakes.PasswordException('password')) })
-    await expect(renderPdf(new Uint8Array(1), 1, vi.fn(), root, labels)).rejects.toBeInstanceOf(ProtectedPdf)
+    document.body.append(root)
+    let finish: (doc: unknown) => void = () => undefined
+    const task = { onPassword: undefined as undefined | ((answer: (password: string) => void, reason: number) => void), promise: new Promise((resolve) => (finish = resolve)) }
+    fakes.getDocument.mockReturnValueOnce(task)
+    const opening = renderPdf(new Uint8Array(1), 1, vi.fn(), root, labels)
+    await vi.waitFor(() => expect(task.onPassword).toBeDefined())
+    const answers: string[] = []
+    const onPassword = task.onPassword as (answer: (password: string) => void, reason: number) => void
+    onPassword((password) => answers.push(password), 1)
+    const input = root.querySelector('.pdf-password input') as HTMLInputElement
+    expect(root.querySelector('.pdf-password')?.getAttribute('aria-label')).toBe('Protected')
+    expect(document.activeElement).toBe(input)
+    expect(root.querySelector('.pdf-password-wrong')).toBeNull()
+    ;(root.querySelector('.pdf-password button') as HTMLButtonElement).click()
+    expect(answers).toEqual([])
+    input.value = 'nope'
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }))
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    onPassword((password) => answers.push(password), 2)
+    expect(root.querySelectorAll('.pdf-password')).toHaveLength(1)
+    expect(root.querySelector('.pdf-password-wrong')?.textContent).toBe('Wrong')
+    const again = root.querySelector('.pdf-password input') as HTMLInputElement
+    again.value = 'sentinel'
+    ;(root.querySelector('.pdf-password button') as HTMLButtonElement).click()
+    expect(answers).toEqual(['nope', 'sentinel'])
+    const pages = ['one'].map(page)
+    finish({ numPages: 1, getPage: async () => pages[0] })
+    await opening
+    expect(root.querySelector('.pdf-password')).toBeNull()
+    expect(root.querySelector('.pdf-bar')).not.toBeNull()
+  })
+
+  it('throws other failures as they are', async () => {
+    const root = document.createElement('main')
     fakes.getDocument.mockReturnValueOnce({ promise: Promise.reject(new Error('Invalid PDF structure')) })
     await expect(renderPdf(new Uint8Array(1), 1, vi.fn(), root, labels)).rejects.toThrow('Invalid PDF structure')
-    expect(new ProtectedPdf().name).toBe('ProtectedPdf')
   })
 })

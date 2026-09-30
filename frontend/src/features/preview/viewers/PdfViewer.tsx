@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { FileLock, FileWarning } from 'lucide-react'
+import { FileWarning } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -16,12 +16,12 @@ const firstBytes = 1024 * 1024
 
 /**
  * Shows a PDF with pdf.js inside the isolated page (ADR-0018): the page gets the first MiB and asks for the rest by ranges, which are read
- * from the file here, so a large document shows its first page without being fetched whole. A document that asks for a password, or that
- * pdf.js cannot open, says so and offers its bytes.
+ * from the file here, so a large document shows its first page without being fetched whole. A document protected with a password asks
+ * for it inside the page, which keeps it; one pdf.js cannot open says so and offers its bytes.
  */
 export function PdfViewer({ source }: ViewerProps) {
   const { t } = useTranslation('preview')
-  const [failure, setFailure] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
   const [asBytes, setAsBytes] = useState(false)
   const first = useQuery({
     queryKey: ['preview', source.key, 'pdf-first'],
@@ -40,21 +40,20 @@ export function PdfViewer({ source }: ViewerProps) {
       position: t(($) => $.pdf.position, { page: '{{page}}', total: '{{total}}' }),
       matches: t(($) => $.pdf.matches, { page: '{{page}}', total: '{{total}}' }),
       noMatches: t(($) => $.pdf.noMatches),
+      passwordTitle: t(($) => $.pdf.passwordTitle),
+      passwordBody: t(($) => $.pdf.passwordBody),
+      password: t(($) => $.pdf.password),
+      open: t(($) => $.pdf.open),
+      wrongPassword: t(($) => $.pdf.wrongPassword),
     }),
     [t],
   )
   if (asBytes) {
     return <HexViewer source={source} kind="binary" />
   }
-  if (failure !== null) {
-    const protectedPdf = failure === 'password'
+  if (failed) {
     return (
-      <PanelState
-        icon={protectedPdf ? FileLock : FileWarning}
-        tone="warn"
-        title={protectedPdf ? t(($) => $.pdf.protected) : t(($) => $.pdf.broken)}
-        description={protectedPdf ? t(($) => $.pdf.protectedBody) : t(($) => $.pdf.brokenBody)}
-      >
+      <PanelState icon={FileWarning} tone="warn" title={t(($) => $.pdf.broken)} description={t(($) => $.pdf.brokenBody)}>
         <Button variant="outline" onClick={() => setAsBytes(true)}>
           {t(($) => $.tooLarge.asBytes)}
         </Button>
@@ -64,5 +63,5 @@ export function PdfViewer({ source }: ViewerProps) {
   if (first.data === undefined) {
     return <Loading label={t(($) => $.loading)} className="m-auto" />
   }
-  return <SandboxFrame kind="pdf" name={source.name} bytes={first.data} source={source} labels={labels} title={t(($) => $.pdf.label, { name: source.name })} onFailed={setFailure} />
+  return <SandboxFrame kind="pdf" name={source.name} bytes={first.data} source={source} labels={labels} title={t(($) => $.pdf.label, { name: source.name })} onFailed={() => setFailed(true)} />
 }
