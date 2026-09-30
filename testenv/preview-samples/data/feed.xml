@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Sentinel releases</title>
+    <link>https://example.com</link>
+    <item id="1"><title>File viewer</title><description><![CDATA[Quick Look for every file]]></description></item>
+    <item id="2"><title>Encrypted export</title><description>Sites and secrets in one file</description></item>
+  </channel>
+</rss>

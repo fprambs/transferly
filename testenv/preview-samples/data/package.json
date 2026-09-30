@@ -1,0 +1,34 @@
+{
+  "name": "sentinel-sample",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "zustand": "^5.0.0"
+  },
+  "authors": [
+    {
+      "name": "Ana",
+      "roles": [
+        "dev",
+        "ops"
+      ]
+    },
+    {
+      "name": "Luis",
+      "roles": [
+        "qa"
+      ]
+    }
+  ],
+  "limits": {
+    "maxFiles": 2000,
+    "ratio": 0.75,
+    "enabled": true,
+    "note": null
+  }
+}

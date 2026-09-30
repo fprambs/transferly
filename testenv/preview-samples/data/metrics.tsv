@@ -1,0 +1,4 @@
+host	latency_ms	throughput_mbps
+sftp-1	12	940
+sftp-2	48	310
+ftp-1	30	512

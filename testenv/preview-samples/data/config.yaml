@@ -1,0 +1,17 @@
+# Sample configuration
+server:
+  host: files.example.com
+  port: 22
+  protocols: [sftp, ftp]
+limits: &limits
+  speed: 1048576
+  concurrent: 4
+teams:
+  - name: web
+    limits: *limits
+  - name: data
+    limits:
+      <<: *limits
+      concurrent: 8
+enabled: true
+started: 2026-09-29
