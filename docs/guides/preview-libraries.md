@@ -1,6 +1,6 @@
 # Libraries of the file viewers
 
-Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr), [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist` 6), [docx-preview](https://github.com/VolodymyrBaydalka/docxjs), [SheetJS](https://docs.sheetjs.com/docs/api/parse-options), [JSZip](https://stuk.github.io/jszip/), and for archives, read by the backend in Go, the package documentation of [archive/zip and archive/tar](https://pkg.go.dev/archive), [bodgit/sevenzip](https://pkg.go.dev/github.com/bodgit/sevenzip), [nwaples/rardecode](https://pkg.go.dev/github.com/nwaples/rardecode/v2), [ulikunitz/xz](https://pkg.go.dev/github.com/ulikunitz/xz) and [klauspost/compress/zstd](https://pkg.go.dev/github.com/klauspost/compress/zstd). Architecture in [ADR-0018](../adr/0018-file-preview.md).
+Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr), [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist` 6), [docx-preview](https://github.com/VolodymyrBaydalka/docxjs), [SheetJS](https://docs.sheetjs.com/docs/api/parse-options), [JSZip](https://stuk.github.io/jszip/), [sql.js](https://github.com/sql-js/sql.js), [postal-mime](https://github.com/postalsys/postal-mime), [@noble/hashes](https://github.com/paulmillr/noble-hashes), and for archives, read by the backend in Go, the package documentation of [archive/zip and archive/tar](https://pkg.go.dev/archive), [bodgit/sevenzip](https://pkg.go.dev/github.com/bodgit/sevenzip), [nwaples/rardecode](https://pkg.go.dev/github.com/nwaples/rardecode/v2), [ulikunitz/xz](https://pkg.go.dev/github.com/ulikunitz/xz) and [klauspost/compress/zstd](https://pkg.go.dev/github.com/klauspost/compress/zstd). Architecture in [ADR-0018](../adr/0018-file-preview.md).
 
 ## marked and DOMPurify (Markdown)
 
@@ -56,3 +56,24 @@ Sources: the README and type definitions of each package: [marked](https://marke
 - **docx-preview** (`renderAsync(data, body, styles, options)`) lays out Word documents page by page. `renderAltChunks: false` keeps the HTML a document may embed from being rendered in an `iframe`, and comments, changes and experimental features stay off. Pictures come from the package as `blob:` addresses; links to the network do not load under the policy of the page (`img-src blob: data:`), and the page cancels clicks on links. Bullets of the Symbol and Wingdings fonts, written as private characters, are replaced by their Unicode characters, since those fonts are rarely installed. docx-preview needs JSZip as a peer dependency.
 - **SheetJS** is installed from its official CDN (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`), as its documentation requires: the npm registry copy (0.18.5) is years old and has known vulnerabilities. It is read with `type: 'array'`, `dense: true`, `sheetRows: 10000`, `cellFormula: false`, `cellHTML: false`, `cellStyles: false` and `bookVBA: false`: nothing is computed or run, formulas show the results the file saved, and cells are drawn as text. At most 200 columns are drawn. A workbook protected with a password is reported as protected.
 - **OpenDocument text** and **PowerPoint** are read by Sentinel's own code from their XML, unzipped with JSZip: only known elements become HTML, text is always set as text, colors must be hexadecimal and styles come from an allowed list; slides are laid out in fractions of their size and container units (`cqw`), so they scale without script. Legacy `.doc` and `.ppt` show as bytes.
+
+## SQLite (sql.js)
+
+- Runs inside the isolated page in its **asm.js build** (`sql.js/dist/sql-asm.js`), not the WebAssembly one: it needs no `wasm-unsafe-eval` in the policy of the page, which stays as strict as before, at the cost of a larger chunk loaded only when a database opens. `src/types/sql-asm.d.ts` declares it with the types of `@types/sql.js`.
+- The database is a copy in memory (`new SQL.Database(bytes)`), opened with `PRAGMA query_only = ON`, so a query can neither change the file nor the copy. Tables are read by pages of 200 rows with quoted names, and a query shows at most 1000 rows; its errors are shown as text.
+
+## Fonts (FontFace)
+
+- A font is loaded inside the isolated page with `new FontFace(name, buffer)` and `document.fonts.add`: the browser checks the font (Chromium with OTS) before using it, and a font it refuses is reported as unreadable.
+- The names, number of glyphs and mapped characters are read by Sentinel's own reader of the `name`, `maxp` and `cmap` tables of TrueType, OpenType and WOFF files (WOFF tables are inflated with `DecompressionStream`); WOFF2, compressed with Brotli, tells only its format.
+
+## Certificates and keys (own DER reader, @noble/hashes)
+
+- Read in the main page as data, never as markup, by a small strict DER reader (`der.ts`) and the certificate reader (`x509.ts`): PEM blocks, DER certificates, public keys, certificate requests and OpenSSH public keys. Fingerprints use `@noble/hashes` (audited, no dependencies), since `crypto.subtle` does not exist outside secure contexts.
+- **Private keys are recognized by their PEM label and never decoded or shown**, and their files do not offer their source.
+
+## Email (postal-mime, DOMPurify)
+
+- postal-mime 3 reads the message in the main page (`PostalMime.parse(bytes, { attachmentEncoding: 'arraybuffer' })`); its HTML is not cleaned by it, as its documentation warns. Addresses, subject and date are drawn as text. Pictures shown by `cid:` references are put in place as data addresses (up to 5 MiB each).
+- The HTML body is cleaned by DOMPurify inside the isolated page, without scripts, handlers, forms, frames, objects, meta or base elements, and drawn in a shadow root so its styles and those of the page never mix. A DOMPurify hook removes remote addresses of pictures and CSS, so a tracking picture is not even asked for, also in development where the page has no policy; the same hook cleans rendered Markdown.
+- postal-mime is pinned to 3.0.0: the frontend enforces pnpm's minimum release age, and the newest release was too recent.
