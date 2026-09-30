@@ -155,7 +155,8 @@ function recorder(make: () => Response | Error) {
  * - binary bodies (blobs, buffers, typed arrays) are sent as they are, not as JSON, with the media type they are given
  *   or octet-stream
  * - problem documents become an ApiError, network failures a `network_error`, and answers without a body resolve empty
- * - a stream call returns the body of the answer and reports problems, network failures and answers without a body
+ * - a stream call returns the body of the answer, asks for a byte range when given one, and reports problems, network failures and answers
+ *   without a body
  * - the URL joins the base URL, the path and the encoded query, leaving out undefined values
  * - the abort signal is passed to fetch
  */
@@ -167,6 +168,14 @@ describe('HttpTransport.request', () => {
     expect(await new Response(stream).text()).toBe('file bytes')
     expect(urls).toEqual(['http://api.test/f?path=%2Fa'])
     expect(inits[0]).toMatchObject({ method: 'GET' })
+    expect((inits[0].headers as Record<string, string>).Range).toBeUndefined()
+  })
+
+  it('asks for a range of a download', async () => {
+    const { fetchStub, inits } = recorder(() => new Response('part', { status: 206 }))
+    await new HttpTransport({ fetch: fetchStub }).stream({ method: 'GET', path: '/f', range: { start: 0, end: 4095 } })
+
+    expect((inits[0].headers as Record<string, string>).Range).toBe('bytes=0-4095')
   })
 
   it('reports the problem, the network failure and the missing body of a stream', async () => {

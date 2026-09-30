@@ -107,6 +107,9 @@ export class HttpTransport implements Transport {
     if (request.method !== 'GET' && this.csrfToken !== undefined) {
       headers['X-CSRF-Token'] = this.csrfToken
     }
+    if (request.range !== undefined) {
+      headers.Range = `bytes=${request.range.start}-${request.range.end}`
+    }
     let response: Response
     try {
       response = await this.send(this.url(request.path, request.query), { method: request.method, headers, body, signal: request.signal })

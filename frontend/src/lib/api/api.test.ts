@@ -209,6 +209,21 @@ describe('createApi', () => {
     expect(seen[0]).toMatchObject({ method: 'GET', path: `${files}/content`, query: '?path=%2Fa+b&transferId=t1' })
   })
 
+  it('reads a range of a file as bytes', async () => {
+    let range: string | null = null
+    server.use(
+      http.get(`${files}/content`, ({ request }) => {
+        range = request.headers.get('Range')
+        return new HttpResponse(new Uint8Array([1, 2, 3]), { status: 206 })
+      }),
+    )
+
+    const bytes = await client().api.files.read(ws, site, '/a.bin', 10, 13)
+
+    expect([...bytes]).toEqual([1, 2, 3])
+    expect(range).toBe('bytes=10-12')
+  })
+
   it('builds download URLs without calling the server', () => {
     const { api } = client()
 

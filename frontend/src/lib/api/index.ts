@@ -314,6 +314,12 @@ export function createApi(transport: Transport) {
         transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
       archiveUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/archive`, { path, transferId }),
+      read: async (workspaceId: string, siteId: string, path: string, start: number, end: number, signal?: AbortSignal) =>
+        new Uint8Array(
+          await new Response(
+            await transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/content`, query: { path }, range: { start, end: end - 1 }, signal }),
+          ).arrayBuffer(),
+        ),
       download: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/content`, query: { path, transferId } }),
       upload: (workspaceId: string, siteId: string, path: string, body: Blob | Uint8Array, options: UploadOptions = {}) =>

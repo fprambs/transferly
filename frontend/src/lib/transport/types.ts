@@ -90,6 +90,8 @@ export interface ApiRequest {
   contentType?: string
   /** Aborts the call. */
   signal?: AbortSignal
+  /** Asks for only the bytes from `start` to `end`, both included, of a download (ADR-0018). */
+  range?: { start: number; end: number }
 }
 
 /**
