@@ -8,6 +8,7 @@ import enCommon from './locales/en/common.json'
 import enEditor from './locales/en/editor.json'
 import enErrors from './locales/en/errors.json'
 import enExplorer from './locales/en/explorer.json'
+import enPreview from './locales/en/preview.json'
 import enQuick from './locales/en/quick.json'
 import enTeams from './locales/en/teams.json'
 import enTransfers from './locales/en/transfers.json'
@@ -33,7 +34,7 @@ export const defaultNS = 'common'
 
 /** The English messages by namespace, the source every other language translates; they type the keys of `t`. */
 const english = {
-  admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, errors: enErrors, explorer: enExplorer, quick: enQuick, security: enSecurity,
+  admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, errors: enErrors, explorer: enExplorer, preview: enPreview, quick: enQuick, security: enSecurity,
   settings: enSettings, shell: enShell, sites: enSites, sync: enSync, teams: enTeams, transfers: enTransfers, vault: enVault,
 } as const
 

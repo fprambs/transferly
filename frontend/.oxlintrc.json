@@ -80,7 +80,8 @@
     },
     {
       "files": [
-        "src/features/explorer/EntryTable.tsx"
+        "src/features/explorer/EntryTable.tsx",
+        "src/features/preview/viewers/HexViewer.tsx"
       ],
       "rules": {
         "react/incompatible-library": "off"

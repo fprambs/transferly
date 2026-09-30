@@ -1,0 +1,42 @@
+{
+  "title": "Preview",
+  "close": "Close",
+  "previous": "Previous file",
+  "next": "Next file",
+  "download": "Download",
+  "edit": "Open in the editor",
+  "position": "{{index}} of {{count}}",
+  "loading": "Reading the file…",
+  "failed": "The file could not be read.",
+  "retry": "Try again",
+  "empty": "This file is empty.",
+  "kinds": {
+    "text": "Text",
+    "markdown": "Markdown",
+    "json": "JSON",
+    "yaml": "YAML",
+    "xml": "XML",
+    "csv": "Table",
+    "image": "Image",
+    "svg": "SVG image",
+    "audio": "Audio",
+    "video": "Video",
+    "pdf": "PDF document",
+    "archive": "Archive",
+    "document": "Document",
+    "spreadsheet": "Spreadsheet",
+    "presentation": "Presentation",
+    "sqlite": "SQLite database",
+    "font": "Font",
+    "certificate": "Certificate",
+    "email": "Email",
+    "binary": "Binary file"
+  },
+  "hex": {
+    "label": "Bytes of {{name}}",
+    "offset": "Offset",
+    "bytes": "Bytes",
+    "text": "Text",
+    "note": "Shown as bytes, since no viewer of this kind of file exists yet."
+  }
+}

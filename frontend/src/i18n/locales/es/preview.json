@@ -1,0 +1,42 @@
+{
+  "title": "Vista previa",
+  "close": "Cerrar",
+  "previous": "Archivo anterior",
+  "next": "Archivo siguiente",
+  "download": "Descargar",
+  "edit": "Abrir en el editor",
+  "position": "{{index}} de {{count}}",
+  "loading": "Leyendo el archivo…",
+  "failed": "No se pudo leer el archivo.",
+  "retry": "Reintentar",
+  "empty": "Este archivo está vacío.",
+  "kinds": {
+    "text": "Texto",
+    "markdown": "Markdown",
+    "json": "JSON",
+    "yaml": "YAML",
+    "xml": "XML",
+    "csv": "Tabla",
+    "image": "Imagen",
+    "svg": "Imagen SVG",
+    "audio": "Audio",
+    "video": "Video",
+    "pdf": "Documento PDF",
+    "archive": "Comprimido",
+    "document": "Documento",
+    "spreadsheet": "Planilla",
+    "presentation": "Presentación",
+    "sqlite": "Base de datos SQLite",
+    "font": "Fuente",
+    "certificate": "Certificado",
+    "email": "Correo",
+    "binary": "Archivo binario"
+  },
+  "hex": {
+    "label": "Bytes de {{name}}",
+    "offset": "Posición",
+    "bytes": "Bytes",
+    "text": "Texto",
+    "note": "Se muestra como bytes, porque aún no hay un visor para este tipo de archivo."
+  }
+}
