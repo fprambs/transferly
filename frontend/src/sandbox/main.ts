@@ -1,7 +1,12 @@
+import './viewer.css'
+
+import { renderMarkdown } from './markdown'
 import { isRenderMessage, type PageMessage, type RenderMessage } from './protocol'
 
 /** The renderers of the kinds the isolated page shows; each stage of D2 that needs the page adds its own (ADR-0018). */
-const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLElement) => Promise<void>>> = {}
+const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLElement) => Promise<void>>> = {
+  markdown: (message, root) => renderMarkdown(new TextDecoder().decode(message.bytes), root),
+}
 
 /** Sends a message to the explorer that embeds the page. */
 function tell(message: PageMessage): void {

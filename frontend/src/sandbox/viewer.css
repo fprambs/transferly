@@ -1,0 +1,81 @@
+:root {
+  color-scheme: dark light;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+#viewer {
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
+.markdown {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.markdown h1,
+.markdown h2 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown a {
+  color: var(--accent-text);
+}
+
+.markdown code,
+.markdown pre {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--muted);
+  border-radius: 6px;
+}
+
+.markdown code {
+  padding: 0.1em 0.35em;
+}
+
+.markdown pre {
+  padding: 0.9em 1em;
+  overflow: auto;
+}
+
+.markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.markdown blockquote {
+  margin-inline: 0;
+  padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.markdown table {
+  border-collapse: collapse;
+}
+
+.markdown th,
+.markdown td {
+  padding: 0.35em 0.75em;
+  border: 1px solid var(--border);
+}
+
+.markdown img {
+  max-width: 100%;
+}
+
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
