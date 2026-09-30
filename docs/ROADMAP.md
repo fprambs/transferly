@@ -318,7 +318,7 @@ El diferenciador D2 se adelanta a la fase 5. Abrir cualquier archivo y verlo den
 
 ## Fase 5: Escala e integraciones
 
-- [ ] 5.1 Catálogo de conectores ("Sentinel Store", ADR-0019): conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común
+- [ ] 5.1 Catálogo de conectores ("Sentinel Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común
 - [ ] 5.2 Conector S3 y compatibles (MinIO, R2, Wasabi), con MinIO en el stack de pruebas; amplía las capacidades (prefijos en vez de carpetas, sin permisos, sin escritura parcial)
 - [ ] 5.3 Conector WebDAV
 - [ ] 5.4 Conector Google Drive con OAuth en el navegador y renovación de tokens
