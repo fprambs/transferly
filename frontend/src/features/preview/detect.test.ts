@@ -27,7 +27,7 @@ function tar(): Uint8Array {
  * Scenarios:
  * - signatures decide whatever the extension says: PDF, images, audio, video, archives, SQLite and fonts
  * - a ZIP named as an Office document is that document, an OLE file named .xls is a spreadsheet, and other OLE files are binary
- * - text keeps the text kind of its extension, or is plain text; a PEM block is a certificate whatever its name
+ * - text keeps the text kind of its extension, or is plain text; a PEM block or an OpenSSH public key is a certificate whatever its name
  * - binary bytes without a signature keep the binary kind of their extension, or are binary; a file that lies about being text is binary
  * - truncated UTF-8 at the end of the head still reads as text, while NUL bytes and invalid UTF-8 do not
  */
@@ -72,6 +72,9 @@ describe('detectKind', () => {
     expect(detectKind('notes', text('hello'))).toBe('text')
     expect(detectKind('main.go', text('package main'))).toBe('text')
     expect(detectKind('site.key', text('-----BEGIN CERTIFICATE-----'))).toBe('certificate')
+    expect(detectKind('id_ed25519.pub', text('ssh-ed25519 AAAAC3Nza me@host'))).toBe('certificate')
+    expect(detectKind('key.txt', text('ecdsa-sha2-nistp256 AAAA'))).toBe('certificate')
+    expect(detectKind('notes.pub', text('ssh-rsa'))).toBe('text')
     expect(detectKind('photo.png', text('not really an image'))).toBe('text')
     expect(detectKind('empty.txt', new Uint8Array())).toBe('text')
   })

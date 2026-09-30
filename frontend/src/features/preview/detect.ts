@@ -139,8 +139,8 @@ function looksLikeText(head: Uint8Array): boolean {
 /**
  * Tells the viewer of a file from its name and its first bytes (ADR-0018). The content wins over the extension, so a file with a lying
  * extension opens as what it is: a signature decides, refined by the extension for containers shared by several formats (a ZIP also holds
- * Office documents, an OLE file an old Excel workbook). Without a signature, text keeps a text kind of its extension (Markdown, JSON, YAML,
- * XML, CSV, SVG, mail, PEM) or is plain text, and other bytes keep a binary kind of their extension or are binary; the viewer of a kind
+ * Office documents, an OLE file an old Excel workbook). Without a signature, text that starts as PEM or as an OpenSSH public key is a
+ * certificate, text keeps a text kind of its extension (Markdown, JSON, YAML, XML, CSV, SVG, mail, PEM) or is plain text, and other bytes keep a binary kind of their extension or are binary; the viewer of a kind
  * falls back to the hexadecimal one when it cannot decode the file.
  */
 export function detectKind(name: string, head: Uint8Array): PreviewKind {
@@ -153,7 +153,8 @@ export function detectKind(name: string, head: Uint8Array): PreviewKind {
   if (!looksLikeText(head)) {
     return named !== undefined && binaryKinds.has(named) ? named : 'binary'
   }
-  if (new TextDecoder().decode(head.subarray(0, 16)).startsWith('-----BEGIN ')) {
+  const start = new TextDecoder().decode(head.subarray(0, 24))
+  if (start.startsWith('-----BEGIN ') || /^(ssh-(ed25519|rsa|dss)|ecdsa-sha2-nistp\d+|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) /.test(start)) {
     return 'certificate'
   }
   return named !== undefined && textKinds.has(named) ? named : 'text'
