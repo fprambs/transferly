@@ -68,7 +68,8 @@ type User struct {
 	// Theme is the identifier of the interface theme the user chose. The server only checks its shape: the themes
 	// themselves belong to the clients.
 	Theme string
-	// FileDoubleClick is what a double click on a file of the explorer does: [FileDoubleClickDownload] or [FileDoubleClickEdit].
+	// FileDoubleClick is what a double click on a file of the explorer does: [FileDoubleClickDownload], [FileDoubleClickEdit] or
+	// [FileDoubleClickPreview].
 	FileDoubleClick string
 	// CreatedAt is when the account was created, in UTC.
 	CreatedAt time.Time
@@ -80,6 +81,8 @@ const (
 	FileDoubleClickDownload = "download"
 	// FileDoubleClickEdit opens the file in the remote editor.
 	FileDoubleClickEdit = "edit"
+	// FileDoubleClickPreview shows the file in the viewer without downloading it (ADR-0018).
+	FileDoubleClickPreview = "preview"
 )
 
 // Preferences are the settings a user chooses for the interface. Empty values keep the current setting when updating.

@@ -5721,8 +5721,8 @@ components:
           description: Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
         fileDoubleClick:
           type: string
-          enum: [download, edit]
-          description: What a double click, or Enter, on a file of the explorer does. Download, as FileZilla does, is the default.
+          enum: [download, edit, preview]
+          description: What a double click, or Enter, on a file of the explorer does. Download, as FileZilla does, is the default; preview shows it in the viewer (ADR-0018).
     User:
       type: object
       required: [id, email, role, locale, timezone, theme, fileDoubleClick]
@@ -5743,7 +5743,7 @@ components:
           type: string
         fileDoubleClick:
           type: string
-          enum: [download, edit]
+          enum: [download, edit, preview]
     SessionInfo:
       type: object
       required: [user, csrfToken]

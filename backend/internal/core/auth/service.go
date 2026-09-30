@@ -293,7 +293,7 @@ func (s *Service) UpdatePreferences(ctx context.Context, user User, p Preference
 	if !themePattern.MatchString(p.Theme) {
 		return User{}, ErrInvalidTheme
 	}
-	if p.FileDoubleClick != FileDoubleClickDownload && p.FileDoubleClick != FileDoubleClickEdit {
+	if p.FileDoubleClick != FileDoubleClickDownload && p.FileDoubleClick != FileDoubleClickEdit && p.FileDoubleClick != FileDoubleClickPreview {
 		return User{}, ErrInvalidFileDoubleClick
 	}
 	tag, err := language.Parse(p.Locale)

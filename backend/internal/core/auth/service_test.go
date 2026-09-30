@@ -303,6 +303,9 @@ func TestUpdatePreferences(t *testing.T) {
 	if err != nil || kept.Locale != "es-CL" || kept.Timezone != "America/Santiago" || kept.Theme != "monokai" || kept.FileDoubleClick != auth.FileDoubleClickEdit {
 		t.Errorf("empty update = %+v, %v, want the current settings", kept, err)
 	}
+	if previews, err := h.svc.UpdatePreferences(ctx, kept, auth.Preferences{FileDoubleClick: auth.FileDoubleClickPreview}); err != nil || previews.FileDoubleClick != auth.FileDoubleClickPreview {
+		t.Errorf("double click to preview = %+v, %v", previews, err)
+	}
 
 	for _, locale := range []string{"not a tag!", "x"} {
 		if _, err := h.svc.UpdatePreferences(ctx, updated, auth.Preferences{Locale: locale}); !errors.Is(err, auth.ErrInvalidLocale) {

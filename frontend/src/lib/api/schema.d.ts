@@ -2301,10 +2301,10 @@ export interface components {
             /** @description Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes. */
             theme?: string;
             /**
-             * @description What a double click, or Enter, on a file of the explorer does. Download, as FileZilla does, is the default.
+             * @description What a double click, or Enter, on a file of the explorer does. Download, as FileZilla does, is the default; preview shows it in the viewer (ADR-0018).
              * @enum {string}
              */
-            fileDoubleClick?: "download" | "edit";
+            fileDoubleClick?: "download" | "edit" | "preview";
         };
         User: {
             /** Format: uuid */
@@ -2316,7 +2316,7 @@ export interface components {
             timezone: string;
             theme: string;
             /** @enum {string} */
-            fileDoubleClick: "download" | "edit";
+            fileDoubleClick: "download" | "edit" | "preview";
         };
         SessionInfo: {
             user: components["schemas"]["User"];
