@@ -40,6 +40,7 @@ Before using a library for the first time, read its official documentation and r
 | [Protocol specifications (SFTP, SSH, FTP, FTPS)](protocol-specifications.md) | done |
 | [SSH key files](ssh-keys.md) | done |
 | [Resizable panels (react-resizable-panels)](resizable-panels.md) | done |
+| [Libraries of the file viewers](preview-libraries.md) | done |
 | TanStack Router, Table, Virtual; react-hook-form and zod; dnd-kit; react-arborist; Vitest; MSW | before use |
 | jlaffaye/ftp (see the FTPS spike), coder/websocket, `x/text` | before first use |
 
