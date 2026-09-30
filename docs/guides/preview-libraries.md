@@ -1,6 +1,6 @@
 # Libraries of the file viewers
 
-Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr). Architecture in [ADR-0018](../adr/0018-file-preview.md).
+Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr), [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist` 6). Architecture in [ADR-0018](../adr/0018-file-preview.md).
 
 ## marked and DOMPurify (Markdown)
 
@@ -27,4 +27,12 @@ Sources: the README and type definitions of each package: [marked](https://marke
 - SVG is shown as an `<img>` with the `image/svg+xml` type: an image never runs the scripts, handlers or links of the SVG, and loads nothing from the network.
 - TIFF, which browsers do not draw, is decoded by UTIF.js (`UTIF.decode`, `UTIF.decodeImage` on the first page, `UTIF.toRGBA8`) onto a canvas; images over 100 megapixels are refused before decoding, so a crafted header cannot ask for gigabytes of pixels. UTIF.js ships no types; `src/types/utif.d.ts` declares the three functions used.
 - EXIF is read with the `lite` bundle of exifr, the one its README recommends for browsers (IFD0, EXIF and GPS), keeping only the tags the viewer shows; its `pick` option fails in the lite bundle, so it is not used. A file whose metadata cannot be read simply shows none.
+
+## PDF.js (PDF)
+
+- Runs only inside the isolated page. Its worker is bundled into the page (`pdfjs-dist/build/pdf.worker.min.mjs?worker&inline`) and started from a `blob:` URL through `GlobalWorkerOptions.workerPort`, since the page cannot load scripts from the network.
+- The file is read with a `PDFDataRangeTransport`: the page gets the first MiB and the size, and pdf.js asks for the rest in chunks of 64 KiB (`rangeChunkSize`, `disableAutoFetch`), which the page asks the parent for by message. The parent reads them from the file, at most 4 MiB at a time.
+- Options that would need the network stay off: `useWasm: false`, `useSystemFonts: true` (no standard font data or CMaps are fetched, so some CJK documents may show with fallback fonts), `enableXfa: false`. The display layer of PDF.js 6 never runs the JavaScript of a document.
+- A `PasswordException` is reported as a protected document; the viewer does not ask for passwords.
+- The renderer is loaded with a dynamic import only when a PDF opens, so the Markdown viewer does not carry it.
 
