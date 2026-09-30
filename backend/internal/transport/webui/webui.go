@@ -2,7 +2,11 @@
 package webui
 
 import (
+	"bytes"
+	"crypto/rand"
 	"embed"
+	"encoding/base64"
+	"io"
 	"io/fs"
 	"net/http"
 	"path"
@@ -14,9 +18,11 @@ import (
 var assets embed.FS
 
 const (
-	indexName      = "index.html"
-	immutableCache = "public, max-age=31536000, immutable"
-	revalidate     = "no-cache"
+	// noncePlaceholder is replaced in the index document by the nonce of its response.
+	noncePlaceholder = "__CSP_NONCE__"
+	indexName        = "index.html"
+	immutableCache   = "public, max-age=31536000, immutable"
+	revalidate       = "no-cache"
 )
 
 // Handler returns the handler that serves the embedded build of the frontend.
@@ -83,8 +89,25 @@ func (h handler) serve(w http.ResponseWriter, r *http.Request, name string) bool
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 	}
+	if name == indexName {
+		seeker = withNonce(w, seeker)
+	}
 	http.ServeContent(w, r, name, time.Time{}, seeker)
 	return true
+}
+
+// withNonce gives the index document a nonce of its own for the styles the application injects at run time, such as the editor's:
+// the placeholder of the document becomes the nonce, and the style-src of the policy set before allows it. Nothing else the policy says
+// changes, and every response gets a new nonce, so a nonce seen once cannot be reused.
+func withNonce(w http.ResponseWriter, file io.Reader) io.ReadSeeker {
+	body, _ := io.ReadAll(file)
+	random := make([]byte, 16)
+	_, _ = rand.Read(random)
+	nonce := base64.StdEncoding.EncodeToString(random)
+	if policy := w.Header().Get("Content-Security-Policy"); policy != "" {
+		w.Header().Set("Content-Security-Policy", strings.Replace(policy, "style-src 'self'", "style-src 'self' 'nonce-"+nonce+"'", 1))
+	}
+	return bytes.NewReader(bytes.ReplaceAll(body, []byte(noncePlaceholder), []byte(nonce)))
 }
 
 // readSeeker is the file capability http.ServeContent needs.

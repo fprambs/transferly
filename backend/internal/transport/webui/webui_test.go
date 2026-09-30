@@ -77,6 +77,40 @@ func TestHandler_CrossOrigin(t *testing.T) {
 	}
 }
 
+// TestHandler_StyleNonce covers the nonce the index document gets for the styles injected at run time, such as the editor's.
+//
+// Use cases:
+//   - the placeholder of the document becomes a nonce that the style-src of the policy allows, and nothing else of the policy changes
+//   - every response gets a new nonce, application routes included
+//   - without a policy set before, only the document changes
+func TestHandler_StyleNonce(t *testing.T) {
+	files := fstest.MapFS{"index.html": {Data: []byte(`<meta name="csp-nonce" content="__CSP_NONCE__">`)}}
+	withPolicy := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self'; img-src 'self'")
+		newHandler(files).ServeHTTP(w, r)
+	})
+	nonceOf := func(target string) (string, string) {
+		rec := httptest.NewRecorder()
+		withPolicy.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
+		body := rec.Body.String()
+		nonce := strings.TrimSuffix(strings.TrimPrefix(body, `<meta name="csp-nonce" content="`), `">`)
+		return nonce, rec.Header().Get("Content-Security-Policy")
+	}
+	first, policy := nonceOf("/")
+	if len(first) < 20 || strings.Contains(first, "CSP_NONCE") || policy != "default-src 'self'; style-src 'self' 'nonce-"+first+"'; img-src 'self'" {
+		t.Errorf("nonce %q with policy %q", first, policy)
+	}
+	if second, _ := nonceOf("/sites/42"); second == first || len(second) < 20 {
+		t.Errorf("the nonce %q of an application route repeats or is missing", second)
+	}
+
+	rec := httptest.NewRecorder()
+	newHandler(files).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+	if rec.Header().Get("Content-Security-Policy") != "" || strings.Contains(rec.Body.String(), "CSP_NONCE") {
+		t.Errorf("without a policy: %v %q", rec.Header(), rec.Body.String())
+	}
+}
+
 // TestHandler_ApplicationRoutes verifies the single-page fallback.
 //
 // Scenarios:
