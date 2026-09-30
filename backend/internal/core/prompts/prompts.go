@@ -24,6 +24,9 @@ const (
 	DefaultWait = 3 * time.Minute
 	// MaxAnswerLength is the longest answer taken, in bytes; no password or code comes near it.
 	MaxAnswerLength = 1024
+	// MaxWaiting is the most prompts that wait for one user at once: each holds a connection to a server open while it waits, so a
+	// user opening many interactive connections from many tabs cannot pile them up (security review of phase 4).
+	MaxWaiting = 16
 )
 
 var (
@@ -35,6 +38,8 @@ var (
 	ErrCanceled = errors.New("prompt canceled")
 	// ErrExpired means nobody answered in time.
 	ErrExpired = errors.New("prompt expired")
+	// ErrTooMany means [MaxWaiting] prompts already wait for the user.
+	ErrTooMany = errors.New("too many prompts wait for an answer")
 )
 
 // Question is one thing the server asks.
@@ -112,8 +117,8 @@ func (b *Broker) Wait() time.Duration {
 }
 
 // Ask shows challenge to the user of target and returns their answers, one per question. A challenge without
-// questions is acknowledged at once. It fails with [ErrCanceled] when the user declines, [ErrExpired] when nobody
-// answers in time, and the context error when ctx ends first.
+// questions is acknowledged at once. It fails with [ErrTooMany] when [MaxWaiting] prompts already wait for the user,
+// [ErrCanceled] when the user declines, [ErrExpired] when nobody answers in time, and the context error when ctx ends first.
 func (b *Broker) Ask(ctx context.Context, target Target, challenge Challenge) ([]string, error) {
 	if len(challenge.Questions) == 0 {
 		return []string{}, nil
@@ -121,6 +126,10 @@ func (b *Broker) Ask(ctx context.Context, target Target, challenge Challenge) ([
 	id := uuid.New()
 	w := &waiting{user: target.UserID, questions: len(challenge.Questions), replies: make(chan reply, 1)}
 	b.mu.Lock()
+	if b.waitingFor(target.UserID) >= MaxWaiting {
+		b.mu.Unlock()
+		return nil, ErrTooMany
+	}
 	b.pending[id] = w
 	b.mu.Unlock()
 	defer b.close(id, target.UserID)
@@ -141,6 +150,17 @@ func (b *Broker) Ask(ctx context.Context, target Target, challenge Challenge) ([
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// waitingFor counts the prompts that wait for user; the caller holds the lock.
+func (b *Broker) waitingFor(user uuid.UUID) int {
+	n := 0
+	for _, w := range b.pending {
+		if w.user == user {
+			n++
+		}
+	}
+	return n
 }
 
 // close forgets prompt id and tells every client of user that it no longer waits.

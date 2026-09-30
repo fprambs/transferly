@@ -121,6 +121,7 @@ func TestBroker_Answer(t *testing.T) {
 //   - every ending publishes connection.prompt_closed
 //   - a challenge without questions, such as a banner, is acknowledged at once without asking
 //   - a zero wait means the default one
+//   - a user with MaxWaiting prompts waiting cannot open another, while other users still can
 func TestBroker_Ask_Ends(t *testing.T) {
 	target := prompts.Target{UserID: uuid.New()}
 
@@ -164,6 +165,29 @@ func TestBroker_Ask_Ends(t *testing.T) {
 		cancel()
 		if r := wait(t, done); !errors.Is(r.err, context.Canceled) {
 			t.Errorf("Ask = %+v; want context.Canceled", r)
+		}
+	})
+
+	t.Run("too many waiting", func(t *testing.T) {
+		events := make(chan ports.Event, 4*prompts.MaxWaiting)
+		b := prompts.New(&sink{events: events}, time.Minute)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		for range prompts.MaxWaiting {
+			ask(ctx, b, target, challenge)
+			<-events
+		}
+		if _, err := b.Ask(ctx, target, challenge); !errors.Is(err, prompts.ErrTooMany) {
+			t.Errorf("Ask over the limit = %v; want ErrTooMany", err)
+		}
+		other := prompts.Target{UserID: uuid.New()}
+		done := ask(ctx, b, other, challenge)
+		p := (<-events).Data.(prompts.Prompt)
+		if err := b.Cancel(other.UserID, p.ID); err != nil {
+			t.Fatal(err)
+		}
+		if r := wait(t, done); !errors.Is(r.err, prompts.ErrCanceled) {
+			t.Errorf("another user = %+v; want their own prompt", r)
 		}
 	})
 
