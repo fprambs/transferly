@@ -23,12 +23,15 @@ ENV GOROOT=/usr/local/go \
 RUN mkdir -p /cache/go /cache/gomod /cache/gobuild /cache/pnpm /cache/pnpm-store /cache/home \
     && chmod -R 0777 /cache
 
-# ffmpeg, 7-Zip, bzip2, xz and zstd generate the media and archive samples of the file viewers (testenv/preview-samples). Package downloads use HTTPS, with
+# ffmpeg, 7-Zip, bzip2, xz and zstd generate the media and archive samples of the file viewers, and python-docx, openpyxl, xlwt, odfpy and
+# python-pptx their Office samples (testenv/preview-samples). Package downloads use HTTPS, with
 # retries, so a middlebox cannot alter them (see testenv/README.md).
 RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources \
     && printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \
     && apt-get update \
     && apt-get install -y --no-install-recommends --fix-missing ffmpeg p7zip-full bzip2 xz-utils zstd \
+       python3-docx python3-openpyxl python3-xlwt python3-odf python3-pil python3-lxml python3-xlsxwriter python3-typing-extensions python3-pip \
+    && pip3 install --no-cache-dir --no-deps --break-system-packages python-pptx==1.0.2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Go tools, pinned by version.
