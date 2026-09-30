@@ -117,5 +117,30 @@
     "protectedBody": "Sentinel no abre documentos protegidos. Descárgalo para abrirlo con su contraseña.",
     "broken": "Este PDF no se puede abrir",
     "brokenBody": "El archivo está dañado o no es un PDF que el visor pueda leer."
+  },
+  "archive": {
+    "loading": "Leyendo el archivo comprimido…",
+    "failed": "No se pudo listar el archivo comprimido.",
+    "entryFailed": "No se pudo leer esta entrada.",
+    "entryTooLarge": "El visor abre entradas de hasta {{limit}}. Descárgala para abrirla en tu equipo.",
+    "downloadEntry": "Descargar esta entrada",
+    "summary_one": "{{count}} archivo · {{size}}",
+    "summary_other": "{{count}} archivos · {{size}}",
+    "truncated": "Solo se listan las primeras {{count}} entradas",
+    "filter": "Filtrar por nombre",
+    "empty": "Este archivo comprimido está vacío.",
+    "noMatches": "Ninguna entrada coincide con el filtro.",
+    "label": "Contenido de {{name}}",
+    "unsafe": "nombre peligroso",
+    "unsafeHint": "Extraído tal cual, este nombre quedaría fuera de la carpeta o en un lugar propio. Sentinel nunca lo extrae.",
+    "ratio": "{{percent}} % comprimido",
+    "columns": {
+      "name": "Nombre",
+      "size": "Tamaño",
+      "packed": "Comprimido",
+      "modified": "Modificado"
+    },
+    "bomb": "¿bomba de descompresión?",
+    "bombHint": "Declara crecer más de 200 veces al extraerse, algo que ningún archivo real hace. El servidor se niega a extraerla."
   }
 }

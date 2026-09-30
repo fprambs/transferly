@@ -1,21 +1,17 @@
-import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, CircleAlert, Download, PencilLine, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react'
 import { useRef, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { Loading } from '@/components/ui/loading'
-import { PanelState } from '@/components/ui/panel-state'
 import { Tip } from '@/components/ui/tip'
 
 import { formatSize } from '../explorer/entries'
 import { FileTypeIcon } from '../explorer/FileTypeIcon'
 import { fileTypeOf } from '../explorer/file-types'
 
-import { detectKind, headLength, type PreviewKind } from './detect'
+import { PreviewBody } from './PreviewBody'
 import type { PreviewSource } from './source'
-import { viewerOf } from './viewers/registry'
 
 /** Props of {@link QuickLook}. */
 export interface QuickLookProps {
@@ -31,52 +27,6 @@ export interface QuickLookProps {
   onDownload?: (source: PreviewSource) => void
   /** Opens the file shown in the editor, offered for text; the button is left out without it. */
   onEdit?: (source: PreviewSource) => void
-}
-
-/** Kinds the editor opens. */
-const editable: ReadonlySet<PreviewKind> = new Set(['text', 'markdown', 'json', 'yaml', 'xml', 'csv', 'svg'])
-
-/** The body of the viewer for one file: reads its first bytes, tells its kind and shows it with the viewer of that kind. */
-function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?: (source: PreviewSource) => void }) {
-  const { t } = useTranslation('preview')
-  const head = useQuery({
-    queryKey: ['preview', source.key, 'head'],
-    queryFn: ({ signal }) => source.read(0, headLength, signal),
-    staleTime: Infinity,
-    retry: false,
-  })
-  if (source.size === 0) {
-    return <p className="m-auto text-sm text-muted-foreground">{t(($) => $.empty)}</p>
-  }
-  if (head.isPending) {
-    return <Loading label={t(($) => $.loading)} className="m-auto" />
-  }
-  if (head.isError) {
-    return (
-      <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failed)}>
-        <Button variant="outline" onClick={() => void head.refetch()}>
-          {t(($) => $.retry)}
-        </Button>
-      </PanelState>
-    )
-  }
-  const kind = detectKind(source.name, head.data)
-  const { View, fallback } = viewerOf(kind)
-  return (
-    <>
-      <div className="flex items-center gap-3 border-b px-4 py-1.5 text-xs text-muted-foreground">
-        <span>{t(($) => $.kinds[kind])}</span>
-        {fallback && <span>· {t(($) => $.hex.note)}</span>}
-        {onEdit !== undefined && editable.has(kind) && (
-          <Button variant="ghost" size="xs" className="ms-auto" onClick={() => onEdit(source)}>
-            <PencilLine />
-            {t(($) => $.edit)}
-          </Button>
-        )}
-      </div>
-      <View source={source} kind={kind} />
-    </>
-  )
 }
 
 /**

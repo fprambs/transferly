@@ -62,7 +62,8 @@ const files = `/api/v1/workspaces/${ws}/sites/${site}/files`
  *   and transfers is called with the documented method and path
  * - bodies are JSON, query parameters are encoded and left-out ones are not sent
  * - state-changing calls carry the anti-CSRF token and reads do not
- * - uploads send the blob as it is with the resume options in the query, and the download URL is built without a request
+ * - uploads send the blob as it is with the resume options in the query, and the download URLs are built without a request
+ * - ranges of files are read as bytes and entries of archives streamed, with the chain of nested archives as repeated parameters
  */
 describe('createApi', () => {
   beforeEach(() => {
@@ -139,6 +140,7 @@ describe('createApi', () => {
     { name: 'quick.save', call: (a) => a.quick.save(ws, 'q1', { name: 'N', collectionId: 'c1' }), method: 'POST', path: `/api/v1/workspaces/${ws}/quick-connections/q1/save`, body: { name: 'N', collectionId: 'c1' } },
     { name: 'files.list', call: (a) => a.files.list(ws, site, '/a b'), method: 'GET', path: files, query: '?path=%2Fa+b' },
     { name: 'files.probeTimeZone', call: (a) => a.files.probeTimeZone(ws, site, '/dir'), method: 'POST', path: `${files}/timezone-probe`, query: '?path=%2Fdir' },
+    { name: 'files.archiveEntries', call: (a) => a.files.archiveEntries(ws, site, '/a.zip', ['in.zip']), method: 'GET', path: `${files}/archive-entries`, query: '?path=%2Fa.zip&inner=in.zip' },
     { name: 'files.checksum', call: (a) => a.files.checksum(ws, site, '/f', 'md5'), method: 'GET', path: `${files}/checksum`, query: '?path=%2Ff&algorithm=md5' },
     { name: 'files.stat', call: (a) => a.files.stat(ws, site, '/f'), method: 'GET', path: `${files}/entry`, query: '?path=%2Ff' },
     { name: 'files.mkdir', call: (a) => a.files.mkdir(ws, site, '/d'), method: 'POST', path: `${files}/directories`, body: { path: '/d' } },
@@ -224,6 +226,21 @@ describe('createApi', () => {
     expect(range).toBe('bytes=10-12')
   })
 
+  it('streams an entry of an archive', async () => {
+    let query = ''
+    server.use(
+      http.get(`${files}/archive-entry`, ({ request }) => {
+        query = new URL(request.url).search
+        return new HttpResponse(new Uint8Array([4, 5]))
+      }),
+    )
+
+    const bytes = new Uint8Array(await new Response(await client().api.files.archiveEntry(ws, site, '/a.zip', ['b.zip'], 'c.txt')).arrayBuffer())
+
+    expect([...bytes]).toEqual([4, 5])
+    expect(query).toBe('?path=%2Fa.zip&inner=b.zip&entry=c.txt')
+  })
+
   it('builds download URLs without calling the server', () => {
     const { api } = client()
 
@@ -231,6 +248,7 @@ describe('createApi', () => {
     expect(api.files.downloadUrl(ws, site, '/f', 't1')).toBe(`${files}/content?path=%2Ff&transferId=t1`)
     expect(api.files.archiveUrl(ws, site, '/d e')).toBe(`${files}/archive?path=%2Fd+e`)
     expect(api.files.archiveUrl(ws, site, '/d', 't1')).toBe(`${files}/archive?path=%2Fd&transferId=t1`)
+    expect(api.files.archiveEntryUrl(ws, site, '/a.zip', [], 'x/y.txt')).toBe(`${files}/archive-entry?path=%2Fa.zip&entry=x%2Fy.txt`)
     expect(seen).toHaveLength(0)
   })
 

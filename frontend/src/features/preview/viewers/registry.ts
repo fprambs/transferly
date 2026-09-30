@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 
 import type { PreviewKind } from '../detect'
 
+import { ArchiveViewer } from './ArchiveViewer'
 import { CsvViewer } from './CsvViewer'
 import { HexViewer } from './HexViewer'
 import { ImageViewer } from './ImageViewer'
@@ -28,6 +29,7 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   audio: MediaViewer,
   video: MediaViewer,
   pdf: PdfViewer,
+  archive: ArchiveViewer,
 }
 
 /** The viewer of a kind, and whether it is the hexadecimal fallback standing in for a viewer that does not exist yet. */

@@ -117,5 +117,30 @@
     "protectedBody": "Sentinel does not open protected documents. Download it to open it with its password.",
     "broken": "This PDF cannot be opened",
     "brokenBody": "The file is damaged or is not a PDF the viewer can read."
+  },
+  "archive": {
+    "loading": "Reading the archive…",
+    "failed": "The archive could not be listed.",
+    "entryFailed": "This entry could not be read.",
+    "entryTooLarge": "The viewer opens entries up to {{limit}}. Download it to open it on your computer.",
+    "downloadEntry": "Download this entry",
+    "summary_one": "{{count}} file · {{size}}",
+    "summary_other": "{{count}} files · {{size}}",
+    "truncated": "Only the first {{count}} entries are listed",
+    "filter": "Filter by name",
+    "empty": "This archive is empty.",
+    "noMatches": "No entry matches the filter.",
+    "label": "Contents of {{name}}",
+    "unsafe": "unsafe name",
+    "unsafeHint": "Extracted as it is, this name would land outside the folder or at a place of its own. Sentinel never extracts it.",
+    "ratio": "{{percent}}% packed",
+    "columns": {
+      "name": "Name",
+      "size": "Size",
+      "packed": "Compressed",
+      "modified": "Modified"
+    },
+    "bomb": "decompression bomb?",
+    "bombHint": "It claims to grow more than 200 times once extracted, which no real file does. The server refuses to extract it."
   }
 }

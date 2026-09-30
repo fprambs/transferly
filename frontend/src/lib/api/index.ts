@@ -118,6 +118,12 @@ export type ActivityEntry = Schemas['ActivityEntry']
 /** The digest of a remote file. */
 export type Checksum = Schemas['Checksum']
 
+/** The entries of an archive, as the server read them (D2.5). */
+export type ArchiveListing = Schemas['ArchiveListing']
+
+/** One entry of an archive. */
+export type ArchiveEntry = Schemas['ArchiveEntry']
+
 /** Algorithms a checksum can be computed with. */
 export type ChecksumAlgorithm = Checksum['algorithm']
 
@@ -314,6 +320,12 @@ export function createApi(transport: Transport) {
         transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
       archiveUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/archive`, { path, transferId }),
+      archiveEntries: (workspaceId: string, siteId: string, path: string, inner: readonly string[], signal?: AbortSignal) =>
+        transport.request<ArchiveListing>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/archive-entries`, query: { path, inner }, signal }),
+      archiveEntryUrl: (workspaceId: string, siteId: string, path: string, inner: readonly string[], entry: string) =>
+        transport.url(`${filesPath(workspaceId, siteId)}/archive-entry`, { path, inner, entry }),
+      archiveEntry: (workspaceId: string, siteId: string, path: string, inner: readonly string[], entry: string, signal?: AbortSignal) =>
+        transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/archive-entry`, query: { path, inner, entry }, signal }),
       read: async (workspaceId: string, siteId: string, path: string, start: number, end: number, signal?: AbortSignal) =>
         new Uint8Array(
           await new Response(

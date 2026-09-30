@@ -28,6 +28,10 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  * - audio and video play streamed by ranges, with their length, picture size and speed; an AVI the browser cannot play says so
  * - PDFs open in the isolated page with pages, thumbnails, zoom and search; a large one is read by ranges, not whole; the JavaScript of a
  *   document never runs; protected and broken PDFs say so
+ * - archives read by the server show as trees with their format, totals, sizes and compression: ZIP, 7z, RAR, TAR and compressed TARs,
+ *   and a single compressed file; an entry opens with its own viewer, an archive nested in another included, and Backspace goes back;
+ *   hostile names are marked, a bomb, an encrypted entry, a truncated ZIP and a 7z with encrypted headers are refused with guidance, and
+ *   a listing of 12 000 entries stops at 10 000 and says so
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -273,6 +277,79 @@ test.describe('file viewer', () => {
       await expect(page.getByRole('dialog', { name })).toContainText(message)
       await page.keyboard.press('Escape')
     }
+  })
+
+  test('shows archives as trees read by the server, and opens their entries with their own viewers', async ({ shell, quickId }) => {
+    const { page } = shell
+    await openSamples(page, quickId, 'archives')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    const open = async (name: string) => {
+      await grid.getByRole('row', { name: new RegExp(`^${name.replaceAll('.', '\\.')}(?![\\w.])`) }).click()
+      await page.keyboard.press(' ')
+      return page.getByRole('dialog', { name })
+    }
+
+    const bomb = await open('bomb.zip')
+    await expect(bomb.getByRole('treeitem', { name: /zeros\.bin/ })).toContainText('decompression bomb?')
+    await bomb.getByRole('treeitem', { name: /zeros\.bin/ }).dblclick()
+    await expect(bomb).toContainText('Too large to show here')
+    await page.screenshot({ path: `${shots}/preview-archive-bomb.png`, animations: 'disabled' })
+    await page.keyboard.press('Escape')
+
+    const hostile = await open('hostile-paths.zip')
+    await expect(hostile.getByText('unsafe name')).toHaveCount(4)
+    await page.screenshot({ path: `${shots}/preview-archive-hostile.png` })
+    await page.keyboard.press('Escape')
+
+    const many = await open('many-entries.zip')
+    await expect(many).toContainText('Only the first 10000 entries are listed')
+    await page.keyboard.press('Escape')
+
+    for (const name of ['project.7z', 'project.rar', 'project.tar', 'project.tar.bz2', 'project.tar.gz', 'project.tar.xz', 'project.tar.zst']) {
+      const archive = await open(name)
+      await expect(archive.getByRole('tree')).toContainText('README.md')
+      await page.keyboard.press('Escape')
+    }
+    const zip = await open('project.zip')
+    const tree = zip.getByRole('tree', { name: 'Contents of project.zip' })
+    await expect(zip).toContainText('8 files')
+    await expect(tree.getByRole('treeitem', { name: /README\.md/ })).toBeVisible()
+    await expect(tree.getByRole('treeitem', { name: /inner\.zip/ })).toBeHidden()
+    await tree.getByRole('treeitem', { name: /^vendor/ }).dblclick()
+    await expect(tree.getByRole('treeitem', { name: /inner\.zip/ })).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-archive-tree.png` })
+
+    await tree.getByRole('treeitem', { name: 'images' }).click()
+    await page.keyboard.press('Enter')
+    await tree.getByRole('treeitem', { name: /sample\.png/ }).dblclick()
+    await expect(zip.getByRole('img', { name: 'sample.png' })).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-archive-entry.png` })
+    await page.keyboard.press('Backspace')
+    await expect(tree).toBeVisible()
+
+    await tree.getByRole('treeitem', { name: /inner\.zip/ }).dblclick()
+    const nested = zip.getByRole('tree', { name: 'Contents of inner.zip' })
+    await nested.getByRole('treeitem', { name: /plain\.txt/ }).dblclick()
+    await expect(zip.getByLabel('Contents of plain.txt', { exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    const header = await open('secret.7z')
+    await expect(header).toContainText('archive_encrypted')
+    await page.keyboard.press('Escape')
+
+    const secret = await open('secret.zip')
+    await secret.getByRole('treeitem', { name: /README\.md/ }).dblclick()
+    await expect(secret).toContainText('archive_encrypted')
+    await page.keyboard.press('Escape')
+
+    const log = await open('server.log.gz')
+    await log.getByRole('treeitem', { name: /server\.log/ }).dblclick()
+    await expect(log.getByLabel('Contents of server.log', { exact: true })).toContainText('transfer 0 done')
+    await page.keyboard.press('Escape')
+
+    const truncated = await open('truncated.zip')
+    await expect(truncated).toContainText('archive_unsupported')
+    await page.keyboard.press('Escape')
   })
 
   test('keeps the isolated page of the viewers away from the session', async ({ shell }) => {
