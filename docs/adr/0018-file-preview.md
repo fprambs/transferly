@@ -17,7 +17,7 @@ Sentinel lists, downloads and edits remote files, but seeing what a file holds m
 
 **Archives are read by the server**, in Go, without fetching the whole file: a ZIP by its central directory and the ranges of the entry asked for, a TAR stream until the entry, with caps on entries, uncompressed bytes and compression ratio. An entry is a source like any other, so it opens with the same viewers. Archives of the local panel never leave the computer: the browser reads ZIP, TAR and gzip itself, with its native `DecompressionStream` and the same caps, and leaves the other formats to the server.
 
-**Office documents are rendered in the browser**, inside the isolated page, by JavaScript libraries; no conversion service is run. Fidelity is good for Word and Excel and fair for PowerPoint; legacy `.doc` and `.ppt` fall back to the hexadecimal view.
+**Office documents are rendered in the browser**, inside the isolated page, by JavaScript libraries (docx-preview for Word, SheetJS for workbooks) and by Sentinel's own readers of the XML of OpenDocument texts and PowerPoint decks; no conversion service is run. Fidelity is good for Word and Excel and fair for PowerPoint; legacy `.doc` and `.ppt` fall back to the hexadecimal view.
 
 **Previewing is downloading.** It needs the download right, so a viewer can preview, and goes through the same endpoints and limits as a download.
 

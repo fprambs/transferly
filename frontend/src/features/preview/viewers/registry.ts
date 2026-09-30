@@ -8,6 +8,7 @@ import { HexViewer } from './HexViewer'
 import { ImageViewer } from './ImageViewer'
 import { MarkdownViewer } from './MarkdownViewer'
 import { MediaViewer } from './MediaViewer'
+import { OfficeViewer } from './OfficeViewer'
 import { PdfViewer } from './PdfViewer'
 import { StructuredViewer } from './StructuredViewer'
 import { TextViewer } from './TextViewer'
@@ -30,6 +31,9 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   video: MediaViewer,
   pdf: PdfViewer,
   archive: ArchiveViewer,
+  document: OfficeViewer,
+  spreadsheet: OfficeViewer,
+  presentation: OfficeViewer,
 }
 
 /** The viewer of a kind, and whether it is the hexadecimal fallback standing in for a viewer that does not exist yet. */

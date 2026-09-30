@@ -190,3 +190,209 @@ body {
 .pdf-canvas {
   display: block;
 }
+
+.document {
+  background: var(--muted);
+}
+
+.docx-pages {
+  overflow: auto;
+}
+
+.odt-page {
+  box-sizing: border-box;
+  max-width: 52rem;
+  margin: 1.5rem auto;
+  padding: 3rem 3.5rem;
+  background: #ffffff;
+  color: #1f2328;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+  font-family: 'Liberation Sans', Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.odt-page p {
+  margin: 0 0 0.5em;
+}
+
+.odt-table td p {
+  margin: 0;
+}
+
+.odt-table {
+  border-collapse: collapse;
+  margin: 0.8em 0;
+}
+
+.odt-table td {
+  padding: 0.3em 0.6em;
+  border: 1px solid #c8ccd0;
+}
+
+.odt-image {
+  max-width: 100%;
+}
+
+.odt-link {
+  color: #0969da;
+  text-decoration: underline;
+}
+
+.sheets {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.sheet-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.sheet-tab {
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sheet-tab[aria-selected='true'] {
+  border-color: var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.sheet-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sheet-notice,
+.sheet-empty {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--warn);
+}
+
+.sheet-empty {
+  color: var(--muted-foreground);
+}
+
+.sheet {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet th,
+.sheet td {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  white-space: pre;
+}
+
+.sheet thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.sheet tbody th {
+  position: sticky;
+  left: 0;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-weight: 500;
+  text-align: right;
+}
+
+.sheet .sheet-corner {
+  left: 0;
+  z-index: 2;
+}
+
+.slides {
+  padding: 1rem;
+  background: var(--muted);
+}
+
+.slides-summary {
+  margin: 0 auto 0.75rem;
+  max-width: 64rem;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.slide {
+  max-width: 64rem;
+  margin: 0 auto 1.25rem;
+}
+
+.slide-canvas {
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 30%);
+  color: #000000;
+  font-family: Calibri, Carlito, system-ui, sans-serif;
+}
+
+.slide-shape {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 0.6cqw 0.8cqw;
+}
+
+.slide-middle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.slide-paragraph {
+  margin: 0;
+  line-height: 1.15;
+}
+
+.slide-bullet::before {
+  content: '• ';
+}
+
+.slide-picture {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.slide-table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+}
+
+.slide-table td {
+  padding: 0.4cqw 0.6cqw;
+  border: 1px solid #ffffff;
+  background: #dfe7f1;
+}
+
+.slide-table tr:first-child td {
+  background: #4472c4;
+  color: #ffffff;
+  font-weight: bold;
+}

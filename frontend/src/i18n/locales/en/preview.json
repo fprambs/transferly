@@ -144,5 +144,18 @@
     "bombHint": "It claims to grow more than 200 times once extracted, which no real file does. The server refuses to extract it.",
     "localUnsupported": "The browser cannot open this archive",
     "localUnsupportedBody": "It reads ZIP, TAR and gzip archives of your computer. Open 7z, RAR, bzip2, xz and zstd archives from a server, which reads them all."
+  },
+  "office": {
+    "label": "Document {{name}}",
+    "sheets": "Sheets",
+    "rowsCut": "Showing the first {{shown}} of {{total}} rows.",
+    "columnsCut": "Showing the first {{shown}} of {{total}} columns.",
+    "emptySheet": "This sheet is empty.",
+    "slides": "Slides: {{total}}",
+    "slide": "Slide {{number}}",
+    "protected": "This document is protected with a password",
+    "protectedBody": "Sentinel does not open protected documents. Download it to open it with its password.",
+    "broken": "This document cannot be opened",
+    "brokenBody": "The file is damaged or is not a document the viewer can read."
   }
 }

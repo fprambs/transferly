@@ -144,5 +144,18 @@
     "bombHint": "Declara crecer más de 200 veces al extraerse, algo que ningún archivo real hace. El servidor se niega a extraerla.",
     "localUnsupported": "El navegador no puede abrir este archivo comprimido",
     "localUnsupportedBody": "Lee archivos ZIP, TAR y gzip de tu equipo. Abre los 7z, RAR, bzip2, xz y zstd desde un servidor, que los lee todos."
+  },
+  "office": {
+    "label": "Documento {{name}}",
+    "sheets": "Hojas",
+    "rowsCut": "Se muestran las primeras {{shown}} de {{total}} filas.",
+    "columnsCut": "Se muestran las primeras {{shown}} de {{total}} columnas.",
+    "emptySheet": "Esta hoja está vacía.",
+    "slides": "Diapositivas: {{total}}",
+    "slide": "Diapositiva {{number}}",
+    "protected": "Este documento está protegido con contraseña",
+    "protectedBody": "Sentinel no abre documentos protegidos. Descárgalo para abrirlo con su contraseña.",
+    "broken": "No se puede abrir este documento",
+    "brokenBody": "El archivo está dañado o no es un documento que el visor pueda leer."
   }
 }

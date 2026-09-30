@@ -27,7 +27,13 @@ const readRange: RangeReader = (begin, end) =>
 const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLElement) => Promise<void>>> = {
   markdown: async (message, root) => (await import('./markdown')).renderMarkdown(new TextDecoder().decode(message.bytes), root),
   pdf: async (message, root) => (await import('./pdf')).renderPdf(new Uint8Array(message.bytes), message.size, readRange, root, message.labels),
+  document: async (message, root) => (await import('./office/document')).renderDocument(new Uint8Array(message.bytes), root),
+  spreadsheet: async (message, root) => (await import('./office/spreadsheet')).renderSpreadsheet(new Uint8Array(message.bytes), root, message.labels),
+  presentation: async (message, root) => (await import('./office/presentation')).renderPresentation(new Uint8Array(message.bytes), root, message.labels),
 }
+
+/** The errors of the renderers that mean the file is protected with a password. */
+const protectedErrors = new Set(['ProtectedPdf', 'ProtectedDocument'])
 
 window.addEventListener('message', (event) => {
   if (event.source !== window.parent) {
@@ -54,9 +60,19 @@ window.addEventListener('message', (event) => {
   }
   render(message, root).then(
     () => tell({ type: 'sentinel:rendered' }),
-    (error: unknown) => tell({ type: 'sentinel:failed', reason: error instanceof Error && error.name === 'ProtectedPdf' ? 'password' : 'render' }),
+    (error: unknown) => tell({ type: 'sentinel:failed', reason: error instanceof Error && protectedErrors.has(error.name) ? 'password' : 'render' }),
   )
 })
+
+document.addEventListener(
+  'click',
+  (event) => {
+    if (event.target instanceof Element && event.target.closest('a') !== null) {
+      event.preventDefault()
+    }
+  },
+  true,
+)
 
 document.addEventListener('keydown', (event) => {
   const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement

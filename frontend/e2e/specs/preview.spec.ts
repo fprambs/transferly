@@ -32,6 +32,10 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   and a single compressed file; an entry opens with its own viewer, an archive nested in another included, and Backspace goes back;
  *   hostile names are marked, a bomb, an encrypted entry, a truncated ZIP and a 7z with encrypted headers are refused with guidance, and
  *   a listing of 12 000 entries stops at 10 000 and says so
+ * - Office documents open in the isolated page: a Word document laid out as pages with its bullets, table and picture; an OpenDocument
+ *   text; an Excel workbook with its sheets, merged cells, formatted numbers and saved results; legacy Excel and OpenDocument workbooks;
+ *   a PowerPoint deck as slides; a hostile document renders without its embedded HTML or remote picture; a legacy Word file shows as
+ *   bytes and a truncated document says it cannot be opened
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -350,6 +354,75 @@ test.describe('file viewer', () => {
 
     const truncated = await open('truncated.zip')
     await expect(truncated).toContainText('archive_unsupported')
+    await page.keyboard.press('Escape')
+  })
+
+  test('shows Office documents in the isolated page', async ({ shell, quickId }) => {
+    test.setTimeout(60_000)
+    const { page } = shell
+    const requests: string[] = []
+    page.on('request', (request) => requests.push(request.url()))
+    await openSamples(page, quickId, 'office')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    const open = async (name: string) => {
+      await grid.getByRole('row', { name: new RegExp(`^${name.replace('.', '\\.')}`) }).click()
+      await page.keyboard.press(' ')
+      return page.frameLocator(`iframe[title="Document ${name}"]`)
+    }
+
+    const docx = await open('document.docx')
+    await expect(docx.getByText('Sentinel preview sample').first()).toBeVisible()
+    await expect(docx.locator('table').first()).toContainText('Bogotá')
+    await expect(docx.locator('img').first()).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-docx.png` })
+    await page.keyboard.press('Escape')
+
+    const odt = await open('document.odt')
+    await expect(odt.locator('.odt-page h1')).toHaveText('Sentinel preview sample')
+    await expect(odt.locator('.odt-page li')).toHaveCount(3)
+    await page.screenshot({ path: `${shots}/preview-odt.png` })
+    await page.keyboard.press('Escape')
+
+    const hostile = await open('hostile.docx')
+    await expect(hostile.getByText('Hostile document')).toBeVisible()
+    await expect(hostile.getByText('embedded html', { exact: true })).toHaveCount(0)
+    await expect(hostile.locator('iframe')).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    expect(requests.filter((url) => url.includes('example.com'))).toEqual([])
+
+    await grid.getByRole('row', { name: /^legacy\.doc/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'legacy.doc' }).getByRole('table', { name: 'Bytes of legacy.doc' })).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    const xls = await open('legacy.xls')
+    await expect(xls.locator('table.sheet')).toContainText('Santiago')
+    await page.keyboard.press('Escape')
+
+    const ods = await open('sheet.ods')
+    await expect(ods.getByRole('tab')).toHaveText(['People', 'Cities'])
+    await page.keyboard.press('Escape')
+
+    const deck = await open('slides.pptx')
+    await expect(deck.locator('.slides-summary')).toHaveText('Slides: 4')
+    await expect(deck.locator('.slide')).toHaveCount(4)
+    await expect(deck.locator('.slide').nth(2).locator('img')).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-pptx.png` })
+    await deck.locator('.slide').nth(2).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: `${shots}/preview-pptx-shapes.png` })
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /^truncated\.docx/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'truncated.docx' })).toContainText('This document cannot be opened')
+    await page.keyboard.press('Escape')
+
+    const xlsx = await open('workbook.xlsx')
+    await expect(xlsx.getByRole('tab')).toHaveText(['Sales', 'Notes', 'Big'])
+    await expect(xlsx.locator('table.sheet tbody tr').nth(6)).toContainText('4,471.50')
+    await page.screenshot({ path: `${shots}/preview-xlsx.png` })
+    await xlsx.getByRole('tab', { name: 'Big' }).click()
+    await expect(xlsx.locator('table.sheet tbody tr')).toHaveCount(5001)
     await page.keyboard.press('Escape')
   })
 
