@@ -38,5 +38,41 @@
     "bytes": "Bytes",
     "text": "Text",
     "note": "Shown as bytes, since no viewer of this kind of file exists yet."
+  },
+  "tooLarge": {
+    "title": "Too large to show here",
+    "body": "This viewer reads files up to {{limit}}. You can still look at its bytes, which are read by pages.",
+    "asBytes": "Show as bytes"
+  },
+  "text": {
+    "wrap": "Wrap lines",
+    "label": "Contents of {{name}}"
+  },
+  "views": {
+    "label": "View",
+    "tree": "Tree",
+    "source": "Source",
+    "rendered": "Rendered"
+  },
+  "tree": {
+    "label": "Structure of {{name}}",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "more": "Show {{count}} more",
+    "invalid": "This file does not parse: {{error}}"
+  },
+  "table": {
+    "label": "Table of {{name}}",
+    "summary": "{{rows}} rows · {{columns}} columns · separated by {{delimiter}}",
+    "header": "First row is the header",
+    "delimiters": {
+      "comma": "commas",
+      "tab": "tabs",
+      "semicolon": "semicolons",
+      "pipe": "pipes"
+    }
+  },
+  "markdown": {
+    "label": "Rendered {{name}}"
   }
 }

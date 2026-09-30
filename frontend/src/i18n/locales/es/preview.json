@@ -38,5 +38,41 @@
     "bytes": "Bytes",
     "text": "Texto",
     "note": "Se muestra como bytes, porque aún no hay un visor para este tipo de archivo."
+  },
+  "tooLarge": {
+    "title": "Demasiado grande para mostrarlo aquí",
+    "body": "Este visor lee archivos de hasta {{limit}}. Igual puedes ver sus bytes, que se leen por páginas.",
+    "asBytes": "Ver como bytes"
+  },
+  "text": {
+    "wrap": "Ajustar líneas",
+    "label": "Contenido de {{name}}"
+  },
+  "views": {
+    "label": "Vista",
+    "tree": "Árbol",
+    "source": "Fuente",
+    "rendered": "Renderizado"
+  },
+  "tree": {
+    "label": "Estructura de {{name}}",
+    "expand": "Expandir",
+    "collapse": "Contraer",
+    "more": "Mostrar {{count}} más",
+    "invalid": "Este archivo no se puede leer: {{error}}"
+  },
+  "table": {
+    "label": "Tabla de {{name}}",
+    "summary": "{{rows}} filas · {{columns}} columnas · separadas por {{delimiter}}",
+    "header": "La primera fila es el encabezado",
+    "delimiters": {
+      "comma": "comas",
+      "tab": "tabulaciones",
+      "semicolon": "puntos y coma",
+      "pipe": "barras verticales"
+    }
+  },
+  "markdown": {
+    "label": "{{name}} renderizado"
   }
 }

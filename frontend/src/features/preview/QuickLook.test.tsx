@@ -30,10 +30,10 @@ function folder() {
  *
  * Scenarios:
  * - it opens full screen on the file asked for, naming it with its size and its place in the folder, and tells its kind from its bytes
- * - a kind without a viewer yet is shown as bytes and says so; a binary file is shown as bytes without the note
+ * - text opens in its viewer; a kind without a viewer yet is shown as bytes and says so; a binary file is shown as bytes without the note
  * - the arrows and the buttons move to the previous and next file and stop at the ends; the arrows with a modifier and other keys do nothing
  * - download and, for text, open in the editor call their actions; without them the buttons are left out
- * - a file that cannot be read says so and can be read again
+ * - a file that cannot be read says so and can be read again, and an empty file says so without a viewer
  * - Escape and the close button close it
  */
 describe('QuickLook', () => {
@@ -45,7 +45,7 @@ describe('QuickLook', () => {
 
     expect(await screen.findByRole('dialog', { name: 'notes.txt' })).toHaveTextContent('11 B · 1 of 3')
     expect(await screen.findByText('Text')).toBeInTheDocument()
-    expect(screen.getByText(/no viewer of this kind of file exists yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/no viewer of this kind of file exists yet/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Open in the editor' }))
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ name: 'notes.txt' }))
     await user.click(screen.getByRole('button', { name: 'Download' }))
@@ -74,6 +74,19 @@ describe('QuickLook', () => {
 
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.getByText('open: none')).toBeInTheDocument())
+  })
+
+  it('says a file is empty without choosing a viewer', async () => {
+    await renderWithProviders(<Harness sources={[textSource('empty.txt', '')]} />)
+    expect(await screen.findByText('This file is empty.')).toBeInTheDocument()
+    expect(screen.queryByText('Text')).not.toBeInTheDocument()
+  })
+
+  it('shows a kind without a viewer yet as bytes, and says so', async () => {
+    await renderWithProviders(<Harness sources={[bytesSource('photo.png', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0]))]} />)
+    expect(await screen.findByText('Image')).toBeInTheDocument()
+    expect(screen.getByText(/no viewer of this kind of file exists yet/)).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Bytes of photo.png' })).toBeInTheDocument()
   })
 
   it('leaves out the actions it was not given, and closes from its button', async () => {

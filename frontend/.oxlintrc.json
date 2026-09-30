@@ -81,7 +81,8 @@
     {
       "files": [
         "src/features/explorer/EntryTable.tsx",
-        "src/features/preview/viewers/HexViewer.tsx"
+        "src/features/preview/viewers/HexViewer.tsx",
+        "src/features/preview/viewers/CsvViewer.tsx"
       ],
       "rules": {
         "react/incompatible-library": "off"

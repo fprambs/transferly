@@ -45,6 +45,9 @@ function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?: (sour
     staleTime: Infinity,
     retry: false,
   })
+  if (source.size === 0) {
+    return <p className="m-auto text-sm text-muted-foreground">{t(($) => $.empty)}</p>
+  }
   if (head.isPending) {
     return <Loading label={t(($) => $.loading)} className="m-auto" />
   }
