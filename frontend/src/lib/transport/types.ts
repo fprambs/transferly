@@ -73,8 +73,8 @@ export interface EventHandlers {
 /** HTTP methods of the API. */
 export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-/** Values that may appear in a query string; `undefined` ones are left out. */
-export type ApiQuery = Readonly<Record<string, string | number | boolean | undefined>>
+/** Values that may appear in a query string; `undefined` ones are left out, and a list repeats its parameter once per item. */
+export type ApiQuery = Readonly<Record<string, string | number | boolean | readonly string[] | undefined>>
 
 /** One call to the API. */
 export interface ApiRequest {

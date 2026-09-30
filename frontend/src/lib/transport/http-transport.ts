@@ -50,8 +50,8 @@ export class HttpTransport implements Transport {
   url(path: string, query?: ApiQuery): string {
     const parameters = new URLSearchParams()
     for (const [name, value] of Object.entries(query ?? {})) {
-      if (value !== undefined) {
-        parameters.set(name, String(value))
+      for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) {
+        parameters.append(name, String(item))
       }
     }
     const text = parameters.toString()

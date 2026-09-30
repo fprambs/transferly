@@ -157,7 +157,7 @@ function recorder(make: () => Response | Error) {
  * - problem documents become an ApiError, network failures a `network_error`, and answers without a body resolve empty
  * - a stream call returns the body of the answer, asks for a byte range when given one, and reports problems, network failures and answers
  *   without a body
- * - the URL joins the base URL, the path and the encoded query, leaving out undefined values
+ * - the URL joins the base URL, the path and the encoded query, repeating a parameter for each item of a list and leaving out undefined values
  * - the abort signal is passed to fetch
  */
 describe('HttpTransport.request', () => {
@@ -248,9 +248,10 @@ describe('HttpTransport.request', () => {
     await expect(new HttpTransport({ fetch: fetchStub }).request({ method: 'GET', path: '/a' })).rejects.toMatchObject({ code: 'network_error', problem: { status: 0 } })
   })
 
-  it('builds URLs with the encoded query and without undefined values', () => {
+  it('builds URLs with the encoded query, repeated parameters for lists and without undefined values', () => {
     const transport = new HttpTransport({ baseUrl: 'http://api.test' })
 
+    expect(transport.url('/p', { inner: ['a.zip', 'b c.tar'], empty: [] })).toBe('http://api.test/p?inner=a.zip&inner=b+c.tar')
     expect(transport.url('/p', { path: '/a b', n: 2, flag: true, none: undefined })).toBe('http://api.test/p?path=%2Fa+b&n=2&flag=true')
     expect(transport.url('/p')).toBe('http://api.test/p')
     expect(transport.url('/p', { none: undefined })).toBe('http://api.test/p')
