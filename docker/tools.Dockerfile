@@ -23,6 +23,14 @@ ENV GOROOT=/usr/local/go \
 RUN mkdir -p /cache/go /cache/gomod /cache/gobuild /cache/pnpm /cache/pnpm-store /cache/home \
     && chmod -R 0777 /cache
 
+# ffmpeg generates the audio and video samples of the file viewers (testenv/preview-samples). Package downloads use HTTPS, with
+# retries, so a middlebox cannot alter them (see testenv/README.md).
+RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources \
+    && printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends --fix-missing ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Go tools, pinned by version.
 ARG SQLC_VERSION=v1.31.1
 ARG GOOSE_VERSION=v3.28.0
