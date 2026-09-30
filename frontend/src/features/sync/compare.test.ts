@@ -20,19 +20,20 @@ function file(relativePath: string, size: number, modifiedAt: string): Collected
  * - a size that agrees but a time outside the tolerance is an update by time; right at the tolerance it still counts as equal
  * - a manual override wins over the time comparison, in both directions, but never over a size difference
  * - several files at once each get their own row, sorted by path, and comparing two empty folders gives nothing
+ * - an update over a file the target changed later than the source, beyond the tolerance, is marked, whatever told them apart
  */
 describe('compareFiles', () => {
   it('tells apart a file that exists on only one side', () => {
     const rows = compareFiles([file('a.txt', 10, '2026-01-01T00:00:00Z')], [file('b.txt', 10, '2026-01-01T00:00:00Z')])
     expect(rows).toEqual([
-      { relativePath: 'a.txt', action: 'create', reason: 'missing', source: file('a.txt', 10, '2026-01-01T00:00:00Z').entry, target: null },
-      { relativePath: 'b.txt', action: 'delete', reason: 'missing', source: null, target: file('b.txt', 10, '2026-01-01T00:00:00Z').entry },
+      { relativePath: 'a.txt', action: 'create', reason: 'missing', source: file('a.txt', 10, '2026-01-01T00:00:00Z').entry, target: null, newerTarget: false },
+      { relativePath: 'b.txt', action: 'delete', reason: 'missing', source: null, target: file('b.txt', 10, '2026-01-01T00:00:00Z').entry, newerTarget: false },
     ])
   })
 
   it('tells different sizes apart whatever their times, and leaves equal files out', () => {
     const rows = compareFiles([file('a.txt', 10, '2026-01-01T00:00:00Z')], [file('a.txt', 20, '2026-01-01T00:00:00Z')])
-    expect(rows).toEqual([{ relativePath: 'a.txt', action: 'update', reason: 'size', source: file('a.txt', 10, '2026-01-01T00:00:00Z').entry, target: file('a.txt', 20, '2026-01-01T00:00:00Z').entry }])
+    expect(rows).toEqual([{ relativePath: 'a.txt', action: 'update', reason: 'size', source: file('a.txt', 10, '2026-01-01T00:00:00Z').entry, target: file('a.txt', 20, '2026-01-01T00:00:00Z').entry, newerTarget: false }])
     expect(compareFiles([file('a.txt', 10, '2026-01-01T00:00:00Z')], [file('a.txt', 10, '2026-01-01T00:00:00Z')])).toEqual([])
   })
 
@@ -63,6 +64,15 @@ describe('compareFiles', () => {
       [],
     )
     expect(rows.map((row) => row.relativePath)).toEqual(['a.txt', 'm/n.txt', 'z.txt'])
+  })
+
+  it('marks the updates that would replace a newer file on the target', () => {
+    const base = '2026-01-01T00:00:00Z'
+    const later = new Date(new Date(base).getTime() + timeToleranceMs + 1000).toISOString()
+    expect(compareFiles([file('a.txt', 10, base)], [file('a.txt', 10, later)])[0].newerTarget).toBe(true)
+    expect(compareFiles([file('a.txt', 10, base)], [file('a.txt', 20, later)])[0].newerTarget).toBe(true)
+    expect(compareFiles([file('a.txt', 10, later)], [file('a.txt', 10, base)])[0].newerTarget).toBe(false)
+    expect(compareFiles([file('a.txt', 10, base)], [file('a.txt', 20, base)])[0].newerTarget).toBe(false)
   })
 
   it('finds nothing between two empty folders', () => {

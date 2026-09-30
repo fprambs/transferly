@@ -13,7 +13,7 @@ import type { LocalSyncSide, RemoteSyncSide } from './sides'
 /** Builds a row for a path, defaulting to a file update. */
 function row(relativePath: string, action: SyncRow['action'] = 'update'): SyncRow {
   const entry: RemoteEntry = { name: relativePath.slice(relativePath.lastIndexOf('/') + 1), path: `/x/${relativePath}`, type: 'file', size: 4, mode: '-rw-r--r--', modifiedAt: '2026-01-01T00:00:00Z', modifiedPrecision: 'second' }
-  return { relativePath, action, reason: action === 'update' ? 'time' : 'missing', source: action === 'delete' ? null : entry, target: action === 'create' ? null : entry }
+  return { relativePath, action, reason: action === 'update' ? 'time' : 'missing', source: action === 'delete' ? null : entry, target: action === 'create' ? null : entry, newerTarget: false }
 }
 
 /** A remote side of the workspace `w`, site `s`, at the given folder. */

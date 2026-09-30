@@ -24,6 +24,9 @@ export interface SyncRow {
   source: RemoteEntry | null
   /** The file on the side rows are made to match, or `null` when it does not exist there yet. */
   target: RemoteEntry | null
+  /** Whether running the row would replace a file the target changed later than the source, beyond the tolerance: the newest change would be
+   * lost, so the row needs a choice of its own (security review of phase 4). */
+  newerTarget: boolean
 }
 
 /** Tells whether two ISO instants are close enough to count as the same modification time. */
@@ -31,18 +34,24 @@ function timesAgree(a: string, b: string): boolean {
   return Math.abs(new Date(a).getTime() - new Date(b).getTime()) <= timeToleranceMs
 }
 
+/** Tells whether the target was changed later than the source, beyond the tolerance. */
+function isNewer(target: RemoteEntry, source: RemoteEntry): boolean {
+  return new Date(target.modifiedAt).getTime() - new Date(source.modifiedAt).getTime() > timeToleranceMs
+}
+
 /** Compares two files that exist on both sides and returns their row, or `null` when they already agree. */
 function compareBoth(relativePath: string, from: RemoteEntry, to: RemoteEntry, override: boolean | undefined): SyncRow | null {
+  const update = (reason: SyncReason): SyncRow => ({ relativePath, action: 'update', reason, source: from, target: to, newerTarget: isNewer(to, from) })
   if (from.size !== to.size) {
-    return { relativePath, action: 'update', reason: 'size', source: from, target: to }
+    return update('size')
   }
   if (override === false) {
-    return { relativePath, action: 'update', reason: 'checksum', source: from, target: to }
+    return update('checksum')
   }
   if (override === true || timesAgree(from.modifiedAt, to.modifiedAt)) {
     return null
   }
-  return { relativePath, action: 'update', reason: 'time', source: from, target: to }
+  return update('time')
 }
 
 /**
@@ -58,11 +67,11 @@ export function compareFiles(source: readonly CollectedFile[], target: readonly 
     const hasSource = fromSource.has(relativePath)
     const hasTarget = fromTarget.has(relativePath)
     if (hasSource && !hasTarget) {
-      rows.push({ relativePath, action: 'create', reason: 'missing', source: fromSource.get(relativePath) as RemoteEntry, target: null })
+      rows.push({ relativePath, action: 'create', reason: 'missing', source: fromSource.get(relativePath) as RemoteEntry, target: null, newerTarget: false })
       continue
     }
     if (!hasSource && hasTarget) {
-      rows.push({ relativePath, action: 'delete', reason: 'missing', source: null, target: fromTarget.get(relativePath) as RemoteEntry })
+      rows.push({ relativePath, action: 'delete', reason: 'missing', source: null, target: fromTarget.get(relativePath) as RemoteEntry, newerTarget: false })
       continue
     }
     const row = compareBoth(relativePath, fromSource.get(relativePath) as RemoteEntry, fromTarget.get(relativePath) as RemoteEntry, overrides.get(relativePath))

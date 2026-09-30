@@ -10,7 +10,7 @@ import { compareFiles } from './compare'
 import { collectRelative, maxEachFiles, TooManyFiles, type CollectedFile } from './collect'
 import { syncErrorKeyOf, type SyncErrorKey } from './errors'
 import { newEnsuredDirectories, runSyncRow } from './run-row'
-import { hasCheckedDeletes, pending, planRowKey, type RowStatus, type SyncPlanRow } from './plan'
+import { hasCheckedDeletes, hasCheckedOverwrites, pending, planRowKey, risky, type RowStatus, type SyncPlanRow } from './plan'
 import type { SyncSide } from './sides'
 
 /** Which of the two sides mirrors onto the other. */
@@ -32,6 +32,8 @@ export interface SyncPlan {
   toggle: (row: SyncPlanRow) => void
   /** Whether any checked row is a delete, which needs the extra confirmation before running. */
   hasDeletes: boolean
+  /** Whether any checked row replaces a newer file on the target, which needs the extra confirmation before running too. */
+  hasOverwrites: boolean
   /** Reads the checksum of a row on both sides and settles it as equal or different, in place of guessing by time. */
   verify: (row: SyncPlanRow) => Promise<void>
   /** The row a checksum is being read for, or `null`. */
@@ -110,7 +112,7 @@ export function useSyncPlan(api: Api, left: SyncSide, right: SyncSide): SyncPlan
       compared.map((row) => {
         const key = planRowKey(row)
         const outcome = outcomes.get(key)
-        return { ...row, included: includedOverrides.get(key) ?? row.action !== 'delete', status: outcome?.status ?? 'pending', error: outcome?.error ?? null }
+        return { ...row, included: includedOverrides.get(key) ?? !risky(row), status: outcome?.status ?? 'pending', error: outcome?.error ?? null }
       }),
     [compared, includedOverrides, outcomes],
   )
@@ -164,5 +166,5 @@ export function useSyncPlan(api: Api, left: SyncSide, right: SyncSide): SyncPlan
     void rightQuery.refetch()
   }
 
-  return { loading: leftQuery.isPending || rightQuery.isPending, loadFailure, rows, direction, setDirection, toggle, hasDeletes: hasCheckedDeletes(rows), verifying, verify, running, run, refresh }
+  return { loading: leftQuery.isPending || rightQuery.isPending, loadFailure, rows, direction, setDirection, toggle, hasDeletes: hasCheckedDeletes(rows), hasOverwrites: hasCheckedOverwrites(rows), verifying, verify, running, run, refresh }
 }

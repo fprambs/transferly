@@ -9,8 +9,11 @@
   "run_one": "Sync {{count}} file",
   "run_other": "Sync {{count}} files",
   "confirmRun": "Yes, sync and delete",
+  "confirmOverwrite": "Yes, sync and replace",
   "confirmDeletes_one": "This will permanently remove {{count}} file from {{target}}. This cannot be undone.",
   "confirmDeletes_other": "This will permanently remove {{count}} files from {{target}}. This cannot be undone.",
+  "confirmOverwrites_one": "{{count}} file on {{target}} is newer than the one that replaces it. Its latest changes will be lost.",
+  "confirmOverwrites_other": "{{count}} files on {{target}} are newer than the ones that replace them. Their latest changes will be lost.",
   "action": {
     "create": "Create",
     "update": "Update",
@@ -29,7 +32,8 @@
     "status": {
       "running": "Working…",
       "done": "Done"
-    }
+    },
+    "newerTarget": "Newer on the target"
   },
   "errors": {
     "host_key_changed": "The server's key changed. Trust it again in the trusted servers page before syncing.",

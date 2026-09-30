@@ -71,6 +71,7 @@ function mockSites(files: Record<string, RemoteEntry[]>): { copies: unknown[]; u
  * - creates and updates are checked by default and deletes are not, and the run button counts only the checked rows
  * - running a plan with no checked delete copies every checked create and update between the two sites
  * - a checked delete asks to confirm before it runs, and then removes the file from the target
+ * - an update over a file the target changed later starts unchecked and says so, and once checked asks to confirm before replacing it
  * - swapping direction turns a one-sided file's create into a delete and back
  * - verifying a row by checksum settles it: equal removes it from the plan, different keeps it with its own reason
  * - a folder that already matches shows nothing to sync, and a failure to list either side, a folder that is not the site's root, or a
@@ -113,8 +114,8 @@ describe('compare and sync', () => {
 
   it('copies every checked create and update between the two sites', async () => {
     const seen = mockSites({
-      s1: [file('a.txt', 1, '2026-01-01T00:00:00Z'), file('c.txt', 2, '2026-01-01T00:00:00Z')],
-      s2: [file('c.txt', 2, '2026-06-01T00:00:00Z')],
+      s1: [file('a.txt', 1, '2026-01-01T00:00:00Z'), file('c.txt', 2, '2026-06-01T00:00:00Z')],
+      s2: [file('c.txt', 2, '2026-01-01T00:00:00Z')],
     })
     const user = userEvent.setup()
     await renderWithProviders(<CompareDialog left={left} right={right} leftLabel="Prod" rightLabel="Backup" onClose={() => {}} />)
@@ -141,6 +142,23 @@ describe('compare and sync', () => {
 
     await waitFor(() => expect(seen.removed).toEqual(['/gone.txt']))
     expect(await screen.findByText('Done')).toBeInTheDocument()
+  })
+
+  it('leaves an update over a newer file unchecked, and asks to confirm before replacing it', async () => {
+    const seen = mockSites({ s1: [file('notes.txt', 2, '2026-01-01T00:00:00Z')], s2: [file('notes.txt', 3, '2026-06-01T00:00:00Z')] })
+    const user = userEvent.setup()
+    await renderWithProviders(<CompareDialog left={left} right={right} leftLabel="Prod" rightLabel="Backup" onClose={() => {}} />)
+
+    const include = await screen.findByRole('checkbox', { name: 'Include notes.txt in the sync' })
+    expect(include).not.toBeChecked()
+    expect(screen.getByText(/Newer on the target/)).toBeInTheDocument()
+    await user.click(include)
+    await user.click(screen.getByRole('button', { name: 'Sync 1 file' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('1 file on Backup is newer than the one that replaces it. Its latest changes will be lost.')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('permanently remove')
+
+    await user.click(screen.getByRole('button', { name: 'Yes, sync and replace' }))
+    await waitFor(() => expect(seen.copies).toEqual([expect.objectContaining({ sourcePath: '/notes.txt', targetPath: '/notes.txt', policy: 'overwrite' })]))
   })
 
   it('turns a one-sided file from create to delete and back when the direction is swapped', async () => {

@@ -9,8 +9,11 @@
   "run_one": "Sincronizar {{count}} archivo",
   "run_other": "Sincronizar {{count}} archivos",
   "confirmRun": "Sí, sincronizar y borrar",
+  "confirmOverwrite": "Sí, sincronizar y reemplazar",
   "confirmDeletes_one": "Esto eliminará permanentemente {{count}} archivo de {{target}}. No se puede deshacer.",
   "confirmDeletes_other": "Esto eliminará permanentemente {{count}} archivos de {{target}}. No se puede deshacer.",
+  "confirmOverwrites_one": "{{count}} archivo de {{target}} es más nuevo que el que lo reemplaza. Se perderán sus últimos cambios.",
+  "confirmOverwrites_other": "{{count}} archivos de {{target}} son más nuevos que los que los reemplazan. Se perderán sus últimos cambios.",
   "action": {
     "create": "Crear",
     "update": "Actualizar",
@@ -29,7 +32,8 @@
     "status": {
       "running": "Trabajando…",
       "done": "Listo"
-    }
+    },
+    "newerTarget": "Más nuevo en el destino"
   },
   "errors": {
     "host_key_changed": "La clave del servidor cambió. Vuelve a confiar en ella en la página de servidores de confianza antes de sincronizar.",

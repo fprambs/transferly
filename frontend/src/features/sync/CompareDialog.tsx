@@ -69,6 +69,7 @@ function PlanRow({ row, entry, timeZone, locale, onToggle, onVerify, verifying }
         <span className="block truncate font-mono">{row.relativePath}</span>
         <span className="block text-xs text-muted-foreground">
           {t(($) => $.row.reason[row.reason])}
+          {row.newerTarget && <span className="font-medium text-warn"> · {t(($) => $.row.newerTarget)}</span>}
           {entry !== null && ` · ${formatSize(entry.size)} · ${formatInstant(entry.modifiedAt, { locale, timeZone, dateStyle: 'medium', timeStyle: 'short' })}`}
         </span>
       </span>
@@ -100,7 +101,7 @@ export function CompareDialog({ left, right, leftLabel, rightLabel, onClose }: C
   const targetLabel = plan.direction === 'leftToRight' ? rightLabel : leftLabel
 
   const start = (): void => {
-    if (plan.hasDeletes && !confirming) {
+    if ((plan.hasDeletes || plan.hasOverwrites) && !confirming) {
       setConfirming(true)
       return
     }
@@ -161,16 +162,17 @@ export function CompareDialog({ left, right, leftLabel, rightLabel, onClose }: C
           </div>
         )}
         {confirming && (
-          <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm leading-relaxed text-destructive">
-            {t(($) => $.confirmDeletes, { count: checked.filter((row) => row.action === 'delete').length, target: targetLabel })}
-          </p>
+          <div role="alert" className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm leading-relaxed text-destructive">
+            {plan.hasDeletes && <p>{t(($) => $.confirmDeletes, { count: checked.filter((row) => row.action === 'delete').length, target: targetLabel })}</p>}
+            {plan.hasOverwrites && <p>{t(($) => $.confirmOverwrites, { count: checked.filter((row) => row.newerTarget).length, target: targetLabel })}</p>}
+          </div>
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {t(($) => $.close)}
           </Button>
           <Button variant={confirming ? 'destructive' : 'default'} disabled={plan.loading || plan.running || checked.length === 0} onClick={start}>
-            {confirming ? t(($) => $.confirmRun) : t(($) => $.run, { count: checked.length })}
+            {confirming ? (plan.hasDeletes ? t(($) => $.confirmRun) : t(($) => $.confirmOverwrite)) : t(($) => $.run, { count: checked.length })}
           </Button>
         </DialogFooter>
       </DialogContent>
