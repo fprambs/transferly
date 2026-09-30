@@ -30,6 +30,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connectors"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -153,6 +154,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Connections:   pool,
 		Credentials:   asked,
 		Sites:         sites,
+		Connectors:    connectors.Builtin(),
 		Files:         files.NewService(workspaces, pool),
 		Transfers:     transferService,
 		Activity:      activityLog,

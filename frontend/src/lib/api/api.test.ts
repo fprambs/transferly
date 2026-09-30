@@ -140,6 +140,7 @@ describe('createApi', () => {
     { name: 'quick.save', call: (a) => a.quick.save(ws, 'q1', { name: 'N', collectionId: 'c1' }), method: 'POST', path: `/api/v1/workspaces/${ws}/quick-connections/q1/save`, body: { name: 'N', collectionId: 'c1' } },
     { name: 'files.list', call: (a) => a.files.list(ws, site, '/a b'), method: 'GET', path: files, query: '?path=%2Fa+b' },
     { name: 'files.probeTimeZone', call: (a) => a.files.probeTimeZone(ws, site, '/dir'), method: 'POST', path: `${files}/timezone-probe`, query: '?path=%2Fdir' },
+    { name: 'connectors.list', call: (a) => a.connectors.list(), method: 'GET', path: '/api/v1/connectors', query: '' },
     { name: 'files.archiveEntries', call: (a) => a.files.archiveEntries(ws, site, '/a.zip', ['in.zip']), method: 'GET', path: `${files}/archive-entries`, query: '?path=%2Fa.zip&inner=in.zip' },
     { name: 'files.checksum', call: (a) => a.files.checksum(ws, site, '/f', 'md5'), method: 'GET', path: `${files}/checksum`, query: '?path=%2Ff&algorithm=md5' },
     { name: 'files.stat', call: (a) => a.files.stat(ws, site, '/f'), method: 'GET', path: `${files}/entry`, query: '?path=%2Ff' },

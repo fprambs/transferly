@@ -118,6 +118,9 @@ export type ActivityEntry = Schemas['ActivityEntry']
 /** The digest of a remote file. */
 export type Checksum = Schemas['Checksum']
 
+/** A connector of the catalog Sentinel is built with (ADR-0019). */
+export type Connector = Schemas['Connector']
+
 /** The entries of an archive, as the server read them (D2.5). */
 export type ArchiveListing = Schemas['ArchiveListing']
 
@@ -300,6 +303,9 @@ export function createApi(transport: Transport) {
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/quick-connections/${quickId}` }),
       save: (workspaceId: string, quickId: string, input: { name: string; collectionId?: string }) =>
         transport.request<Site>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/quick-connections/${quickId}/save`, body: input }),
+    },
+    connectors: {
+      list: () => transport.request<Connector[]>({ method: 'GET', path: `${root}/connectors` }),
     },
     files: {
       list: (workspaceId: string, siteId: string, path: string, signal?: AbortSignal) =>

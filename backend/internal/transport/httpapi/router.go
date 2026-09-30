@@ -18,6 +18,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connectors"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -103,6 +104,8 @@ type Deps struct {
 	Import *fzimport.Service
 	// Activity keeps the log of what users did on their connections.
 	Activity *activity.Service
+	// Connectors is the catalog of the connectors Sentinel is built with (ADR-0019).
+	Connectors *connectors.Catalog
 	// Files performs operations on the files of remote sites.
 	Files *files.Service
 	// Connections pools the connections to remote servers; the vault lock and sign-out close a user's connections.

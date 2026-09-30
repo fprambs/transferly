@@ -168,6 +168,30 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/connectors:
+    get:
+      operationId: listConnectors
+      security:
+        - sessionCookie: []
+      summary: List the connectors Sentinel is built with
+      description: >-
+        The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take and the
+        ways it authenticates. The site form and the store of the admins are drawn from it.
+      responses:
+        "200":
+          description: The connectors, stable ones first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Connector"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/me:
     get:
       operationId: getMe
@@ -5246,6 +5270,72 @@ components:
         truncated:
           type: boolean
           description: The archive holds more entries than the listing.
+    Connector:
+      type: object
+      required: [type, name, icon, maturity, capabilities, fields, auth, enabledByDefault]
+      properties:
+        type:
+          type: string
+          description: Stable identifier, such as sftp or s3.
+        name:
+          type: string
+        icon:
+          type: string
+        maturity:
+          type: string
+          enum: [stable, beta]
+        capabilities:
+          $ref: "#/components/schemas/ConnectorCapabilities"
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorField"
+        auth:
+          type: array
+          items:
+            type: string
+            enum: [password, key, ask, anonymous, interactive, account, access-keys, oauth]
+        enabledByDefault:
+          type: boolean
+    ConnectorCapabilities:
+      type: object
+      required: [folders, permissions, setTimes, resume, rename, serverCopy]
+      properties:
+        folders:
+          type: boolean
+        permissions:
+          type: boolean
+        setTimes:
+          type: boolean
+        resume:
+          type: boolean
+        rename:
+          type: boolean
+        serverCopy:
+          type: boolean
+    ConnectorField:
+      type: object
+      required: [name, kind, required]
+      properties:
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [text, number, boolean, choice]
+        required:
+          type: boolean
+        default:
+          type: string
+        choices:
+          type: array
+          items:
+            type: string
+        min:
+          type: integer
+        max:
+          type: integer
+        maxLength:
+          type: integer
     Checksum:
       type: object
       required: [algorithm, checksum, size]

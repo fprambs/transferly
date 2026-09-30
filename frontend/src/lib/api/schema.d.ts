@@ -118,6 +118,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the connectors Sentinel is built with
+         * @description The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take and the ways it authenticates. The site form and the store of the admins are drawn from it.
+         */
+        get: operations["listConnectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -1918,6 +1938,37 @@ export interface components {
             /** @description The archive holds more entries than the listing. */
             truncated: boolean;
         };
+        Connector: {
+            /** @description Stable identifier, such as sftp or s3. */
+            type: string;
+            name: string;
+            icon: string;
+            /** @enum {string} */
+            maturity: "stable" | "beta";
+            capabilities: components["schemas"]["ConnectorCapabilities"];
+            fields: components["schemas"]["ConnectorField"][];
+            auth: ("password" | "key" | "ask" | "anonymous" | "interactive" | "account" | "access-keys" | "oauth")[];
+            enabledByDefault: boolean;
+        };
+        ConnectorCapabilities: {
+            folders: boolean;
+            permissions: boolean;
+            setTimes: boolean;
+            resume: boolean;
+            rename: boolean;
+            serverCopy: boolean;
+        };
+        ConnectorField: {
+            name: string;
+            /** @enum {string} */
+            kind: "text" | "number" | "boolean" | "choice";
+            required: boolean;
+            default?: string;
+            choices?: string[];
+            min?: number;
+            max?: number;
+            maxLength?: number;
+        };
         Checksum: {
             /** @enum {string} */
             algorithm: "md5" | "sha1" | "sha256" | "sha512";
@@ -2655,6 +2706,35 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listConnectors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connectors, stable ones first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connector"][];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

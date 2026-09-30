@@ -24,6 +24,7 @@ import (
 	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/bookmark"
 	"github.com/fprambs/sentinel/internal/core/connections"
+	"github.com/fprambs/sentinel/internal/core/connectors"
 	"github.com/fprambs/sentinel/internal/core/connlog"
 	"github.com/fprambs/sentinel/internal/core/credentials"
 	"github.com/fprambs/sentinel/internal/core/files"
@@ -139,6 +140,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Bookmarks:     bookmark.NewService(store, store, workspaces, system, nil),
 			Connections:   pool,
 			Credentials:   askedPasswords,
+			Connectors:    connectors.Builtin(),
 			Files:         files.NewService(workspaces, pool),
 			Transfers:     transfers,
 			Activity:      activityLog,
