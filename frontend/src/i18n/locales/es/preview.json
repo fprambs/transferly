@@ -183,5 +183,20 @@
     "empty": "Esta base de datos no tiene tablas.",
     "broken": "No se puede abrir esta base de datos",
     "brokenBody": "El archivo está dañado o no es una base de datos SQLite."
+  },
+  "font": {
+    "label": "Fuente {{name}}",
+    "unnamed": "Fuente sin nombre",
+    "format": "Formato",
+    "version": "Versión",
+    "glyphs": "Glifos",
+    "copyright": "Copyright",
+    "sample": "El veloz murciélago hindú comía feliz cardillo y kiwi 0123456789",
+    "try": "Prueba tu propio texto",
+    "characters": "Caracteres de la fuente",
+    "charactersKnown": "Caracteres que trae ({{total}})",
+    "charactersUnknown": "Caracteres latinos básicos y Latin-1 (este formato no dice cuáles trae)",
+    "broken": "No se puede abrir esta fuente",
+    "brokenBody": "El archivo está dañado o no es una fuente que el navegador pueda leer."
   }
 }

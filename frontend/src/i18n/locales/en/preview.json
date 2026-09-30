@@ -183,5 +183,20 @@
     "empty": "This database has no tables.",
     "broken": "This database cannot be opened",
     "brokenBody": "The file is damaged or is not a SQLite database."
+  },
+  "font": {
+    "label": "Font {{name}}",
+    "unnamed": "Unnamed font",
+    "format": "Format",
+    "version": "Version",
+    "glyphs": "Glyphs",
+    "copyright": "Copyright",
+    "sample": "The quick brown fox jumps over the lazy dog 0123456789",
+    "try": "Try your own text",
+    "characters": "Characters of the font",
+    "charactersKnown": "Characters it has ({{total}})",
+    "charactersUnknown": "Basic Latin and Latin-1 characters (this format does not tell which it has)",
+    "broken": "This font cannot be opened",
+    "brokenBody": "The file is damaged or is not a font the browser can read."
   }
 }

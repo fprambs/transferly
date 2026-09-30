@@ -33,6 +33,7 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   spreadsheet: IsolatedViewer,
   presentation: IsolatedViewer,
   sqlite: IsolatedViewer,
+  font: IsolatedViewer,
 }
 
 /** The viewer of a kind, or undefined for a kind no viewer shows, such as a binary file. */

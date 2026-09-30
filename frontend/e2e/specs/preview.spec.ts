@@ -40,6 +40,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   viewer shows it and a truncated document says it cannot be opened
  * - a SQLite database opens in the isolated page with its tables and views, rows by pages, NULLs and blobs, its structure, and read-only
  *   queries that refuse writes; a truncated database says it cannot be opened
+ * - fonts open in the isolated page with their facts, samples that follow the text typed and the grid of their characters: TrueType,
+ *   WOFF and WOFF2; a truncated font says it cannot be opened
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -474,6 +476,31 @@ test.describe('file viewer', () => {
     await grid.getByRole('row', { name: /^truncated\.sqlite/ }).click()
     await page.keyboard.press(' ')
     await expect(page.getByRole('dialog', { name: 'truncated.sqlite' })).toContainText('This database cannot be opened')
+    await page.keyboard.press('Escape')
+  })
+
+  test('shows fonts in the isolated page', async ({ shell, quickId }) => {
+    const { page } = shell
+    await openSamples(page, quickId, 'fonts')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    for (const name of ['blocks.ttf', 'blocks.woff', 'blocks.woff2']) {
+      await grid.getByRole('row', { name: new RegExp(`^${name.replace('.', '\\.')} `) }).click()
+      await page.keyboard.press(' ')
+      const font = page.frameLocator(`iframe[title="Font ${name}"]`)
+      await expect(font.locator('.font-sample')).toHaveCount(6)
+      if (name === 'blocks.ttf') {
+        await expect(font.locator('h1')).toHaveText('Sentinel Blocks Regular')
+        await expect(font.locator('.font-char')).toHaveCount(16)
+        await font.getByRole('textbox', { name: 'Try your own text' }).fill('SENTINEL')
+        await expect(font.locator('.font-sample').first()).toHaveText('SENTINEL')
+        expect(await font.locator('.font-sample').first().evaluate(() => document.fonts.check('24px "Sentinel Preview Font"'))).toBe(true)
+        await page.screenshot({ path: `${shots}/preview-font.png` })
+      }
+      await page.keyboard.press('Escape')
+    }
+    await grid.getByRole('row', { name: /^truncated\.ttf/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'truncated.ttf' })).toContainText('This font cannot be opened')
     await page.keyboard.press('Escape')
   })
 

@@ -562,3 +562,78 @@ body {
   color: var(--warn);
   font: 12px ui-monospace, monospace;
 }
+
+.font {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 3rem;
+}
+
+.font-name {
+  margin: 0 0 0.5rem;
+  font-size: 20px;
+}
+
+.font-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 1rem;
+  font-size: 12px;
+}
+
+.font-facts dt {
+  color: var(--muted-foreground);
+}
+
+.font-facts dd {
+  margin: 0;
+}
+
+.font-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.75rem;
+}
+
+.font-sample {
+  position: relative;
+  margin: 0;
+  padding: 0.35em 0 0.35em 3.5rem;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.font-sample::before {
+  content: attr(data-size);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 11px system-ui, sans-serif;
+  color: var(--muted-foreground);
+}
+
+.font-section {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  gap: 4px;
+}
+
+.font-char {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 24px;
+}

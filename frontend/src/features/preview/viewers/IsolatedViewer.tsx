@@ -12,7 +12,7 @@ import type { ViewerProps } from './types'
 import { WholeFile } from './WholeFile'
 
 /** The groups of kinds the isolated page draws whole, each with its own words. */
-type Group = 'office' | 'sqlite'
+type Group = 'office' | 'sqlite' | 'font'
 
 /** The group of each kind this viewer shows, and the largest file of it the viewer reads, since it is read whole into the page. */
 const groups: Partial<Record<PreviewKind, { group: Group; limit: number }>> = {
@@ -20,11 +20,12 @@ const groups: Partial<Record<PreviewKind, { group: Group; limit: number }>> = {
   spreadsheet: { group: 'office', limit: 50 * 1024 * 1024 },
   presentation: { group: 'office', limit: 50 * 1024 * 1024 },
   sqlite: { group: 'sqlite', limit: 64 * 1024 * 1024 },
+  font: { group: 'font', limit: 20 * 1024 * 1024 },
 }
 
 /**
  * Shows a file the isolated page reads whole and draws itself (ADR-0018): Word and OpenDocument texts laid out as pages, Excel and
- * OpenDocument workbooks as sheets, PowerPoint decks as slides, and SQLite databases as tables, all read and drawn in the browser, never
+ * OpenDocument workbooks as sheets, PowerPoint decks as slides, SQLite databases as tables, and fonts as samples, all read and drawn in the browser, never
  * sent anywhere. A document protected with a password, or a file the page cannot read, says so and offers its bytes.
  */
 export function IsolatedViewer({ source, kind }: ViewerProps) {
@@ -53,6 +54,16 @@ export function IsolatedViewer({ source, kind }: ViewerProps) {
       resultCut: t(($) => $.sqlite.resultCut, { total: '{{count}}' }),
       blob: t(($) => $.sqlite.blob, { size: '{{size}}' }),
       empty: t(($) => $.sqlite.empty),
+      unnamed: t(($) => $.font.unnamed),
+      format: t(($) => $.font.format),
+      version: t(($) => $.font.version),
+      glyphs: t(($) => $.font.glyphs),
+      copyright: t(($) => $.font.copyright),
+      sample: t(($) => $.font.sample),
+      try: t(($) => $.font.try),
+      characters: t(($) => $.font.characters),
+      charactersKnown: t(($) => $.font.charactersKnown, { total: '{{count}}' }),
+      charactersUnknown: t(($) => $.font.charactersUnknown),
     }),
     [t],
   )
