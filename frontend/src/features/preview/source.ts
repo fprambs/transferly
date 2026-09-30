@@ -119,8 +119,9 @@ export async function readCapped(stream: ReadableStream<Uint8Array>, limit = max
   return whole
 }
 
-/** A file held in memory, played from a blob URL, with its entries when it is an archive. */
-function memorySource(key: string, name: string, modifiedAt: string, data: Uint8Array, archive?: ArchiveAccess): PreviewSource {
+/** A file held in memory, played from a blob URL, with its entries when it is an archive: an entry of an archive or an attachment of a
+ * message. */
+export function memorySource(key: string, name: string, modifiedAt: string, data: Uint8Array, archive?: ArchiveAccess): PreviewSource {
   return {
     key,
     name,

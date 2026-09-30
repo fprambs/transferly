@@ -29,6 +29,7 @@ const renderers: Partial<Record<string, (message: RenderMessage, root: HTMLEleme
   pdf: async (message, root) => (await import('./pdf')).renderPdf(new Uint8Array(message.bytes), message.size, readRange, root, message.labels),
   document: async (message, root) => (await import('./office/document')).renderDocument(new Uint8Array(message.bytes), root),
   spreadsheet: async (message, root) => (await import('./office/spreadsheet')).renderSpreadsheet(new Uint8Array(message.bytes), root, message.labels),
+  email: async (message, root) => (await import('./email')).renderEmail(new TextDecoder().decode(message.bytes), root),
   font: async (message, root) => (await import('./font')).renderFont(new Uint8Array(message.bytes), root, message.labels),
   sqlite: async (message, root) => (await import('./sqlite')).renderSqlite(new Uint8Array(message.bytes), root, message.labels),
   presentation: async (message, root) => (await import('./office/presentation')).renderPresentation(new Uint8Array(message.bytes), root, message.labels),

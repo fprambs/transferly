@@ -44,6 +44,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   WOFF and WOFF2; a truncated font says it cannot be opened
  * - certificates and keys show their facts: a chain with validity and fingerprints, an expired certificate, a certificate in DER, a public
  *   key, a certificate request and an OpenSSH key; a private key is never shown and a damaged block says it cannot be read
+ * - email messages show their headers, their HTML cleaned in the isolated page with their inline picture, their text, header lines and
+ *   attachments that open with their own viewer; a hostile message runs nothing and loads nothing from the network, and says so
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -534,6 +536,43 @@ test.describe('file viewer', () => {
     await page.keyboard.press('Escape')
     await expect(await open('broken.pem')).toContainText('This part cannot be read')
     await page.keyboard.press('Escape')
+  })
+
+  test('shows email messages, and never runs or loads what they hold', async ({ shell, quickId }) => {
+    const { page } = shell
+    const requests: string[] = []
+    const dialogs: string[] = []
+    page.on('request', (request) => requests.push(request.url()))
+    page.on('dialog', (dialog) => {
+      dialogs.push(dialog.message())
+      void dialog.dismiss()
+    })
+    await openSamples(page, quickId, 'mail')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /^newsletter\.eml/ }).click()
+    await page.keyboard.press(' ')
+    const viewer = page.getByRole('dialog', { name: 'newsletter.eml' })
+    await expect(viewer.getByRole('heading', { name: 'Informe de septiembre · 📊 resultados' })).toBeVisible()
+    const body = page.frameLocator('iframe[title="Message newsletter.eml"]')
+    await expect(body.getByRole('heading', { name: 'Informe de septiembre' })).toBeVisible()
+    await expect(body.getByRole('img', { name: 'logo' })).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-email.png`, animations: 'disabled' })
+    await viewer.getByRole('list', { name: 'Attachments' }).getByText('grafico.png').click()
+    await expect(viewer.getByRole('img', { name: 'grafico.png' })).toBeVisible()
+    await viewer.getByRole('button', { name: 'newsletter.eml' }).click()
+    await viewer.getByRole('button', { name: 'Headers' }).click()
+    await expect(viewer).toContainText('Message-ID:')
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /^hostile\.eml/ }).click()
+    await page.keyboard.press(' ')
+    const hostile = page.getByRole('dialog', { name: 'hostile.eml' })
+    await expect(hostile).toContainText('Remote images and content of this message were not loaded.')
+    await expect(page.frameLocator('iframe[title="Message hostile.eml"]').getByText('click me')).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-email-hostile.png`, animations: 'disabled' })
+    await page.keyboard.press('Escape')
+    expect(dialogs).toEqual([])
+    expect(requests.filter((url) => url.includes('example.com'))).toEqual([])
   })
 
   test('keeps the isolated page of the viewers away from the session', async ({ shell }) => {

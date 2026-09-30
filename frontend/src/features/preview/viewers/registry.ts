@@ -5,6 +5,7 @@ import type { PreviewKind } from '../detect'
 import { ArchiveViewer } from './ArchiveViewer'
 import { CertificateViewer } from './CertificateViewer'
 import { CsvViewer } from './CsvViewer'
+import { EmailViewer } from './EmailViewer'
 import { ImageViewer } from './ImageViewer'
 import { MarkdownViewer } from './MarkdownViewer'
 import { MediaViewer } from './MediaViewer'
@@ -36,6 +37,7 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   sqlite: IsolatedViewer,
   font: IsolatedViewer,
   certificate: CertificateViewer,
+  email: EmailViewer,
 }
 
 /** The viewer of a kind, or undefined for a kind no viewer shows, such as a binary file. */

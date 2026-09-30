@@ -229,5 +229,23 @@
     "privateKeyBody": "Sentinel nunca muestra claves privadas. Quien tenga este archivo puede usar la clave: mantenlo fuera de carpetas compartidas.",
     "unreadable": "No se puede leer esta parte",
     "unreadableBody": "Está dañada o es de un tipo que el visor no lee."
+  },
+  "mail": {
+    "label": "Mensaje {{name}}",
+    "from": "De",
+    "to": "Para",
+    "cc": "Cc",
+    "date": "Fecha",
+    "noSubject": "(sin asunto)",
+    "attachments": "Adjuntos",
+    "save": "Guardar {{name}}",
+    "remote": "No se cargaron las imágenes ni el contenido remoto de este mensaje.",
+    "views": {
+      "message": "Mensaje",
+      "text": "Texto plano",
+      "headers": "Encabezados"
+    },
+    "broken": "No se puede leer este mensaje",
+    "brokenBody": "El archivo está dañado o no es un mensaje de correo."
   }
 }

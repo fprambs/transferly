@@ -229,5 +229,23 @@
     "privateKeyBody": "Sentinel never shows private keys. Anyone who has this file can use the key: keep it out of shared folders.",
     "unreadable": "This part cannot be read",
     "unreadableBody": "It is damaged, or of a kind the viewer does not read."
+  },
+  "mail": {
+    "label": "Message {{name}}",
+    "from": "From",
+    "to": "To",
+    "cc": "Cc",
+    "date": "Date",
+    "noSubject": "(no subject)",
+    "attachments": "Attachments",
+    "save": "Save {{name}}",
+    "remote": "Remote images and content of this message were not loaded.",
+    "views": {
+      "message": "Message",
+      "text": "Plain text",
+      "headers": "Headers"
+    },
+    "broken": "This message cannot be read",
+    "brokenBody": "The file is damaged or is not an email message."
   }
 }
