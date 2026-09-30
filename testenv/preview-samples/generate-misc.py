@@ -118,7 +118,8 @@ def openssl(*args, cwd):
 
 
 def write_certificates(folder):
-    """Writes a chain signed by a throwaway authority, an expired certificate, an elliptic curve one, DER copies, public keys and a private key."""
+    """Writes a chain signed by a throwaway authority, an expired certificate, an elliptic curve one, an Ed25519 one with unusual names and
+    usages, a DSA one, a certificate request, DER copies, public keys and a private key."""
     with tempfile.TemporaryDirectory() as work:
         openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "3650", "-subj", "/C=CL/O=Sentinel Samples/CN=Sentinel Sample Root CA", cwd=work)
         openssl("req", "-newkey", "rsa:2048", "-nodes", "-keyout", "leaf.key", "-out", "leaf.csr", "-subj", "/C=CL/ST=RM/L=Santiago/O=Sentinel Samples/CN=files.example.com", cwd=work)
@@ -132,7 +133,16 @@ def write_certificates(folder):
         with open(os.path.join(work, "ca.cnf"), "w") as f:
             f.write("[ca]\ndefault_ca=d\n[d]\ndir=.\ndatabase=index.txt\nnew_certs_dir=issued\nserial=ca.srl\ndefault_md=sha256\npolicy=p\n[p]\ncommonName=supplied\n")
         openssl("ca", "-batch", "-config", "ca.cnf", "-cert", "ca.pem", "-keyfile", "ca.key", "-in", "old.csr", "-out", "old.pem", "-notext", "-startdate", "20200101000000Z", "-enddate", "20210101000000Z", cwd=work)
+        with open(os.path.join(work, "unusual.ext"), "w") as f:
+            f.write("subjectAltName=email:ops@example.com,URI:https://example.com/id,IP:2001:db8::1,dirName:dir\nextendedKeyUsage=1.2.3.4\n[dir]\nCN=Directory Name\n")
+        openssl("req", "-newkey", "ed25519", "-nodes", "-keyout", "unusual.key", "-out", "unusual.csr", "-subj", "/organizationIdentifier=VATCL-12345678/CN=unusual.example.com", cwd=work)
+        openssl("x509", "-req", "-in", "unusual.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-CAcreateserial", "-out", "unusual.pem", "-days", "30", "-extfile", "unusual.ext", cwd=work)
+        openssl("dsaparam", "-out", "dsa.param", "2048", cwd=work)
+        openssl("req", "-x509", "-newkey", "dsa:dsa.param", "-nodes", "-keyout", "dsa.key", "-out", "dsa.pem", "-days", "30", "-subj", "/O=DSA Samples", "-sha256", cwd=work)
         read = lambda name: open(os.path.join(work, name), "rb").read()
+        for name in ("unusual.pem", "dsa.pem", "leaf.csr"):
+            with open(os.path.join(folder, name), "wb") as f:
+                f.write(read(name))
         with open(os.path.join(folder, "chain.pem"), "wb") as f:
             f.write(read("leaf.pem") + read("ca.pem"))
         with open(os.path.join(folder, "ec.crt"), "wb") as f:
