@@ -3,6 +3,7 @@ import type { ComponentType } from 'react'
 import type { PreviewKind } from '../detect'
 
 import { ArchiveViewer } from './ArchiveViewer'
+import { CertificateViewer } from './CertificateViewer'
 import { CsvViewer } from './CsvViewer'
 import { ImageViewer } from './ImageViewer'
 import { MarkdownViewer } from './MarkdownViewer'
@@ -34,6 +35,7 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   presentation: IsolatedViewer,
   sqlite: IsolatedViewer,
   font: IsolatedViewer,
+  certificate: CertificateViewer,
 }
 
 /** The viewer of a kind, or undefined for a kind no viewer shows, such as a binary file. */

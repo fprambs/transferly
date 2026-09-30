@@ -42,6 +42,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   queries that refuse writes; a truncated database says it cannot be opened
  * - fonts open in the isolated page with their facts, samples that follow the text typed and the grid of their characters: TrueType,
  *   WOFF and WOFF2; a truncated font says it cannot be opened
+ * - certificates and keys show their facts: a chain with validity and fingerprints, an expired certificate, a certificate in DER, a public
+ *   key, a certificate request and an OpenSSH key; a private key is never shown and a damaged block says it cannot be read
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -501,6 +503,36 @@ test.describe('file viewer', () => {
     await grid.getByRole('row', { name: /^truncated\.ttf/ }).click()
     await page.keyboard.press(' ')
     await expect(page.getByRole('dialog', { name: 'truncated.ttf' })).toContainText('This font cannot be opened')
+    await page.keyboard.press('Escape')
+  })
+
+  test('shows certificates and keys, and never a private key', async ({ shell, quickId }) => {
+    const { page } = shell
+    await openSamples(page, quickId, 'certificates')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    const open = async (name: string) => {
+      await grid.getByRole('row', { name: new RegExp(`^${name.replace('.', '\\.')} `) }).click()
+      await page.keyboard.press(' ')
+      return page.getByRole('dialog', { name })
+    }
+    const chain = await open('chain.pem')
+    await expect(chain).toContainText('2 items')
+    await expect(chain).toContainText('files.example.com, *.files.example.com, 192.0.2.10')
+    await expect(chain.getByText('Certificate authority')).toBeVisible()
+    await page.screenshot({ path: `${shots}/preview-certificate.png`, animations: 'disabled' })
+    await page.keyboard.press('Escape')
+    await expect(await open('expired.pem')).toContainText('Expired on')
+    await page.keyboard.press('Escape')
+    await expect(await open('leaf.cer')).toContainText('SHA-256')
+    await page.keyboard.press('Escape')
+    await expect(await open('id_ed25519.pub')).toContainText('SHA256:')
+    await page.keyboard.press('Escape')
+    const secret = await open('private-key.pem')
+    await expect(secret).toContainText('Private key — contents not shown')
+    await expect(secret.getByRole('button', { name: 'Source' })).toHaveCount(0)
+    await page.screenshot({ path: `${shots}/preview-private-key.png`, animations: 'disabled' })
+    await page.keyboard.press('Escape')
+    await expect(await open('broken.pem')).toContainText('This part cannot be read')
     await page.keyboard.press('Escape')
   })
 
