@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { PanelState } from '@/components/ui/panel-state'
 import { Tip } from '@/components/ui/tip'
 import { formatInstant } from '@/lib/datetime'
+import { useObjectUrl } from '@/lib/object-url'
 import { cn } from '@/lib/utils'
 
 import type { PreviewSource } from '../source'
@@ -61,10 +62,10 @@ function ImageStage({ source, kind, bytes }: { source: PreviewSource; kind: stri
   const decoded = useMemo(() => (tiff ? tryDecodeTiff(bytes) : null), [tiff, bytes])
   const size = decoded === null || decoded === 'broken' ? loaded : { width: decoded.width, height: decoded.height }
   const broken = failed || decoded === 'broken'
-  const url = useMemo(() => (tiff ? null : URL.createObjectURL(new Blob([bytes.slice()], { type: imageType(kind) }))), [bytes, kind, tiff])
+  const blob = useMemo(() => (tiff ? null : new Blob([bytes.slice()], { type: imageType(kind) })), [bytes, kind, tiff])
+  const url = useObjectUrl(blob)
   const info = useQuery({ queryKey: ['preview', source.key, 'photo'], queryFn: () => readPhotoInfo(bytes), staleTime: Infinity })
 
-  useEffect(() => () => (url === null ? undefined : URL.revokeObjectURL(url)), [url])
 
   useEffect(() => {
     if (decoded === null || decoded === 'broken' || canvas.current === null) {

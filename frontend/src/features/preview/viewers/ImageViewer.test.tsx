@@ -101,7 +101,7 @@ describe('ImageViewer', () => {
     expect(info).toHaveTextContent('Sentinel Camera Preview One')
     expect(info).toHaveTextContent('Sep 29, 2026')
     cleanup()
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:image')
+    await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:image'), { timeout: 3000 })
   })
 
   it('draws SVG with its type and TIFF on a canvas, and says when there is no metadata', async () => {
