@@ -11,6 +11,7 @@ import type { RemoteEntry } from '@/lib/api'
 import type { Api } from '@/lib/api/use-api'
 import { useActiveTheme } from '@/lib/theme/use-theme'
 import { cn } from '@/lib/utils'
+import { editorNonce } from '@/lib/csp'
 
 import { stampChanged, type FileStamp } from './conflict'
 import { loadLanguageFor } from './editor-language'
@@ -82,6 +83,7 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
             doc: text,
             extensions: [
               basicSetup,
+              editorNonce(),
               themeCompartment.current.of(initialScheme === 'dark' ? oneDark : []),
               language ?? [],
               EditorView.updateListener.of((update) => (update.docChanged ? setDirty(true) : undefined)),
