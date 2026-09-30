@@ -25,6 +25,7 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  * - CSV and TSV are tables that tell rows, columns and delimiter, and sort by column
  * - images show with their size, zoom, rotation and camera metadata: PNG, JPEG, GIF, WebP, AVIF, BMP, ICO, SVG and TIFF (on a canvas); a
  *   hostile SVG runs nothing, and a truncated PNG never breaks the viewer
+ * - audio and video play streamed by ranges, with their length, picture size and speed; an AVI the browser cannot play says so
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -176,6 +177,44 @@ test.describe('file viewer', () => {
     await page.keyboard.press(' ')
     const truncated = page.getByRole('dialog', { name: 'truncated.png' })
     await expect(truncated.getByText('This image cannot be shown').or(truncated.getByText(/\d+ × \d+ px/))).toBeVisible()
+  })
+
+  test('plays audio and video streamed by ranges, and says what the browser cannot play', async ({ shell, quickId }) => {
+    const { page } = shell
+    await openSamples(page, quickId, 'video')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /clip\.webm/ }).click()
+    await page.keyboard.press(' ')
+    const viewer = page.getByRole('dialog', { name: 'clip.webm' })
+    await expect(viewer).toContainText('0:05 · 320 × 180 px')
+    await viewer.getByRole('button', { name: '2×' }).click()
+    expect(await viewer.getByLabel('clip.webm').evaluate((video: HTMLVideoElement) => video.playbackRate)).toBe(2)
+    await viewer.getByLabel('clip.webm').evaluate((video: HTMLVideoElement) => {
+      video.currentTime = 2.5
+    })
+    await page.screenshot({ path: `${shots}/preview-video.png` })
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /unplayable\.avi/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'unplayable.avi' })).toContainText('This browser cannot play this file')
+    await page.keyboard.press('Escape')
+    await grid.getByRole('row', { name: /clip\.mp4/ }).click()
+    await page.keyboard.press(' ')
+    const mp4 = page.getByRole('dialog', { name: 'clip.mp4' })
+    await expect(mp4.getByText('0:05 · 320 × 180 px').or(mp4.getByText('This browser cannot play this file'))).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await openSamples(page, quickId, 'audio')
+    for (const name of ['tone.mp3', 'tone.ogg', 'tone.opus', 'tone.flac', 'tone.wav']) {
+      await page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(name.replace('.', '\\.')) }).click()
+      await page.keyboard.press(' ')
+      await expect(page.getByRole('dialog', { name })).toContainText('0:04')
+      if (name === 'tone.mp3') {
+        await page.screenshot({ path: `${shots}/preview-audio.png` })
+      }
+      await page.keyboard.press('Escape')
+    }
   })
 
   test('keeps the isolated page of the viewers away from the session', async ({ shell }) => {
