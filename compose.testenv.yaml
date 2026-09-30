@@ -16,6 +16,8 @@ services:
     profiles: ["testenv"]
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
     command: sentinel:sentinel:1001:100:upload
+    volumes:
+      - ./testenv/preview-samples:/home/sentinel/preview-samples:ro
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 22"]
       interval: 3s

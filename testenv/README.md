@@ -6,7 +6,7 @@ Start: `docker compose -f compose.dev.yaml --profile testenv up -d`
 
 | Service | Address in the Compose network | Notes |
 |---|---|---|
-| `sftp` | `sftp:22` | `atmoz/sftp`; user `sentinel` with upload directory `/upload`, and `anonymous` let in with the SSH "none" method (`testenv/sftp/anonymous.sh`), serving `/pub/readme.txt` |
+| `sftp` | `sftp:22` | `atmoz/sftp`; user `sentinel` with upload directory `/upload`, and `anonymous` let in with the SSH "none" method (`testenv/sftp/anonymous.sh`), serving `/pub/readme.txt`; `/preview-samples` is `testenv/preview-samples`, mounted read-only, with a sample of every format the file viewers show |
 | `ftp` | `ftp:21` | plain FTP; `TZ=America/Santiago` so `LIST` shows local time without a zone |
 | `ftps` | `ftps:21` | explicit FTPS (AUTH TLS), TLS session reuse required |
 | `ftps-implicit` | `ftps-implicit:990` | implicit FTPS, TLS session reuse required |
