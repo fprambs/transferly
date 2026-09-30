@@ -20,8 +20,9 @@ const fakes = vi.hoisted(() => {
 
 vi.mock('pdfjs-dist', () => fakes)
 vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?worker&inline', () => ({ default: class {} }))
+vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?raw', () => ({ default: `self.onmessage = null // ${'ñ'.repeat(40_000)}` }))
 
-import { ProtectedPdf, renderPdf } from './pdf'
+import { ProtectedPdf, renderPdf, startWorker } from './pdf'
 
 /** The observers created by the renderer, to drive what comes into view. */
 const observers: Array<{ callback: IntersectionObserverCallback; observed: Set<Element> }> = []
@@ -70,11 +71,43 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+/** A worker that only remembers where it was started from. */
+class FakeWorker {
+  /** The address it was started from. */
+  url: string
+  /** Its options. */
+  options: WorkerOptions | undefined
+  /** Remembers the address and the options. */
+  constructor(url: string, options?: WorkerOptions) {
+    this.url = url
+    this.options = options
+  }
+}
+
+/**
+ * Covers {@link startWorker}.
+ *
+ * Scenarios:
+ * - the build starts the worker inlined into the page
+ * - development starts the untouched code of the worker, longer than one chunk and not only ASCII, as a module worker from a data address
+ */
+describe('startWorker', () => {
+  it('starts the inlined worker in the build and a data worker in development', async () => {
+    vi.stubGlobal('Worker', FakeWorker)
+    expect(await startWorker(false)).not.toBeInstanceOf(FakeWorker)
+    const worker = (await startWorker(true)) as unknown as FakeWorker
+    expect(worker.options).toEqual({ type: 'module' })
+    const encoded = worker.url.replace('data:text/javascript;base64,', '')
+    const decoded = new TextDecoder().decode(Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0)))
+    expect(decoded).toBe(`self.onmessage = null // ${'ñ'.repeat(40_000)}`)
+  })
+})
+
 /**
  * Covers {@link renderPdf} (ADR-0018).
  *
  * Scenarios:
- * - the document is opened by ranges read through the parent, with forms, XFA and WASM off, and the worker started once
+ * - the document is opened by ranges read through the parent, with forms, XFA and WASM off, and a worker already started is kept
  * - every page gets a frame of its size; pages are drawn once as they come into view, and the bar tells the first page in view
  * - zoom steps in and out, stops at its ends, and fits the width, drawing the pages again
  * - thumbnails are drawn once, when first shown, and jump to their page
@@ -83,6 +116,7 @@ async function settle(): Promise<void> {
  */
 describe('renderPdf', () => {
   beforeEach(() => {
+    vi.stubGlobal('Worker', FakeWorker)
     observers.length = 0
     vi.stubGlobal(
       'IntersectionObserver',
@@ -103,12 +137,19 @@ describe('renderPdf', () => {
     )
   })
 
+  it('keeps a worker already started', async () => {
+    const started = { port: true }
+    fakes.GlobalWorkerOptions.workerPort = started
+    await open(['one'])
+    expect(fakes.GlobalWorkerOptions.workerPort).toBe(started)
+    fakes.GlobalWorkerOptions.workerPort = null
+  })
+
   it('opens by ranges and draws the pages in view', async () => {
     const { root, pages, read, observer } = await open(['one', 'two', 'three'])
     const options = fakes.getDocument.mock.calls[0][0] as { range: InstanceType<typeof fakes.PDFDataRangeTransport>; enableXfa: boolean; useWasm: boolean }
     expect(options).toMatchObject({ enableXfa: false, useWasm: false })
     expect(options.range.length).toBe(1000)
-    expect(fakes.GlobalWorkerOptions.workerPort).not.toBeNull()
     options.range.requestDataRange(100, 200)
     await settle()
     expect(read).toHaveBeenCalledWith(100, 200)

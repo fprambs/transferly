@@ -29,10 +29,34 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
   return node
 }
 
-/** Starts the worker of pdf.js once, from the copy bundled into the page, since the page cannot load it from the network. */
-function ensureWorker(): void {
+/** Encodes text as base64, by chunks, since the code of the worker is too long to spread into one call. */
+function base64(text: string): string {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  for (let at = 0; at < bytes.length; at += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000))
+  }
+  return btoa(binary)
+}
+
+/**
+ * Starts the worker of pdf.js. The build inlines it into the page, since the page cannot load it from the network. The development server
+ * of Vite serves it from its own address instead, transformed for its client, and a page with an opaque origin may start neither a worker
+ * from another address nor a module worker from a `blob:` it made, so in development the page takes the untouched code of the worker as
+ * text and starts it from a `data:` address, which belongs to no origin; the build drops this branch.
+ */
+export async function startWorker(development = import.meta.env.DEV): Promise<Worker> {
+  if (!import.meta.env.DEV || !development) {
+    return new PdfWorker()
+  }
+  const { default: code } = await import('pdfjs-dist/build/pdf.worker.min.mjs?raw')
+  return new Worker(`data:text/javascript;base64,${base64(code)}`, { type: 'module' })
+}
+
+/** Starts the worker of pdf.js once. */
+async function ensureWorker(): Promise<void> {
   if (GlobalWorkerOptions.workerPort === null) {
-    GlobalWorkerOptions.workerPort = new PdfWorker()
+    GlobalWorkerOptions.workerPort = await startWorker()
   }
 }
 
@@ -57,7 +81,7 @@ async function pageText(page: PDFPageProxy): Promise<string> {
  * forms and XFA are left off. A PDF that asks for a password fails with {@link ProtectedPdf}.
  */
 export async function renderPdf(first: Uint8Array, size: number, read: RangeReader, root: HTMLElement, labels: Record<string, string>): Promise<void> {
-  ensureWorker()
+  await ensureWorker()
   const transport = new PDFDataRangeTransport(size, first)
   transport.requestDataRange = (begin: number, end: number): void => {
     void read(begin, end).then((chunk) => transport.onDataRange(begin, chunk))
