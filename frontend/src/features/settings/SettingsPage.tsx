@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select } from '@/components/ui/select'
-import { supportedLanguages } from '@/i18n'
+import { languages } from '@/i18n'
 import { useUiStore } from '@/state/ui-store'
 
 import { SecuritySection } from '../security/SecuritySection'
@@ -14,7 +14,6 @@ import { useThemeChoice } from './use-theme-choice'
 /** Settings of the interface: the theme, following the system, the language, and what a double click on a file does; the theme, the language and the double click are kept with the account. */
 export function SettingsPage() {
   const { t, i18n } = useTranslation('settings')
-  const { t: common } = useTranslation()
   const followSystem = useUiStore((state) => state.followSystem)
   const setFollowSystem = useUiStore((state) => state.setFollowSystem)
   const fileDoubleClick = useUiStore((state) => state.fileDoubleClick)
@@ -59,7 +58,7 @@ export function SettingsPage() {
         <Select
           id="language-setting"
           value={i18n.resolvedLanguage as string}
-          options={supportedLanguages.map((code) => ({ value: code, label: common(($) => $.language.names[code]) }))}
+          options={languages.map((language) => ({ value: language.code, label: language.name }))}
           onValueChange={(locale) => {
             void i18n.changeLanguage(locale)
             void language.save({ locale })

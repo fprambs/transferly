@@ -17,36 +17,46 @@ import enSync from './locales/en/sync.json'
 import enSecurity from './locales/en/security.json'
 import enSettings from './locales/en/settings.json'
 import enShell from './locales/en/shell.json'
-import esAdmin from './locales/es/admin.json'
-import esAuth from './locales/es/auth.json'
-import esCommon from './locales/es/common.json'
-import esEditor from './locales/es/editor.json'
-import esErrors from './locales/es/errors.json'
-import esExplorer from './locales/es/explorer.json'
-import esQuick from './locales/es/quick.json'
-import esTeams from './locales/es/teams.json'
-import esTransfers from './locales/es/transfers.json'
-import esVault from './locales/es/vault.json'
-import esSites from './locales/es/sites.json'
-import esSync from './locales/es/sync.json'
-import esSecurity from './locales/es/security.json'
-import esSettings from './locales/es/settings.json'
-import esShell from './locales/es/shell.json'
 
-/** Languages the interface is translated into. English is the source language. */
-export const supportedLanguages = ['en', 'es'] as const
+import { languages } from './languages'
+
+export { languages, type Language } from './languages'
 
 /** A language code the interface is translated into. */
-export type SupportedLanguage = (typeof supportedLanguages)[number]
+export type SupportedLanguage = (typeof languages)[number]['code']
+
+/** Codes of the languages the interface is translated into. English is the source language. */
+export const supportedLanguages: readonly SupportedLanguage[] = languages.map((language) => language.code)
 
 /** Namespace used when a component does not ask for another one. */
 export const defaultNS = 'common'
 
-/** Translation resources by language and namespace. */
-export const resources = {
-  en: { admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, errors: enErrors, explorer: enExplorer, quick: enQuick, security: enSecurity, settings: enSettings, shell: enShell, sites: enSites, sync: enSync, teams: enTeams, transfers: enTransfers, vault: enVault },
-  es: { admin: esAdmin, auth: esAuth, common: esCommon, editor: esEditor, errors: esErrors, explorer: esExplorer, quick: esQuick, security: esSecurity, settings: esSettings, shell: esShell, sites: esSites, sync: esSync, teams: esTeams, transfers: esTransfers, vault: esVault },
+/** The English messages by namespace, the source every other language translates; they type the keys of `t`. */
+const english = {
+  admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, errors: enErrors, explorer: enExplorer, quick: enQuick, security: enSecurity,
+  settings: enSettings, shell: enShell, sites: enSites, sync: enSync, teams: enTeams, transfers: enTransfers, vault: enVault,
 } as const
+
+/** The messages of a language by namespace, shaped as the English ones. */
+export type Messages = typeof english
+
+/** Every translation file under `locales/`, by path, such as `./locales/es/sites.json`. */
+const files = import.meta.glob<object>('./locales/*/*.json', { eager: true, import: 'default' })
+
+/** Groups the translation files of the languages other than English by language and namespace. */
+function translations(): Record<string, Messages> {
+  const byLanguage: Record<string, Record<string, object>> = {}
+  for (const [path, messages] of Object.entries(files)) {
+    const [, code, namespace] = /^\.\/locales\/([^/]+)\/([^/]+)\.json$/.exec(path) as RegExpExecArray
+    if (code !== 'en') {
+      byLanguage[code] = { ...byLanguage[code], [namespace]: messages }
+    }
+  }
+  return byLanguage as Record<string, Messages>
+}
+
+/** Translation resources by language and namespace: English, then every folder of `locales/`. */
+export const resources: { en: Messages } & Record<string, Messages> = { ...translations(), en: english }
 
 /** Subset of an i18next instance needed to describe the document language. */
 export type LanguageSource = Pick<I18n, 'resolvedLanguage' | 'language' | 'dir'>
@@ -67,7 +77,7 @@ export async function createI18n(language?: SupportedLanguage): Promise<I18n> {
       defaultNS,
       lng: language,
       fallbackLng: 'en',
-      supportedLngs: supportedLanguages,
+      supportedLngs: [...supportedLanguages],
       nonExplicitSupportedLngs: true,
       interpolation: { escapeValue: false },
       detection: { order: ['localStorage', 'navigator'], caches: ['localStorage'] },

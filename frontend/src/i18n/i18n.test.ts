@@ -4,6 +4,7 @@ import {
   applyDocumentLanguage,
   bindDocumentLanguage,
   createI18n,
+  languages,
   resources,
   supportedLanguages,
   type LanguageSource,
@@ -26,6 +27,7 @@ function placeholders(message: string): string[] {
  * Covers the translation files of every supported language.
  *
  * Scenarios:
+ * - every folder of `locales/` is a registered language and every registered language has a folder, each with a name written in itself
  * - every language has the same namespaces and keys as the English source
  * - no message is empty
  * - every message keeps the interpolation placeholders of the English source
@@ -33,6 +35,15 @@ function placeholders(message: string): string[] {
 describe('translation resources', () => {
   const source = resources.en
   const others = supportedLanguages.filter((language) => language !== 'en')
+
+  it('registers every folder of locales, and nothing else', () => {
+    const folders = Object.keys(import.meta.glob('./locales/*/common.json')).map((path) => path.split('/')[2])
+    expect([...folders].sort()).toEqual([...supportedLanguages].sort())
+    expect(supportedLanguages[0]).toBe('en')
+    for (const language of languages) {
+      expect(language.name.trim(), language.code).not.toBe('')
+    }
+  })
 
   it.each(others)('%s has the same namespaces as English', (language) => {
     expect(Object.keys(resources[language]).sort()).toEqual(Object.keys(source).sort())

@@ -3,10 +3,6 @@
     "name": "Sentinel"
   },
   "language": {
-    "label": "Idioma",
-    "names": {
-      "en": "English",
-      "es": "Español"
-    }
+    "label": "Idioma"
   }
 }
