@@ -3,30 +3,13 @@ package httpapi
 import (
 	"bytes"
 	"context"
-	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/backup"
 	"github.com/fprambs/sentinel/internal/core/fzimport"
 )
-
-// maxSentinelImportBody bounds the body of a Sentinel import: a file of [backup.MaxBytes] written as a JSON string, whose escapes
-// may nearly double it, and its password.
-const maxSentinelImportBody = 2*backup.MaxBytes + 64<<10
-
-// limitSentinelImports caps the body of Sentinel imports before it is decoded, since the file travels inside the JSON body.
-func limitSentinelImports(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/imports/sentinel") {
-			r.Body = http.MaxBytesReader(w, r.Body, maxSentinelImportBody)
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 // ExportSites answers every collection and site of the workspace, with their secrets, as a file sealed with the password given
 // (ADR-0017).

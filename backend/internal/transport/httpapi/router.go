@@ -147,7 +147,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(originGuard(d.AllowedOrigins))
 	r.Use(clientInfo)
-	r.Use(limitSentinelImports)
+	r.Use(limitBodies)
 	r.Use(authenticate(d.Auth, d.Logger))
 
 	r.NotFound(notFoundHandler(d.Web))
