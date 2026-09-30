@@ -164,5 +164,24 @@
     "title": "No hay visor para este tipo de archivo",
     "body": "Sentinel no puede mostrar este archivo dentro de la plataforma. Descárgalo para abrirlo en tu equipo.",
     "asBytes": "Ver sus bytes igualmente"
+  },
+  "sqlite": {
+    "label": "Base de datos {{name}}",
+    "tables": "Tablas y vistas",
+    "view": "vista",
+    "rows": "Filas {{from}}–{{to}} de {{total}}",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "structure": "Estructura",
+    "query": "Consulta",
+    "queryPlaceholder": "SELECT … (solo lectura, Ctrl+Enter la ejecuta)",
+    "run": "Ejecutar",
+    "result": "Resultado de la consulta",
+    "resultRows": "{{total}} filas",
+    "resultCut": "Primeras {{total}} filas",
+    "blob": "BLOB · {{size}} bytes",
+    "empty": "Esta base de datos no tiene tablas.",
+    "broken": "No se puede abrir esta base de datos",
+    "brokenBody": "El archivo está dañado o no es una base de datos SQLite."
   }
 }

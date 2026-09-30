@@ -7,7 +7,7 @@ import { CsvViewer } from './CsvViewer'
 import { ImageViewer } from './ImageViewer'
 import { MarkdownViewer } from './MarkdownViewer'
 import { MediaViewer } from './MediaViewer'
-import { OfficeViewer } from './OfficeViewer'
+import { IsolatedViewer } from './IsolatedViewer'
 import { PdfViewer } from './PdfViewer'
 import { StructuredViewer } from './StructuredViewer'
 import { TextViewer } from './TextViewer'
@@ -29,9 +29,10 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   video: MediaViewer,
   pdf: PdfViewer,
   archive: ArchiveViewer,
-  document: OfficeViewer,
-  spreadsheet: OfficeViewer,
-  presentation: OfficeViewer,
+  document: IsolatedViewer,
+  spreadsheet: IsolatedViewer,
+  presentation: IsolatedViewer,
+  sqlite: IsolatedViewer,
 }
 
 /** The viewer of a kind, or undefined for a kind no viewer shows, such as a binary file. */

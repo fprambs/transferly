@@ -164,5 +164,24 @@
     "title": "No viewer for this kind of file",
     "body": "Sentinel cannot show this file inside the platform. Download it to open it on your computer.",
     "asBytes": "Show its bytes anyway"
+  },
+  "sqlite": {
+    "label": "Database {{name}}",
+    "tables": "Tables and views",
+    "view": "view",
+    "rows": "Rows {{from}}–{{to}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "structure": "Structure",
+    "query": "Query",
+    "queryPlaceholder": "SELECT … (read only, Ctrl+Enter runs it)",
+    "run": "Run",
+    "result": "Query result",
+    "resultRows": "{{total}} rows",
+    "resultCut": "First {{total}} rows",
+    "blob": "BLOB · {{size}} bytes",
+    "empty": "This database has no tables.",
+    "broken": "This database cannot be opened",
+    "brokenBody": "The file is damaged or is not a SQLite database."
   }
 }

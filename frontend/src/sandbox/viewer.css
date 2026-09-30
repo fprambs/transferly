@@ -437,3 +437,128 @@ body {
   font-size: 13px;
   color: var(--warn);
 }
+
+.sqlite {
+  display: grid;
+  grid-template-columns: minmax(10rem, 16rem) 1fr;
+  height: 100vh;
+}
+
+.sqlite-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-inline-end: 1px solid var(--border);
+  overflow: auto;
+}
+
+.sqlite-side-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.sqlite-object {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.sqlite-object:hover,
+.sqlite-object[aria-current='true'] {
+  background: var(--muted);
+}
+
+.sqlite-kind {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.sqlite-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sqlite-query-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sqlite-query {
+  flex: 1;
+  min-height: 2.5rem;
+  resize: vertical;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font: 12px ui-monospace, monospace;
+}
+
+.sqlite-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sqlite-header {
+  position: sticky;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.sqlite-title {
+  margin: 0 8px 0 0;
+  font-size: 14px;
+}
+
+.sqlite-count {
+  margin-inline-end: auto;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.sqlite-sql {
+  margin: 0 10px 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--muted);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.sqlite-null,
+.sqlite-blob {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.sqlite-number {
+  text-align: right;
+}
+
+.sqlite-error {
+  margin: 12px;
+  color: var(--warn);
+  font: 12px ui-monospace, monospace;
+}

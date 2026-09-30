@@ -38,6 +38,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   text; an Excel workbook with its sheets, merged cells, formatted numbers and saved results; legacy Excel and OpenDocument workbooks;
  *   a PowerPoint deck as slides; a hostile document renders without its embedded HTML or remote picture; a legacy Word file says no
  *   viewer shows it and a truncated document says it cannot be opened
+ * - a SQLite database opens in the isolated page with its tables and views, rows by pages, NULLs and blobs, its structure, and read-only
+ *   queries that refuse writes; a truncated database says it cannot be opened
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -440,6 +442,38 @@ test.describe('file viewer', () => {
     await page.screenshot({ path: `${shots}/preview-xlsx.png` })
     await xlsx.getByRole('tab', { name: 'Big' }).click()
     await expect(xlsx.locator('table.sheet tbody tr')).toHaveCount(5001)
+    await page.keyboard.press('Escape')
+  })
+
+  test('browses SQLite databases in the isolated page', async ({ shell, quickId }) => {
+    const { page } = shell
+    await openSamples(page, quickId, 'sqlite')
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /^sample\.sqlite/ }).click()
+    await page.keyboard.press(' ')
+    const db = page.frameLocator('iframe[title="Database sample.sqlite"]')
+    await expect(db.locator('.sqlite-count')).toHaveText('Rows 1–200 of 20000')
+    await db.getByRole('button', { name: 'Next' }).click()
+    await expect(db.locator('.sqlite-count')).toHaveText('Rows 201–400 of 20000')
+    await db.getByRole('button', { name: /^people/ }).click()
+    await expect(db.locator('table.sheet')).toContainText('Émilie 日本語 😀')
+    await expect(db.locator('.sqlite-null').first()).toHaveText('NULL')
+    await page.screenshot({ path: `${shots}/preview-sqlite.png` })
+    await db.getByRole('button', { name: 'Structure' }).click()
+    await expect(db.locator('.sqlite-sql')).toContainText('CREATE TABLE people')
+    const query = db.getByRole('textbox', { name: 'Query' })
+    await query.fill('SELECT city, COUNT(*) AS n FROM people GROUP BY city ORDER BY city')
+    await query.press('Control+Enter')
+    await expect(db.locator('.sqlite-title')).toHaveText('Query result')
+    await page.screenshot({ path: `${shots}/preview-sqlite-query.png` })
+    await query.fill('DROP TABLE people')
+    await db.getByRole('button', { name: 'Run' }).click()
+    await expect(db.getByRole('alert')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /^truncated\.sqlite/ }).click()
+    await page.keyboard.press(' ')
+    await expect(page.getByRole('dialog', { name: 'truncated.sqlite' })).toContainText('This database cannot be opened')
     await page.keyboard.press('Escape')
   })
 
