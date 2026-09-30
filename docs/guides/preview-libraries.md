@@ -1,6 +1,6 @@
 # Libraries of the file viewers
 
-Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr), [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist` 6). Architecture in [ADR-0018](../adr/0018-file-preview.md).
+Sources: the README and type definitions of each package: [marked](https://marked.js.org/), [DOMPurify](https://github.com/cure53/DOMPurify), [yaml](https://eemeli.org/yaml/), [Papa Parse](https://www.papaparse.com/docs), [UTIF.js](https://github.com/photopea/UTIF.js), [exifr](https://github.com/MikeKovarik/exifr), [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist` 6), and for archives, read by the backend in Go, the package documentation of [archive/zip and archive/tar](https://pkg.go.dev/archive), [bodgit/sevenzip](https://pkg.go.dev/github.com/bodgit/sevenzip), [nwaples/rardecode](https://pkg.go.dev/github.com/nwaples/rardecode/v2), [ulikunitz/xz](https://pkg.go.dev/github.com/ulikunitz/xz) and [klauspost/compress/zstd](https://pkg.go.dev/github.com/klauspost/compress/zstd). Architecture in [ADR-0018](../adr/0018-file-preview.md).
 
 ## marked and DOMPurify (Markdown)
 
@@ -36,3 +36,10 @@ Sources: the README and type definitions of each package: [marked](https://marke
 - A `PasswordException` is reported as a protected document; the viewer does not ask for passwords.
 - The renderer is loaded with a dynamic import only when a PDF opens, so the Markdown viewer does not carry it.
 
+
+## Archives (Go, backend)
+
+- The package `internal/core/archives` reads archives without writing anything to disk. Entry names are data: they are listed as the archive stores them (`../`, absolute and Windows paths included) and never joined to a path of the server.
+- ZIP (`archive/zip`) and 7z (`sevenzip.NewReader` over an `io.ReaderAt`) are read by offset, so a remote archive is listed from its index at the end without fetching the rest. Encrypted ZIP entries (flag bit 0) are refused before reading. `sevenzip` reports a missing password as a `*sevenzip.ReadError` with `Encrypted` set, while opening an archive with encrypted headers or only once it decrypts an entry, so both the opening and the reads are mapped.
+- TAR, compressed TARs and single compressed files are streams read from the start: gzip and bzip2 from the standard library, xz with `xz.ReaderConfig{DictCap: 64 MiB}` and zstd with `zstd.WithDecoderMaxWindow(64 MiB)` and a single goroutine, so a header cannot ask for gigabytes of memory. RAR uses `rardecode.NewReader` with `MaxDictionarySize(64 MiB)` (the default is 4 GiB); multi-volume RARs are not followed, since the reader has no file system. RAR cannot be created by free tools, so its samples are written by hand as RAR5 with the stored method.
+- Caps: 10 000 entries per listing, 512 MiB per entry, 1 GiB decompressed while scanning a stream, and a declared ratio over 200 on entries over 1 MiB is taken for a bomb. An entry that yields more than it declared fails instead of being cut.
