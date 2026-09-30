@@ -4,10 +4,12 @@
 package archives
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -195,8 +197,76 @@ func checkDeclared(size, packed int64) error {
 	return nil
 }
 
+// watched is an archive whose failed reads are remembered, so the failure of the storage is reported instead of the archive being taken
+// for a damaged one.
+type watched struct {
+	Source
+	mu  sync.Mutex
+	err error
+}
+
+// remember keeps the first failure of a read that is not the end of the data.
+func (w *watched) remember(err error) {
+	if err != nil && !errors.Is(err, io.EOF) {
+		w.mu.Lock()
+		if w.err == nil {
+			w.err = err
+		}
+		w.mu.Unlock()
+	}
+}
+
+// ReadAt implements [io.ReaderAt].
+func (w *watched) ReadAt(p []byte, off int64) (int, error) {
+	n, err := w.Source.ReadAt(p, off)
+	w.remember(err)
+	return n, err
+}
+
+// Stream implements [Source].
+func (w *watched) Stream(offset int64) (io.ReadCloser, error) {
+	stream, err := w.Source.Stream(offset)
+	if err != nil {
+		return nil, err
+	}
+	return watchedStream{ReadCloser: stream, w: w}, nil
+}
+
+// failure is the failure of the storage, when a read failed, or else err.
+func (w *watched) failure(err error) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.err != nil {
+		return w.err
+	}
+	return err
+}
+
+// watchedStream is a stream of a [watched] archive.
+type watchedStream struct {
+	io.ReadCloser
+	w *watched
+}
+
+// Read implements [io.Reader].
+func (s watchedStream) Read(p []byte) (int, error) {
+	n, err := s.ReadCloser.Read(p)
+	s.w.remember(err)
+	return n, err
+}
+
 // List lists the entries of an archive.
 func List(src Source, name string) (Listing, error) {
+	w := &watched{Source: src}
+	listing, err := list(w, name)
+	if err != nil {
+		return Listing{}, w.failure(err)
+	}
+	return listing, nil
+}
+
+// list lists the entries of an archive, taking every failure for a damaged archive.
+func list(src Source, name string) (Listing, error) {
 	format, err := detectSource(src, name)
 	if err != nil {
 		return Listing{}, err
@@ -217,8 +287,34 @@ func List(src Source, name string) (Listing, error) {
 	return Listing{Format: format, Entries: entries, Truncated: truncated}, nil
 }
 
-// Open reads one file entry of an archive, capped at 512 MiB, and tells its size, or -1 when the archive does not.
+// Open reads one file entry of an archive, capped at 512 MiB, and tells its size, or -1 when the archive does not. A failure of the
+// storage while reading is reported as it is.
 func Open(src Source, name, entry string) (io.ReadCloser, int64, error) {
+	w := &watched{Source: src}
+	rc, size, err := open(w, name, entry)
+	if err != nil {
+		return nil, 0, w.failure(err)
+	}
+	return watchedEntry{ReadCloser: rc, w: w}, size, nil
+}
+
+// watchedEntry reads an entry of a [watched] archive, reporting the failure of the storage instead of what the decoder made of it.
+type watchedEntry struct {
+	io.ReadCloser
+	w *watched
+}
+
+// Read implements [io.Reader].
+func (e watchedEntry) Read(p []byte) (int, error) {
+	n, err := e.ReadCloser.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return n, e.w.failure(err)
+	}
+	return n, err
+}
+
+// open reads one file entry of an archive, taking every failure for a damaged archive.
+func open(src Source, name, entry string) (io.ReadCloser, int64, error) {
 	format, err := detectSource(src, name)
 	if err != nil {
 		return nil, 0, err
@@ -249,4 +345,28 @@ func add(entries *[]Entry, entry Entry) bool {
 	}
 	*entries = append(*entries, entry)
 	return false
+}
+
+// readerAt is an archive read by offset, streamed by reading it in order.
+type readerAt struct {
+	io.ReaderAt
+	size int64
+}
+
+// Size implements [Source].
+func (r readerAt) Size() int64 { return r.size }
+
+// Stream implements [Source].
+func (r readerAt) Stream(offset int64) (io.ReadCloser, error) {
+	return io.NopCloser(io.NewSectionReader(r.ReaderAt, offset, r.size-offset)), nil
+}
+
+// FromReaderAt makes an archive of size bytes read by offset from r, whose streams read r in order.
+func FromReaderAt(r io.ReaderAt, size int64) Source {
+	return readerAt{ReaderAt: r, size: size}
+}
+
+// Bytes makes an archive of bytes held in memory, such as an archive nested in another.
+func Bytes(data []byte) Source {
+	return FromReaderAt(bytes.NewReader(data), int64(len(data)))
 }

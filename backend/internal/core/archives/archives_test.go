@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/nwaples/rardecode/v2"
 )
@@ -20,19 +21,9 @@ import (
 // samples is the folder of archive samples the viewers are tried with, shared with the test stack.
 const samples = "../../../../testenv/preview-samples/archives"
 
-// memory is an archive held in memory.
-type memory struct {
-	*bytes.Reader
-}
-
-// Stream implements [Source].
-func (m memory) Stream(offset int64) (io.ReadCloser, error) {
-	return io.NopCloser(io.NewSectionReader(m.Reader, offset, m.Size()-offset)), nil
-}
-
 // broken is an archive whose reads fail: every read by offset, or only the streams.
 type broken struct {
-	memory
+	Source
 	offsets bool
 }
 
@@ -44,7 +35,7 @@ func (b broken) ReadAt(p []byte, off int64) (int, error) {
 	if b.offsets {
 		return 0, errBroken
 	}
-	return b.memory.ReadAt(p, off)
+	return b.Source.ReadAt(p, off)
 }
 
 // Stream implements [Source].
@@ -52,13 +43,33 @@ func (b broken) Stream(int64) (io.ReadCloser, error) {
 	return nil, errBroken
 }
 
+// failing is an archive whose storage fails for the bytes from start to end: reads by offset that touch them, and streams that reach
+// them.
+type failing struct {
+	Source
+	start, end int64
+}
+
+// ReadAt implements [io.ReaderAt].
+func (f failing) ReadAt(p []byte, off int64) (int, error) {
+	if off < f.end && off+int64(len(p)) > f.start {
+		return 0, errBroken
+	}
+	return f.Source.ReadAt(p, off)
+}
+
+// Stream implements [Source].
+func (f failing) Stream(offset int64) (io.ReadCloser, error) {
+	return io.NopCloser(io.MultiReader(io.NewSectionReader(f.Source, offset, f.start-offset), iotest.ErrReader(errBroken))), nil
+}
+
 // inMemory wraps bytes as an archive.
-func inMemory(data []byte) memory {
-	return memory{bytes.NewReader(data)}
+func inMemory(data []byte) Source {
+	return Bytes(data)
 }
 
 // sample reads an archive sample.
-func sample(t *testing.T, name string) memory {
+func sample(t *testing.T, name string) Source {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(samples, name))
 	if err != nil {
@@ -453,12 +464,13 @@ func TestStreams(t *testing.T) {
 // TestFailures verifies that failures of the storage and of the decoders are reported, not hidden.
 //
 // Use cases:
-//   - a failed read of the first bytes, or of the stream, is returned as it is
+//   - a failed read of the first bytes, of the stream, of a ZIP index or of the data of an entry is returned as it is, not taken for a
+//     damaged archive
 //   - the failures a RAR decoder reports for encrypted archives mean encrypted; the caps keep their errors
 //   - a capped reader stops at its limit, fails when more data follows, and ends where the data ends
 func TestFailures(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(samples, "project.tar"))
-	for _, src := range []broken{{memory: inMemory(data), offsets: true}, {memory: inMemory(data)}} {
+	for _, src := range []broken{{Source: inMemory(data), offsets: true}, {Source: inMemory(data)}} {
 		if _, err := List(src, "a.tar"); !errors.Is(err, errBroken) {
 			t.Errorf("list: %v", err)
 		}
@@ -472,6 +484,24 @@ func TestFailures(t *testing.T) {
 		if got := streamFailure(err); !errors.Is(got, want) {
 			t.Errorf("streamFailure(%v) = %v", err, got)
 		}
+	}
+	project, _ := os.ReadFile(filepath.Join(samples, "project.zip"))
+	index, _ := zip.NewReader(bytes.NewReader(project), int64(len(project)))
+	var people int64
+	for _, f := range index.File {
+		if f.Name == "project/data/people.csv" {
+			people, _ = f.DataOffset()
+		}
+	}
+	size := int64(len(project))
+	if _, err := List(failing{Source: inMemory(project), start: size - 100, end: size}, "a.zip"); !errors.Is(err, errBroken) {
+		t.Errorf("zip index: %v", err)
+	}
+	if _, _, err := readEntry(failing{Source: inMemory(project), start: people + 4096, end: people + 4097}, "a.zip", "project/data/people.csv"); !errors.Is(err, errBroken) {
+		t.Errorf("zip entry: %v", err)
+	}
+	if _, _, err := readEntry(failing{Source: inMemory(data), start: 4096}, "a.tar", "project/vendor/inner.zip"); !errors.Is(err, errBroken) {
+		t.Errorf("tar: %v", err)
 	}
 	over := &capped{r: strings.NewReader("abcdef"), left: 4, close: func() error { return nil }}
 	if got, err := io.ReadAll(over); string(got) != "abcd" || !errors.Is(err, ErrTooLarge) {
