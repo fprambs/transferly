@@ -125,6 +125,7 @@ func newServerWithWeb(t *testing.T) *httptest.Server {
 //   - API, problem and frontend responses all carry the OWASP recommended headers
 //   - the content security policy forbids inline scripts and framing
 //   - responses are not cacheable by default, and the frontend can set its own cache policy
+//   - the isolated page of the file viewers has an opaque origin, no network, and may be framed by Sentinel only (ADR-0018)
 func TestSecurityHeaders(t *testing.T) {
 	api := newServer(t, fakeReadiness{})
 	web := newServerWithWeb(t)
@@ -151,6 +152,17 @@ func TestSecurityHeaders(t *testing.T) {
 		if !strings.Contains(csp, "script-src 'self'") || !strings.Contains(csp, "frame-ancestors 'none'") || strings.Contains(csp, "unsafe-inline") {
 			t.Errorf("%s: Content-Security-Policy = %q, want a strict policy", name, csp)
 		}
+	}
+
+	sandbox := testutil.Do(t, http.MethodGet, web.URL+"/sandbox/viewer.html")
+	policy := sandbox.Header.Get("Content-Security-Policy")
+	for _, directive := range []string{"sandbox allow-scripts;", "connect-src 'none'", "frame-ancestors 'self'", "default-src 'none'"} {
+		if !strings.Contains(policy, directive) {
+			t.Errorf("sandbox Content-Security-Policy = %q, want %q", policy, directive)
+		}
+	}
+	if strings.Contains(policy, "allow-same-origin") || sandbox.Header.Get("X-Frame-Options") != "SAMEORIGIN" {
+		t.Errorf("sandbox headers = %v", sandbox.Header)
 	}
 
 	if got := testutil.Do(t, http.MethodGet, api.URL+"/healthz").Header.Get("Cache-Control"); got != "no-store" {

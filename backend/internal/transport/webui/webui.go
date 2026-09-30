@@ -38,7 +38,8 @@ func newHandler(files fs.FS) http.Handler {
 // ServeHTTP serves GET and HEAD requests.
 //
 // Existing files are served with a content type from their extension; hashed assets are cached
-// immutably and everything else must be revalidated. A path without a file extension that does
+// immutably and everything else must be revalidated. The built assets and the isolated page of the file
+// viewers are public and may be loaded from the opaque origin of that page (ADR-0018). A path without a file extension that does
 // not exist is an application route and receives the index document. A missing file with an
 // extension is a 404, so a broken script or style URL is never answered with HTML.
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +79,10 @@ func (h handler) serve(w http.ResponseWriter, r *http.Request, name string) bool
 		cache = immutableCache
 	}
 	w.Header().Set("Cache-Control", cache)
+	if strings.HasPrefix(name, "assets/") || strings.HasPrefix(name, "sandbox/") {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
+	}
 	http.ServeContent(w, r, name, time.Time{}, seeker)
 	return true
 }

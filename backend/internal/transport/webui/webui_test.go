@@ -10,10 +10,11 @@ import (
 
 // testFiles is a small build of the frontend.
 var testFiles = fstest.MapFS{
-	"index.html":       {Data: []byte("<html>app</html>")},
-	"favicon.svg":      {Data: []byte("<svg/>")},
-	"assets/app-1.js":  {Data: []byte("console.log(1)")},
-	"assets/app-1.css": {Data: []byte("body{}")},
+	"index.html":          {Data: []byte("<html>app</html>")},
+	"favicon.svg":         {Data: []byte("<svg/>")},
+	"assets/app-1.js":     {Data: []byte("console.log(1)")},
+	"assets/app-1.css":    {Data: []byte("body{}")},
+	"sandbox/viewer.html": {Data: []byte("<html>viewer</html>")},
 }
 
 // get sends a request with the given method to a handler over testFiles.
@@ -58,6 +59,21 @@ func TestHandler_ServesFiles(t *testing.T) {
 				t.Errorf("body = %q, want %q", rec.Body.String(), tt.wantBody)
 			}
 		})
+	}
+}
+
+// TestHandler_CrossOrigin covers the headers that let the opaque origin of the isolated page load the build (ADR-0018).
+//
+// Use cases:
+//   - hashed assets and the isolated page allow any origin and cross-origin loading
+//   - the index document and other root files do not
+func TestHandler_CrossOrigin(t *testing.T) {
+	for target, want := range map[string]bool{"/assets/app-1.js": true, "/sandbox/viewer.html": true, "/": false, "/favicon.svg": false} {
+		rec := get(t, http.MethodGet, target)
+		open := rec.Header().Get("Access-Control-Allow-Origin") == "*" && rec.Header().Get("Cross-Origin-Resource-Policy") == "cross-origin"
+		if open != want || (!want && rec.Header().Get("Access-Control-Allow-Origin") != "") {
+			t.Errorf("%s: cross-origin headers = %v; want open %v", target, rec.Header(), want)
+		}
 	}
 }
 

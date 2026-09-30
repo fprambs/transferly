@@ -302,6 +302,20 @@ Pendiente de fases anteriores que conviene retomar aquí: la opción por sitio p
 
 Anotado el 2026-09-27, pendiente de decidir en qué punto entra: filtro instantáneo sobre la carpeta ya listada (distinto de la búsqueda recursiva remota de la 4.2), aprovechando que el listado ya vive en la caché de TanStack Query — sin ida y vuelta al servidor. Permitiría filtrar por nombre/patrón, tipo de archivo (extensión) y rango de fecha de modificación sobre las filas ya renderizadas. Encaja bien como parte de la 4.14 (paleta de comandos y preferencias) o como su propio punto pequeño justo después; no se mete en la 4.3 porque no tiene relación con subidas atómicas ni límites de velocidad.
 
+## Bloque D2: visualizador de archivos (pedido del 2026-09-29, antes de la fase 5)
+
+El diferenciador D2 se adelanta a la fase 5. Abrir cualquier archivo y verlo dentro de Sentinel sin descargarlo: a pantalla completa al estilo Quick Look (espacio para abrir, flechas para el anterior y el siguiente de la carpeta, Esc para cerrar), para archivos remotos, locales y dentro de comprimidos. Office se muestra en el navegador (sin contenedor de LibreOffice). Decisiones en [ADR-0018](adr/0018-file-preview.md).
+
+- [ ] D2.0 Base: visor a pantalla completa, detección del tipo por contenido y extensión, lectura por rangos de archivos remotos y locales, página aislada (`iframe` con `sandbox`, origen opaco, sin cookies, API ni red) para los formatos riesgosos, visor hexadecimal para cualquier binario, y la carpeta `preview-samples/` sembrada en el SFTP de pruebas con una muestra por formato y muestras hostiles
+- [ ] D2.1 Texto y código con resaltado, Markdown sanitizado, JSON, YAML y XML en árbol, CSV y TSV como tabla virtualizada
+- [ ] D2.2 Imágenes: png, jpg, gif, webp, avif, bmp, ico, svg (como imagen, sin scripts) y tiff, con zoom, rotación y datos EXIF
+- [ ] D2.3 Audio y video por rangos con el reproductor del navegador; códecs no soportados avisan y ofrecen descargar
+- [ ] D2.4 PDF con pdf.js: páginas, miniaturas, búsqueda y carga por rangos, sin JavaScript del documento
+- [ ] D2.5 Comprimidos (zip, jar, tar, tar.gz, gz, bz2, xz, zst, 7z, rar): árbol navegable leído en el servidor sin traer el archivo entero, vista previa de sus archivos con los mismos visores y descarga de una entrada, con topes contra bombas de descompresión y rutas hostiles
+- [ ] D2.6 Office en el navegador: docx y odt como documento, xlsx, xls y ods como planilla con hojas, pptx como diapositivas
+- [ ] D2.7 SQLite como navegador de tablas de solo lectura, fuentes, certificados y claves públicas, correo eml
+- [ ] D2.8 Pasada e2e con todas las muestras, revisión de seguridad del visor (`docs/security/d2.md`) y cierre
+
 ## Fase 5: Escala e integraciones
 
 - [ ] SSO con OIDC
@@ -340,6 +354,8 @@ Un admin puede ver qué hizo cada usuario en cada servidor: quién se conectó a
 - [ ] Sin contenidos ni credenciales en el registro; solo metadatos
 
 ### D2. Vista previa de archivos sin descargarlos
+
+Adelantado al [bloque D2](#bloque-d2-visualizador-de-archivos-pedido-del-2026-09-29-antes-de-la-fase-5), antes de la fase 5.
 
 Abrir el archivo desde el explorador y verlo en Sentinel, sin bajarlo al equipo del usuario.
 
