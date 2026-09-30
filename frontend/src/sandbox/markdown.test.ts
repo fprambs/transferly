@@ -7,14 +7,14 @@ import { renderMarkdown } from './markdown'
  *
  * Scenarios:
  * - Markdown becomes HTML with headings, tables, code and links
- * - scripts, handlers, frames, forms, styles and javascript links are removed by the sanitizer
+ * - scripts, handlers, frames, forms, styles and javascript links are removed by the sanitizer, and remote images lose their address
  * - clicking a link does not navigate
  */
 describe('renderMarkdown', () => {
   it('renders and sanitizes', async () => {
     const root = document.createElement('main')
     await renderMarkdown(
-      '# Title\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n`code` [site](https://example.com) [bad](javascript:alert(1))\n\n<script>alert(1)</script><img src=x onerror="alert(1)"><iframe src="https://example.com"></iframe><form><input></form><style>body{}</style>',
+      '# Title\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n`code` [site](https://example.com) [bad](javascript:alert(1)) ![pixel](https://example.com/pixel.png)\n\n<script>alert(1)</script><img src=x onerror="alert(1)"><iframe src="https://example.com"></iframe><form><input></form><style>body{}</style>',
       root,
     )
     expect(root.classList.contains('markdown')).toBe(true)
@@ -22,6 +22,7 @@ describe('renderMarkdown', () => {
     expect(root.querySelector('table td')?.textContent).toBe('1')
     expect(root.querySelector('script, iframe, form, input, style, [onerror]')).toBeNull()
     expect(root.querySelector('a[href^="javascript"]')).toBeNull()
+    expect(root.querySelector('img[alt="pixel"]')?.hasAttribute('src')).toBe(false)
 
     const link = root.querySelector('a[href="https://example.com"]') as HTMLAnchorElement
     const click = new MouseEvent('click', { bubbles: true, cancelable: true })
