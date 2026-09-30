@@ -36,8 +36,7 @@
     "label": "Bytes de {{name}}",
     "offset": "Posición",
     "bytes": "Bytes",
-    "text": "Texto",
-    "note": "Se muestra como bytes, porque aún no hay un visor para este tipo de archivo."
+    "text": "Texto"
   },
   "tooLarge": {
     "title": "Demasiado grande para mostrarlo aquí",
@@ -160,5 +159,10 @@
     "protectedBody": "Sentinel no abre documentos protegidos. Descárgalo para abrirlo con su contraseña.",
     "broken": "No se puede abrir este documento",
     "brokenBody": "El archivo está dañado o no es un documento que el visor pueda leer."
+  },
+  "noViewer": {
+    "title": "No hay visor para este tipo de archivo",
+    "body": "Sentinel no puede mostrar este archivo dentro de la plataforma. Descárgalo para abrirlo en tu equipo.",
+    "asBytes": "Ver sus bytes igualmente"
   }
 }

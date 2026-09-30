@@ -36,8 +36,7 @@
     "label": "Bytes of {{name}}",
     "offset": "Offset",
     "bytes": "Bytes",
-    "text": "Text",
-    "note": "Shown as bytes, since no viewer of this kind of file exists yet."
+    "text": "Text"
   },
   "tooLarge": {
     "title": "Too large to show here",
@@ -160,5 +159,10 @@
     "protectedBody": "Sentinel does not open protected documents. Download it to open it with its password.",
     "broken": "This document cannot be opened",
     "brokenBody": "The file is damaged or is not a document the viewer can read."
+  },
+  "noViewer": {
+    "title": "No viewer for this kind of file",
+    "body": "Sentinel cannot show this file inside the platform. Download it to open it on your computer.",
+    "asBytes": "Show its bytes anyway"
   }
 }

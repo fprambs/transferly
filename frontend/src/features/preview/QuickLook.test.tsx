@@ -30,7 +30,7 @@ function folder() {
  *
  * Scenarios:
  * - it opens full screen on the file asked for, naming it with its size and its place in the folder, and tells its kind from its bytes
- * - text opens in its viewer; a kind without a viewer yet is shown as bytes and says so; a binary file is shown as bytes without the note
+ * - text opens in its viewer; a file no viewer shows says so instead of opening its bytes, which it offers on request
  * - the arrows and the buttons move to the previous and next file and stop at the ends; the arrows with a modifier and other keys do nothing
  * - download and, for text, open in the editor call their actions; without them the buttons are left out
  * - a file that cannot be read says so and can be read again, and an empty file says so without a viewer
@@ -45,7 +45,7 @@ describe('QuickLook', () => {
 
     expect(await screen.findByRole('dialog', { name: 'notes.txt' })).toHaveTextContent('11 B · 1 of 3')
     expect(await screen.findByText('Text')).toBeInTheDocument()
-    expect(screen.queryByText(/no viewer of this kind of file exists yet/)).not.toBeInTheDocument()
+    expect(screen.queryByText('No viewer for this kind of file')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Open in the editor' }))
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ name: 'notes.txt' }))
     await user.click(screen.getByRole('button', { name: 'Download' }))
@@ -55,7 +55,8 @@ describe('QuickLook', () => {
     await user.keyboard('{ArrowRight}')
     expect(await screen.findByRole('dialog', { name: 'data.bin' })).toHaveTextContent('2 of 3')
     expect(await screen.findByText('Binary file')).toBeInTheDocument()
-    expect(screen.queryByText(/no viewer of this kind/)).not.toBeInTheDocument()
+    expect(screen.getByText('No viewer for this kind of file')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open in the editor' })).not.toBeInTheDocument()
     await user.keyboard('{Control>}{ArrowRight}{/Control}')
     await user.keyboard('x')
@@ -82,11 +83,11 @@ describe('QuickLook', () => {
     expect(screen.queryByText('Text')).not.toBeInTheDocument()
   })
 
-  it('shows a kind without a viewer yet as bytes, and says so', async () => {
-    await renderWithProviders(<Harness sources={[bytesSource('face.woff2', new TextEncoder().encode('wOF2'))]} />)
-    expect(await screen.findByText('Font')).toBeInTheDocument()
-    expect(screen.getByText(/no viewer of this kind of file exists yet/)).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: 'Bytes of face.woff2' })).toBeInTheDocument()
+  it('says when no viewer shows a file, and offers its bytes on request', async () => {
+    await renderWithProviders(<Harness sources={[bytesSource('blob.bin', new Uint8Array([0, 1, 2, 255]))]} />)
+    expect(await screen.findByText('No viewer for this kind of file')).toBeInTheDocument()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Show its bytes anyway' }))
+    expect(await screen.findByRole('table', { name: 'Bytes of blob.bin' })).toBeInTheDocument()
   })
 
   it('leaves out the actions it was not given, and closes from its button', async () => {

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { CircleAlert, PencilLine } from 'lucide-react'
+import { CircleAlert, FileQuestion, PencilLine } from 'lucide-react'
+import { createElement, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -10,14 +11,31 @@ import { ErrorGuide } from '../errors/ErrorGuide'
 
 import { detectKind, headLength, type PreviewKind } from './detect'
 import type { PreviewSource } from './source'
+import { HexViewer } from './viewers/HexViewer'
 import { viewerOf } from './viewers/registry'
 
 /** Kinds the editor opens. */
 const editable: ReadonlySet<PreviewKind> = new Set(['text', 'markdown', 'json', 'yaml', 'xml', 'csv', 'svg'])
 
+/** Says that no viewer shows this kind of file, instead of opening its bytes, and offers them only when asked. */
+function NoViewer({ source }: { source: PreviewSource }) {
+  const { t } = useTranslation('preview')
+  const [asBytes, setAsBytes] = useState(false)
+  if (asBytes) {
+    return <HexViewer source={source} kind="binary" />
+  }
+  return (
+    <PanelState icon={FileQuestion} tone="muted" title={t(($) => $.noViewer.title)} description={t(($) => $.noViewer.body)}>
+      <Button variant="ghost" size="sm" onClick={() => setAsBytes(true)}>
+        {t(($) => $.noViewer.asBytes)}
+      </Button>
+    </PanelState>
+  )
+}
+
 /**
  * The body of the viewer for one file: reads its first bytes, tells its kind and shows it with the viewer of that kind, under a line that
- * names the kind and offers the editor for text. The Quick Look window shows it for the file chosen, and the archive viewer for an entry.
+ * names the kind and offers the editor for text. A kind no viewer shows says so, with its bytes a click away. The Quick Look window shows it for the file chosen, and the archive viewer for an entry.
  */
 export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?: (source: PreviewSource) => void }) {
   const { t } = useTranslation('preview')
@@ -44,12 +62,11 @@ export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?
     )
   }
   const kind = detectKind(source.name, head.data)
-  const { View, fallback } = viewerOf(kind)
+  const View = viewerOf(kind)
   return (
     <>
       <div className="flex items-center gap-3 border-b px-4 py-1.5 text-xs text-muted-foreground">
         <span>{t(($) => $.kinds[kind])}</span>
-        {fallback && <span>· {t(($) => $.hex.note)}</span>}
         {onEdit !== undefined && editable.has(kind) && (
           <Button variant="ghost" size="xs" className="ms-auto" onClick={() => onEdit(source)}>
             <PencilLine />
@@ -57,7 +74,7 @@ export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?
           </Button>
         )}
       </div>
-      <View source={source} kind={kind} />
+      {View === undefined ? <NoViewer source={source} /> : createElement(View, { source, kind })}
     </>
   )
 }
