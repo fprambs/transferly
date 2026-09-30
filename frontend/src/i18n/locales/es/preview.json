@@ -98,5 +98,10 @@
       "software": "Programa",
       "location": "Ubicación"
     }
+  },
+  "media": {
+    "speed": "Velocidad",
+    "unsupported": "Este navegador no puede reproducir este archivo",
+    "unsupportedBody": "Su formato o códec no es uno que el navegador reproduzca. Descárgalo para reproducirlo en tu computador."
   }
 }

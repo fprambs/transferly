@@ -38,6 +38,7 @@ describe('detectKind', () => {
     expect(detectKind('x', bytes(0xff, 0xd8, 0xff))).toBe('image')
     expect(detectKind('x', text('RIFF1234WEBPVP8'))).toBe('image')
     expect(detectKind('x', text('RIFF1234WAVEfmt'))).toBe('audio')
+    expect(detectKind('x', text('RIFF1234AVI LIST'))).toBe('video')
     expect(detectKind('x', text('ID3\u0004'))).toBe('audio')
     expect(detectKind('x', bytes(0, 0, 0, 0x20, ...text('ftypM4A')))).toBe('audio')
     expect(detectKind('x', bytes(0, 0, 0, 0x20, ...text('ftypisom')))).toBe('video')

@@ -15,6 +15,19 @@ export interface PreviewSource {
   modifiedAt: string
   /** Reads the bytes from `start` included to `end` excluded, cut to the size of the file. */
   read(start: number, end: number, signal?: AbortSignal): Promise<Uint8Array>
+  /**
+   * An address the media player of the browser streams the file from, with ranged requests of its own, and how to let it go once the
+   * player closes; left out, audio and video cannot be played.
+   */
+  mediaUrl?: () => Promise<MediaAddress>
+}
+
+/** An address a media player streams a file from. */
+export interface MediaAddress {
+  /** The address. */
+  url: string
+  /** Lets the address go when the player closes. */
+  release: () => void
 }
 
 /** Cuts a range to a file of `size` bytes, and tells whether anything is left to read. */
@@ -23,7 +36,7 @@ function clamp(size: number, start: number, end: number): [number, number] {
   return [from, Math.max(from, Math.min(end, size))]
 }
 
-/** A file of a remote site, read with ranged requests to its content. */
+/** A file of a remote site, read with ranged requests to its content, which the media player also streams from. */
 export function remoteSource(api: Api, workspaceId: string, siteId: string, entry: RemoteEntry): PreviewSource {
   return {
     key: `remote:${workspaceId}:${siteId}:${entry.path}`,
@@ -34,10 +47,12 @@ export function remoteSource(api: Api, workspaceId: string, siteId: string, entr
       const [from, to] = clamp(entry.size, start, end)
       return from === to ? new Uint8Array() : api.files.read(workspaceId, siteId, entry.path, from, to, signal)
     },
+    mediaUrl: async () => ({ url: api.files.downloadUrl(workspaceId, siteId, entry.path), release: () => undefined }),
   }
 }
 
-/** A file of the local panel, read by slices of the file the browser gives access to; the file is opened on the first read only. */
+/** A file of the local panel, read by slices of the file the browser gives access to, and played from a blob URL; the file is opened
+ * once, on first use. */
 export function localSource(entry: RemoteEntry, open: () => Promise<File>): PreviewSource {
   let file: Promise<File> | undefined
   return {
@@ -50,6 +65,11 @@ export function localSource(entry: RemoteEntry, open: () => Promise<File>): Prev
       const opened = await file
       const [from, to] = clamp(opened.size, start, end)
       return new Uint8Array(await opened.slice(from, to).arrayBuffer())
+    },
+    mediaUrl: async () => {
+      file ??= open()
+      const url = URL.createObjectURL(await file)
+      return { url, release: () => URL.revokeObjectURL(url) }
     },
   }
 }

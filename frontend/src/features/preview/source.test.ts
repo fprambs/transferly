@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { RemoteEntry } from '@/lib/api'
 import { createApi } from '@/lib/api'
@@ -15,8 +15,9 @@ const entry: RemoteEntry = { name: 'a.bin', path: '/d/a.bin', type: 'file', size
  * Covers {@link remoteSource} and {@link localSource} (ADR-0018).
  *
  * Scenarios:
- * - a remote source reads a range of the file with a ranged request, cut to its size, and an empty range asks nothing
- * - a local source opens the file on its first read only, reads slices of it cut to its size, and takes its name, size and time from the
+ * - a remote source reads a range of the file with a ranged request, cut to its size, and an empty range asks nothing; its media player
+ *   streams from the download address
+ * - a local source plays from a blob URL, released when the player closes, and opens the file on its first use only, reads slices of it cut to its size, and takes its name, size and time from the
  *   listing
  */
 describe('preview sources', () => {
@@ -35,6 +36,9 @@ describe('preview sources', () => {
     expect(ranges).toEqual(['bytes=8-9'])
     expect(await source.read(20, 30)).toHaveLength(0)
     expect(ranges).toHaveLength(1)
+    const media = await (source.mediaUrl as NonNullable<typeof source.mediaUrl>)()
+    expect(media.url).toBe('/api/v1/workspaces/w/sites/s/files/content?path=%2Fd%2Fa.bin')
+    media.release()
   })
 
   it('reads slices of a local file, opening it once', async () => {
@@ -46,6 +50,12 @@ describe('preview sources', () => {
     expect(opened).toBe(0)
     expect(new TextDecoder().decode(await source.read(6, 100))).toBe('world')
     expect(await source.read(-5, 0)).toHaveLength(0)
+    URL.createObjectURL = vi.fn(() => 'blob:local')
+    URL.revokeObjectURL = vi.fn()
+    const media = await (source.mediaUrl as NonNullable<typeof source.mediaUrl>)()
+    expect(media.url).toBe('blob:local')
+    media.release()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local')
     expect(opened).toBe(1)
   })
 })

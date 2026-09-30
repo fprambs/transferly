@@ -98,5 +98,10 @@
       "software": "Software",
       "location": "Location"
     }
+  },
+  "media": {
+    "speed": "Speed",
+    "unsupported": "This browser cannot play this file",
+    "unsupportedBody": "Its format or codec is not one the browser plays. Download it to play it on your computer."
   }
 }
