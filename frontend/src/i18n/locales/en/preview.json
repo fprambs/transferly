@@ -103,5 +103,19 @@
     "speed": "Speed",
     "unsupported": "This browser cannot play this file",
     "unsupportedBody": "Its format or codec is not one the browser plays. Download it to play it on your computer."
+  },
+  "pdf": {
+    "label": "Document {{name}}",
+    "thumbnails": "Pages",
+    "fitWidth": "Fit width",
+    "search": "Search the text",
+    "page": "Page {{number}}",
+    "position": "Page {{page}} of {{total}}",
+    "matches": "Found on page {{page}} · {{total}} pages",
+    "noMatches": "Not found",
+    "protected": "This PDF is protected with a password",
+    "protectedBody": "Sentinel does not open protected documents. Download it to open it with its password.",
+    "broken": "This PDF cannot be opened",
+    "brokenBody": "The file is damaged or is not a PDF the viewer can read."
   }
 }

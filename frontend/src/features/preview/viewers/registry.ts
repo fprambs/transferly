@@ -7,6 +7,7 @@ import { HexViewer } from './HexViewer'
 import { ImageViewer } from './ImageViewer'
 import { MarkdownViewer } from './MarkdownViewer'
 import { MediaViewer } from './MediaViewer'
+import { PdfViewer } from './PdfViewer'
 import { StructuredViewer } from './StructuredViewer'
 import { TextViewer } from './TextViewer'
 import type { ViewerProps } from './types'
@@ -26,6 +27,7 @@ const viewers: Partial<Record<PreviewKind, ComponentType<ViewerProps>>> = {
   svg: ImageViewer,
   audio: MediaViewer,
   video: MediaViewer,
+  pdf: PdfViewer,
 }
 
 /** The viewer of a kind, and whether it is the hexadecimal fallback standing in for a viewer that does not exist yet. */
