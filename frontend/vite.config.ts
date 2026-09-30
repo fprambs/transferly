@@ -10,7 +10,13 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: ['frontend'],
+    cors: { origin: [/^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/, 'null'] },
     proxy: { '/api': { target: apiUrl, ws: true }, '/healthz': apiUrl, '/readyz': apiUrl },
+  },
+  build: {
+    rollupOptions: {
+      input: { main: path.resolve(import.meta.dirname, 'index.html'), viewer: path.resolve(import.meta.dirname, 'sandbox/viewer.html') },
+    },
   },
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
@@ -29,6 +35,7 @@ export default defineConfig({
         'src/**/*.test.{ts,tsx}',
         'src/test/**',
         'src/main.tsx',
+        'src/sandbox/main.ts',
         'src/components/ui/**',
         '**/*.d.ts',
       ],
