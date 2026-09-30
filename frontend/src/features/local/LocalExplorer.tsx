@@ -202,7 +202,7 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
             entries={entries}
             locale={i18n.language}
             timeZone={timeZone}
-            onOpen={(entry) => (entry.type === 'directory' ? onNavigate(entry.path) : undefined)}
+            onOpen={(entry) => onNavigate(entry.path)}
             onUp={() => onNavigate(parentPath(path))}
             showPermissions={false}
             selectedPath={selectedPath}
