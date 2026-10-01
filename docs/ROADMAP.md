@@ -46,7 +46,7 @@ Convenciones: locators por rol y etiqueta, page objects en `frontend/e2e/pages/`
 
 Cobertura del 100 %: se mide entre paquetes y excluye solo lo que no es lógica de producción: `main` de `cmd/`, helpers de test (`testutil`), guards del repositorio, `main.tsx` y `components/ui` (código generado por shadcn). Las ramas defensivas imposibles de alcanzar se eliminan con mejor diseño en vez de excluirse. Un cambio que baje del 100 % no se integra.
 
-Hooks locales (`.githooks/, dentro de `tools`): `pre-commit` formatea y lintea, `pre-push` corre los tests unitarios. `main` está protegida: solo PR con CI en verde.
+Hooks locales (`.githooks/, dentro de `tools`): `pre-commit` formatea y lintea; los tests con cobertura van en `./scripts/push.sh` (no en el hook `pre-push`, porque Git abre SSH antes del hook y GitHub cierra sesiones inactivas). `main` está protegida: solo PR con CI en verde.
 
 ## Revisión de seguridad al cerrar cada fase
 
