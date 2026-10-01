@@ -10,6 +10,7 @@ A theme is a set of fifteen colors (`ThemeTokens` in `frontend/src/lib/theme/tok
 - Applying a theme sets the variables on `<html>`, the `dark` class shadcn variants read, `color-scheme`, and `data-theme`.
 - Themes have stable identifiers (`transferly-dark`, `monokai`, ...): lower case letters, digits and hyphens. They are stored in the browser (`transferly-ui`) and in the account (`theme` preference), and an unknown identifier falls back to the default theme.
 - Theme names are proper names and are not translated; only the group headings (Dark, Light) are.
+- The logo (`components/brand/BrandMark`) is the one exception to theme colors: it keeps the brand colors of `--brand-arrow` and `--brand-ribbon`, set in `index.css` for light and dark schemes (ADR-0020).
 
 ## Readability
 

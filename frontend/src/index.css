@@ -60,47 +60,57 @@
 }
 
 :root {
-    --background: #0b0d11;
-    --foreground: #e8ebf1;
-    --card: #10131a;
-    --card-foreground: #e8ebf1;
-    --popover: #161a22;
-    --popover-foreground: #e8ebf1;
-    --primary: #4fd1b0;
-    --primary-foreground: #052b22;
-    --secondary: #161a22;
-    --secondary-foreground: #e8ebf1;
-    --muted: #161a22;
-    --muted-foreground: #a0a9b8;
-    --accent: color-mix(in srgb, #e8ebf1 12%, #161a22);
-    --accent-foreground: #e8ebf1;
-    --destructive: #ff7a7a;
-    --border: #232936;
-    --input: #232936;
-    --ring: #4fd1b0;
-    --chart-1: #4fd1b0;
-    --chart-2: #7aa2ff;
-    --chart-3: #4fd1b0;
-    --chart-4: #f2b84b;
-    --chart-5: #ff7a7a;
-    --sidebar: #10131a;
-    --sidebar-foreground: #e8ebf1;
-    --sidebar-primary: #4fd1b0;
-    --sidebar-primary-foreground: #052b22;
-    --sidebar-accent: color-mix(in srgb, #e8ebf1 12%, #161a22);
-    --sidebar-accent-foreground: #e8ebf1;
-    --sidebar-border: #232936;
-    --sidebar-ring: #4fd1b0;
-    --surface: #10131a;
-    --raised: #161a22;
-    --line-soft: #1a1f29;
-    --faint: #7d8798;
-    --accent-text: #4fd1b0;
-    --accent-soft: color-mix(in srgb, #4fd1b0 14%, transparent);
-    --ok: #4fd1b0;
-    --warn: #f2b84b;
-    --info: #7aa2ff;
+    --background: #121212;
+    --foreground: #e0f2f1;
+    --card: #1a1f22;
+    --card-foreground: #e0f2f1;
+    --popover: #232a2e;
+    --popover-foreground: #e0f2f1;
+    --primary: #ff9800;
+    --primary-foreground: #121212;
+    --secondary: #232a2e;
+    --secondary-foreground: #e0f2f1;
+    --muted: #232a2e;
+    --muted-foreground: #a3b1b5;
+    --accent: color-mix(in srgb, #e0f2f1 12%, #232a2e);
+    --accent-foreground: #e0f2f1;
+    --destructive: #ef5350;
+    --border: #2e373c;
+    --input: #2e373c;
+    --ring: #ff9800;
+    --chart-1: #ff9800;
+    --chart-2: #64a0f0;
+    --chart-3: #4caf50;
+    --chart-4: #ffca28;
+    --chart-5: #ef5350;
+    --sidebar: #1a1f22;
+    --sidebar-foreground: #e0f2f1;
+    --sidebar-primary: #ff9800;
+    --sidebar-primary-foreground: #121212;
+    --sidebar-accent: color-mix(in srgb, #e0f2f1 12%, #232a2e);
+    --sidebar-accent-foreground: #e0f2f1;
+    --sidebar-border: #2e373c;
+    --sidebar-ring: #ff9800;
+    --surface: #1a1f22;
+    --raised: #232a2e;
+    --line-soft: #20272a;
+    --faint: #8a979c;
+    --accent-text: #ffa726;
+    --accent-soft: color-mix(in srgb, #ff9800 14%, transparent);
+    --ok: #4caf50;
+    --warn: #ffca28;
+    --info: #64a0f0;
     --radius: 0.625rem;
+}
+
+/* Brand colors of the logo: the same in every theme, the arrow green on dark schemes and blue on light ones (branding/). */
+html {
+    --brand-arrow: #0d47a1;
+    --brand-ribbon: #ff9800;
+}
+
+html.dark {
+    --brand-arrow: #43a047;
 }
 
 @layer base {

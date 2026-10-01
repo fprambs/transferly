@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/logo/logo-tagline.svg" alt="Transferly" width="480"></p>
+
 # Transferly
 
 Self-hosted web client for FTP, FTPS and SFTP: multi-user workspaces, an encrypted credential vault and concurrent, resumable transfers.
@@ -30,3 +32,4 @@ Apache License 2.0; see [LICENSE](LICENSE).
 - [Architecture](docs/ARCHITECTURE.md) and [roadmap](docs/ROADMAP.md) (Spanish)
 - [Decisions](docs/adr), [library guides](docs/guides/README.md), [security reviews](docs/security/README.md)
 - [Contributing](CONTRIBUTING.md)
+- [Brand kit](branding/README.md): logo, colors, typography and icons
