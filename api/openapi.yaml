@@ -4929,6 +4929,10 @@ components:
         How an FTP site protects the connection (ADR-0012): optional upgrades with AUTH TLS when offered and carries on in clear text
         otherwise, explicit requires AUTH TLS, implicit expects TLS from the first byte, plain is clear text. Left out for SFTP; on
         input, left out means plain for ftp and the encryption the port implies for ftps.
+    SiteColor:
+      type: string
+      enum: [red, orange, yellow, green, teal, blue, violet, pink]
+      description: Label the site wears in the interface, so servers tell apart at a glance (ADR-0021); each theme draws it in its own tones.
     Charset:
       type: string
       enum: [utf-8, iso-8859-1, iso-8859-2, iso-8859-15, windows-1250, windows-1251, windows-1252, koi8-r, shift_jis, euc-jp, gbk, big5, euc-kr]
@@ -5001,6 +5005,9 @@ components:
         remoteDir:
           type: string
           description: Folder the site opens in, as FileZilla's default remote directory (4.14i). Left out when it opens at the root.
+        color:
+          allOf: [$ref: "#/components/schemas/SiteColor"]
+          description: Left out when the site wears no label.
         proxy:
           allOf: [$ref: "#/components/schemas/SiteProxy"]
           description: Left out when the connection is made directly.
@@ -5059,6 +5066,9 @@ components:
         remoteDir:
           type: string
           description: Absolute folder the site opens in; left out, empty or / opens the root. Stored cleaned; invalid_remote_dir otherwise.
+        color:
+          type: string
+          description: Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise.
         proxy:
           allOf: [$ref: "#/components/schemas/SiteProxy"]
           description: Left out to connect directly, without a proxy.

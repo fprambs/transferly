@@ -60,6 +60,8 @@ type Server struct {
 	PasswordSkipped bool
 	// RemoteDir is the folder the site opens in, from FileZilla's default remote directory; empty for the root or when it cannot be read.
 	RemoteDir string
+	// Color is the label of the site, from FileZilla's background color; empty for none or an unknown one.
+	Color site.Color
 	// Account is the account of FileZilla's account logon type, which FTP servers may ask for after the password (4.8e).
 	Account string
 }
@@ -88,6 +90,7 @@ type rawServer struct {
 	Name      string `xml:"Name"`
 	RemoteDir string `xml:"RemoteDir"`
 	Account   string `xml:"Account"`
+	Colour    string `xml:"Colour"`
 }
 
 // parser walks the tokens of the file.
@@ -269,9 +272,16 @@ var fileZillaProtocols = map[string]struct {
 	"6": {site.FTP, site.EncryptionPlain},
 }
 
+// fileZillaColours maps the background colors of FileZilla's site manager, by number, to the labels of a site; cyan and magenta
+// become the nearest labels, teal and pink.
+var fileZillaColours = map[string]site.Color{"1": "red", "2": "green", "3": "blue", "4": "yellow", "5": "teal", "6": "pink", "7": "orange"}
+
 // convert maps the settings of FileZilla to the ones of a site, or gives the reason why that cannot be done.
 func convert(raw rawServer, name string, path []string) (Server, string) {
-	server := Server{Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User), RemoteDir: remoteDir(raw.RemoteDir)}
+	server := Server{
+		Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User), RemoteDir: remoteDir(raw.RemoteDir),
+		Color: fileZillaColours[strings.TrimSpace(raw.Colour)],
+	}
 	if server.Host == "" {
 		return Server{}, "missing_host"
 	}

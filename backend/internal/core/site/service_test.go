@@ -296,6 +296,7 @@ func text(s string) *string { return &s }
 //   - valid input is stored with defaults: port by protocol, password authentication, UTC listings, trimmed fields
 //   - the default remote folder is stored cleaned, the root is stored empty, and a relative, too long, control-character or invalid UTF-8
 //     one is refused with ErrInvalidRemoteDir
+//   - a known label color is stored and an unknown one is refused with ErrInvalidColor
 //   - empty or oversized names, unknown protocols, malformed hosts, ports out of range, empty user names,
 //     unknown or protocol-incompatible authentication methods and unknown time zones are each refused with their error
 //   - the character set defaults to UTF-8, is case insensitive, and only UTF-8 is accepted for SFTP
@@ -326,6 +327,9 @@ func TestService_CreateValidation(t *testing.T) {
 	}
 	if capped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Capped"; in.SpeedLimit = 65536; return in }(), site.SecretChanges{}); err != nil || capped.SpeedLimit != 65536 {
 		t.Errorf("site with a speed limit = %+v, %v", capped, err)
+	}
+	if labeled, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Labeled"; in.Color = "red"; return in }(), site.SecretChanges{}); err != nil || labeled.Color != "red" {
+		t.Errorf("site with a color = %+v, %v", labeled, err)
 	}
 	for dir, want := range map[string]string{" /var/www/./html/ ": "/var/www/html", "/": "", "": ""} {
 		in := valid()
@@ -380,6 +384,7 @@ func TestService_CreateValidation(t *testing.T) {
 		{"speed limit below the smallest cap", func(in *site.Input) { in.SpeedLimit = 1023 }, site.ErrInvalidSpeedLimit},
 		{"speed limit above the largest cap", func(in *site.Input) { in.SpeedLimit = 1<<40 + 1 }, site.ErrInvalidSpeedLimit},
 		{"relative remote folder", func(in *site.Input) { in.RemoteDir = "var/www" }, site.ErrInvalidRemoteDir},
+		{"unknown color", func(in *site.Input) { in.Color = "purple" }, site.ErrInvalidColor},
 		{"remote folder with a control character", func(in *site.Input) { in.RemoteDir = "/var/\nwww" }, site.ErrInvalidRemoteDir},
 		{"remote folder too long", func(in *site.Input) { in.RemoteDir = "/" + strings.Repeat("d", 4096) }, site.ErrInvalidRemoteDir},
 		{"remote folder not UTF-8", func(in *site.Input) { in.RemoteDir = "/bad\xff" }, site.ErrInvalidRemoteDir},

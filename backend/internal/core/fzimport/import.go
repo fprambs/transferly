@@ -85,7 +85,7 @@ func (e Entry) hasSecrets() bool {
 func entryOf(server Server) Entry {
 	e := Entry{
 		Path: server.Path, PasswordSkipped: server.PasswordSkipped,
-		Input: site.Input{Name: server.Name, Protocol: server.Protocol, FTPEncryption: server.FTPEncryption, Host: server.Host, Port: server.Port, Username: server.Username, AuthMethod: server.AuthMethod, RemoteDir: server.RemoteDir},
+		Input: site.Input{Name: server.Name, Protocol: server.Protocol, FTPEncryption: server.FTPEncryption, Host: server.Host, Port: server.Port, Username: server.Username, AuthMethod: server.AuthMethod, RemoteDir: server.RemoteDir, Color: server.Color},
 	}
 	if server.Password != "" {
 		e.Secrets.Password = &server.Password

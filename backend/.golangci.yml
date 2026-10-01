@@ -15,6 +15,9 @@ linters:
   settings:
     misspell:
       locale: US
+      # FileZilla's site manager files spell their color element Colour.
+      ignore-rules:
+        - colour
     revive:
       rules:
         - name: package-comments

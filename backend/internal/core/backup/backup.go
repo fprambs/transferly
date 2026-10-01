@@ -51,6 +51,8 @@ type Site struct {
 	SpeedLimit int64 `json:"speedLimitBps,omitempty"`
 	// RemoteDir is the folder the site opens in.
 	RemoteDir string `json:"remoteDir,omitempty"`
+	// Color is the label the site wears in the interface, if any.
+	Color string `json:"color,omitempty"`
 	// Proxy is the proxy the connection goes through, if any.
 	Proxy *Proxy `json:"proxy,omitempty"`
 	// Jump is the jump host the connection tunnels through, if any.
@@ -224,7 +226,7 @@ func siteOf(x site.Site, path []string) Site {
 	out := Site{
 		Name: x.Name, Path: path, Protocol: string(x.Protocol), FTPEncryption: string(x.FTPEncryption), Host: x.Host, Port: x.Port,
 		Username: x.Username, AuthMethod: string(x.AuthMethod), ListTimezone: x.ListTimezone, Charset: x.Charset, SpeedLimit: x.SpeedLimit,
-		RemoteDir: x.RemoteDir, Secrets: map[string]string{},
+		RemoteDir: x.RemoteDir, Color: string(x.Color), Secrets: map[string]string{},
 	}
 	if x.Proxy.Set() {
 		out.Proxy = &Proxy{Kind: string(x.Proxy.Kind), Host: x.Proxy.Host, Port: x.Proxy.Port, Username: x.Proxy.Username}
@@ -243,7 +245,7 @@ func entryOf(x Site) (fzimport.Entry, error) {
 	in := site.Input{
 		Name: x.Name, Protocol: site.Protocol(x.Protocol), FTPEncryption: site.FTPEncryption(x.FTPEncryption), Host: x.Host, Port: x.Port,
 		Username: x.Username, AuthMethod: site.AuthMethod(x.AuthMethod), ListTimezone: x.ListTimezone, Charset: x.Charset, SpeedLimit: x.SpeedLimit,
-		RemoteDir: x.RemoteDir,
+		RemoteDir: x.RemoteDir, Color: site.Color(x.Color),
 	}
 	if x.Proxy != nil {
 		in.Proxy = site.Proxy{Kind: site.ProxyKind(x.Proxy.Kind), Host: x.Proxy.Host, Port: x.Proxy.Port, Username: x.Proxy.Username}

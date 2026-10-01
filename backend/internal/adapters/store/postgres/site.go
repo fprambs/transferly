@@ -54,7 +54,7 @@ func (s *Store) CreateSite(ctx context.Context, st site.Site, secrets []site.Sea
 		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit,
 		ProxyKind: string(st.Proxy.Kind), ProxyHost: st.Proxy.Host, ProxyPort: int32(st.Proxy.Port), ProxyUsername: st.Proxy.Username,
 		JumpHost: st.Jump.Host, JumpPort: int32(st.Jump.Port), JumpUsername: st.Jump.Username, JumpAuthMethod: string(st.Jump.AuthMethod),
-		FtpEncryption: string(st.FTPEncryption), RemoteDir: st.RemoteDir,
+		FtpEncryption: string(st.FTPEncryption), RemoteDir: st.RemoteDir, Color: string(st.Color),
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -80,7 +80,7 @@ func (s *Store) UpdateSite(ctx context.Context, st site.Site, secrets []site.Sea
 		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit,
 		ProxyKind: string(st.Proxy.Kind), ProxyHost: st.Proxy.Host, ProxyPort: int32(st.Proxy.Port), ProxyUsername: st.Proxy.Username,
 		JumpHost: st.Jump.Host, JumpPort: int32(st.Jump.Port), JumpUsername: st.Jump.Username, JumpAuthMethod: string(st.Jump.AuthMethod),
-		FtpEncryption: string(st.FTPEncryption), RemoteDir: st.RemoteDir,
+		FtpEncryption: string(st.FTPEncryption), RemoteDir: st.RemoteDir, Color: string(st.Color),
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -104,7 +104,7 @@ func siteFrom(r db.SiteByIDRow, secrets []site.SecretKind) site.Site {
 	return site.Site{
 		ID: r.ID, WorkspaceID: r.WorkspaceID, CollectionID: r.FolderID.UUID, Name: r.Name, Protocol: site.Protocol(r.Protocol),
 		FTPEncryption: site.FTPEncryption(r.FtpEncryption), Host: r.Host, Port: int(r.Port),
-		Username: r.Username, AuthMethod: site.AuthMethod(r.AuthMethod), ListTimezone: r.ListTimezone, Charset: r.Charset, SpeedLimit: r.SpeedLimit, RemoteDir: r.RemoteDir, Secrets: secrets,
+		Username: r.Username, AuthMethod: site.AuthMethod(r.AuthMethod), ListTimezone: r.ListTimezone, Charset: r.Charset, SpeedLimit: r.SpeedLimit, RemoteDir: r.RemoteDir, Color: site.Color(r.Color), Secrets: secrets,
 		Proxy:     site.Proxy{Kind: site.ProxyKind(r.ProxyKind), Host: r.ProxyHost, Port: int(r.ProxyPort), Username: r.ProxyUsername},
 		Jump:      site.Jump{Host: r.JumpHost, Port: int(r.JumpPort), Username: r.JumpUsername, AuthMethod: site.AuthMethod(r.JumpAuthMethod)},
 		CreatedAt: r.CreatedAt.UTC(), UpdatedAt: r.UpdatedAt.UTC(),

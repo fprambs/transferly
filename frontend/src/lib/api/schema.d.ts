@@ -1707,6 +1707,11 @@ export interface components {
          */
         FtpEncryption: "optional" | "explicit" | "implicit" | "plain";
         /**
+         * @description Label the site wears in the interface, so servers tell apart at a glance (ADR-0021); each theme draws it in its own tones.
+         * @enum {string}
+         */
+        SiteColor: "red" | "orange" | "yellow" | "green" | "teal" | "blue" | "violet" | "pink";
+        /**
          * @description Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
          * @enum {string}
          */
@@ -1755,6 +1760,8 @@ export interface components {
             speedLimitBps: number;
             /** @description Folder the site opens in, as FileZilla's default remote directory (4.14i). Left out when it opens at the root. */
             remoteDir?: string;
+            /** @description Left out when the site wears no label. */
+            color?: components["schemas"]["SiteColor"];
             /** @description Left out when the connection is made directly. */
             proxy?: components["schemas"]["SiteProxy"];
             /** @description Left out when the connection is made directly, without a jump host. */
@@ -1798,6 +1805,8 @@ export interface components {
             speedLimitBps?: number;
             /** @description Absolute folder the site opens in; left out, empty or / opens the root. Stored cleaned; invalid_remote_dir otherwise. */
             remoteDir?: string;
+            /** @description Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise. */
+            color?: string;
             /** @description Left out to connect directly, without a proxy. */
             proxy?: components["schemas"]["SiteProxy"];
             /** @description Left out to connect directly, without a jump host; only valid for SFTP. */

@@ -17,12 +17,12 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
   <Servers>
     <Server>
       <Host>top.example.com</Host><Port>2121</Port><Protocol>0</Protocol><Logontype>1</Logontype>
-      <User>alice</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Top level</Name><Comments>ignored</Comments><RemoteDir>1 0 3 var 3 www</RemoteDir>
+      <User>alice</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Top level</Name><Comments>ignored</Comments><RemoteDir>1 0 3 var 3 www</RemoteDir><Colour>5</Colour>
     </Server>
     <Folder expanded="1">Work
       <Server>
         <Host>sftp.example.com</Host><Port>22</Port><Protocol>1</Protocol><Logontype>1</Logontype>
-        <User>bob</User><Pass encoding="base64">cMOhc3M=</Pass><Name>SFTP box</Name><RemoteDir>1 0 7 my docs</RemoteDir>
+        <User>bob</User><Pass encoding="base64">cMOhc3M=</Pass><Name>SFTP box</Name><RemoteDir>1 0 7 my docs</RemoteDir><Colour>1</Colour>
       </Server>
       <Folder>Nested <![CDATA[Deep]]>
         <Server>
@@ -34,7 +34,7 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
         <Comment>skipped element</Comment>
       </Folder>
     </Folder>
-    <Server><Host>anon.example.com</Host><Protocol>6</Protocol><Logontype>0</Logontype><Name>Anonymous</Name><RemoteDir>1</RemoteDir></Server>
+    <Server><Host>anon.example.com</Host><Protocol>6</Protocol><Logontype>0</Logontype><Name>Anonymous</Name><RemoteDir>1</RemoteDir><Colour>9</Colour></Server>
     <Server><Host>ask.example.com</Host><Protocol>1</Protocol><Logontype>2</Logontype><User>eve</User><Pass encoding="base64">c2VjcmV0</Pass><Name>Asks</Name><RemoteDir>1 0 9 x</RemoteDir></Server>
     <Server><Host>bad.example.com</Host><Protocol>0</Protocol><Logontype>1</Logontype><User>frank</User><Pass encoding="base64">%%%</Pass><Name>Bad password</Name><Port>not-a-number</Port><RemoteDir>1 x 3 abc</RemoteDir></Server>
     <Server><Host>acct.example.com</Host><Protocol>0</Protocol><Logontype>4</Logontype><User>jo</User><Pass encoding="base64">c2VjcmV0</Pass><Account> billing </Account><Name>Account</Name></Server>
@@ -59,6 +59,7 @@ const sample = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 //   - a port that is not a number is left for the default
 //   - FileZilla's default remote directory is read by the length of each folder, names with spaces included; a malformed one, or one
 //     without folders, is the root
+//   - FileZilla's background color becomes the label of the site, cyan as teal; an unknown number or none leaves it without one
 func TestParse(t *testing.T) {
 	servers, skipped, err := fzimport.Parse(strings.NewReader(sample))
 	if err != nil {
@@ -103,6 +104,11 @@ func TestParse(t *testing.T) {
 	for name, want := range map[string]string{"Top level": "/var/www", "SFTP box": "/my docs", "Anonymous": "", "Asks": "", "Bad password": "", "Odd implicit": "", "ftps.example.com": ""} {
 		if got := byName[name].RemoteDir; got != want {
 			t.Errorf("remote folder of %q = %q; want %q", name, got, want)
+		}
+	}
+	for name, want := range map[string]site.Color{"Top level": "teal", "SFTP box": "red", "Anonymous": "", "Asks": ""} {
+		if got := byName[name].Color; got != want {
+			t.Errorf("color of %q = %q; want %q", name, got, want)
 		}
 	}
 	if account := byName["Account"]; account.AuthMethod != site.AuthAccount || account.Account != "billing" || account.Password != "secret" {

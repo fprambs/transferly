@@ -38,6 +38,13 @@ const (
 	EncryptionPlain FTPEncryption = "plain"
 )
 
+// Color is the label a site wears in the interface, so production and test servers tell apart at a glance (ADR-0021).
+// The empty color means no label.
+type Color string
+
+// Colors lists the labels a site may wear, in the order the interface offers them; each theme draws them in its own tones.
+var Colors = []Color{"red", "orange", "yellow", "green", "teal", "blue", "violet", "pink"}
+
 // implicitPort is the port of implicit FTPS, and the default of sites that use it.
 const implicitPort = 990
 
@@ -172,6 +179,8 @@ var (
 	ErrInvalidSpeedLimit = errors.New("invalid speed limit")
 	// ErrInvalidRemoteDir means the default remote folder is not absolute, is too long or holds control characters.
 	ErrInvalidRemoteDir = errors.New("invalid default remote folder")
+	// ErrInvalidColor means the label color is not one of [Colors].
+	ErrInvalidColor = errors.New("invalid color")
 	// ErrInvalidProxy means the proxy's kind, host or port is invalid.
 	ErrInvalidProxy = errors.New("invalid proxy")
 	// ErrInvalidJump means the jump host's host, port or authentication method is invalid, or one was given for a
@@ -220,6 +229,8 @@ type Site struct {
 	SpeedLimit int64
 	// RemoteDir is the folder the site opens in, as FileZilla's default remote directory; empty opens the root (4.14i).
 	RemoteDir string
+	// Color is the label the site wears in the interface; empty for none.
+	Color Color
 	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
 	Proxy Proxy
 	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects directly.

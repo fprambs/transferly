@@ -87,7 +87,7 @@ func newFixture(authz allow) fixture {
 		sites: []site.Site{
 			{
 				ID: uuid.New(), CollectionID: deep, Name: "Keyed", Protocol: site.SFTP, Host: "k.example.com", Port: 22, Username: "deploy",
-				AuthMethod: site.AuthKey, ListTimezone: "UTC", Charset: "utf-8", SpeedLimit: 1024, RemoteDir: "/srv",
+				AuthMethod: site.AuthKey, ListTimezone: "UTC", Charset: "utf-8", SpeedLimit: 1024, RemoteDir: "/srv", Color: "violet",
 				Proxy:   site.Proxy{Kind: site.ProxySOCKS5, Host: "p", Port: 1080, Username: "pu"},
 				Jump:    site.Jump{Host: "j", Port: 22, Username: "ju", AuthMethod: site.AuthPassword},
 				Secrets: []site.SecretKind{site.SecretPrivateKey, site.SecretPassphrase, site.SecretJumpPassword, site.SecretProxyPassword},
@@ -127,7 +127,7 @@ func TestService_Export(t *testing.T) {
 	}
 	keyed := content.Sites[0]
 	if !slices.Equal(keyed.Path, []string{"Work", "Deep"}) || keyed.Secrets["private_key"] != "KEY" || keyed.Secrets["proxy_password"] != "proxy-pw" ||
-		keyed.Proxy == nil || keyed.Proxy.Username != "pu" || keyed.Jump == nil || keyed.Jump.AuthMethod != "password" || keyed.SpeedLimit != 1024 || keyed.RemoteDir != "/srv" {
+		keyed.Proxy == nil || keyed.Proxy.Username != "pu" || keyed.Jump == nil || keyed.Jump.AuthMethod != "password" || keyed.SpeedLimit != 1024 || keyed.RemoteDir != "/srv" || keyed.Color != "violet" {
 		t.Errorf("keyed = %+v", keyed)
 	}
 	if asks := content.Sites[1]; len(asks.Path) != 0 || len(asks.Secrets) != 0 || asks.Proxy != nil || asks.Jump != nil || asks.FTPEncryption != "explicit" {

@@ -93,6 +93,8 @@ type Input struct {
 	SpeedLimit int64
 	// RemoteDir is the folder the site opens in; empty, or the root, opens the root. It is stored cleaned.
 	RemoteDir string
+	// Color is the label the site wears in the interface; empty for none.
+	Color Color
 	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
 	Proxy Proxy
 	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects
@@ -218,6 +220,9 @@ func Normalize(in Input) (Input, error) {
 		return in, err
 	}
 	in.RemoteDir = remoteDir
+	if in.Color != "" && !slices.Contains(Colors, in.Color) {
+		return in, ErrInvalidColor
+	}
 	proxy, err := normalizeProxy(in.Proxy)
 	if err != nil {
 		return in, err
@@ -438,7 +443,7 @@ func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) 
 	return Site{
 		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, FTPEncryption: in.FTPEncryption, Host: in.Host,
 		Port: in.Port, Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
-		RemoteDir: in.RemoteDir, Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
+		RemoteDir: in.RemoteDir, Color: in.Color, Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 }
 

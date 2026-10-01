@@ -27,6 +27,10 @@ func siteDTO(s site.Site) Site {
 	if s.RemoteDir != "" {
 		out.RemoteDir = &s.RemoteDir
 	}
+	if s.Color != "" {
+		color := SiteColor(s.Color)
+		out.Color = &color
+	}
 	if s.CollectionID != uuid.Nil {
 		out.CollectionId = &s.CollectionID
 	}
@@ -74,6 +78,9 @@ func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	}
 	if in.RemoteDir != nil {
 		settings.RemoteDir = *in.RemoteDir
+	}
+	if in.Color != nil {
+		settings.Color = site.Color(*in.Color)
 	}
 	if in.Proxy != nil {
 		settings.Proxy = site.Proxy{Kind: site.ProxyKind(in.Proxy.Kind), Host: in.Proxy.Host, Port: in.Proxy.Port}

@@ -85,6 +85,8 @@ export type Transfer = Schemas['Transfer']
 
 /** A character set of file names. */
 export type Charset = Schemas['Charset']
+/** A label color a site may wear in the interface. */
+export type SiteColor = Schemas['SiteColor']
 
 /** What a probe learned about the time zone of a server's listings. */
 export type TimeZoneProbe = Schemas['TimeZoneProbe']

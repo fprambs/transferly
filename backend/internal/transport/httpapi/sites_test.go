@@ -295,6 +295,37 @@ func TestSites_RemoteDir(t *testing.T) {
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_remote_dir")
 }
 
+// TestSites_Color verifies the label color of a site (ADR-0021).
+//
+// Scenarios:
+//   - a site without one does not say so; one given is returned, changed, and removed by sending it empty
+//   - an unknown color is 422 invalid_color
+func TestSites_Color(t *testing.T) {
+	a := newAPI(t)
+	cookie, csrf := a.setup()
+	ws := a.personal(cookie)
+
+	if plain := a.send(http.MethodPost, sitesPath(ws), siteBody("Plain"), cookie, csrf).site(t); plain.Color != nil {
+		t.Errorf("a site without a color says %q", *plain.Color)
+	}
+	body := siteBody("Prod")
+	body["color"] = "red"
+	made := a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf)
+	if got := made.site(t).Color; made.Status != http.StatusCreated || got == nil || *got != httpapi.Red {
+		t.Fatalf("created = %d %s", made.Status, made.Body)
+	}
+	body["color"] = "teal"
+	if r := a.send(http.MethodPut, sitesPath(ws, made.site(t).Id.String()), body, cookie, csrf); r.Status != http.StatusOK || *r.site(t).Color != httpapi.Teal {
+		t.Errorf("changing the color = %d %s", r.Status, r.Body)
+	}
+	body["color"] = ""
+	if r := a.send(http.MethodPut, sitesPath(ws, made.site(t).Id.String()), body, cookie, csrf); r.Status != http.StatusOK || r.site(t).Color != nil {
+		t.Errorf("removing the color = %d %s", r.Status, r.Body)
+	}
+	body["color"] = "purple"
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_color")
+}
+
 // TestSites_Account verifies the account logon type over HTTP (4.8e).
 //
 // Scenarios:
