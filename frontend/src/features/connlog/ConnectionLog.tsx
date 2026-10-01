@@ -17,6 +17,26 @@ function clockOf(time: string, language: string): string {
   return new Date(time).toLocaleTimeString(language, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 }
 
+/** Steps that tell something went right: connected, a trusted key, signed in, listed. */
+const successSteps: readonly string[] = ['connected', 'host_key_verified', 'authenticated', 'listed']
+
+/** Steps that close the session or stop an attempt without an error. */
+const quietSteps: readonly string[] = ['disconnected', 'canceled']
+
+/** The color of a line: its level when it warns or fails, success for the steps that went right, muted when the session ends. */
+function toneOf(line: Pick<LogLine, 'level' | 'step'>): string {
+  if (line.level === 'error') {
+    return 'text-destructive'
+  }
+  if (line.level === 'warn') {
+    return 'text-warn'
+  }
+  if (successSteps.includes(line.step)) {
+    return 'text-ok'
+  }
+  return quietSteps.includes(line.step) ? 'text-muted-foreground' : 'text-foreground'
+}
+
 /** Props of {@link ConnectionLog}. */
 interface ConnectionLogProps {
   /** Workspace of the site. */
@@ -97,8 +117,8 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
             <li className="text-muted-foreground">{t(($) => $.log.empty)}</li>
           ) : (
             lines.map((line) => (
-              <li key={line.seq} className={cn('flex gap-3', line.level === 'error' ? 'text-destructive' : line.level === 'warn' ? 'text-warn' : 'text-foreground')}>
-                <time dateTime={line.time} className="shrink-0 text-muted-foreground tabular-nums">
+              <li key={line.seq} className={cn('flex gap-3', toneOf(line))}>
+                <time dateTime={line.time} className="shrink-0 text-faint tabular-nums">
                   {clockOf(line.time, i18n.language)}
                 </time>
                 <span className="min-w-0 break-all">{messageOf(line, t)}</span>

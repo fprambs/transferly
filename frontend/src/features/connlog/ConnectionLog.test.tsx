@@ -38,7 +38,7 @@ function shown(): string[] {
  *   asks, the account and its logon type, listings, and failures with the message of their code; jump host steps say so; unknown steps and logon types show as they came
  * - each site has its own log, which keeps its newest lines only, and the panel says when it is empty
  * - a connection that starts after the site was disconnected starts the log again, while one that starts after a failure keeps the failure
- * - lines of problems are colored, times use the clock of the browser, and the newest line stays in view unless the user scrolled up
+ * - lines of problems are colored, steps that went right are green and the end of a session is muted, times use the clock of the browser, and the newest line stays in view unless the user scrolled up
  * - the panel can be collapsed and opened, copied as text and cleared
  */
 describe('ConnectionLog', () => {
@@ -69,6 +69,7 @@ describe('ConnectionLog', () => {
       entry('failed', { path: '/x', code: 'path_not_found' }, 'error'),
       entry('failed', { path: '/x', code: 'something_new' }, 'error'),
       entry('resolving', { host: 'h' }),
+      entry('disconnected', {}),
     )
 
     expect(shown()).toEqual([
@@ -91,11 +92,14 @@ describe('ConnectionLog', () => {
       expect.stringMatching(/^Failed: .+ \(path_not_found\)$/),
       expect.stringMatching(/^Failed: .+ \(something_new\)$/),
       'resolving',
+      'Disconnected.',
     ])
     const items = within(screen.getByRole('list', { name: 'Connection log' })).getAllByRole('listitem')
     expect(items[6]).toHaveClass('text-warn')
     expect(items[7]).toHaveClass('text-destructive')
     expect(items[0]).toHaveClass('text-foreground')
+    expect(items[3]).toHaveClass('text-ok')
+    expect(items.at(-1)).toHaveClass('text-muted-foreground')
     expect(within(items[0]).getByText(/\d\d:\d\d:\d\d/)).toHaveAttribute('dateTime', '2026-09-28T15:04:05Z')
   })
 

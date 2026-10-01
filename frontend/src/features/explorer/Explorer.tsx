@@ -15,6 +15,7 @@ import { uuid } from '@/lib/uuid'
 
 import { useTimeZone } from '../auth/use-time-zone'
 import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
+import { useOpenConnections } from '../sites/use-open-connections'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { BookmarksBar } from '../bookmarks/BookmarksBar'
@@ -108,6 +109,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const picker = useRef<HTMLInputElement>(null)
   const folderPicker = useRef<HTMLInputElement>(null)
   const disconnected = useDisconnected({ workspaceId, siteId })
+  const live = useOpenConnections(workspaceId).has(siteId)
   const detailsOpen = useUiStore((state) => state.detailsOpen)
   const setDetailsOpen = useUiStore((state) => state.setDetailsOpen)
   const details = useCollapsible(detailsOpen, setDetailsOpen)
@@ -338,6 +340,12 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         </div>
         {savedSite !== undefined && <BookmarksMenu workspaceId={workspaceId} siteId={siteId} siteName={savedSite.name} path={path} onNavigate={onNavigate} />}
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
+        {live && (
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/12 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-ok @max-2xl:hidden">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-ok" />
+            {t(($) => $.live)}
+          </span>
+        )}
         <FilterBox
           value={filter.text}
           onChange={(text) => setFilter({ ...filter, text })}
@@ -356,7 +364,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             event.target.value = ''
           }}
         />
-        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
+        <Button size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
           <Upload />
           <span className="@max-3xl:sr-only">{t(($) => $.toolbar.upload)}</span>
         </Button>

@@ -18,6 +18,7 @@
   "up": "Up one level",
   "refresh": "Refresh",
   "rows": "{{count}} items",
+  "live": "Connected",
   "directory": "Folder",
   "symlink": "Link",
   "other": "Other",

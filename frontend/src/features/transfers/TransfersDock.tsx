@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Transfer, TransferPriority } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
+import { cn } from '@/lib/utils'
 import { useUiStore } from '@/state/ui-store'
 
 import { useWorkspace } from '../workspace/use-workspace'
@@ -14,6 +15,25 @@ import { TransferRow } from './TransferRow'
 import { endedRecently, useNow } from './recent'
 import { useResume } from './use-resume'
 import { isActive, newestFirst, useTransfersStore, type TransferItem } from './transfers-store'
+
+/** The color of the count of finished transfers: danger when any failed, success when some finished, muted when none. */
+function finishedTone(finished: readonly TransferItem[]): string {
+  if (finished.some((item) => item.record.status === 'failed' || item.record.status === 'interrupted')) {
+    return 'bg-destructive/15 text-destructive'
+  }
+  return finished.length > 0 ? 'bg-ok/15 text-ok' : 'bg-muted text-muted-foreground'
+}
+
+/** A count in a colored badge; its parentheses are kept for assistive technology, so the tab still reads "Active (2)". */
+function Count({ value, tone }: { value: number; tone: string }) {
+  return (
+    <span className={cn('rounded-full px-1.5 font-mono text-[11px] leading-4 tabular-nums', tone)}>
+      <span className="sr-only">(</span>
+      {value}
+      <span className="sr-only">)</span>
+    </span>
+  )
+}
 
 /** Bottom panel that lists the transfers, active ones and finished ones, with their progress and actions. */
 export function TransfersDock() {
@@ -88,10 +108,10 @@ export function TransfersDock() {
           <Tabs className="min-h-0 flex-1" value={tab} onValueChange={(value) => setTab(value === 'finished' || value === 'activity' ? value : 'active')}>
             <TabsList className="mx-4 mt-2 self-start">
               <TabsTrigger value="active" className="text-foreground">
-                {transfers(($) => $.tabs.active)} ({active.length})
+                {transfers(($) => $.tabs.active)} <Count value={active.length} tone={active.length > 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} />
               </TabsTrigger>
               <TabsTrigger value="finished" className="text-foreground">
-                {transfers(($) => $.tabs.finished)} ({finished.length})
+                {transfers(($) => $.tabs.finished)} <Count value={finished.length} tone={finishedTone(finished)} />
               </TabsTrigger>
               <TabsTrigger value="activity" className="text-foreground">
                 {transfers(($) => $.tabs.activity)}

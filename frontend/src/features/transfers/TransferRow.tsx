@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import type { TransferPriority } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { formatSize } from '../explorer/entries'
 
 import { canResume } from './use-resume'
@@ -39,6 +40,27 @@ const priorities = [
 /** The icon of each direction of a transfer. */
 const directionIcons = { upload: ArrowUp, download: ArrowDown, copy: ArrowLeftRight } as const
 
+/** The color of each direction, so uploads and downloads tell apart at a glance. */
+const directionTones = { upload: 'text-accent-text', download: 'text-info', copy: 'text-warn' } as const
+
+/** The color of the state of a finished transfer: success, failure, or a neutral stop. */
+const finishedTones: Record<TransferItem['record']['status'], string> = {
+  queued: '',
+  running: '',
+  done: 'text-ok',
+  failed: 'text-destructive',
+  interrupted: 'text-destructive',
+  canceled: '',
+}
+
+/** The fill of the progress bar of an active transfer: striped brand color while it moves, warning when held, muted when waiting. */
+function barTone(running: boolean, paused: boolean): string {
+  if (running) {
+    return 'progress-stripes bg-primary'
+  }
+  return paused ? 'bg-warn' : 'bg-muted-foreground/40'
+}
+
 /** One transfer of the dock: what it moves, how far it got, how fast, and the action that fits its state. */
 export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onContinue, onPriority }: TransferRowProps) {
   const { t } = useTranslation('transfers')
@@ -52,7 +74,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
 
   return (
     <li className="flex items-center gap-3 border-b px-4 py-2 text-[13px] last:border-b-0">
-      <Icon aria-label={t(($) => $[record.direction])} className="size-4 shrink-0 text-accent-text" />
+      <Icon aria-label={t(($) => $[record.direction])} className={cn('size-4 shrink-0', directionTones[record.direction])} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-baseline gap-2">
           <span className="truncate font-medium">{record.name}</span>
@@ -67,7 +89,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
             aria-valuenow={percent}
             className="h-1.5 overflow-hidden rounded-full bg-muted"
           >
-            <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent ?? 0}%` }} />
+            <div className={cn('h-full rounded-full transition-[width]', barTone(record.status === 'running', paused))} style={{ width: `${percent ?? 0}%` }} />
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px] text-muted-foreground">
@@ -80,7 +102,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
           {record.status === 'running' && eta !== undefined ? <span>{t(($) => $.left, { time: formatDuration(eta) })}</span> : null}
           {queued ? <span>{paused ? t(($) => $.paused) : t(($) => $.waiting)}</span> : null}
           {active ? null : (
-            <span>
+            <span className={cn('font-medium', finishedTones[record.status])}>
               {t(($) => $.status[record.status])}
               {record.errorCode === undefined ? '' : ` · ${record.errorCode}`}
             </span>

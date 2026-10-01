@@ -84,6 +84,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - a folder lists directories first with their kind, size, modification time in the account's time zone, and permissions
  * - times without a precise clock show only the day, and the time zone falls back to the browser's without a session
  * - an empty folder, a loading folder and every kind of entry are shown
+ * - an open connection to the site is marked as connected next to the path
  * - directories open with double click and Enter, files do not navigate, and Backspace goes up
  * - a double click or Enter downloads a file by default and opens it in the editor when the user prefers; the details panel always offers Edit
  * - the arrow keys, Home and End move the selection and other keys are ignored
@@ -127,6 +128,15 @@ describe('explorer', () => {
     expect(within(rows[3]).getByText('Mar 8, 2026, 7:30 AM')).toBeInTheDocument()
     expect(screen.getByText('3 items')).toBeInTheDocument()
     expect(grid).toHaveAttribute('aria-rowcount', '4')
+  })
+
+  it('marks an open connection as connected', async () => {
+    mockWorkspaceData({ sites: [prod], connected: ['s1'] })
+    mockListing([entry('a.txt')])
+
+    await renderExplorer()
+
+    expect(await screen.findByText('Connected')).toHaveClass('text-ok')
   })
 
   it('falls back to the browser time zone without a session', async () => {

@@ -1,3 +1,4 @@
+import { transportOf, type Transport } from '@/components/brand/ProtocolIcon'
 import type { Collection, QuickConnection, Site } from '@/lib/api'
 
 /** A collection row of the sites tree. */
@@ -28,6 +29,8 @@ export interface SiteNode {
   depth: number
   /** Host shown next to the name. */
   host: string
+  /** How the site reaches its server, shown by its icon. */
+  transport: Transport
   /** Collection that holds the site, left out at the top level. */
   collectionId?: string
 }
@@ -103,7 +106,7 @@ function visit(
     }
   }
   for (const site of sites.get(parent) ?? []) {
-    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host, collectionId: site.collectionId })
+    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host, transport: transportOf(site), collectionId: site.collectionId })
   }
 }
 

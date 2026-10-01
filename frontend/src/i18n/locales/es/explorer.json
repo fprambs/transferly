@@ -18,6 +18,7 @@
   "up": "Subir un nivel",
   "refresh": "Actualizar",
   "rows": "{{count}} elementos",
+  "live": "Conectado",
   "directory": "Carpeta",
   "symlink": "Enlace",
   "other": "Otro",

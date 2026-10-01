@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ProtocolIcon } from '@/components/brand/ProtocolIcon'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -174,7 +175,7 @@ function Row({ node, actions }: RowProps) {
         style={style}
       >
         <ChevronRight className={cn('size-3 shrink-0 text-faint transition-transform rtl:-scale-x-100', node.expanded && 'rotate-90 rtl:rotate-90')} />
-        <Folder className="size-[15px] shrink-0 text-muted-foreground" />
+        <Folder className="size-[15px] shrink-0 text-accent-text" />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
         <span className="font-mono text-[11px] text-muted-foreground">{node.siteCount}</span>
         <DropdownMenu>
@@ -236,6 +237,7 @@ function Row({ node, actions }: RowProps) {
     >
       <span className="w-3 shrink-0" />
       {actions.connected.has(node.id) ? <ConnectedDot /> : <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />}
+      <ProtocolIcon transport={node.transport} className="size-[15px]" />
       <span className="min-w-0 flex-1 truncate">{node.name}</span>
       <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
       <DropdownMenu>
