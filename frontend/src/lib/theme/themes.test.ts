@@ -8,6 +8,13 @@ import { contrastRatio } from './contrast'
 import { defaultThemeId, findTheme, systemLightThemeId, themes } from './themes'
 import { type ThemeTokens, toCssVariables } from './tokens'
 
+/** Mixes two hex colors in sRGB, like Tailwind's `color-mix` with a percentage of the first. */
+function mixColors(first: string, second: string, firstPercent: number): string {
+  const channel = (start: number) =>
+    Math.round((Number.parseInt(first.slice(start, start + 2), 16) * firstPercent) / 100 + (Number.parseInt(second.slice(start, start + 2), 16) * (100 - firstPercent)) / 100)
+  return `#${[1, 3, 5].map((start) => channel(start).toString(16).padStart(2, '0')).join('')}`
+}
+
 /** Pairs of colors that must be readable, with the least contrast each needs (WCAG 2.1 AA for text is 4.5). */
 const readablePairs: ReadonlyArray<{ text: keyof ThemeTokens; on: ReadonlyArray<keyof ThemeTokens>; minimum: number }> = [
   { text: 'text', on: ['bg', 'surface', 'raised'], minimum: 7 },
@@ -79,6 +86,16 @@ describe('theme readability', () => {
           if (ratio < minimum) {
             failures.push(`${text} on ${background}: ${ratio.toFixed(2)} < ${minimum}`)
           }
+        }
+      }
+      if (theme.id === 'transferly-dark' || theme.id === 'transferly-light') {
+        const softSurface = mixColors(theme.tokens.danger, theme.tokens.surface, 15)
+        const softOk = mixColors(theme.tokens.ok, theme.tokens.surface, 15)
+        if (contrastRatio(theme.tokens.danger, softSurface) < 4.5) {
+          failures.push(`danger on destructive/15 over surface: ${contrastRatio(theme.tokens.danger, softSurface).toFixed(2)} < 4.5`)
+        }
+        if (contrastRatio(theme.tokens.ok, softOk) < 4.5) {
+          failures.push(`ok on ok/15 over surface: ${contrastRatio(theme.tokens.ok, softOk).toFixed(2)} < 4.5`)
         }
       }
       expect(failures).toEqual([])

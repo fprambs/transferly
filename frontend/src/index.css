@@ -82,15 +82,15 @@
     --muted-foreground: #a3b1b5;
     --accent: color-mix(in srgb, #e0f2f1 12%, #232a2e);
     --accent-foreground: #e0f2f1;
-    --destructive: #ef5350;
+    --destructive: #ff7961;
     --border: #2e373c;
     --input: #2e373c;
     --ring: #ff9800;
     --chart-1: #ff9800;
     --chart-2: #64a0f0;
-    --chart-3: #4caf50;
+    --chart-3: #66bb6a;
     --chart-4: #ffca28;
-    --chart-5: #ef5350;
+    --chart-5: #ff7961;
     --sidebar: #1a1f22;
     --sidebar-foreground: #e0f2f1;
     --sidebar-primary: #ff9800;
@@ -105,7 +105,7 @@
     --faint: #8a979c;
     --accent-text: #ffa726;
     --accent-soft: color-mix(in srgb, #ff9800 14%, transparent);
-    --ok: #4caf50;
+    --ok: #66bb6a;
     --warn: #ffca28;
     --info: #64a0f0;
     --radius: 0.625rem;
