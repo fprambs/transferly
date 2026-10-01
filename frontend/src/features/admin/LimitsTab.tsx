@@ -1,7 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Info } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DataTable, Td, Th, Tr } from '@/components/page/DataTable'
+import { Section } from '@/components/page/Page'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -56,54 +59,67 @@ function LimitsForm({ view }: LimitsFormProps) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex max-w-3xl flex-col gap-5">
+    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       {groups.map((group) => (
-        <fieldset key={group} className="rounded-lg border bg-card px-4 py-3.5">
-          <legend className="px-1 text-sm font-semibold">{t(($) => $.limits.groups[group].title)}</legend>
-          <p className="mb-3 text-xs text-muted-foreground">{t(($) => $.limits.groups[group].note)}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {limitFields
-              .filter((field) => field.group === group)
-              .map((field) => {
-                const id = `limit-${field.key}`
-                const started = view.defaults[field.key as keyof InstanceLimits]
-                return (
-                  <div key={field.key} className="flex flex-col gap-1.5">
-                    <Label htmlFor={id}>{t(($) => $.limits.fields[field.key])}</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id={id}
-                        inputMode="decimal"
-                        autoComplete="off"
-                        placeholder={t(($) => $.limits.unlimited)}
-                        value={texts[field.key]}
-                        onChange={(event) => setTexts({ ...texts, [field.key]: event.target.value })}
-                        className="max-w-40"
-                      />
-                      {field.unit !== '' && <span className="text-sm text-muted-foreground">{field.unit}</span>}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {started === 0 ? t(($) => $.limits.startedUnlimited) : t(($) => $.limits.started, { value: Number((started / field.factor).toFixed(3)), unit: field.unit })}
-                    </p>
-                  </div>
-                )
-              })}
-          </div>
-        </fieldset>
+        <Section key={group} id={`limits-${group}`} title={t(($) => $.limits.groups[group].title)} description={t(($) => $.limits.groups[group].note)} flush>
+          <DataTable aria-labelledby={`limits-${group}`}>
+            <thead>
+              <tr>
+                <Th className="w-1/2">{t(($) => $.limits.table.limit)}</Th>
+                <Th>{t(($) => $.limits.table.value)}</Th>
+                <Th>{t(($) => $.limits.table.started)}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {limitFields
+                .filter((field) => field.group === group)
+                .map((field) => {
+                  const id = `limit-${field.key}`
+                  const started = view.defaults[field.key as keyof InstanceLimits]
+                  return (
+                    <Tr key={field.key}>
+                      <Td>
+                        <Label htmlFor={id} className="font-normal">
+                          {t(($) => $.limits.fields[field.key])}
+                        </Label>
+                      </Td>
+                      <Td>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id={id}
+                            inputMode="decimal"
+                            autoComplete="off"
+                            placeholder={t(($) => $.limits.unlimited)}
+                            value={texts[field.key]}
+                            onChange={(event) => setTexts({ ...texts, [field.key]: event.target.value })}
+                            className="h-8 w-36 tabular-nums"
+                          />
+                          {field.unit !== '' && <span className="text-xs text-muted-foreground">{field.unit}</span>}
+                        </div>
+                      </Td>
+                      <Td className="whitespace-nowrap text-muted-foreground">
+                        {started === 0 ? t(($) => $.limits.startedUnlimited) : t(($) => $.limits.started, { value: Number((started / field.factor).toFixed(3)), unit: field.unit })}
+                      </Td>
+                    </Tr>
+                  )
+                })}
+            </tbody>
+          </DataTable>
+        </Section>
       ))}
       <AdminFailure failure={failure} />
-      {saved && (
-        <p role="status" className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-300">
-          {t(($) => $.limits.saved)}
-        </p>
-      )}
-      <div className="flex gap-2">
+      <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 px-5 py-3 shadow-sm backdrop-blur-sm">
         <Button type="submit" disabled={busy}>
           {t(($) => $.limits.save)}
         </Button>
         <Button type="button" variant="outline" onClick={() => setTexts(limitTexts(view.defaults))}>
           {t(($) => $.limits.restore)}
         </Button>
+        {saved && (
+          <p role="status" className="text-sm text-ok">
+            {t(($) => $.limits.saved)}
+          </p>
+        )}
       </div>
     </form>
   )
@@ -122,7 +138,10 @@ export function LimitsTab() {
   }
   return (
     <div className="flex flex-col gap-4">
-      <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">{t(($) => $.limits.intro)}</p>
+      <p className="flex items-start gap-2.5 rounded-xl border border-info/30 bg-info/8 px-5 py-3.5 text-sm leading-relaxed">
+        <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info" />
+        {t(($) => $.limits.intro)}
+      </p>
       <LimitsForm view={view.data} />
     </div>
   )

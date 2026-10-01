@@ -1,7 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { ScrollText } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DataTable, Td, Th, Tr } from '@/components/page/DataTable'
+import { Section } from '@/components/page/Page'
 import { Button } from '@/components/ui/button'
 import { Loading } from '@/components/ui/loading'
 import { Select } from '@/components/ui/select'
@@ -24,14 +27,14 @@ function EventRow({ event }: { event: AuditEvent }) {
   const role = event.meta.role === 'admin' ? t(($) => $.accounts.roles.admin) : t(($) => $.accounts.roles.user)
 
   return (
-    <li className="grid grid-cols-[1.3fr_1.6fr_3fr_1fr] items-center gap-3 border-b px-4 py-2.5 text-[13px] last:border-b-0">
-      <time dateTime={event.at} className="text-muted-foreground">
-        {formatInstant(event.at, { locale: i18n.language, timeZone, dateStyle: 'medium', timeStyle: 'short' })}
-      </time>
-      <span className="truncate">{event.actor ?? <span className="text-muted-foreground">{t(($) => $.audit.deletedAccount)}</span>}</span>
-      <span className="min-w-0 break-words">{t(($) => $.audit.actions[key], { target: event.target, action: event.action, role, count: Number(event.meta.count ?? 0) })}</span>
-      <span className="truncate font-mono text-xs text-muted-foreground">{event.ip}</span>
-    </li>
+    <Tr>
+      <Td className="whitespace-nowrap text-muted-foreground">
+        <time dateTime={event.at}>{formatInstant(event.at, { locale: i18n.language, timeZone, dateStyle: 'medium', timeStyle: 'short' })}</time>
+      </Td>
+      <Td className="max-w-56 truncate">{event.actor ?? <span className="text-muted-foreground">{t(($) => $.audit.deletedAccount)}</span>}</Td>
+      <Td className="min-w-0 break-words">{t(($) => $.audit.actions[key], { target: event.target, action: event.action, role, count: Number(event.meta.count ?? 0) })}</Td>
+      <Td className="font-mono text-xs whitespace-nowrap text-muted-foreground">{event.ip}</Td>
+    </Tr>
   )
 }
 
@@ -49,42 +52,59 @@ export function AdminAuditTab() {
   const events = trail.data?.pages.flat() ?? []
 
   return (
-    <div className="flex flex-col gap-4">
-      <label className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">{t(($) => $.audit.filter)}</span>
-        <Select
-          value={prefix}
-          className="w-56"
-          options={adminCategories.map((entry) => ({ value: entry.prefix, label: t(($) => $.audit.categories[entry.key]) }))}
-          onValueChange={setPrefix}
-        />
-      </label>
+    <Section
+      id="admin-audit-title"
+      title={t(($) => $.audit.title)}
+      flush
+      actions={
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">{t(($) => $.audit.filter)}</span>
+          <Select
+            value={prefix}
+            className="w-56"
+            options={adminCategories.map((entry) => ({ value: entry.prefix, label: t(($) => $.audit.categories[entry.key]) }))}
+            onValueChange={setPrefix}
+          />
+        </label>
+      }
+      footer={
+        trail.hasNextPage ? (
+          <Button variant="outline" disabled={trail.isFetchingNextPage} onClick={() => void trail.fetchNextPage()}>
+            {t(($) => $.audit.more)}
+          </Button>
+        ) : undefined
+      }
+    >
       {trail.isPending ? (
-        <Loading label={t(($) => $.audit.loading)} />
+        <Loading label={t(($) => $.audit.loading)} className="px-5 py-4" />
       ) : trail.isError ? (
-        <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(trail.error)])} retryLabel={t(($) => $.retry)} onRetry={() => void trail.refetch()} />
+        <div className="px-5 py-4">
+          <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(trail.error)])} retryLabel={t(($) => $.retry)} onRetry={() => void trail.refetch()} />
+        </div>
       ) : events.length === 0 ? (
-        <p className="rounded-lg border bg-card px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.audit.empty)}</p>
+        <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <ScrollText aria-hidden="true" className="size-5" />
+          </span>
+          <p className="text-sm text-muted-foreground">{t(($) => $.audit.empty)}</p>
+        </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[1.3fr_1.6fr_3fr_1fr] gap-3 border-b px-4 py-2 text-[11px] tracking-wider text-muted-foreground uppercase" aria-hidden="true">
-            <span>{t(($) => $.audit.time)}</span>
-            <span>{t(($) => $.audit.actor)}</span>
-            <span>{t(($) => $.audit.what)}</span>
-            <span>{t(($) => $.audit.ip)}</span>
-          </div>
-          <ul aria-label={t(($) => $.audit.title)}>
+        <DataTable aria-labelledby="admin-audit-title">
+          <thead>
+            <tr>
+              <Th>{t(($) => $.audit.time)}</Th>
+              <Th>{t(($) => $.audit.actor)}</Th>
+              <Th>{t(($) => $.audit.what)}</Th>
+              <Th>{t(($) => $.audit.ip)}</Th>
+            </tr>
+          </thead>
+          <tbody>
             {events.map((event) => (
               <EventRow key={event.id} event={event} />
             ))}
-          </ul>
-        </div>
+          </tbody>
+        </DataTable>
       )}
-      {trail.hasNextPage && (
-        <Button variant="outline" className="self-start" disabled={trail.isFetchingNextPage} onClick={() => void trail.fetchNextPage()}>
-          {t(($) => $.audit.more)}
-        </Button>
-      )}
-    </div>
+    </Section>
   )
 }

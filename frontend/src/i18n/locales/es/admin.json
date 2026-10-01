@@ -42,7 +42,15 @@
     "enable": "Habilitar cuenta",
     "makeAdmin": "Hacer administrador",
     "makeUser": "Hacer usuario normal",
-    "reset": "Quitar segundo paso"
+    "reset": "Quitar segundo paso",
+    "stats": {
+      "total": "Cuentas",
+      "admins": "Administradores",
+      "secondFactor": "Con segundo paso",
+      "disabled": "Desactivadas"
+    },
+    "count_one": "{{count}} mostrada",
+    "count_other": "{{count}} mostradas"
   },
   "disable": {
     "title": "¿Deshabilitar a {{email}}?",
@@ -63,12 +71,26 @@
     "fixed": "Definidas al arrancar",
     "fixedNote": "Vienen de TRANSFERLY_ALLOWED_NETWORKS. Solo un reinicio las cambia.",
     "none": "Ninguna.",
-    "custom": "Agregadas por administradores",
-    "placeholder": "192.168.1.0/24\n10.20.0.5",
-    "help": "Una dirección o red por línea, como 192.168.1.0/24 o 10.20.0.5. El cambio se aplica a la próxima conexión.",
+    "placeholder": "192.168.1.0/24",
+    "help": "Una dirección o una red, como 192.168.1.0/24 o 10.20.0.5. Los cambios guardados se aplican a la próxima conexión.",
     "never": "Nunca se permiten: direcciones link-local y de metadatos de la nube (169.254.0.0/16), rangos multicast y reservados, y redes más amplias que /8 (IPv4) o /7 (IPv6).",
     "save": "Guardar redes",
-    "saved": "Guardado. Las conexiones nuevas siguen el cambio."
+    "saved": "Guardado. Las conexiones nuevas siguen el cambio.",
+    "listTitle": "Redes privadas permitidas",
+    "table": {
+      "network": "Red",
+      "origin": "Origen",
+      "actions": "Acciones"
+    },
+    "origin": {
+      "fixed": "Definida al arrancar",
+      "custom": "Agregada por un administrador"
+    },
+    "addLabel": "Red a agregar",
+    "add": "Agregar",
+    "remove": "Quitar {{network}}",
+    "noneAdded": "Todavía no se agregó ninguna red.",
+    "neverTitle": "Nunca se permiten"
   },
   "audit": {
     "title": "Registro de auditoría de la instancia",
@@ -147,6 +169,11 @@
       "maxTeamsPerUser": "Equipos que posee una persona",
       "maxMembersPerTeam": "Miembros por equipo, con invitaciones en espera",
       "dailyBytesPerUser": "Volumen por persona y día"
+    },
+    "table": {
+      "limit": "Límite",
+      "value": "Valor",
+      "started": "Al arrancar"
     }
   }
 }

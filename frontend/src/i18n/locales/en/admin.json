@@ -42,7 +42,15 @@
     "enable": "Enable account",
     "makeAdmin": "Make administrator",
     "makeUser": "Make regular user",
-    "reset": "Remove second step"
+    "reset": "Remove second step",
+    "stats": {
+      "total": "Accounts",
+      "admins": "Administrators",
+      "secondFactor": "With second step",
+      "disabled": "Disabled"
+    },
+    "count_one": "{{count}} shown",
+    "count_other": "{{count}} shown"
   },
   "disable": {
     "title": "Disable {{email}}?",
@@ -63,12 +71,26 @@
     "fixed": "Set at startup",
     "fixedNote": "From TRANSFERLY_ALLOWED_NETWORKS. Only a restart changes them.",
     "none": "None.",
-    "custom": "Added by administrators",
-    "placeholder": "192.168.1.0/24\n10.20.0.5",
-    "help": "One address or network per line, such as 192.168.1.0/24 or 10.20.0.5. The change applies to the next connection.",
+    "placeholder": "192.168.1.0/24",
+    "help": "An address or a network, such as 192.168.1.0/24 or 10.20.0.5. Saved changes apply to the next connection.",
     "never": "Never allowed: link-local and cloud metadata addresses (169.254.0.0/16), multicast and reserved ranges, and networks wider than /8 (IPv4) or /7 (IPv6).",
     "save": "Save networks",
-    "saved": "Saved. New connections follow the change."
+    "saved": "Saved. New connections follow the change.",
+    "listTitle": "Allowed private networks",
+    "table": {
+      "network": "Network",
+      "origin": "Origin",
+      "actions": "Actions"
+    },
+    "origin": {
+      "fixed": "Set at startup",
+      "custom": "Added by an administrator"
+    },
+    "addLabel": "Network to add",
+    "add": "Add",
+    "remove": "Remove {{network}}",
+    "noneAdded": "No network was added yet.",
+    "neverTitle": "Never allowed"
   },
   "audit": {
     "title": "Instance audit log",
@@ -147,6 +169,11 @@
       "maxTeamsPerUser": "Teams a person owns",
       "maxMembersPerTeam": "Members per team, with waiting invitations",
       "dailyBytesPerUser": "Volume per person and day"
+    },
+    "table": {
+      "limit": "Limit",
+      "value": "Value",
+      "started": "At startup"
     }
   }
 }

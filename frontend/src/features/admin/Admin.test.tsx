@@ -20,6 +20,11 @@ function event(id: number, action: string, target: string, extra: Partial<AuditE
   return { id, action, target, meta: {}, at: '2026-09-26T12:00:00Z', actor: 'admin@example.com', ip: '203.0.113.5', ...extra }
 }
 
+/** The rows of the accounts table, without its heading row. */
+function accountRows(): HTMLElement[] {
+  return within(screen.getByRole('table', { name: 'Accounts' })).getAllByRole('row').slice(1)
+}
+
 /** Opens the row menu of an account and returns the menu. */
 async function openActions(email: string) {
   const user = userEvent.setup()
@@ -31,12 +36,13 @@ async function openActions(email: string) {
  * Covers the administration page.
  *
  * Scenarios:
- * - the accounts show their role, state and second step, and the signed-in account has no actions
+ * - the accounts show their counts, role, state and second step, and the signed-in account has no actions
  * - the filter narrows the accounts by email and explains when nothing matches
  * - disabling asks first, can be canceled, tells the server and shows the new state; enabling needs no question
  * - making somebody an administrator and back tells the server, and a failed change explains why
  * - removing the second step asks first, is unavailable for accounts without one, and a failure inside the question is shown in it
- * - the networks show what the server started with, save the entries one per line without blank lines, and explain a refusal
+ * - the networks show what the server started with and what administrators added, add trimmed entries without blanks or repeats, remove
+ *   them, save the list and explain a refusal
  * - the limits show what is in force and what the server started with, save the values in the units of the server, refuse what is not a number
  *   and fill in the starting values on request
  * - the audit log words every action, narrows by group, pages, and explains an empty trail
@@ -49,8 +55,8 @@ describe('administration', () => {
     mockAdmin()
     await renderApp({ path: '/admin' })
 
-    const list = await screen.findByRole('list', { name: 'Accounts' })
-    const rows = within(list).getAllByRole('listitem')
+    await screen.findByRole('table', { name: 'Accounts' })
+    const rows = accountRows()
     expect(rows).toHaveLength(4)
     expect(rows[0]).toHaveTextContent('admin@example.com')
     expect(rows[0]).toHaveTextContent('You')
@@ -67,10 +73,10 @@ describe('administration', () => {
     mockAdmin()
     await renderApp({ path: '/admin' })
     const user = userEvent.setup()
-    await screen.findByRole('list', { name: 'Accounts' })
+    await screen.findByRole('table', { name: 'Accounts' })
 
     await user.type(screen.getByLabelText('Filter accounts'), 'AGENCY')
-    expect(within(screen.getByRole('list', { name: 'Accounts' })).getAllByRole('listitem')).toHaveLength(1)
+    expect(accountRows()).toHaveLength(1)
     await user.clear(screen.getByLabelText('Filter accounts'))
     await user.type(screen.getByLabelText('Filter accounts'), 'nobody')
     expect(screen.getByText('No account matches.')).toBeInTheDocument()
@@ -92,7 +98,7 @@ describe('administration', () => {
     await user.click(within(await screen.findByRole('dialog', { name: 'Disable maria@acme.dev?' })).getByRole('button', { name: 'Disable account' }))
 
     await waitFor(() => expect(mock.calls).toEqual([{ method: 'PATCH', path: '/api/v1/admin/users/u-maria', body: { disabled: true } }]))
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Accounts' })).getAllByRole('listitem')[1]).toHaveTextContent('Disabled'))
+    await waitFor(() => expect(accountRows()[1]).toHaveTextContent('Disabled'))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
@@ -104,7 +110,7 @@ describe('administration', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Enable account' }))
 
     await waitFor(() => expect(mock.calls).toEqual([{ method: 'PATCH', path: '/api/v1/admin/users/u-jorge', body: { disabled: false } }]))
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Accounts' })).getAllByRole('listitem')[2]).toHaveTextContent('Active'))
+    await waitFor(() => expect(accountRows()[2]).toHaveTextContent('Active'))
   })
 
   it('changes roles both ways', async () => {
@@ -112,11 +118,11 @@ describe('administration', () => {
     await renderApp({ path: '/admin' })
     let user = await openActions('maria@acme.dev')
     await user.click(await screen.findByRole('menuitem', { name: 'Make administrator' }))
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Accounts' })).getAllByRole('listitem')[1]).toHaveTextContent('Administrator'))
+    await waitFor(() => expect(accountRows()[1]).toHaveTextContent('Administrator'))
 
     user = await openActions('lucia@agency.io')
     await user.click(await screen.findByRole('menuitem', { name: 'Make regular user' }))
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Accounts' })).getAllByRole('listitem')[3]).toHaveTextContent('User'))
+    await waitFor(() => expect(accountRows()[3]).toHaveTextContent('User'))
     expect(mock.calls.map((c) => c.body)).toEqual([{ role: 'admin' }, { role: 'user' }])
   })
 
@@ -145,7 +151,7 @@ describe('administration', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Remove second step' }))
 
     await waitFor(() => expect(mock.calls).toEqual([{ method: 'POST', path: '/api/v1/admin/users/u-maria/second-factor/reset', body: undefined }]))
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Accounts' })).getAllByRole('listitem')[1]).toHaveTextContent('Off'))
+    await waitFor(() => expect(accountRows()[1]).toHaveTextContent('Off'))
   })
 
   it('shows a failure inside the question and keeps it open', async () => {
@@ -168,16 +174,23 @@ describe('administration', () => {
     const user = userEvent.setup()
     await user.click(await screen.findByRole('tab', { name: 'Networks' }))
 
-    expect(await screen.findByText('172.16.0.0/12')).toBeInTheDocument()
-    const box = screen.getByLabelText('Added by administrators')
-    expect(box).toHaveValue('192.168.1.0/24')
-    await user.clear(box)
-    await user.type(box, '  10.20.0.5  {Enter}{Enter}192.168.5.0/24')
+    const table = await screen.findByRole('table', { name: 'Allowed private networks' })
+    expect(within(table).getByText('172.16.0.0/12')).toBeInTheDocument()
+    expect(within(table).getByText('192.168.1.0/24')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Remove 192.168.1.0/24' }))
+    expect(within(table).getByText('No network was added yet.')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Network to add'), '  10.20.0.5  {Enter}')
+    await user.type(screen.getByLabelText('Network to add'), '   {Enter}')
+    await user.type(screen.getByLabelText('Network to add'), '192.168.5.0/24')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.type(screen.getByLabelText('Network to add'), '10.20.0.5{Enter}')
+    expect(screen.getByLabelText('Network to add')).toHaveValue('')
     await user.click(screen.getByRole('button', { name: 'Save networks' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Saved.')
     expect(mock.calls).toEqual([{ method: 'PUT', path: '/api/v1/admin/networks', body: { networks: ['10.20.0.5', '192.168.5.0/24'] } }])
-    expect(screen.getByLabelText('Added by administrators')).toHaveValue('10.20.0.5/32\n192.168.5.0/24')
+    expect(within(table).getByText('10.20.0.5/32')).toBeInTheDocument()
+    expect(within(table).getAllByText('Added by an administrator')).toHaveLength(2)
   })
 
   it('says when no network was set at startup, and explains a refusal', async () => {
@@ -188,7 +201,7 @@ describe('administration', () => {
     await user.click(await screen.findByRole('tab', { name: 'Networks' }))
 
     expect(await screen.findByText('None.')).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Added by administrators'), '0.0.0.0/0')
+    await user.type(screen.getByLabelText('Network to add'), '0.0.0.0/0{Enter}')
     await user.click(screen.getByRole('button', { name: 'Save networks' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('not a network that can be allowed')
@@ -311,7 +324,7 @@ describe('administration', () => {
     await renderApp({ path: '/admin' })
     await userEvent.setup().click(await screen.findByRole('tab', { name: 'Audit log' }))
 
-    const text = (await screen.findByRole('list', { name: 'Instance audit log' })).textContent ?? ''
+    const text = (await screen.findByRole('table', { name: 'Instance audit log' })).textContent ?? ''
     for (const sentence of [
       'disabled the account bob@acme.dev',
       'enabled the account bob@acme.dev',
@@ -381,7 +394,7 @@ describe('administration', () => {
 
   it.each([
     ['Accounts', '/users', 'maria@acme.dev'],
-    ['Networks', '/networks', 'Set at startup'],
+    ['Networks', '/networks', 'Allowed private networks'],
     ['Limits', '/limits', 'Bandwidth'],
     ['Audit log', '/audit', 'Nothing has been recorded yet.'],
   ])('explains a %s tab that could not load instead of loading forever, and retries', async (tab, path, loaded) => {
@@ -448,7 +461,7 @@ describe('administration', () => {
     await renderApp({ path: '/admin', language: 'es' })
 
     expect(await screen.findByRole('heading', { name: 'Administración' })).toBeInTheDocument()
-    expect(await screen.findByRole('list', { name: 'Cuentas' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Cuentas' })).toBeInTheDocument()
   })
 
   it('maps actions and errors to their keys', () => {

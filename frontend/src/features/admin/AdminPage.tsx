@@ -1,6 +1,8 @@
+import { ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { PageHeader } from '@/components/page/Page'
 import { Loading } from '@/components/ui/loading'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -27,27 +29,25 @@ export function AdminPage() {
     return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.page.noAccess)}</p>
   }
   return (
-    <div className="flex flex-col gap-4 p-7">
-      <header>
-        <h1 className="text-xl font-semibold">{t(($) => $.page.title)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t(($) => $.page.subtitle)}</p>
-      </header>
-      <Tabs value={tab} onValueChange={(value) => setTab(value as PageTab)}>
-        <TabsList variant="line" className="justify-start">
-          <TabsTrigger value="accounts" className="flex-none px-3">
-            {t(($) => $.page.tabs.accounts)}
-          </TabsTrigger>
-          <TabsTrigger value="networks" className="flex-none px-3">
-            {t(($) => $.page.tabs.networks)}
-          </TabsTrigger>
-          <TabsTrigger value="limits" className="flex-none px-3">
-            {t(($) => $.page.tabs.limits)}
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="flex-none px-3">
-            {t(($) => $.page.tabs.audit)}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-7">
+      <PageHeader icon={ShieldCheck} title={t(($) => $.page.title)} description={t(($) => $.page.subtitle)}>
+        <Tabs value={tab} onValueChange={(value) => setTab(value as PageTab)}>
+          <TabsList variant="line" className="justify-start">
+            <TabsTrigger value="accounts" className="flex-none px-3">
+              {t(($) => $.page.tabs.accounts)}
+            </TabsTrigger>
+            <TabsTrigger value="networks" className="flex-none px-3">
+              {t(($) => $.page.tabs.networks)}
+            </TabsTrigger>
+            <TabsTrigger value="limits" className="flex-none px-3">
+              {t(($) => $.page.tabs.limits)}
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex-none px-3">
+              {t(($) => $.page.tabs.audit)}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </PageHeader>
       {tab === 'accounts' && <AccountsTab />}
       {tab === 'networks' && <NetworksTab />}
       {tab === 'limits' && <LimitsTab />}

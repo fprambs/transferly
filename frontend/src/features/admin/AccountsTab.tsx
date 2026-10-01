@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Ellipsis } from 'lucide-react'
+import { Ellipsis, KeyRound, Search, ShieldCheck, ShieldOff, Users, UserX } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DataTable, Td, Th, Tr } from '@/components/page/DataTable'
+import { Badge, Section, StatTile } from '@/components/page/Page'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Loading } from '@/components/ui/loading'
@@ -58,33 +60,34 @@ function AccountRow({ user, me, ask, fail }: AccountRowProps) {
   }
 
   return (
-    <li className="grid grid-cols-[2.6fr_1.2fr_1fr_1fr_1.1fr_0.4fr] items-center border-b px-4 py-2.5 text-[13px] last:border-b-0">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
-          {user.email.slice(0, 2).toUpperCase()}
+    <Tr>
+      <Td>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[11px] font-semibold text-accent-text">
+            {user.email.slice(0, 2).toUpperCase()}
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate">{user.email}</span>
+            {isMe && <span className="text-[11px] text-muted-foreground">{t(($) => $.accounts.you)}</span>}
+          </span>
+        </div>
+      </Td>
+      <Td>
+        <Badge tone={user.role === 'admin' ? 'accent' : 'muted'}>{t(($) => $.accounts.roles[user.role])}</Badge>
+      </Td>
+      <Td>
+        <Badge tone={user.disabled ? 'danger' : 'ok'} dot>
+          {user.disabled ? t(($) => $.accounts.state.disabled) : t(($) => $.accounts.state.active)}
+        </Badge>
+      </Td>
+      <Td>
+        <span className={cn('inline-flex items-center gap-1.5', user.secondFactor ? 'text-ok' : 'text-muted-foreground')}>
+          {user.secondFactor ? <ShieldCheck aria-hidden="true" className="size-3.5" /> : <ShieldOff aria-hidden="true" className="size-3.5" />}
+          {user.secondFactor ? t(($) => $.accounts.factor.on) : t(($) => $.accounts.factor.off)}
         </span>
-        <span className="min-w-0 leading-tight">
-          <span className="block truncate">{user.email}</span>
-          {isMe && <span className="text-[11px] text-muted-foreground">{t(($) => $.accounts.you)}</span>}
-        </span>
-      </div>
-      <div>
-        <span
-          className={cn(
-            'inline-flex h-[22px] items-center rounded-full px-2.5 text-xs font-medium',
-            user.role === 'admin' ? 'bg-violet-500/15 text-violet-800 dark:text-violet-300' : 'bg-muted text-muted-foreground',
-          )}
-        >
-          {t(($) => $.accounts.roles[user.role])}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span aria-hidden="true" className={user.disabled ? 'size-2 rounded-full bg-red-500' : 'size-2 rounded-full bg-emerald-500'} />
-        {user.disabled ? t(($) => $.accounts.state.disabled) : t(($) => $.accounts.state.active)}
-      </div>
-      <div className="text-muted-foreground">{user.secondFactor ? t(($) => $.accounts.factor.on) : t(($) => $.accounts.factor.off)}</div>
-      <div className="text-muted-foreground">{formatInstant(user.createdAt, { locale: i18n.language, timeZone, dateStyle: 'medium' })}</div>
-      <div className="text-end">
+      </Td>
+      <Td className="whitespace-nowrap text-muted-foreground">{formatInstant(user.createdAt, { locale: i18n.language, timeZone, dateStyle: 'medium' })}</Td>
+      <Td className="w-12 text-end">
         {!isMe && (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -108,8 +111,8 @@ function AccountRow({ user, me, ask, fail }: AccountRowProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
-    </li>
+      </Td>
+    </Tr>
   )
 }
 
@@ -158,35 +161,63 @@ export function AccountsTab() {
   const [failure, setFailure] = useState<AdminErrorKey | null>(null)
   const shown = (users.data ?? []).filter((user) => matches(user, filter))
 
+  const all = users.data ?? []
+
   return (
     <div className="flex flex-col gap-4">
-      <Input aria-label={t(($) => $.accounts.filter)} placeholder={t(($) => $.accounts.filter)} value={filter} onChange={(event) => setFilter(event.target.value)} className="max-w-72" />
+      {users.data !== undefined && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile icon={Users} label={t(($) => $.accounts.stats.total)} value={all.length} />
+          <StatTile icon={ShieldCheck} tone="info" label={t(($) => $.accounts.stats.admins)} value={all.filter((user) => user.role === 'admin').length} />
+          <StatTile icon={KeyRound} tone="ok" label={t(($) => $.accounts.stats.secondFactor)} value={all.filter((user) => user.secondFactor).length} />
+          <StatTile icon={UserX} tone="danger" label={t(($) => $.accounts.stats.disabled)} value={all.filter((user) => user.disabled).length} />
+        </div>
+      )}
       <AdminFailure failure={failure} />
-      {users.loading ? (
-        <Loading label={t(($) => $.accounts.loading)} />
-      ) : users.data === undefined ? (
-        <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(users.error)])} retryLabel={t(($) => $.retry)} onRetry={users.refetch} />
-      ) : (
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[2.6fr_1.2fr_1fr_1fr_1.1fr_0.4fr] border-b px-4 py-2 text-[11px] tracking-wider text-muted-foreground uppercase" aria-hidden="true">
-            <span>{t(($) => $.accounts.table.account)}</span>
-            <span>{t(($) => $.accounts.table.role)}</span>
-            <span>{t(($) => $.accounts.table.state)}</span>
-            <span>{t(($) => $.accounts.table.secondFactor)}</span>
-            <span>{t(($) => $.accounts.table.created)}</span>
-            <span />
+      <Section
+        id="accounts-title"
+        title={t(($) => $.accounts.title)}
+        flush
+        actions={
+          <>
+            {users.data !== undefined && <span className="text-xs text-muted-foreground">{t(($) => $.accounts.count, { count: shown.length })}</span>}
+            <div className="relative">
+              <Search aria-hidden="true" className="pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input aria-label={t(($) => $.accounts.filter)} placeholder={t(($) => $.accounts.filter)} value={filter} onChange={(event) => setFilter(event.target.value)} className="h-8 w-60 ps-8" />
+            </div>
+          </>
+        }
+      >
+        {users.loading ? (
+          <Loading label={t(($) => $.accounts.loading)} className="px-5 py-4" />
+        ) : users.data === undefined ? (
+          <div className="px-5 py-4">
+            <RetryFailure message={t(($) => $.errors[adminErrorKeyOf(users.error)])} retryLabel={t(($) => $.retry)} onRetry={users.refetch} />
           </div>
-          {shown.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.accounts.empty)}</p>
-          ) : (
-            <ul aria-label={t(($) => $.accounts.title)}>
+        ) : shown.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t(($) => $.accounts.empty)}</p>
+        ) : (
+          <DataTable aria-labelledby="accounts-title">
+            <thead>
+              <tr>
+                <Th>{t(($) => $.accounts.table.account)}</Th>
+                <Th>{t(($) => $.accounts.table.role)}</Th>
+                <Th>{t(($) => $.accounts.table.state)}</Th>
+                <Th>{t(($) => $.accounts.table.secondFactor)}</Th>
+                <Th>{t(($) => $.accounts.table.created)}</Th>
+                <Th>
+                  <span className="sr-only">{t(($) => $.accounts.title)}</span>
+                </Th>
+              </tr>
+            </thead>
+            <tbody>
               {shown.map((user) => (
                 <AccountRow key={user.id} user={user} me={session?.user.id} ask={setPending} fail={setFailure} />
               ))}
-            </ul>
-          )}
-        </div>
-      )}
+            </tbody>
+          </DataTable>
+        )}
+      </Section>
       {pending !== null && <PendingDialog pending={pending} onClose={() => setPending(null)} />}
     </div>
   )
