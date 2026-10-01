@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, CircleAlert, CircleStop, FolderOpen, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, Unplug, Upload } from 'lucide-react'
+import { ArrowUp, CircleAlert, CircleStop, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, Unplug, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Illustration } from '@/components/brand/Illustration'
 import { Button } from '@/components/ui/button'
 import { PanelState } from '@/components/ui/panel-state'
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
@@ -522,7 +523,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       {filtering && listing.isSuccess && !canceled && entries.length > 0 && (
         <FilterSummary filter={filter} shown={visible.length} total={entries.length} listedAt={listing.dataUpdatedAt} onChange={setFilter} onRefresh={() => void reload()} />
       )}
-      {listing.isSuccess && !canceled && !opening && entries.length === 0 && <PanelState icon={FolderOpen} tone="muted" role="none" title={t(($) => $.emptyDir)} />}
+      {listing.isSuccess && !canceled && !opening && entries.length === 0 && <PanelState art={<Illustration scene="folder" />} role="none" title={t(($) => $.emptyDir)} />}
       {listing.isSuccess && !canceled && entries.length > 0 && visible.length === 0 && (
         <PanelState icon={SearchX} tone="muted" title={t(($) => $.filter.noneTitle)} description={t(($) => $.filter.noneBody, { total: entries.length })}>
           <Button variant="outline" onClick={() => setFilter(emptyFilter)}>

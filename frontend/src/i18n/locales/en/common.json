@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Transferly"
+    "name": "Transferly",
+    "tagline": "Seamless data flow between all your connections."
   },
   "language": {
     "label": "Language"

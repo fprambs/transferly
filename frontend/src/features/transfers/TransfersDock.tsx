@@ -1,6 +1,8 @@
 import { useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { BrandIcon } from '@/components/brand/BrandIcon'
+import { Illustration } from '@/components/brand/Illustration'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Transfer, TransferPriority } from '@/lib/api'
@@ -75,8 +77,9 @@ export function TransfersDock() {
   return (
     <section aria-labelledby="queue-title" className="flex h-full min-h-0 flex-col bg-card">
       <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-baseline gap-3">
-          <h2 id="queue-title" className="text-sm font-medium">
+        <div className="flex items-center gap-3">
+          <h2 id="queue-title" className="flex items-center gap-2 text-sm font-medium">
+            <BrandIcon name="transfer" />
             {t(($) => $.queue.title)}
           </h2>
           {active.length > 0 ? <span className="font-mono text-xs text-muted-foreground">{transfers(($) => $.summary, { count: active.length })}</span> : null}
@@ -119,7 +122,10 @@ export function TransfersDock() {
             </TabsList>
             <TabsContent value="active" className="min-h-0 flex-1 overflow-y-auto">
               {shown.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
+                <div className="flex items-center gap-4 px-4 py-3">
+                  <Illustration scene="transfers" className="h-12 w-18" />
+                  <p className="text-sm text-muted-foreground">{transfers(($) => $.emptyActive)}</p>
+                </div>
               ) : (
                 <ul>
                   {shown.map((item) => (

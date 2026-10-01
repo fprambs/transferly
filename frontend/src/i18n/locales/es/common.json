@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Transferly"
+    "name": "Transferly",
+    "tagline": "Tus datos fluyen sin fricción entre todas tus conexiones."
   },
   "language": {
     "label": "Idioma"

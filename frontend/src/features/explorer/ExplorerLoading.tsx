@@ -1,6 +1,6 @@
-import { LoaderCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { BrandMark } from '@/components/brand/BrandMark'
 import { Skeleton } from '@/components/ui/skeleton'
 
 /** Widths of the name placeholders, so the rows do not look stamped. */
@@ -31,14 +31,14 @@ export interface ConnectingStateProps {
   name: string
 }
 
-/** What the explorer shows while it opens a connection and reads its first folder: a spinner, a message and placeholder rows. */
+/** What the explorer shows while it opens a connection and reads its first folder: the mark drawing itself, a message and placeholder rows. */
 export function ConnectingState({ name }: ConnectingStateProps) {
   const { t } = useTranslation('explorer')
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div role="status" className="flex items-center gap-3 px-4 py-3">
-        <LoaderCircle aria-hidden="true" className="size-5 animate-spin text-accent-text motion-reduce:animate-none" />
+        <BrandMark animated className="size-8 shrink-0" />
         <div className="flex flex-col">
           <span className="text-sm font-medium">{t(($) => $.connecting.title, { name })}</span>
           <span className="text-xs text-muted-foreground">{t(($) => $.connecting.hint)}</span>

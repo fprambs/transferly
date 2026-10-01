@@ -13,8 +13,10 @@ const tones = {
 
 /** Props of {@link PanelState}. */
 export interface PanelStateProps {
-  /** Icon drawn in the circle above the title. */
-  icon: LucideIcon
+  /** Icon drawn in the circle above the title; left out when an illustration takes its place. */
+  icon?: LucideIcon
+  /** A drawing shown above the title instead of the icon, for empty states that deserve one. */
+  art?: ReactNode
   /** How the state reads. */
   tone?: keyof typeof tones
   /** What happened, in a few words. */
@@ -33,16 +35,18 @@ export interface PanelStateProps {
  * The state of a panel that has nothing else to show (disconnected, a failure, a key to trust, an empty folder): a card centered in the
  * panel both ways, as the vault card is. Every panel of Transferly shows its states this way.
  */
-export function PanelState({ icon: Icon, tone = 'accent', title, description, role = 'status', children, className }: PanelStateProps) {
+export function PanelState({ icon: Icon, art, tone = 'accent', title, description, role = 'status', children, className }: PanelStateProps) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
       <div
         role={role === 'none' ? undefined : role}
         className={cn('flex w-full max-w-md flex-col items-center gap-5 rounded-2xl border bg-card px-8 py-9 text-center shadow-sm duration-300 animate-in fade-in-0 zoom-in-95', className)}
       >
-        <div className={cn('flex size-16 items-center justify-center rounded-full ring-8', tones[tone])}>
-          <Icon aria-hidden="true" className="size-7" />
-        </div>
+        {art ?? (
+          <div className={cn('flex size-16 items-center justify-center rounded-full ring-8', tones[tone])}>
+            {Icon && <Icon aria-hidden="true" className="size-7" />}
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           <p className="text-lg font-semibold tracking-tight">{title}</p>
           {description !== undefined && <div className="text-sm leading-relaxed text-muted-foreground">{description}</div>}

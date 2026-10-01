@@ -113,6 +113,13 @@ html.dark {
     --brand-arrow: #43a047;
 }
 
+/* The brand panel of the sign-in pages: Core Blue in every theme, with the mark's arrow in a light tint. */
+html {
+    --brand-panel: #0d47a1;
+    --brand-panel-glow: #1e6fd9;
+    --brand-on-panel: #e3edf7;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -194,7 +201,42 @@ html.dark {
   animation: stripes 0.8s linear infinite;
 }
 
+@keyframes brand-draw {
+  from {
+    stroke-dashoffset: 400;
+  }
+  60%,
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes brand-fade {
+  from,
+  45% {
+    opacity: 0;
+  }
+  60%,
+  to {
+    opacity: 1;
+  }
+}
+
+.brand-draw {
+  stroke-dasharray: 400;
+  animation: brand-draw 1.8s ease-in-out infinite alternate;
+}
+
+.brand-fade {
+  animation: brand-fade 1.8s ease-in-out infinite alternate;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .brand-draw {
+    stroke-dasharray: none;
+  }
+  .brand-draw,
+  .brand-fade,
   .skeleton,
   .progress-stripes,
   .indeterminate-bar {

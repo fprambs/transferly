@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { sessionKey, sessionQuery, setupKey } from '@/app/session'
+import { AuthFrame } from '@/components/brand/AuthFrame'
 import { BrandMark } from '@/components/brand/BrandMark'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,18 +30,16 @@ const minPasswordLength = 12
 function Card({ title, children }: { title: string; children?: ReactNode }) {
   const { t: common } = useTranslation()
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background p-4">
-      <div className="flex w-full max-w-md flex-col gap-5 rounded-2xl border bg-card p-8 shadow-xl">
-        <div className="flex flex-col gap-1.5">
-          <p className="flex items-center gap-2 text-base font-bold tracking-tight">
-            <BrandMark className="size-7" />
-            {common(($) => $.app.name)}
-          </p>
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        </div>
-        {children}
+    <AuthFrame width="max-w-md">
+      <div className="flex flex-col gap-1.5">
+        <p className="flex items-center gap-2 text-base font-bold tracking-tight lg:hidden">
+          <BrandMark className="size-7" />
+          {common(($) => $.app.name)}
+        </p>
+        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       </div>
-    </main>
+      {children}
+    </AuthFrame>
   )
 }
 

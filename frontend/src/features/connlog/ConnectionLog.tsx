@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronRight, Copy, Eraser, ScrollText } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, Eraser } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { BrandIcon } from '@/components/brand/BrandIcon'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/state/ui-store'
@@ -76,7 +77,7 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
       <div className="flex h-8 shrink-0 items-center gap-1 px-2 text-xs">
         <Button variant="ghost" size="xs" aria-expanded={open} onClick={toggle} className="gap-1.5 font-medium">
           {open ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
-          <ScrollText aria-hidden="true" />
+          <BrandIcon name="logs" />
           {t(($) => $.log.title)}
           <span className="text-muted-foreground tabular-nums">{lines.length}</span>
         </Button>

@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { BrandIcon } from '@/components/brand/BrandIcon'
+import { Illustration } from '@/components/brand/Illustration'
 import { ProtocolIcon } from '@/components/brand/ProtocolIcon'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tip'
@@ -380,7 +382,10 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
   return (
     <nav aria-label={t(($) => $.sidebar.label)} className="flex h-full min-h-0 w-full flex-col bg-card">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-        <h2 className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">{t(($) => $.sidebar.sites)}</h2>
+        <h2 className="flex items-center gap-2 text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
+          <BrandIcon name="sites" className="size-3.5" />
+          {t(($) => $.sidebar.sites)}
+        </h2>
         <div className="flex gap-1">
           <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newCollection)} onClick={() => setTarget({ mode: 'create' })}>
             <FolderPlus />
@@ -429,7 +434,12 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           <Row key={`${node.kind}-${node.id}`} node={node} actions={actions} />
         ))}
       </div>
-      {rows.length === 0 && <p className="px-4 text-sm text-muted-foreground">{t(($) => $.sidebar.empty)}</p>}
+      {rows.length === 0 && (
+        <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+          <Illustration scene="sites" className="h-16 w-24" />
+          <p className="text-sm text-muted-foreground">{t(($) => $.sidebar.empty)}</p>
+        </div>
+      )}
       {workspace !== undefined && (
         <>
           <ImportDialog open={importing} workspaceId={workspace.id} onClose={() => setImporting(false)} />
