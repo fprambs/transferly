@@ -1,4 +1,4 @@
-import { transportOf, type Transport } from '@/components/brand/ProtocolIcon'
+import { transportOf, type Transport } from '@/components/brand/transport'
 import type { Collection, QuickConnection, Site } from '@/lib/api'
 
 /** A collection row of the sites tree. */

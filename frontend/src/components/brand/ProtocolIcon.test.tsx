@@ -1,7 +1,8 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { ProtocolIcon, transportOf, type Transport } from './ProtocolIcon'
+import { ProtocolIcon } from './ProtocolIcon'
+import { transportOf, type Transport } from './transport'
 
 /**
  * Covers {@link transportOf} and {@link ProtocolIcon}.
