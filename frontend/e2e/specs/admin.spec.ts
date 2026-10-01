@@ -9,7 +9,8 @@ import { settle } from '../settle.ts'
 /** Opens the administration in the settings dialog from the account menu and waits for its accounts. */
 async function openAdmin(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Account' }).click()
-  await page.getByRole('menuitem', { name: 'Administration' }).click()
+  await page.getByRole('menuitem', { name: 'Settings' }).click()
+  await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Administration', exact: true }).click()
   await expect(page).toHaveURL(/settings=admin/)
   await expect(page.getByRole('table', { name: 'Accounts' })).toBeVisible()
 }
@@ -41,7 +42,7 @@ async function expectAccessible(page: Page, label: string): Promise<void> {
  * Administration of the instance against the production image, as the administrator the global setup created.
  *
  * Scenarios:
- * - the account menu offers Administration, and the settings dialog lists the accounts, among them one created through an invitation whose second step is on
+ * - the settings of the account menu offer Administration, which lists the accounts, among them one created through an invitation whose second step is on
  * - making the account an administrator and back changes its role in the list
  * - removing its second step asks first, and afterwards the list shows it off
  * - disabling it asks first, ends its session at once, and enabling it makes it active again without a question

@@ -124,15 +124,16 @@ describe('trusted servers', () => {
     await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
   })
 
-  it('opens from the user menu', async () => {
+  it('opens from the settings of the user menu', async () => {
     mockHosts([])
     const user = userEvent.setup()
     const { history } = await renderApp()
 
     await user.click(await screen.findByRole('button', { name: 'Account' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Trusted servers' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Settings' }))
+    await user.click(within(await screen.findByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Trusted servers' }))
 
-    expect(await screen.findByRole('heading', { name: 'Trusted servers' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Trusted servers' })).toBeInTheDocument()
     expect(history.location.search).toContain('settings=servers')
   })
 

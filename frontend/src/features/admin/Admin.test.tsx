@@ -436,14 +436,15 @@ describe('administration', () => {
     expect(screen.queryByRole('tab', { name: 'Accounts' })).not.toBeInTheDocument()
   })
 
-  it('offers the page in the account menu to administrators only', async () => {
+  it('offers the section in the settings to administrators only', async () => {
     mockAdmin()
     await renderApp({ path: '/' })
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'Account' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Administration' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Settings' }))
+    await user.click(within(await screen.findByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Administration' }))
 
-    expect(await screen.findByRole('heading', { name: 'Administration' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Administration' })).toBeInTheDocument()
   })
 
   it('does not offer the page to a regular account', async () => {

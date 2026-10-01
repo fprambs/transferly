@@ -39,7 +39,7 @@ async function pick(user: ReturnType<typeof userEvent.setup>, email: string, ite
  * - ownership goes to a member whose key is sealed after typing the name of the workspace, it cannot go to a member still waiting and a refusal is explained
  * - leaving a team asks first, calls the server and goes back to the personal workspace
  * - the invitations tab lists what is waiting with who invited and when it expires, revokes one, says when there are none and while it loads
- * - the team switcher lists the workspaces with roles and opens the members page
+ * - the team switcher lists the workspaces with roles and leaves the members to the settings
  */
 describe('members page', () => {
   beforeEach(() => {
@@ -334,16 +334,14 @@ describe('members page', () => {
     expect(await screen.findByRole('table', { name: 'Members' })).toBeInTheDocument()
   })
 
-  it('lists the workspaces with roles in the switcher and opens the members page', async () => {
+  it('lists the workspaces with roles in the switcher, which leaves the members to the settings', async () => {
     mockTeam({ role: 'admin' })
     const user = userEvent.setup()
-    const { history } = await renderApp({ path: '/' })
+    await renderApp({ path: '/' })
 
     await user.click(await screen.findByRole('button', { name: 'Workspace' }))
     expect(await screen.findByRole('menuitem', { name: /Acme Web\s*Admin/ })).toBeInTheDocument()
-    await user.click(screen.getByRole('menuitem', { name: 'Members' }))
-
-    await waitFor(() => expect(history.location.search).toContain('settings=members'))
+    expect(screen.queryByRole('menuitem', { name: 'Members' })).not.toBeInTheDocument()
   })
 
   it('offers a new team from the switcher', async () => {

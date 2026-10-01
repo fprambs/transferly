@@ -36,7 +36,6 @@
     "invalid_challenge": "The sign-in took too long. Enter your password again."
   },
   "page": {
-    "label": "Members",
     "title": "Members",
     "subtitle": "People who can open the sites of {{name}}. Roles decide what each one can do.",
     "invite": "Invite member",
@@ -168,7 +167,6 @@
     "sameHint": "If the link was used, expired or was sent to another address, this page cannot tell you which."
   },
   "audit": {
-    "label": "Audit log",
     "title": "Audit log",
     "subtitle": "What changed in {{name}} and who did it. Only admins and the owner can read it.",
     "filter": "Show",

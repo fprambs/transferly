@@ -39,7 +39,7 @@ function mockAudit(answer: (query: URLSearchParams) => AuditEvent[]): URLSearchP
  * - a full page offers to load more and reads the next page from the last event
  * - an empty trail and a slow one are explained
  * - personal workspaces and members who cannot manage the workspace get a message instead of the trail
- * - the switcher offers the audit log to admins and the owner and opens it
+ * - the settings offer the audit log to admins and the owner and open it
  */
 describe('audit page', () => {
   beforeEach(() => {
@@ -154,25 +154,23 @@ describe('audit page', () => {
     expect(await screen.findByText('Only admins and the owner can read the audit log.')).toBeInTheDocument()
   })
 
-  it('offers the audit log in the switcher to admins only', async () => {
+  it('offers the audit log in the settings to admins only', async () => {
     mockTeam({ role: 'admin' })
     mockAudit(() => [])
     const user = userEvent.setup()
-    const { history } = await renderApp({ path: '/' })
+    const { history } = await renderApp({ path: '/?settings=members' })
 
-    await user.click(await screen.findByRole('button', { name: 'Workspace' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Audit log' }))
+    await user.click(await within(await screen.findByRole('navigation', { name: 'Settings' })).findByRole('button', { name: 'Audit log' }))
 
     await waitFor(() => expect(history.location.search).toContain('settings=audit'))
   })
 
   it('does not offer the audit log to editors', async () => {
     mockTeam({ role: 'editor' })
-    const user = userEvent.setup()
-    await renderApp({ path: '/' })
+    await renderApp({ path: '/?settings=members' })
 
-    await user.click(await screen.findByRole('button', { name: 'Workspace' }))
-    await screen.findByRole('menuitem', { name: 'Members' })
-    expect(screen.queryByRole('menuitem', { name: 'Audit log' })).not.toBeInTheDocument()
+    const sections = await screen.findByRole('navigation', { name: 'Settings' })
+    await within(sections).findByRole('button', { name: 'Members' })
+    expect(within(sections).queryByRole('button', { name: 'Audit log' })).not.toBeInTheDocument()
   })
 })

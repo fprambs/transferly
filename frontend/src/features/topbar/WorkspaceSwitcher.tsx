@@ -5,19 +5,16 @@ import { useTranslation } from 'react-i18next'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useUiStore } from '@/state/ui-store'
 
-import { useSettingsDialog } from '../settings/sections'
-import { canManageMembers } from '../teams/roles'
 import { NewTeamDialog } from '../teams/NewTeamDialog'
 import { useWorkspace, useWorkspaces } from '../workspace/use-workspace'
 
-/** Drop-down of the top bar that shows the workspace in use, switches to another, opens its members and starts a new team. */
+/** Drop-down of the top bar that shows the workspace in use, switches to another and starts a new team; its members and audit log live in the settings dialog. */
 export function WorkspaceSwitcher() {
   const { t } = useTranslation('shell')
   const { t: teams } = useTranslation('teams')
   const workspaces = useWorkspaces()
   const current = useWorkspace()
   const setWorkspace = useUiStore((state) => state.setWorkspace)
-  const settingsDialog = useSettingsDialog()
   const [creating, setCreating] = useState(false)
 
   if (current === undefined) {
@@ -42,10 +39,6 @@ export function WorkspaceSwitcher() {
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          {current.kind === 'team' && <DropdownMenuItem onClick={() => settingsDialog.open('members')}>{teams(($) => $.page.label)}</DropdownMenuItem>}
-          {current.kind === 'team' && canManageMembers(current.role) && (
-            <DropdownMenuItem onClick={() => settingsDialog.open('audit')}>{teams(($) => $.audit.label)}</DropdownMenuItem>
-          )}
           <DropdownMenuItem onClick={() => setCreating(true)}>{teams(($) => $.page.createTeam)}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

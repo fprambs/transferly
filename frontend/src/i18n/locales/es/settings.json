@@ -48,9 +48,7 @@
     "home": "Ir al inicio"
   },
   "menu": {
-    "settings": "Ajustes",
-    "servers": "Servidores de confianza",
-    "administration": "Administración"
+    "settings": "Ajustes"
   },
   "explorer": {
     "title": "Explorador de archivos",

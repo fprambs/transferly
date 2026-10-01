@@ -33,14 +33,17 @@
   },
   "section": {
     "title": "Verificación en dos pasos",
-    "description": "Pide un código de una app de autenticación después de tu contraseña, para que una contraseña robada no baste para llegar a tus servidores.",
+    "description": "Un segundo paso después de tu contraseña, para que una contraseña robada no baste para llegar a tus servidores. Usa una app de autenticación, passkeys o ambas.",
     "statusOn": "Activada",
     "statusOff": "Desactivada",
-    "recoveryLeft": "{{count}} códigos de recuperación",
+    "recoveryLeft": "Quedan {{count}} sin usar",
     "enable": "Activar",
     "disable": "Desactivar",
     "regenerate": "Nuevos códigos de recuperación",
-    "loading": "Cargando…"
+    "loading": "Cargando…",
+    "app": "App de autenticación",
+    "appDetail": "Un código de 6 dígitos que cambia cada 30 segundos, desde una app como Aegis, 2FAS o 1Password.",
+    "recoveryTitle": "Códigos de recuperación"
   },
   "enable": {
     "title": "Activar la verificación en dos pasos",

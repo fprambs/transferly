@@ -15,7 +15,7 @@ function initialsOf(email: string): string {
   return email.slice(0, 2).toUpperCase()
 }
 
-/** Avatar of the top bar with the account menu: who is signed in and how to sign out. */
+/** Avatar of the top bar with the account menu: who is signed in, the settings dialog, where every other section lives, and how to sign out. */
 export function UserMenu() {
   const { t } = useTranslation('shell')
   const { t: settings } = useTranslation('settings')
@@ -40,8 +40,6 @@ export function UserMenu() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => settingsDialog.open('general')}>{settings(($) => $.menu.settings)}</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => settingsDialog.open('servers')}>{settings(($) => $.menu.servers)}</DropdownMenuItem>
-        {session?.user.role === 'admin' && <DropdownMenuItem onClick={() => settingsDialog.open('admin')}>{settings(($) => $.menu.administration)}</DropdownMenuItem>}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {

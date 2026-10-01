@@ -362,6 +362,8 @@ Ajustes, seguridad, miembros, auditoría, servidores de confianza y administraci
 - [x] Seguridad pasa a su propia sección; Ajustes se llama General
 - [x] Contraste: textos de estado sobre tintes con tokens propios (`text-ok-text`, `text-warn-text`, `text-danger-text`, `text-info-text`, el color del estado mezclado con el del texto) y tintes de 15 % como máximo, para 4.5:1 en todos los temas; pestañas inactivas con `muted-foreground`
 - [x] E2E: specs de administración, equipos, segundo factor y capturas al diálogo y las tablas; los análisis de accesibilidad esperan a que terminen las animaciones de entrada
+- [x] Menú de cuenta con una sola entrada, Ajustes, y selector de workspace sin miembros ni auditoría: el diálogo reúne todas las secciones
+- [x] Seguridad en dos tarjetas: verificación en dos pasos (app de autenticación con su estado y, si está activa, los códigos de recuperación en su propia fila) y passkeys (cada una en su fila, con estado vacío)
 - [ ] Líneas base visuales de ajustes regeneradas con el diálogo
 
 ## Fase 5: Escala e integraciones

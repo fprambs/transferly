@@ -36,7 +36,6 @@
     "invalid_challenge": "El inicio de sesión tardó demasiado. Escribe de nuevo tu contraseña."
   },
   "page": {
-    "label": "Miembros",
     "title": "Miembros",
     "subtitle": "Personas que pueden abrir los sitios de {{name}}. Los roles deciden qué puede hacer cada una.",
     "invite": "Invitar miembro",
@@ -168,7 +167,6 @@
     "sameHint": "Si el enlace se usó, venció o se envió a otra dirección, esta página no puede decirte cuál."
   },
   "audit": {
-    "label": "Auditoría",
     "title": "Registro de auditoría",
     "subtitle": "Qué cambió en {{name}} y quién lo hizo. Solo lo leen los administradores y el propietario.",
     "filter": "Mostrar",

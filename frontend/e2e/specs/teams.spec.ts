@@ -24,13 +24,14 @@ function rowsOf(page: Page, table: string) {
   return page.getByRole('table', { name: table }).locator('tbody tr')
 }
 
-/** Chooses the team in the workspace switcher of a page and opens its members in the settings dialog. */
+/** Chooses the team in the workspace switcher of a page and opens its members from the settings of the account menu. */
 async function openTeamMembers(page: Page, name: string): Promise<void> {
   await closeSettings(page)
   await page.getByRole('button', { name: 'Workspace' }).click()
   await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click()
-  await page.getByRole('button', { name: 'Workspace' }).click()
-  await page.getByRole('menuitem', { name: 'Members', exact: true }).click()
+  await page.getByRole('button', { name: 'Account' }).click()
+  await page.getByRole('menuitem', { name: 'Settings' }).click()
+  await openSection(page, 'Members')
   await expect(page).toHaveURL(/settings=members/)
 }
 

@@ -33,14 +33,17 @@
   },
   "section": {
     "title": "Two-step verification",
-    "description": "Ask for a code from an authenticator app after your password, so a stolen password is not enough to reach your servers.",
+    "description": "A second step after your password, so a stolen password is not enough to reach your servers. Use an authenticator app, passkeys, or both.",
     "statusOn": "On",
     "statusOff": "Off",
     "recoveryLeft": "{{count}} recovery codes left",
     "enable": "Turn on",
     "disable": "Turn off",
     "regenerate": "New recovery codes",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "app": "Authenticator app",
+    "appDetail": "A 6 digit code that changes every 30 seconds, from an app such as Aegis, 2FAS or 1Password.",
+    "recoveryTitle": "Recovery codes"
   },
   "enable": {
     "title": "Turn on two-step verification",
