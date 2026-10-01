@@ -333,6 +333,7 @@ La interfaz usaba casi solo grises: el color pasa a decir algo, siempre desde lo
 - [x] Color por estado: barras de transferencia con franjas de marca mientras avanzan y colores de éxito, error y pausa; contadores de color en el panel; pasos del registro que salen bien en verde; «Subir» como acción principal; «Conectado» junto a la ruta; ícono del protocolo de cada sitio, que avisa cuando FTP puede ir o va sin cifrar; bóveda abierta en verde
 - [x] Marca en pantallas clave: inicio de sesión, primer arranque e invitaciones junto a un panel de marca; ilustraciones en los estados vacíos; el símbolo se dibuja mientras se abre una conexión; íconos propios en los encabezados de sitios, registro y transferencias
 - [x] Etiqueta de color por sitio (ocho colores): barra en la lista de sitios, borde de sus pestañas y línea sobre la ruta del explorador; el importador de FileZilla lee su `Colour` y la exportación cifrada la conserva
+- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con el color nuevo
 
 ## Fase 5: Escala e integraciones
 
