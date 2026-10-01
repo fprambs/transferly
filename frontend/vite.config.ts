@@ -25,7 +25,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'guards/**/*.test.ts'],
-    testTimeout: 20000,
+    // Integration tests with userEvent can exceed 20s when the full suite runs with coverage (many workers).
+    testTimeout: process.env.VITEST_COVERAGE === '1' ? 60_000 : 20_000,
+    maxWorkers: process.env.VITEST_COVERAGE === '1' ? 4 : undefined,
     restoreMocks: true,
     unstubGlobals: true,
     coverage: {
