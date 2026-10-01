@@ -1,2 +1,2 @@
-Sentinel preview sample.
+Transferly preview sample.
 Plain text, UTF-8: ñandú, 日本語, emoji 😀.

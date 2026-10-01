@@ -98,7 +98,7 @@ def write_fonts(folder):
     builder.setupGlyf({name: shape for name, (shape, _) in glyphs.items()})
     builder.setupHorizontalMetrics({name: (width, 0) for name, (_, width) in glyphs.items()})
     builder.setupHorizontalHeader(ascent=800, descent=-200)
-    builder.setupNameTable({"familyName": "Sentinel Blocks", "styleName": "Regular", "version": "Version 1.0", "copyright": "Drawn for the Sentinel preview samples"})
+    builder.setupNameTable({"familyName": "Transferly Blocks", "styleName": "Regular", "version": "Version 1.0", "copyright": "Drawn for the Transferly preview samples"})
     builder.setupOS2(sTypoAscender=800, usWinAscent=800, usWinDescent=200)
     builder.setupPost()
     ttf = os.path.join(folder, "blocks.ttf")
@@ -121,8 +121,8 @@ def write_certificates(folder):
     """Writes a chain signed by a throwaway authority, an expired certificate, an elliptic curve one, an Ed25519 one with unusual names and
     usages, a DSA one, a certificate request, DER copies, public keys and a private key."""
     with tempfile.TemporaryDirectory() as work:
-        openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "3650", "-subj", "/C=CL/O=Sentinel Samples/CN=Sentinel Sample Root CA", cwd=work)
-        openssl("req", "-newkey", "rsa:2048", "-nodes", "-keyout", "leaf.key", "-out", "leaf.csr", "-subj", "/C=CL/ST=RM/L=Santiago/O=Sentinel Samples/CN=files.example.com", cwd=work)
+        openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "3650", "-subj", "/C=CL/O=Transferly Samples/CN=Transferly Sample Root CA", cwd=work)
+        openssl("req", "-newkey", "rsa:2048", "-nodes", "-keyout", "leaf.key", "-out", "leaf.csr", "-subj", "/C=CL/ST=RM/L=Santiago/O=Transferly Samples/CN=files.example.com", cwd=work)
         with open(os.path.join(work, "leaf.ext"), "w") as f:
             f.write("subjectAltName=DNS:files.example.com,DNS:*.files.example.com,IP:192.0.2.10\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n")
         openssl("x509", "-req", "-in", "leaf.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-CAcreateserial", "-out", "leaf.pem", "-days", "825", "-extfile", "leaf.ext", cwd=work)
@@ -153,7 +153,7 @@ def write_certificates(folder):
         openssl("pkey", "-in", "ec.key", "-pubout", "-out", os.path.join(folder, "public-key.pem"), cwd=work)
         with open(os.path.join(folder, "private-key.pem"), "wb") as f:
             f.write(read("leaf.key"))
-        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "sample@sentinel", "-f", os.path.join(work, "id")], check=True)
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "sample@transferly", "-f", os.path.join(work, "id")], check=True)
         with open(os.path.join(folder, "id_ed25519.pub"), "wb") as f:
             f.write(read("id.pub"))
     with open(os.path.join(folder, "broken.pem"), "w") as f:
@@ -163,13 +163,13 @@ def write_certificates(folder):
 def write_mail(folder):
     """Writes a newsletter with text, HTML, an inline picture and attachments, and a hostile message."""
     message = EmailMessage()
-    message["From"] = "Sentinel Samples <samples@example.com>"
+    message["From"] = "Transferly Samples <samples@example.com>"
     message["To"] = "Ana <ana@example.com>, bruno@example.com"
     message["Cc"] = "Carla <carla@example.com>"
     message["Subject"] = "Informe de septiembre · 📊 resultados"
     message["Date"] = format_datetime(datetime.datetime(2026, 9, 30, 12, 0, tzinfo=datetime.timezone.utc))
     message["Message-ID"] = make_msgid(domain="example.com")
-    message.set_content("Hola Ana,\n\nAdjunto el informe de septiembre.\n\nSaludos,\nSentinel\n")
+    message.set_content("Hola Ana,\n\nAdjunto el informe de septiembre.\n\nSaludos,\nTransferly\n")
     cid = make_msgid(domain="example.com")
     message.add_alternative(
         f"<html><body style='font-family:sans-serif'><h1>Informe de septiembre</h1><p>Hola <b>Ana</b>,</p>"

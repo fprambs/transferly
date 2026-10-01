@@ -55,9 +55,9 @@ def hyperlink(paragraph, url, text):
 def write_docx(path):
     """Writes a Word document with headings, styled text, lists, a table, an image, a link, a header, a footer and two pages."""
     doc = Document()
-    doc.sections[0].header.paragraphs[0].text = "Sentinel · preview samples"
-    doc.sections[0].footer.paragraphs[0].text = "Generated for the file viewers of Sentinel"
-    doc.add_heading("Sentinel preview sample", level=0)
+    doc.sections[0].header.paragraphs[0].text = "Transferly · preview samples"
+    doc.sections[0].footer.paragraphs[0].text = "Generated for the file viewers of Transferly"
+    doc.add_heading("Transferly preview sample", level=0)
     doc.add_heading("A Word document", level=1)
     intro = doc.add_paragraph("This document has ")
     intro.add_run("bold").bold = True
@@ -86,7 +86,7 @@ def write_docx(path):
         cells[0].text, cells[1].text, cells[2].text = name, city, f"{amount:,.2f}"
     doc.add_heading("An image and a link", level=2)
     doc.add_picture(IMAGE, width=Inches(3))
-    hyperlink(doc.add_paragraph("Project page: "), "https://example.com/sentinel", "example.com/sentinel")
+    hyperlink(doc.add_paragraph("Project page: "), "https://example.com/transferly", "example.com/transferly")
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
     doc.add_heading("Second page", level=1)
     doc.add_paragraph("The viewer lays the document out page by page, as Word does. " * 8)
@@ -141,7 +141,7 @@ def write_odt(path):
     centered.addElement(ParagraphProperties(textalign="center"))
     for style in (bold, italic, colored, centered):
         doc.automaticstyles.addElement(style)
-    doc.text.addElement(H(outlinelevel=1, text="Sentinel preview sample"))
+    doc.text.addElement(H(outlinelevel=1, text="Transferly preview sample"))
     doc.text.addElement(H(outlinelevel=2, text="An OpenDocument text"))
     paragraph = P(text="This document has ")
     paragraph.addElement(Span(stylename=bold, text="bold"))
@@ -153,7 +153,7 @@ def write_odt(path):
     doc.text.addElement(paragraph)
     doc.text.addElement(P(stylename=centered, text="A centered paragraph."))
     items = List()
-    for text in ("Written by odfpy", "Read by Sentinel in the browser", "Never sent anywhere"):
+    for text in ("Written by odfpy", "Read by Transferly in the browser", "Never sent anywhere"):
         item = ListItem()
         item.addElement(P(text=text))
         items.addElement(item)
@@ -253,7 +253,7 @@ def write_pptx(path):
     deck = Presentation()
     deck.slide_width, deck.slide_height = PptxInches(13.333), PptxInches(7.5)
     title = deck.slides.add_slide(deck.slide_layouts[0])
-    title.shapes.title.text = "Sentinel preview sample"
+    title.shapes.title.text = "Transferly preview sample"
     title.placeholders[1].text = "A PowerPoint deck read in the browser"
     bullets = deck.slides.add_slide(deck.slide_layouts[1])
     bullets.shapes.title.text = "What the viewer shows"

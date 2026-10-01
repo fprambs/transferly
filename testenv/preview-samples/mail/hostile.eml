@@ -3,15 +3,15 @@ To: victim@example.com
 Subject: <img src=x onerror=alert(1)> urgent
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
- boundary="===============2452888525172210467=="
+ boundary="===============5367606592231075955=="
 
---===============2452888525172210467==
+--===============5367606592231075955==
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 
 See the HTML part.
 
---===============2452888525172210467==
+--===============5367606592231075955==
 Content-Type: text/html; charset="utf-8"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
@@ -23,4 +23,4 @@ ing pixel:</p><img src=3D'https://example.com/pixel.gif?id=3Dvictim'><a href=
 l'><input name=3D'password'></form><iframe src=3D'https://example.com/frame'>=
 </iframe></body></html>
 
---===============2452888525172210467==--
+--===============5367606592231075955==--

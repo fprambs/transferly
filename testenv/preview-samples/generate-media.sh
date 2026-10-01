@@ -8,7 +8,7 @@ quiet="-hide_banner -loglevel error -y"
 
 tone="sine=frequency=440:duration=4,volume=0.3"
 ffmpeg $quiet -f lavfi -i "$tone" audio/tone.wav
-ffmpeg $quiet -f lavfi -i "$tone" -c:a libmp3lame -b:a 64k -metadata title='Sentinel tone' audio/tone.mp3
+ffmpeg $quiet -f lavfi -i "$tone" -c:a libmp3lame -b:a 64k -metadata title='Transferly tone' audio/tone.mp3
 ffmpeg $quiet -f lavfi -i "$tone" -c:a libvorbis -q:a 2 audio/tone.ogg
 ffmpeg $quiet -f lavfi -i "$tone" -c:a libopus -b:a 32k audio/tone.opus
 ffmpeg $quiet -f lavfi -i "$tone" -c:a flac audio/tone.flac

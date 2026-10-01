@@ -9,7 +9,7 @@ base() {
   output="$2"
   shift 2
   convert -size 640x400 gradient:'#0f766e'-'#1e3a8a' \
-    -fill white -font DejaVu-Sans-Bold -pointsize 56 -gravity center -annotate +0-20 'Sentinel' \
+    -fill white -font DejaVu-Sans-Bold -pointsize 56 -gravity center -annotate +0-20 'Transferly' \
     -pointsize 22 -annotate +0+40 "$label" base.png
   convert base.png "$@" "$output"
   rm base.png
@@ -21,7 +21,7 @@ base 'WebP' sample.webp
 base 'AVIF' sample.avif
 base 'BMP' BMP3:sample.bmp
 base 'TIFF' sample.tiff -compress lzw
-convert -size 64x64 xc:'#0f766e' -fill white -font DejaVu-Sans-Bold -pointsize 40 -gravity center -annotate +0+0 'S' \
+convert -size 64x64 xc:'#0f766e' -fill white -font DejaVu-Sans-Bold -pointsize 40 -gravity center -annotate +0+0 'T' \
   -define icon:auto-resize=64,32,16 sample.ico
 for frame in 1:'#0f766e' 2:'#1e3a8a' 3:'#9d174d'; do
   convert -size 200x120 "xc:${frame#*:}" -fill white -font DejaVu-Sans-Bold -pointsize 48 -gravity center -annotate +0+0 "${frame%%:*}" "frame-${frame%%:*}.gif"
@@ -55,7 +55,7 @@ def ifd(entries, start, next_ifd=0):
     return struct.pack('<H', len(entries)) + body + struct.pack('<I', next_ifd) + data
 
 exif_entries = [(0x9003, 2, '2026:09:29 18:30:00'), (0x8827, 3, 200)]
-first = [(0x010F, 2, 'Sentinel Camera'), (0x0110, 2, 'Preview One'), (0x0131, 2, 'Sentinel samples')]
+first = [(0x010F, 2, 'Transferly Camera'), (0x0110, 2, 'Preview One'), (0x0131, 2, 'Transferly samples')]
 first_size = len(ifd(first + [(0x8769, 4, 0)], 8))
 exif_ifd = ifd(exif_entries, 8 + first_size)
 tiff = b'II*\0' + struct.pack('<I', 8) + ifd(first + [(0x8769, 4, 8 + first_size)], 8) + exif_ifd

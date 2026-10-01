@@ -182,9 +182,9 @@ def main():
     with tempfile.TemporaryDirectory() as root:
         write_tree(root, files)
         seven_zip(root, "project.7z", "-mx=9")
-        seven_zip(root, "secret.7z", "-psentinel", "-mhe=on")
-        seven_zip(root, "secret-entries.7z", "-psentinel", "-mhe=off")
-        subprocess.run(["7z", "a", "-bso0", "-bsp0", "-tzip", "-psentinel", os.path.join(OUT, "secret.zip"), "project/README.md"], check=True, cwd=root)
+        seven_zip(root, "secret.7z", "-ptransferly", "-mhe=on")
+        seven_zip(root, "secret-entries.7z", "-ptransferly", "-mhe=off")
+        subprocess.run(["7z", "a", "-bso0", "-bsp0", "-tzip", "-ptransferly", os.path.join(OUT, "secret.zip"), "project/README.md"], check=True, cwd=root)
     write_hostile()
 
 

@@ -33,7 +33,7 @@ def escape(text):
 
 def page_content(number, lines):
     """The content stream of a page: a title and lines of text in Helvetica."""
-    parts = ['BT /F1 22 Tf 72 740 Td (%s) Tj ET' % escape('Sentinel manual - page %d' % number)]
+    parts = ['BT /F1 22 Tf 72 740 Td (%s) Tj ET' % escape('Transferly manual - page %d' % number)]
     y = 700
     for line in lines:
         parts.append('BT /F1 12 Tf 72 %d Td (%s) Tj ET' % (y, escape(line)))
@@ -94,7 +94,7 @@ def build(path, contents, extra_catalog='', encrypt_password=None):
 os.makedirs(HERE, exist_ok=True)
 manual = []
 for number in range(1, 31):
-    lines = ['This is page %d of the manual of the Sentinel file viewer.' % number, 'Each page is drawn when it comes into view.']
+    lines = ['This is page %d of the manual of the Transferly file viewer.' % number, 'Each page is drawn when it comes into view.']
     if number == 17:
         lines.append('The rare word quetzal appears only on this page.')
     manual.append(page_content(number, lines))
@@ -106,7 +106,7 @@ build('large.pdf', large)
 
 build('with-javascript.pdf', [page_content(1, ['This PDF asks to run JavaScript when it opens.', 'The viewer never runs it.'])],
       extra_catalog="/OpenAction << /S /JavaScript /JS (app.alert\\('owned'\\)) >> /Names << /JavaScript << /Names [(owned) << /S /JavaScript /JS (app.alert\\(1\\)) >>] >> >> ")
-build('protected.pdf', [page_content(1, ['A document protected with the password sentinel.'])], encrypt_password='sentinel')
+build('protected.pdf', [page_content(1, ['A document protected with the password transferly.'])], encrypt_password='transferly')
 whole = build('broken-source.pdf', [page_content(1, ['This file is cut short.'])])
 with open(os.path.join(HERE, 'broken.pdf'), 'wb') as target:
     target.write(whole[:300])

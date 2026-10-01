@@ -1,4 +1,4 @@
-# Sentinel preview sample
+# Transferly preview sample
 
 Markdown is **rendered** and *sanitized* inside an isolated page, with `inline code`, [a link](https://example.com) and lists:
 
