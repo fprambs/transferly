@@ -88,6 +88,14 @@ describe('theme readability', () => {
           }
         }
       }
+      const accentHover = mixColors(theme.tokens.text, theme.tokens.raised, 12)
+      if (contrastRatio(theme.tokens.muted, accentHover) < 4.5) {
+        failures.push(`muted on accent hover: ${contrastRatio(theme.tokens.muted, accentHover).toFixed(2)} < 4.5`)
+      }
+      const okTextApprox = mixColors(theme.tokens.ok, theme.tokens.text, 50)
+      if (contrastRatio(okTextApprox, theme.tokens.surface) < 4.5) {
+        failures.push(`ok-text on surface: ${contrastRatio(okTextApprox, theme.tokens.surface).toFixed(2)} < 4.5`)
+      }
       if (theme.id === 'transferly-dark' || theme.id === 'transferly-light') {
         const softSurface = mixColors(theme.tokens.danger, theme.tokens.surface, 15)
         const softOk = mixColors(theme.tokens.ok, theme.tokens.surface, 15)

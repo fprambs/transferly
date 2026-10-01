@@ -80,7 +80,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
   return (
     <li
       className={cn(
-        'flex items-center gap-3 border-b px-4 py-2 text-[13px] duration-200 animate-in fade-in-0 slide-in-from-bottom-1 last:border-b-0',
+        'flex items-center gap-3 border-b px-4 py-2 text-[13px] text-foreground last:border-b-0',
         failedNow && 'motion-safe:animate-shake',
       )}
     >
@@ -103,14 +103,14 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px]">
-          <span className="text-faint">
+          <span className="text-muted-foreground">
             {record.totalBytes === undefined
               ? t(($) => $.unknownSize, { done: formatSize(record.bytesDone) })
               : t(($) => $.of, { done: formatSize(record.bytesDone), total: formatSize(record.totalBytes) })}
           </span>
-          {record.status === 'running' && item.speed > 0 ? <span className="text-faint">{formatSpeed(item.speed)}</span> : null}
-          {record.status === 'running' && eta !== undefined ? <span className="text-faint">{t(($) => $.left, { time: formatDuration(eta) })}</span> : null}
-          {queued ? <span className="text-faint">{paused ? t(($) => $.paused) : t(($) => $.waiting)}</span> : null}
+          {record.status === 'running' && item.speed > 0 ? <span className="text-muted-foreground">{formatSpeed(item.speed)}</span> : null}
+          {record.status === 'running' && eta !== undefined ? <span className="text-muted-foreground">{t(($) => $.left, { time: formatDuration(eta) })}</span> : null}
+          {queued ? <span className="text-muted-foreground">{paused ? t(($) => $.paused) : t(($) => $.waiting)}</span> : null}
           {active ? null : (
             <span className={cn('inline-flex items-center gap-1 font-medium', finishedTones[record.status])}>
               {Outcome !== undefined && <Outcome aria-hidden="true" className="size-3 duration-300 animate-in zoom-in-50 fade-in-0" />}

@@ -28,6 +28,7 @@ const themes = [
 test.describe('accessibility', () => {
   for (const theme of themes) {
     test(`has no WCAG violations with the ${theme} theme`, async ({ shell, page }) => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
       await shell.setTheme(theme)
 
       await settle(page)
@@ -38,6 +39,7 @@ test.describe('accessibility', () => {
   }
 
   test('has no WCAG violations in Spanish', async ({ shell, page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await shell.setLanguage('es')
 
     await settle(page)
