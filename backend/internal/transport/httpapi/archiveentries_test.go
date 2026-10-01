@@ -49,8 +49,8 @@ func TestArchiveEntries(t *testing.T) {
 	}
 	readme := e.get("/archive-entry", q("path", "/project.zip", "entry", "project/README.md"), nil)
 	disposition, params, _ := mime.ParseMediaType(readme.Header.Get("Content-Disposition"))
-	if readme.Status != http.StatusOK || disposition != "attachment" || params["filename"] != "README.md" || readme.Header.Get("Content-Length") != "581" ||
-		readme.Header.Get("Content-Type") != "application/octet-stream" || len(readme.Body) != 581 {
+	if readme.Status != http.StatusOK || disposition != "attachment" || params["filename"] != "README.md" || readme.Header.Get("Content-Length") != "583" ||
+		readme.Header.Get("Content-Type") != "application/octet-stream" || len(readme.Body) != 583 {
 		t.Errorf("entry = %d %v %d bytes", readme.Status, readme.Header, len(readme.Body))
 	}
 
