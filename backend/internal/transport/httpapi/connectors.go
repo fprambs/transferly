@@ -3,7 +3,7 @@ package httpapi
 import (
 	"context"
 
-	"github.com/fprambs/sentinel/internal/core/connectors"
+	"github.com/fprambs/transferly/internal/core/connectors"
 )
 
 // optional returns a pointer to a value, or nil for its zero value, so a field left out of a descriptor is left out of the answer.
@@ -36,7 +36,7 @@ func connectorDTO(d connectors.Descriptor) Connector {
 	}
 }
 
-// ListConnectors answers the catalog of connectors Sentinel is built with (ADR-0019).
+// ListConnectors answers the catalog of connectors Transferly is built with (ADR-0019).
 func (s *server) ListConnectors(_ context.Context, _ ListConnectorsRequestObject) (ListConnectorsResponseObject, error) {
 	all := s.deps.Connectors.All()
 	out := make(ListConnectors200JSONResponse, len(all))

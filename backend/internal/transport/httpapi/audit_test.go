@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // trail reads the audit trail of the team as a role, with the query given.

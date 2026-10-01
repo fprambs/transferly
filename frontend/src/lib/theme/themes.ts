@@ -1,16 +1,16 @@
 import type { ThemeDefinition } from './tokens'
 
 /** Identifier of the theme new users and unknown stored choices fall back to. */
-export const defaultThemeId = 'sentinel-dark'
+export const defaultThemeId = 'transferly-dark'
 
 /** Identifier of the light theme used when the interface follows a light operating system. */
-export const systemLightThemeId = 'sentinel-light'
+export const systemLightThemeId = 'transferly-light'
 
 /** Every theme of the interface, dark ones first, in the order the theme list shows them. */
 export const themes: readonly ThemeDefinition[] = [
   {
-    id: 'sentinel-dark',
-    name: 'Sentinel Dark',
+    id: 'transferly-dark',
+    name: 'Transferly Dark',
     scheme: 'dark',
     tokens: {
       bg: '#0b0d11',
@@ -31,8 +31,8 @@ export const themes: readonly ThemeDefinition[] = [
     },
   },
   {
-    id: 'sentinel-light',
-    name: 'Sentinel Light',
+    id: 'transferly-light',
+    name: 'Transferly Light',
     scheme: 'light',
     tokens: {
       bg: '#f4f5f8',

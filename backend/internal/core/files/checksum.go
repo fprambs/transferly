@@ -12,8 +12,8 @@ import (
 	"hash"
 	"io"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // ErrUnsupportedAlgorithm means the checksum algorithm is not one of those offered.

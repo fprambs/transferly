@@ -9,8 +9,8 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/passkey"
 )
 
 // PasskeyStore is the persistence an implementation offers to the passkey package, plus user creation.

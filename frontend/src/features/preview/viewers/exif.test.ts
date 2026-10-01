@@ -13,7 +13,7 @@ import { readPhotoInfo } from './exif'
 describe('readPhotoInfo', () => {
   it('reads the metadata of a photo', async () => {
     const info = await readPhotoInfo(new Uint8Array(readFileSync('../testenv/preview-samples/images/sample.jpg')))
-    expect(info).toMatchObject({ camera: 'Sentinel Camera Preview One', iso: '200', software: 'Sentinel samples' })
+    expect(info).toMatchObject({ camera: 'Transferly Camera Preview One', iso: '200', software: 'Transferly samples' })
     expect(info.taken).toMatch(/^2026-09-29T/)
   })
 })

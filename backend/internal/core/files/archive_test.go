@@ -14,11 +14,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // oddFS lists what real servers can hand out: links, devices, names with separators and folders that never end.

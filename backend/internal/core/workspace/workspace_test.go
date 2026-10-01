@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // errBoom is the error injected by the fake store.

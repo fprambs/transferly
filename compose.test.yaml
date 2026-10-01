@@ -1,7 +1,7 @@
 # Test stack. One command per suite; see the Makefile.
 #   docker compose -f compose.test.yaml run --rm unit    # backend and frontend tests with coverage
 #   docker compose -f compose.test.yaml run --rm e2e     # browser tests against the production image
-name: sentinel-test
+name: transferly-test
 
 x-user: &user
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
@@ -11,21 +11,21 @@ x-vsftpd: &vsftpd
   init: true
   build:
     context: testenv/vsftpd
-  image: sentinel-testenv-vsftpd
+  image: transferly-testenv-vsftpd
 
 services:
   postgres:
     image: postgres:17-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
     environment:
-      POSTGRES_USER: sentinel
-      POSTGRES_PASSWORD: sentinel
-      POSTGRES_DB: sentinel
+      POSTGRES_USER: transferly
+      POSTGRES_PASSWORD: transferly
+      POSTGRES_DB: transferly
     tmpfs:
       - /var/lib/postgresql/data
     volumes:
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      test: ["CMD-SHELL", "pg_isready -U transferly -d transferly"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -36,12 +36,12 @@ services:
     build:
       context: .
       dockerfile: docker/tools.Dockerfile
-    image: sentinel-dev-tools
+    image: transferly-dev-tools
     working_dir: /workspace
     command: sh -c "./scripts/coverage-go.sh && cd frontend && pnpm install --frozen-lockfile && pnpm typecheck && pnpm lint && pnpm test:coverage"
     environment:
       CI: "true"
-      SENTINEL_TEST_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel_test?sslmode=disable
+      TRANSFERLY_TEST_DATABASE_URL: postgres://transferly:transferly@postgres:5432/transferly_test?sslmode=disable
     volumes:
       - .:/workspace
       - cache:/cache
@@ -82,11 +82,11 @@ services:
 
   sftp:
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
-    command: sentinel:sentinel:1001:100:upload anonymous::1002:100
+    command: transferly:transferly:1001:100:upload anonymous::1002:100
     volumes:
       - ./testenv/sftp/anonymous.sh:/etc/sftp.d/anonymous.sh:ro
-      - ./frontend/e2e/keys/sentinel.pub:/home/sentinel/.ssh/keys/sentinel.pub:ro
-      - ./testenv/preview-samples:/home/sentinel/preview-samples:ro
+      - ./frontend/e2e/keys/transferly.pub:/home/transferly/.ssh/keys/transferly.pub:ro
+      - ./testenv/preview-samples:/home/transferly/preview-samples:ro
     networks:
       default:
         # A second name for the same server, whose trusted keys only the host key e2e test touches (4.13b).
@@ -97,18 +97,18 @@ services:
       timeout: 3s
       retries: 20
 
-  sentinel:
+  transferly:
     build:
       context: .
       dockerfile: docker/app.Dockerfile
-    image: sentinel:test
+    image: transferly:test
     environment:
-      SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
-      SENTINEL_BASE_URL: http://passkeys.localhost:8080
-      SENTINEL_ALLOWED_ORIGINS: http://sentinel:8080
-      SENTINEL_ALLOWED_NETWORKS: 172.16.0.0/12
-      SENTINEL_TRANSFER_LIMIT_PER_SITE: "2"
-      SENTINEL_QUICK_CONNECT_BURST: "40"
+      TRANSFERLY_DATABASE_URL: postgres://transferly:transferly@postgres:5432/transferly?sslmode=disable
+      TRANSFERLY_BASE_URL: http://passkeys.localhost:8080
+      TRANSFERLY_ALLOWED_ORIGINS: http://transferly:8080
+      TRANSFERLY_ALLOWED_NETWORKS: 172.16.0.0/12
+      TRANSFERLY_TRANSFER_LIMIT_PER_SITE: "2"
+      TRANSFERLY_QUICK_CONNECT_BURST: "40"
     tmpfs:
       - /data:mode=0700,uid=65532,gid=65532
     read_only: true
@@ -129,11 +129,11 @@ services:
     environment:
       CI: "true"
       HOME: /tmp
-      SENTINEL_E2E_URL: http://sentinel:8080
+      TRANSFERLY_E2E_URL: http://transferly:8080
     volumes:
       - .:/workspace
     depends_on:
-      sentinel:
+      transferly:
         condition: service_healthy
       sftp:
         condition: service_healthy

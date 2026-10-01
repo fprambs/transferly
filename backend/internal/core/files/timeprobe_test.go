@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // zoneFS lists like a server that prints local times without a zone: it shifts the times of every entry and gives them minute precision.

@@ -16,9 +16,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 // MaxNetworks is how many networks an administrator may allow.
@@ -45,7 +45,7 @@ var (
 // never lists the ranges no administrator may open from the panel: the "this network" block, loopback, which is the server itself and
 // whatever listens next to it such as its database, link-local addresses with the cloud metadata service, multicast and reserved blocks.
 // The servers a user reaches never live there, and they are where the attacks on the host go. Whoever runs the server can still allow
-// one of them with SENTINEL_ALLOWED_NETWORKS, which is a deliberate act on the deployment and not a click in the interface.
+// one of them with TRANSFERLY_ALLOWED_NETWORKS, which is a deliberate act on the deployment and not a click in the interface.
 var never = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"), netip.MustParsePrefix("127.0.0.0/8"), netip.MustParsePrefix("::1/128"), netip.MustParsePrefix("169.254.0.0/16"), netip.MustParsePrefix("224.0.0.0/4"),
 	netip.MustParsePrefix("240.0.0.0/4"), netip.MustParsePrefix("::/128"), netip.MustParsePrefix("fe80::/10"),

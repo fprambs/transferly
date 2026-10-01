@@ -10,7 +10,7 @@ async function saveInteractiveSite(page: Page, prefix: string): Promise<string> 
   const dialog = page.getByRole('dialog', { name: 'New site' })
   await dialog.getByLabel('Name', { exact: true }).fill(name)
   await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-  await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+  await dialog.getByLabel('Username', { exact: true }).fill('transferly')
   await choose(dialog.getByLabel('Logon type'), 'Interactive')
   await expect(dialog.getByLabel('Password', { exact: true })).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Create site' }).click()
@@ -40,7 +40,7 @@ test.describe('interactive logon', () => {
     const answer = prompt.getByLabel('Password:')
     await expect(answer).toBeFocused()
     await expect(answer).toHaveAttribute('type', 'password')
-    await page.keyboard.type('sentinel')
+    await page.keyboard.type('transferly')
     await page.keyboard.press('Enter')
 
     await expect(prompt).toBeHidden()

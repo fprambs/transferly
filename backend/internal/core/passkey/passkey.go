@@ -19,7 +19,7 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 const (
@@ -50,7 +50,7 @@ var (
 
 // Passkey is a credential of an account.
 type Passkey struct {
-	// ID identifies the passkey inside Sentinel.
+	// ID identifies the passkey inside Transferly.
 	ID uuid.UUID
 	// Name is what the user calls it, such as "Laptop" or "YubiKey".
 	Name string

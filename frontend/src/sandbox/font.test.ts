@@ -113,9 +113,9 @@ beforeEach(() => {
 describe('fonts', () => {
   it('reads what the samples tell of themselves', async () => {
     const ttf = await readFont(sample('blocks.ttf'))
-    expect(ttf).toMatchObject({ format: 'TrueType', names: { family: 'Sentinel Blocks', style: 'Regular', version: 'Version 1.0' }, glyphs: 10 })
+    expect(ttf).toMatchObject({ format: 'TrueType', names: { family: 'Transferly Blocks', style: 'Regular', version: 'Version 1.0' }, glyphs: 10 })
     expect(ttf.characters?.map((code) => String.fromCharCode(code)).join('')).toBe('AEILNOSTaeilnost')
-    expect(await readFont(sample('blocks.woff'))).toMatchObject({ format: 'WOFF', names: { family: 'Sentinel Blocks' }, glyphs: 10 })
+    expect(await readFont(sample('blocks.woff'))).toMatchObject({ format: 'WOFF', names: { family: 'Transferly Blocks' }, glyphs: 10 })
     expect(await readFont(sample('blocks.woff2'))).toEqual({ format: 'WOFF2', names: {} })
   })
 
@@ -133,17 +133,17 @@ describe('fonts', () => {
 
   it('shows a font', async () => {
     await renderFont(sample('blocks.ttf'), root, labels)
-    expect(loaded[0].family).toBe('Sentinel Preview Font')
+    expect(loaded[0].family).toBe('Transferly Preview Font')
     expect(document.fonts.add).toHaveBeenCalledWith(loaded[0])
-    expect(root.querySelector('h1')?.textContent).toBe('Sentinel Blocks Regular')
+    expect(root.querySelector('h1')?.textContent).toBe('Transferly Blocks Regular')
     expect(Array.from(root.querySelectorAll('dt'), (node) => node.textContent)).toEqual(['Format', 'Version', 'Glyphs', 'Copyright'])
     const samples = root.querySelectorAll<HTMLElement>('.font-sample')
     expect(Array.from(samples, (node) => node.style.fontSize)).toEqual(['12px', '16px', '24px', '36px', '48px', '72px'])
-    expect(samples[0].style.fontFamily).toContain('Sentinel Preview Font')
+    expect(samples[0].style.fontFamily).toContain('Transferly Preview Font')
     const input = root.querySelector('input') as HTMLInputElement
-    input.value = 'sentinel'
+    input.value = 'transferly'
     input.dispatchEvent(new Event('input'))
-    expect(root.querySelector('.font-sample')?.textContent).toBe('sentinel')
+    expect(root.querySelector('.font-sample')?.textContent).toBe('transferly')
     expect(root.querySelector('.font-section')?.textContent).toBe('Has 16')
     expect(root.querySelector('.font-char')?.getAttribute('title')).toBe('U+0041')
 

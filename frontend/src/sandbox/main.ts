@@ -19,7 +19,7 @@ const readRange: RangeReader = (begin, end) =>
   new Promise((resolve, reject) => {
     const id = nextRange++
     waiting.set(id, (bytes) => (bytes === null ? reject(new Error('range not read')) : resolve(new Uint8Array(bytes))))
-    tell({ type: 'sentinel:range', id, begin, end })
+    tell({ type: 'transferly:range', id, begin, end })
   })
 
 /** The renderers of the kinds the isolated page shows, each loaded only when a file needs it; each stage of D2 that needs the page adds
@@ -58,12 +58,12 @@ window.addEventListener('message', (event) => {
   root.replaceChildren()
   const render = renderers[message.kind]
   if (render === undefined) {
-    tell({ type: 'sentinel:failed', reason: 'unsupported' })
+    tell({ type: 'transferly:failed', reason: 'unsupported' })
     return
   }
   render(message, root).then(
-    () => tell({ type: 'sentinel:rendered' }),
-    (error: unknown) => tell({ type: 'sentinel:failed', reason: error instanceof Error && protectedErrors.has(error.name) ? 'password' : 'render' }),
+    () => tell({ type: 'transferly:rendered' }),
+    (error: unknown) => tell({ type: 'transferly:failed', reason: error instanceof Error && protectedErrors.has(error.name) ? 'password' : 'render' }),
   )
 })
 
@@ -81,8 +81,8 @@ document.addEventListener('keydown', (event) => {
   const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
   const walks = (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !typing && !event.altKey && !event.ctrlKey && !event.metaKey
   if (event.key === 'Escape' || walks) {
-    tell({ type: 'sentinel:key', key: event.key })
+    tell({ type: 'transferly:key', key: event.key })
   }
 })
 
-tell({ type: 'sentinel:ready' })
+tell({ type: 'transferly:ready' })

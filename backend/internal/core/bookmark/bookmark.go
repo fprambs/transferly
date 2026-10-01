@@ -14,8 +14,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 const (

@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // HostKeyStore is the persistence an implementation offers to the hostkey package, plus what a key needs to exist.

@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
-	"github.com/fprambs/sentinel/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/db"
+	"github.com/fprambs/transferly/internal/core/mfa"
 )
 
 var _ mfa.Store = (*Store)(nil)

@@ -10,32 +10,32 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/fprambs/sentinel/internal/adapters/events"
-	"github.com/fprambs/sentinel/internal/core/activity"
-	"github.com/fprambs/sentinel/internal/core/admin"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/bookmark"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/connectors"
-	"github.com/fprambs/sentinel/internal/core/connlog"
-	"github.com/fprambs/sentinel/internal/core/credentials"
-	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/invite"
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/core/passkey"
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/quick"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/core/wskey"
+	"github.com/fprambs/transferly/internal/adapters/events"
+	"github.com/fprambs/transferly/internal/core/activity"
+	"github.com/fprambs/transferly/internal/core/admin"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/bookmark"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connectors"
+	"github.com/fprambs/transferly/internal/core/connlog"
+	"github.com/fprambs/transferly/internal/core/credentials"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/invite"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/wskey"
 )
 
 // Limits are the rate limiters that protect the unauthenticated endpoints.
@@ -104,7 +104,7 @@ type Deps struct {
 	Import *fzimport.Service
 	// Activity keeps the log of what users did on their connections.
 	Activity *activity.Service
-	// Connectors is the catalog of the connectors Sentinel is built with (ADR-0019).
+	// Connectors is the catalog of the connectors Transferly is built with (ADR-0019).
 	Connectors *connectors.Catalog
 	// Files performs operations on the files of remote sites.
 	Files *files.Service

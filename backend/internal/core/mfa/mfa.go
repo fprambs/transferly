@@ -20,7 +20,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 const (
@@ -28,7 +28,7 @@ const (
 	RecoveryCodes = 10
 	// ChallengeTTL is how long the password step of signing in stays valid.
 	ChallengeTTL = 5 * time.Minute
-	issuer       = "Sentinel"
+	issuer       = "Transferly"
 )
 
 // Errors returned by the package.

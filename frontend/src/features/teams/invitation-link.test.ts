@@ -10,6 +10,6 @@ import { invitationLink } from './invitation-link'
  */
 describe('invitationLink', () => {
   it('puts the token in the fragment', () => {
-    expect(invitationLink('https://sentinel.example', 'abc_DEF-123')).toBe('https://sentinel.example/invite#abc_DEF-123')
+    expect(invitationLink('https://transferly.example', 'abc_DEF-123')).toBe('https://transferly.example/invite#abc_DEF-123')
   })
 })

@@ -98,7 +98,7 @@ describe('ImageViewer', () => {
 
     await user.click(screen.getByRole('button', { name: 'Info' }))
     const info = await screen.findByRole('complementary', { name: 'Info' })
-    expect(info).toHaveTextContent('Sentinel Camera Preview One')
+    expect(info).toHaveTextContent('Transferly Camera Preview One')
     expect(info).toHaveTextContent('Sep 29, 2026')
     cleanup()
     await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:image'), { timeout: 3000 })

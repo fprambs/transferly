@@ -10,11 +10,11 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/admin"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/admin"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/passkey"
 )
 
 // AdminStore is the persistence an implementation offers to the admin package, plus what the suite needs to set up.

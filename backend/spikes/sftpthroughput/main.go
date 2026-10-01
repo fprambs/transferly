@@ -276,7 +276,7 @@ func main() {
 		if s.parallel > 1 {
 			measureFunc = measureMany
 		}
-		up, down, err := measureFunc(*proxyAddr, "sentinel", "sentinel", s)
+		up, down, err := measureFunc(*proxyAddr, "transferly", "transferly", s)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", s.name, err)
 			os.Exit(1)

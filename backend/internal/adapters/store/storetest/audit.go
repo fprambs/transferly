@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // AuditStore is the persistence an implementation offers to the audit package, plus what the suite needs to set up.

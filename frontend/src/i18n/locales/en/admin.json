@@ -61,7 +61,7 @@
     "loading": "Loading networks…",
     "intro": "Sites can always reach public addresses. Servers in private networks, such as an office or a home lab, work only when their network is listed here or was set when the server started.",
     "fixed": "Set at startup",
-    "fixedNote": "From SENTINEL_ALLOWED_NETWORKS. Only a restart changes them.",
+    "fixedNote": "From TRANSFERLY_ALLOWED_NETWORKS. Only a restart changes them.",
     "none": "None.",
     "custom": "Added by administrators",
     "placeholder": "192.168.1.0/24\n10.20.0.5",

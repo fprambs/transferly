@@ -24,7 +24,7 @@ test.describe('folder upload', () => {
     const parent = `e2e-folder-${stamp}`
     expect((await request.post(`${files}/directories`, { headers, data: { path: `/upload/${parent}` } })).ok()).toBe(true)
 
-    const local = await mkdtemp(join(tmpdir(), 'sentinel-e2e-'))
+    const local = await mkdtemp(join(tmpdir(), 'transferly-e2e-'))
     const tree = join(local, `tree-${stamp}`)
     await mkdir(join(tree, 'sub'), { recursive: true })
     await writeFile(join(tree, 'top.txt'), 'top of the tree\n')

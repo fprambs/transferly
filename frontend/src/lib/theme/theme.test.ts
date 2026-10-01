@@ -7,7 +7,7 @@ import { applyTheme, defaultThemeId, findTheme, resolveTheme, systemLightThemeId
  *
  * Scenarios:
  * - a fixed choice wears the chosen theme whatever the operating system prefers
- * - following the system wears the default dark theme by night and the Sentinel light theme by day
+ * - following the system wears the default dark theme by night and the Transferly light theme by day
  * - an unknown identifier falls back to the default theme
  */
 describe('resolveTheme', () => {

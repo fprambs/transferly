@@ -3,8 +3,8 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test } from '../fixtures.ts'
 
 const themes = [
-  'sentinel-dark',
-  'sentinel-light',
+  'transferly-dark',
+  'transferly-light',
   'monokai',
   'dracula',
   'nord',

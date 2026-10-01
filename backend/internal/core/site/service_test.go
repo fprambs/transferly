@@ -16,12 +16,12 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/sshkey"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/sshkey"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // errStore is the failure injected by the fakes.

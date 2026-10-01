@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/transfer"
 )
 
 // transferDTO converts a transfer to its public representation.

@@ -38,7 +38,7 @@ const (
 	maxArgon2Parallelism = 16
 )
 
-// ppkAlgorithms are the key types read from PPK files. PuTTY also writes DSA and Ed448 keys, which Sentinel does not
+// ppkAlgorithms are the key types read from PPK files. PuTTY also writes DSA and Ed448 keys, which Transferly does not
 // connect with; anything else, such as a certificate, is not a PuTTY private key.
 var ppkAlgorithms = []string{ssh.KeyAlgoRSA, ssh.KeyAlgoECDSA256, ssh.KeyAlgoECDSA384, ssh.KeyAlgoECDSA521, ssh.KeyAlgoED25519}
 

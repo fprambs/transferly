@@ -11,12 +11,12 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/events"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/connlog"
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/adapters/events"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connlog"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/transfer"
 )
 
 // EventsPath is where clients open the WebSocket that streams events.

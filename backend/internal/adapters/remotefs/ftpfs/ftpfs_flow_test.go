@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/afero"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // bigFile is large enough that a transfer is still running when the test acts on it.

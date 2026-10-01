@@ -2,22 +2,22 @@
 # Enable with: docker compose -f compose.dev.yaml --profile testenv up
 # Hosts inside the Compose network: sftp:22, ftp:21, ftps:21, ftps-implicit:990,
 # and the same servers behind fault injection on toxiproxy:2222, 2121, 2122, 2990.
-# Credentials for every server: sentinel / sentinel.
+# Credentials for every server: transferly / transferly.
 
 x-ftp: &ftp
   profiles: ["testenv"]
   init: true
   build:
     context: testenv/vsftpd
-  image: sentinel-testenv-vsftpd
+  image: transferly-testenv-vsftpd
 
 services:
   sftp:
     profiles: ["testenv"]
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
-    command: sentinel:sentinel:1001:100:upload
+    command: transferly:transferly:1001:100:upload
     volumes:
-      - ./testenv/preview-samples:/home/sentinel/preview-samples:ro
+      - ./testenv/preview-samples:/home/transferly/preview-samples:ro
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 22"]
       interval: 3s

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // archiveSample reads an archive of the preview samples.

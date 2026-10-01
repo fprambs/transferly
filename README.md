@@ -1,11 +1,11 @@
-# Sentinel
+# Transferly
 
 Self-hosted web client for FTP, FTPS and SFTP: multi-user workspaces, an encrypted credential vault and concurrent, resumable transfers.
 
 ## Run
 
 ```sh
-git clone <repository> sentinel && cd sentinel
+git clone <repository> transferly && cd transferly
 docker compose up -d
 ```
 

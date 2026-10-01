@@ -12,8 +12,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // errBoom is the failure injected by the fake store.
@@ -216,8 +216,8 @@ func TestCode(t *testing.T) {
 // Scenarios:
 //   - the address names the issuer and the account, carries the base32 secret and the parameters, and escapes what needs it
 func TestURI(t *testing.T) {
-	got := mfa.URI("Sentinel", "ana+x@example.com", []byte("12345678901234567890"))
-	for _, part := range []string{"otpauth://totp/Sentinel:ana+x@example.com?", "secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "issuer=Sentinel", "algorithm=SHA1", "digits=6", "period=30"} {
+	got := mfa.URI("Transferly", "ana+x@example.com", []byte("12345678901234567890"))
+	for _, part := range []string{"otpauth://totp/Transferly:ana+x@example.com?", "secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "issuer=Transferly", "algorithm=SHA1", "digits=6", "period=30"} {
 		if !strings.Contains(got, part) {
 			t.Errorf("URI() = %s; want it to contain %s", got, part)
 		}

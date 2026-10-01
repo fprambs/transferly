@@ -11,7 +11,7 @@ export const adminSession: SessionInfo = {
     role: 'admin',
     locale: 'en',
     timezone: 'UTC',
-    theme: 'sentinel-dark',
+    theme: 'transferly-dark',
     fileDoubleClick: 'download',
   },
   csrfToken: 'csrf-token-1',

@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/fzimport"
 )
 
 // ExportSites answers every collection and site of the workspace, with their secrets, as a file sealed with the password given
@@ -22,15 +22,15 @@ func (s *server) ExportSites(ctx context.Context, request ExportSitesRequestObje
 	if err != nil {
 		return nil, err
 	}
-	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesExported, "sentinel", map[string]string{"sites": strconv.Itoa(count)})
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesExported, "transferly", map[string]string{"sites": strconv.Itoa(count)})
 	return ExportSites200ApplicationoctetStreamResponse{
 		Body: bytes.NewReader(file), ContentLength: int64(len(file)),
-		Headers: ExportSites200ResponseHeaders{ContentDisposition: `attachment; filename="sentinel-sites.json"`},
+		Headers: ExportSites200ResponseHeaders{ContentDisposition: `attachment; filename="transferly-sites.json"`},
 	}, nil
 }
 
-// ImportSentinel creates the collections and sites of a file exported by Sentinel.
-func (s *server) ImportSentinel(ctx context.Context, request ImportSentinelRequestObject) (ImportSentinelResponseObject, error) {
+// ImportTransferly creates the collections and sites of a file exported by Transferly.
+func (s *server) ImportTransferly(ctx context.Context, request ImportTransferlyRequestObject) (ImportTransferlyResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	opts := fzimport.Options{
 		DryRun: request.Params.DryRun != nil && *request.Params.DryRun, Passwords: request.Params.Secrets != nil && *request.Params.Secrets,
@@ -49,7 +49,7 @@ func (s *server) ImportSentinel(ctx context.Context, request ImportSentinelReque
 		return nil, err
 	}
 	if created := result.Created(); !opts.DryRun && created > 0 {
-		s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesImported, "sentinel", map[string]string{"sites": strconv.Itoa(created)})
+		s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesImported, "transferly", map[string]string{"sites": strconv.Itoa(created)})
 	}
-	return ImportSentinel200JSONResponse(importResultDTO(result, opts.DryRun)), nil
+	return ImportTransferly200JSONResponse(importResultDTO(result, opts.DryRun)), nil
 }

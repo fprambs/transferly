@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // fastParams keep tests quick; production uses [vault.DefaultParams].

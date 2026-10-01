@@ -39,13 +39,13 @@ describe('HttpTransport.events', () => {
   })
 
   it('uses wss for a secure base URL and ws for a plain one', () => {
-    const secure = new HttpTransport({ baseUrl: 'https://sentinel.example.com', webSocket: FakeSocket as unknown as typeof WebSocket })
+    const secure = new HttpTransport({ baseUrl: 'https://transferly.example.com', webSocket: FakeSocket as unknown as typeof WebSocket })
     const plain = new HttpTransport({ baseUrl: 'http://localhost:8080', webSocket: FakeSocket as unknown as typeof WebSocket })
 
     secure.events(recorder().handlers)
     plain.events(recorder().handlers)
 
-    expect(FakeSocket.opened.map((socket) => socket.url)).toEqual(['wss://sentinel.example.com/api/v1/ws', 'ws://localhost:8080/api/v1/ws'])
+    expect(FakeSocket.opened.map((socket) => socket.url)).toEqual(['wss://transferly.example.com/api/v1/ws', 'ws://localhost:8080/api/v1/ws'])
   })
 
   it('delivers open, close and known events and ignores the rest', () => {

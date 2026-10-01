@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/audit"
 )
 
 // record adds an event to the audit trail of a workspace. A failure to record is logged and never fails what happened.

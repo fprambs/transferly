@@ -72,7 +72,7 @@ describe('renderPresentation', () => {
     expect(root.querySelector('.slides-summary')?.textContent).toBe('Slides: 4')
     const slides = Array.from(root.querySelectorAll('.slide'))
     expect(slides.map((node) => node.getAttribute('aria-label'))).toEqual(['Slide 1', 'Slide 2', 'Slide 3', 'Slide 4'])
-    expect(slides[0].textContent).toContain('Sentinel preview sample')
+    expect(slides[0].textContent).toContain('Transferly preview sample')
     expect((slides[0].querySelector('.slide-canvas') as HTMLElement).style.aspectRatio).toBe('12191695 / 6858000')
     expect(slides[1].querySelectorAll('.slide-bullet').length).toBeGreaterThanOrEqual(4)
     expect(slides[2].querySelector('img')?.getAttribute('src')).toBe('blob:picture-1')

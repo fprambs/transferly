@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/connectors"
+	"github.com/fprambs/transferly/internal/core/connectors"
 )
 
 // sample is a connector with one field of each kind.

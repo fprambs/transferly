@@ -40,7 +40,7 @@ Activos: el proceso HTTP y sus datos, la clave de instancia, las imágenes de co
 |---|---|---|
 | `govulncheck ./...` | módulo Go | sin vulnerabilidades |
 | `pnpm audit --prod` | frontend | sin vulnerabilidades conocidas |
-| Trivy `image` | `sentinel:local` (sistema y binario Go) | 0 altas o críticas |
+| Trivy `image` | `transferly:local` (sistema y binario Go) | 0 altas o críticas |
 | Trivy `config` | Dockerfiles, Compose y workflow | 0, con una excepción documentada (vsftpd) |
 | Trivy `image` | `postgres:17-bookworm` (upstream) | 22 en `gosu` (Go 1.24.6), ver hallazgo 12 |
 | Trivy `image` | `caddy` (upstream, perfil opcional) | 17 en `x/crypto` 0.52, ver hallazgo 13 |
@@ -62,7 +62,7 @@ Contra la imagen de producción en ejecución: 12 variantes de recorrido de ruta
 | 5 | Baja | pnpm creó su store dentro del repositorio | Corregido en `tools.Dockerfile` |
 | 6 | Media | Descargas de paquetes por HTTP llegaron alteradas (`Hash Sum mismatch`) en la red de desarrollo | Mitigado: repositorios HTTPS en la imagen de prueba; conviene revisar la red o el proxy |
 | 7 | Informativa | Servidores de prueba con credenciales fijas y certificado autofirmado | Aceptado: red interna, sin puertos publicados |
-| 8 | Baja | Contraseña de Postgres por defecto `sentinel` en `compose.yaml` | Aceptado: la base solo es alcanzable en la red interna; la guía indica fijar otra en producción |
+| 8 | Baja | Contraseña de Postgres por defecto `transferly` en `compose.yaml` | Aceptado: la base solo es alcanzable en la red interna; la guía indica fijar otra en producción |
 | 9 | Informativa | Postgres de desarrollo publica `127.0.0.1:5432` con credenciales por defecto | Aceptado: solo desarrollo y solo loopback |
 | 10 | Informativa | Imagen de producción endurecida y verificada | Cumplido |
 | 11 | Alta (Trivy DS-0002) | `tools.Dockerfile` corría como root | Corregido: `USER node` (Compose lo sobreescribe con el UID del host) |

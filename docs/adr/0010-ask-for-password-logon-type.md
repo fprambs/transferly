@@ -7,7 +7,7 @@
 
 4.8 brings the site form closer to FileZilla's, whose logon types include **Ask for password**: the site is saved with its host and user but no password, and the password is asked for when connecting and kept only until FileZilla closes. People use it for servers whose password must not be written anywhere, and in teams it lets a shared site exist without sharing its password: each member types their own.
 
-Today every password Sentinel keeps is sealed in the vault (ADR-0004) and read by `connect.Connector` when a connection opens, on the server, without the browser being involved. A password that is never stored has to reach the server some other way, live, and stay somewhere between the moment it is typed and the moment the connection pool uses it — including every later connection the pool opens for transfers, listings and reconnects. The only precedent is the quick connection (`core/quick`), whose credentials live in server memory for the session and are never written to the database.
+Today every password Transferly keeps is sealed in the vault (ADR-0004) and read by `connect.Connector` when a connection opens, on the server, without the browser being involved. A password that is never stored has to reach the server some other way, live, and stay somewhere between the moment it is typed and the moment the connection pool uses it — including every later connection the pool opens for transfers, listings and reconnects. The only precedent is the quick connection (`core/quick`), whose credentials live in server memory for the session and are never written to the database.
 
 ## Decision
 
@@ -19,7 +19,7 @@ Today every password Sentinel keeps is sealed in the vault (ADR-0004) and read b
 
 **Consequences for the rest of the app.**
 
-- Work the server carries on after the request, such as a copy between sites or a sync, runs with the session that started it, so it keeps working while that session holds the password; if the password goes (sign-out, vault lock), the next connection it needs fails with `credentials_required`. Sentinel has no transfers scheduled without a session; if they are added, `ask` sites cannot take part.
+- Work the server carries on after the request, such as a copy between sites or a sync, runs with the session that started it, so it keeps working while that session holds the password; if the password goes (sign-out, vault lock), the next connection it needs fails with `credentials_required`. Transferly has no transfers scheduled without a session; if they are added, `ask` sites cannot take part.
 - A wrong password is an ordinary `remote_auth_failed`; the held password is dropped so the next attempt asks again. Whether repeated wrong passwords need their own rate limit is checked when this is built.
 - The audit trail records that a credential was provided for the site (who, when, from where), never its value.
 - Multi-node deployments (phase 5) hold the password on the node that received it only, the same limit quick connections and passkey ceremonies already have; it is recorded with them.

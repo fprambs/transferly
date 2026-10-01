@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/remotefstest"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/memfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/remotefstest"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // TestConformance verifies that the in-memory file system passes the shared conformance suite.

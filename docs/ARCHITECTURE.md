@@ -1,4 +1,4 @@
-# Arquitectura de Sentinel
+# Arquitectura de Transferly
 
 Cliente web autoalojado para FTP, FTPS y SFTP: workspaces multiusuario, vault de credenciales cifrado y transferencias simultáneas.
 
@@ -27,7 +27,7 @@ docker compose up -d
 
 - Sin configuración obligatoria: los secretos de la instancia se generan en el primer arranque y se guardan en el volumen `data`.
 - Las migraciones se aplican al arrancar. Un asistente de primer arranque crea al administrador.
-- `SENTINEL_DOMAIN` más `--profile https` activa Caddy con TLS automático.
+- `TRANSFERLY_DOMAIN` más `--profile https` activa Caddy con TLS automático.
 
 Desarrollo:
 
@@ -82,8 +82,8 @@ Reglas, verificadas en CI:
 ```
 api/openapi.yaml
 backend/
-  cmd/sentinel/                 binario web
-  cmd/sentinel-desktop/         futuro binario Wails
+  cmd/transferly/                 binario web
+  cmd/transferly-desktop/         futuro binario Wails
   internal/
     core/{ports,auth,workspace,authz,vault,site,remotefs,session,transfer,netguard,audit}
     adapters/{remotefs/{sftpfs,ftpfs,localfs,remotefstest},store/{postgres,sqlite,storetest},clock,eventbus}
@@ -147,8 +147,8 @@ DEK --AES-256-GCM(nonce, AAD=site_id|kind|dek_version)--> site_secrets
 
 - Email y contraseña (Argon2id, PHC), TOTP y passkeys; OIDC más adelante. Detalle en [ADR-0005](adr/0005-authentication.md).
 - Cookie de sesión opaca (`HttpOnly`, `SameSite=Lax`, `Secure` con https; solo se guarda el hash del token), token CSRF firmado con la clave de instancia y ligado a la sesión, guarda de `Sec-Fetch-Site` y `Origin`, rate limit en login y setup.
-- La IP del cliente sale de la conexión, o de `X-Forwarded-For` solo detrás de proxies de confianza configurados (`SENTINEL_TRUSTED_PROXIES`).
-- Los sitios solo pueden apuntar a direcciones públicas; las redes privadas, loopback, link-local y metadatos de nube se rechazan salvo las listadas en `SENTINEL_ALLOWED_NETWORKS`. La comprobación ocurre al conectar (`net.Dialer.Control`), por lo que resiste DNS rebinding (`core/netguard`).
+- La IP del cliente sale de la conexión, o de `X-Forwarded-For` solo detrás de proxies de confianza configurados (`TRANSFERLY_TRUSTED_PROXIES`).
+- Los sitios solo pueden apuntar a direcciones públicas; las redes privadas, loopback, link-local y metadatos de nube se rechazan salvo las listadas en `TRANSFERLY_ALLOWED_NETWORKS`. La comprobación ocurre al conectar (`net.Dialer.Control`), por lo que resiste DNS rebinding (`core/netguard`).
 - Los administradores de la instancia (`role = admin`, distinto del rol en un workspace) pueden ampliar esa lista desde `/admin` sin reiniciar: las redes se guardan en `network_allowances` y `netguard.Policy` las aplica a la siguiente conexión. Nunca se permiten `0.0.0.0/8`, `169.254.0.0/16` (metadatos de nube), multicast, reservados ni redes más anchas que /8 (IPv4) o /7 (IPv6), aunque las pida un administrador.
 - La administración (`core/admin`) comprueba el rol del actor en cada operación, no se puede cambiar la propia cuenta y el último administrador activo no se puede deshabilitar ni degradar. Deshabilitar una cuenta cierra sus sesiones; quitar el segundo factor borra la app, las passkeys y los códigos de recuperación en una transacción. Todo queda en `audit_events` sin workspace y con acción `admin.*`, que solo leen los administradores.
 - Qué operaciones exigen sesión sale del contrato OpenAPI.
@@ -224,8 +224,8 @@ Idle -> Connecting -> Ready -> Reconnecting -> Ready
 - Un job se expande de forma perezosa en items; el recorrido de directorios es en streaming.
 - Estados de item: `queued`, `running`, `done`, `failed`, `skipped`, `paused`, `canceled`.
 - Persistente en Postgres; tras un reinicio los items `running` vuelven a `queued` y siguen desde `bytes_done`.
-- Límites y cuotas (`core/limits`): los valores de arranque salen del entorno (`SENTINEL_TRANSFER_LIMIT_*`, `SENTINEL_BANDWIDTH_GLOBAL` y `_PER_USER` en bytes por segundo, `SENTINEL_MAX_SITES_PER_WORKSPACE`, `SENTINEL_MAX_TEAMS_PER_USER`, `SENTINEL_MAX_MEMBERS_PER_TEAM` y `SENTINEL_DAILY_BYTES_PER_USER`; 0 = sin límite) y un administrador puede reemplazarlos desde `/admin` sin reiniciar. Lo guardado (`instance_limits`) gana al entorno, se aplica a la siguiente petición o bloque de datos y no interrumpe lo que ya corre. El ancho de banda espacia los bloques dentro de `Tracker.Progress` (un `shaper` por persona y uno global, sin ráfaga tras una pausa, cancelable con el contexto); las cuotas se consultan justo antes de crear el sitio, la invitación, el equipo o la transferencia. El volumen diario suma `bytes_done` de las últimas 24 horas. Bajar una cuota no borra lo que ya existe.
-- Scheduler (`core/scheduler`, en memoria): límites global, por workspace, por usuario y por sitio o conexión rápida, configurables con `SENTINEL_TRANSFER_LIMIT_GLOBAL`, `_PER_WORKSPACE`, `_PER_USER` y `_PER_SITE` (32, 16, 8 y 4 por defecto; 0 = sin límite). Las transferencias esperan en cola (`queued`) hasta que caben en todos los límites; el orden es prioridad (alta, normal, baja) y luego llegada, sin bloqueo de cabeza de línea. Una transferencia en cola se pausa, reanuda, prioriza o cancela; una en curso solo se cancela. Pendiente: reparto equitativo entre usuarios y planificación dirigida por el servidor (`SELECT ... FOR UPDATE SKIP LOCKED`) cuando existan carpetas y transferencias servidor a servidor.
+- Límites y cuotas (`core/limits`): los valores de arranque salen del entorno (`TRANSFERLY_TRANSFER_LIMIT_*`, `TRANSFERLY_BANDWIDTH_GLOBAL` y `_PER_USER` en bytes por segundo, `TRANSFERLY_MAX_SITES_PER_WORKSPACE`, `TRANSFERLY_MAX_TEAMS_PER_USER`, `TRANSFERLY_MAX_MEMBERS_PER_TEAM` y `TRANSFERLY_DAILY_BYTES_PER_USER`; 0 = sin límite) y un administrador puede reemplazarlos desde `/admin` sin reiniciar. Lo guardado (`instance_limits`) gana al entorno, se aplica a la siguiente petición o bloque de datos y no interrumpe lo que ya corre. El ancho de banda espacia los bloques dentro de `Tracker.Progress` (un `shaper` por persona y uno global, sin ráfaga tras una pausa, cancelable con el contexto); las cuotas se consultan justo antes de crear el sitio, la invitación, el equipo o la transferencia. El volumen diario suma `bytes_done` de las últimas 24 horas. Bajar una cuota no borra lo que ya existe.
+- Scheduler (`core/scheduler`, en memoria): límites global, por workspace, por usuario y por sitio o conexión rápida, configurables con `TRANSFERLY_TRANSFER_LIMIT_GLOBAL`, `_PER_WORKSPACE`, `_PER_USER` y `_PER_SITE` (32, 16, 8 y 4 por defecto; 0 = sin límite). Las transferencias esperan en cola (`queued`) hasta que caben en todos los límites; el orden es prioridad (alta, normal, baja) y luego llegada, sin bloqueo de cabeza de línea. Una transferencia en cola se pausa, reanuda, prioriza o cancela; una en curso solo se cancela. Pendiente: reparto equitativo entre usuarios y planificación dirigida por el servidor (`SELECT ... FOR UPDATE SKIP LOCKED`) cuando existan carpetas y transferencias servidor a servidor.
 - Resume: offsets en SFTP, `REST` en FTP; verificación de tamaño o checksum cuando el servidor lo soporta.
 - Políticas de sobrescritura: preguntar, sobrescribir, solo si es más nuevo, si difiere el tamaño, renombrar, omitir; archivo `.part` y renombrado opcionales.
 - Rutas de datos: remoto a navegador (streaming con `Range`, carpetas como ZIP en streaming), navegador a remoto (subida por chunks reanudable), remoto a remoto (sin pasar por el navegador).
@@ -309,13 +309,13 @@ Diseño objetivo (la fase 1 entrega una sola vista con panel de detalles; el dob
 
 1. Un nodo: API, workers y hub WebSocket, Postgres.
 2. Varios nodos: sesiones pegajosas por usuario (conexiones y key ring viven en memoria); eventos por `LISTEN/NOTIFY` o NATS; la cola ya es segura con varios workers.
-3. `sentinel worker` separado para transferencias pesadas servidor a servidor.
-4. Escritorio: `sentinel-desktop` (Wails) reutiliza el núcleo con SQLite y un solo usuario.
+3. `transferly worker` separado para transferencias pesadas servidor a servidor.
+4. Escritorio: `transferly-desktop` (Wails) reutiliza el núcleo con SQLite y un solo usuario.
 
 ## 18. Operación
 
-- Configuración por variables `SENTINEL_*`, validadas al arrancar.
-- `docker compose exec app sentinel migrate status`, `sentinel admin create-user`.
+- Configuración por variables `TRANSFERLY_*`, validadas al arrancar.
+- `docker compose exec app transferly migrate status`, `transferly admin create-user`.
 - Actualizar con `git pull && docker compose up -d --build`.
 - Métricas: transferencias activas, bytes por segundo, reconexiones, errores por protocolo, latencia de listados, tamaño del pool.
 - Backup con `pg_dump`; sin la contraseña maestra el backup no revela credenciales.

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // TestFTPEncryption covers the FTP encryption of sites and quick connections in the API (ADR-0012).

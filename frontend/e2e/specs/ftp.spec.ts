@@ -12,8 +12,8 @@ async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string):
   const dialog = page.getByRole('dialog', { name: 'Quick connect' })
   await dialog.getByRole('tab', { name: protocol, exact: true }).click()
   await dialog.getByLabel('Host').fill(host)
-  await dialog.getByLabel('Username').fill('sentinel')
-  await dialog.getByLabel('Password').fill('sentinel')
+  await dialog.getByLabel('Username').fill('transferly')
+  await dialog.getByLabel('Password').fill('transferly')
   await dialog.getByRole('button', { name: 'Connect' }).click()
 }
 
@@ -87,9 +87,9 @@ test.describe('ftp and ftps', () => {
     await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Only use plain FTP (insecure)')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
     await choose(dialog.getByLabel('Logon type'), 'Account')
-    await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Password', { exact: true }).fill('transferly')
     await dialog.getByLabel('Account', { exact: true }).fill('billing')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
@@ -107,7 +107,7 @@ test.describe('ftp and ftps', () => {
     await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Only use plain FTP (insecure)')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
     await choose(dialog.getByLabel('Logon type'), 'Interactive')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
@@ -115,7 +115,7 @@ test.describe('ftp and ftps', () => {
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const prompt = page.getByRole('dialog', { name: `${name} asks` })
     await expect(prompt).toContainText(/password/i)
-    await prompt.getByLabel('Password:').fill('sentinel')
+    await prompt.getByLabel('Password:').fill('transferly')
     await prompt.getByRole('button', { name: 'Answer' }).click()
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
@@ -130,8 +130,8 @@ test.describe('ftp and ftps', () => {
     await choose(dialog.getByLabel('Encryption'), 'Require implicit FTP over TLS')
     await expect(dialog.getByLabel('Port', { exact: true })).toHaveAttribute('placeholder', '990')
     await dialog.getByLabel('Host', { exact: true }).fill('ftps-implicit')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-    await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+    await dialog.getByLabel('Password', { exact: true }).fill('transferly')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
@@ -185,7 +185,7 @@ test.describe('ftp and ftps', () => {
     const headers = { 'X-CSRF-Token': me.csrfToken }
     const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
       headers,
-      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     expect(quick.ok()).toBe(true)
     const { id: quickId } = (await quick.json()) as { id: string }
@@ -239,7 +239,7 @@ test.describe('ftp and ftps', () => {
     const headers = { 'X-CSRF-Token': me.csrfToken }
     const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
       headers,
-      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     expect(quick.ok()).toBe(true)
     const { id: quickId } = (await quick.json()) as { id: string }

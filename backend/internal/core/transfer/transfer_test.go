@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // errStore is the failure injected by the fake store.

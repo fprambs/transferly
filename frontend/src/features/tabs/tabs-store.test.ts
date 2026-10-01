@@ -102,7 +102,7 @@ describe('tabs store', () => {
 
   it('brings back stored tabs and drops what is malformed', async () => {
     localStorage.setItem(
-      'sentinel-tabs',
+      'transferly-tabs',
       JSON.stringify({
         state: { tabs: [{ id: 't1', workspaceId: 'w1', siteId: 'a', path: '/' }, { id: 't2', siteId: 'b' }, 'nonsense'], activeId: 't1' },
         version: 0,
@@ -111,11 +111,11 @@ describe('tabs store', () => {
     await useTabs.persist.rehydrate()
     expect(summary()).toBe('a*')
 
-    localStorage.setItem('sentinel-tabs', JSON.stringify({ state: { tabs: 'nope', activeId: 'gone' }, version: 0 }))
+    localStorage.setItem('transferly-tabs', JSON.stringify({ state: { tabs: 'nope', activeId: 'gone' }, version: 0 }))
     await useTabs.persist.rehydrate()
     expect(useTabs.getState()).toMatchObject({ tabs: [], activeId: null })
 
-    localStorage.removeItem('sentinel-tabs')
+    localStorage.removeItem('transferly-tabs')
     await useTabs.persist.rehydrate()
     expect(useTabs.getState().tabs).toEqual([])
   })

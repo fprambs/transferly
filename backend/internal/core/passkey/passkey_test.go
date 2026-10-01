@@ -11,14 +11,14 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/passkey"
-	"github.com/fprambs/sentinel/internal/core/passkey/passkeytest"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/passkey/passkeytest"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 const (
-	rpID   = "sentinel.example"
-	origin = "https://sentinel.example"
+	rpID   = "transferly.example"
+	origin = "https://transferly.example"
 )
 
 // errBoom is the failure injected by the fake store.
@@ -91,7 +91,7 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	store := &fakeStore{byUser: map[uuid.UUID][]passkey.Passkey{}, fail: map[string]error{}}
 	clock := testutil.NewFakeClock(time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC))
-	svc, err := passkey.NewService(store, passkey.Config{RPID: rpID, DisplayName: "Sentinel", Origins: []string{origin}}, clock, rand.Reader, nil)
+	svc, err := passkey.NewService(store, passkey.Config{RPID: rpID, DisplayName: "Transferly", Origins: []string{origin}}, clock, rand.Reader, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestService_Registration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, part := range []string{`"id":"sentinel.example"`, `"name":"ana@example.com"`, `"excludeCredentials"`} {
+	for _, part := range []string{`"id":"transferly.example"`, `"name":"ana@example.com"`, `"excludeCredentials"`} {
 		if !strings.Contains(string(options), part) {
 			t.Errorf("options %s do not hold %s", options, part)
 		}

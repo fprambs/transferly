@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const envDatabaseURL = "SENTINEL_TEST_DATABASE_URL"
+const envDatabaseURL = "TRANSFERLY_TEST_DATABASE_URL"
 
 // DatabaseURL returns the URL of the test database.
 // When it is not configured, the test is skipped locally and fails when CI is set.
@@ -41,7 +41,7 @@ func NewDatabase(t testing.TB) string {
 	}
 	t.Cleanup(func() { _ = admin.Close(ctx) })
 
-	name := fmt.Sprintf("sentinel_t_%d", time.Now().UnixNano())
+	name := fmt.Sprintf("transferly_t_%d", time.Now().UnixNano())
 	quoted := pgx.Identifier{name}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+quoted); err != nil {
 		t.Fatalf("creating isolated database: %v", err)

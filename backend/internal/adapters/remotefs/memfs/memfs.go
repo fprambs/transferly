@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // node is a file or directory.

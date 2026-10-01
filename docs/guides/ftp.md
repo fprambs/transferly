@@ -23,11 +23,11 @@ Sources: [jlaffaye/ftp](https://github.com/jlaffaye/ftp) v0.2.4 (`go doc github.
 ## Tests
 
 - `ftptest` starts a server on a free port: plain, explicit or implicit FTPS, with or without MLSD and MFMT, announcing another public host, with faults injected by operation and path, and a `Stop` that cuts every connection. Its file system is made strict, since the in-memory one creates missing parents.
-- The conformance suite (`remotefstest`) runs against all of them, and opt-in against real vsftpd servers (`TestConformance_Vsftpd`, variables `SENTINEL_TEST_FTP_ADDR`, `SENTINEL_TEST_FTPS_ADDR`, `SENTINEL_TEST_FTPS_IMPLICIT_ADDR`) of the `ftp` profile of `compose.test.yaml`:
+- The conformance suite (`remotefstest`) runs against all of them, and opt-in against real vsftpd servers (`TestConformance_Vsftpd`, variables `TRANSFERLY_TEST_FTP_ADDR`, `TRANSFERLY_TEST_FTPS_ADDR`, `TRANSFERLY_TEST_FTPS_IMPLICIT_ADDR`) of the `ftp` profile of `compose.test.yaml`:
 
 ```
 docker compose -f compose.test.yaml --profile ftp up -d --wait ftp ftps ftps-implicit
 docker compose -f compose.test.yaml --profile ftp --profile unit run --rm unit sh -c 'cd backend && \
-  SENTINEL_TEST_FTP_ADDR=ftp:21 SENTINEL_TEST_FTPS_ADDR=ftps:21 SENTINEL_TEST_FTPS_IMPLICIT_ADDR=ftps-implicit:990 \
+  TRANSFERLY_TEST_FTP_ADDR=ftp:21 TRANSFERLY_TEST_FTPS_ADDR=ftps:21 TRANSFERLY_TEST_FTPS_IMPLICIT_ADDR=ftps-implicit:990 \
   go test ./internal/adapters/remotefs/ftpfs/ -run Vsftpd -v'
 ```

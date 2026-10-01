@@ -24,16 +24,16 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/remotefstest"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/remotefstest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 const (
-	testUser     = "sentinel"
+	testUser     = "transferly"
 	testPassword = "correct horse battery"
 )
 
@@ -255,12 +255,12 @@ func TestDial_HostKeys(t *testing.T) {
 			}
 		})
 		var hostErr *remotefs.HostKeyError
-		sentinel := remotefs.ErrHostKeyUnknown
+		transferly := remotefs.ErrHostKeyUnknown
 		if changed {
-			sentinel = remotefs.ErrHostKeyMismatch
+			transferly = remotefs.ErrHostKeyMismatch
 		}
-		if !errors.Is(err, sentinel) || !errors.As(err, &hostErr) || hostErr.Fingerprint != want || remotefs.Retryable(err) {
-			t.Errorf("changed=%v: Dial() = %v; want %v with the fingerprint %s", changed, err, sentinel, want)
+		if !errors.Is(err, transferly) || !errors.As(err, &hostErr) || hostErr.Fingerprint != want || remotefs.Retryable(err) {
+			t.Errorf("changed=%v: Dial() = %v; want %v with the fingerprint %s", changed, err, transferly, want)
 		}
 	}
 

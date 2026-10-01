@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/core/wskey"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/wskey"
 )
 
 // errBoom is the failure injected by the fakes.

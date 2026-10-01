@@ -39,9 +39,9 @@ function download(file: Blob, name: string): void {
   URL.revokeObjectURL(url)
 }
 
-/** Names the file of an export after the day it was made, such as `sentinel-sites-2026-09-29.json`. */
+/** Names the file of an export after the day it was made, such as `transferly-sites-2026-09-29.json`. */
 function exportFileName(now: Date): string {
-  return `sentinel-sites-${now.toISOString().slice(0, 10)}.json`
+  return `transferly-sites-${now.toISOString().slice(0, 10)}.json`
 }
 
 /** Why an export could not be made. */

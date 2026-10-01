@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // maxCollectionDepth is how many collections may nest, the top level being depth one.

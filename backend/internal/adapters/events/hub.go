@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 // Subscription is one connected client. Events arrive on [Subscription.Events] until the client leaves or the

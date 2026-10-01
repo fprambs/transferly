@@ -5,7 +5,7 @@
 
 ## Context
 
-Phase 4 starts with the feature FileZilla users expect most: comparing two folders and mirroring one onto the other. Sentinel already lists, downloads, uploads, copies between sites and archives folders (`core/files`), each remote site carries a listing time zone (`Site.ListTimezone`) because servers report times with no zone of their own, and transfers already go through `core/transfer` with its scheduler, bandwidth caps and audit trail. This ADR decides what "the same file" means across that uncertainty, what a plan looks like before anything moves, and what happens to files that exist on only one side.
+Phase 4 starts with the feature FileZilla users expect most: comparing two folders and mirroring one onto the other. Transferly already lists, downloads, uploads, copies between sites and archives folders (`core/files`), each remote site carries a listing time zone (`Site.ListTimezone`) because servers report times with no zone of their own, and transfers already go through `core/transfer` with its scheduler, bandwidth caps and audit trail. This ADR decides what "the same file" means across that uncertainty, what a plan looks like before anything moves, and what happens to files that exist on only one side.
 
 ## Decision
 

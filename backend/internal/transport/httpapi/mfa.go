@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/passkey"
 )
 
 // secondFactors lists the ways a user can give a second factor: an authenticator app, passkeys and recovery codes. It is empty for a user

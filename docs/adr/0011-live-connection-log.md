@@ -5,7 +5,7 @@
 
 ## Context
 
-FileZilla shows, above the file panes, a log of what each connection is doing: resolving, connecting, the server key, signing in, listing, and every error. When something fails, that log is where the user, or whoever helps them, learns why. Sentinel showed only the final error, and the steps that led to it were lost; ADR-0012 also promised that FTP going on without TLS under optional encryption would be told somewhere.
+FileZilla shows, above the file panes, a log of what each connection is doing: resolving, connecting, the server key, signing in, listing, and every error. When something fails, that log is where the user, or whoever helps them, learns why. Transferly showed only the final error, and the steps that led to it were lost; ADR-0012 also promised that FTP going on without TLS under optional encryption would be told somewhere.
 
 ## Decision
 

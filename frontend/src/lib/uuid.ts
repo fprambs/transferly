@@ -4,7 +4,7 @@ const uuidBytes = 16
 /**
  * Creates a random version 4 UUID.
  *
- * `crypto.randomUUID` only exists in secure contexts, and Sentinel may be served over plain HTTP inside a private network,
+ * `crypto.randomUUID` only exists in secure contexts, and Transferly may be served over plain HTTP inside a private network,
  * so this uses `crypto.getRandomValues`, which is always available.
  */
 export function uuid(): string {

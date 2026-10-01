@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: Sentinel API
+  title: Transferly API
   version: 0.1.0
-  description: HTTP API of the Sentinel file transfer client.
+  description: HTTP API of the Transferly file transfer client.
 servers:
   - url: /
 security:
@@ -173,7 +173,7 @@ paths:
       operationId: listConnectors
       security:
         - sessionCookie: []
-      summary: List the connectors Sentinel is built with
+      summary: List the connectors Transferly is built with
       description: >-
         The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take and the
         ways it authenticates. The site form and the store of the admins are drawn from it.
@@ -688,7 +688,7 @@ paths:
       summary: Invite an email address to a team workspace
       description: >-
         Needs manage_members and a role above the invited one. The reply carries the token once; only its hash is stored.
-        Inviting an address that already has a pending invitation replaces it. Sentinel sends no email: the caller shares the link.
+        Inviting an address that already has a pending invitation replaces it. Transferly sends no email: the caller shares the link.
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/CsrfToken"
@@ -2324,7 +2324,7 @@ paths:
         Reads a key file by its content (OpenSSH, PEM, PKCS#8, RFC 4716 or PuTTY PPK 2 and 3) and says whether it is a
         private key, its type, size and SHA-256 fingerprint, and whether the passphrase given opens it. Nothing is kept;
         saving a site reads the key again. A file that is no key is private_key_unreadable, and a key of a type or
-        protection Sentinel does not use is private_key_unsupported with params.reason (key_type, ppk_version,
+        protection Transferly does not use is private_key_unsupported with params.reason (key_type, ppk_version,
         encryption, argon2d or cost).
       security:
         - sessionCookie: []
@@ -3581,12 +3581,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /api/v1/workspaces/{workspaceId}/imports/sentinel:
+  /api/v1/workspaces/{workspaceId}/imports/transferly:
     post:
-      operationId: importSentinel
+      operationId: importTransferly
       security:
         - sessionCookie: []
-      summary: Import a file exported by Sentinel
+      summary: Import a file exported by Transferly
       description: >-
         Opens a file of exportSites with its password and creates its collections and sites as the FileZilla import does: dry run,
         conflict policy, target collection and one result per site. A wrong password or a changed file is wrong_export_password, a file
@@ -3626,7 +3626,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SentinelImport"
+              $ref: "#/components/schemas/TransferlyImport"
       responses:
         "200":
           description: What happened, or would happen, to each site of the file.
@@ -4632,7 +4632,7 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: sentinel_session
+      name: transferly_session
       description: Opaque session token set by login and setup. State-changing requests also need the X-CSRF-Token header.
   parameters:
     CsrfToken:
@@ -4755,7 +4755,7 @@ components:
         password:
           type: string
           description: The password that seals the file; at least 12 characters.
-    SentinelImport:
+    TransferlyImport:
       type: object
       additionalProperties: false
       required: [password, file]
@@ -6007,7 +6007,7 @@ components:
           description: IANA time zone name.
         theme:
           type: string
-          description: Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
+          description: Identifier of the interface theme, such as transferly-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
         fileDoubleClick:
           type: string
           enum: [download, edit, preview]

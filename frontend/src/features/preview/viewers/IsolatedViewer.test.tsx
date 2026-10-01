@@ -28,7 +28,7 @@ describe('IsolatedViewer', () => {
     expect(source.reads).toEqual([[0, 6]])
     const sent: Array<Record<string, unknown>> = []
     ;(frame.contentWindow as Window).postMessage = (message: Record<string, unknown>) => void sent.push(message)
-    fromFrame('Document book.xlsx', { type: 'sentinel:ready' })
+    fromFrame('Document book.xlsx', { type: 'transferly:ready' })
     expect(sent[0]).toMatchObject({
       kind: 'spreadsheet',
       labels: { sheets: 'Sheets', rowsCut: 'Showing the first {{shown}} of {{total}} rows.', slides: 'Slides: {{total}}', slide: 'Slide {{number}}', rows: 'Rows {{from}}–{{to}} of {{total}}', resultRows: '{{count}} rows' },
@@ -44,9 +44,9 @@ describe('IsolatedViewer', () => {
       </>,
     )
     await screen.findByTitle('Document locked.docx')
-    fromFrame('Document locked.docx', { type: 'sentinel:failed', reason: 'password' })
-    fromFrame('Document bad.pptx', { type: 'sentinel:failed', reason: 'render' })
-    fromFrame('Database bad.sqlite', { type: 'sentinel:failed', reason: 'render' })
+    fromFrame('Document locked.docx', { type: 'transferly:failed', reason: 'password' })
+    fromFrame('Document bad.pptx', { type: 'transferly:failed', reason: 'render' })
+    fromFrame('Database bad.sqlite', { type: 'transferly:failed', reason: 'render' })
     expect(await screen.findByText('This document is protected with a password')).toBeInTheDocument()
     expect(screen.getByText('This document cannot be opened')).toBeInTheDocument()
     expect(screen.getByText('This database cannot be opened')).toBeInTheDocument()

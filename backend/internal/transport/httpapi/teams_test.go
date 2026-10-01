@@ -8,10 +8,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/core/wskey"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/wskey"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // teamEnv is a team workspace with one member of every role, each with a session.

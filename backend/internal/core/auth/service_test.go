@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 const (
@@ -289,8 +289,8 @@ func TestUpdatePreferences(t *testing.T) {
 	ctx := context.Background()
 	_, principal := signedIn(t, h)
 
-	if principal.User.Theme != "sentinel-dark" || principal.User.FileDoubleClick != auth.FileDoubleClickDownload {
-		t.Errorf("a new user has the theme %q and double click %q; want sentinel-dark and download", principal.User.Theme, principal.User.FileDoubleClick)
+	if principal.User.Theme != "transferly-dark" || principal.User.FileDoubleClick != auth.FileDoubleClickDownload {
+		t.Errorf("a new user has the theme %q and double click %q; want transferly-dark and download", principal.User.Theme, principal.User.FileDoubleClick)
 	}
 	updated, err := h.svc.UpdatePreferences(ctx, principal.User, auth.Preferences{Locale: "es-cl", Timezone: "America/Santiago", Theme: "monokai", FileDoubleClick: auth.FileDoubleClickEdit})
 	if err != nil || updated.Locale != "es-CL" || updated.Timezone != "America/Santiago" || updated.Theme != "monokai" || updated.FileDoubleClick != auth.FileDoubleClickEdit {

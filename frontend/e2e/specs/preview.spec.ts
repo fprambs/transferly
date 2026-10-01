@@ -99,7 +99,7 @@ test.describe('file viewer', () => {
     await page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /README\.md/ }).click()
     await page.keyboard.press(' ')
     const rendered = page.frameLocator('iframe[title="Rendered README.md"]')
-    await expect(rendered.getByRole('heading', { name: 'Sentinel preview sample' })).toBeVisible()
+    await expect(rendered.getByRole('heading', { name: 'Transferly preview sample' })).toBeVisible()
     await expect(rendered.getByRole('table')).toContainText('pdf.js')
     await page.screenshot({ path: `${shots}/preview-markdown.png` })
 
@@ -110,7 +110,7 @@ test.describe('file viewer', () => {
     await expect(hostile.locator('#viewer a[href^="javascript"]')).toHaveCount(0)
     await hostile.getByRole('link', { name: 'a link with a handler' }).click()
     await expect(page.getByRole('dialog', { name: 'hostile.md' })).toBeVisible()
-    expect(await page.title()).toBe('Sentinel')
+    expect(await page.title()).toBe('Transferly')
     await page.getByRole('dialog', { name: 'hostile.md' }).getByRole('button', { name: 'Source' }).click()
     await expect(page.getByLabel('Contents of hostile.md')).toContainText('<script>')
   })
@@ -122,14 +122,14 @@ test.describe('file viewer', () => {
     await grid.getByRole('row', { name: /package\.json/ }).click()
     await page.keyboard.press(' ')
     const tree = page.getByRole('tree', { name: 'Structure of package.json' })
-    await expect(tree).toContainText('"sentinel-sample"')
+    await expect(tree).toContainText('"transferly-sample"')
     await expect(tree).toContainText('authors:')
     await page.screenshot({ path: `${shots}/preview-json.png` })
     await page.keyboard.press('Escape')
 
     for (const [name, expected] of [
       ['config.yaml', 'files.example.com'],
-      ['feed.xml', 'Sentinel releases'],
+      ['feed.xml', 'Transferly releases'],
       ['events.jsonl', 'download'],
     ] as const) {
       await grid.getByRole('row', { name: new RegExp(name.replace('.', '\\.')) }).click()
@@ -173,7 +173,7 @@ test.describe('file viewer', () => {
     const viewer = page.getByRole('dialog', { name: 'sample.jpg' })
     await expect(viewer).toContainText('640 × 400 px')
     await viewer.getByRole('button', { name: 'Info' }).click()
-    await expect(viewer.getByRole('complementary', { name: 'Info' })).toContainText('Sentinel Camera Preview One')
+    await expect(viewer.getByRole('complementary', { name: 'Info' })).toContainText('Transferly Camera Preview One')
     await expect(viewer.getByRole('complementary', { name: 'Info' })).toContainText('200')
     await page.screenshot({ path: `${shots}/preview-image.png` })
     await viewer.getByRole('button', { name: 'Zoom in' }).click()
@@ -195,7 +195,7 @@ test.describe('file viewer', () => {
     await grid.getByRole('row', { name: /hostile\.svg/ }).click()
     await page.keyboard.press(' ')
     await expect(page.getByRole('dialog', { name: 'hostile.svg' }).getByText('320 × 200 px')).toBeVisible()
-    expect(await page.title()).toBe('Sentinel')
+    expect(await page.title()).toBe('Transferly')
     await page.keyboard.press('Escape')
 
     await grid.getByRole('row', { name: /truncated\.png/ }).click()
@@ -296,7 +296,7 @@ test.describe('file viewer', () => {
     await locked.getByRole('textbox', { name: 'Password' }).press('Enter')
     await expect(locked.getByRole('alert')).toHaveText('That password is not right. Try again.')
     await page.screenshot({ path: `${shots}/preview-pdf-password.png` })
-    await locked.getByRole('textbox', { name: 'Password' }).fill('sentinel')
+    await locked.getByRole('textbox', { name: 'Password' }).fill('transferly')
     await locked.getByRole('button', { name: 'Open' }).click()
     await expect(locked.locator('.pdf-position')).toHaveText(/^Page 1 of \d+$/)
     await expect(password).toBeHidden()
@@ -396,14 +396,14 @@ test.describe('file viewer', () => {
     }
 
     const docx = await open('document.docx')
-    await expect(docx.getByText('Sentinel preview sample').first()).toBeVisible()
+    await expect(docx.getByText('Transferly preview sample').first()).toBeVisible()
     await expect(docx.locator('table').first()).toContainText('Bogotá')
     await expect(docx.locator('img').first()).toBeVisible()
     await page.screenshot({ path: `${shots}/preview-docx.png` })
     await page.keyboard.press('Escape')
 
     const odt = await open('document.odt')
-    await expect(odt.locator('.odt-page h1')).toHaveText('Sentinel preview sample')
+    await expect(odt.locator('.odt-page h1')).toHaveText('Transferly preview sample')
     await expect(odt.locator('.odt-page li')).toHaveCount(3)
     await page.screenshot({ path: `${shots}/preview-odt.png` })
     await page.keyboard.press('Escape')
@@ -493,11 +493,11 @@ test.describe('file viewer', () => {
       const font = page.frameLocator(`iframe[title="Font ${name}"]`)
       await expect(font.locator('.font-sample')).toHaveCount(6)
       if (name === 'blocks.ttf') {
-        await expect(font.locator('h1')).toHaveText('Sentinel Blocks Regular')
+        await expect(font.locator('h1')).toHaveText('Transferly Blocks Regular')
         await expect(font.locator('.font-char')).toHaveCount(16)
-        await font.getByRole('textbox', { name: 'Try your own text' }).fill('SENTINEL')
-        await expect(font.locator('.font-sample').first()).toHaveText('SENTINEL')
-        expect(await font.locator('.font-sample').first().evaluate(() => document.fonts.check('24px "Sentinel Preview Font"'))).toBe(true)
+        await font.getByRole('textbox', { name: 'Try your own text' }).fill('TRANSFERLY')
+        await expect(font.locator('.font-sample').first()).toHaveText('TRANSFERLY')
+        expect(await font.locator('.font-sample').first().evaluate(() => document.fonts.check('24px "Transferly Preview Font"'))).toBe(true)
         await page.screenshot({ path: `${shots}/preview-font.png` })
       }
       await page.keyboard.press('Escape')
@@ -592,7 +592,7 @@ test.describe('file viewer', () => {
           document.body.append(frame)
         }),
     )
-    expect(await ready).toBe('sentinel:ready')
+    expect(await ready).toBe('transferly:ready')
     const frame = page.frame({ name: 'viewer-probe' })
     expect(frame).not.toBeNull()
     const probe = await frame!.evaluate(async () => {

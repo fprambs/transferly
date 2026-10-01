@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // FakeClock must satisfy ports.Clock.

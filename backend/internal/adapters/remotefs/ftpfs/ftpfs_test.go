@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/remotefstest"
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/remotefstest"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 const (
-	testUser     = "sentinel"
-	testPassword = "sentinel"
+	testUser     = "transferly"
+	testPassword = "transferly"
 )
 
 // tlsModes maps the encryption of a test server to the mode of the client that talks to it.

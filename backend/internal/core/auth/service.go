@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/text/language"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 const (
@@ -28,8 +28,8 @@ const (
 	touchInterval      = time.Minute
 	defaultLocale      = "en"
 	defaultTimezone    = "UTC"
-	defaultTheme       = "sentinel-dark"
-	sessionTokenPrefix = "sentinel/session/v1"
+	defaultTheme       = "transferly-dark"
+	sessionTokenPrefix = "transferly/session/v1"
 )
 
 // themePattern matches theme identifiers.

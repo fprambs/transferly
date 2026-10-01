@@ -1,5 +1,5 @@
 /** Data type that carries a dragged file between the panes of the explorer. */
-export const entryDragType = 'application/x-sentinel-entry'
+export const entryDragType = 'application/x-transferly-entry'
 
 /** A file or folder being dragged from a pane, and where it lives. */
 export interface DraggedEntry {

@@ -2,7 +2,7 @@
 # Start: docker compose -f compose.dev.yaml up
 # Tools: docker compose -f compose.dev.yaml run --rm tools <command>
 # Test servers: add --profile testenv (see compose.testenv.yaml)
-name: sentinel-dev
+name: transferly-dev
 
 include:
   - compose.testenv.yaml
@@ -12,7 +12,7 @@ x-tools: &tools
   build:
     context: .
     dockerfile: docker/tools.Dockerfile
-  image: sentinel-dev-tools
+  image: transferly-dev-tools
   volumes:
     - .:/workspace
     - cache:/cache
@@ -23,7 +23,7 @@ services:
     profiles: ["tools"]
     working_dir: /workspace
     environment:
-      SENTINEL_TEST_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel_test?sslmode=disable
+      TRANSFERLY_TEST_DATABASE_URL: postgres://transferly:transferly@postgres:5432/transferly_test?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,14 +33,14 @@ services:
     working_dir: /workspace/backend
     command: air -c .air.toml
     environment:
-      SENTINEL_DATABASE_URL: postgres://sentinel:sentinel@postgres:5432/sentinel?sslmode=disable
-      SENTINEL_HTTP_ADDR: ":8080"
-      SENTINEL_LOG_LEVEL: debug
-      SENTINEL_DATA_DIR: /cache/sentinel
-      SENTINEL_ALLOWED_ORIGINS: http://localhost:${SENTINEL_WEB_PORT:-5173}
-      SENTINEL_ALLOWED_NETWORKS: ${SENTINEL_ALLOWED_NETWORKS:-172.16.0.0/12}
+      TRANSFERLY_DATABASE_URL: postgres://transferly:transferly@postgres:5432/transferly?sslmode=disable
+      TRANSFERLY_HTTP_ADDR: ":8080"
+      TRANSFERLY_LOG_LEVEL: debug
+      TRANSFERLY_DATA_DIR: /cache/transferly
+      TRANSFERLY_ALLOWED_ORIGINS: http://localhost:${TRANSFERLY_WEB_PORT:-5173}
+      TRANSFERLY_ALLOWED_NETWORKS: ${TRANSFERLY_ALLOWED_NETWORKS:-172.16.0.0/12}
     ports:
-      - "127.0.0.1:${SENTINEL_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${TRANSFERLY_HTTP_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,9 +55,9 @@ services:
     working_dir: /workspace/frontend
     command: sh -c "pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0 --port 5173"
     environment:
-      SENTINEL_API_URL: http://backend:8080
+      TRANSFERLY_API_URL: http://backend:8080
     ports:
-      - "127.0.0.1:${SENTINEL_WEB_PORT:-5173}:5173"
+      - "127.0.0.1:${TRANSFERLY_WEB_PORT:-5173}:5173"
     depends_on:
       backend:
         condition: service_healthy
@@ -70,16 +70,16 @@ services:
   postgres:
     image: postgres:17-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
     environment:
-      POSTGRES_USER: sentinel
-      POSTGRES_PASSWORD: sentinel
-      POSTGRES_DB: sentinel
+      POSTGRES_USER: transferly
+      POSTGRES_PASSWORD: transferly
+      POSTGRES_DB: transferly
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      test: ["CMD-SHELL", "pg_isready -U transferly -d transferly"]
       interval: 3s
       timeout: 3s
       retries: 20

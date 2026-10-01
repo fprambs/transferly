@@ -5,9 +5,9 @@
 
 ## Context
 
-Sentinel needs multi-user workspaces, shared and personal environments, concurrent transfers and Docker deployment. Web and desktop (Electron, Tauri, Wails) were considered.
+Transferly needs multi-user workspaces, shared and personal environments, concurrent transfers and Docker deployment. Web and desktop (Electron, Tauri, Wails) were considered.
 
-- Web adds a hop (browser, Sentinel, remote server). Near the user or the servers the cost is negligible, and server-to-server transfers are faster.
+- Web adds a hop (browser, Transferly, remote server). Near the user or the servers the cost is negligible, and server-to-server transfers are faster.
 - Multi-user, shared workspaces, queues that outlive the client and Docker deployment fit the web.
 - Desktop offers full local disk access and active-mode FTP without NAT.
 

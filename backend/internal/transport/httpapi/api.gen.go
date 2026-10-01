@@ -1131,18 +1131,18 @@ func (e ImportFilezillaParamsOnConflict) Valid() bool {
 	}
 }
 
-// Defines values for ImportSentinelParamsOnConflict.
+// Defines values for ImportTransferlyParamsOnConflict.
 const (
-	ImportSentinelParamsOnConflictRename ImportSentinelParamsOnConflict = "rename"
-	ImportSentinelParamsOnConflictSkip   ImportSentinelParamsOnConflict = "skip"
+	ImportTransferlyParamsOnConflictRename ImportTransferlyParamsOnConflict = "rename"
+	ImportTransferlyParamsOnConflictSkip   ImportTransferlyParamsOnConflict = "skip"
 )
 
-// Valid indicates whether the value is a known member of the ImportSentinelParamsOnConflict enum.
-func (e ImportSentinelParamsOnConflict) Valid() bool {
+// Valid indicates whether the value is a known member of the ImportTransferlyParamsOnConflict enum.
+func (e ImportTransferlyParamsOnConflict) Valid() bool {
 	switch e {
-	case ImportSentinelParamsOnConflictRename:
+	case ImportTransferlyParamsOnConflictRename:
 		return true
-	case ImportSentinelParamsOnConflictSkip:
+	case ImportTransferlyParamsOnConflictSkip:
 		return true
 	default:
 		return false
@@ -1747,7 +1747,7 @@ type Preferences struct {
 	// Locale BCP 47 language tag of the interface.
 	Locale *string `json:"locale,omitempty"`
 
-	// Theme Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
+	// Theme Identifier of the interface theme, such as transferly-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes.
 	Theme *string `json:"theme,omitempty"`
 
 	// Timezone IANA time zone name.
@@ -1901,8 +1901,8 @@ type SecurityStatus struct {
 	Totp              bool      `json:"totp"`
 }
 
-// SentinelImport defines model for SentinelImport.
-type SentinelImport struct {
+// TransferlyImport defines model for TransferlyImport.
+type TransferlyImport struct {
 	// File The text of the file, as exportSites answered it.
 	File string `json:"file"`
 
@@ -2541,8 +2541,8 @@ type ImportFilezillaParams struct {
 // ImportFilezillaParamsOnConflict defines parameters for ImportFilezilla.
 type ImportFilezillaParamsOnConflict string
 
-// ImportSentinelParams defines parameters for ImportSentinel.
-type ImportSentinelParams struct {
+// ImportTransferlyParams defines parameters for ImportTransferly.
+type ImportTransferlyParams struct {
 	// DryRun Only report what would happen.
 	DryRun *bool `form:"dryRun,omitempty" json:"dryRun,omitempty"`
 
@@ -2550,7 +2550,7 @@ type ImportSentinelParams struct {
 	Secrets *bool `form:"secrets,omitempty" json:"secrets,omitempty"`
 
 	// OnConflict What to do with a site whose name is taken. Skip by default.
-	OnConflict *ImportSentinelParamsOnConflict `form:"onConflict,omitempty" json:"onConflict,omitempty"`
+	OnConflict *ImportTransferlyParamsOnConflict `form:"onConflict,omitempty" json:"onConflict,omitempty"`
 
 	// CollectionId Collection that receives everything; the top level when left out.
 	CollectionId *openapi_types.UUID `form:"collectionId,omitempty" json:"collectionId,omitempty"`
@@ -2559,8 +2559,8 @@ type ImportSentinelParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
-// ImportSentinelParamsOnConflict defines parameters for ImportSentinel.
-type ImportSentinelParamsOnConflict string
+// ImportTransferlyParamsOnConflict defines parameters for ImportTransferly.
+type ImportTransferlyParamsOnConflict string
 
 // CreateInvitationParams defines parameters for CreateInvitation.
 type CreateInvitationParams struct {
@@ -2907,8 +2907,8 @@ type CreateCopyJSONRequestBody = CopyInput
 // ExportSitesJSONRequestBody defines body for ExportSites for application/json ContentType.
 type ExportSitesJSONRequestBody = ExportRequest
 
-// ImportSentinelJSONRequestBody defines body for ImportSentinel for application/json ContentType.
-type ImportSentinelJSONRequestBody = SentinelImport
+// ImportTransferlyJSONRequestBody defines body for ImportTransferly for application/json ContentType.
+type ImportTransferlyJSONRequestBody = TransferlyImport
 
 // CreateInvitationJSONRequestBody defines body for CreateInvitation for application/json ContentType.
 type CreateInvitationJSONRequestBody = InvitationInput
@@ -2993,7 +2993,7 @@ type ServerInterface interface {
 	// FinishPasskeyLogin Finish signing in with a passkey
 	// (POST /api/v1/auth/passkey/finish)
 	FinishPasskeyLogin(w http.ResponseWriter, r *http.Request)
-	// ListConnectors List the connectors Sentinel is built with
+	// ListConnectors List the connectors Transferly is built with
 	// (GET /api/v1/connectors)
 	ListConnectors(w http.ResponseWriter, r *http.Request)
 	// AcceptInvitation Join a team workspace with the signed-in account
@@ -3131,9 +3131,9 @@ type ServerInterface interface {
 	// ImportFilezilla Import the site manager of FileZilla
 	// (POST /api/v1/workspaces/{workspaceId}/imports/filezilla)
 	ImportFilezilla(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportFilezillaParams)
-	// ImportSentinel Import a file exported by Sentinel
-	// (POST /api/v1/workspaces/{workspaceId}/imports/sentinel)
-	ImportSentinel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportSentinelParams)
+	// ImportTransferly Import a file exported by Transferly
+	// (POST /api/v1/workspaces/{workspaceId}/imports/transferly)
+	ImportTransferly(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportTransferlyParams)
 	// ListInvitations Invitations waiting in a team workspace
 	// (GET /api/v1/workspaces/{workspaceId}/invitations)
 	ListInvitations(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -3341,7 +3341,7 @@ func (_ Unimplemented) FinishPasskeyLogin(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ListConnectors List the connectors Sentinel is built with
+// ListConnectors List the connectors Transferly is built with
 // (GET /api/v1/connectors)
 func (_ Unimplemented) ListConnectors(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -3617,9 +3617,9 @@ func (_ Unimplemented) ImportFilezilla(w http.ResponseWriter, r *http.Request, w
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// ImportSentinel Import a file exported by Sentinel
-// (POST /api/v1/workspaces/{workspaceId}/imports/sentinel)
-func (_ Unimplemented) ImportSentinel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportSentinelParams) {
+// ImportTransferly Import a file exported by Transferly
+// (POST /api/v1/workspaces/{workspaceId}/imports/transferly)
+func (_ Unimplemented) ImportTransferly(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportTransferlyParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -6083,8 +6083,8 @@ func (siw *ServerInterfaceWrapper) ImportFilezilla(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// ImportSentinel operation middleware
-func (siw *ServerInterfaceWrapper) ImportSentinel(w http.ResponseWriter, r *http.Request) {
+// ImportTransferly operation middleware
+func (siw *ServerInterfaceWrapper) ImportTransferly(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -6099,7 +6099,7 @@ func (siw *ServerInterfaceWrapper) ImportSentinel(w http.ResponseWriter, r *http
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ImportSentinelParams
+	var params ImportTransferlyParams
 
 	// ------------- Optional query parameter "dryRun" -------------
 
@@ -6175,7 +6175,7 @@ func (siw *ServerInterfaceWrapper) ImportSentinel(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ImportSentinel(w, r, workspaceId, params)
+		siw.Handler.ImportTransferly(w, r, workspaceId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8806,7 +8806,7 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/exports", wrapper.ExportSites)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/imports/sentinel", wrapper.ImportSentinel)
+		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/imports/transferly", wrapper.ImportTransferly)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/v1/workspaces/{workspaceId}/imports/filezilla", wrapper.ImportFilezilla)
@@ -13195,19 +13195,19 @@ func (response ImportFilezilla422ApplicationProblemPlusJSONResponse) VisitImport
 	return err
 }
 
-type ImportSentinelRequestObject struct {
+type ImportTransferlyRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
-	Params      ImportSentinelParams
-	Body        *ImportSentinelJSONRequestBody
+	Params      ImportTransferlyParams
+	Body        *ImportTransferlyJSONRequestBody
 }
 
-type ImportSentinelResponseObject interface {
-	VisitImportSentinelResponse(w http.ResponseWriter) error
+type ImportTransferlyResponseObject interface {
+	VisitImportTransferlyResponse(w http.ResponseWriter) error
 }
 
-type ImportSentinel200JSONResponse ImportResult
+type ImportTransferly200JSONResponse ImportResult
 
-func (response ImportSentinel200JSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly200JSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13219,9 +13219,9 @@ func (response ImportSentinel200JSONResponse) VisitImportSentinelResponse(w http
 	return err
 }
 
-type ImportSentinel400ApplicationProblemPlusJSONResponse Problem
+type ImportTransferly400ApplicationProblemPlusJSONResponse Problem
 
-func (response ImportSentinel400ApplicationProblemPlusJSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly400ApplicationProblemPlusJSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13233,9 +13233,9 @@ func (response ImportSentinel400ApplicationProblemPlusJSONResponse) VisitImportS
 	return err
 }
 
-type ImportSentinel401ApplicationProblemPlusJSONResponse Problem
+type ImportTransferly401ApplicationProblemPlusJSONResponse Problem
 
-func (response ImportSentinel401ApplicationProblemPlusJSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly401ApplicationProblemPlusJSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13247,9 +13247,9 @@ func (response ImportSentinel401ApplicationProblemPlusJSONResponse) VisitImportS
 	return err
 }
 
-type ImportSentinel403ApplicationProblemPlusJSONResponse Problem
+type ImportTransferly403ApplicationProblemPlusJSONResponse Problem
 
-func (response ImportSentinel403ApplicationProblemPlusJSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly403ApplicationProblemPlusJSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13261,9 +13261,9 @@ func (response ImportSentinel403ApplicationProblemPlusJSONResponse) VisitImportS
 	return err
 }
 
-type ImportSentinel404ApplicationProblemPlusJSONResponse Problem
+type ImportTransferly404ApplicationProblemPlusJSONResponse Problem
 
-func (response ImportSentinel404ApplicationProblemPlusJSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly404ApplicationProblemPlusJSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13275,9 +13275,9 @@ func (response ImportSentinel404ApplicationProblemPlusJSONResponse) VisitImportS
 	return err
 }
 
-type ImportSentinel409ApplicationProblemPlusJSONResponse Problem
+type ImportTransferly409ApplicationProblemPlusJSONResponse Problem
 
-func (response ImportSentinel409ApplicationProblemPlusJSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly409ApplicationProblemPlusJSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13289,9 +13289,9 @@ func (response ImportSentinel409ApplicationProblemPlusJSONResponse) VisitImportS
 	return err
 }
 
-type ImportSentinel422ApplicationProblemPlusJSONResponse Problem
+type ImportTransferly422ApplicationProblemPlusJSONResponse Problem
 
-func (response ImportSentinel422ApplicationProblemPlusJSONResponse) VisitImportSentinelResponse(w http.ResponseWriter) error {
+func (response ImportTransferly422ApplicationProblemPlusJSONResponse) VisitImportTransferlyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -17189,7 +17189,7 @@ type StrictServerInterface interface {
 	// FinishPasskeyLogin Finish signing in with a passkey
 	// (POST /api/v1/auth/passkey/finish)
 	FinishPasskeyLogin(ctx context.Context, request FinishPasskeyLoginRequestObject) (FinishPasskeyLoginResponseObject, error)
-	// ListConnectors List the connectors Sentinel is built with
+	// ListConnectors List the connectors Transferly is built with
 	// (GET /api/v1/connectors)
 	ListConnectors(ctx context.Context, request ListConnectorsRequestObject) (ListConnectorsResponseObject, error)
 	// AcceptInvitation Join a team workspace with the signed-in account
@@ -17327,9 +17327,9 @@ type StrictServerInterface interface {
 	// ImportFilezilla Import the site manager of FileZilla
 	// (POST /api/v1/workspaces/{workspaceId}/imports/filezilla)
 	ImportFilezilla(ctx context.Context, request ImportFilezillaRequestObject) (ImportFilezillaResponseObject, error)
-	// ImportSentinel Import a file exported by Sentinel
-	// (POST /api/v1/workspaces/{workspaceId}/imports/sentinel)
-	ImportSentinel(ctx context.Context, request ImportSentinelRequestObject) (ImportSentinelResponseObject, error)
+	// ImportTransferly Import a file exported by Transferly
+	// (POST /api/v1/workspaces/{workspaceId}/imports/transferly)
+	ImportTransferly(ctx context.Context, request ImportTransferlyRequestObject) (ImportTransferlyResponseObject, error)
 	// ListInvitations Invitations waiting in a team workspace
 	// (GET /api/v1/workspaces/{workspaceId}/invitations)
 	ListInvitations(ctx context.Context, request ListInvitationsRequestObject) (ListInvitationsResponseObject, error)
@@ -19228,14 +19228,14 @@ func (sh *strictHandler) ImportFilezilla(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// ImportSentinel operation middleware
-func (sh *strictHandler) ImportSentinel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportSentinelParams) {
-	var request ImportSentinelRequestObject
+// ImportTransferly operation middleware
+func (sh *strictHandler) ImportTransferly(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ImportTransferlyParams) {
+	var request ImportTransferlyRequestObject
 
 	request.WorkspaceId = workspaceId
 	request.Params = params
 
-	var body ImportSentinelJSONRequestBody
+	var body ImportTransferlyJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -19243,18 +19243,18 @@ func (sh *strictHandler) ImportSentinel(w http.ResponseWriter, r *http.Request, 
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ImportSentinel(ctx, request.(ImportSentinelRequestObject))
+		return sh.ssi.ImportTransferly(ctx, request.(ImportTransferlyRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ImportSentinel")
+		handler = middleware(handler, "ImportTransferly")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ImportSentinelResponseObject); ok {
-		if err := validResponse.VisitImportSentinelResponse(w); err != nil {
+	} else if validResponse, ok := response.(ImportTransferlyResponseObject); ok {
+		if err := validResponse.VisitImportTransferlyResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

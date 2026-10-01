@@ -119,7 +119,7 @@ describe('KeyFileField', () => {
       await user.upload(screen.getByLabelText('Key file'), new File(['X'], name))
     }
     await user.upload(screen.getByLabelText('Key file'), new File(['X'], 'notes.txt'))
-    expect(await screen.findByText('This file is not a key Sentinel can read.')).toBeInTheDocument()
+    expect(await screen.findByText('This file is not a key Transferly can read.')).toBeInTheDocument()
 
     reply = problem(422, 'private_key_unsupported', { reason: 'argon2d' })
     await choose('argon2d.ppk')

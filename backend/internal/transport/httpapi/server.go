@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/auth"
 )
 
 const readinessTimeout = 2 * time.Second

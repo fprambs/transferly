@@ -51,15 +51,15 @@ export function SandboxFrame({ kind, name, bytes, source, labels = {}, title, on
         return
       }
       const message = event.data
-      if (message.type === 'sentinel:ready') {
+      if (message.type === 'transferly:ready') {
         const copy = bytes.slice().buffer
-        page.postMessage({ type: 'sentinel:render', kind, name, bytes: copy, size: source?.size ?? bytes.length, theme: currentTheme(), labels }, '*', [copy])
-      } else if (message.type === 'sentinel:failed') {
+        page.postMessage({ type: 'transferly:render', kind, name, bytes: copy, size: source?.size ?? bytes.length, theme: currentTheme(), labels }, '*', [copy])
+      } else if (message.type === 'transferly:failed') {
         onFailed(message.reason ?? '')
-      } else if (message.type === 'sentinel:key') {
+      } else if (message.type === 'transferly:key') {
         frame.current?.dispatchEvent(new KeyboardEvent('keydown', { key: message.key, bubbles: true }))
-      } else if (message.type === 'sentinel:range') {
-        const reply = (answer: ArrayBuffer | null): void => page.postMessage({ type: 'sentinel:bytes', id: message.id, bytes: answer }, '*', answer === null ? [] : [answer])
+      } else if (message.type === 'transferly:range') {
+        const reply = (answer: ArrayBuffer | null): void => page.postMessage({ type: 'transferly:bytes', id: message.id, bytes: answer }, '*', answer === null ? [] : [answer])
         if (source === undefined || message.end - message.begin > maxRange) {
           reply(null)
           return

@@ -3,7 +3,7 @@
 Source: [Organizing a Go module](https://go.dev/doc/modules/layout).
 
 - Servers keep logic in `internal/` and executables in `cmd/<name>/` (`package main`).
-- Sentinel: `backend/` is the module; see ARCHITECTURE section 5.
+- Transferly: `backend/` is the module; see ARCHITECTURE section 5.
 - `internal/core` never imports adapters, transports, `app`, HTTP, database or Wails packages (depguard).
 
 ## Conventions

@@ -11,12 +11,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/testutil"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/testutil"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 const exportPassword = "a long export password"
@@ -27,13 +27,13 @@ func (a *api) exportCall(ws uuid.UUID, password string, cookie *http.Cookie, csr
 	return a.send(http.MethodPost, "/api/v1/workspaces/"+ws.String()+"/exports", map[string]string{"password": password}, cookie, csrf)
 }
 
-// sentinelImport posts a file to the Sentinel import.
-func (a *api) sentinelImport(ws uuid.UUID, query, password, file string, cookie *http.Cookie, csrf string) reply {
+// transferlyImport posts a file to the Transferly import.
+func (a *api) transferlyImport(ws uuid.UUID, query, password, file string, cookie *http.Cookie, csrf string) reply {
 	a.t.Helper()
-	return a.send(http.MethodPost, "/api/v1/workspaces/"+ws.String()+"/imports/sentinel"+query, map[string]string{"password": password, "file": file}, cookie, csrf)
+	return a.send(http.MethodPost, "/api/v1/workspaces/"+ws.String()+"/imports/transferly"+query, map[string]string{"password": password, "file": file}, cookie, csrf)
 }
 
-// TestExport_Sentinel covers exporting the sites to an encrypted file and importing it back (ADR-0017).
+// TestExport_Transferly covers exporting the sites to an encrypted file and importing it back (ADR-0017).
 //
 // Use cases:
 //   - a weak password is refused with weak_export_password
@@ -41,7 +41,7 @@ func (a *api) sentinelImport(ws uuid.UUID, query, password, file string, cookie 
 //   - importing it previews first, then creates the sites under free names with their secrets when asked, inside a chosen collection
 //   - a wrong password is wrong_export_password, a file that is not an export is invalid_export, and a body over the limit is refused
 //     before it is read
-func TestExport_Sentinel(t *testing.T) {
+func TestExport_Transferly(t *testing.T) {
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -71,13 +71,13 @@ func TestExport_Sentinel(t *testing.T) {
 		mustDecode(t, r.Body, &result)
 		return result
 	}
-	if preview := decode(a.sentinelImport(ws, "?dryRun=true&onConflict=rename", exportPassword, file, cookie, csrf)); !preview.DryRun || preview.Items[0].Status != "would_create" {
+	if preview := decode(a.transferlyImport(ws, "?dryRun=true&onConflict=rename", exportPassword, file, cookie, csrf)); !preview.DryRun || preview.Items[0].Status != "would_create" {
 		t.Errorf("preview = %+v", preview)
 	}
 	var before []httpapi.Site
 	mustDecode(t, a.do(request{method: http.MethodGet, path: sitesPath(ws), cookie: cookie}).Body, &before)
 	into := "&collectionId=" + before[0].CollectionId.String()
-	done := decode(a.sentinelImport(ws, "?secrets=true&onConflict=rename"+into, exportPassword, file, cookie, csrf))
+	done := decode(a.transferlyImport(ws, "?secrets=true&onConflict=rename"+into, exportPassword, file, cookie, csrf))
 	if item := done.Items[0]; item.Status != "created" || item.Name != "Imported (2)" || !item.PasswordStored || item.Path != "Work" {
 		t.Errorf("import = %+v", done)
 	}
@@ -87,9 +87,9 @@ func TestExport_Sentinel(t *testing.T) {
 		t.Errorf("sites = %+v", sites)
 	}
 
-	expectProblem(t, a.sentinelImport(ws, "", "not the export password", file, cookie, csrf), http.StatusUnprocessableEntity, "wrong_export_password")
-	expectProblem(t, a.sentinelImport(ws, "", exportPassword, "{}", cookie, csrf), http.StatusUnprocessableEntity, "invalid_export")
-	expectProblem(t, a.sentinelImport(ws, "", exportPassword, strings.Repeat("x", 9<<20), cookie, csrf), http.StatusBadRequest, "invalid_request")
+	expectProblem(t, a.transferlyImport(ws, "", "not the export password", file, cookie, csrf), http.StatusUnprocessableEntity, "wrong_export_password")
+	expectProblem(t, a.transferlyImport(ws, "", exportPassword, "{}", cookie, csrf), http.StatusUnprocessableEntity, "invalid_export")
+	expectProblem(t, a.transferlyImport(ws, "", exportPassword, strings.Repeat("x", 9<<20), cookie, csrf), http.StatusBadRequest, "invalid_request")
 }
 
 // unlistedSites fails to list the sites of a workspace.
@@ -125,5 +125,5 @@ func TestExport_Faults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectProblem(t, a.sentinelImport(ws, "", exportPassword, string(file), cookie, csrf), http.StatusInternalServerError, "internal_error")
+	expectProblem(t, a.transferlyImport(ws, "", exportPassword, string(file), cookie, csrf), http.StatusInternalServerError, "internal_error")
 }

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/mfa"
 )
 
 // FactorStore is the persistence an implementation offers to the mfa package, plus user creation.

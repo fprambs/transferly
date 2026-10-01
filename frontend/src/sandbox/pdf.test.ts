@@ -243,9 +243,9 @@ describe('renderPdf', () => {
     expect(root.querySelectorAll('.pdf-password')).toHaveLength(1)
     expect(root.querySelector('.pdf-password-wrong')?.textContent).toBe('Wrong')
     const again = root.querySelector('.pdf-password input') as HTMLInputElement
-    again.value = 'sentinel'
+    again.value = 'transferly'
     ;(root.querySelector('.pdf-password button') as HTMLButtonElement).click()
-    expect(answers).toEqual(['nope', 'sentinel'])
+    expect(answers).toEqual(['nope', 'transferly'])
     const pages = ['one'].map(page)
     finish({ numPages: 1, getPage: async () => pages[0] })
     await opening

@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
-	"github.com/fprambs/sentinel/internal/core/admin"
-	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/db"
+	"github.com/fprambs/transferly/internal/core/admin"
+	"github.com/fprambs/transferly/internal/core/auth"
 )
 
 var _ admin.Store = (*Store)(nil)

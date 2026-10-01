@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // Factory returns a new, empty file system for one test. The suite closes it when the test ends.

@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/scheduler"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/scheduler"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // errBoom is the failure injected by the fakes.

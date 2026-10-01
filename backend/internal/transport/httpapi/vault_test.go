@@ -9,12 +9,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/adapters/ratelimit"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 const (

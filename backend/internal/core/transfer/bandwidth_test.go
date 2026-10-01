@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/scheduler"
-	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/scheduler"
+	"github.com/fprambs/transferly/internal/core/transfer"
 )
 
 // waits records how long the service asked transfers to wait, and never really waits.

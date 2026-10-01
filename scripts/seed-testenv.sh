@@ -32,6 +32,6 @@ chown -R "$owner" "$dir/seed"
 INNER
 }
 
-seed sftp /home/sentinel/upload 1001:100
-seed ftp /srv/ftp/upload sentinel
+seed sftp /home/transferly/upload 1001:100
+seed ftp /srv/ftp/upload transferly
 echo "seeded: 50000 files in seed/many, unusual names in seed/names$($large && echo ', 1g.bin and 5g.bin in seed')"

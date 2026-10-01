@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/quick"
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
 // quickDTO converts a quick connection to its public representation, which never holds credentials.

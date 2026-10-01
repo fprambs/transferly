@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/fzimport"
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
 // sample is a site manager as FileZilla writes it, with the odd cases the parser has to survive.

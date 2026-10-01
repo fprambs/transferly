@@ -102,8 +102,8 @@ export interface ImportOptions {
   onConflict?: 'skip' | 'rename'
 }
 
-/** How to import a file exported by Sentinel (ADR-0017). */
-export interface SentinelImportOptions {
+/** How to import a file exported by Transferly (ADR-0017). */
+export interface TransferlyImportOptions {
   /** Only report what would happen. */
   dryRun?: boolean
   /** Store the secrets of the file in the vault. */
@@ -118,7 +118,7 @@ export type ActivityEntry = Schemas['ActivityEntry']
 /** The digest of a remote file. */
 export type Checksum = Schemas['Checksum']
 
-/** A connector of the catalog Sentinel is built with (ADR-0019). */
+/** A connector of the catalog Transferly is built with (ADR-0019). */
 export type Connector = Schemas['Connector']
 
 /** The entries of an archive, as the server read them (D2.5). */
@@ -354,10 +354,10 @@ export function createApi(transport: Transport) {
         new Response(await transport.stream({ method: 'POST', path: `${root}/workspaces/${workspaceId}/exports`, body: { password } })).blob(),
     },
     imports: {
-      sentinel: (workspaceId: string, input: { password: string; file: string }, options: SentinelImportOptions = {}) =>
+      transferly: (workspaceId: string, input: { password: string; file: string }, options: TransferlyImportOptions = {}) =>
         transport.request<ImportResult>({
           method: 'POST',
-          path: `${root}/workspaces/${workspaceId}/imports/sentinel`,
+          path: `${root}/workspaces/${workspaceId}/imports/transferly`,
           query: { dryRun: options.dryRun, secrets: options.secrets, onConflict: options.onConflict },
           body: input,
         }),

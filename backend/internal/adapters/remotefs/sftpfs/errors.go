@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/sftp"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 const (

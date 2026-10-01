@@ -11,13 +11,13 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/quick"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
 // socks5TestProxy starts a minimal SOCKS5 proxy, independent of the client under test, that relays one connection to

@@ -12,24 +12,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/adapters/store/storetest"
-	"github.com/fprambs/sentinel/internal/core/activity"
-	"github.com/fprambs/sentinel/internal/core/admin"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/bookmark"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/invite"
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/core/passkey"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/core/wskey"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/adapters/store/storetest"
+	"github.com/fprambs/transferly/internal/core/activity"
+	"github.com/fprambs/transferly/internal/core/admin"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/bookmark"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/invite"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/wskey"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // openMigrated returns a store over a fresh, migrated database.
@@ -66,7 +66,7 @@ func TestAuthStore_ReportsDatabaseFailures(t *testing.T) {
 		"CreateFirstUser":       store.CreateFirstUser(ctx, user),
 		"CreateUser":            store.CreateUser(ctx, user),
 		"UpdatePasswordHash":    store.UpdatePasswordHash(ctx, id, "h"),
-		"UpdatePreferences":     store.UpdatePreferences(ctx, id, auth.Preferences{Locale: "en", Timezone: "UTC", Theme: "sentinel-dark", FileDoubleClick: auth.FileDoubleClickDownload}),
+		"UpdatePreferences":     store.UpdatePreferences(ctx, id, auth.Preferences{Locale: "en", Timezone: "UTC", Theme: "transferly-dark", FileDoubleClick: auth.FileDoubleClickDownload}),
 		"CreateSession":         store.CreateSession(ctx, session),
 		"TouchSession":          store.TouchSession(ctx, id, at),
 		"DeleteSession":         store.DeleteSession(ctx, id),

@@ -29,13 +29,13 @@ describe('AppShell', () => {
     mockSession(adminSession)
     mockUpdateMe()
     mockWorkspaceData()
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
+    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false, queueOpen: true })
   })
 
   it('exposes the landmark regions', async () => {
     await renderShell()
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
     expect(screen.getByRole('banner', { name: 'Main toolbar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Sites' })).toBeInTheDocument()
     expect(screen.getByRole('main', { name: 'Explorer' })).toBeInTheDocument()

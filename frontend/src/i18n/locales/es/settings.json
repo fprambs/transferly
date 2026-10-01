@@ -2,7 +2,7 @@
   "title": "Ajustes",
   "appearance": {
     "title": "Apariencia",
-    "description": "Elige cómo se ve Sentinel. El tema se guarda en tu cuenta y te acompaña a otros navegadores.",
+    "description": "Elige cómo se ve Transferly. El tema se guarda en tu cuenta y te acompaña a otros navegadores.",
     "followSystem": "Seguir al sistema",
     "followSystemHint": "Usa un tema claro de día y uno oscuro de noche, como hace tu sistema operativo.",
     "themes": "Temas",
@@ -19,7 +19,7 @@
   },
   "servers": {
     "title": "Servidores de confianza",
-    "description": "Servidores cuya clave aceptaste. Sentinel te avisa si un servidor presenta alguna vez una clave distinta.",
+    "description": "Servidores cuya clave aceptaste. Transferly te avisa si un servidor presenta alguna vez una clave distinta.",
     "host": "Servidor",
     "keyType": "Tipo de clave",
     "fingerprint": "Huella",
@@ -42,7 +42,7 @@
   },
   "notFound": {
     "title": "Página no encontrada",
-    "body": "La dirección no lleva a ningún sitio de Sentinel.",
+    "body": "La dirección no lleva a ningún sitio de Transferly.",
     "home": "Ir al inicio"
   },
   "menu": {

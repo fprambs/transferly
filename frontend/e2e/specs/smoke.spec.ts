@@ -11,8 +11,8 @@ import { expect, test } from '../fixtures.ts'
  */
 test.describe('smoke', () => {
   test('renders the landmark regions', async ({ shell, page }) => {
-    await expect(page).toHaveTitle('Sentinel')
-    await expect(shell.heading).toHaveText('Sentinel')
+    await expect(page).toHaveTitle('Transferly')
+    await expect(shell.heading).toHaveText('Transferly')
     await expect(page.getByRole('banner')).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Sites' })).toBeVisible()
     await expect(page.getByRole('main', { name: 'Explorer' })).toBeVisible()
@@ -43,7 +43,7 @@ test.describe('smoke', () => {
   test('sends a signed-in user from the login route to the shell', async ({ page }) => {
     await page.goto('/login')
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Transferly' })).toBeVisible()
     await expect(page).toHaveURL(/\/$/)
   })
 })

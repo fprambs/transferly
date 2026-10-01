@@ -1,4 +1,4 @@
-// Package connectors is the catalog of the connectors Sentinel is built with (ADR-0019): every kind of storage a site can reach, such as
+// Package connectors is the catalog of the connectors Transferly is built with (ADR-0019): every kind of storage a site can reach, such as
 // SFTP, FTP or S3, described by what it is, what it can do, how it is configured and how it authenticates. The site form, the validation
 // of the API and the store of the admins follow from these descriptors, so a new connector touches no other code.
 package connectors
@@ -126,7 +126,7 @@ func (e *FieldError) Error() string {
 // Is matches [ErrInvalidConfig].
 func (e *FieldError) Is(target error) bool { return target == ErrInvalidConfig }
 
-// Catalog holds the connectors Sentinel is built with. It is safe for concurrent use.
+// Catalog holds the connectors Transferly is built with. It is safe for concurrent use.
 type Catalog struct {
 	mu          sync.RWMutex
 	descriptors map[string]Descriptor

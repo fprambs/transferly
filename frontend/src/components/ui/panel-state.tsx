@@ -31,7 +31,7 @@ export interface PanelStateProps {
 
 /**
  * The state of a panel that has nothing else to show (disconnected, a failure, a key to trust, an empty folder): a card centered in the
- * panel both ways, as the vault card is. Every panel of Sentinel shows its states this way.
+ * panel both ways, as the vault card is. Every panel of Transferly shows its states this way.
  */
 export function PanelState({ icon: Icon, tone = 'accent', title, description, role = 'status', children, className }: PanelStateProps) {
   return (

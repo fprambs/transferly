@@ -30,16 +30,16 @@ describe('MarkdownViewer', () => {
     const sent: unknown[] = []
     ;(frame.contentWindow as Window).postMessage = (message: unknown) => void sent.push(message)
 
-    window.dispatchEvent(new MessageEvent('message', { data: { type: 'sentinel:ready' }, source: window }))
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'transferly:ready' }, source: window }))
     act(() => fromFrame('Rendered README.md', { type: 'not-ours' }))
     expect(sent).toEqual([])
-    act(() => fromFrame('Rendered README.md', { type: 'sentinel:ready' }))
-    expect(sent).toEqual([expect.objectContaining({ type: 'sentinel:render', kind: 'markdown', name: 'README.md', theme: expect.any(Object) })])
+    act(() => fromFrame('Rendered README.md', { type: 'transferly:ready' }))
+    expect(sent).toEqual([expect.objectContaining({ type: 'transferly:render', kind: 'markdown', name: 'README.md', theme: expect.any(Object) })])
     expect(new TextDecoder().decode((sent[0] as { bytes: ArrayBuffer }).bytes)).toBe('# Hello')
 
-    act(() => fromFrame('Rendered README.md', { type: 'sentinel:rendered' }))
+    act(() => fromFrame('Rendered README.md', { type: 'transferly:rendered' }))
     expect(screen.getByTitle('Rendered README.md')).toBeInTheDocument()
-    act(() => fromFrame('Rendered README.md', { type: 'sentinel:failed', reason: 'render' }))
+    act(() => fromFrame('Rendered README.md', { type: 'transferly:failed', reason: 'render' }))
     await waitFor(() => expect(screen.getByLabelText('Contents of README.md')).toHaveTextContent('# Hello'))
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Rendered' }))

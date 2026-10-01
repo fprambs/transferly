@@ -9,13 +9,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/config"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/config"
 )
 
 const healthcheckTimeout = 3 * time.Second
 
-// Run executes the sentinel command line.
+// Run executes the transferly command line.
 //
 // Commands are serve (the default), migrate [up|status] and healthcheck. Configuration comes
 // from getenv; logs and command output are written to stdout.

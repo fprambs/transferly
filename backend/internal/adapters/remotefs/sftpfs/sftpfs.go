@@ -23,9 +23,9 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 const (

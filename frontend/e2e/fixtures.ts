@@ -14,7 +14,7 @@ export const test = base.extend<{ shell: ShellPage; quickId: string; folder: str
   accountTheme: ['mocked', { option: true }],
   page: async ({ page, accountTheme }, use) => {
     if (accountTheme === 'mocked') {
-      const preferences: Record<string, unknown> = { theme: 'sentinel-dark' }
+      const preferences: Record<string, unknown> = { theme: 'transferly-dark' }
       await page.route('**/api/v1/me', async (route) => {
         const request = route.request()
         if (request.method() === 'PATCH') {

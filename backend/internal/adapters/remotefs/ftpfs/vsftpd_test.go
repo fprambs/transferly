@@ -12,27 +12,27 @@ import (
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/remotefstest"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/remotefstest"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // TestConformance_Vsftpd runs the shared suite against real vsftpd servers, to catch replies that the in-process server
 // does not imitate, in particular the TLS session reuse that the FTPS servers require on data connections. Each mode is
-// skipped unless its variable names a server whose user sentinel can write in /upload, as the ftp, ftps and
+// skipped unless its variable names a server whose user transferly can write in /upload, as the ftp, ftps and
 // ftps-implicit services of the test stack (profile ftp) do.
 //
 // Scenarios:
-//   - plain FTP (SENTINEL_TEST_FTP_ADDR), explicit FTPS (SENTINEL_TEST_FTPS_ADDR) and implicit FTPS (SENTINEL_TEST_FTPS_IMPLICIT_ADDR)
+//   - plain FTP (TRANSFERLY_TEST_FTP_ADDR), explicit FTPS (TRANSFERLY_TEST_FTPS_ADDR) and implicit FTPS (TRANSFERLY_TEST_FTPS_IMPLICIT_ADDR)
 //   - the suite runs in a directory of its own, removed afterwards, so servers can be shared
 func TestConformance_Vsftpd(t *testing.T) {
 	for name, server := range map[string]struct {
 		variable string
 		mode     ftpfs.TLSMode
 	}{
-		"plain":         {"SENTINEL_TEST_FTP_ADDR", ftpfs.TLSNone},
-		"explicit ftps": {"SENTINEL_TEST_FTPS_ADDR", ftpfs.TLSExplicit},
-		"implicit ftps": {"SENTINEL_TEST_FTPS_IMPLICIT_ADDR", ftpfs.TLSImplicit},
+		"plain":         {"TRANSFERLY_TEST_FTP_ADDR", ftpfs.TLSNone},
+		"explicit ftps": {"TRANSFERLY_TEST_FTPS_ADDR", ftpfs.TLSExplicit},
+		"implicit ftps": {"TRANSFERLY_TEST_FTPS_IMPLICIT_ADDR", ftpfs.TLSImplicit},
 	} {
 		t.Run(name, func(t *testing.T) {
 			address := os.Getenv(server.variable)
@@ -42,8 +42,8 @@ func TestConformance_Vsftpd(t *testing.T) {
 			remotefstest.Run(t, func(t *testing.T) remotefs.RemoteFS {
 				fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{
 					Address:       address,
-					Username:      "sentinel",
-					Password:      "sentinel",
+					Username:      "transferly",
+					Password:      "transferly",
 					TLS:           server.mode,
 					VerifyHostKey: func(string, string) error { return nil },
 					Timeout:       10 * time.Second,
@@ -70,9 +70,9 @@ func TestVsftpd_LargeUpload(t *testing.T) {
 		variable string
 		mode     ftpfs.TLSMode
 	}{
-		"plain":         {"SENTINEL_TEST_FTP_ADDR", ftpfs.TLSNone},
-		"explicit ftps": {"SENTINEL_TEST_FTPS_ADDR", ftpfs.TLSExplicit},
-		"implicit ftps": {"SENTINEL_TEST_FTPS_IMPLICIT_ADDR", ftpfs.TLSImplicit},
+		"plain":         {"TRANSFERLY_TEST_FTP_ADDR", ftpfs.TLSNone},
+		"explicit ftps": {"TRANSFERLY_TEST_FTPS_ADDR", ftpfs.TLSExplicit},
+		"implicit ftps": {"TRANSFERLY_TEST_FTPS_IMPLICIT_ADDR", ftpfs.TLSImplicit},
 	} {
 		t.Run(name, func(t *testing.T) {
 			address := os.Getenv(server.variable)
@@ -80,7 +80,7 @@ func TestVsftpd_LargeUpload(t *testing.T) {
 				t.Skipf("%s is not set; start the ftp profile of the test stack to run this test", server.variable)
 			}
 			fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{
-				Address: address, Username: "sentinel", Password: "sentinel", TLS: server.mode,
+				Address: address, Username: "transferly", Password: "transferly", TLS: server.mode,
 				VerifyHostKey: func(string, string) error { return nil }, Timeout: 10 * time.Second,
 			})
 			if err != nil {
@@ -115,12 +115,12 @@ func TestVsftpd_LargeUpload(t *testing.T) {
 //   - a file with accents is written through an ISO-8859-1 connection, listed with its name back in UTF-8, read back and removed, and a
 //     connection without a character set sees the same file under the bytes of the server
 func TestVsftpd_Charset(t *testing.T) {
-	address := os.Getenv("SENTINEL_TEST_FTP_ADDR")
+	address := os.Getenv("TRANSFERLY_TEST_FTP_ADDR")
 	if address == "" {
-		t.Skip("SENTINEL_TEST_FTP_ADDR is not set; start the ftp profile of the test stack to run this test")
+		t.Skip("TRANSFERLY_TEST_FTP_ADDR is not set; start the ftp profile of the test stack to run this test")
 	}
 	dial := func(charset encoding.Encoding) *ftpfs.FS {
-		fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{Address: address, Username: "sentinel", Password: "sentinel", Charset: charset, Timeout: 10 * time.Second})
+		fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{Address: address, Username: "transferly", Password: "transferly", Charset: charset, Timeout: 10 * time.Second})
 		if err != nil {
 			t.Fatalf("Dial() = %v", err)
 		}
@@ -172,16 +172,16 @@ func TestVsftpd_Charset(t *testing.T) {
 // Scenarios:
 //   - eight sessions of the same user list the root, which is never empty, while the others upload and remove files, and no listing fails or comes back empty
 func TestVsftpd_ConcurrentSessions(t *testing.T) {
-	address := os.Getenv("SENTINEL_TEST_FTP_ADDR")
+	address := os.Getenv("TRANSFERLY_TEST_FTP_ADDR")
 	if address == "" {
-		t.Skip("SENTINEL_TEST_FTP_ADDR is not set; start the ftp profile of the test stack to run this test")
+		t.Skip("TRANSFERLY_TEST_FTP_ADDR is not set; start the ftp profile of the test stack to run this test")
 	}
 	var wg sync.WaitGroup
 	for worker := 0; worker < 8; worker++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{Address: address, Username: "sentinel", Password: "sentinel", Timeout: 10 * time.Second})
+			fsys, err := ftpfs.Dial(t.Context(), ftpfs.Config{Address: address, Username: "transferly", Password: "transferly", Timeout: 10 * time.Second})
 			if err != nil {
 				t.Error(err)
 				return

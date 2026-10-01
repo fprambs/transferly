@@ -29,36 +29,36 @@ describe('SandboxFrame', () => {
   it('serves the page its file by ranges', async () => {
     const source = bytesSource('a.pdf', new Uint8Array(100).map((_, index) => index))
     const { sent, fromPage } = renderFrame({ source, labels: { page: 'Page' } })
-    fromPage({ type: 'sentinel:ready' })
-    expect(sent[0]).toMatchObject({ type: 'sentinel:render', kind: 'pdf', size: 100, labels: { page: 'Page' } })
+    fromPage({ type: 'transferly:ready' })
+    expect(sent[0]).toMatchObject({ type: 'transferly:render', kind: 'pdf', size: 100, labels: { page: 'Page' } })
 
-    fromPage({ type: 'sentinel:range', id: 7, begin: 10, end: 13 })
-    await waitFor(() => expect(sent[1]).toMatchObject({ type: 'sentinel:bytes', id: 7 }))
+    fromPage({ type: 'transferly:range', id: 7, begin: 10, end: 13 })
+    await waitFor(() => expect(sent[1]).toMatchObject({ type: 'transferly:bytes', id: 7 }))
     expect([...new Uint8Array(sent[1].bytes as ArrayBuffer)]).toEqual([10, 11, 12])
-    fromPage({ type: 'sentinel:range', id: 8, begin: 0, end: 5 * 1024 * 1024 })
-    expect(sent[2]).toEqual({ type: 'sentinel:bytes', id: 8, bytes: null })
+    fromPage({ type: 'transferly:range', id: 8, begin: 0, end: 5 * 1024 * 1024 })
+    expect(sent[2]).toEqual({ type: 'transferly:bytes', id: 8, bytes: null })
   })
 
   it('answers null without a source or when the read fails', async () => {
     const bare = renderFrame()
-    bare.fromPage({ type: 'sentinel:ready' })
+    bare.fromPage({ type: 'transferly:ready' })
     expect(bare.sent[0]).toMatchObject({ size: 2, labels: {} })
-    bare.fromPage({ type: 'sentinel:range', id: 1, begin: 0, end: 1 })
-    expect(bare.sent[1]).toEqual({ type: 'sentinel:bytes', id: 1, bytes: null })
+    bare.fromPage({ type: 'transferly:range', id: 1, begin: 0, end: 1 })
+    expect(bare.sent[1]).toEqual({ type: 'transferly:bytes', id: 1, bytes: null })
   })
 
   it('answers null when the read fails, forwards keys and reports failures', async () => {
     const { sent, frame, fromPage, onFailed } = renderFrame({ source: bytesSource('a.pdf', new Uint8Array(4), true) })
-    fromPage({ type: 'sentinel:range', id: 2, begin: 0, end: 2 })
-    await waitFor(() => expect(sent[0]).toEqual({ type: 'sentinel:bytes', id: 2, bytes: null }))
+    fromPage({ type: 'transferly:range', id: 2, begin: 0, end: 2 })
+    await waitFor(() => expect(sent[0]).toEqual({ type: 'transferly:bytes', id: 2, bytes: null }))
 
     const keys: string[] = []
     frame.addEventListener('keydown', (event) => keys.push(event.key))
-    fromPage({ type: 'sentinel:key', key: 'Escape' })
+    fromPage({ type: 'transferly:key', key: 'Escape' })
     expect(keys).toEqual(['Escape'])
 
-    fromPage({ type: 'sentinel:failed', reason: 'password' })
-    fromPage({ type: 'sentinel:failed' })
+    fromPage({ type: 'transferly:failed', reason: 'password' })
+    fromPage({ type: 'transferly:failed' })
     expect(onFailed.mock.calls).toEqual([['password'], ['']])
   })
 })

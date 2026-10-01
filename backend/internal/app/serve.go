@@ -10,10 +10,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/instancekey"
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/config"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/adapters/instancekey"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/config"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 const (

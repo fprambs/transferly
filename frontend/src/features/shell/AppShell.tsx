@@ -70,8 +70,8 @@ export function AppShell() {
   const setQueueOpen = useUiStore((state) => state.setQueueOpen)
   const sites = useCollapsible(sitesOpen, setSitesOpen)
   const transfers = useCollapsible(queueOpen, setQueueOpen)
-  const outer = useDefaultLayout({ id: 'sentinel-shell', storage: layoutStorage })
-  const inner = useDefaultLayout({ id: 'sentinel-work', storage: layoutStorage })
+  const outer = useDefaultLayout({ id: 'transferly-shell', storage: layoutStorage })
+  const inner = useDefaultLayout({ id: 'transferly-work', storage: layoutStorage })
   useTransferStream()
   useAccountPreferences()
 
@@ -112,9 +112,9 @@ export function AppShell() {
   return (
     <div className="flex h-svh flex-col overflow-hidden">
       <TopBar />
-      <Group orientation="vertical" id="sentinel-shell" className="min-h-0 flex-1" {...outer}>
+      <Group orientation="vertical" id="transferly-shell" className="min-h-0 flex-1" {...outer}>
         <Panel id="work" minSize={160}>
-          <Group id="sentinel-work" className="h-full" {...inner}>
+          <Group id="transferly-work" className="h-full" {...inner}>
             <Panel id="sites" collapsible collapsedSize={railPx} defaultSize={248} minSize={180} maxSize="45%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...sites}>
               {sitesOpen ? <SitesSidebar onOpen={open} onHide={() => setSitesOpen(false)} onDisconnect={disconnect} /> : <SitesRail onOpen={open} onDisconnect={disconnect} />}
             </Panel>

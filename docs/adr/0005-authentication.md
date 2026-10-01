@@ -5,7 +5,7 @@
 
 ## Context
 
-Sentinel guards credentials for remote servers, so account takeover is the main risk. Guidance comes from the OWASP Password Storage, Session Management and CSRF Prevention cheat sheets.
+Transferly guards credentials for remote servers, so account takeover is the main risk. Guidance comes from the OWASP Password Storage, Session Management and CSRF Prevention cheat sheets.
 
 ## Decision
 

@@ -19,39 +19,39 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/events"
-	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/memfs"
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/core/activity"
-	"github.com/fprambs/sentinel/internal/core/admin"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/bookmark"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/connectors"
-	"github.com/fprambs/sentinel/internal/core/connlog"
-	"github.com/fprambs/sentinel/internal/core/credentials"
-	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/invite"
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/passkey"
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/quick"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/core/wskey"
-	"github.com/fprambs/sentinel/internal/testutil"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/adapters/events"
+	"github.com/fprambs/transferly/internal/adapters/ratelimit"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/memfs"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/core/activity"
+	"github.com/fprambs/transferly/internal/core/admin"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/bookmark"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connectors"
+	"github.com/fprambs/transferly/internal/core/connlog"
+	"github.com/fprambs/transferly/internal/core/credentials"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/invite"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/wskey"
+	"github.com/fprambs/transferly/internal/testutil"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 const (
@@ -110,7 +110,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
-	passkeys, err := passkey.NewService(store, passkey.Config{RPID: "localhost", DisplayName: "Sentinel", Origins: []string{localOrigin}}, clock, rand.Reader, nil)
+	passkeys, err := passkey.NewService(store, passkey.Config{RPID: "localhost", DisplayName: "Transferly", Origins: []string{localOrigin}}, clock, rand.Reader, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func (r reply) session(t *testing.T) httpapi.SessionInfo {
 // sessionCookie returns the session cookie set by a reply, or nil.
 func (r reply) sessionCookie() *http.Cookie {
 	for _, c := range r.Cookies {
-		if c.Name == "sentinel_session" {
+		if c.Name == "transferly_session" {
 			return c
 		}
 	}
@@ -369,7 +369,7 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Errorf("me = %d %s, want the same session", me.Status, me.Body)
 	}
 	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/me"}), 401, "unauthenticated")
-	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: &http.Cookie{Name: "sentinel_session", Value: "forged"}}), 401, "unauthenticated")
+	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: &http.Cookie{Name: "transferly_session", Value: "forged"}}), 401, "unauthenticated")
 	expectProblem(t, a.do(request{method: http.MethodPost, path: "/api/v1/auth/logout"}), 401, "unauthenticated")
 
 	expectProblem(t, a.do(request{method: http.MethodPost, path: "/api/v1/auth/logout", cookie: cookie}), 403, "csrf_invalid")
@@ -415,7 +415,7 @@ func TestUpdateMe(t *testing.T) {
 		return a.do(request{method: http.MethodPatch, path: "/api/v1/me", cookie: cookie, body: body, headers: map[string]string{"X-CSRF-Token": csrf}})
 	}
 
-	if first := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); first.session(t).User.Theme != "sentinel-dark" || first.session(t).User.FileDoubleClick != httpapi.UserFileDoubleClickDownload {
+	if first := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); first.session(t).User.Theme != "transferly-dark" || first.session(t).User.FileDoubleClick != httpapi.UserFileDoubleClickDownload {
 		t.Errorf("the default theme and double click = %+v", first.session(t).User)
 	}
 	ok := patch(map[string]string{"locale": "es-cl", "timezone": "America/Santiago", "theme": "tokyo-night", "fileDoubleClick": "edit"})

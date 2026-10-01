@@ -32,15 +32,15 @@ Sources (read 2026-09-28):
 ## FTP (RFC 959)
 
 - **Login** is `USER`, then `PASS` on 331, then `ACCT` on 332. 230 means logged in, 530 refused. `ACCT` may also be asked later, for a single command such as `STOR`: 332 keeps the command waiting for it, 532 drops it. An account site (4.8e) answers 332 at login with its stored account, and treats 332 or 532 on a later command the same way.
-- **Anonymous.** RFC 959 does not define it. The convention (RFC 1635) is the user `anonymous` with an e-mail address as password. Sentinel sends `anonymous@example.com`, as FileZilla does.
+- **Anonymous.** RFC 959 does not define it. The convention (RFC 1635) is the user `anonymous` with an e-mail address as password. Transferly sends `anonymous@example.com`, as FileZilla does.
 - **Reply codes.** The first digit is 1 preliminary, 2 done, 3 needs more, 4 temporary failure, 5 permanent failure. The second is 0 syntax, 1 information, 2 connections, 3 authentication, 5 file system. Classification follows these digits before looking at the text ([FTP guide](ftp.md#rules-of-the-adapter)).
 - **Transfers** are `TYPE I` (binary) in stream mode. `REST` before `RETR`/`STOR` resumes, and `ABOR` ends with 426 or 226.
 
 ## FTPS (RFC 4217)
 
 - **Explicit TLS.** `AUTH TLS` is answered with 234 to go ahead. 334 is wrong for TLS, and 5xx is a refusal. After the handshake come `PBSZ 0` and then `PROT P`: PBSZ must be sent even though TLS needs no buffer size. Data connections are clear until `PROT P`.
-- **Order.** Clients should not insist that `AUTH` comes first or that `PBSZ`/`PROT` come right after it. Sentinel sends `AUTH` before `USER`, so credentials never travel in clear text over a site that requires TLS.
+- **Order.** Clients should not insist that `AUTH` comes first or that `PBSZ`/`PROT` come right after it. Transferly sends `AUTH` before `USER`, so credentials never travel in clear text over a site that requires TLS.
 - **Refused AUTH.** "A client that receives an AUTH rejection MAY choose to continue with the session unprotected", provided the user can require protection instead. That is exactly the `optional` versus `explicit` choice of ADR-0012. `optional` accepts the downgrade and says so.
-- **Certificates** should identify the server as in HTTPS. Sentinel trusts by fingerprint, like an SSH host key ([FTP guide](ftp.md#rules-of-the-adapter)), and data connections reuse the control connection's TLS session.
+- **Certificates** should identify the server as in HTTPS. Transferly trusts by fingerprint, like an SSH host key ([FTP guide](ftp.md#rules-of-the-adapter)), and data connections reuse the control connection's TLS session.
 - **CCC** (clear the control channel after login) weakens the session and is not implemented.
 - **Implicit TLS on 990 is not in RFC 4217.** It predates it and is a de facto practice, kept for servers that use it (ADR-0012).

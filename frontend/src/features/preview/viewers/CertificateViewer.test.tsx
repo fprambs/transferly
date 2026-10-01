@@ -81,7 +81,7 @@ describe('CertificateViewer', () => {
     await show('leaf.csr')
     expect(await screen.findByText('Certificate request')).toBeInTheDocument()
     await show('id_ed25519.pub')
-    expect(await screen.findByText('sample@sentinel')).toBeInTheDocument()
+    expect(await screen.findByText('sample@transferly')).toBeInTheDocument()
     expect(screen.getByText(/^SHA256:/)).toBeInTheDocument()
     const line = new TextDecoder().decode(sample('id_ed25519.pub')).split(' ').slice(0, 2).join(' ')
     await show('bare.pub', new TextEncoder().encode(line))

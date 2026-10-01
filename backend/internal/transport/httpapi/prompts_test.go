@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/prompts"
 )
 
 // promptMessage is the payload of a connection.prompt message.

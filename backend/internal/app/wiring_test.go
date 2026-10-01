@@ -12,14 +12,14 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/clock"
-	"github.com/fprambs/sentinel/internal/config"
-	"github.com/fprambs/sentinel/internal/core/activity"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/clock"
+	"github.com/fprambs/transferly/internal/config"
+	"github.com/fprambs/transferly/internal/core/activity"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // TestRunJanitor verifies the periodic cleanup loop.
@@ -190,8 +190,8 @@ func TestRotationLogger(t *testing.T) {
 //   - without origins it is localhost, and an origin that cannot be parsed is used as it is
 //   - a relying party the WebAuthn library refuses stops the composition of the services
 func TestRelyingParty(t *testing.T) {
-	host, origins := relyingParty([]string{"https://sentinel.example:8443", "https://alias.example"})
-	if host != "sentinel.example" || len(origins) != 2 {
+	host, origins := relyingParty([]string{"https://transferly.example:8443", "https://alias.example"})
+	if host != "transferly.example" || len(origins) != 2 {
 		t.Errorf("relyingParty() = %q, %v", host, origins)
 	}
 	if host, origins := relyingParty(nil); host != "localhost" || len(origins) != 1 {

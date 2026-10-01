@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // Policy says what a copy does with a file that already exists at the destination.

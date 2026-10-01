@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // TestRetryable verifies which failures are worth retrying after a reconnect.

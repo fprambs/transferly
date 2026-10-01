@@ -1,6 +1,6 @@
 # cmdk
 
-Sentinel's command palette (4.14c, `src/features/palette/`) is built on [cmdk](https://github.com/pacocoursey/cmdk). This guide sums up what the official README says and how the project follows it.
+Transferly's command palette (4.14c, `src/features/palette/`) is built on [cmdk](https://github.com/pacocoursey/cmdk). This guide sums up what the official README says and how the project follows it.
 
 ## Parts
 
@@ -13,11 +13,11 @@ Sentinel's command palette (4.14c, `src/features/palette/`) is built on [cmdk](h
 
 ## Filtering
 
-The default filter ranks items by a fuzzy score of the search against the value and keywords. Sentinel keeps it and gives each item keywords in both languages where the words differ (host and user of a site, path of a bookmark), so a search for a host finds its site.
+The default filter ranks items by a fuzzy score of the search against the value and keywords. Transferly keeps it and gives each item keywords in both languages where the words differ (host and user of a site, path of a bookmark), so a search for a host finds its site.
 
 ## Dialog
 
-`Command.Dialog` composes Radix UI's Dialog. Sentinel does not use it: the palette lives in the project's own Base UI `Dialog`, like every other dialog, so focus trapping, Escape and the overlay behave the same everywhere. The dialog opens with the main modifier and K (Ctrl on Windows and Linux, ⌘ on Apple systems) and from the button of the top bar.
+`Command.Dialog` composes Radix UI's Dialog. Transferly does not use it: the palette lives in the project's own Base UI `Dialog`, like every other dialog, so focus trapping, Escape and the overlay behave the same everywhere. The dialog opens with the main modifier and K (Ctrl on Windows and Linux, ⌘ on Apple systems) and from the button of the top bar.
 
 ## Styling
 

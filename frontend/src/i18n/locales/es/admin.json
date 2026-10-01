@@ -61,7 +61,7 @@
     "loading": "Cargando redes…",
     "intro": "Los sitios siempre pueden llegar a direcciones públicas. Los servidores en redes privadas, como una oficina o un laboratorio en casa, solo funcionan si su red está en esta lista o se definió al arrancar el servidor.",
     "fixed": "Definidas al arrancar",
-    "fixedNote": "Vienen de SENTINEL_ALLOWED_NETWORKS. Solo un reinicio las cambia.",
+    "fixedNote": "Vienen de TRANSFERLY_ALLOWED_NETWORKS. Solo un reinicio las cambia.",
     "none": "Ninguna.",
     "custom": "Agregadas por administradores",
     "placeholder": "192.168.1.0/24\n10.20.0.5",

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/app"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/app"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // syncBuffer is a bytes.Buffer safe for concurrent use by a logger and a test.
@@ -51,7 +51,7 @@ func envOf(vars map[string]string) func(string) string {
 //   - an address that cannot be listened on
 func TestRun_RejectsInvalidInvocations(t *testing.T) {
 	dbURL := testutil.NewDatabase(t)
-	valid := map[string]string{"SENTINEL_DATABASE_URL": dbURL, "SENTINEL_DATA_DIR": t.TempDir()}
+	valid := map[string]string{"TRANSFERLY_DATABASE_URL": dbURL, "TRANSFERLY_DATA_DIR": t.TempDir()}
 
 	tests := []struct {
 		name    string
@@ -59,10 +59,10 @@ func TestRun_RejectsInvalidInvocations(t *testing.T) {
 		env     map[string]string
 		wantErr string
 	}{
-		{"missing configuration", []string{"serve"}, map[string]string{}, "SENTINEL_DATABASE_URL"},
+		{"missing configuration", []string{"serve"}, map[string]string{}, "TRANSFERLY_DATABASE_URL"},
 		{"unknown command", []string{"explode"}, valid, "unknown command"},
 		{"unknown migrate subcommand", []string{"migrate", "sideways"}, valid, "unknown migrate subcommand"},
-		{"unusable listen address", []string{"serve"}, map[string]string{"SENTINEL_DATABASE_URL": dbURL, "SENTINEL_DATA_DIR": t.TempDir(), "SENTINEL_HTTP_ADDR": "no-such-host-name:99999"}, "listening on"},
+		{"unusable listen address", []string{"serve"}, map[string]string{"TRANSFERLY_DATABASE_URL": dbURL, "TRANSFERLY_DATA_DIR": t.TempDir(), "TRANSFERLY_HTTP_ADDR": "no-such-host-name:99999"}, "listening on"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestRun_RejectsInvalidInvocations(t *testing.T) {
 //   - "migrate status" prints the schema version
 //   - "migrate up" and "migrate status" fail when the database is unreachable
 func TestRun_Migrate(t *testing.T) {
-	env := envOf(map[string]string{"SENTINEL_DATABASE_URL": testutil.NewDatabase(t)})
+	env := envOf(map[string]string{"TRANSFERLY_DATABASE_URL": testutil.NewDatabase(t)})
 	var out bytes.Buffer
 
 	if err := app.Run(t.Context(), []string{"migrate"}, env, &out); err != nil {
@@ -95,7 +95,7 @@ func TestRun_Migrate(t *testing.T) {
 		t.Errorf("output = %q, want a schema version of at least 1", out.String())
 	}
 
-	unreachable := envOf(map[string]string{"SENTINEL_DATABASE_URL": "postgres://u:p@127.0.0.1:1/db?sslmode=disable&connect_timeout=1"})
+	unreachable := envOf(map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://u:p@127.0.0.1:1/db?sslmode=disable&connect_timeout=1"})
 	for _, sub := range []string{"up", "status"} {
 		if err := app.Run(t.Context(), []string{"migrate", sub}, unreachable, &out); err == nil {
 			t.Errorf("Run(migrate %s) with unreachable database = nil, want error", sub)
@@ -111,10 +111,10 @@ func TestRun_Migrate(t *testing.T) {
 //   - canceling the context stops the server cleanly
 func TestRun_ServeStartsAndStopsOnCancel(t *testing.T) {
 	env := envOf(map[string]string{
-		"SENTINEL_DATABASE_URL": testutil.NewDatabase(t),
-		"SENTINEL_HTTP_ADDR":    "127.0.0.1:0",
-		"SENTINEL_DATA_DIR":     t.TempDir(),
-		"SENTINEL_LOG_LEVEL":    "debug",
+		"TRANSFERLY_DATABASE_URL": testutil.NewDatabase(t),
+		"TRANSFERLY_HTTP_ADDR":    "127.0.0.1:0",
+		"TRANSFERLY_DATA_DIR":     t.TempDir(),
+		"TRANSFERLY_LOG_LEVEL":    "debug",
 	})
 	var logs syncBuffer
 	ctx, cancel := context.WithCancel(t.Context())
@@ -155,7 +155,7 @@ func TestRun_Healthcheck(t *testing.T) {
 	}))
 	defer server.Close()
 	envFor := func(addr string) func(string) string {
-		return envOf(map[string]string{"SENTINEL_DATABASE_URL": "postgres://x", "SENTINEL_HTTP_ADDR": addr})
+		return envOf(map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x", "TRANSFERLY_HTTP_ADDR": addr})
 	}
 	run := func(addr string) error {
 		return app.Run(t.Context(), []string{"healthcheck"}, envFor(addr), &bytes.Buffer{})

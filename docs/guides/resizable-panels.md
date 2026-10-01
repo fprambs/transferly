@@ -21,15 +21,15 @@ Sources (read 2026-09-28): the README and type definitions of [react-resizable-p
 
 ## Persistence
 
-`useDefaultLayout({ id, storage })` returns `{ defaultLayout, onLayoutChanged }` to spread on the group; `storage` is anything with `getItem`/`setItem` (`localStorage` by default). A `Layout` maps panel ids to their flex-grow, so every panel needs a stable `id`. Groups with conditionally rendered panels pass `panelIds` so each set of panels keeps its own layout. Sentinel wraps storage in try/catch, since `localStorage` can throw in private windows, and treats layouts as a per-browser convenience.
+`useDefaultLayout({ id, storage })` returns `{ defaultLayout, onLayoutChanged }` to spread on the group; `storage` is anything with `getItem`/`setItem` (`localStorage` by default). A `Layout` maps panel ids to their flex-grow, so every panel needs a stable `id`. Groups with conditionally rendered panels pass `panelIds` so each set of panels keeps its own layout. Transferly wraps storage in try/catch, since `localStorage` can throw in private windows, and treats layouts as a per-browser convenience.
 
 ## Tests
 
 - It needs `ResizeObserver`; jsdom has none, so the Vitest setup installs a no-op one. jsdom measures nothing, so unit tests check structure, names, keyboard handlers wiring and the show/hide switches, not pixel sizes.
 - Playwright (real layout) checks dragging a separator, the size surviving a reload, double click restoring the default, and keyboard resizing.
 
-## Rules in Sentinel
+## Rules in Transferly
 
 - One `ResizeHandle` component draws every separator (a 1 px line that highlights on hover and while dragging) with an accessible name.
 - Panels that can be hidden (sites, log, details, transfers) are collapsible and follow the interface preferences: the toolbar switches and the panels' own toggles collapse and expand them, and dragging one closed updates the preference.
-- Group ids start with `sentinel-` and are the storage keys; changing the panels of a group means changing its id, so an old saved layout does not apply to new panels.
+- Group ids start with `transferly-` and are the storage keys; changing the panels of a group means changing its id, so an old saved layout does not apply to new panels.

@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
-	"github.com/fprambs/sentinel/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/db"
+	"github.com/fprambs/transferly/internal/core/transfer"
 )
 
 var _ transfer.Store = (*Store)(nil)

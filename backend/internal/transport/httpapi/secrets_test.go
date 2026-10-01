@@ -9,9 +9,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // lockedBuffer is a log destination that the server goroutines and the test can share.

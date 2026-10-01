@@ -1,6 +1,6 @@
 # DayPicker
 
-Sentinel draws its calendars with [DayPicker](https://daypicker.dev) through `src/components/ui/calendar.tsx`. This guide sums up what the official documentation says and how the project follows it.
+Transferly draws its calendars with [DayPicker](https://daypicker.dev) through `src/components/ui/calendar.tsx`. This guide sums up what the official documentation says and how the project follows it.
 
 ## Package
 

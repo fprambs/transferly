@@ -2,8 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/sentinel ./cmd/sentinel"
-entrypoint = ["./tmp/sentinel"]
+cmd = "go build -o ./tmp/transferly ./cmd/transferly"
+entrypoint = ["./tmp/transferly"]
 args_bin = ["serve"]
 include_ext = ["go", "sql"]
 exclude_dir = ["tmp", "coverage"]

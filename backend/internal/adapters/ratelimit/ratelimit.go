@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 // Rule describes a bucket: it holds up to Burst tokens and gains one every Every.

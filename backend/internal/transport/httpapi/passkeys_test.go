@@ -11,11 +11,11 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/core/mfa"
-	"github.com/fprambs/sentinel/internal/core/passkey"
-	"github.com/fprambs/sentinel/internal/core/passkey/passkeytest"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/core/mfa"
+	"github.com/fprambs/transferly/internal/core/passkey"
+	"github.com/fprambs/transferly/internal/core/passkey/passkeytest"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // newDevice returns an authenticator that answers for the test server.

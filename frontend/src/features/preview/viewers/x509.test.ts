@@ -51,10 +51,10 @@ describe('readKeyFile', () => {
       { name: 'C', value: 'CL' },
       { name: 'ST', value: 'RM' },
       { name: 'L', value: 'Santiago' },
-      { name: 'O', value: 'Sentinel Samples' },
+      { name: 'O', value: 'Transferly Samples' },
       { name: 'CN', value: 'files.example.com' },
     ])
-    expect(leaf.issuer.at(-1)).toEqual({ name: 'CN', value: 'Sentinel Sample Root CA' })
+    expect(leaf.issuer.at(-1)).toEqual({ name: 'CN', value: 'Transferly Sample Root CA' })
     expect(leaf.key).toEqual({ algorithm: 'RSA', bits: 2048 })
     expect(leaf.signature).toBe('SHA-256 with RSA')
     expect(leaf.altNames).toEqual(['files.example.com', '*.files.example.com', '192.0.2.10'])
@@ -84,7 +84,7 @@ describe('readKeyFile', () => {
     const line = new TextDecoder().decode(sample('id_ed25519.pub'))
     const blob = Buffer.from(line.split(' ')[1], 'base64')
     expect(readKeyFile(sample('id_ed25519.pub'))).toEqual([
-      { kind: 'sshKey', type: 'ssh-ed25519', key: { algorithm: 'Ed25519', bits: 256 }, comment: 'sample@sentinel', fingerprint: `SHA256:${createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')}` },
+      { kind: 'sshKey', type: 'ssh-ed25519', key: { algorithm: 'Ed25519', bits: 256 }, comment: 'sample@transferly', fingerprint: `SHA256:${createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')}` },
     ])
     expect(readKeyFile(sample('private-key.pem'))).toEqual([{ kind: 'privateKey', label: 'PRIVATE KEY' }])
     expect(readKeyFile(sample('broken.pem'))).toEqual([{ kind: 'unreadable', label: 'CERTIFICATE' }])

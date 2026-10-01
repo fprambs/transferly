@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/events"
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/adapters/events"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 // receive returns the next event, or false when none arrives soon.

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
 const (

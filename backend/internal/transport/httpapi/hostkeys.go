@@ -5,8 +5,8 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/hostkey"
 )
 
 // knownHostDTO converts a trusted key to its public representation.

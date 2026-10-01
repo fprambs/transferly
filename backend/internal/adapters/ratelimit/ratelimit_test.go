@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/ratelimit"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/ratelimit"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // newLimiter returns a limiter of 3 actions per burst, one earned every 10 seconds, with a fake clock.

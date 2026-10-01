@@ -27,7 +27,7 @@ function mockFactor(status: SecurityStatus = { totp: false, recoveryCodesLeft: 0
     http.get('/api/v1/me/security', () => HttpResponse.json(state.status)),
     http.post('/api/v1/me/totp', async ({ request }) => {
       await record(request)
-      return HttpResponse.json({ secret: 'JBSWY3DPEHPK3PXP', uri: 'otpauth://totp/Sentinel:admin@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Sentinel' })
+      return HttpResponse.json({ secret: 'JBSWY3DPEHPK3PXP', uri: 'otpauth://totp/Transferly:admin@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Transferly' })
     }),
     http.post('/api/v1/me/totp/confirm', async ({ request }) => {
       await record(request)

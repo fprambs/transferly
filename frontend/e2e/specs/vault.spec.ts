@@ -25,7 +25,7 @@ test.describe('vault', () => {
     const name = `Locked ${stamp}`
     const created = await guest.post(`/api/v1/workspaces/${personal.id}/sites`, {
       headers,
-      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     expect(created.status()).toBe(201)
     const siteId = ((await created.json()) as { id: string }).id
@@ -38,7 +38,7 @@ test.describe('vault', () => {
     await expect(unlock).toBeVisible()
     await expect(unlock).toContainText(name)
     await expect(unlock).toContainText('sftp')
-    await expect(unlock).toContainText('sentinel')
+    await expect(unlock).toContainText('transferly')
     await expect(unlock.getByLabel('Master password')).toBeFocused()
     await page.keyboard.type(masterPassword)
     await page.keyboard.press('Enter')

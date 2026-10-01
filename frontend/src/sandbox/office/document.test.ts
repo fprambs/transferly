@@ -58,7 +58,7 @@ describe('renderDocument', () => {
     await renderDocument(sample('document.docx'), root)
     expect(root.classList.contains('document')).toBe(true)
     expect(root.querySelector('.docx-pages section')).not.toBeNull()
-    expect(root.textContent).toContain('Sentinel preview sample')
+    expect(root.textContent).toContain('Transferly preview sample')
     expect(root.querySelector('table')?.textContent).toContain('Bogotá')
     expect(root.querySelector('img')?.getAttribute('src')).toMatch(/^blob:/)
     const css = Array.from(root.querySelectorAll('style'), (style) => style.textContent).join('\n')
@@ -79,7 +79,7 @@ describe('renderDocument', () => {
   it('reads an OpenDocument text', async () => {
     await renderDocument(sample('document.odt'), root)
     const page = root.querySelector('.odt-page') as HTMLElement
-    expect(page.querySelector('h1')?.textContent).toBe('Sentinel preview sample')
+    expect(page.querySelector('h1')?.textContent).toBe('Transferly preview sample')
     expect((page.querySelector('p span') as HTMLElement).style.fontWeight).toBe('bold')
     expect(Array.from(page.querySelectorAll('p')).find((p) => p.textContent === 'A centered paragraph.')?.style.textAlign).toBe('center')
     expect(page.querySelectorAll('li')).toHaveLength(3)

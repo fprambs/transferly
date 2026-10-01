@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/pressly/goose/v3/lock"
 
-	"github.com/fprambs/sentinel/internal/testutil"
-	pgmigrations "github.com/fprambs/sentinel/migrations/postgres"
+	"github.com/fprambs/transferly/internal/testutil"
+	pgmigrations "github.com/fprambs/transferly/migrations/postgres"
 )
 
 // TestNewProvider_ReportsLockFailures verifies that a failure to create the migration lock is reported.

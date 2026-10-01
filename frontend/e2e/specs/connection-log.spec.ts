@@ -18,8 +18,8 @@ test.describe('connection log', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-    await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+    await dialog.getByLabel('Password', { exact: true }).fill('transferly')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await expect(dialog).toBeHidden()
 
@@ -27,7 +27,7 @@ test.describe('connection log', () => {
     const log = page.getByRole('list', { name: 'Connection log' })
     await expect(log.getByText(/^Listed \/: \d+ entries\.$/)).toBeVisible()
     const lines = await log.getByRole('listitem').locator('span').allTextContents()
-    const order = [/^Connecting to sftp:22…$/, /^Connected to /, /^Server key verified: /, /^Signed in as sentinel \(password\)\.$/, /^Listing \/…$/, /^Listed \//]
+    const order = [/^Connecting to sftp:22…$/, /^Connected to /, /^Server key verified: /, /^Signed in as transferly \(password\)\.$/, /^Listing \/…$/, /^Listed \//]
     let at = 0
     for (const line of lines) {
       if (at < order.length && order[at].test(line)) {

@@ -31,7 +31,7 @@ var stage atomic.Value
 // run performs login, upload, listing and download, returning the first failure.
 func run(a attempt) error {
 	stage.Store("dial")
-	config := &tls.Config{InsecureSkipVerify: true, ServerName: "sentinel-test"}
+	config := &tls.Config{InsecureSkipVerify: true, ServerName: "transferly-test"}
 	if a.tls12 {
 		config.MaxVersion = tls.VersionTLS12
 	}
@@ -51,7 +51,7 @@ func run(a attempt) error {
 	}
 	defer func() { _ = conn.Quit() }()
 	stage.Store("login")
-	if err := conn.Login("sentinel", "sentinel"); err != nil {
+	if err := conn.Login("transferly", "transferly"); err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
 	stage.Store("upload")

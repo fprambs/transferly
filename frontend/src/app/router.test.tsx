@@ -52,7 +52,7 @@ describe('routes', () => {
 
     const { history } = await renderApp()
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
     expect(history.location.pathname).toBe('/')
   })
 
@@ -61,7 +61,7 @@ describe('routes', () => {
 
     const { history } = await renderApp({ path })
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
     expect(history.location.pathname).toBe('/')
   })
 
@@ -99,7 +99,7 @@ describe('routes', () => {
     await user.type(screen.getByLabelText('Password'), 'correct horse battery')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
     expect(sent).toEqual({ email: 'admin@example.com', password: 'correct horse battery' })
     expect(history.location.pathname).toBe('/')
     await transport.request({ method: 'POST', path: '/api/v1/auth/logout' })
@@ -117,7 +117,7 @@ describe('routes', () => {
     await user.type(screen.getByLabelText('Password'), 'correct horse battery')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
     expect(history.location.pathname).toBe('/')
   })
 

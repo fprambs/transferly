@@ -147,7 +147,7 @@ const defaultCharacters = [...Array.from({ length: 0x5e }, (_, index) => 0x21 + 
 const sizes = [12, 16, 24, 36, 48, 72]
 
 /** The family name the page gives the font it shows. */
-const family = 'Sentinel Preview Font'
+const family = 'Transferly Preview Font'
 
 /**
  * Shows a font inside the isolated page (ADR-0018): it is loaded with the FontFace interface of the browser, which checks it before using

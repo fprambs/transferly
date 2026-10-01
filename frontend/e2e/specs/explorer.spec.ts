@@ -7,8 +7,8 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures.ts'
 
 const themes = [
-  'sentinel-dark',
-  'sentinel-light',
+  'transferly-dark',
+  'transferly-light',
   'monokai',
   'dracula',
   'nord',
@@ -56,8 +56,8 @@ test.describe('explorer', () => {
     await page.getByRole('button', { name: /Quick connect/ }).click()
     const dialog = page.getByRole('dialog', { name: 'Quick connect' })
     await dialog.getByLabel('Host').fill('sftp')
-    await dialog.getByLabel('Username').fill('sentinel')
-    await dialog.getByLabel('Password').fill('sentinel')
+    await dialog.getByLabel('Username').fill('transferly')
+    await dialog.getByLabel('Password').fill('transferly')
     await dialog.getByRole('button', { name: 'Connect' }).click()
 
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
@@ -240,7 +240,7 @@ test.describe('explorer', () => {
     })
     const slow = (await (
       await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
-        data: { name: `Slow ${name}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', password: 'sentinel', speedLimitBps: 512 * 1024 },
+        data: { name: `Slow ${name}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', password: 'transferly', speedLimitBps: 512 * 1024 },
         headers,
       })
     ).json()) as { id: string }

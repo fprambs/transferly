@@ -9,7 +9,7 @@ Vite 8, Vitest 5 (needs Node 22.12 or later), TypeScript 6, React 19, oxlint (Vi
 ## Setup
 
 - Scaffold: `pnpm create vite frontend --template react-ts --no-interactive`.
-- The current Vite template lints with oxlint, not ESLint; Sentinel keeps that default.
+- The current Vite template lints with oxlint, not ESLint; Transferly keeps that default.
 - Tests share `vite.config.ts` through `vitest/config`; `vitest run` is the CI mode.
 - Dev server inside Docker binds with `--host 0.0.0.0`.
 

@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = process.env.SENTINEL_E2E_URL
+const baseURL = process.env.TRANSFERLY_E2E_URL
 if (baseURL === undefined) {
-  throw new Error('SENTINEL_E2E_URL is not set. Run the browser tests with `make e2e`, which uses the isolated test stack and never a development instance.')
+  throw new Error('TRANSFERLY_E2E_URL is not set. Run the browser tests with `make e2e`, which uses the isolated test stack and never a development instance.')
 }
 
 export default defineConfig({

@@ -55,7 +55,7 @@ Sources: the README and type definitions of each package: [marked](https://marke
 - Everything runs inside the isolated page, loaded with a dynamic import only when a document opens; the explorer reads the whole file (up to 50 MiB) and hands it to the page.
 - **docx-preview** (`renderAsync(data, body, styles, options)`) lays out Word documents page by page. `renderAltChunks: false` keeps the HTML a document may embed from being rendered in an `iframe`, and comments, changes and experimental features stay off. Pictures come from the package as `blob:` addresses; links to the network do not load under the policy of the page (`img-src blob: data:`), and the page cancels clicks on links. Bullets of the Symbol and Wingdings fonts, written as private characters, are replaced by their Unicode characters, since those fonts are rarely installed. docx-preview needs JSZip as a peer dependency.
 - **SheetJS** is installed from its official CDN (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`), as its documentation requires: the npm registry copy (0.18.5) is years old and has known vulnerabilities. It is read with `type: 'array'`, `dense: true`, `sheetRows: 10000`, `cellFormula: false`, `cellHTML: false`, `cellStyles: false` and `bookVBA: false`: nothing is computed or run, formulas show the results the file saved, and cells are drawn as text. At most 200 columns are drawn. A workbook protected with a password is reported as protected.
-- **OpenDocument text** and **PowerPoint** are read by Sentinel's own code from their XML, unzipped with JSZip: only known elements become HTML, text is always set as text, colors must be hexadecimal and styles come from an allowed list; slides are laid out in fractions of their size and container units (`cqw`), so they scale without script. Legacy `.doc` and `.ppt` show as bytes.
+- **OpenDocument text** and **PowerPoint** are read by Transferly's own code from their XML, unzipped with JSZip: only known elements become HTML, text is always set as text, colors must be hexadecimal and styles come from an allowed list; slides are laid out in fractions of their size and container units (`cqw`), so they scale without script. Legacy `.doc` and `.ppt` show as bytes.
 
 ## SQLite (sql.js)
 
@@ -65,7 +65,7 @@ Sources: the README and type definitions of each package: [marked](https://marke
 ## Fonts (FontFace)
 
 - A font is loaded inside the isolated page with `new FontFace(name, buffer)` and `document.fonts.add`: the browser checks the font (Chromium with OTS) before using it, and a font it refuses is reported as unreadable.
-- The names, number of glyphs and mapped characters are read by Sentinel's own reader of the `name`, `maxp` and `cmap` tables of TrueType, OpenType and WOFF files (WOFF tables are inflated with `DecompressionStream`); WOFF2, compressed with Brotli, tells only its format.
+- The names, number of glyphs and mapped characters are read by Transferly's own reader of the `name`, `maxp` and `cmap` tables of TrueType, OpenType and WOFF files (WOFF tables are inflated with `DecompressionStream`); WOFF2, compressed with Brotli, tells only its format.
 
 ## Certificates and keys (own DER reader, @noble/hashes)
 

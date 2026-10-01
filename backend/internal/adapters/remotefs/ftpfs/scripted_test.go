@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/text/encoding/charmap"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // answer is what the scripted server sends for a LIST of one path: a refusal code, or a listing.

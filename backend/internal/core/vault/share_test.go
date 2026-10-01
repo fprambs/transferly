@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 // TestKeyPair verifies generating and sealing key pairs.

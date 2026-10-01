@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // accountServer starts a minimal FTP server that asks for the account "billing" (reply 332), after PASS or, when early is true,

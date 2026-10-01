@@ -5,7 +5,7 @@
 
 ## Context
 
-Sentinel trusted one key per server, key type and port (trust on first use). A user reported a server that presents a different key on each connection, most likely several nodes behind a load balancer, each with its own key. Sentinel reported it as a changed key and offered only "Try again". FileZilla failed with "socket unexpectedly closed". WinSCP warns and offers to update the key, to add it next to the trusted one, or to connect once. OpenSSH's `known_hosts` also accepts several lines for one host.
+Transferly trusted one key per server, key type and port (trust on first use). A user reported a server that presents a different key on each connection, most likely several nodes behind a load balancer, each with its own key. Transferly reported it as a changed key and offered only "Try again". FileZilla failed with "socket unexpectedly closed". WinSCP warns and offers to update the key, to add it next to the trusted one, or to connect once. OpenSSH's `known_hosts` also accepts several lines for one host.
 
 ## Decision
 

@@ -1,5 +1,5 @@
 {
-  "name": "Sentinel",
+  "name": "Transferly",
   "dockerComposeFile": ["../compose.dev.yaml"],
   "service": "tools",
   "runServices": ["tools", "postgres"],

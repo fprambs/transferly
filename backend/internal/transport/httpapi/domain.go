@@ -6,28 +6,28 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fprambs/sentinel/internal/core/admin"
-	"github.com/fprambs/sentinel/internal/core/archives"
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/bookmark"
-	"github.com/fprambs/sentinel/internal/core/credentials"
-	"github.com/fprambs/sentinel/internal/core/files"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/invite"
-	"github.com/fprambs/sentinel/internal/core/limits"
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/quick"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/sshkey"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/core/vault"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/core/wskey"
+	"github.com/fprambs/transferly/internal/core/admin"
+	"github.com/fprambs/transferly/internal/core/archives"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/bookmark"
+	"github.com/fprambs/transferly/internal/core/credentials"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/invite"
+	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/sshkey"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/wskey"
 )
 
 // domainProblem is the answer to a operation that failed for a reason the client can act on.
@@ -116,8 +116,8 @@ func (p domainProblem) VisitDeleteBookmarkResponse(w http.ResponseWriter) error 
 // VisitExportSitesResponse implements [ExportSitesResponseObject].
 func (p domainProblem) VisitExportSitesResponse(w http.ResponseWriter) error { return p.write(w) }
 
-// VisitImportSentinelResponse implements [ImportSentinelResponseObject].
-func (p domainProblem) VisitImportSentinelResponse(w http.ResponseWriter) error { return p.write(w) }
+// VisitImportTransferlyResponse implements [ImportTransferlyResponseObject].
+func (p domainProblem) VisitImportTransferlyResponse(w http.ResponseWriter) error { return p.write(w) }
 
 // VisitAnswerPromptResponse implements [AnswerPromptResponseObject].
 func (p domainProblem) VisitAnswerPromptResponse(w http.ResponseWriter) error { return p.write(w) }

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/clock"
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/adapters/clock"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 // System must satisfy ports.Clock.

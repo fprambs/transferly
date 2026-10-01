@@ -1,4 +1,4 @@
-// Package config loads the Sentinel configuration from environment variables.
+// Package config loads the Transferly configuration from environment variables.
 package config
 
 import (
@@ -100,17 +100,17 @@ func (c Config) CookieSecure() bool {
 }
 
 // Load builds a [Config] from getenv, typically [os.Getenv].
-// SENTINEL_DATABASE_URL is required; every other variable has a default.
+// TRANSFERLY_DATABASE_URL is required; every other variable has a default.
 // All validation errors are returned joined.
 func Load(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		HTTPAddr:          valueOr(getenv("SENTINEL_HTTP_ADDR"), defaultHTTPAddr),
-		DatabaseURL:       getenv("SENTINEL_DATABASE_URL"),
-		LogLevel:          strings.ToLower(valueOr(getenv("SENTINEL_LOG_LEVEL"), defaultLogLevel)),
+		HTTPAddr:          valueOr(getenv("TRANSFERLY_HTTP_ADDR"), defaultHTTPAddr),
+		DatabaseURL:       getenv("TRANSFERLY_DATABASE_URL"),
+		LogLevel:          strings.ToLower(valueOr(getenv("TRANSFERLY_LOG_LEVEL"), defaultLogLevel)),
 		ShutdownTimeout:   defaultShutdownTimeout,
 		AutoMigrate:       true,
-		DataDir:           valueOr(getenv("SENTINEL_DATA_DIR"), defaultDataDir),
-		BaseURL:           valueOr(getenv("SENTINEL_BASE_URL"), defaultBaseURL),
+		DataDir:           valueOr(getenv("TRANSFERLY_DATA_DIR"), defaultDataDir),
+		BaseURL:           valueOr(getenv("TRANSFERLY_BASE_URL"), defaultBaseURL),
 		SessionIdle:       defaultSessionIdle,
 		SessionMax:        defaultSessionMax,
 		JanitorInterval:   defaultJanitor,
@@ -122,24 +122,24 @@ func Load(getenv func(string) string) (Config, error) {
 	var errs []error
 
 	if cfg.DatabaseURL == "" {
-		errs = append(errs, errors.New("SENTINEL_DATABASE_URL is required"))
+		errs = append(errs, errors.New("TRANSFERLY_DATABASE_URL is required"))
 	}
 
 	switch cfg.LogLevel {
 	case "debug", "info", "warn", "error":
 	default:
-		errs = append(errs, fmt.Errorf("invalid SENTINEL_LOG_LEVEL %q (want debug|info|warn|error)", cfg.LogLevel))
+		errs = append(errs, fmt.Errorf("invalid TRANSFERLY_LOG_LEVEL %q (want debug|info|warn|error)", cfg.LogLevel))
 	}
 
 	for _, d := range []struct {
 		name string
 		into *time.Duration
 	}{
-		{"SENTINEL_SHUTDOWN_TIMEOUT", &cfg.ShutdownTimeout},
-		{"SENTINEL_SESSION_IDLE", &cfg.SessionIdle},
-		{"SENTINEL_SESSION_MAX", &cfg.SessionMax},
-		{"SENTINEL_JANITOR_INTERVAL", &cfg.JanitorInterval},
-		{"SENTINEL_ACTIVITY_RETENTION", &cfg.ActivityRetention},
+		{"TRANSFERLY_SHUTDOWN_TIMEOUT", &cfg.ShutdownTimeout},
+		{"TRANSFERLY_SESSION_IDLE", &cfg.SessionIdle},
+		{"TRANSFERLY_SESSION_MAX", &cfg.SessionMax},
+		{"TRANSFERLY_JANITOR_INTERVAL", &cfg.JanitorInterval},
+		{"TRANSFERLY_ACTIVITY_RETENTION", &cfg.ActivityRetention},
 	} {
 		if err := parseDuration(getenv(d.name), d.name, d.into); err != nil {
 			errs = append(errs, err)
@@ -149,60 +149,60 @@ func Load(getenv func(string) string) (Config, error) {
 		name string
 		into *int
 	}{
-		{"SENTINEL_TRANSFER_LIMIT_GLOBAL", &cfg.TransferLimits.Global},
-		{"SENTINEL_TRANSFER_LIMIT_PER_WORKSPACE", &cfg.TransferLimits.PerWorkspace},
-		{"SENTINEL_TRANSFER_LIMIT_PER_USER", &cfg.TransferLimits.PerUser},
-		{"SENTINEL_TRANSFER_LIMIT_PER_SITE", &cfg.TransferLimits.PerSite},
-		{"SENTINEL_BANDWIDTH_GLOBAL", &cfg.Quotas.BandwidthGlobal},
-		{"SENTINEL_BANDWIDTH_PER_USER", &cfg.Quotas.BandwidthPerUser},
-		{"SENTINEL_MAX_SITES_PER_WORKSPACE", &cfg.Quotas.MaxSitesPerWorkspace},
-		{"SENTINEL_MAX_TEAMS_PER_USER", &cfg.Quotas.MaxTeamsPerUser},
-		{"SENTINEL_MAX_MEMBERS_PER_TEAM", &cfg.Quotas.MaxMembersPerTeam},
-		{"SENTINEL_DAILY_BYTES_PER_USER", &cfg.Quotas.DailyBytesPerUser},
+		{"TRANSFERLY_TRANSFER_LIMIT_GLOBAL", &cfg.TransferLimits.Global},
+		{"TRANSFERLY_TRANSFER_LIMIT_PER_WORKSPACE", &cfg.TransferLimits.PerWorkspace},
+		{"TRANSFERLY_TRANSFER_LIMIT_PER_USER", &cfg.TransferLimits.PerUser},
+		{"TRANSFERLY_TRANSFER_LIMIT_PER_SITE", &cfg.TransferLimits.PerSite},
+		{"TRANSFERLY_BANDWIDTH_GLOBAL", &cfg.Quotas.BandwidthGlobal},
+		{"TRANSFERLY_BANDWIDTH_PER_USER", &cfg.Quotas.BandwidthPerUser},
+		{"TRANSFERLY_MAX_SITES_PER_WORKSPACE", &cfg.Quotas.MaxSitesPerWorkspace},
+		{"TRANSFERLY_MAX_TEAMS_PER_USER", &cfg.Quotas.MaxTeamsPerUser},
+		{"TRANSFERLY_MAX_MEMBERS_PER_TEAM", &cfg.Quotas.MaxMembersPerTeam},
+		{"TRANSFERLY_DAILY_BYTES_PER_USER", &cfg.Quotas.DailyBytesPerUser},
 	} {
 		if err := parseLimit(getenv(l.name), l.name, l.into); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	if err := parseLimit(getenv("SENTINEL_QUICK_CONNECT_BURST"), "SENTINEL_QUICK_CONNECT_BURST", &cfg.QuickConnectBurst); err != nil {
+	if err := parseLimit(getenv("TRANSFERLY_QUICK_CONNECT_BURST"), "TRANSFERLY_QUICK_CONNECT_BURST", &cfg.QuickConnectBurst); err != nil {
 		errs = append(errs, err)
 	} else if cfg.QuickConnectBurst < 1 {
-		errs = append(errs, errors.New("SENTINEL_QUICK_CONNECT_BURST must be at least 1"))
+		errs = append(errs, errors.New("TRANSFERLY_QUICK_CONNECT_BURST must be at least 1"))
 	}
 	if cfg.SessionIdle > cfg.SessionMax {
-		errs = append(errs, errors.New("SENTINEL_SESSION_IDLE must not exceed SENTINEL_SESSION_MAX"))
+		errs = append(errs, errors.New("TRANSFERLY_SESSION_IDLE must not exceed TRANSFERLY_SESSION_MAX"))
 	}
 
 	origin, err := parseOrigin(cfg.BaseURL)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("invalid SENTINEL_BASE_URL %q: %w", cfg.BaseURL, err))
+		errs = append(errs, fmt.Errorf("invalid TRANSFERLY_BASE_URL %q: %w", cfg.BaseURL, err))
 	}
 	cfg.BaseURL = origin
 	cfg.AllowedOrigins = []string{origin}
-	for _, extra := range splitList(getenv("SENTINEL_ALLOWED_ORIGINS")) {
+	for _, extra := range splitList(getenv("TRANSFERLY_ALLOWED_ORIGINS")) {
 		o, err := parseOrigin(extra)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("invalid SENTINEL_ALLOWED_ORIGINS entry %q: %w", extra, err))
+			errs = append(errs, fmt.Errorf("invalid TRANSFERLY_ALLOWED_ORIGINS entry %q: %w", extra, err))
 			continue
 		}
 		cfg.AllowedOrigins = append(cfg.AllowedOrigins, o)
 	}
-	for _, proxy := range splitList(getenv("SENTINEL_TRUSTED_PROXIES")) {
+	for _, proxy := range splitList(getenv("TRANSFERLY_TRUSTED_PROXIES")) {
 		if _, err := netip.ParsePrefix(proxy); err != nil {
 			if _, addrErr := netip.ParseAddr(proxy); addrErr != nil {
-				errs = append(errs, fmt.Errorf("invalid SENTINEL_TRUSTED_PROXIES entry %q (want an IP address or CIDR)", proxy))
+				errs = append(errs, fmt.Errorf("invalid TRANSFERLY_TRUSTED_PROXIES entry %q (want an IP address or CIDR)", proxy))
 				continue
 			}
 		}
 		cfg.TrustedProxies = append(cfg.TrustedProxies, proxy)
 	}
 
-	for _, network := range splitList(getenv("SENTINEL_ALLOWED_NETWORKS")) {
+	for _, network := range splitList(getenv("TRANSFERLY_ALLOWED_NETWORKS")) {
 		prefix, err := netip.ParsePrefix(network)
 		if err != nil {
 			addr, addrErr := netip.ParseAddr(network)
 			if addrErr != nil {
-				errs = append(errs, fmt.Errorf("invalid SENTINEL_ALLOWED_NETWORKS entry %q (want an IP address or CIDR)", network))
+				errs = append(errs, fmt.Errorf("invalid TRANSFERLY_ALLOWED_NETWORKS entry %q (want an IP address or CIDR)", network))
 				continue
 			}
 			prefix = netip.PrefixFrom(addr, addr.BitLen())
@@ -210,21 +210,21 @@ func Load(getenv func(string) string) (Config, error) {
 		cfg.AllowedNetworks = append(cfg.AllowedNetworks, prefix.Masked())
 	}
 
-	if v := getenv("SENTINEL_AUTO_MIGRATE"); v != "" {
+	if v := getenv("TRANSFERLY_AUTO_MIGRATE"); v != "" {
 		switch strings.ToLower(v) {
 		case "true", "1":
 			cfg.AutoMigrate = true
 		case "false", "0":
 			cfg.AutoMigrate = false
 		default:
-			errs = append(errs, fmt.Errorf("invalid SENTINEL_AUTO_MIGRATE %q (want true|false)", v))
+			errs = append(errs, fmt.Errorf("invalid TRANSFERLY_AUTO_MIGRATE %q (want true|false)", v))
 		}
 	}
 
-	if v := getenv("SENTINEL_INSTANCE_KEY"); v != "" {
+	if v := getenv("TRANSFERLY_INSTANCE_KEY"); v != "" {
 		key, err := hex.DecodeString(v)
 		if err != nil || len(key) != instanceKeyLength {
-			errs = append(errs, errors.New("invalid SENTINEL_INSTANCE_KEY (want 64 hexadecimal characters)"))
+			errs = append(errs, errors.New("invalid TRANSFERLY_INSTANCE_KEY (want 64 hexadecimal characters)"))
 		} else {
 			cfg.InstanceKey = key
 		}

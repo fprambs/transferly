@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
 // TestAlgorithmsFor verifies the mapping from trusted key types to signature algorithms.

@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 const (
 	// Format names the files of this package.
-	Format = "sentinel-export"
+	Format = "transferly-export"
 	// Version is the version of the format this package writes and reads.
 	Version = 1
 	// MaxBytes is the largest file that is opened.
@@ -40,7 +40,7 @@ var (
 	// ErrTooLarge means the file is larger than [MaxBytes].
 	ErrTooLarge = errors.New("the export file is too large")
 	// ErrInvalidFile means the file is not an export this version can read.
-	ErrInvalidFile = errors.New("not a Sentinel export")
+	ErrInvalidFile = errors.New("not a Transferly export")
 )
 
 // kdf is the key derivation recorded in a file.

@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/text/encoding"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // codec converts the file names the client works with, which are UTF-8, to and from the character set the server uses. The zero

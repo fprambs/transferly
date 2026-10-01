@@ -6,13 +6,13 @@
 /** Sent by the page once it listens: the parent may send the file. */
 export interface ReadyMessage {
   /** Names the message. */
-  type: 'sentinel:ready'
+  type: 'transferly:ready'
 }
 
 /** Sent by the parent: the file to show, its kind and the colors of the theme. */
 export interface RenderMessage {
   /** Names the message. */
-  type: 'sentinel:render'
+  type: 'transferly:render'
   /** The kind the file was told to be. */
   kind: string
   /** Name of the file. */
@@ -30,7 +30,7 @@ export interface RenderMessage {
 /** Sent by the page: asks for the bytes from `begin` included to `end` excluded of the file being shown. */
 export interface RangeRequest {
   /** Names the message. */
-  type: 'sentinel:range'
+  type: 'transferly:range'
   /** Identifies the request, so the answer finds it. */
   id: number
   /** First byte asked for. */
@@ -42,7 +42,7 @@ export interface RangeRequest {
 /** Sent by the parent: the bytes of a range the page asked for, or `null` when they could not be read. */
 export interface RangeReply {
   /** Names the message. */
-  type: 'sentinel:bytes'
+  type: 'transferly:bytes'
   /** The request answered. */
   id: number
   /** The bytes, transferred. */
@@ -52,7 +52,7 @@ export interface RangeReply {
 /** Sent by the page: how the file went, and why it failed when it did. */
 export interface ResultMessage {
   /** Names the message: the file was shown, or could not be. */
-  type: 'sentinel:rendered' | 'sentinel:failed'
+  type: 'transferly:rendered' | 'transferly:failed'
   /** A short reason, never shown as HTML. */
   reason?: string
 }
@@ -61,7 +61,7 @@ export interface ResultMessage {
  * page, where the viewer cannot hear it. */
 export interface KeyMessage {
   /** Names the message. */
-  type: 'sentinel:key'
+  type: 'transferly:key'
   /** The key, as `KeyboardEvent.key` names it. */
   key: string
 }
@@ -75,7 +75,7 @@ export function isRenderMessage(data: unknown): data is RenderMessage {
   return (
     typeof message === 'object' &&
     message !== null &&
-    message.type === 'sentinel:render' &&
+    message.type === 'transferly:render' &&
     typeof message.kind === 'string' &&
     typeof message.name === 'string' &&
     message.bytes instanceof ArrayBuffer &&
@@ -86,11 +86,11 @@ export function isRenderMessage(data: unknown): data is RenderMessage {
 /** Tells whether data received by the page is the answer to a range it asked for. */
 export function isRangeReply(data: unknown): data is RangeReply {
   const message = data as Partial<RangeReply> | null
-  return typeof message === 'object' && message !== null && message.type === 'sentinel:bytes' && typeof message.id === 'number' && (message.bytes === null || message.bytes instanceof ArrayBuffer)
+  return typeof message === 'object' && message !== null && message.type === 'transferly:bytes' && typeof message.id === 'number' && (message.bytes === null || message.bytes instanceof ArrayBuffer)
 }
 
 /** Tells whether data received by the parent is a message of the page. */
 export function isPageMessage(data: unknown): data is PageMessage {
   const message = data as Partial<PageMessage> | null
-  return typeof message === 'object' && message !== null && ['sentinel:ready', 'sentinel:rendered', 'sentinel:failed', 'sentinel:range', 'sentinel:key'].includes(String(message.type))
+  return typeof message === 'object' && message !== null && ['transferly:ready', 'transferly:rendered', 'transferly:failed', 'transferly:range', 'transferly:key'].includes(String(message.type))
 }

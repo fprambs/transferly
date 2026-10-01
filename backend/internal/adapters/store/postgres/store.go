@@ -13,8 +13,8 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
-	pgmigrations "github.com/fprambs/sentinel/migrations/postgres"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/db"
+	pgmigrations "github.com/fprambs/transferly/migrations/postgres"
 )
 
 // Store wraps the PostgreSQL connection pool and its generated queries.

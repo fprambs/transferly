@@ -50,8 +50,8 @@ func peakResidentKiB() int {
 func handler(sftpAddr string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		config := &ssh.ClientConfig{
-			User:            "sentinel",
-			Auth:            []ssh.AuthMethod{ssh.Password("sentinel")},
+			User:            "transferly",
+			Auth:            []ssh.AuthMethod{ssh.Password("transferly")},
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			Timeout:         10 * time.Second,
 		}

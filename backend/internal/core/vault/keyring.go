@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/ports"
 )
 
 // entry is a DEK held in memory with the instant it stops being valid.

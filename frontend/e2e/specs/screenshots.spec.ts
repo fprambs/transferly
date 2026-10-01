@@ -29,7 +29,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
 
 /**
  * Takes the screenshots of the team screens and of the vault notice, to review the interface without opening it.
- * It is skipped unless `SENTINEL_E2E_SCREENSHOTS` is set, so the normal run does not write files.
+ * It is skipped unless `TRANSFERLY_E2E_SCREENSHOTS` is set, so the normal run does not write files.
  *
  * Scenarios:
  * - the team switcher, the new team dialog, the members page, the invite dialog in both steps, the invitations tab, the invitation page
@@ -51,7 +51,7 @@ async function addVirtualAuthenticator(page: Page): Promise<void> {
  * - a tab that is still loading, one that failed to load and offers to retry, a ZIP download with its card and in the transfers panel, and the double click setting
  */
 test.describe('screenshots', () => {
-  test.skip(process.env.SENTINEL_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
+  test.skip(process.env.TRANSFERLY_E2E_SCREENSHOTS === undefined, 'Only run to take the screenshots.')
   test.use({ viewport: { width: 1280, height: 820 } })
 
   test('teams and the vault', async ({ shell, page, quickId, browser, baseURL }) => {
@@ -127,7 +127,7 @@ test.describe('screenshots', () => {
     const personal = workspaces.find((workspace) => workspace.kind === 'personal')?.id as string
     const saved = await page.request.post(`/api/v1/workspaces/${personal}/sites`, {
       headers: { 'X-CSRF-Token': csrf },
-      data: { name: `Saved ${stamp % 1000}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name: `Saved ${stamp % 1000}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     expect(saved.status()).toBe(201)
     const siteId = ((await saved.json()) as { id: string }).id
@@ -152,7 +152,7 @@ test.describe('screenshots', () => {
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     await page.goto(`/sites/${siteId}?path=%2F`)
-    await expect(page.getByRole('dialog', { name: 'Unlock the vault' })).toContainText('sentinel')
+    await expect(page.getByRole('dialog', { name: 'Unlock the vault' })).toContainText('transferly')
     await shoot(page, '15-saved-site-asks-master-password')
     await page.getByRole('dialog', { name: 'Unlock the vault' }).getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -162,7 +162,7 @@ test.describe('screenshots', () => {
     await page.getByRole('dialog', { name: 'Unlock the vault' }).getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await shoot(page, '15c-vault-locked-card-light')
-    await shell.setTheme('sentinel-dark')
+    await shell.setTheme('transferly-dark')
 
     await page.goto(`/sites/${quickId}?path=%2F`)
     await expect(page.getByRole('row').first()).toBeVisible()
@@ -312,7 +312,7 @@ test.describe('screenshots', () => {
     const stamp = Date.now()
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name: `Backup ${stamp}`, protocol: 'ftp', host: 'ftp', port: 21, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name: `Backup ${stamp}`, protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     const { id: siteId } = (await created.json()) as { id: string }
     const leftFiles = `/api/v1/workspaces/${workspace}/sites/${quickId}/files`
@@ -389,7 +389,7 @@ test.describe('screenshots', () => {
     const name = `Backup ${stamp}`
     const created = await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
       headers,
-      data: { name, protocol: 'ftp', host: 'ftp', port: 21, username: 'sentinel', authMethod: 'password', password: 'sentinel', speedLimitBps: 4 * 1024 * 1024 },
+      data: { name, protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly', speedLimitBps: 4 * 1024 * 1024 },
     })
     expect(created.ok()).toBe(true)
     const siteId = ((await created.json()) as { id: string }).id
@@ -417,7 +417,7 @@ test.describe('screenshots', () => {
     const created = await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
       headers,
       data: {
-        name, protocol: 'sftp', host: 'sftp', username: 'sentinel', password: 'sentinel',
+        name, protocol: 'sftp', host: 'sftp', username: 'transferly', password: 'transferly',
         proxy: { kind: 'socks5', host: '9.9.9.9', port: 1080, username: 'proxyuser' }, proxyPassword: 'proxypass',
         jump: { host: '1.1.1.1', port: 22, username: 'bastion', authMethod: 'password' }, jumpPassword: 'bastionpass',
       },
@@ -479,7 +479,7 @@ test.describe('screenshots', () => {
     await choose(dialog.getByLabel('Protocol'), 'SFTP - SSH File Transfer Protocol')
     await dialog.getByLabel('Name', { exact: true }).fill(`Asks ${Date.now()}`)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
     await choose(dialog.getByLabel('Logon type'), 'Ask for password')
     await shoot(page, '48-site-dialog-ask')
     await dialog.getByRole('button', { name: 'Create site' }).click()
@@ -495,14 +495,14 @@ test.describe('screenshots', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill('Deploy')
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
     await choose(dialog.getByLabel('Logon type'), 'Key file')
     await shoot(page, '50-key-file-empty')
-    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.pub')
+    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/transferly.pub')
     await expect(dialog.getByRole('alert')).toBeVisible()
     await shoot(page, '51-key-file-public')
     await dialog.getByRole('button', { name: 'Remove the key file' }).click()
-    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.ppk')
+    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/transferly.ppk')
     await expect(dialog.getByText('Enter the passphrase of this key.')).toBeVisible()
     await shoot(page, '52-key-file-passphrase')
     await dialog.getByLabel('Key passphrase').fill('correct horse')
@@ -517,8 +517,8 @@ test.describe('screenshots', () => {
     const dialog = page.getByRole('dialog', { name: 'New site' })
     await dialog.getByLabel('Name', { exact: true }).fill(`Log ${Date.now()}`)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-    await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+    await dialog.getByLabel('Password', { exact: true }).fill('transferly')
     await dialog.getByRole('button', { name: 'Create site' }).click()
     await page.getByRole('treeitem', { name: /^Log / }).first().dblclick()
     await expect(page.getByRole('list', { name: 'Connection log' }).getByText(/^Listed \//)).toBeVisible()
@@ -556,8 +556,8 @@ test.describe('screenshots', () => {
       const dialog = page.getByRole('dialog', { name: 'New site' })
       await dialog.getByLabel('Name', { exact: true }).fill(`${name} ${Date.now()}`)
       await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-      await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-      await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+      await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+      await dialog.getByLabel('Password', { exact: true }).fill('transferly')
       await dialog.getByRole('button', { name: 'Create site' }).click()
       await expect(dialog).toBeHidden()
     }
@@ -596,7 +596,7 @@ test.describe('screenshots', () => {
     const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers: { 'X-CSRF-Token': csrf },
-      data: { name: `Production ${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name: `Production ${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     const { id: siteId } = (await created.json()) as { id: string }
     for (const [name, path] of [['Uploads', '/upload'], ['Web root', '/var/www/html'], ['Nginx logs', '/var/log/nginx']]) {

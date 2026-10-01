@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // TestListConnectors verifies the catalog of connectors over HTTP (5.1).

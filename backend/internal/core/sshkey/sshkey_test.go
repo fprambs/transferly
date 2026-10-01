@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/core/sshkey"
+	"github.com/fprambs/transferly/internal/core/sshkey"
 )
 
 // passphrase protects every encrypted fixture in testdata. The fixtures were made for these tests with ssh-keygen and

@@ -5,7 +5,7 @@
 
 ## Context
 
-A workspace's sites are only in Sentinel's database, and their secrets are sealed with the workspace key, which only exists unlocked in the sessions of its members (ADR-0002, ADR-0007). A person who wants a backup, or to move the sites to another Sentinel instance, has no way to take them out with their secrets. The FileZilla import (4.8) brings sites in, but its format keeps passwords in base64, which is no protection.
+A workspace's sites are only in Transferly's database, and their secrets are sealed with the workspace key, which only exists unlocked in the sessions of its members (ADR-0002, ADR-0007). A person who wants a backup, or to move the sites to another Transferly instance, has no way to take them out with their secrets. The FileZilla import (4.8) brings sites in, but its format keeps passwords in base64, which is no protection.
 
 ## Decision
 
@@ -15,9 +15,9 @@ A workspace's sites are only in Sentinel's database, and their secrets are seale
 
 **Exporting needs the admin or owner role and the vault unlocked,** is audited with the number of sites, and is answered as a download. Nothing is kept on the server. Editors manage and connect with the sites, but the API never shows them a secret; an export shows every one, so it stays with the roles that manage the members (security review of phase 4).
 
-**Importing a Sentinel file reuses the FileZilla import:** the same dry run, conflict policy (skip or rename), target collection and one result per site. Storing its secrets needs the vault unlocked. A wrong password and a file that was tampered with are the same refusal, `wrong_export_password`; a file that is not an export is `invalid_export`. A cost above 256 MiB, 10 passes or 8 lanes is refused before deriving anything, so a crafted file cannot exhaust the server, and derivations share the vault's bounded pool.
+**Importing a Transferly file reuses the FileZilla import:** the same dry run, conflict policy (skip or rename), target collection and one result per site. Storing its secrets needs the vault unlocked. A wrong password and a file that was tampered with are the same refusal, `wrong_export_password`; a file that is not an export is `invalid_export`. A cost above 256 MiB, 10 passes or 8 lanes is refused before deriving anything, so a crafted file cannot exhaust the server, and derivations share the vault's bounded pool.
 
 ## Consequences
 
-- Positive: backups and moves between instances keep every secret, protected by a password the person chooses and that Sentinel never stores.
+- Positive: backups and moves between instances keep every secret, protected by a password the person chooses and that Transferly never stores.
 - Negative: whoever has the file and its password has every secret in it; the password cannot be recovered, and a lost one loses the file. Sites of the ask and interactive logon types export without a password, since they never stored one.

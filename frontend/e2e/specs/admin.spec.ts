@@ -177,7 +177,7 @@ test.describe('administration', () => {
   })
 
   test('has no WCAG violations in the light and dark themes', async ({ shell, page }) => {
-    for (const theme of ['sentinel-dark', 'sentinel-light']) {
+    for (const theme of ['transferly-dark', 'transferly-light']) {
       await page.goto('/')
       await shell.setTheme(theme)
       await page.goto('/admin')

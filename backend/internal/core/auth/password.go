@@ -8,7 +8,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 const (

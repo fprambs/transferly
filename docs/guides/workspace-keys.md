@@ -5,7 +5,7 @@ Sources: `go doc crypto/ecdh`, `go doc crypto/hkdf` (Go 1.24 and later), `go doc
 ## Rules that follow from the documentation
 
 - X25519 is reached through `ecdh.X25519()`. `PrivateKey.ECDH` returns an error when the peer's public key has low order (all-zero shared secret), so a hostile key cannot force a predictable secret. Any 32 byte string is a valid X25519 private key; the library clamps it.
-- `Curve.GenerateKey` ignores the random source it is given (Go 1.26 and later, `cryptocustomrand`). Sentinel reads the 32 bytes itself from its `io.Reader` and calls `NewPrivateKey`, so the source stays injectable and failures are testable.
+- `Curve.GenerateKey` ignores the random source it is given (Go 1.26 and later, `cryptocustomrand`). Transferly reads the 32 bytes itself from its `io.Reader` and calls `NewPrivateKey`, so the source stays injectable and failures are testable.
 - The shared secret is never used as a key. `hkdf.Key(sha256.New, secret, salt, info, 32)` derives it, with the two public keys as salt and the workspace, the member and the key version as `info`.
 - The derived key seals with AES-256-GCM (`cipher.NewGCM`), a fresh random 96-bit nonce and the same context as associated data, so a grant cannot be moved to another workspace, member or version.
 - A grant is `ephemeral public key (32) || nonce (12) || ciphertext || tag`. Each sealing uses a new ephemeral key: sealing the same workspace key twice gives different bytes, and only the recipient's private key opens it.

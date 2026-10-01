@@ -49,7 +49,7 @@
     "jump_private_key_unsupported": "La clave del salto no se puede usar.",
     "remoteDirInvalid": "La carpeta debe empezar con /.",
     "invalid_remote_dir": "La carpeta remota inicial debe ser una ruta absoluta.",
-    "invalid_export": "Este archivo no es una exportación de Sentinel.",
+    "invalid_export": "Este archivo no es una exportación de Transferly.",
     "wrong_export_password": "Esa contraseña no abre el archivo, o el archivo fue modificado.",
     "weak_export_password": "La contraseña necesita al menos 12 caracteres."
   },
@@ -194,16 +194,16 @@
         "wrong_passphrase": "La frase de paso no abre esta clave."
       },
       "failures": {
-        "private_key_unreadable": "Este archivo no es una clave que Sentinel pueda leer.",
+        "private_key_unreadable": "Este archivo no es una clave que Transferly pueda leer.",
         "secret_too_large": "Este archivo es demasiado grande para ser una clave.",
         "unknown": "No se pudo revisar la clave. Inténtalo de nuevo."
       },
       "reasons": {
-        "key_type": "Sentinel se conecta con claves RSA, ECDSA y Ed25519; esta clave es de otro tipo.",
+        "key_type": "Transferly se conecta con claves RSA, ECDSA y Ed25519; esta clave es de otro tipo.",
         "ppk_version": "Solo se leen archivos de clave de PuTTY de las versiones 2 y 3.",
-        "encryption": "Esta clave está cifrada de una forma que Sentinel no lee. Guárdala de nuevo con ssh-keygen o PuTTYgen.",
+        "encryption": "Esta clave está cifrada de una forma que Transferly no lee. Guárdala de nuevo con ssh-keygen o PuTTYgen.",
         "argon2d": "Esta clave de PuTTY usa Argon2d. Guárdala de nuevo en PuTTYgen con el valor por defecto, Argon2id.",
-        "cost": "Abrir esta clave pide más trabajo del que Sentinel permite. Guárdala de nuevo con los valores por defecto."
+        "cost": "Abrir esta clave pide más trabajo del que Transferly permite. Guárdala de nuevo con los valores por defecto."
       }
     },
     "disconnect": "Desconectar",
@@ -218,7 +218,7 @@
   "import": {
     "open": "Importar de FileZilla",
     "title": "Importar sitios",
-    "description": "Elige el sitemanager.xml de FileZilla o un archivo exportado por Sentinel. No se crea nada hasta que confirmes la vista previa.",
+    "description": "Elige el sitemanager.xml de FileZilla o un archivo exportado por Transferly. No se crea nada hasta que confirmes la vista previa.",
     "file": "Archivo a importar",
     "passwords": "Importar las contraseñas guardadas",
     "passwordsHint": "Se guardan cifradas en tu vault, que debe estar desbloqueado. Sin esto, los sitios se importan sin contraseña.",
@@ -261,7 +261,7 @@
     },
     "kind": {
       "filezilla": "Gestor de sitios de FileZilla",
-      "sentinel": "Exportación de Sentinel, cifrada"
+      "transferly": "Exportación de Transferly, cifrada"
     },
     "exportPassword": "Contraseña del archivo",
     "secrets": "Importar las contraseñas y claves",
@@ -298,7 +298,7 @@
     "description": "Guarda todas las colecciones y sitios de este espacio de trabajo, con sus contraseñas y claves, en un archivo cifrado con una contraseña que eliges ahora.",
     "password": "Contraseña del archivo",
     "confirm": "Repite la contraseña",
-    "hint": "Al menos 12 caracteres. Sentinel no la guarda: sin ella el archivo no se puede abrir.",
+    "hint": "Al menos 12 caracteres. Transferly no la guarda: sin ella el archivo no se puede abrir.",
     "mismatch": "Las contraseñas no coinciden.",
     "submit": "Exportar",
     "working": "Cifrando…",

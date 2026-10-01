@@ -15,20 +15,20 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres"
-	"github.com/fprambs/sentinel/internal/app"
-	"github.com/fprambs/sentinel/internal/config"
-	"github.com/fprambs/sentinel/internal/core/auth"
-	"github.com/fprambs/sentinel/internal/core/transfer"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/app"
+	"github.com/fprambs/transferly/internal/config"
+	"github.com/fprambs/transferly/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/transfer"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // testConfig returns a valid configuration pointing at databaseURL with a short shutdown timeout.
 func testConfig(t *testing.T, databaseURL string) config.Config {
 	t.Helper()
 	cfg, err := config.Load(func(k string) string {
-		if k == "SENTINEL_DATABASE_URL" {
+		if k == "TRANSFERLY_DATABASE_URL" {
 			return databaseURL
 		}
 		return ""

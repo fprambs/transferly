@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 // vaultKey is the key ring identity of the request's session.

@@ -35,7 +35,7 @@ describe('EmailViewer', () => {
   it('shows a newsletter', async () => {
     const user = await show('newsletter.eml')
     expect(await screen.findByRole('heading', { name: 'Informe de septiembre · 📊 resultados' })).toBeInTheDocument()
-    expect(screen.getByText('Sentinel Samples <samples@example.com>')).toBeInTheDocument()
+    expect(screen.getByText('Transferly Samples <samples@example.com>')).toBeInTheDocument()
     expect(screen.getByText('Carla <carla@example.com>')).toBeInTheDocument()
     expect(screen.getByText(/2026/)).toBeInTheDocument()
     expect(screen.getByTitle('Message newsletter.eml')).toBeInTheDocument()
@@ -70,7 +70,7 @@ describe('EmailViewer', () => {
     expect(await screen.findByText('Remote images and content of this message were not loaded.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '<img src=x onerror=alert(1)> urgent' })).toBeInTheDocument()
     const frame = screen.getByTitle('Message hostile.eml') as HTMLIFrameElement
-    act(() => window.dispatchEvent(new MessageEvent('message', { data: { type: 'sentinel:failed', reason: 'render' }, source: frame.contentWindow })))
+    act(() => window.dispatchEvent(new MessageEvent('message', { data: { type: 'transferly:failed', reason: 'render' }, source: frame.contentWindow })))
     expect(await screen.findByText('See the HTML part.')).toBeInTheDocument()
   })
 

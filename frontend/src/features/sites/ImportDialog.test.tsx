@@ -59,7 +59,7 @@ async function renderDialog(language: 'en' | 'es' = 'en') {
 /** Chooses a file in the dialog and waits until it was read and its kind is shown. */
 async function choose(dialog: ReturnType<typeof within>, name = 'sitemanager.xml', content = '<FileZilla3/>'): Promise<void> {
   fireEvent.change(dialog.getByLabelText('File to import'), { target: { files: [new NodeFile([content], name)] } })
-  await dialog.findByText(content.includes('sentinel-export') ? 'Sentinel export, encrypted' : 'FileZilla site manager')
+  await dialog.findByText(content.includes('transferly-export') ? 'Transferly export, encrypted' : 'FileZilla site manager')
 }
 
 /**
@@ -73,7 +73,7 @@ async function choose(dialog: ReturnType<typeof within>, name = 'sitemanager.xml
  * - a rejected file or a locked vault is explained, and choosing another file clears the preview
  * - the dialog can be cancelled, and it follows the interface language
  * - the sites sidebar opens it from its import button
- * - a file exported by Sentinel is told apart by its content, needs its password, and goes to its own import with the secrets option
+ * - a file exported by Transferly is told apart by its content, needs its password, and goes to its own import with the secrets option
  *   (ADR-0017); text that is not JSON, or JSON of another kind, is taken for a FileZilla file
  */
 describe('ImportDialog', () => {
@@ -156,18 +156,18 @@ describe('ImportDialog', () => {
     expect(dialog.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('imports a Sentinel export with its password', async () => {
+  it('imports a Transferly export with its password', async () => {
     const seen: Array<{ query: string; body: unknown }> = []
     server.use(
-      http.post('/api/v1/workspaces/:id/imports/sentinel', async ({ request }) => {
+      http.post('/api/v1/workspaces/:id/imports/transferly', async ({ request }) => {
         const url = new URL(request.url)
         seen.push({ query: url.search, body: await request.json() })
         return HttpResponse.json({ dryRun: true, items: items.slice(0, 1) })
       }),
     )
     const { user, dialog } = await renderDialog()
-    const exported = JSON.stringify({ format: 'sentinel-export', version: 1 })
-    await choose(dialog, 'sentinel-sites.json', exported)
+    const exported = JSON.stringify({ format: 'transferly-export', version: 1 })
+    await choose(dialog, 'transferly-sites.json', exported)
 
     expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled()
     await user.type(dialog.getByLabelText('File password'), 'a long export password')

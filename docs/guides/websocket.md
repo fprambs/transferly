@@ -5,7 +5,7 @@ Source: [pkg.go.dev/github.com/coder/websocket](https://pkg.go.dev/github.com/co
 ## What the library requires
 
 - `websocket.Accept(w, r, opts)` upgrades the request; on failure it has already answered, so the handler just returns.
-- **Always read from the connection.** Control frames (pings, pongs, close) are only handled while someone reads. Sentinel's stream only sends, so it calls `conn.CloseRead(ctx)`: a goroutine reads for it, `Ping` and `Close` keep working, and a client that sends a data message is disconnected with a policy violation.
+- **Always read from the connection.** Control frames (pings, pongs, close) are only handled while someone reads. Transferly's stream only sends, so it calls `conn.CloseRead(ctx)`: a goroutine reads for it, `Ping` and `Close` keep working, and a client that sends a data message is disconnected with a policy violation.
 - After any error from a method the library closes the connection, context expirations included. A read with a timeout therefore closes the connection when it times out; tests read in a goroutine instead.
 - `Close` waits up to five seconds for the peer's close frame. When the client stopped answering there is nobody to shake hands with, so the handler ends with `CloseNow` (deferred) and skips `Close`.
 - `wsjson.Write(ctx, conn, v)` writes a JSON message; every write gets its own deadline so a stalled client cannot hold the handler.
@@ -14,8 +14,8 @@ Source: [pkg.go.dev/github.com/coder/websocket](https://pkg.go.dev/github.com/co
 
 A browser sends the user's cookie on a WebSocket opened from any site, so the upgrade must check `Origin`.
 
-- `AcceptOptions.OriginPatterns` are host patterns matched with `path.Match`; a pattern with `://` matches `scheme://host`. Sentinel passes its allowed origins, escaping `\ * ? [`.
-- Sentinel also checks `Origin` itself before the upgrade, against `SENTINEL_BASE_URL` and `SENTINEL_ALLOWED_ORIGINS`, and answers a `cross_site_request` problem with 403. The library's check stays as defense in depth.
+- `AcceptOptions.OriginPatterns` are host patterns matched with `path.Match`; a pattern with `://` matches `scheme://host`. Transferly passes its allowed origins, escaping `\ * ? [`.
+- Transferly also checks `Origin` itself before the upgrade, against `TRANSFERLY_BASE_URL` and `TRANSFERLY_ALLOWED_ORIGINS`, and answers a `cross_site_request` problem with 403. The library's check stays as defense in depth.
 - A request without `Origin` comes from a non-browser client, which has no ambient cookie, and is allowed.
 - `InsecureSkipVerify` is never used.
 

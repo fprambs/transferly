@@ -22,7 +22,7 @@ export interface HttpTransportOptions {
   webSocket?: typeof WebSocket
 }
 
-/** {@link Transport} that talks to the Sentinel backend over HTTP. */
+/** {@link Transport} that talks to the Transferly backend over HTTP. */
 export class HttpTransport implements Transport {
   /** Prefix prepended to every request path. */
   private readonly baseUrl: string

@@ -42,7 +42,7 @@ describe('TextViewer', () => {
 
     act(() => useUiStore.setState({ themeId: 'github-light', followSystem: false }))
     expect(view).toHaveTextContent('package main')
-    act(() => useUiStore.setState({ themeId: 'sentinel-dark' }))
+    act(() => useUiStore.setState({ themeId: 'transferly-dark' }))
     expect(view).toHaveTextContent('package main')
   })
 

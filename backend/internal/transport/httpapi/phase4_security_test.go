@@ -11,7 +11,7 @@ import (
 //
 // Scenarios:
 //   - a JSON body over 1 MiB is refused as invalid_request before it is decoded, and so is one that declares another type
-//   - a Sentinel import, whose file travels inside the JSON body, takes more than 1 MiB and reaches the export check
+//   - a Transferly import, whose file travels inside the JSON body, takes more than 1 MiB and reaches the export check
 //   - uploads stream files larger than the limit, which another test covers with a 4 MiB file
 func TestPhaseFour_BodyLimits(t *testing.T) {
 	a := newAPI(t)
@@ -26,7 +26,7 @@ func TestPhaseFour_BodyLimits(t *testing.T) {
 		t.Errorf("a large body declared as text = %d %s; want a refusal", disguised.Status, disguised.Body)
 	}
 
-	expectProblem(t, a.sentinelImport(ws, "", exportPassword, strings.Repeat("y", 3<<19), cookie, csrf), http.StatusUnprocessableEntity, "invalid_export")
+	expectProblem(t, a.transferlyImport(ws, "", exportPassword, strings.Repeat("y", 3<<19), cookie, csrf), http.StatusUnprocessableEntity, "invalid_export")
 }
 
 // TestPhaseFour_ExportNeedsAdmin is the regression net of the export rule of the security review of phase 4: an export shows every

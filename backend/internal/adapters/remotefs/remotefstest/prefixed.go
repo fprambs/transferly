@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // Prefixed presents a directory of another file system as its root, so a shared server can run isolated tests.

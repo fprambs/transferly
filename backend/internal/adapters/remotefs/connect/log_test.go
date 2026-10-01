@@ -9,14 +9,14 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/connect"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
-	"github.com/fprambs/sentinel/internal/core/connlog"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/ports"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
+	"github.com/fprambs/transferly/internal/core/connlog"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/ports"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // collected keeps the events published to it: all of them, and those not taken yet.

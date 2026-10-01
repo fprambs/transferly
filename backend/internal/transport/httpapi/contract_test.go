@@ -15,7 +15,7 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // loadSpec returns the OpenAPI document embedded in the generated code and a router over it.

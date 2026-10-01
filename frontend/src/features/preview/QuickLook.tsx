@@ -30,7 +30,7 @@ export interface QuickLookProps {
 }
 
 /**
- * Shows a file inside Sentinel without downloading it, full screen in the style of Quick Look (ADR-0018). The arrows move to the previous
+ * Shows a file inside Transferly without downloading it, full screen in the style of Quick Look (ADR-0018). The arrows move to the previous
  * and next file of the folder and Escape closes; the bar names the file and offers to download it. The viewer is chosen by what the file
  * holds, read from its first bytes. It opens with the focus on the file, not on a button, so the first Escape closes it. A viewer with a text field of its own stops the arrow keys typed in it from reaching the viewer.
  */

@@ -1,6 +1,6 @@
 package connectors
 
-import "github.com/fprambs/sentinel/internal/core/site"
+import "github.com/fprambs/transferly/internal/core/site"
 
 // The settings SFTP and FTP share: where the server is and who logs in.
 var (
@@ -9,7 +9,7 @@ var (
 	charsetField  = Field{Name: "charset", Kind: Choice, Default: "utf-8", Choices: site.Charsets}
 )
 
-// SFTP describes the SFTP connector, which Sentinel has had from its start.
+// SFTP describes the SFTP connector, which Transferly has had from its start.
 var SFTP = Descriptor{
 	Type:     "sftp",
 	Name:     "SFTP",
@@ -47,7 +47,7 @@ var FTP = Descriptor{
 	EnabledByDefault: true,
 }
 
-// Builtin returns a catalog with the connectors Sentinel is built with.
+// Builtin returns a catalog with the connectors Transferly is built with.
 func Builtin() *Catalog {
 	c := NewCatalog()
 	for _, d := range []Descriptor{SFTP, FTP} {

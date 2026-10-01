@@ -10,11 +10,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // fakeSites answers with fixed sites, collections and secrets, and can be told to fail.
@@ -174,7 +174,7 @@ func TestService_Export_Refusals(t *testing.T) {
 	}
 }
 
-// TestService_Import covers importing a Sentinel file (ADR-0017).
+// TestService_Import covers importing a Transferly file (ADR-0017).
 //
 // Use cases:
 //   - an exported file imports every collection and every site with its settings and secrets, with the options given

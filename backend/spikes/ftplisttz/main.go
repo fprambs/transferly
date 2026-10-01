@@ -21,7 +21,7 @@ func dial(loc *time.Location) (*ftp.ServerConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := conn.Login("sentinel", "sentinel"); err != nil {
+	if err := conn.Login("transferly", "transferly"); err != nil {
 		_ = conn.Quit()
 		return nil, err
 	}

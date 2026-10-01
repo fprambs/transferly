@@ -10,18 +10,18 @@ Sources: [Dockerfile best practices](https://docs.docker.com/build/building/best
 
 - Runtime base images are pinned by digest; build images by version tag.
 - Non-root user, read-only root file system, `cap_drop: ALL`, `no-new-privileges`.
-- The image has no shell or curl: health checks use `sentinel healthcheck`.
+- The image has no shell or curl: health checks use `transferly healthcheck`.
 - `dist/` is copied into the Go module before the build because `go:embed` cannot reach outside the module; a committed `.gitkeep` keeps the embed valid during development.
-- The published port binds to `127.0.0.1` by default (`SENTINEL_BIND`); expose it through the `https` profile (Caddy) instead of opening it.
+- The published port binds to `127.0.0.1` by default (`TRANSFERLY_BIND`); expose it through the `https` profile (Caddy) instead of opening it.
 - Static assets under `/assets/` are immutable for a year; every other response is `no-store` or `no-cache`.
 - Unknown extension-less GET paths fall back to `index.html`; unknown files, `/api/` paths and other methods return 404.
 - Security headers follow the OWASP HTTP Headers cheat sheet; HSTS is set by Caddy because the application does not know whether TLS terminates in front of it.
-- The instance key is generated on first start into `/data/instance.key` (mode 0600) and reused afterwards; `SENTINEL_INSTANCE_KEY` overrides it.
+- The instance key is generated on first start into `/data/instance.key` (mode 0600) and reused afterwards; `TRANSFERLY_INSTANCE_KEY` overrides it.
 
 ## Compose Notes
 
-- Compose interpolates every service, even those in inactive profiles, so optional variables need defaults (`SENTINEL_DOMAIN` defaults to `localhost`).
-- `SENTINEL_DB_PASSWORD` defaults to `sentinel`; the database is only reachable on the internal network, and production deployments should set a stronger value.
+- Compose interpolates every service, even those in inactive profiles, so optional variables need defaults (`TRANSFERLY_DOMAIN` defaults to `localhost`).
+- `TRANSFERLY_DB_PASSWORD` defaults to `transferly`; the database is only reachable on the internal network, and production deployments should set a stronger value.
 
 ## Verification
 

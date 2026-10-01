@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/fprambs/sentinel/internal/core/archives"
+	"github.com/fprambs/transferly/internal/core/archives"
 )
 
 // innerChain returns the chain of nested archives of a request, or none.

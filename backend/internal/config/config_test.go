@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/config"
+	"github.com/fprambs/transferly/internal/config"
 )
 
 // env returns a getenv function backed by m.
@@ -17,7 +17,7 @@ func env(m map[string]string) func(string) string {
 // when only the required database URL is set.
 func TestLoad_Defaults(t *testing.T) {
 	cfg, err := config.Load(env(map[string]string{
-		"SENTINEL_DATABASE_URL": "postgres://x",
+		"TRANSFERLY_DATABASE_URL": "postgres://x",
 	}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -40,11 +40,11 @@ func TestLoad_Defaults(t *testing.T) {
 // including case-insensitive log levels.
 func TestLoad_Overrides(t *testing.T) {
 	cfg, err := config.Load(env(map[string]string{
-		"SENTINEL_DATABASE_URL":     "postgres://x",
-		"SENTINEL_HTTP_ADDR":        "127.0.0.1:9000",
-		"SENTINEL_LOG_LEVEL":        "DEBUG",
-		"SENTINEL_SHUTDOWN_TIMEOUT": "3s",
-		"SENTINEL_AUTO_MIGRATE":     "false",
+		"TRANSFERLY_DATABASE_URL":     "postgres://x",
+		"TRANSFERLY_HTTP_ADDR":        "127.0.0.1:9000",
+		"TRANSFERLY_LOG_LEVEL":        "DEBUG",
+		"TRANSFERLY_SHUTDOWN_TIMEOUT": "3s",
+		"TRANSFERLY_AUTO_MIGRATE":     "false",
 	}))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -59,8 +59,8 @@ func TestLoad_Overrides(t *testing.T) {
 func TestLoad_AutoMigrateFlag(t *testing.T) {
 	for value, want := range map[string]bool{"true": true, "1": true, "false": false, "0": false} {
 		cfg, err := config.Load(env(map[string]string{
-			"SENTINEL_DATABASE_URL": "postgres://x",
-			"SENTINEL_AUTO_MIGRATE": value,
+			"TRANSFERLY_DATABASE_URL": "postgres://x",
+			"TRANSFERLY_AUTO_MIGRATE": value,
 		}))
 		if err != nil {
 			t.Fatalf("Load() with %q error = %v", value, err)
@@ -78,24 +78,24 @@ func TestLoad_AutoMigrateFlag(t *testing.T) {
 //   - a 64-character hexadecimal instance key is decoded
 //   - a key that is not hexadecimal or has the wrong length is rejected
 func TestLoad_DataDirAndInstanceKey(t *testing.T) {
-	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+	base := map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x"}
 
 	cfg, err := config.Load(env(base))
 	if err != nil || cfg.DataDir != "/data" || cfg.InstanceKey != nil {
 		t.Fatalf("defaults = %+v, %v, want /data and no key", cfg, err)
 	}
 
-	base["SENTINEL_DATA_DIR"] = "/var/lib/sentinel"
-	base["SENTINEL_INSTANCE_KEY"] = strings.Repeat("ab", 32)
+	base["TRANSFERLY_DATA_DIR"] = "/var/lib/transferly"
+	base["TRANSFERLY_INSTANCE_KEY"] = strings.Repeat("ab", 32)
 	cfg, err = config.Load(env(base))
-	if err != nil || cfg.DataDir != "/var/lib/sentinel" || len(cfg.InstanceKey) != 32 || cfg.InstanceKey[0] != 0xab {
+	if err != nil || cfg.DataDir != "/var/lib/transferly" || len(cfg.InstanceKey) != 32 || cfg.InstanceKey[0] != 0xab {
 		t.Fatalf("overrides = %+v, %v, want the directory and a 32-byte key", cfg, err)
 	}
 
 	for _, bad := range []string{"zz" + strings.Repeat("ab", 31), "abcd"} {
-		base["SENTINEL_INSTANCE_KEY"] = bad
-		if _, err := config.Load(env(base)); err == nil || !strings.Contains(err.Error(), "SENTINEL_INSTANCE_KEY") {
-			t.Errorf("Load() with key %q = %v, want an error naming SENTINEL_INSTANCE_KEY", bad, err)
+		base["TRANSFERLY_INSTANCE_KEY"] = bad
+		if _, err := config.Load(env(base)); err == nil || !strings.Contains(err.Error(), "TRANSFERLY_INSTANCE_KEY") {
+			t.Errorf("Load() with key %q = %v, want an error naming TRANSFERLY_INSTANCE_KEY", bad, err)
 		}
 	}
 }
@@ -115,12 +115,12 @@ func TestLoad_Errors(t *testing.T) {
 		env  map[string]string
 		want []string
 	}{
-		{"missing database url", map[string]string{}, []string{"SENTINEL_DATABASE_URL"}},
-		{"invalid log level", map[string]string{"SENTINEL_DATABASE_URL": "x", "SENTINEL_LOG_LEVEL": "loud"}, []string{"SENTINEL_LOG_LEVEL"}},
-		{"unparsable shutdown timeout", map[string]string{"SENTINEL_DATABASE_URL": "x", "SENTINEL_SHUTDOWN_TIMEOUT": "abc"}, []string{"SENTINEL_SHUTDOWN_TIMEOUT"}},
-		{"non-positive shutdown timeout", map[string]string{"SENTINEL_DATABASE_URL": "x", "SENTINEL_SHUTDOWN_TIMEOUT": "0s"}, []string{"SENTINEL_SHUTDOWN_TIMEOUT"}},
-		{"invalid auto migrate", map[string]string{"SENTINEL_DATABASE_URL": "x", "SENTINEL_AUTO_MIGRATE": "maybe"}, []string{"SENTINEL_AUTO_MIGRATE"}},
-		{"multiple errors joined", map[string]string{"SENTINEL_LOG_LEVEL": "loud"}, []string{"SENTINEL_DATABASE_URL", "SENTINEL_LOG_LEVEL"}},
+		{"missing database url", map[string]string{}, []string{"TRANSFERLY_DATABASE_URL"}},
+		{"invalid log level", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_LOG_LEVEL": "loud"}, []string{"TRANSFERLY_LOG_LEVEL"}},
+		{"unparsable shutdown timeout", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_SHUTDOWN_TIMEOUT": "abc"}, []string{"TRANSFERLY_SHUTDOWN_TIMEOUT"}},
+		{"non-positive shutdown timeout", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_SHUTDOWN_TIMEOUT": "0s"}, []string{"TRANSFERLY_SHUTDOWN_TIMEOUT"}},
+		{"invalid auto migrate", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_AUTO_MIGRATE": "maybe"}, []string{"TRANSFERLY_AUTO_MIGRATE"}},
+		{"multiple errors joined", map[string]string{"TRANSFERLY_LOG_LEVEL": "loud"}, []string{"TRANSFERLY_DATABASE_URL", "TRANSFERLY_LOG_LEVEL"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestLoad_Errors(t *testing.T) {
 //   - extra allowed origins and trusted proxies (addresses and networks) are accepted and blanks ignored
 //   - invalid base URLs, origins, proxies, durations and an idle time above the maximum are all reported
 func TestLoad_WebSettings(t *testing.T) {
-	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+	base := map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x"}
 
 	cfg, err := config.Load(env(base))
 	if err != nil {
@@ -157,14 +157,14 @@ func TestLoad_WebSettings(t *testing.T) {
 		t.Errorf("defaults = %+v", cfg)
 	}
 
-	base["SENTINEL_BASE_URL"] = "https://files.example.com/"
-	base["SENTINEL_ALLOWED_ORIGINS"] = " http://localhost:5173 , ,https://other.example.com"
-	base["SENTINEL_TRUSTED_PROXIES"] = "10.0.0.0/8, 192.168.1.5, ::1"
-	base["SENTINEL_ALLOWED_NETWORKS"] = "192.168.1.7/24, 10.0.0.9"
-	base["SENTINEL_SESSION_IDLE"] = "10m"
-	base["SENTINEL_SESSION_MAX"] = "2h"
-	base["SENTINEL_JANITOR_INTERVAL"] = "1m"
-	base["SENTINEL_ACTIVITY_RETENTION"] = "72h"
+	base["TRANSFERLY_BASE_URL"] = "https://files.example.com/"
+	base["TRANSFERLY_ALLOWED_ORIGINS"] = " http://localhost:5173 , ,https://other.example.com"
+	base["TRANSFERLY_TRUSTED_PROXIES"] = "10.0.0.0/8, 192.168.1.5, ::1"
+	base["TRANSFERLY_ALLOWED_NETWORKS"] = "192.168.1.7/24, 10.0.0.9"
+	base["TRANSFERLY_SESSION_IDLE"] = "10m"
+	base["TRANSFERLY_SESSION_MAX"] = "2h"
+	base["TRANSFERLY_JANITOR_INTERVAL"] = "1m"
+	base["TRANSFERLY_ACTIVITY_RETENTION"] = "72h"
 	cfg, err = config.Load(env(base))
 	if err != nil {
 		t.Fatal(err)
@@ -177,19 +177,19 @@ func TestLoad_WebSettings(t *testing.T) {
 	}
 
 	for name, vars := range map[string]map[string]string{
-		"base url with a path":     {"SENTINEL_BASE_URL": "https://x.example.com/app"},
-		"base url without scheme":  {"SENTINEL_BASE_URL": "x.example.com"},
-		"base url with userinfo":   {"SENTINEL_BASE_URL": "https://u:p@x.example.com"},
-		"base url not parsable":    {"SENTINEL_BASE_URL": "http://[::1"},
-		"origin with a query":      {"SENTINEL_ALLOWED_ORIGINS": "https://x.example.com?a=1"},
-		"proxy not an address":     {"SENTINEL_TRUSTED_PROXIES": "not-an-ip"},
-		"network not an address":   {"SENTINEL_ALLOWED_NETWORKS": "lan"},
-		"idle above maximum":       {"SENTINEL_SESSION_IDLE": "10h"},
-		"session idle not a time":  {"SENTINEL_SESSION_IDLE": "soon"},
-		"janitor interval not set": {"SENTINEL_JANITOR_INTERVAL": "0s"},
-		"retention not a time":     {"SENTINEL_ACTIVITY_RETENTION": "forever"},
+		"base url with a path":     {"TRANSFERLY_BASE_URL": "https://x.example.com/app"},
+		"base url without scheme":  {"TRANSFERLY_BASE_URL": "x.example.com"},
+		"base url with userinfo":   {"TRANSFERLY_BASE_URL": "https://u:p@x.example.com"},
+		"base url not parsable":    {"TRANSFERLY_BASE_URL": "http://[::1"},
+		"origin with a query":      {"TRANSFERLY_ALLOWED_ORIGINS": "https://x.example.com?a=1"},
+		"proxy not an address":     {"TRANSFERLY_TRUSTED_PROXIES": "not-an-ip"},
+		"network not an address":   {"TRANSFERLY_ALLOWED_NETWORKS": "lan"},
+		"idle above maximum":       {"TRANSFERLY_SESSION_IDLE": "10h"},
+		"session idle not a time":  {"TRANSFERLY_SESSION_IDLE": "soon"},
+		"janitor interval not set": {"TRANSFERLY_JANITOR_INTERVAL": "0s"},
+		"retention not a time":     {"TRANSFERLY_ACTIVITY_RETENTION": "forever"},
 	} {
-		vars["SENTINEL_DATABASE_URL"] = "postgres://x"
+		vars["TRANSFERLY_DATABASE_URL"] = "postgres://x"
 		if _, err := config.Load(env(vars)); err == nil {
 			t.Errorf("%s: Load() = nil error, want error", name)
 		}
@@ -204,15 +204,15 @@ func TestLoad_WebSettings(t *testing.T) {
 //   - negative and non-numeric values are reported
 //   - the burst of quick connections defaults to 5, can be raised, and must be a positive number
 func TestLoad_TransferLimits(t *testing.T) {
-	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+	base := map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x"}
 	cfg, err := config.Load(env(base))
 	if err != nil || cfg.TransferLimits != (config.TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4}) {
 		t.Fatalf("defaults = %+v, %v", cfg.TransferLimits, err)
 	}
-	base["SENTINEL_TRANSFER_LIMIT_GLOBAL"] = "0"
-	base["SENTINEL_TRANSFER_LIMIT_PER_WORKSPACE"] = "5"
-	base["SENTINEL_TRANSFER_LIMIT_PER_USER"] = "3"
-	base["SENTINEL_TRANSFER_LIMIT_PER_SITE"] = "2"
+	base["TRANSFERLY_TRANSFER_LIMIT_GLOBAL"] = "0"
+	base["TRANSFERLY_TRANSFER_LIMIT_PER_WORKSPACE"] = "5"
+	base["TRANSFERLY_TRANSFER_LIMIT_PER_USER"] = "3"
+	base["TRANSFERLY_TRANSFER_LIMIT_PER_SITE"] = "2"
 	cfg, err = config.Load(env(base))
 	if err != nil || cfg.TransferLimits != (config.TransferLimits{Global: 0, PerWorkspace: 5, PerUser: 3, PerSite: 2}) {
 		t.Fatalf("overrides = %+v, %v", cfg.TransferLimits, err)
@@ -220,19 +220,19 @@ func TestLoad_TransferLimits(t *testing.T) {
 	if cfg.QuickConnectBurst != 5 {
 		t.Errorf("default burst = %d; want 5", cfg.QuickConnectBurst)
 	}
-	base["SENTINEL_QUICK_CONNECT_BURST"] = "30"
+	base["TRANSFERLY_QUICK_CONNECT_BURST"] = "30"
 	if cfg, err = config.Load(env(base)); err != nil || cfg.QuickConnectBurst != 30 {
 		t.Errorf("burst = %d, %v; want 30", cfg.QuickConnectBurst, err)
 	}
 	for _, value := range []string{"0", "-2", "lots"} {
-		base["SENTINEL_QUICK_CONNECT_BURST"] = value
+		base["TRANSFERLY_QUICK_CONNECT_BURST"] = value
 		if _, err := config.Load(env(base)); err == nil {
 			t.Errorf("Load() with a quick connect burst of %q = nil error", value)
 		}
 	}
-	delete(base, "SENTINEL_QUICK_CONNECT_BURST")
+	delete(base, "TRANSFERLY_QUICK_CONNECT_BURST")
 	for _, value := range []string{"-1", "many", "1.5"} {
-		base["SENTINEL_TRANSFER_LIMIT_PER_SITE"] = value
+		base["TRANSFERLY_TRANSFER_LIMIT_PER_SITE"] = value
 		if _, err := config.Load(env(base)); err == nil {
 			t.Errorf("Load() with a per-site limit of %q = nil error", value)
 		}
@@ -246,21 +246,21 @@ func TestLoad_TransferLimits(t *testing.T) {
 //   - each cap can be set from its variable
 //   - negative and non-numeric values are reported by name
 func TestLoad_Quotas(t *testing.T) {
-	base := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x"}
+	base := map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x"}
 	cfg, err := config.Load(env(base))
 	if err != nil || cfg.Quotas != (config.Quotas{}) {
 		t.Fatalf("defaults = %+v, %v", cfg.Quotas, err)
 	}
 	names := map[string]func(config.Quotas) int{
-		"SENTINEL_BANDWIDTH_GLOBAL":        func(q config.Quotas) int { return q.BandwidthGlobal },
-		"SENTINEL_BANDWIDTH_PER_USER":      func(q config.Quotas) int { return q.BandwidthPerUser },
-		"SENTINEL_MAX_SITES_PER_WORKSPACE": func(q config.Quotas) int { return q.MaxSitesPerWorkspace },
-		"SENTINEL_MAX_TEAMS_PER_USER":      func(q config.Quotas) int { return q.MaxTeamsPerUser },
-		"SENTINEL_MAX_MEMBERS_PER_TEAM":    func(q config.Quotas) int { return q.MaxMembersPerTeam },
-		"SENTINEL_DAILY_BYTES_PER_USER":    func(q config.Quotas) int { return q.DailyBytesPerUser },
+		"TRANSFERLY_BANDWIDTH_GLOBAL":        func(q config.Quotas) int { return q.BandwidthGlobal },
+		"TRANSFERLY_BANDWIDTH_PER_USER":      func(q config.Quotas) int { return q.BandwidthPerUser },
+		"TRANSFERLY_MAX_SITES_PER_WORKSPACE": func(q config.Quotas) int { return q.MaxSitesPerWorkspace },
+		"TRANSFERLY_MAX_TEAMS_PER_USER":      func(q config.Quotas) int { return q.MaxTeamsPerUser },
+		"TRANSFERLY_MAX_MEMBERS_PER_TEAM":    func(q config.Quotas) int { return q.MaxMembersPerTeam },
+		"TRANSFERLY_DAILY_BYTES_PER_USER":    func(q config.Quotas) int { return q.DailyBytesPerUser },
 	}
 	for name, read := range names {
-		set := map[string]string{"SENTINEL_DATABASE_URL": "postgres://x", name: "1234"}
+		set := map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x", name: "1234"}
 		if cfg, err := config.Load(env(set)); err != nil || read(cfg.Quotas) != 1234 {
 			t.Errorf("%s = %d, %v; want 1234", name, read(cfg.Quotas), err)
 		}

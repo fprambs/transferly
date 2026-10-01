@@ -111,7 +111,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const detailsOpen = useUiStore((state) => state.detailsOpen)
   const setDetailsOpen = useUiStore((state) => state.setDetailsOpen)
   const details = useCollapsible(detailsOpen, setDetailsOpen)
-  const beside = useDefaultLayout({ id: `sentinel-details-${pane}`, storage: layoutStorage })
+  const beside = useDefaultLayout({ id: `transferly-details-${pane}`, storage: layoutStorage })
   const reconnect = useConnectionState((state) => state.reconnect)
   const focus = useConnectionState((state) => state.focus)
   const listing = useQuery({
@@ -524,7 +524,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       )}
       {listing.isSuccess && !canceled && visible.length > 0 && (
         <Group
-          id={`sentinel-details-${pane}`}
+          id={`transferly-details-${pane}`}
           aria-busy={opening}
           className={cn('min-h-0 flex-1 transition-opacity', opening && 'pointer-events-none opacity-50')}
           {...beside}

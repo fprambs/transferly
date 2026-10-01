@@ -126,7 +126,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the connectors Sentinel is built with
+         * List the connectors Transferly is built with
          * @description The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take and the ways it authenticates. The site form and the store of the admins are drawn from it.
          */
         get: operations["listConnectors"];
@@ -317,7 +317,7 @@ export interface paths {
         put?: never;
         /**
          * Invite an email address to a team workspace
-         * @description Needs manage_members and a role above the invited one. The reply carries the token once; only its hash is stored. Inviting an address that already has a pending invitation replaces it. Sentinel sends no email: the caller shares the link.
+         * @description Needs manage_members and a role above the invited one. The reply carries the token once; only its hash is stored. Inviting an address that already has a pending invitation replaces it. Transferly sends no email: the caller shares the link.
          */
         post: operations["createInvitation"];
         delete?: never;
@@ -972,7 +972,7 @@ export interface paths {
         put?: never;
         /**
          * Describe a key file without storing it
-         * @description Reads a key file by its content (OpenSSH, PEM, PKCS#8, RFC 4716 or PuTTY PPK 2 and 3) and says whether it is a private key, its type, size and SHA-256 fingerprint, and whether the passphrase given opens it. Nothing is kept; saving a site reads the key again. A file that is no key is private_key_unreadable, and a key of a type or protection Sentinel does not use is private_key_unsupported with params.reason (key_type, ppk_version, encryption, argon2d or cost).
+         * @description Reads a key file by its content (OpenSSH, PEM, PKCS#8, RFC 4716 or PuTTY PPK 2 and 3) and says whether it is a private key, its type, size and SHA-256 fingerprint, and whether the passphrase given opens it. Nothing is kept; saving a site reads the key again. A file that is no key is private_key_unreadable, and a key of a type or protection Transferly does not use is private_key_unsupported with params.reason (key_type, ppk_version, encryption, argon2d or cost).
          */
         post: operations["inspectSshKey"];
         delete?: never;
@@ -1300,7 +1300,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/workspaces/{workspaceId}/imports/sentinel": {
+    "/api/v1/workspaces/{workspaceId}/imports/transferly": {
         parameters: {
             query?: never;
             header?: never;
@@ -1310,10 +1310,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import a file exported by Sentinel
+         * Import a file exported by Transferly
          * @description Opens a file of exportSites with its password and creates its collections and sites as the FileZilla import does: dry run, conflict policy, target collection and one result per site. A wrong password or a changed file is wrong_export_password, a file that is not an export is invalid_export, and one over 4 MiB is import_file_too_large. Secrets are stored only when asked for and need the vault unlocked.
          */
-        post: operations["importSentinel"];
+        post: operations["importTransferly"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1609,7 +1609,7 @@ export interface components {
             /** @description The password that seals the file; at least 12 characters. */
             password: string;
         };
-        SentinelImport: {
+        TransferlyImport: {
             /** @description The password the file was sealed with. */
             password: string;
             /** @description The text of the file, as exportSites answered it. */
@@ -2417,7 +2417,7 @@ export interface components {
             locale?: string;
             /** @description IANA time zone name. */
             timezone?: string;
-            /** @description Identifier of the interface theme, such as sentinel-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes. */
+            /** @description Identifier of the interface theme, such as transferly-dark or monokai. Lower case letters, digits and hyphens, up to 40. The clients know the themes. */
             theme?: string;
             /**
              * @description What a double click, or Enter, on a file of the explorer does. Download, as FileZilla does, is the default; preview shows it in the viewer (ADR-0018).
@@ -7346,7 +7346,7 @@ export interface operations {
             };
         };
     };
-    importSentinel: {
+    importTransferly: {
         parameters: {
             query?: {
                 /** @description Only report what would happen. */
@@ -7370,7 +7370,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SentinelImport"];
+                "application/json": components["schemas"]["TransferlyImport"];
             };
         };
         responses: {

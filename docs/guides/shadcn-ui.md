@@ -21,7 +21,7 @@ Sources: [Vite installation](https://ui.shadcn.com/docs/installation/vite), [com
 
 ## Base Library
 
-Resolved: `shadcn` 4.21 offers `--base base|radix|aria`. Sentinel uses Base UI (`style: base-nova`, generated `components.json`) with RTL enabled.
+Resolved: `shadcn` 4.21 offers `--base base|radix|aria`. Transferly uses Base UI (`style: base-nova`, generated `components.json`) with RTL enabled.
 
 ## Dependencies
 

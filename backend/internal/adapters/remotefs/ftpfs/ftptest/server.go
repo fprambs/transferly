@@ -39,7 +39,7 @@ const (
 
 // Options configure a test server.
 type Options struct {
-	// Users maps user names to passwords; an empty map accepts "sentinel" with "sentinel".
+	// Users maps user names to passwords; an empty map accepts "transferly" with "transferly".
 	Users map[string]string
 	// Encryption selects plain FTP, explicit FTPS or implicit FTPS.
 	Encryption Encryption
@@ -102,7 +102,7 @@ type driver struct {
 	listener net.Listener
 }
 
-// Fingerprint returns the SHA-256 fingerprint of a DER certificate in OpenSSH notation, as Sentinel records it.
+// Fingerprint returns the SHA-256 fingerprint of a DER certificate in OpenSSH notation, as Transferly records it.
 func Fingerprint(der []byte) string {
 	digest := sha256.Sum256(der)
 	return "SHA256:" + strings.TrimRight(base64.StdEncoding.EncodeToString(digest[:]), "=")
@@ -117,7 +117,7 @@ func certificate(t testing.TB) tls.Certificate {
 	}
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "sentinel-ftptest"},
+		Subject:      pkix.Name{CommonName: "transferly-ftptest"},
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
@@ -136,7 +136,7 @@ func certificate(t testing.TB) tls.Certificate {
 func Start(t testing.TB, opt Options) *Server {
 	t.Helper()
 	if opt.Users == nil {
-		opt.Users = map[string]string{"sentinel": "sentinel"}
+		opt.Users = map[string]string{"transferly": "transferly"}
 	}
 	memory := afero.NewMemMapFs()
 	if err := memory.MkdirAll("/", 0o755); err != nil {
@@ -189,7 +189,7 @@ func (d *driver) GetSettings() (*ftpserver.Settings, error) {
 
 // ClientConnected implements [ftpserver.MainDriver].
 func (d *driver) ClientConnected(ftpserver.ClientContext) (string, error) {
-	return "sentinel test server", nil
+	return "transferly test server", nil
 }
 
 // ClientDisconnected implements [ftpserver.MainDriver].

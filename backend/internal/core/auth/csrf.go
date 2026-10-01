@@ -12,7 +12,7 @@ import (
 // It is bound to the session, so a token from one session is useless in another.
 func CSRFToken(instanceKey []byte, session uuid.UUID) string {
 	mac := hmac.New(sha256.New, instanceKey)
-	mac.Write([]byte("sentinel/csrf/v1|"))
+	mac.Write([]byte("transferly/csrf/v1|"))
 	mac.Write(session[:])
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }

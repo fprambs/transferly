@@ -21,8 +21,8 @@ import (
 
 	"github.com/jlaffaye/ftp"
 
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // TestClassify verifies how replies and failures of the client become the sentinels of the port.

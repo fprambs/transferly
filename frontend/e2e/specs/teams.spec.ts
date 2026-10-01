@@ -143,7 +143,7 @@ test.describe('teams', () => {
   })
 
   test('has no WCAG violations on the members and invitation pages', async ({ shell, page, browser, baseURL }) => {
-    for (const theme of ['sentinel-dark', 'sentinel-light']) {
+    for (const theme of ['transferly-dark', 'transferly-light']) {
       await shell.setTheme(theme)
       await openTeamMembers(page, team)
       await page.getByRole('button', { name: 'Invite member' }).click()

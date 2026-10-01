@@ -45,7 +45,7 @@
   "enable": {
     "title": "Activar la verificación en dos pasos",
     "scan": "Escanea este código con una app de autenticación como Aegis, 2FAS, Google Authenticator o 1Password.",
-    "qrAlt": "Código QR para añadir Sentinel a una app de autenticación",
+    "qrAlt": "Código QR para añadir Transferly a una app de autenticación",
     "manual": "¿No puedes escanear? Escribe esta clave",
     "code": "Código de la app",
     "confirm": "Confirmar",

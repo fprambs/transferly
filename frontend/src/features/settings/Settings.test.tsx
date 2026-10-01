@@ -29,7 +29,7 @@ import { useUiStore } from '@/state/ui-store'
  */
 describe('settings', () => {
   beforeEach(() => {
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, fileDoubleClick: 'download', preferencesSynced: true })
+    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false, fileDoubleClick: 'download', preferencesSynced: true })
     mockSession(adminSession)
     mockWorkspaceData()
     mockSecurity()
@@ -42,7 +42,7 @@ describe('settings', () => {
     const group = await screen.findByRole('radiogroup', { name: 'Themes' })
 
     expect(within(group).getAllByRole('radio')).toHaveLength(12)
-    expect(within(group).getByRole('radio', { name: /Sentinel Dark/ })).toBeChecked()
+    expect(within(group).getByRole('radio', { name: /Transferly Dark/ })).toBeChecked()
     expect(within(group).getByRole('radio', { name: /Monokai/ })).not.toBeChecked()
   })
 

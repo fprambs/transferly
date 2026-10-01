@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // TestPhaseTwoEndpoints_AuthorizationMatrix verifies who may reach the endpoints added in phase 2.

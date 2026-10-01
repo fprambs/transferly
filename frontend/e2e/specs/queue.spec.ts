@@ -7,7 +7,7 @@ import { expect, test } from '../fixtures.ts'
 import { choose } from '../select.ts'
 
 /** Address of the application under test. */
-const baseURL = process.env.SENTINEL_E2E_URL as string
+const baseURL = process.env.TRANSFERLY_E2E_URL as string
 
 /** An upload the test keeps open by hand, so it holds a slot of the site until it is ended. */
 interface HeldUpload {
@@ -65,13 +65,13 @@ test.describe('transfer queue', () => {
     const headers = { 'X-CSRF-Token': me.csrfToken }
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name: `queue-${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name: `queue-${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     expect(created.ok()).toBe(true)
     const { id: siteId } = (await created.json()) as { id: string }
     const files = `/api/v1/workspaces/${workspace}/sites/${siteId}/files`
-    const session = (await request.storageState()).cookies.find((cookie) => cookie.name === 'sentinel_session')
-    const cookie = `sentinel_session=${session?.value}`
+    const session = (await request.storageState()).cookies.find((cookie) => cookie.name === 'transferly_session')
+    const cookie = `transferly_session=${session?.value}`
     const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
     const first = holdUpload(cookie, me.csrfToken, files, `/upload/held-a-${stamp}`)

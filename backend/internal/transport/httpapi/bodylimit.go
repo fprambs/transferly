@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/fzimport"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/fzimport"
 )
 
 const (
@@ -15,9 +15,9 @@ const (
 	// maxFilezillaImportBody bounds a FileZilla import, a site manager file of at most [fzimport.MaxBytes] sent as the body, leaving room
 	// for its parser to answer that it is too large.
 	maxFilezillaImportBody = fzimport.MaxBytes + 64<<10
-	// maxSentinelImportBody bounds a Sentinel import: a file of [backup.MaxBytes] written as a JSON string, whose escapes may nearly
+	// maxTransferlyImportBody bounds a Transferly import: a file of [backup.MaxBytes] written as a JSON string, whose escapes may nearly
 	// double it, and its password.
-	maxSentinelImportBody = 2*backup.MaxBytes + 64<<10
+	maxTransferlyImportBody = 2*backup.MaxBytes + 64<<10
 )
 
 // bodyLimit returns the largest body a path accepts, and false for uploads, whose bodies are files of any size streamed to the server
@@ -28,8 +28,8 @@ func bodyLimit(path string) (int64, bool) {
 		return 0, false
 	case strings.HasSuffix(path, "/imports/filezilla"):
 		return maxFilezillaImportBody, true
-	case strings.HasSuffix(path, "/imports/sentinel"):
-		return maxSentinelImportBody, true
+	case strings.HasSuffix(path, "/imports/transferly"):
+		return maxTransferlyImportBody, true
 	}
 	return maxBody, true
 }

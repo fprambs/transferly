@@ -1,7 +1,7 @@
 import type { Collection, Site } from '@/lib/api'
 
 /** Type of the drag data of a row of the sites tree, which only the tree reads. */
-export const treeDragType = 'application/x-sentinel-tree'
+export const treeDragType = 'application/x-transferly-tree'
 
 /** A row of the sites tree being dragged (4.14h). */
 export interface TreeDrag {

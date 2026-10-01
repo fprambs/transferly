@@ -43,8 +43,8 @@ export function SiteExplorer() {
   const logOpen = useUiStore((state) => state.logOpen)
   const setLogOpen = useUiStore((state) => state.setLogOpen)
   const log = useCollapsible(logOpen, setLogOpen)
-  const stack = useDefaultLayout({ id: 'sentinel-explorer', storage: layoutStorage })
-  const panes = useDefaultLayout({ id: 'sentinel-split', panelIds: split === undefined ? ['left'] : ['left', 'right'], storage: layoutStorage })
+  const stack = useDefaultLayout({ id: 'transferly-explorer', storage: layoutStorage })
+  const panes = useDefaultLayout({ id: 'transferly-split', panelIds: split === undefined ? ['left'] : ['left', 'right'], storage: layoutStorage })
   const workspaceId = workspace?.id
 
   const follow = useTabs((state) => state.follow)
@@ -96,13 +96,13 @@ export function SiteExplorer() {
   )
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <Group orientation="vertical" id="sentinel-explorer" className="min-h-0 flex-1" {...stack}>
+      <Group orientation="vertical" id="transferly-explorer" className="min-h-0 flex-1" {...stack}>
         <Panel id="log" collapsible collapsedSize={logHeaderPx} defaultSize={150} minSize={64} maxSize="60%" groupResizeBehavior="preserve-pixel-size" className="flex h-full flex-col" {...log}>
           <ConnectionLog workspaceId={workspace.id} siteId={siteId} />
         </Panel>
         <ResizeHandle aria-label={t(($) => $.panels.log)} />
         <Panel id="files" minSize={160} className="flex h-full min-h-0 flex-col">
-          <Group id="sentinel-split" className="min-h-0 flex-1" {...panes}>
+          <Group id="transferly-split" className="min-h-0 flex-1" {...panes}>
             <Panel id="left" minSize="20%" className="flex h-full min-h-0 min-w-0 flex-col">
               <Explorer
                 key={`${workspace.id}/${siteId}`}

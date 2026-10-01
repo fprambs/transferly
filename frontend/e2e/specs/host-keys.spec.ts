@@ -39,7 +39,7 @@ test.describe('changed host keys', () => {
     const name = `Rotating ${Date.now()}`
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name, protocol: 'sftp', host, port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name, protocol: 'sftp', host, port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     expect(created.ok()).toBe(true)
     const { id: siteId } = (await created.json()) as { id: string }

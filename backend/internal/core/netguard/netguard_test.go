@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/netguard"
 )
 
 // fakeResolver answers lookups from a fixed table.

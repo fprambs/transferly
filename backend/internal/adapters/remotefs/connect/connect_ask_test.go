@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/connect"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
-	"github.com/fprambs/sentinel/internal/core/credentials"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/testutil"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
+	"github.com/fprambs/transferly/internal/core/credentials"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // TestConnector_AskForPassword covers sites of the [site.AuthAsk] logon type in [connect.Connector.Connect] and

@@ -10,6 +10,6 @@ cd "$(git rev-parse --show-toplevel)"
 
 docker compose -f compose.dev.yaml run --rm -T tools sh -c './scripts/coverage-go.sh && cd frontend && pnpm test:coverage'
 
-export SENTINEL_PUSH_TESTS_DONE=1
+export TRANSFERLY_PUSH_TESTS_DONE=1
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=30}"
 exec git push "$@"

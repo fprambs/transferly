@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/adapters/proxydial"
+	"github.com/fprambs/transferly/internal/adapters/proxydial"
 )
 
 // echoOnce accepts one connection and writes back whatever it reads, once, then closes.

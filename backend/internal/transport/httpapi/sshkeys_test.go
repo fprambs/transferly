@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/testutil"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/testutil"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // keyFixture reads a key file made for the tests of the sshkey package.

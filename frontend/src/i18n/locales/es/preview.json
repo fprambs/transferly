@@ -134,7 +134,7 @@
     "noMatches": "Ninguna entrada coincide con el filtro.",
     "label": "Contenido de {{name}}",
     "unsafe": "nombre peligroso",
-    "unsafeHint": "Extraído tal cual, este nombre quedaría fuera de la carpeta o en un lugar propio. Sentinel nunca lo extrae.",
+    "unsafeHint": "Extraído tal cual, este nombre quedaría fuera de la carpeta o en un lugar propio. Transferly nunca lo extrae.",
     "ratio": "{{percent}} % comprimido",
     "columns": {
       "name": "Nombre",
@@ -156,13 +156,13 @@
     "slides": "Diapositivas: {{total}}",
     "slide": "Diapositiva {{number}}",
     "protected": "Este documento está protegido con contraseña",
-    "protectedBody": "Sentinel no abre documentos protegidos. Descárgalo para abrirlo con su contraseña.",
+    "protectedBody": "Transferly no abre documentos protegidos. Descárgalo para abrirlo con su contraseña.",
     "broken": "No se puede abrir este documento",
     "brokenBody": "El archivo está dañado o no es un documento que el visor pueda leer."
   },
   "noViewer": {
     "title": "No hay visor para este tipo de archivo",
-    "body": "Sentinel no puede mostrar este archivo dentro de la plataforma. Descárgalo para abrirlo en tu equipo.",
+    "body": "Transferly no puede mostrar este archivo dentro de la plataforma. Descárgalo para abrirlo en tu equipo.",
     "asBytes": "Ver sus bytes igualmente"
   },
   "sqlite": {
@@ -226,7 +226,7 @@
     "type": "Tipo",
     "fingerprint": "Huella",
     "privateKey": "Clave privada — contenido oculto",
-    "privateKeyBody": "Sentinel nunca muestra claves privadas. Quien tenga este archivo puede usar la clave: mantenlo fuera de carpetas compartidas.",
+    "privateKeyBody": "Transferly nunca muestra claves privadas. Quien tenga este archivo puede usar la clave: mantenlo fuera de carpetas compartidas.",
     "unreadable": "No se puede leer esta parte",
     "unreadableBody": "Está dañada o es de un tipo que el visor no lee."
   },

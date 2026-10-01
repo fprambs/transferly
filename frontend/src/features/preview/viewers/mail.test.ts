@@ -30,7 +30,7 @@ describe('readMail', () => {
   it('reads a newsletter', async () => {
     const mail = await readMail(sample('newsletter.eml'))
     expect(mail.subject).toBe('Informe de septiembre · 📊 resultados')
-    expect(mail.from).toBe('Sentinel Samples <samples@example.com>')
+    expect(mail.from).toBe('Transferly Samples <samples@example.com>')
     expect(mail.to).toBe('Ana <ana@example.com>, bruno@example.com')
     expect(mail.cc).toBe('Carla <carla@example.com>')
     expect(new Date(mail.date as string).toISOString()).toBe('2026-09-30T12:00:00.000Z')

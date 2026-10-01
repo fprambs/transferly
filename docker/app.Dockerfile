@@ -19,14 +19,14 @@ COPY backend/third_party/ ./third_party/
 RUN go mod download
 COPY backend/ ./
 COPY --from=web /src/frontend/dist/ ./internal/transport/webui/dist/
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/sentinel ./cmd/sentinel \
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/transferly ./cmd/transferly \
     && mkdir /out/data
 
 FROM gcr.io/distroless/static-debian12@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
-COPY --from=build /out/sentinel /sentinel
+COPY --from=build /out/transferly /transferly
 COPY --from=build --chown=65532:65532 /out/data /data
-ENV SENTINEL_DATA_DIR=/data
+ENV TRANSFERLY_DATA_DIR=/data
 USER 65532:65532
 EXPOSE 8080
-HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 CMD ["/sentinel", "healthcheck"]
-ENTRYPOINT ["/sentinel"]
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 CMD ["/transferly", "healthcheck"]
+ENTRYPOINT ["/transferly"]

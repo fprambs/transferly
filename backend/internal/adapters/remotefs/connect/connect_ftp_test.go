@@ -6,17 +6,17 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs"
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/ftpfs/ftptest"
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/hostkey"
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/quick"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/hostkey"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
-const ftpUser, ftpPassword = "sentinel", "sentinel"
+const ftpUser, ftpPassword = "transferly", "transferly"
 
 // trustCertificate records the certificate of an FTPS test server as trusted for its address.
 func (e *env) trustCertificate(address, fingerprint string) {

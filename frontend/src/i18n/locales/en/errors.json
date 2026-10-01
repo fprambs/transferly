@@ -86,8 +86,8 @@
       "next": "Enter the password when asked."
     },
     "cross_site_request": {
-      "cause": "The request came from a page of another site, which Sentinel refuses to protect your session.",
-      "next": "Use Sentinel from its own address."
+      "cause": "The request came from a page of another site, which Transferly refuses to protect your session.",
+      "next": "Use Transferly from its own address."
     },
     "csrf_invalid": {
       "cause": "The page is older than your current session, or the session changed in another tab.",
@@ -98,7 +98,7 @@
       "next": "Wait until tomorrow or ask an administrator to raise the quota."
     },
     "destination_blocked": {
-      "cause": "The network policy of this Sentinel does not allow reaching that address.",
+      "cause": "The network policy of this Transferly does not allow reaching that address.",
       "next": "Check the address, or ask an administrator to allow its network."
     },
     "directory_not_empty": {
@@ -134,7 +134,7 @@
       "next": "Check that you chose the right file."
     },
     "internal_error": {
-      "cause": "Something failed inside Sentinel; nothing about your request was wrong.",
+      "cause": "Something failed inside Transferly; nothing about your request was wrong.",
       "next": "Try again; if it keeps failing, tell your administrator the time it happened."
     },
     "invalid_answers": {
@@ -174,7 +174,7 @@
       "next": "Check the address."
     },
     "invalid_export": {
-      "cause": "The file is not an export of Sentinel, or was made by a newer version.",
+      "cause": "The file is not an export of Transferly, or was made by a newer version.",
       "next": "Choose the file the export downloaded."
     },
     "invalid_filter": {
@@ -190,7 +190,7 @@
       "next": "Write only the name or address, without ftp:// or a path."
     },
     "invalid_host_key": {
-      "cause": "The key type or fingerprint is not one Sentinel accepts.",
+      "cause": "The key type or fingerprint is not one Transferly accepts.",
       "next": "Trust the key from the connection that shows it."
     },
     "invalid_import_file": {
@@ -302,7 +302,7 @@
       "next": "Reload the page."
     },
     "network_error": {
-      "cause": "Sentinel did not answer: your connection dropped or the server is restarting.",
+      "cause": "Transferly did not answer: your connection dropped or the server is restarting.",
       "next": "Check your connection and try again."
     },
     "no_passkeys": {
@@ -354,11 +354,11 @@
       "next": "Choose the private key, usually the file without .pub."
     },
     "private_key_unreadable": {
-      "cause": "The file is not a private key Sentinel can read.",
+      "cause": "The file is not a private key Transferly can read.",
       "next": "Choose an OpenSSH, PEM or PuTTY key file."
     },
     "private_key_unsupported": {
-      "cause": "The key uses a type or protection Sentinel does not use, such as DSA.",
+      "cause": "The key uses a type or protection Transferly does not use, such as DSA.",
       "next": "Create an Ed25519 or RSA key and install it on the server."
     },
     "prompt_not_found": {
@@ -390,7 +390,7 @@
       "next": "Free space on the server or ask its administrator for more."
     },
     "remote_unavailable": {
-      "cause": "The server did not answer, closed the connection, or is not reachable from Sentinel.",
+      "cause": "The server did not answer, closed the connection, or is not reachable from Transferly.",
       "next": "Check the host and port, and that the server is on; then try again."
     },
     "secret_too_large": {
@@ -398,7 +398,7 @@
       "next": "Check that you pasted only the secret."
     },
     "setup_complete": {
-      "cause": "This Sentinel already has an administrator.",
+      "cause": "This Transferly already has an administrator.",
       "next": "Sign in instead."
     },
     "site_name_taken": {
@@ -483,7 +483,7 @@
     },
     "user_disabled": {
       "cause": "An administrator disabled this account.",
-      "next": "Ask an administrator of this Sentinel."
+      "next": "Ask an administrator of this Transferly."
     },
     "vault_exists": {
       "cause": "Your vault is already set up.",
@@ -507,7 +507,7 @@
     },
     "workspace_key_pending": {
       "cause": "The key of this team was not shared with you yet; an owner does it once your vault is set up.",
-      "next": "Ask an owner of the team to open Sentinel with the vault unlocked."
+      "next": "Ask an owner of the team to open Transferly with the vault unlocked."
     },
     "workspace_not_found": {
       "cause": "The workspace was deleted, or you no longer belong to it.",

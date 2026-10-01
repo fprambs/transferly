@@ -27,7 +27,7 @@ Create clients with `sftp.NewClient(sshConn, opts...)`.
 Source: [pkg.go.dev/golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/crypto/ssh).
 
 - `ClientConfig.HostKeyCallback` is mandatory and never `InsecureIgnoreHostKey`. The adapter calls `Config.VerifyHostKey(keyType, fingerprint)` and refuses to connect without it.
-- `ssh.FingerprintSHA256(key)` renders the `SHA256:` fingerprint that Sentinel stores and shows.
+- `ssh.FingerprintSHA256(key)` renders the `SHA256:` fingerprint that Transferly stores and shows.
 - `ClientConfig.HostKeyAlgorithms` restricts the accepted key types to the trusted ones, so a server cannot switch to a type that was never trusted.
 - Password authentication is offered through `ssh.Password` and `ssh.KeyboardInteractive`, because many servers only accept the latter.
 - Keys are read with `ssh.ParsePrivateKey` or `ParsePrivateKeyWithPassphrase`; `*ssh.PassphraseMissingError` and `x509.IncorrectPasswordError` are reported as authentication errors.
@@ -42,11 +42,11 @@ Server errors reach the client as `*sftp.StatusError`; `normaliseError` turns "n
 ## Tests
 
 - `sftptest` runs an SFTP server in the test process over a temporary directory, answers like OpenSSH, and injects faults, so the unit tests need no Docker.
-- The same conformance suite runs against the real OpenSSH of the `testenv` profile when `SENTINEL_TEST_SFTP_ADDR` is set:
+- The same conformance suite runs against the real OpenSSH of the `testenv` profile when `TRANSFERLY_TEST_SFTP_ADDR` is set:
 
 ```
 docker compose -f compose.dev.yaml --profile testenv up -d sftp
-docker compose -f compose.dev.yaml run --rm -e SENTINEL_TEST_SFTP_ADDR=sftp:22 tools sh -c 'cd backend && go test -run OpenSSH ./internal/adapters/remotefs/sftpfs/'
+docker compose -f compose.dev.yaml run --rm -e TRANSFERLY_TEST_SFTP_ADDR=sftp:22 tools sh -c 'cd backend && go test -run OpenSSH ./internal/adapters/remotefs/sftpfs/'
 ```
 
 - The in-process server is not a security boundary and only follows the parts of the protocol the adapter uses. Anything that differs on a real server is a bug of `sftptest`: fix it there and keep the real-server run green.
@@ -64,5 +64,5 @@ Measured with `scripts/bench-sftp-download.sh` against the isolated test stack, 
 | | local network | 20 ms added |
 |---|---|---|
 | OpenSSH `sftp` | 33–55 MB/s | 28–31 MB/s |
-| Sentinel before | 20–27 MB/s | 1.5 MB/s |
-| Sentinel after | — | 39–57 MB/s |
+| Transferly before | 20–27 MB/s | 1.5 MB/s |
+| Transferly after | — | 39–57 MB/s |

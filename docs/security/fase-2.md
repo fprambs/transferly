@@ -8,7 +8,7 @@ Alcance: adaptador FTP/FTPS (explícito e implícito, huella del certificado, ju
 
 Activos y actores: los de la fase 1, más el disco del usuario (el panel local escribe en una carpeta que el navegador le concede) y los servidores FTP, que hablan un protocolo de texto sin autenticación de los datos.
 
-Nuevos límites de confianza: servidor FTP contra Sentinel (respuestas PASV/EPSV, nombres en cualquier juego de caracteres); servidor remoto contra el disco del usuario (nombres que llegan a `saveToLocal` y al ZIP); archivo `sitemanager.xml` subido contra el analizador XML.
+Nuevos límites de confianza: servidor FTP contra Transferly (respuestas PASV/EPSV, nombres en cualquier juego de caracteres); servidor remoto contra el disco del usuario (nombres que llegan a `saveToLocal` y al ZIP); archivo `sitemanager.xml` subido contra el analizador XML.
 
 | Amenaza | Situación en la fase 2 |
 |---|---|
@@ -23,7 +23,7 @@ Nuevos límites de confianza: servidor FTP contra Sentinel (respuestas PASV/EPSV
 
 | Ataque | Aplica | Resultado | Verificación |
 |---|---|---|---|
-| FTP bounce (comando `PORT` hacia un tercero) | no | Sentinel no implementa el modo activo: nunca envía `PORT` ni `EPRT`, así que no puede ordenar al servidor que conecte a otro host. El modo activo queda descartado (ver decisión) | revisión del adaptador; el modo pasivo es el único |
+| FTP bounce (comando `PORT` hacia un tercero) | no | Transferly no implementa el modo activo: nunca envía `PORT` ni `EPRT`, así que no puede ordenar al servidor que conecte a otro host. El modo activo queda descartado (ver decisión) | revisión del adaptador; el modo pasivo es el único |
 | Secuestro por PASV (el servidor anuncia otra IP) | sí | La dirección anunciada se ignora: las conexiones de datos van siempre al host del control, y todas pasan por el `Dialer` de `netguard` | `TestDial_Destinations` (servidor que anuncia `192.0.2.10`) |
 | Inyección de comandos por CRLF y NUL en rutas | sí | `validPath` rechaza los caracteres de control; tras convertir a un juego multibyte se vuelve a validar (`representable`), de modo que ningún carácter puede fabricar un CR, LF o NUL en el cable | `TestFS_HostileNames`; fuzz `FuzzRepresentable` (9 juegos de caracteres, 600 000 ejecuciones sin fallos) |
 | Zip Slip y path traversal al escribir | sí | El ZIP usa nombres relativos limpios (`safeName`), sin `..`, barras invertidas ni rutas absolutas; en el panel local, `saveToLocal`, `makeLocalDirectory` y `openLocalDirectory` rechazan nombres vacíos, `.`, `..`, con separador o NUL (hallazgo 1) | `TestService_Archive`, `TestRemoteFiles_ArchiveHostileNames`, `refuses names and paths that would climb out of the folder` |
@@ -55,7 +55,7 @@ Contra servidores en proceso o el stack aislado (`compose.test.yaml`, con su pro
 
 | # | Severidad | Hallazgo | Estado |
 |---|---|---|---|
-| 1 | Baja | El panel local escribía en el disco con los nombres que envía el servidor remoto sin validarlos en Sentinel; solo el navegador (File System Access API) impedía `..` o separadores | Corregido: `UnsafeLocalName` en `openLocalDirectory`, `makeLocalDirectory` y `saveToLocal`; regresión unitaria |
+| 1 | Baja | El panel local escribía en el disco con los nombres que envía el servidor remoto sin validarlos en Transferly; solo el navegador (File System Access API) impedía `..` o separadores | Corregido: `UnsafeLocalName` en `openLocalDirectory`, `makeLocalDirectory` y `saveToLocal`; regresión unitaria |
 | 2 | Informativa | No había una matriz de autorización para los endpoints nuevos (copias, ZIP, sumas, sondeo de zona horaria, importación, actividad) | Corregido: `TestPhaseTwoEndpoints_AuthorizationMatrix`; sin fallos de fondo |
 | 3 | Informativa | Faltaban pruebas de fuzz sobre las dos entradas hostiles nuevas (rutas convertidas de juego de caracteres e importador XML) | Corregido: `FuzzRepresentable` y `FuzzParse`, sin hallazgos |
 | 4 | Informativa | El listado vacío intermitente visto en un E2E no se reproduce | Cerrado sin cambios de código; queda `TestVsftpd_ConcurrentSessions` como barrera |
@@ -66,7 +66,7 @@ Contra servidores en proceso o el stack aislado (`compose.test.yaml`, con su pro
 
 ## Decisión sobre el modo activo de FTP
 
-Se descarta por ahora. Exige abrir puertos entrantes hacia Sentinel (incompatible con el despliegue en Docker de solo un puerto), obliga a enviar `PORT`/`EPRT` y reintroduce el rebote FTP y el robo de la conexión de datos. El modo pasivo con EPSV cubre los servidores actuales. Si un caso real lo exigiera, se reabre con estas condiciones: opción por sitio desactivada por defecto, rango de puertos configurable y explícito, aceptar la conexión solo desde la IP del servidor de control y pasar la dirección anunciada por `netguard`.
+Se descarta por ahora. Exige abrir puertos entrantes hacia Transferly (incompatible con el despliegue en Docker de solo un puerto), obliga a enviar `PORT`/`EPRT` y reintroduce el rebote FTP y el robo de la conexión de datos. El modo pasivo con EPSV cubre los servidores actuales. Si un caso real lo exigiera, se reabre con estas condiciones: opción por sitio desactivada por defecto, rango de puertos configurable y explícito, aceptar la conexión solo desde la IP del servidor de control y pasar la dirección anunciada por `netguard`.
 
 ## Riesgos aceptados
 

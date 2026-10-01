@@ -28,14 +28,14 @@ describe('PdfViewer', () => {
     expect(source.reads).toEqual([[0, 1024 * 1024]])
     const sent: Array<Record<string, unknown>> = []
     ;(frame.contentWindow as Window).postMessage = (message: Record<string, unknown>) => void sent.push(message)
-    fromFrame('Document doc.pdf', { type: 'sentinel:ready' })
+    fromFrame('Document doc.pdf', { type: 'transferly:ready' })
     expect(sent[0]).toMatchObject({ kind: 'pdf', labels: { thumbnails: 'Pages', position: 'Page {{page}} of {{total}}', page: 'Page {{number}}', open: 'Open', password: 'Password' } })
   })
 
   it('explains broken documents', async () => {
     await renderWithProviders(<PdfViewer source={bytesSource('bad.pdf', new Uint8Array(8))} kind="pdf" />)
     await screen.findByTitle('Document bad.pdf')
-    fromFrame('Document bad.pdf', { type: 'sentinel:failed', reason: 'render' })
+    fromFrame('Document bad.pdf', { type: 'transferly:failed', reason: 'render' })
     expect(await screen.findByText('This PDF cannot be opened')).toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Show as bytes' }))
     await waitFor(() => expect(screen.getByRole('table', { name: 'Bytes of bad.pdf' })).toBeInTheDocument())

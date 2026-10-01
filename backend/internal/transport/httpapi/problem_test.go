@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/testutil"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/testutil"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // doProblem sends a request and returns the raw response with its decoded problem document.

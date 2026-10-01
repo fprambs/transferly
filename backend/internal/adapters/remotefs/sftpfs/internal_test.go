@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/sftp"
 
-	"github.com/fprambs/sentinel/internal/adapters/remotefs/sftpfs/sftptest"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // TestClassify verifies the mapping of client errors, including statuses a test server cannot produce.

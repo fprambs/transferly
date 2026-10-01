@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/testutil"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/testutil"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // fakeReadiness is a readiness checker that returns a fixed error.
@@ -125,7 +125,7 @@ func newServerWithWeb(t *testing.T) *httptest.Server {
 //   - API, problem and frontend responses all carry the OWASP recommended headers
 //   - the content security policy forbids inline scripts and framing
 //   - responses are not cacheable by default, and the frontend can set its own cache policy
-//   - the isolated page of the file viewers has an opaque origin, no network, and may be framed by Sentinel only (ADR-0018)
+//   - the isolated page of the file viewers has an opaque origin, no network, and may be framed by Transferly only (ADR-0018)
 func TestSecurityHeaders(t *testing.T) {
 	api := newServer(t, fakeReadiness{})
 	web := newServerWithWeb(t)

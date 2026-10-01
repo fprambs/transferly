@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/auth"
 )
 
 // TestCSRF verifies the session-bound anti-CSRF token.

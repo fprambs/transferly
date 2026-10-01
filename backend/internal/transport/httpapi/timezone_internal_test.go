@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/files"
 )
 
 // TestProbeResponse verifies how what a probe learned is reported.

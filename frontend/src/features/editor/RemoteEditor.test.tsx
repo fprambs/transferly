@@ -201,19 +201,19 @@ describe('RemoteEditor', () => {
   })
 
   it('opens with the light CodeMirror theme when the interface is light, and follows a theme change', async () => {
-    useUiStore.setState({ themeId: 'sentinel-light', followSystem: false })
+    useUiStore.setState({ themeId: 'transferly-light', followSystem: false })
     mockFile('hello there')
     await renderWithI18n(<RemoteEditor api={api} workspaceId={workspaceId} siteId={siteId} entry={entry()} onClose={vi.fn()} onSaved={vi.fn()} />)
     const dialog = await screen.findByRole('dialog')
     await waitFor(() => expect(editorContent(dialog)).toHaveTextContent('hello there'))
 
-    act(() => useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false }))
+    act(() => useUiStore.setState({ themeId: 'transferly-dark', followSystem: false }))
     expect(within(dialog).getByRole('textbox')).toBeInTheDocument()
 
-    act(() => useUiStore.setState({ themeId: 'sentinel-light', followSystem: false }))
+    act(() => useUiStore.setState({ themeId: 'transferly-light', followSystem: false }))
     expect(within(dialog).getByRole('textbox')).toBeInTheDocument()
 
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false })
+    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false })
   })
 
   it('ignores the loaded file if it is closed before loading finishes', async () => {

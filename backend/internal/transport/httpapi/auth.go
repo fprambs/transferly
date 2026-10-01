@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/auth"
 )
 
 // GetSetupStatus reports whether the first administrator still has to be created.

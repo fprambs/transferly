@@ -36,11 +36,11 @@ linters:
               desc: core must not depend on the HTTP router
             - pkg: github.com/wailsapp/wails
               desc: core must not depend on Wails
-            - pkg: github.com/fprambs/sentinel/internal/adapters
+            - pkg: github.com/fprambs/transferly/internal/adapters
               desc: core must not import adapters
-            - pkg: github.com/fprambs/sentinel/internal/transport
+            - pkg: github.com/fprambs/transferly/internal/transport
               desc: core must not import transports
-            - pkg: github.com/fprambs/sentinel/internal/app
+            - pkg: github.com/fprambs/transferly/internal/app
               desc: core must not import the composition root
 
 formatters:

@@ -4,14 +4,14 @@ Sources: [Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Passw
 
 ## Passwords
 
-- Argon2id with at least 19 MiB, 2 passes and 1 lane (OWASP minimum); Sentinel uses the RFC 9106 low-memory profile: 64 MiB, 3 passes, 4 lanes.
+- Argon2id with at least 19 MiB, 2 passes and 1 lane (OWASP minimum); Transferly uses the RFC 9106 low-memory profile: 64 MiB, 3 passes, 4 lanes.
 - A random 16-byte salt per hash, stored in the PHC string. Bound the cost read from stored hashes.
 - Compare in constant time; rehash after login when parameters change.
 - Length policy: at least 12 characters, at most 1024 bytes.
 
 ## Sessions
 
-- At least 64 bits of entropy are required; Sentinel uses 256 bits, base64url encoded, with no meaning.
+- At least 64 bits of entropy are required; Transferly uses 256 bits, base64url encoded, with no meaning.
 - Store only a hash of the identifier; log ids only as hashes.
 - Regenerate the identifier on login. Enforce idle and absolute timeouts on the server.
 - Cookie attributes: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` over https.

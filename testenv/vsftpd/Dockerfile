@@ -11,15 +11,15 @@ RUN printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \
     && apt-get install -y --no-install-recommends --fix-missing vsftpd openssl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd --home-dir /srv/ftp --shell /bin/sh sentinel \
-    && echo 'sentinel:sentinel' | chpasswd \
+RUN useradd --home-dir /srv/ftp --shell /bin/sh transferly \
+    && echo 'transferly:transferly' | chpasswd \
     && mkdir -p /var/run/vsftpd/empty /srv/ftp/upload \
-    && chown -R sentinel /srv/ftp \
+    && chown -R transferly /srv/ftp \
     && mkdir -p /srv/anon/pub \
     && echo 'public file of the anonymous test server' > /srv/anon/pub/readme.txt \
     && chmod -R a+rX,go-w /srv/anon
 
-RUN openssl req -x509 -nodes -newkey rsa:2048 -days 3650 -subj "/CN=sentinel-test" \
+RUN openssl req -x509 -nodes -newkey rsa:2048 -days 3650 -subj "/CN=transferly-test" \
     -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/certs/vsftpd.pem
 
 COPY plain.conf explicit-ftps.conf implicit-ftps.conf /etc/vsftpd/

@@ -1,4 +1,4 @@
-# Sentinel patches to jlaffaye/ftp
+# Transferly patches to jlaffaye/ftp
 
 This is jlaffaye/ftp v0.2.4 (ISC license, see LICENSE), used through a `replace` directive in `backend/go.mod`. Only the library sources are kept; its tests stay upstream.
 

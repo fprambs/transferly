@@ -52,13 +52,13 @@ function isKnown(code: string): code is (typeof knownReasons)[number] {
 }
 
 /** The kinds of file the dialog imports. */
-type ImportKind = 'filezilla' | 'sentinel'
+type ImportKind = 'filezilla' | 'transferly'
 
-/** Tells a file exported by Sentinel (ADR-0017) from a FileZilla site manager by its content, not its name. */
+/** Tells a file exported by Transferly (ADR-0017) from a FileZilla site manager by its content, not its name. */
 function importKindOf(text: string): ImportKind {
   try {
     const parsed: unknown = JSON.parse(text)
-    return typeof parsed === 'object' && parsed !== null && (parsed as { format?: unknown }).format === 'sentinel-export' ? 'sentinel' : 'filezilla'
+    return typeof parsed === 'object' && parsed !== null && (parsed as { format?: unknown }).format === 'transferly-export' ? 'transferly' : 'filezilla'
   } catch {
     return 'filezilla'
   }
@@ -70,11 +70,11 @@ interface Chosen {
   file: File
   /** What kind of file it is. */
   kind: ImportKind
-  /** Its text, sent inside the Sentinel import. */
+  /** Its text, sent inside the Transferly import. */
   text: string
 }
 
-/** Imports sites from the site manager of FileZilla or from an encrypted export of Sentinel: choose the file, look at what would happen,
+/** Imports sites from the site manager of FileZilla or from an encrypted export of Transferly: choose the file, look at what would happen,
  * and confirm. The kind of file is told by its content; an export also needs its password. */
 export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) {
   const { t } = useTranslation('sites')
@@ -96,8 +96,8 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
       const { file, kind, text } = chosen as Chosen
       const options: ImportOptions = { dryRun, passwords, onConflict }
       setResult(
-        kind === 'sentinel'
-          ? await api.imports.sentinel(workspaceId, { password, file: text }, { dryRun, secrets: passwords, onConflict })
+        kind === 'transferly'
+          ? await api.imports.transferly(workspaceId, { password, file: text }, { dryRun, secrets: passwords, onConflict })
           : await api.imports.filezilla(workspaceId, file, options),
       )
       if (!dryRun) {
@@ -140,7 +140,7 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
             }}
           />
           {chosen === null ? null : <p className="text-xs text-muted-foreground">{t(($) => $.import.kind[chosen.kind])}</p>}
-          {chosen?.kind === 'sentinel' && (
+          {chosen?.kind === 'transferly' && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="import-export-password">{t(($) => $.import.exportPassword)}</Label>
               <Input id="import-export-password" type="password" autoComplete="off" value={password} onChange={(event) => setPassword(event.target.value)} />
@@ -148,7 +148,7 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           )}
           <label className="flex items-start gap-2">
             <input type="checkbox" className="mt-1" checked={passwords} onChange={(event) => setPasswords(event.target.checked)} />
-            {chosen?.kind === 'sentinel' ? (
+            {chosen?.kind === 'transferly' ? (
               <span>
                 {t(($) => $.import.secrets)}
                 <span className="block text-xs text-muted-foreground">{t(($) => $.import.secretsHint)}</span>
@@ -210,7 +210,7 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           </Button>
           {done ? null : (
             <>
-              <Button variant="outline" disabled={chosen === null || (chosen.kind === 'sentinel' && password === '') || working} onClick={() => void run(true)}>
+              <Button variant="outline" disabled={chosen === null || (chosen.kind === 'transferly' && password === '') || working} onClick={() => void run(true)}>
                 {t(($) => $.import.preview)}
               </Button>
               <Button disabled={result === null || !result.dryRun || working} onClick={() => void run(false)}>

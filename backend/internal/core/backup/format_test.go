@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/backup"
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/backup"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 const password = "a long export password"

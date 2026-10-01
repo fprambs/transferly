@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/core/workspace"
-	"github.com/fprambs/sentinel/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/transport/httpapi"
 )
 
 // TestPhaseThree_CrossWorkspaceAndEscalation is the regression net of the security review of phase 3: what the members of one team can do

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/workspace"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 const (
@@ -52,13 +52,13 @@ func (s *Service) ProbeTimeOffset(ctx context.Context, t Target, dir string, cur
 
 // probeOnce writes the probe file, measures it and removes it.
 func probeOnce(ctx context.Context, fsys remotefs.RemoteFS, dir string, now func() time.Time, current time.Duration) (TimeProbe, error) {
-	name := "sentinel-time-probe-" + strings.ToLower(rand.Text()[:12])
+	name := "transferly-time-probe-" + strings.ToLower(rand.Text()[:12])
 	file := path.Join(dir, name)
 	w, err := fsys.OpenWrite(ctx, file, 0, remotefs.WriteCreate)
 	if err != nil {
 		return TimeProbe{}, err
 	}
-	_, err = w.Write([]byte("sentinel time probe\n"))
+	_, err = w.Write([]byte("transferly time probe\n"))
 	if closeErr := w.Close(); err == nil {
 		err = closeErr
 	}

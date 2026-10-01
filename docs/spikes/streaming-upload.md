@@ -4,7 +4,7 @@ Program: `backend/spikes/streamupload`. A handler streams an HTTP request body i
 
 ## Question
 
-Can 5 GiB pass browser, Sentinel, SFTP server without touching the disk, keeping the server under 100 MB of memory?
+Can 5 GiB pass browser, Transferly, SFTP server without touching the disk, keeping the server under 100 MB of memory?
 
 ## Results
 

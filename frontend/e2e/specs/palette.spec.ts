@@ -16,7 +16,7 @@ test.describe('command palette', () => {
     const name = `Palette ${Date.now()}`
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'sentinel', authMethod: 'password', password: 'sentinel' },
+      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
     })
     const { id: siteId } = (await created.json()) as { id: string }
     await page.reload()

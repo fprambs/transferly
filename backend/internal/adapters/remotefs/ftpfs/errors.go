@@ -9,7 +9,7 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // FTP reply codes the adapter tells apart.
@@ -83,7 +83,7 @@ func refine(message string) error {
 	return remotefs.ErrPermission
 }
 
-// fingerprintOf renders the SHA-256 fingerprint of a DER certificate in the notation Sentinel uses for host keys.
+// fingerprintOf renders the SHA-256 fingerprint of a DER certificate in the notation Transferly uses for host keys.
 func fingerprintOf(der []byte) string {
 	digest := sha256.Sum256(der)
 	return "SHA256:" + strings.TrimRight(base64.StdEncoding.EncodeToString(digest[:]), "=")

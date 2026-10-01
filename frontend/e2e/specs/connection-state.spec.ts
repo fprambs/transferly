@@ -8,8 +8,8 @@ async function saveSite(page: Page, name: string): Promise<void> {
   const dialog = page.getByRole('dialog', { name: 'New site' })
   await dialog.getByLabel('Name', { exact: true }).fill(name)
   await dialog.getByLabel('Host', { exact: true }).fill('sftp')
-  await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
-  await dialog.getByLabel('Password', { exact: true }).fill('sentinel')
+  await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+  await dialog.getByLabel('Password', { exact: true }).fill('transferly')
   await dialog.getByRole('button', { name: 'Create site' }).click()
   await expect(dialog).toBeHidden()
 }

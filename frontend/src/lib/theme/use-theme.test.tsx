@@ -100,7 +100,7 @@ describe('usePrefersDark', () => {
  */
 describe('useThemeSync', () => {
   beforeEach(() => {
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false })
+    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false })
     document.documentElement.classList.remove('dark')
   })
 
@@ -130,11 +130,11 @@ describe('useThemeSync', () => {
     const media = stubColorScheme(false)
     useUiStore.setState({ themeId: 'monokai', followSystem: true })
     render(<ThemeSync />)
-    expect(document.documentElement.dataset.theme).toBe('sentinel-light')
+    expect(document.documentElement.dataset.theme).toBe('transferly-light')
 
     act(() => media.set(true))
 
-    expect(document.documentElement.dataset.theme).toBe('sentinel-dark')
+    expect(document.documentElement.dataset.theme).toBe('transferly-dark')
     expect(document.documentElement).toHaveClass('dark')
   })
 

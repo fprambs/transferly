@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/fprambs/sentinel/internal/adapters/store/postgres/db"
-	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/db"
+	"github.com/fprambs/transferly/internal/core/auth"
 )
 
 const (
@@ -26,7 +26,7 @@ var (
 )
 
 // defaultTheme is the theme of users created without one, the same as the column default.
-const defaultTheme = "sentinel-dark"
+const defaultTheme = "transferly-dark"
 
 // insertUserParams converts a user to the parameters of the insert query.
 func insertUserParams(u auth.User) db.InsertUserParams {

@@ -19,7 +19,7 @@ function mockExport(): string[] {
   server.use(
     http.post('/api/v1/workspaces/:id/exports', async ({ request }) => {
       passwords.push(((await request.json()) as { password: string }).password)
-      return new HttpResponse('{"format":"sentinel-export"}', { headers: { 'Content-Type': 'application/octet-stream' } })
+      return new HttpResponse('{"format":"transferly-export"}', { headers: { 'Content-Type': 'application/octet-stream' } })
     }),
   )
   return passwords
@@ -69,9 +69,9 @@ describe('ExportDialog', () => {
     await user.clear(dialog.getByLabelText('Repeat the password'))
     await user.type(dialog.getByLabelText('Repeat the password'), 'a long export password')
     await user.click(dialog.getByRole('button', { name: 'Export' }))
-    expect(await dialog.findByRole('status')).toHaveTextContent(/saved as sentinel-sites-\d{4}-\d\d-\d\d\.json/)
+    expect(await dialog.findByRole('status')).toHaveTextContent(/saved as transferly-sites-\d{4}-\d\d-\d\d\.json/)
     expect(passwords).toEqual(['a long export password'])
-    await waitFor(() => expect(saved).toEqual([{ name: expect.stringMatching(/^sentinel-sites-/), text: '{"format":"sentinel-export"}' }]))
+    await waitFor(() => expect(saved).toEqual([{ name: expect.stringMatching(/^transferly-sites-/), text: '{"format":"transferly-export"}' }]))
 
     await user.click(dialog.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalled()

@@ -12,7 +12,7 @@ const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 
 const sandboxPrefix = "/sandbox/"
 
 // sandboxPolicy is the Content-Security-Policy of the isolated page: an opaque origin even when opened directly, its own scripts and
-// styles, blobs for what it draws, no network at all, and framing by Sentinel only.
+// styles, blobs for what it draws, no network at all, and framing by Transferly only.
 const sandboxPolicy = "sandbox allow-scripts; default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 	"img-src blob: data:; media-src blob:; font-src blob: data:; worker-src blob:; connect-src 'none'; " +
 	"base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
@@ -21,7 +21,7 @@ const sandboxPolicy = "sandbox allow-scripts; default-src 'none'; script-src 'se
 //
 // Responses are not cacheable by default; handlers that serve static assets replace Cache-Control.
 // Strict-Transport-Security is left to the TLS terminating proxy. The isolated page of the file viewers gets its own policy and may be
-// framed by Sentinel itself (ADR-0018).
+// framed by Transferly itself (ADR-0018).
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()

@@ -20,7 +20,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/fprambs/sentinel/internal/core/sshkey"
+	"github.com/fprambs/transferly/internal/core/sshkey"
 )
 
 // sshString encodes values as SSH wire strings, one after the other.

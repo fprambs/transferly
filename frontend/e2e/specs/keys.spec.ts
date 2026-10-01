@@ -18,13 +18,13 @@ test.describe('key files', () => {
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await choose(dialog.getByLabel('Logon type'), 'Key file')
-    await dialog.getByLabel('Username', { exact: true }).fill('sentinel')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
 
-    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.pub')
+    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/transferly.pub')
     await expect(dialog.getByRole('alert')).toContainText('This is a public key')
     await dialog.getByRole('button', { name: 'Remove the key file' }).click()
 
-    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/sentinel.ppk')
+    await dialog.getByLabel('Key file', { exact: true }).setInputFiles('e2e/keys/transferly.ppk')
     await expect(dialog.getByText('Enter the passphrase of this key.')).toBeVisible()
     await expect(dialog.getByText(/PuTTY PPK 3 · private key · ssh-rsa · 2048 bits/)).toBeVisible()
     await expect(dialog.getByText(/^SHA256:/)).toBeVisible()

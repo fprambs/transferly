@@ -5,7 +5,7 @@ import { request as playwrightRequest, type APIRequestContext } from '@playwrigh
 import { expect, test } from '../fixtures.ts'
 
 /** Address of the application under test. */
-const baseURL = process.env.SENTINEL_E2E_URL as string
+const baseURL = process.env.TRANSFERLY_E2E_URL as string
 
 /** What the tests need to call the API as the signed-in account. */
 interface Caller {
@@ -24,8 +24,8 @@ async function caller(api: APIRequestContext): Promise<Caller> {
   const me = (await (await api.get('/api/v1/me')).json()) as { csrfToken: string }
   const workspaces = (await (await api.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
   const cookies = (await api.storageState()).cookies
-  const session = cookies.find((cookie) => cookie.name === 'sentinel_session')
-  return { api, csrf: me.csrfToken, workspaceId: workspaces[0].id, cookie: `sentinel_session=${session?.value}` }
+  const session = cookies.find((cookie) => cookie.name === 'transferly_session')
+  return { api, csrf: me.csrfToken, workspaceId: workspaces[0].id, cookie: `transferly_session=${session?.value}` }
 }
 
 /** Opens a WebSocket upgrade by hand, since a browser cannot forge its own `Origin`, and reports how the server answered. */

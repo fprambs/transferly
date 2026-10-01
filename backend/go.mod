@@ -1,4 +1,4 @@
-module github.com/fprambs/sentinel
+module github.com/fprambs/transferly
 
 go 1.27.1
 

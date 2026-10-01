@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/fprambs/sentinel/internal/core/site"
-	"github.com/fprambs/sentinel/internal/core/sshkey"
-	"github.com/fprambs/sentinel/internal/core/vault"
+	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/sshkey"
+	"github.com/fprambs/transferly/internal/core/vault"
 )
 
 const (
@@ -28,7 +28,7 @@ var keyStatuses = []struct {
 }
 
 // InspectSshKey describes a key file by its content, and checks the passphrase against it, without storing anything
-// (4.8g). A file that is no key, or one Sentinel does not use, is answered as saving a site would answer it.
+// (4.8g). A file that is no key, or one Transferly does not use, is answered as saving a site would answer it.
 func (s *server) InspectSshKey(_ context.Context, request InspectSshKeyRequestObject) (InspectSshKeyResponseObject, error) {
 	var passphrase []byte
 	if request.Body.Passphrase != nil {

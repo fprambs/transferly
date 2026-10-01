@@ -4,7 +4,7 @@ import { useUiStore } from './ui-store'
 
 /** Stores a document the way the persistence layer does. */
 function store(state: object): void {
-  localStorage.setItem('sentinel-ui', JSON.stringify({ state, version: 0 }))
+  localStorage.setItem('transferly-ui', JSON.stringify({ state, version: 0 }))
 }
 
 /**
@@ -22,13 +22,13 @@ function store(state: object): void {
 describe('useUiStore', () => {
   beforeEach(() => {
     localStorage.clear()
-    useUiStore.setState({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true })
+    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true })
   })
 
   it('starts with the default theme and an open queue', () => {
     const { themeId, followSystem, queueOpen } = useUiStore.getState()
 
-    expect({ themeId, followSystem, queueOpen }).toEqual({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true })
+    expect({ themeId, followSystem, queueOpen }).toEqual({ themeId: 'transferly-dark', followSystem: false, queueOpen: true })
   })
 
   it('chooses a theme, follows the system, toggles the queue and the log, and chooses what a double click on a file does', () => {
@@ -63,14 +63,14 @@ describe('useUiStore', () => {
     useUiStore.getState().setQueueTab('finished')
     useUiStore.getState().showActiveTransfers()
     expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueTab: 'finished' })
-    const stored = JSON.parse(localStorage.getItem('sentinel-ui') ?? '{}') as { state: object }
+    const stored = JSON.parse(localStorage.getItem('transferly-ui') ?? '{}') as { state: object }
     expect(Object.keys(stored.state)).not.toContain('queueTab')
   })
 
   it('persists only the theme, the follow-system flag, the panels shown, the workspace and the double click action', () => {
     useUiStore.getState().setTheme('nord')
 
-    const stored = JSON.parse(localStorage.getItem('sentinel-ui') ?? '{}') as { state: object }
+    const stored = JSON.parse(localStorage.getItem('transferly-ui') ?? '{}') as { state: object }
     expect(Object.keys(stored.state).sort()).toEqual(['detailsOpen', 'fileDoubleClick', 'followSystem', 'logOpen', 'preferencesSynced', 'queueOpen', 'sitesOpen', 'themeId', 'workspaceId'])
   })
 
@@ -87,19 +87,19 @@ describe('useUiStore', () => {
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'sentinel-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'transferly-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true })
   })
 
   it('works with nothing stored', async () => {
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'sentinel-dark', queueOpen: true })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'transferly-dark', queueOpen: true })
   })
 
   it.each([
-    ['light', { themeId: 'sentinel-light', followSystem: false }],
-    ['dark', { themeId: 'sentinel-dark', followSystem: false }],
-    ['system', { themeId: 'sentinel-dark', followSystem: true }],
+    ['light', { themeId: 'transferly-light', followSystem: false }],
+    ['dark', { themeId: 'transferly-dark', followSystem: false }],
+    ['system', { themeId: 'transferly-dark', followSystem: true }],
   ])('upgrades a stored color scheme %s', async (theme, expected) => {
     store({ theme, queueOpen: true })
 
@@ -113,6 +113,6 @@ describe('useUiStore', () => {
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState().themeId).toBe('sentinel-dark')
+    expect(useUiStore.getState().themeId).toBe('transferly-dark')
   })
 })

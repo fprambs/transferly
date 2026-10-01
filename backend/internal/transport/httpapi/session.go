@@ -11,11 +11,11 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/fprambs/sentinel/internal/core/auth"
+	"github.com/fprambs/transferly/internal/core/auth"
 )
 
 const (
-	sessionCookieName = "sentinel_session"
+	sessionCookieName = "transferly_session"
 	csrfHeader        = "X-CSRF-Token"
 	maxUserAgent      = 256
 	unknownIP         = "unknown"

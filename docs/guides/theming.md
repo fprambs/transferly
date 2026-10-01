@@ -6,9 +6,9 @@ A theme is a set of fifteen colors (`ThemeTokens` in `frontend/src/lib/theme/tok
 
 - **No fixed colors in components.** Use the Tailwind names that map to the variables: `bg-background`, `bg-card`, `bg-surface`, `bg-raised`, `text-foreground`, `text-muted-foreground`, `text-faint`, `text-accent-text`, `bg-primary text-primary-foreground`, `border-border`, `border-line-soft`, and the state colors `text-ok`, `text-warn`, `text-danger` (`text-destructive`), `text-info`. Soft state backgrounds use `bg-accent-soft` or `color-mix(in srgb, var(--warn) 16%, transparent)`.
 - shadcn/ui's `accent` is a hover background (the `raised` step), not the brand color. The brand color is `primary`.
-- The default theme, Sentinel Dark, is also written in the `:root` block of `index.css`, so the page paints correctly before any script runs. A test keeps that block equal to the registry.
+- The default theme, Transferly Dark, is also written in the `:root` block of `index.css`, so the page paints correctly before any script runs. A test keeps that block equal to the registry.
 - Applying a theme sets the variables on `<html>`, the `dark` class shadcn variants read, `color-scheme`, and `data-theme`.
-- Themes have stable identifiers (`sentinel-dark`, `monokai`, ...): lower case letters, digits and hyphens. They are stored in the browser (`sentinel-ui`) and in the account (`theme` preference), and an unknown identifier falls back to the default theme.
+- Themes have stable identifiers (`transferly-dark`, `monokai`, ...): lower case letters, digits and hyphens. They are stored in the browser (`transferly-ui`) and in the account (`theme` preference), and an unknown identifier falls back to the default theme.
 - Theme names are proper names and are not translated; only the group headings (Dark, Light) are.
 
 ## Readability

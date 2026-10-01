@@ -31,9 +31,9 @@ import (
 
 	"github.com/jlaffaye/ftp"
 
-	"github.com/fprambs/sentinel/internal/core/netguard"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/netguard"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // CertificateKeyType is the key type under which the fingerprint of a server certificate is reported and trusted.

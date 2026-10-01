@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/fprambs/sentinel/internal/core/connections"
-	"github.com/fprambs/sentinel/internal/core/connlog"
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
-	"github.com/fprambs/sentinel/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connlog"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/site"
 )
 
 // ConnectionLog sets where the steps of each connection are told to the user (ADR-0011). Without it, nothing is told.
@@ -63,7 +63,7 @@ func (h hop) connecting(target site.Site, host string, port int, via string) {
 	h.record(connlog.Info, connlog.Connecting, params)
 }
 
-// viaOf is how a site, or its jump host, is reached from Sentinel: through its proxy or directly.
+// viaOf is how a site, or its jump host, is reached from Transferly: through its proxy or directly.
 func viaOf(target site.Site) string {
 	if target.Proxy.Set() {
 		return "proxy"

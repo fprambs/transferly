@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fprambs/sentinel/internal/adapters/instancekey"
+	"github.com/fprambs/transferly/internal/adapters/instancekey"
 )
 
 // fixedRandom returns a reader that yields the same bytes on every read.

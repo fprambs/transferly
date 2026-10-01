@@ -117,7 +117,7 @@ export const useTabs = create<TabsState>()(
       deactivate: () => set({ activeId: null }),
     }),
     {
-      name: 'sentinel-tabs',
+      name: 'transferly-tabs',
       partialize: ({ tabs, activeId }) => ({ tabs, activeId }),
       merge: (persisted, current) => ({ ...current, ...sanitize(persisted) }),
     },

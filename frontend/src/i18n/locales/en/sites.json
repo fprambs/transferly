@@ -49,7 +49,7 @@
     "jump_private_key_unsupported": "The jump host key cannot be used.",
     "remoteDirInvalid": "The folder must start with /.",
     "invalid_remote_dir": "The default remote folder must be an absolute path.",
-    "invalid_export": "This file is not an export of Sentinel.",
+    "invalid_export": "This file is not an export of Transferly.",
     "wrong_export_password": "That password does not open the file, or the file was changed.",
     "weak_export_password": "The password needs at least 12 characters."
   },
@@ -194,16 +194,16 @@
         "wrong_passphrase": "The passphrase does not open this key."
       },
       "failures": {
-        "private_key_unreadable": "This file is not a key Sentinel can read.",
+        "private_key_unreadable": "This file is not a key Transferly can read.",
         "secret_too_large": "This file is too large to be a key.",
         "unknown": "The key could not be checked. Try again."
       },
       "reasons": {
-        "key_type": "Sentinel connects with RSA, ECDSA and Ed25519 keys; this key is of another type.",
+        "key_type": "Transferly connects with RSA, ECDSA and Ed25519 keys; this key is of another type.",
         "ppk_version": "Only PuTTY key files of versions 2 and 3 can be read.",
-        "encryption": "This key is encrypted in a way Sentinel does not read. Save it again with ssh-keygen or PuTTYgen.",
+        "encryption": "This key is encrypted in a way Transferly does not read. Save it again with ssh-keygen or PuTTYgen.",
         "argon2d": "This PuTTY key uses Argon2d. Save it again in PuTTYgen with the default, Argon2id.",
-        "cost": "This key asks for more work to open than Sentinel allows. Save it again with the default settings."
+        "cost": "This key asks for more work to open than Transferly allows. Save it again with the default settings."
       }
     },
     "disconnect": "Disconnect",
@@ -218,7 +218,7 @@
   "import": {
     "open": "Import from FileZilla",
     "title": "Import sites",
-    "description": "Choose the sitemanager.xml of FileZilla or a file exported by Sentinel. Nothing is created until you confirm the preview.",
+    "description": "Choose the sitemanager.xml of FileZilla or a file exported by Transferly. Nothing is created until you confirm the preview.",
     "file": "File to import",
     "passwords": "Import the saved passwords",
     "passwordsHint": "They are stored encrypted in your vault, which must be unlocked. Without this, sites are imported without a password.",
@@ -261,7 +261,7 @@
     },
     "kind": {
       "filezilla": "FileZilla site manager",
-      "sentinel": "Sentinel export, encrypted"
+      "transferly": "Transferly export, encrypted"
     },
     "exportPassword": "File password",
     "secrets": "Import the passwords and keys",
@@ -298,7 +298,7 @@
     "description": "Saves every collection and site of this workspace, with their passwords and keys, in a file encrypted with a password you choose now.",
     "password": "File password",
     "confirm": "Repeat the password",
-    "hint": "At least 12 characters. Sentinel does not keep it: without it the file cannot be opened.",
+    "hint": "At least 12 characters. Transferly does not keep it: without it the file cannot be opened.",
     "mismatch": "The passwords do not match.",
     "submit": "Export",
     "working": "Encrypting…",

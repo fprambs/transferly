@@ -2,11 +2,11 @@ import type { Language, Theme } from '../pages/shell-page.ts'
 import { expect, test } from '../fixtures.ts'
 
 const cases: ReadonlyArray<{ language: Language; theme: Theme }> = [
-  { language: 'en', theme: 'sentinel-dark' },
-  { language: 'en', theme: 'sentinel-light' },
+  { language: 'en', theme: 'transferly-dark' },
+  { language: 'en', theme: 'transferly-light' },
   { language: 'en', theme: 'monokai' },
   { language: 'en', theme: 'nord' },
-  { language: 'es', theme: 'sentinel-dark' },
+  { language: 'es', theme: 'transferly-dark' },
 ]
 
 /**
@@ -41,7 +41,7 @@ test.describe('visual', () => {
     })
   }
 
-  for (const theme of ['sentinel-dark', 'sentinel-light'] as const) {
+  for (const theme of ['transferly-dark', 'transferly-light'] as const) {
     test(`settings in en with the ${theme} theme`, async ({ shell, page }) => {
       await shell.setTheme(theme)
       await page.goto('/settings')

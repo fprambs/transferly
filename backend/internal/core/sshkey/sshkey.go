@@ -72,14 +72,14 @@ var (
 	ErrPassphraseRequired = errors.New("the private key needs its passphrase")
 	// ErrWrongPassphrase means the passphrase does not open the private key.
 	ErrWrongPassphrase = errors.New("wrong passphrase for the private key")
-	// ErrUnsupported means the key is readable but of a type or protection Sentinel does not use; the error is an
+	// ErrUnsupported means the key is readable but of a type or protection Transferly does not use; the error is an
 	// [*UnsupportedError] that says which.
 	ErrUnsupported = errors.New("unsupported key")
 )
 
 // Reasons an [UnsupportedError] gives, stable so clients can explain them.
 const (
-	// ReasonKeyType is a key type Sentinel does not connect with: DSA, Ed448, X25519 or an elliptic curve SSH does not define.
+	// ReasonKeyType is a key type Transferly does not connect with: DSA, Ed448, X25519 or an elliptic curve SSH does not define.
 	ReasonKeyType = "key_type"
 	// ReasonPuTTYVersion is a PuTTY key file of a version other than 2 and 3.
 	ReasonPuTTYVersion = "ppk_version"
@@ -189,7 +189,7 @@ func converted(info Info, raw crypto.PrivateKey, comment string, passphrase []by
 	return Key{Info: info, PEM: pem.EncodeToMemory(block)}, nil
 }
 
-// supported returns a signer for the private key types Sentinel connects with: RSA, ECDSA on the curves SSH defines,
+// supported returns a signer for the private key types Transferly connects with: RSA, ECDSA on the curves SSH defines,
 // and Ed25519.
 func supported(raw any) (ssh.Signer, error) {
 	switch raw.(type) {

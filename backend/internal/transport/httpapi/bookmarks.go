@@ -3,8 +3,8 @@ package httpapi
 import (
 	"context"
 
-	"github.com/fprambs/sentinel/internal/core/audit"
-	"github.com/fprambs/sentinel/internal/core/bookmark"
+	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/bookmark"
 )
 
 // bookmarkDTO converts a bookmark to its public representation.

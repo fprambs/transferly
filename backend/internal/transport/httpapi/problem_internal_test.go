@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // TestWriteProblem_Params verifies that parameters are included in the problem document when given.

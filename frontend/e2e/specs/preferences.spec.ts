@@ -28,7 +28,7 @@ test.describe('preferences', () => {
 
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'nord')
 
-      await shell.setTheme('sentinel-dark')
+      await shell.setTheme('transferly-dark')
     })
   })
 
@@ -82,7 +82,7 @@ test.describe('preferences', () => {
     await page.goto('/settings')
     await page.getByRole('checkbox', { name: 'Follow the system' }).check()
 
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'sentinel-light')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'transferly-light')
     await expect(page.locator('[data-theme-option="monokai"]')).toBeDisabled()
   })
 

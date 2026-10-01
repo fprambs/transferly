@@ -26,11 +26,11 @@ test.describe('import and export sites', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <FileZilla3><Servers>
   <Folder>${folder}
-    <Server><Host>sftp</Host><Port>22</Port><Protocol>1</Protocol><Logontype>1</Logontype><User>sentinel</User><Pass encoding="base64">${Buffer.from('sentinel').toString('base64')}</Pass><Name>${name}</Name></Server>
+    <Server><Host>sftp</Host><Port>22</Port><Protocol>1</Protocol><Logontype>1</Logontype><User>transferly</User><Pass encoding="base64">${Buffer.from('transferly').toString('base64')}</Pass><Name>${name}</Name></Server>
     <Server><Host>web.example.com</Host><Protocol>2</Protocol><Logontype>1</Logontype><User>x</User><Name>Web ${stamp}</Name></Server>
   </Folder>
 </Servers></FileZilla3>`
-    const dir = await mkdtemp(join(tmpdir(), 'sentinel-import-'))
+    const dir = await mkdtemp(join(tmpdir(), 'transferly-import-'))
     const file = join(dir, 'sitemanager.xml')
     await writeFile(file, xml)
 
@@ -70,8 +70,8 @@ test.describe('import and export sites', () => {
     const form = page.getByRole('dialog', { name: 'New site' })
     await form.getByLabel('Name', { exact: true }).fill(name)
     await form.getByLabel('Host', { exact: true }).fill('sftp')
-    await form.getByLabel('Username', { exact: true }).fill('sentinel')
-    await form.getByLabel('Password', { exact: true }).fill('sentinel')
+    await form.getByLabel('Username', { exact: true }).fill('transferly')
+    await form.getByLabel('Password', { exact: true }).fill('transferly')
     await form.getByRole('button', { name: 'Create site' }).click()
     await expect(form).toBeHidden()
 
@@ -82,16 +82,16 @@ test.describe('import and export sites', () => {
     const download = page.waitForEvent('download')
     await exporting.getByRole('button', { name: 'Export' }).click()
     const file = await (await download).path()
-    await expect(exporting.getByRole('status')).toContainText('sentinel-sites-')
+    await expect(exporting.getByRole('status')).toContainText('transferly-sites-')
     await exporting.getByRole('button', { name: 'Close' }).click()
     const text = await readFile(file, 'utf8')
-    expect(text).toContain('"format": "sentinel-export"')
+    expect(text).toContain('"format": "transferly-export"')
     expect(text).not.toContain(name)
 
     await page.getByRole('button', { name: 'Import sites' }).click()
     const dialog = page.getByRole('dialog', { name: 'Import sites' })
     await dialog.getByLabel('File to import').setInputFiles(file)
-    await expect(dialog.getByText('Sentinel export, encrypted')).toBeVisible()
+    await expect(dialog.getByText('Transferly export, encrypted')).toBeVisible()
     await dialog.getByLabel('File password').fill('not the export password')
     await dialog.getByRole('button', { name: 'Preview' }).click()
     await expect(dialog.getByRole('alert')).toContainText('That password does not open the file, or the file was changed.')

@@ -66,8 +66,8 @@ type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'wor
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
-  light: { themeId: 'sentinel-light', followSystem: false },
-  dark: { themeId: 'sentinel-dark', followSystem: false },
+  light: { themeId: 'transferly-light', followSystem: false },
+  dark: { themeId: 'transferly-dark', followSystem: false },
   system: { followSystem: true },
 }
 
@@ -135,7 +135,7 @@ export const useUiStore = create<UiState>()(
       setDetailsOpen: (detailsOpen) => set({ detailsOpen }),
     }),
     {
-      name: 'sentinel-ui',
+      name: 'transferly-ui',
       partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, preferencesSynced, logOpen, sitesOpen, detailsOpen }): PersistedUi => ({
         themeId,
         followSystem,

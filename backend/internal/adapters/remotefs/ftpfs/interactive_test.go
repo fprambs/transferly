@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fprambs/sentinel/internal/core/prompts"
-	"github.com/fprambs/sentinel/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/prompts"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 )
 
 // otpChallenge is what the one-time password server replies to USER.
