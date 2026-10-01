@@ -344,6 +344,15 @@ Animaciones cortas y con una sola curva (`ease-fluid`), solo con CSS y `tw-anima
 - [x] Momentos de marca: el panel del inicio de sesión entra con fundido, su símbolo se dibuja una vez y la tarjeta sube; las ilustraciones de los estados vacíos dibujan sus trazos de marca; el cambio de tema es un fundido cruzado con View Transitions
 - [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con el movimiento nuevo
 
+## Páginas en tarjetas y tablas (pedido del 2026-10-01)
+
+Las páginas dejan el fondo vacío: bloques comunes (`components/page`: cabecera con ícono, tarjetas con acciones y pie, contadores, insignias y celdas de tabla), siempre con los tokens del tema.
+
+- [x] Administración: contadores de cuentas sobre una tabla con filtro en su tarjeta; redes como tabla editable (agregar, quitar, origen) junto a tarjetas sobre las redes de arranque y los rangos prohibidos; límites en una tabla por grupo con barra fija para guardar; registro de auditoría en tarjeta con filtro, estado vacío y paginación
+- [x] Miembros, auditoría del equipo, ajustes y servidores de confianza con la misma cabecera, tarjetas y tablas; los workspaces personales muestran una tarjeta de estado vacío; los títulos de página son `h1` en todas
+- [x] Colores fijos (violeta, esmeralda, ámbar, rojo, celeste) reemplazados por tokens del tema en roles, estados y avisos
+- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con las páginas nuevas
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común

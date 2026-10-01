@@ -104,7 +104,7 @@ describe('Toolbar', () => {
   it('is shown with the explorer only, not on the settings page', async () => {
     mockSecurity()
     await renderApp({ path: '/settings' })
-    await screen.findByRole('heading', { level: 2, name: 'Settings' })
+    await screen.findByRole('heading', { level: 1, name: 'Settings' })
     expect(screen.queryByRole('toolbar', { name: 'Toolbar' })).not.toBeInTheDocument()
   })
 

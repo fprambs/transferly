@@ -1,5 +1,6 @@
 {
   "title": "Ajustes",
+  "description": "Apariencia, idioma, explorador y seguridad de tu cuenta.",
   "appearance": {
     "title": "Apariencia",
     "description": "Elige cómo se ve Transferly. El tema se guarda en tu cuenta y te acompaña a otros navegadores.",
@@ -38,7 +39,8 @@
       "network_error": "No se pudo contactar con el servidor.",
       "unknown": "Algo salió mal. Inténtalo de nuevo."
     },
-    "loadFailed": "No se pudieron cargar los servidores de confianza."
+    "loadFailed": "No se pudieron cargar los servidores de confianza.",
+    "listTitle": "Claves de confianza"
   },
   "notFound": {
     "title": "Página no encontrada",

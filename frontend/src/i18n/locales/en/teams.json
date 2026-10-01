@@ -214,6 +214,7 @@
       "bookmarkCreated": "bookmarked {{target}} ({{path}})",
       "bookmarkUpdated": "changed the bookmark {{target}} ({{path}})",
       "bookmarkDeleted": "removed the bookmark {{target}} ({{path}})"
-    }
+    },
+    "events": "Events"
   }
 }

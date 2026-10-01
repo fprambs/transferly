@@ -105,13 +105,13 @@ describe('members page', () => {
     await openMembers()
 
     expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument()
-    const list = screen.getByRole('list', { name: 'Members' })
-    expect(within(list).getAllByRole('listitem')).toHaveLength(5)
-    const me = within(list).getAllByRole('listitem')[0]
+    const list = screen.getByRole('table', { name: 'Members' })
+    expect(within(list).getAllByRole('row').slice(1)).toHaveLength(5)
+    const me = within(list).getAllByRole('row')[1]
     expect(within(me).getByText('You')).toBeInTheDocument()
     expect(within(me).getByText('Owner')).toBeInTheDocument()
-    expect(within(screen.getByText('lucia@agency.io').closest('li') as HTMLElement).getByText('Waiting for vault')).toBeInTheDocument()
-    expect(within(screen.getByText('pablo@acme.dev').closest('li') as HTMLElement).getByLabelText('Role of pablo@acme.dev')).toHaveTextContent('Viewer')
+    expect(within(screen.getByText('lucia@agency.io').closest('tr') as HTMLElement).getByText('Waiting for vault')).toBeInTheDocument()
+    expect(within(screen.getByText('pablo@acme.dev').closest('tr') as HTMLElement).getByLabelText('Role of pablo@acme.dev')).toHaveTextContent('Viewer')
     expect(screen.getByRole('heading', { name: 'What each role can do' })).toBeInTheDocument()
     expect(screen.getByText('Keys and membership')).toBeInTheDocument()
   })
@@ -282,7 +282,7 @@ describe('members page', () => {
     const { user } = await openMembers()
 
     await user.click(screen.getByRole('tab', { name: /Invitations/ }))
-    const list = await screen.findByRole('list', { name: 'Invitations' })
+    const list = await screen.findByRole('table', { name: 'Invitations' })
     expect(within(list).getByText('Invited by maria@acme.dev')).toBeInTheDocument()
     await user.click(within(list).getByRole('button', { name: 'Revoke the invitation of ana@acme.dev' }))
 
@@ -330,7 +330,7 @@ describe('members page', () => {
     await renderApp({ path: '/members' })
 
     expect(await screen.findByText('Loading members…')).toBeInTheDocument()
-    expect(await screen.findByRole('list', { name: 'Members' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Members' })).toBeInTheDocument()
   })
 
   it('lists the workspaces with roles in the switcher and opens the members page', async () => {

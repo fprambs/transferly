@@ -33,7 +33,7 @@ export function SecuritySection() {
   const refresh = () => void queryClient.invalidateQueries({ queryKey: securityKey })
 
   return (
-    <section aria-labelledby="security-title" className="flex max-w-xl flex-col gap-3">
+    <section aria-labelledby="security-title" className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4 shadow-xs">
       <div className="flex flex-col gap-1">
         <h3 id="security-title" className="text-sm font-semibold">
           {t(($) => $.section.title)}
@@ -44,7 +44,7 @@ export function SecuritySection() {
         <Loading label={t(($) => $.section.loading)} />
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <span className={on ? 'rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-300' : 'rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'}>
+          <span className={on ? 'rounded-full bg-ok/15 px-2.5 py-0.5 text-xs font-medium text-ok' : 'rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'}>
             {on ? t(($) => $.section.statusOn) : t(($) => $.section.statusOff)}
           </span>
           {on && <span className="text-sm text-muted-foreground">{t(($) => $.section.recoveryLeft, { count: status.data?.recoveryCodesLeft })}</span>}

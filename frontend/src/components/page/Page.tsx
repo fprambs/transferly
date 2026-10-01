@@ -11,15 +11,17 @@ export interface PageHeaderProps {
   title: string
   /** What the page is for, in one sentence. */
   description: string
-  /** Controls beside the title, such as the tabs of the page. */
+  /** Buttons on the right of the title, such as the main action of the page. */
+  actions?: ReactNode
+  /** What goes below the title, such as the tabs of the page. */
   children?: ReactNode
 }
 
 /** Heading of a full page: an icon tile, the title and its description, with room for the tabs below. */
-export function PageHeader({ icon: Icon, title, description, children }: PageHeaderProps) {
+export function PageHeader({ icon: Icon, title, description, actions, children }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-5">
-      <div className="flex items-start gap-3.5">
+      <div className="flex flex-wrap items-start gap-3.5">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-accent-text">
           <Icon aria-hidden="true" className="size-5" />
         </span>
@@ -27,9 +29,47 @@ export function PageHeader({ icon: Icon, title, description, children }: PageHea
           <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
+        {actions !== undefined && <div className="ms-auto flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
       {children}
     </header>
+  )
+}
+
+/** Props of {@link Page}. */
+export interface PageProps {
+  /** The header and the cards of the page. */
+  children: ReactNode
+}
+
+/** The frame of a full page: centered, with a comfortable width, and room between its header and cards. */
+export function Page({ children }: PageProps) {
+  return <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-7">{children}</div>
+}
+
+/** Props of {@link EmptyCard}. */
+export interface EmptyCardProps {
+  /** Icon of the state, drawn in a tinted circle. */
+  icon: LucideIcon
+  /** What the state is, as the heading of the card. */
+  title: string
+  /** What it means or what to do. */
+  body?: string
+  /** Actions, such as a button to get out of the state. */
+  children?: ReactNode
+}
+
+/** A card for a page that has nothing to show yet, or cannot show it: an icon, a heading, its explanation and what to do. */
+export function EmptyCard({ icon: Icon, title, body, children }: EmptyCardProps) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border bg-card px-6 py-12 text-center shadow-xs">
+      <span className="flex size-12 items-center justify-center rounded-full bg-primary/12 text-accent-text">
+        <Icon aria-hidden="true" className="size-5" />
+      </span>
+      <h2 className="text-base font-semibold">{title}</h2>
+      {body !== undefined && <p className="max-w-md text-sm text-muted-foreground">{body}</p>}
+      {children}
+    </div>
   )
 }
 

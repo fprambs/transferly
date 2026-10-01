@@ -2,7 +2,7 @@ import { ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PageHeader } from '@/components/page/Page'
+import { Page, PageHeader } from '@/components/page/Page'
 import { Loading } from '@/components/ui/loading'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -29,7 +29,7 @@ export function AdminPage() {
     return <p className="p-7 text-sm text-muted-foreground">{t(($) => $.page.noAccess)}</p>
   }
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-7">
+    <Page>
       <PageHeader icon={ShieldCheck} title={t(($) => $.page.title)} description={t(($) => $.page.subtitle)}>
         <Tabs value={tab} onValueChange={(value) => setTab(value as PageTab)}>
           <TabsList variant="line" className="justify-start">
@@ -52,6 +52,6 @@ export function AdminPage() {
       {tab === 'networks' && <NetworksTab />}
       {tab === 'limits' && <LimitsTab />}
       {tab === 'audit' && <AdminAuditTab />}
-    </div>
+    </Page>
   )
 }

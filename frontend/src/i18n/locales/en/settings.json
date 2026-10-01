@@ -1,5 +1,6 @@
 {
   "title": "Settings",
+  "description": "Appearance, language, the explorer and the security of your account.",
   "appearance": {
     "title": "Appearance",
     "description": "Choose how Transferly looks. The theme is saved to your account and follows you to other browsers.",
@@ -38,7 +39,8 @@
       "network_error": "Could not reach the server.",
       "unknown": "Something went wrong. Try again."
     },
-    "loadFailed": "The trusted servers could not be loaded."
+    "loadFailed": "The trusted servers could not be loaded.",
+    "listTitle": "Trusted keys"
   },
   "notFound": {
     "title": "Page not found",

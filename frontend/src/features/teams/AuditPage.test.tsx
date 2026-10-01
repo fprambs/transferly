@@ -68,7 +68,7 @@ describe('audit page', () => {
     ])
     await renderApp({ path: '/audit' })
 
-    const list = await screen.findByRole('list', { name: 'Audit log' })
+    const list = await screen.findByRole('table', { name: 'Audit log' })
     const text = list.textContent ?? ''
     for (const sentence of [
       'created the workspace Acme Web',
@@ -91,7 +91,7 @@ describe('audit page', () => {
     ]) {
       expect(text, sentence).toContain(sentence)
     }
-    expect(within(list).getAllByRole('listitem')).toHaveLength(16)
+    expect(within(list).getAllByRole('row').slice(1)).toHaveLength(16)
   })
 
   it('narrows the trail by group', async () => {

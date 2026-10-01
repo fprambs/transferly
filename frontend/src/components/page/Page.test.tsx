@@ -3,13 +3,15 @@ import { Users } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
 
 import { DataTable, Td, Th, Tr } from './DataTable'
-import { Badge, PageHeader, Section, StatTile, type Tone } from './Page'
+import { Badge, EmptyCard, Page, PageHeader, Section, StatTile, type Tone } from './Page'
 
 /**
  * Covers the building blocks of full pages: {@link PageHeader}, {@link Section}, {@link StatTile}, {@link Badge} and the table cells.
  *
  * Scenarios:
- * - the header names the page as its only first-level heading, with its description and what it holds below
+ * - the page frames its content; the header names the page as its only first-level heading, with its description, its actions and what it
+ *   holds below
+ * - an empty card heads its state, with its explanation and actions only when given
  * - a section names itself by its heading, keeps the padding of the card unless its body is flush, and shows its description, actions and
  *   footer only when given
  * - a tile shows its count and label in every tone, and a badge its text with or without a leading dot
@@ -18,14 +20,30 @@ import { Badge, PageHeader, Section, StatTile, type Tone } from './Page'
 describe('page blocks', () => {
   it('heads a page', () => {
     render(
-      <PageHeader icon={Users} title="People" description="Who uses this.">
-        <p>Tabs</p>
-      </PageHeader>,
+      <Page>
+        <PageHeader icon={Users} title="People" description="Who uses this." actions={<button type="button">Invite</button>}>
+          <p>Tabs</p>
+        </PageHeader>
+      </Page>,
     )
 
     expect(screen.getByRole('heading', { level: 1, name: 'People' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invite' })).toBeInTheDocument()
     expect(screen.getByText('Who uses this.')).toBeInTheDocument()
     expect(screen.getByText('Tabs')).toBeInTheDocument()
+  })
+
+  it('tells an empty state', () => {
+    const { rerender } = render(<EmptyCard icon={Users} title="Nobody yet" />)
+    expect(screen.getByRole('heading', { name: 'Nobody yet' })).toBeInTheDocument()
+
+    rerender(
+      <EmptyCard icon={Users} title="Nobody yet" body="Invite someone.">
+        <button type="button">Invite</button>
+      </EmptyCard>,
+    )
+    expect(screen.getByText('Invite someone.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invite' })).toBeInTheDocument()
   })
 
   it('draws sections with and without their extras', () => {

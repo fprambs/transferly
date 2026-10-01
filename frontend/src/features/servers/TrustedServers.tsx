@@ -1,7 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DataTable, Td, Th, Tr } from '@/components/page/DataTable'
+import { Badge, Page, PageHeader, Section } from '@/components/page/Page'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loading } from '@/components/ui/loading'
@@ -83,54 +86,54 @@ function TrustedServersList({ workspaceId }: TrustedServersListProps) {
   const timeZone = session?.user.timezone ?? resolveTimeZone()
 
   if (hosts.isPending) {
-    return <Loading label={t(($) => $.servers.loading)} />
+    return <Loading label={t(($) => $.servers.loading)} className="px-5 py-4" />
   }
   if (hosts.isError) {
-    return <p role="alert" className="text-sm text-destructive">{t(($) => $.servers.loadFailed)}</p>
+    return (
+      <p role="alert" className="px-5 py-4 text-sm text-destructive">
+        {t(($) => $.servers.loadFailed)}
+      </p>
+    )
   }
   if (hosts.data.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t(($) => $.servers.empty)}</p>
+    return <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t(($) => $.servers.empty)}</p>
   }
   return (
     <>
-      <table className="w-full max-w-4xl text-sm">
+      <DataTable aria-label={t(($) => $.servers.listTitle)}>
         <thead>
-          <tr className="border-b text-start text-[11px] tracking-wider text-muted-foreground uppercase">
-            <th scope="col" className="py-2 pe-3 text-start font-medium">
-              {t(($) => $.servers.host)}
-            </th>
-            <th scope="col" className="py-2 pe-3 text-start font-medium">
-              {t(($) => $.servers.keyType)}
-            </th>
-            <th scope="col" className="py-2 pe-3 text-start font-medium">
-              {t(($) => $.servers.fingerprint)}
-            </th>
-            <th scope="col" className="py-2 pe-3 text-start font-medium">
-              {t(($) => $.servers.firstSeen)}
-            </th>
-            <th scope="col" className="py-2" />
+          <tr>
+            <Th>{t(($) => $.servers.host)}</Th>
+            <Th>{t(($) => $.servers.keyType)}</Th>
+            <Th>{t(($) => $.servers.fingerprint)}</Th>
+            <Th>{t(($) => $.servers.firstSeen)}</Th>
+            <Th>
+              <span className="sr-only">{t(($) => $.servers.forget)}</span>
+            </Th>
           </tr>
         </thead>
         <tbody>
           {hosts.data.map((host) => (
-            <tr key={`${host.host}:${host.port}:${host.keyType}:${host.fingerprint}`} className="border-b last:border-b-0">
-              <td className="py-2 pe-3 font-mono">
+            <Tr key={`${host.host}:${host.port}:${host.keyType}:${host.fingerprint}`}>
+              <Td className="font-mono whitespace-nowrap">
                 {host.host}:{host.port}
-              </td>
-              <td className="py-2 pe-3 font-mono">{host.keyType}</td>
-              <td className="py-2 pe-3 font-mono text-xs break-all">{host.fingerprint}</td>
-              <td className="py-2 pe-3 text-muted-foreground">
+              </Td>
+              <Td>
+                <Badge tone="info">{host.keyType}</Badge>
+              </Td>
+              <Td className="font-mono text-xs break-all text-muted-foreground">{host.fingerprint}</Td>
+              <Td className="whitespace-nowrap text-muted-foreground">
                 {formatInstant(host.firstSeen, { locale: i18n.language, timeZone, dateStyle: 'medium', timeStyle: 'short' })}
-              </td>
-              <td className="py-2 text-end">
+              </Td>
+              <Td className="text-end">
                 <Button variant="ghost" size="sm" aria-label={t(($) => $.servers.forgetLabel, { host: `${host.host}:${host.port}`, fingerprint: host.fingerprint })} onClick={() => setForgetting(host)}>
                   {t(($) => $.servers.forget)}
                 </Button>
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
         </tbody>
-      </table>
+      </DataTable>
       {forgetting === null ? null : <ForgetDialog host={forgetting} workspaceId={workspaceId} onClose={() => setForgetting(null)} />}
     </>
   )
@@ -142,12 +145,13 @@ export function TrustedServers() {
   const workspace = useWorkspace()
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold tracking-tight">{t(($) => $.servers.title)}</h2>
-        <p className="text-sm text-muted-foreground">{t(($) => $.servers.description)}</p>
-      </div>
-      {workspace === undefined ? null : <TrustedServersList workspaceId={workspace.id} />}
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <Page>
+        <PageHeader icon={ShieldCheck} title={t(($) => $.servers.title)} description={t(($) => $.servers.description)} />
+        <Section id="trusted-keys-title" title={t(($) => $.servers.listTitle)} flush>
+          {workspace === undefined ? null : <TrustedServersList workspaceId={workspace.id} />}
+        </Section>
+      </Page>
     </div>
   )
 }

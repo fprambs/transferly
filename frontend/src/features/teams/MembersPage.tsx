@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Ellipsis, Plus } from 'lucide-react'
+import { Ellipsis, KeyRound, Plus, Search, Users, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DataTable, Td, Th, Tr } from '@/components/page/DataTable'
+import { Badge, EmptyCard, Page, PageHeader } from '@/components/page/Page'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -75,17 +77,19 @@ function MemberRow({ workspace, member, me, actions }: MemberRowProps) {
   const hasMenu = manageable || ownerMenu || (isMe && workspace.role !== 'owner')
 
   return (
-    <li className="grid grid-cols-[2.6fr_1.2fr_1.7fr_1fr_0.4fr] items-center border-b px-4 py-2.5 last:border-b-0">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
-          {member.email.slice(0, 2).toUpperCase()}
-        </span>
-        <span className="min-w-0 leading-tight">
-          <span className="block truncate">{member.email}</span>
-          {isMe && <span className="text-[11px] text-muted-foreground">{t(($) => $.member.you)}</span>}
-        </span>
-      </div>
-      <div>
+    <Tr>
+      <Td>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[11px] font-semibold text-accent-text">
+            {member.email.slice(0, 2).toUpperCase()}
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate">{member.email}</span>
+            {isMe && <span className="text-[11px] text-muted-foreground">{t(($) => $.member.you)}</span>}
+          </span>
+        </div>
+      </Td>
+      <Td>
         {manageable ? (
           <Select
             aria-label={t(($) => $.member.roleOf, { email: member.email })}
@@ -104,13 +108,14 @@ function MemberRow({ workspace, member, me, actions }: MemberRowProps) {
         ) : (
           <RoleBadge role={member.role} />
         )}
-      </div>
-      <div className="flex items-center gap-2 text-[13px]">
-        <span aria-hidden="true" className={member.keyState === 'sealed' ? 'size-2 rounded-full bg-emerald-500' : 'size-2 rounded-full bg-amber-500'} />
-        {t(($) => $.key[member.keyState])}
-      </div>
-      <div className="text-[13px] text-muted-foreground">{formatInstant(member.joinedAt, { locale: i18n.language, timeZone, dateStyle: 'medium' })}</div>
-      <div className="text-end">
+      </Td>
+      <Td>
+        <Badge tone={member.keyState === 'sealed' ? 'ok' : 'warn'} dot>
+          {t(($) => $.key[member.keyState])}
+        </Badge>
+      </Td>
+      <Td className="whitespace-nowrap text-muted-foreground">{formatInstant(member.joinedAt, { locale: i18n.language, timeZone, dateStyle: 'medium' })}</Td>
+      <Td className="w-12 text-end">
         {hasMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -130,8 +135,8 @@ function MemberRow({ workspace, member, me, actions }: MemberRowProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
-    </li>
+      </Td>
+    </Tr>
   )
 }
 
@@ -152,24 +157,28 @@ function MembersTable({ workspace, members, filter, actions }: MembersTableProps
   const shown = members.filter((member) => matches(member, filter, t(($) => $.roles[member.role])))
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <div className="grid grid-cols-[2.6fr_1.2fr_1.7fr_1fr_0.4fr] border-b px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground" aria-hidden="true">
-        <span>{t(($) => $.table.member)}</span>
-        <span>{t(($) => $.table.role)}</span>
-        <span>{t(($) => $.table.key)}</span>
-        <span>{t(($) => $.table.joined)}</span>
-        <span />
-      </div>
-      {shown.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.page.empty)}</p>
-      ) : (
-        <ul aria-label={t(($) => $.page.members)}>
+    shown.length === 0 ? (
+      <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t(($) => $.page.empty)}</p>
+    ) : (
+      <DataTable aria-label={t(($) => $.page.members)}>
+        <thead>
+          <tr>
+            <Th>{t(($) => $.table.member)}</Th>
+            <Th>{t(($) => $.table.role)}</Th>
+            <Th>{t(($) => $.table.key)}</Th>
+            <Th>{t(($) => $.table.joined)}</Th>
+            <Th>
+              <span className="sr-only">{t(($) => $.page.members)}</span>
+            </Th>
+          </tr>
+        </thead>
+        <tbody>
           {shown.map((member) => (
             <MemberRow key={member.userId} workspace={workspace} member={member} me={session?.user.id} actions={actions} />
           ))}
-        </ul>
-      )}
-    </div>
+        </tbody>
+      </DataTable>
+    )
   )
 }
 
@@ -191,41 +200,45 @@ function InvitationsTable({ workspace, invitations, loading, fail }: Invitations
   const timeZone = useTimeZone()
 
   if (loading) {
-    return <Loading label={t(($) => $.invitations.loading)} />
+    return <Loading label={t(($) => $.invitations.loading)} className="px-5 py-4" />
   }
   if (invitations.length === 0) {
-    return <p className="rounded-lg border bg-card px-4 py-6 text-center text-sm text-muted-foreground">{t(($) => $.invitations.empty)}</p>
+    return <p className="px-5 py-8 text-center text-sm text-muted-foreground">{t(($) => $.invitations.empty)}</p>
   }
   return (
-    <ul aria-label={t(($) => $.page.invitations)} className="overflow-hidden rounded-lg border bg-card">
-      {invitations.map((invitation) => (
-        <li key={invitation.id} className="grid grid-cols-[2.4fr_1fr_1.6fr_1.2fr_0.8fr] items-center border-b px-4 py-2.5 text-[13px] last:border-b-0">
-          <span className="truncate">{invitation.email}</span>
-          <RoleBadge role={invitation.role} />
-          <span className="truncate text-muted-foreground">{invitation.invitedBy === undefined ? '' : t(($) => $.invitations.by) + ' ' + invitation.invitedBy}</span>
-          <span className="text-muted-foreground">
-            {t(($) => $.invitations.expires)} {formatInstant(invitation.expiresAt, { locale: i18n.language, timeZone, dateStyle: 'medium' })}
-          </span>
-          <span className="text-end">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={t(($) => $.invitations.revokeOf, { email: invitation.email })}
-              onClick={async () => {
-                try {
-                  await api.invitations.revoke(workspace.id, invitation.id)
-                  await queryClient.invalidateQueries({ queryKey: teamKeys.invitations(workspace.id) })
-                } catch (error) {
-                  fail(teamErrorKeyOf(error))
-                }
-              }}
-            >
-              {t(($) => $.invitations.revoke)}
-            </Button>
-          </span>
-        </li>
-      ))}
-    </ul>
+    <DataTable aria-label={t(($) => $.page.invitations)}>
+      <tbody>
+        {invitations.map((invitation) => (
+          <Tr key={invitation.id}>
+            <Td className="max-w-64 truncate">{invitation.email}</Td>
+            <Td>
+              <RoleBadge role={invitation.role} />
+            </Td>
+            <Td className="max-w-56 truncate text-muted-foreground">{invitation.invitedBy === undefined ? '' : t(($) => $.invitations.by) + ' ' + invitation.invitedBy}</Td>
+            <Td className="whitespace-nowrap text-muted-foreground">
+              {t(($) => $.invitations.expires)} {formatInstant(invitation.expiresAt, { locale: i18n.language, timeZone, dateStyle: 'medium' })}
+            </Td>
+            <Td className="text-end">
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={t(($) => $.invitations.revokeOf, { email: invitation.email })}
+                onClick={async () => {
+                  try {
+                    await api.invitations.revoke(workspace.id, invitation.id)
+                    await queryClient.invalidateQueries({ queryKey: teamKeys.invitations(workspace.id) })
+                  } catch (error) {
+                    fail(teamErrorKeyOf(error))
+                  }
+                }}
+              >
+                {t(($) => $.invitations.revoke)}
+              </Button>
+            </Td>
+          </Tr>
+        ))}
+      </tbody>
+    </DataTable>
   )
 }
 
@@ -236,8 +249,8 @@ function Explainers() {
 
   return (
     <div className="grid gap-3.5 md:grid-cols-2">
-      <section aria-labelledby="matrix-title" className="rounded-lg border bg-card px-4 py-3.5">
-        <h2 id="matrix-title" className="mb-2 text-sm font-semibold">
+      <section aria-labelledby="matrix-title" className="rounded-xl border bg-card px-5 py-4 shadow-xs">
+        <h2 id="matrix-title" className="mb-3 text-sm font-semibold">
           {t(($) => $.matrix.title)}
         </h2>
         <table className="w-full text-xs">
@@ -260,7 +273,7 @@ function Explainers() {
                   {t(($) => $.matrix[row.action])}
                 </th>
                 {columns.map((role) => (
-                  <td key={role} className="py-1 text-center text-emerald-600 dark:text-emerald-400">
+                  <td key={role} className="py-1 text-center text-ok">
                     {row.allowed.includes(role) ? '✓' : ''}
                   </td>
                 ))}
@@ -269,8 +282,11 @@ function Explainers() {
           </tbody>
         </table>
       </section>
-      <section className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3.5 text-sm leading-relaxed">
-        <h2 className="mb-1.5 font-semibold">{t(($) => $.keysNote.title)}</h2>
+      <section className="rounded-xl border border-warn/30 bg-warn/8 px-5 py-4 text-sm leading-relaxed">
+        <h2 className="mb-1.5 flex items-center gap-2 font-semibold text-warn">
+          <KeyRound aria-hidden="true" className="size-4" />
+          {t(($) => $.keysNote.title)}
+        </h2>
         {t(($) => $.keysNote.body)}
       </section>
     </div>
@@ -294,37 +310,45 @@ function TeamMembers({ workspace }: TableProps) {
   const candidates = members.items.filter((member) => member.role !== 'owner' && member.keyState === 'sealed')
 
   return (
-    <div className="flex flex-col gap-4 p-7">
-      <header className="flex items-start gap-4">
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">{t(($) => $.page.title)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t(($) => $.page.subtitle, { name: workspace.name })}</p>
-        </div>
-        {manages && (
-          <Button onClick={() => setOpen({ kind: 'invite' })}>
-            <Plus className="size-4" />
-            {t(($) => $.page.invite)}
-          </Button>
-        )}
-      </header>
-      <Tabs value={tab} onValueChange={(value) => setTab(value as PageTab)}>
-        <TabsList variant="line" className="justify-start">
-          <TabsTrigger value="members" className="flex-none px-3">
-            {t(($) => $.page.members)} <span className="text-muted-foreground">{members.items.length}</span>
-          </TabsTrigger>
-          {manages && (
-            <TabsTrigger value="invitations" className="flex-none px-3">
-              {t(($) => $.page.invitations)} <span className="text-muted-foreground">{invitations.items.length}</span>
-            </TabsTrigger>
-          )}
-        </TabsList>
-      </Tabs>
+    <Page>
+      <PageHeader
+        icon={Users}
+        title={t(($) => $.page.title)}
+        description={t(($) => $.page.subtitle, { name: workspace.name })}
+        actions={
+          manages && (
+            <Button onClick={() => setOpen({ kind: 'invite' })}>
+              <Plus className="size-4" />
+              {t(($) => $.page.invite)}
+            </Button>
+          )
+        }
+      />
       <TeamFailure failure={failure} />
-      {tab === 'members' ? (
-        <>
-          <Input aria-label={t(($) => $.page.filter)} placeholder={t(($) => $.page.filter)} value={filter} onChange={(event) => setFilter(event.target.value)} className="max-w-72" />
-          {members.loading ? (
-            <Loading label={t(($) => $.page.loading)} />
+      <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-2.5">
+          <Tabs value={tab} onValueChange={(value) => setTab(value as PageTab)}>
+            <TabsList variant="line" className="justify-start">
+              <TabsTrigger value="members" className="flex-none px-3">
+                {t(($) => $.page.members)} <span className="text-muted-foreground">{members.items.length}</span>
+              </TabsTrigger>
+              {manages && (
+                <TabsTrigger value="invitations" className="flex-none px-3">
+                  {t(($) => $.page.invitations)} <span className="text-muted-foreground">{invitations.items.length}</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </Tabs>
+          {tab === 'members' && (
+            <div className="relative">
+              <Search aria-hidden="true" className="pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input aria-label={t(($) => $.page.filter)} placeholder={t(($) => $.page.filter)} value={filter} onChange={(event) => setFilter(event.target.value)} className="h-8 w-64 ps-8" />
+            </div>
+          )}
+        </div>
+        {tab === 'members' ? (
+          members.loading ? (
+            <Loading label={t(($) => $.page.loading)} className="px-5 py-4" />
           ) : (
             <MembersTable
               workspace={workspace}
@@ -337,17 +361,17 @@ function TeamMembers({ workspace }: TableProps) {
                 fail: setFailure,
               }}
             />
-          )}
-        </>
-      ) : (
-        <InvitationsTable workspace={workspace} invitations={invitations.items} loading={invitations.loading} fail={setFailure} />
-      )}
+          )
+        ) : (
+          <InvitationsTable workspace={workspace} invitations={invitations.items} loading={invitations.loading} fail={setFailure} />
+        )}
+      </div>
       <Explainers />
       <InviteDialog workspace={open?.kind === 'invite' ? workspace : null} onClose={close} />
       <RemoveMemberDialog workspace={workspace} member={open?.kind === 'remove' ? open.member : null} onClose={close} />
       <TransferDialog workspace={workspace} candidates={open?.kind === 'transfer' ? candidates : null} onClose={close} />
       <LeaveDialog workspace={open?.kind === 'leave' ? workspace : null} onClose={close} />
-    </div>
+    </Page>
   )
 }
 
@@ -362,12 +386,16 @@ export function MembersPage() {
   }
   if (workspace.kind === 'personal') {
     return (
-      <div className="flex flex-col items-start gap-3 p-7">
-        <h1 className="text-xl font-semibold">{t(($) => $.page.personalTitle)}</h1>
-        <p className="text-sm text-muted-foreground">{t(($) => $.page.personalBody)}</p>
-        <Button onClick={() => setCreating(true)}>{t(($) => $.page.createTeam)}</Button>
+      <Page>
+        <PageHeader icon={Users} title={t(($) => $.page.title)} description={t(($) => $.page.subtitle, { name: workspace.name })} />
+        <EmptyCard icon={UsersRound} title={t(($) => $.page.personalTitle)} body={t(($) => $.page.personalBody)}>
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="size-4" />
+            {t(($) => $.page.createTeam)}
+          </Button>
+        </EmptyCard>
         <NewTeamDialog open={creating} onClose={() => setCreating(false)} />
-      </div>
+      </Page>
     )
   }
   return <TeamMembers workspace={workspace} />
