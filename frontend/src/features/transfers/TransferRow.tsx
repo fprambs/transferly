@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeftRight, ArrowUp, Pause, Play, RotateCw, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Check, CircleAlert, Pause, Play, RotateCw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,9 @@ const finishedTones: Record<TransferItem['record']['status'], string> = {
   canceled: '',
 }
 
+/** The icon that pops in beside the state of a transfer that ended well or badly; other states have none. */
+const outcomeIcons: Partial<Record<TransferItem['record']['status'], typeof Check>> = { done: Check, failed: CircleAlert, interrupted: CircleAlert }
+
 /** The fill of the progress bar of an active transfer: striped brand color while it moves, warning when held, muted when waiting. */
 function barTone(running: boolean, paused: boolean): string {
   if (running) {
@@ -71,9 +74,16 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
   const queued = record.status === 'queued'
   const paused = record.paused === true
   const Icon = directionIcons[record.direction]
+  const failedNow = record.status === 'failed' || record.status === 'interrupted'
+  const Outcome = outcomeIcons[record.status]
 
   return (
-    <li className="flex items-center gap-3 border-b px-4 py-2 text-[13px] last:border-b-0">
+    <li
+      className={cn(
+        'flex items-center gap-3 border-b px-4 py-2 text-[13px] duration-200 animate-in fade-in-0 slide-in-from-bottom-1 last:border-b-0',
+        failedNow && 'motion-safe:animate-shake',
+      )}
+    >
       <Icon aria-label={t(($) => $[record.direction])} className={cn('size-4 shrink-0', directionTones[record.direction])} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-baseline gap-2">
@@ -89,7 +99,7 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
             aria-valuenow={percent}
             className="h-1.5 overflow-hidden rounded-full bg-muted"
           >
-            <div className={cn('h-full rounded-full transition-[width]', barTone(record.status === 'running', paused))} style={{ width: `${percent ?? 0}%` }} />
+            <div className={cn('h-full rounded-full transition-[width,background-color] duration-300 ease-fluid', barTone(record.status === 'running', paused))} style={{ width: `${percent ?? 0}%` }} />
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px] text-muted-foreground">
@@ -102,7 +112,8 @@ export function TransferRow({ item, onCancel, onRemove, onResume, onPause, onCon
           {record.status === 'running' && eta !== undefined ? <span>{t(($) => $.left, { time: formatDuration(eta) })}</span> : null}
           {queued ? <span>{paused ? t(($) => $.paused) : t(($) => $.waiting)}</span> : null}
           {active ? null : (
-            <span className={cn('font-medium', finishedTones[record.status])}>
+            <span className={cn('inline-flex items-center gap-1 font-medium', finishedTones[record.status])}>
+              {Outcome !== undefined && <Outcome aria-hidden="true" className="size-3 duration-300 animate-in zoom-in-50 fade-in-0" />}
               {t(($) => $.status[record.status])}
               {record.errorCode === undefined ? '' : ` · ${record.errorCode}`}
             </span>

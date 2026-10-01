@@ -335,6 +335,15 @@ La interfaz usaba casi solo grises: el color pasa a decir algo, siempre desde lo
 - [x] Etiqueta de color por sitio (ocho colores): barra en la lista de sitios, borde de sus pestañas y línea sobre la ruta del explorador; el importador de FileZilla lee su `Colour` y la exportación cifrada la conserva
 - [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con el color nuevo
 
+## Movimiento (pedido del 2026-10-01)
+
+Animaciones cortas y con una sola curva (`ease-fluid`), solo con CSS y `tw-animate-css`, sin librerías nuevas; todas respetan `prefers-reduced-motion`.
+
+- [x] Fluidez básica: los paneles de sitios, registro, detalles y transferencias se deslizan al abrirse o cerrarse con un botón (arrastrar y redimensionar la ventana siguen inmediatos); hover y foco con transición en todo lo que se apunta; la lista se funde al cambiar de carpeta o de pestaña sin perder el foco; barras de progreso con la curva común
+- [x] Respuesta a lo que pasa: las transferencias entran deslizándose, muestran ✓ o ⚠ al terminar y sacuden una vez si fallan; los contadores hacen «pop» al cambiar; el punto de conexión late una vez al conectar; avisos y guías de error entran con fundido; la zona para soltar archivos aparece suave
+- [x] Momentos de marca: el panel del inicio de sesión entra con fundido, su símbolo se dibuja una vez y la tarjeta sube; las ilustraciones de los estados vacíos dibujan sus trazos de marca; el cambio de tema es un fundido cruzado con View Transitions
+- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con el movimiento nuevo
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común

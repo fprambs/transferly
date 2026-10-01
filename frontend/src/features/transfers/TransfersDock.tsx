@@ -31,7 +31,9 @@ function Count({ value, tone }: { value: number; tone: string }) {
   return (
     <span className={cn('rounded-full px-1.5 font-mono text-[11px] leading-4 tabular-nums', tone)}>
       <span className="sr-only">(</span>
-      {value}
+      <span key={value} className="inline-block duration-200 animate-in zoom-in-75">
+        {value}
+      </span>
       <span className="sr-only">)</span>
     </span>
   )
@@ -99,7 +101,7 @@ export function TransfersDock() {
         }}
       />
       {failure === null ? null : (
-        <div role="alert" className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+        <div role="alert" className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm duration-200 animate-in fade-in-0 slide-in-from-bottom-1">
           <span>{transfers(($) => $.resumeErrors[failure])}</span>
           <Button variant="outline" size="sm" onClick={resumer.clearFailure}>
             {transfers(($) => $.resumeErrors.dismiss)}

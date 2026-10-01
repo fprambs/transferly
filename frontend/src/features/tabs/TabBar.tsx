@@ -96,8 +96,13 @@ export function TabBar() {
               onAuxClick={(event) => event.button === 1 && close(tab)}
               className="flex min-w-0 items-center gap-2 outline-none focus-visible:underline"
             >
-              <span className={cn('size-2 shrink-0 rounded-full', connected.has(tab.siteId) ? 'bg-ok ring-3 ring-ok/20' : 'bg-muted-foreground/40')}>
-                {connected.has(tab.siteId) && <span className="sr-only">{t(($) => $.tabs.connected)} </span>}
+              <span className={cn('relative size-2 shrink-0 rounded-full', connected.has(tab.siteId) ? 'bg-ok ring-3 ring-ok/20' : 'bg-muted-foreground/40')}>
+                {connected.has(tab.siteId) && (
+                  <>
+                    <span aria-hidden="true" className="absolute inset-0 rounded-full bg-ok motion-safe:animate-[ping_1s_var(--ease-fluid)_1]" />
+                    <span className="sr-only">{t(($) => $.tabs.connected)} </span>
+                  </>
+                )}
               </span>
               <span className="truncate">{name}</span>
             </button>

@@ -64,7 +64,7 @@ export function VaultLockedNotice({ need, onUnlocked, autoOpen = false, target, 
     )
   }
   return (
-    <div role="status" className="flex items-start gap-3 rounded-lg border border-warn/40 bg-warn/10 px-3.5 py-3 text-sm">
+    <div role="status" className="flex items-start gap-3 rounded-lg border border-warn/40 bg-warn/10 px-3.5 py-3 text-sm duration-200 animate-in fade-in-0 slide-in-from-bottom-1">
       <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warn" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-col gap-0.5">

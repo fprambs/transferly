@@ -9,6 +9,7 @@ import { PanelState } from '@/components/ui/panel-state'
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { Loading } from '@/components/ui/loading'
+import { refresh } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import type { HostKeyTrustMode, RemoteEntry } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -134,6 +135,14 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const setFilter = (next: EntryFilter): void => setFiltered({ path, filter: next })
   const filterField = useRef<HTMLInputElement>(null)
   const section = useRef<HTMLElement>(null)
+  const shownPath = useRef(path)
+
+  useEffect(() => {
+    if (shownPath.current !== path) {
+      shownPath.current = path
+      refresh(section.current?.querySelector<HTMLElement>('[role="grid"]') ?? null)
+    }
+  }, [path])
 
   useEffect(() => {
     if (pane !== 'main') {
@@ -325,10 +334,10 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       onDrop={drop}
       onPointerDownCapture={() => focus({ workspaceId, siteId })}
       onFocusCapture={() => focus({ workspaceId, siteId })}
-      className="@container relative flex min-h-0 min-w-0 flex-1 flex-col"
+      className="@container relative flex min-h-0 min-w-0 flex-1 flex-col duration-200 animate-in fade-in-0"
     >
       {dragging !== null ? (
-        <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
+        <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium duration-150 animate-in fade-in-0 zoom-in-[0.98]">
           {dragging === 'copy' ? t(($) => $.copy.dropHint) : t(($) => $.upload.dropHint)}
         </div>
       ) : null}
@@ -344,8 +353,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         {savedSite !== undefined && <BookmarksMenu workspaceId={workspaceId} siteId={siteId} siteName={savedSite.name} path={path} onNavigate={onNavigate} />}
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
         {live && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/12 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-ok @max-2xl:hidden">
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-ok" />
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/12 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-ok duration-300 animate-in fade-in-0 zoom-in-90 @max-2xl:hidden">
+            <span aria-hidden="true" className="relative flex size-1.5">
+              <span className="absolute inset-0 rounded-full bg-ok motion-safe:animate-[ping_1s_var(--ease-fluid)_1]" />
+              <span className="size-1.5 rounded-full bg-ok" />
+            </span>
             {t(($) => $.live)}
           </span>
         )}

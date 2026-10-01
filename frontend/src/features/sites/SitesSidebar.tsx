@@ -268,7 +268,8 @@ function Row({ node, actions }: RowProps) {
 function ConnectedDot() {
   const { t } = useTranslation('shell')
   return (
-    <span className="mx-[3px] size-2 shrink-0 rounded-full bg-ok ring-3 ring-ok/20">
+    <span className="relative mx-[3px] size-2 shrink-0 rounded-full bg-ok ring-3 ring-ok/20 duration-300 animate-in zoom-in-50">
+      <span aria-hidden="true" className="absolute inset-0 rounded-full bg-ok motion-safe:animate-[ping_1s_var(--ease-fluid)_1]" />
       <span className="sr-only">{t(($) => $.sidebar.connected)} </span>
     </span>
   )

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { Separator, usePanelCallbackRef, type LayoutStorage, type PanelImperativeHandle, type PanelSize, type SeparatorProps } from 'react-resizable-panels'
 
 import { cn } from '@/lib/utils'
+import { glidePanels } from '@/lib/motion'
 
 export { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
 
@@ -72,8 +73,10 @@ export function useCollapsible(open: boolean, onOpenChange: (open: boolean) => v
       return
     }
     if (open && panel.isCollapsed()) {
+      glidePanels()
       panel.expand()
     } else if (!open && !panel.isCollapsed()) {
+      glidePanels()
       panel.collapse()
     }
   }, [panel, open])

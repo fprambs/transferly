@@ -7,7 +7,7 @@ import { Illustration, type Scene } from './Illustration'
  * Covers {@link Illustration}.
  *
  * Scenarios:
- * - every scene is drawn, decorative, with the outline ink and both brand colors
+ * - every scene is drawn, decorative, with the outline ink and both brand colors, whose strokes draw themselves once
  * - the drawing takes the classes it is given
  */
 describe('Illustration', () => {
@@ -19,6 +19,7 @@ describe('Illustration', () => {
     expect(svg).toHaveAttribute('aria-hidden', 'true')
     expect(svg).toHaveAttribute('data-scene', scene)
     expect(svg).toHaveClass('h-12')
-    expect(inks).toEqual(new Set(['text-faint', 'text-(--brand-arrow)', 'text-(--brand-ribbon)']))
+    expect(inks).toEqual(new Set(['text-faint', 'text-(--brand-arrow) illustration-draw', 'text-(--brand-ribbon) illustration-draw']))
+    expect([...svg.querySelectorAll('.illustration-draw')].every((shape) => shape.getAttribute('pathLength') === '1')).toBe(true)
   })
 })

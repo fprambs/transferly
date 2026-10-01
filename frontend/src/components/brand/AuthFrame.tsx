@@ -31,10 +31,10 @@ export function AuthFrame({ children, width = 'max-w-sm' }: AuthFrameProps) {
 
   return (
     <div className="grid min-h-svh bg-background lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-(--brand-panel) bg-[radial-gradient(circle_at_15%_10%,var(--brand-panel-glow),transparent_55%)] p-12 text-(--brand-on-panel) lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-(--brand-panel) bg-[radial-gradient(circle_at_15%_10%,var(--brand-panel-glow),transparent_55%)] p-12 text-(--brand-on-panel) duration-500 animate-in fade-in-0 lg:flex">
         <BrandMark surface="brand" className="pointer-events-none absolute -end-24 -bottom-24 size-[28rem] opacity-10" />
         <p className="relative flex items-center gap-3 text-2xl font-bold tracking-tight">
-          <BrandMark surface="brand" className="size-11" />
+          <BrandMark surface="brand" animated="once" className="size-11" />
           {common(($) => $.app.name)}
         </p>
         <div className="relative flex max-w-md flex-col gap-8">
@@ -53,7 +53,7 @@ export function AuthFrame({ children, width = 'max-w-sm' }: AuthFrameProps) {
         <span />
       </div>
       <main className="flex items-center justify-center p-4 sm:p-8">
-        <div className={cn('flex w-full flex-col gap-6 rounded-2xl border bg-card p-8 shadow-xl', width)}>{children}</div>
+        <div className={cn('flex w-full flex-col gap-6 rounded-2xl border bg-card p-8 shadow-xl duration-300 animate-in fade-in-0 slide-in-from-bottom-2', width)}>{children}</div>
       </main>
     </div>
   )
