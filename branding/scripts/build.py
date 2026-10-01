@@ -43,25 +43,26 @@ STATUS = {'success': '#2E7D32', 'warning': '#FF9800', 'danger': '#D32F2F', 'info
 BLUE, ORANGE, SKY, DEEP, MIST, INK = (PALETTE[k][0] for k in PALETTE)
 FROST = '#E3EDF7'
 
-# Mark: a return arrow that loops into the bar of a T, and a ribbon that draws the "f" of Transferly and rises
-# back as an upload arrow. Drawn on a 64 grid; the stroke width is part of the geometry.
+# Mark: a return arrow whose lower bar flows, as an S, into the top bar and bowl of a P, while a stem drops from
+# the curve, turns at the bottom and climbs back as an upload arrow. Traced on a 100 grid from the reference.
 
-STROKE = 5.7
+STROKE = 7
 ARROW = (
-    '<path d="M24 10H15.5a6.5 6.5 0 0 0 0 13H28" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" fill="none"/>'
-    '<path d="M22.5 4.2 32.5 10l-10 5.8z" fill="currentColor" stroke="currentColor" stroke-width=".6" stroke-linejoin="round"/>'
+    '<path d="M32.5 18H21.25a9.5 9.5 0 0 0 0 19H32" stroke="currentColor" stroke-width="{w}" fill="none"/>'
+    '<path d="M31.5 9.5 47 18.25 31.5 27z" fill="currentColor"/>'
 )
 RIBBON = (
-    '<path d="M40 24.1h14.2a6.1 6.1 0 0 0 0-12.2H44C34 11.9 28.2 18 28.2 28v21a6.1 6.1 0 0 0 12.2 0v-9.5" stroke="currentColor" stroke-width="{w}" fill="none"/>'
-    '<path d="M34.6 40.2 40.4 29.8l5.8 10.4z" fill="currentColor" stroke="currentColor" stroke-width=".6" stroke-linejoin="round"/>'
+    '<path d="M57.5 37.5h19.25a9.75 9.75 0 0 0 0-19.5H60C50 18 45 37 31 37M43 32c-2.5 3-4 6-4 12v29.75a9.75 9.75 0 0 0 19.5 0V59"'
+    ' stroke="currentColor" stroke-width="{w}" fill="none"/>'
+    '<path d="M49.5 59.5 58.5 45l9 14.5z" fill="currentColor"/>'
 )
 
 
 def mark(arrow: str, body: str, box: tuple[float, float, float] = (0, 0, 1)) -> str:
-    """The mark as an SVG group, centered on the 64 grid; the arrow passes behind the ribbon."""
+    """The mark as an SVG group, centered on the 64 grid; the arrow ends where the ribbon takes over."""
     x, y, s = box
     return (
-        f'<g transform="translate({x} {y}) scale({s}) translate(-2.65 .92)">'
+        f'<g transform="translate({x} {y}) scale({s}) translate(32 32) scale(.68) translate(-49.1 -48.25)">'
         f'<g class="tf-arrow" color="{arrow}">{ARROW.format(w=STROKE)}</g>'
         f'<g class="tf-ribbon" color="{body}">{RIBBON.format(w=STROKE)}</g></g>'
     )

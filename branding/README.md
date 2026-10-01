@@ -6,7 +6,7 @@ Visual identity for Transferly: logo, app icons, palette, typography and icons. 
 
 ## Logo
 
-The mark is a return arrow that loops into the bar of a **T**, passing behind a ribbon that draws the **f** of Transferly and rises back as an upload arrow.
+The mark is one ribbon: a return arrow whose lower bar flows, as an S, into the top bar and bowl of a **P**, while a stem drops from the curve to form the **T**, turns at the bottom and climbs back as an upload arrow.
 
 | File | Use |
 | --- | --- |
