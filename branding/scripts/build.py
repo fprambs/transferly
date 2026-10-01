@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PALETTE = {
     'core-blue': ('#0D47A1', 'Core Blue', 'Brand, links, primary actions on light surfaces'),
     'action-orange': ('#FF9800', 'Action Orange', 'Calls to action, active transfers, highlights'),
-    'sky-blue': ('#42A5F5', 'Sky Blue', 'Brand blue on dark surfaces, progress and information'),
+    'signal-green': ('#43A047', 'Signal Green', 'Live connections, progress and success; brand blue on dark surfaces'),
     'deep-grey': ('#121212', 'Deep Grey', 'Dark surfaces'),
     'light-grey-blue': ('#E0F2F1', 'Light Grey-Blue', 'Light surfaces and text on dark'),
     'ink': ('#0A1F44', 'Ink', 'Wordmark and headings on light surfaces'),
@@ -34,13 +34,13 @@ PALETTE = {
 SCALES = {
     'blue': ['#E8F0FB', '#C5D7F2', '#8FB2E6', '#5288D6', '#2563C2', '#0D47A1', '#0B3C88', '#08306D', '#062452', '#041838'],
     'orange': ['#FFF5E6', '#FFE3BA', '#FFCC80', '#FFB74D', '#FFA726', '#FF9800', '#F08A00', '#D17600', '#A65E00', '#7A4500'],
-    'sky': ['#EAF4FE', '#C9E3FC', '#A3CFFA', '#78B9F8', '#5DAEF6', '#42A5F5', '#2E8FE0', '#2277C4', '#1A5FA0', '#12477A'],
+    'green': ['#E8F5E9', '#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#43A047', '#388E3C', '#2E7D32', '#1B5E20', '#103D14'],
     'grey': ['#F4F8F8', '#E0F2F1', '#C9D6D8', '#A3B1B5', '#7A888D', '#566368', '#3A4448', '#262D31', '#1A1F22', '#121212'],
 }
 STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
-STATUS = {'success': '#2E7D32', 'warning': '#FF9800', 'danger': '#D32F2F', 'info': '#42A5F5'}
+STATUS = {'success': '#43A047', 'warning': '#FF9800', 'danger': '#E53935', 'info': '#5288D6'}
 
-BLUE, ORANGE, SKY, DEEP, MIST, INK = (PALETTE[k][0] for k in PALETTE)
+BLUE, ORANGE, GREEN, DEEP, MIST, INK = (PALETTE[k][0] for k in PALETTE)
 FROST = '#E3EDF7'
 
 # Mark: a return arrow whose lower bar flows, as an S, into the top bar and bowl of a P, while a stem drops from
@@ -136,7 +136,7 @@ def logos(bold: Type, regular: Type, out: Path) -> None:
 
     variants = {
         'logo-horizontal.svg': (BLUE, ORANGE, INK, BLUE),
-        'logo-horizontal-on-dark.svg': (SKY, ORANGE, MIST, SKY),
+        'logo-horizontal-on-dark.svg': (GREEN, ORANGE, MIST, GREEN),
         'logo-mono.svg': ('currentColor', 'currentColor', 'currentColor', 'currentColor'),
     }
     for name, (a, b, h, t) in variants.items():
@@ -156,12 +156,12 @@ def logos(bold: Type, regular: Type, out: Path) -> None:
         words, _ = wordmark(bold, size, pad, base, head, tail)
         return width, base + pad + 4, mark(arrow, body, (mx, pad, mark_s)) + words
 
-    for name, (a, b, h, t) in {'logo-vertical.svg': (BLUE, ORANGE, INK, BLUE), 'logo-vertical-on-dark.svg': (SKY, ORANGE, MIST, SKY)}.items():
+    for name, (a, b, h, t) in {'logo-vertical.svg': (BLUE, ORANGE, INK, BLUE), 'logo-vertical-on-dark.svg': (GREEN, ORANGE, MIST, GREEN)}.items():
         w, hgt, body = vertical(a, b, h, t)
         (out / name).write_text(svg(w, hgt, body, 'Transferly'))
 
     # The mark alone, 64 grid.
-    for name, (a, b) in {'mark.svg': (BLUE, ORANGE), 'mark-on-dark.svg': (SKY, ORANGE), 'mark-mono.svg': ('currentColor', 'currentColor')}.items():
+    for name, (a, b) in {'mark.svg': (BLUE, ORANGE), 'mark-on-dark.svg': (GREEN, ORANGE), 'mark-mono.svg': ('currentColor', 'currentColor')}.items():
         (out / name).write_text(svg(64, 64, mark(a, b), 'Transferly'))
 
 
@@ -170,11 +170,11 @@ def app_icons(out: Path) -> None:
     inset = (32 - 32 * 0.72, 32 - 32 * 0.72, 0.72)
     grad = f'<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1565C0"/><stop offset="1" stop-color="{BLUE}"/></linearGradient></defs>'
     (out / 'app-icon.svg').write_text(svg(64, 64, f'{grad}<rect width="64" height="64" rx="14" fill="url(#bg)"/>' + mark(FROST, ORANGE, inset), 'Transferly'))
-    (out / 'app-icon-dark.svg').write_text(svg(64, 64, f'<circle cx="32" cy="32" r="32" fill="#1A1F22"/><circle cx="32" cy="32" r="31.25" fill="none" stroke="#262D31" stroke-width="1.5"/>' + mark(SKY, ORANGE, (32 - 32 * 0.74, 32 - 32 * 0.74, 0.74)), 'Transferly'))
+    (out / 'app-icon-dark.svg').write_text(svg(64, 64, f'<circle cx="32" cy="32" r="32" fill="#1A1F22"/><circle cx="32" cy="32" r="31.25" fill="none" stroke="#262D31" stroke-width="1.5"/>' + mark(GREEN, ORANGE, (32 - 32 * 0.74, 32 - 32 * 0.74, 0.74)), 'Transferly'))
     (out / 'app-icon-maskable.svg').write_text(svg(64, 64, f'{grad}<rect width="64" height="64" fill="url(#bg)"/>' + mark(FROST, ORANGE, (32 - 32 * 0.62, 32 - 32 * 0.62, 0.62)), 'Transferly'))
     # Favicon: transparent, the mark adapts to the browser theme.
     favicon = (
-        '<style>@media (prefers-color-scheme: dark){.tf-arrow{color:' + SKY + '}}</style>'
+        '<style>@media (prefers-color-scheme: dark){.tf-arrow{color:' + GREEN + '}}</style>'
         + mark(BLUE, ORANGE)
     )
     (out / 'favicon.svg').write_text(svg(64, 64, favicon, 'Transferly'))
@@ -232,6 +232,115 @@ def tokens(out: Path) -> None:
     (out / 'colors.css').write_text('\n'.join(lines))
 
 
+def mockups(inline, logo: Path, app: Path, icon: Path) -> str:
+    """Examples of the brand in use: the app in dark and light, a browser tab and the sign-in page."""
+    def ic(name: str, size: int = 16) -> str:
+        return inline(icon / (name + '.svg')).replace('class="asset"', f'class="mk-ic" width="{size}" height="{size}"', 1)
+
+    sites = [('sftp', 'Production', 'sftp · deploy@13.38.112.129', True), ('ftps', 'Marketing CDN', 'ftps · cdn.example.com', True), ('ftp', 'Legacy backups', 'ftp · 10.0.4.12', False), ('sftp', 'Staging', 'sftp · staging.internal', False)]
+    rows = [('folder', 'assets', '—', 'Today 15:12'), ('folder', 'releases', '—', 'Yesterday'), ('logs', 'access.log', '48.2 MB', 'Today 15:16'), ('folder', 'uploads', '—', '12 Sep'), ('logs', 'index.html', '12.4 KB', 'Today 14:58'), ('logs', 'app.bundle.js', '1.8 MB', 'Today 14:58')]
+    transfers = [('upload', 'app.bundle.js', 'Production', 100, 'Done'), ('upload', 'hero@2x.webp', 'Marketing CDN', 68, '4.2 MB/s'), ('download', 'backup-2026-09.tar.gz', 'Production', 31, '11.8 MB/s'), ('upload', 'robots.txt', 'Marketing CDN', 0, 'Queued')]
+
+    def shell(mode: str) -> str:
+        brand = inline(logo / ('logo-horizontal-on-dark.svg' if mode == 'dark' else 'logo-horizontal.svg')).replace('class="asset"', 'class="mk-logo"', 1)
+        side = ''.join(
+            f'<li class="{"on" if i == 0 else ""}">{ic(kind)}<div><b>{name}</b><small>{host}</small></div><i class="dot {"live" if live else ""}"></i></li>'
+            for i, (kind, name, host, live) in enumerate(sites)
+        )
+        files = ''.join(f'<tr>{"<td>" + ic(k, 14) + " " + n + "</td>"}<td>{sz}</td><td>{d}</td></tr>' for k, n, sz, d in rows)
+        queue = ''.join(
+            f'<div class="tr">{ic(k, 14)}<div class="tn"><b>{n}</b><small>{site}</small><span class="bar"><span style="width:{pct}%" class="{"done" if pct == 100 else ""}"></span></span></div><em class="{"ok" if pct == 100 else ""}">{st}</em></div>'
+            for k, n, site, pct, st in transfers
+        )
+        return f"""<div class="mk-app mk-{mode}">
+<header>{brand}<span class="ws">Personal ▾</span><span class="search">Search or open a connection…<kbd>Ctrl K</kbd></span><button class="cta">{ic('transfer', 14)} New transfer</button>{ic('user', 18)}</header>
+<div class="body">
+<aside><h6>Sites {ic('sites', 13)}</h6><ul>{side}</ul><h6>Workspace</h6><ul class="nav"><li>{ic('vault')} Vault</li><li>{ic('team')} Team</li><li>{ic('settings')} Settings</li></ul></aside>
+<section class="files"><div class="crumbs">{ic('sftp', 14)} Production <span>/</span> var <span>/</span> www <span class="live">● Connected</span></div>
+<table><thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead><tbody>{files}</tbody></table>
+<pre class="log"><span>15:16:44</span> Connecting to 13.38.112.129:22…
+<span>15:16:45</span> <b>Connected</b> · SSH-2.0-OpenSSH_9.6 · ed25519 verified
+<span>15:16:46</span> Listing /var/www (6 entries)</pre></section>
+<section class="queue"><h6>Transfers <small>2 active</small></h6>{queue}</section>
+</div></div>"""
+
+    tab = inline(app / 'favicon.svg').replace('class="asset"', 'class="mk-fav"', 1)
+    vertical = inline(logo / 'logo-vertical.svg').replace('class="asset"', 'class="mk-vlogo"', 1)
+    browser = f"""<div class="mk-browser"><div class="chrome"><i></i><i></i><i></i><div class="tab">{tab}Transferly<span>×</span></div><div class="tab off">{tab}Transferly · Settings</div></div>
+<div class="url">transferly.example.com/login</div>
+<div class="login">{vertical}<p>Seamless data flow between all your connections.</p><label>Email<input value="ana@example.com"></label><label>Password<input type="password" value="secret123"></label><button class="cta">Sign in</button><a>Forgot your password?</a></div></div>"""
+
+    style = """<style>
+.mk-grid { display:grid; gap:16px; }
+.mk-two { display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+.mk-ic { flex:none; vertical-align:-3px; }
+.mk-app { --bg:#121212; --panel:#1A1F22; --line:#262D31; --text:#E0F2F1; --muted:#A3B1B5; --link:#43A047; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--bg); color:var(--text); font-size:12.5px; }
+.mk-light { --bg:#F4F8F8; --panel:#FFFFFF; --line:#C9D6D8; --text:#0A1F44; --muted:#566368; --link:#0D47A1; }
+.mk-app header { display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+.mk-logo { height:26px; width:auto; }
+.mk-app .ws { border:1px solid var(--line); border-radius:7px; padding:2px 8px; color:var(--muted); }
+.mk-app .search { flex:1; display:flex; justify-content:space-between; max-width:420px; margin:0 auto; border:1px solid var(--line); border-radius:8px; padding:5px 10px; color:var(--muted); }
+.mk-app kbd { font:11px "Geist Mono", monospace; border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+.cta { display:inline-flex; gap:6px; align-items:center; background:#FF9800; color:#121212; border:0; border-radius:8px; padding:6px 12px; font:600 12.5px Geist, sans-serif; --tf-accent:#121212; }
+.mk-app .body { display:grid; grid-template-columns:210px 1fr 260px; min-height:330px; }
+.mk-app aside, .mk-app .queue { background:var(--panel); padding:12px; }
+.mk-app aside { border-right:1px solid var(--line); }
+.mk-app .queue { border-left:1px solid var(--line); }
+.mk-app h6 { display:flex; justify-content:space-between; align-items:center; margin:4px 0 8px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.mk-app ul { list-style:none; margin:0 0 16px; padding:0; }
+.mk-app li { display:flex; gap:8px; align-items:center; padding:6px 8px; border-radius:8px; }
+.mk-app li div { flex:1; min-width:0; display:grid; }
+.mk-app li small, .mk-app .tn small { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mk-app li.on { background:color-mix(in srgb, #FF9800 16%, transparent); box-shadow:inset 3px 0 #FF9800; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--line); }
+.dot.live { background:#43A047; box-shadow:0 0 0 3px color-mix(in srgb, #43A047 25%, transparent); }
+.mk-app .files { padding:12px 14px; display:flex; flex-direction:column; gap:10px; min-width:0; }
+.mk-app .crumbs { display:flex; gap:6px; align-items:center; color:var(--muted); }
+.mk-app .crumbs .live { margin-left:auto; color:#43A047; font-weight:600; }
+.mk-app table { width:100%; border-collapse:collapse; }
+.mk-app th { text-align:left; font-weight:500; color:var(--muted); border-bottom:1px solid var(--line); padding:5px 6px; }
+.mk-app td { padding:5px 6px; border-bottom:1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+.mk-app td:not(:first-child), .mk-app th:not(:first-child) { color:var(--muted); font-family:"Geist Mono", monospace; font-size:11.5px; }
+.mk-app .log { margin:auto 0 0; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:11px/1.6 "Geist Mono", monospace; color:var(--muted); white-space:pre-wrap; }
+.mk-light .log { background:#E0F2F1; }
+.mk-app .log b { color:#43A047; }
+.mk-app .tr { display:flex; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); }
+.mk-app .tn { flex:1; min-width:0; display:grid; gap:2px; }
+.mk-app .tr em { font:normal 11px "Geist Mono", monospace; color:var(--muted); }
+.mk-app .tr em.ok { color:#43A047; }
+.bar { height:5px; border-radius:3px; background:var(--line); overflow:hidden; display:block; }
+.bar span { display:block; height:100%; background:#43A047; border-radius:3px; }
+.mk-browser { border-radius:14px; overflow:hidden; border:1px solid #C9D6D8; background:#fff; color:#0A1F44; }
+.mk-browser .chrome { display:flex; align-items:flex-end; gap:6px; padding:8px 10px 0; background:#E0F2F1; }
+.mk-browser .chrome i { width:10px; height:10px; border-radius:50%; background:#C9D6D8; align-self:center; margin-bottom:6px; }
+.mk-browser .tab { display:flex; gap:6px; align-items:center; background:#fff; border-radius:8px 8px 0 0; padding:6px 10px; font-size:12px; margin-left:8px; }
+.mk-browser .tab.off { background:transparent; color:#566368; margin-left:0; }
+.mk-browser .tab span { margin-left:14px; color:#7A888D; }
+.mk-fav { width:16px; height:16px; }
+.mk-browser .url { margin:8px 10px; padding:5px 10px; border-radius:16px; background:#F4F8F8; font:12px "Geist Mono", monospace; color:#566368; }
+.mk-browser .login { width:min(300px, 90%); margin:22px auto 30px; display:grid; gap:10px; text-align:center; }
+.mk-vlogo { width:170px; height:auto; margin:0 auto; }
+.mk-browser .login p { margin:0 0 6px; color:#566368; font-size:13px; }
+.mk-browser label { display:grid; gap:4px; text-align:left; font-size:12px; color:#566368; }
+.mk-browser input { font:13px Geist, sans-serif; padding:8px 10px; border:1px solid #C9D6D8; border-radius:8px; color:#0A1F44; }
+.mk-browser input:focus { outline:2px solid #0D47A1; }
+.mk-browser .cta { justify-content:center; padding:9px; font-size:13.5px; }
+.mk-browser a { color:#0D47A1; font-size:12.5px; }
+.mk-states { display:grid; gap:10px; align-content:start; }
+.mk-states div { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-size:13px; border:1px solid; }
+@media (max-width:900px) { .mk-two { grid-template-columns:1fr } .mk-app .body { grid-template-columns:1fr } .mk-app .search { display:none } }
+</style>"""
+    states = """<div class="mk-states">
+<div style="background:#E8F5E9;border-color:#A5D6A7;color:#1B5E20">● Connected to Production · 32 ms</div>
+<div style="background:#E8F5E9;border-color:#A5D6A7;color:#1B5E20">✓ 14 files uploaded · 212 MB</div>
+<div style="background:#FFF5E6;border-color:#FFCC80;color:#7A4500">⏸ Transfer paused · resumes on reconnect</div>
+<div style="background:#FDECEA;border-color:#F5B7B1;color:#B71C1C">✕ Host key changed for staging.internal</div>
+<div style="background:#E8F0FB;border-color:#8FB2E6;color:#08306D">i New version available</div>
+<div style="background:#121212;border-color:#262D31;color:#E0F2F1"><span style="color:#43A047">●</span> Live · 2 transfers · <span style="color:#43A047">11.8 MB/s</span></div>
+</div>"""
+    return f"""{style}<div class="mk-grid">{shell('dark')}<div class="mk-two">{browser}{states}</div>{shell('light')}</div>"""
+
+
 def preview(out: Path) -> None:
     """A brand board that inlines every asset, so it opens straight from disk."""
     def inline(path: Path) -> str:
@@ -250,6 +359,7 @@ def preview(out: Path) -> None:
         for name, values in SCALES.items()
     )
     glyphs = ''.join(f'<figure class="icon">{inline(icon / (name + ".svg"))}<figcaption>{name}</figcaption></figure>' for name in ICONS)
+    examples = mockups(inline, logo, app, icon)
     html = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Transferly brand</title><link rel="icon" href="app-icon/favicon.svg">
@@ -304,6 +414,9 @@ figure.icon .asset {{ width:32px; height:32px; }}
 {tile(logo / "mark.svg", "Mark")}
 {tile(logo / "mark-on-dark.svg", "Mark, on dark", True)}
 </div>
+
+<h2>In use</h2>
+{examples}
 
 <h2>Palette</h2>
 <div class="grid">{swatches}</div>

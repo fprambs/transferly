@@ -2,7 +2,7 @@
 :root {
     --tf-core-blue: #0D47A1;
     --tf-action-orange: #FF9800;
-    --tf-sky-blue: #42A5F5;
+    --tf-signal-green: #43A047;
     --tf-deep-grey: #121212;
     --tf-light-grey-blue: #E0F2F1;
     --tf-ink: #0A1F44;
@@ -26,16 +26,16 @@
     --tf-orange-700: #D17600;
     --tf-orange-800: #A65E00;
     --tf-orange-900: #7A4500;
-    --tf-sky-50: #EAF4FE;
-    --tf-sky-100: #C9E3FC;
-    --tf-sky-200: #A3CFFA;
-    --tf-sky-300: #78B9F8;
-    --tf-sky-400: #5DAEF6;
-    --tf-sky-500: #42A5F5;
-    --tf-sky-600: #2E8FE0;
-    --tf-sky-700: #2277C4;
-    --tf-sky-800: #1A5FA0;
-    --tf-sky-900: #12477A;
+    --tf-green-50: #E8F5E9;
+    --tf-green-100: #C8E6C9;
+    --tf-green-200: #A5D6A7;
+    --tf-green-300: #81C784;
+    --tf-green-400: #66BB6A;
+    --tf-green-500: #43A047;
+    --tf-green-600: #388E3C;
+    --tf-green-700: #2E7D32;
+    --tf-green-800: #1B5E20;
+    --tf-green-900: #103D14;
     --tf-grey-50: #F4F8F8;
     --tf-grey-100: #E0F2F1;
     --tf-grey-200: #C9D6D8;
@@ -46,9 +46,9 @@
     --tf-grey-700: #262D31;
     --tf-grey-800: #1A1F22;
     --tf-grey-900: #121212;
-    --tf-success: #2E7D32;
+    --tf-success: #43A047;
     --tf-warning: #FF9800;
-    --tf-danger: #D32F2F;
-    --tf-info: #42A5F5;
+    --tf-danger: #E53935;
+    --tf-info: #5288D6;
     --tf-accent: var(--tf-action-orange);
 }
