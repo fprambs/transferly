@@ -1,0 +1,800 @@
+2026-09-29T05:26:44Z WARN transfer 0 done
+2026-09-29T20:18:30Z INFO transfer 1 done
+2026-09-29T15:51:32Z INFO transfer 2 done
+2026-09-29T16:33:15Z INFO transfer 3 done
+2026-09-29T00:23:59Z ERROR transfer 4 failed: connection lost
+2026-09-29T13:04:09Z INFO transfer 5 done
+2026-09-29T07:44:02Z WARN transfer 6 done
+2026-09-29T23:49:56Z WARN transfer 7 done
+2026-09-29T19:28:02Z INFO transfer 8 done
+2026-09-29T17:31:44Z INFO transfer 9 done
+2026-09-29T20:23:01Z INFO transfer 10 done
+2026-09-29T23:52:05Z INFO transfer 11 done
+2026-09-29T00:29:10Z ERROR transfer 12 failed: connection lost
+2026-09-29T23:21:25Z WARN transfer 13 done
+2026-09-29T04:11:42Z INFO transfer 14 done
+2026-09-29T15:55:52Z INFO transfer 15 done
+2026-09-29T02:49:12Z INFO transfer 16 done
+2026-09-29T21:51:57Z ERROR transfer 17 failed: connection lost
+2026-09-29T23:04:07Z ERROR transfer 18 failed: connection lost
+2026-09-29T15:35:52Z WARN transfer 19 done
+2026-09-29T06:21:59Z INFO transfer 20 done
+2026-09-29T17:26:18Z INFO transfer 21 done
+2026-09-29T14:32:24Z INFO transfer 22 done
+2026-09-29T15:24:17Z INFO transfer 23 done
+2026-09-29T02:10:45Z WARN transfer 24 done
+2026-09-29T00:31:04Z ERROR transfer 25 failed: connection lost
+2026-09-29T19:47:33Z INFO transfer 26 done
+2026-09-29T18:38:20Z ERROR transfer 27 failed: connection lost
+2026-09-29T19:07:11Z INFO transfer 28 done
+2026-09-29T20:22:53Z INFO transfer 29 done
+2026-09-29T11:48:38Z INFO transfer 30 done
+2026-09-29T07:06:10Z INFO transfer 31 done
+2026-09-29T05:49:27Z INFO transfer 32 done
+2026-09-29T05:43:02Z ERROR transfer 33 failed: connection lost
+2026-09-29T21:15:26Z INFO transfer 34 done
+2026-09-29T23:37:00Z INFO transfer 35 done
+2026-09-29T15:32:24Z INFO transfer 36 done
+2026-09-29T07:10:35Z INFO transfer 37 done
+2026-09-29T14:51:26Z WARN transfer 38 done
+2026-09-29T01:53:18Z INFO transfer 39 done
+2026-09-29T08:42:18Z INFO transfer 40 done
+2026-09-29T13:15:10Z WARN transfer 41 done
+2026-09-29T02:55:21Z INFO transfer 42 done
+2026-09-29T04:47:46Z WARN transfer 43 done
+2026-09-29T01:16:08Z ERROR transfer 44 failed: connection lost
+2026-09-29T23:30:01Z INFO transfer 45 done
+2026-09-29T11:50:09Z INFO transfer 46 done
+2026-09-29T19:49:27Z WARN transfer 47 done
+2026-09-29T18:57:54Z WARN transfer 48 done
+2026-09-29T09:08:34Z ERROR transfer 49 failed: connection lost
+2026-09-29T08:08:49Z INFO transfer 50 done
+2026-09-29T12:43:08Z INFO transfer 51 done
+2026-09-29T08:37:20Z INFO transfer 52 done
+2026-09-29T18:26:16Z WARN transfer 53 done
+2026-09-29T04:08:09Z INFO transfer 54 done
+2026-09-29T12:06:11Z INFO transfer 55 done
+2026-09-29T20:28:50Z INFO transfer 56 done
+2026-09-29T02:55:07Z INFO transfer 57 done
+2026-09-29T04:19:34Z INFO transfer 58 done
+2026-09-29T12:31:56Z INFO transfer 59 done
+2026-09-29T19:10:11Z INFO transfer 60 done
+2026-09-29T12:12:45Z ERROR transfer 61 failed: connection lost
+2026-09-29T01:38:45Z ERROR transfer 62 failed: connection lost
+2026-09-29T23:49:03Z INFO transfer 63 done
+2026-09-29T12:29:55Z INFO transfer 64 done
+2026-09-29T12:48:36Z INFO transfer 65 done
+2026-09-29T22:14:16Z ERROR transfer 66 failed: connection lost
+2026-09-29T10:47:02Z INFO transfer 67 done
+2026-09-29T12:09:19Z INFO transfer 68 done
+2026-09-29T16:51:35Z WARN transfer 69 done
+2026-09-29T18:06:34Z ERROR transfer 70 failed: connection lost
+2026-09-29T01:32:38Z INFO transfer 71 done
+2026-09-29T16:19:18Z ERROR transfer 72 failed: connection lost
+2026-09-29T16:48:35Z INFO transfer 73 done
+2026-09-29T02:39:52Z INFO transfer 74 done
+2026-09-29T06:22:04Z INFO transfer 75 done
+2026-09-29T21:26:06Z INFO transfer 76 done
+2026-09-29T20:04:40Z WARN transfer 77 done
+2026-09-29T16:39:01Z WARN transfer 78 done
+2026-09-29T15:33:32Z WARN transfer 79 done
+2026-09-29T12:04:14Z INFO transfer 80 done
+2026-09-29T01:42:27Z INFO transfer 81 done
+2026-09-29T07:17:45Z ERROR transfer 82 failed: connection lost
+2026-09-29T12:46:27Z WARN transfer 83 done
+2026-09-29T07:25:24Z INFO transfer 84 done
+2026-09-29T15:14:40Z INFO transfer 85 done
+2026-09-29T01:30:11Z WARN transfer 86 done
+2026-09-29T11:45:38Z INFO transfer 87 done
+2026-09-29T14:40:40Z ERROR transfer 88 failed: connection lost
+2026-09-29T21:46:54Z ERROR transfer 89 failed: connection lost
+2026-09-29T22:52:43Z INFO transfer 90 done
+2026-09-29T07:30:58Z WARN transfer 91 done
+2026-09-29T12:19:39Z WARN transfer 92 done
+2026-09-29T16:45:58Z INFO transfer 93 done
+2026-09-29T05:20:12Z INFO transfer 94 done
+2026-09-29T12:45:09Z INFO transfer 95 done
+2026-09-29T17:11:05Z ERROR transfer 96 failed: connection lost
+2026-09-29T09:39:24Z WARN transfer 97 done
+2026-09-29T03:10:45Z WARN transfer 98 done
+2026-09-29T06:43:21Z INFO transfer 99 done
+2026-09-29T20:37:43Z INFO transfer 100 done
+2026-09-29T08:05:01Z INFO transfer 101 done
+2026-09-29T16:16:54Z INFO transfer 102 done
+2026-09-29T21:32:12Z INFO transfer 103 done
+2026-09-29T19:44:17Z WARN transfer 104 done
+2026-09-29T05:25:29Z WARN transfer 105 done
+2026-09-29T13:29:39Z INFO transfer 106 done
+2026-09-29T21:11:42Z WARN transfer 107 done
+2026-09-29T19:17:06Z INFO transfer 108 done
+2026-09-29T06:02:22Z INFO transfer 109 done
+2026-09-29T00:04:32Z ERROR transfer 110 failed: connection lost
+2026-09-29T01:25:38Z WARN transfer 111 done
+2026-09-29T22:28:15Z INFO transfer 112 done
+2026-09-29T17:09:06Z INFO transfer 113 done
+2026-09-29T06:29:23Z INFO transfer 114 done
+2026-09-29T11:10:08Z ERROR transfer 115 failed: connection lost
+2026-09-29T13:33:53Z INFO transfer 116 done
+2026-09-29T09:12:26Z WARN transfer 117 done
+2026-09-29T17:15:14Z ERROR transfer 118 failed: connection lost
+2026-09-29T18:59:29Z INFO transfer 119 done
+2026-09-29T21:37:04Z INFO transfer 120 done
+2026-09-29T13:57:53Z INFO transfer 121 done
+2026-09-29T04:03:31Z ERROR transfer 122 failed: connection lost
+2026-09-29T19:34:39Z WARN transfer 123 done
+2026-09-29T15:43:51Z INFO transfer 124 done
+2026-09-29T04:17:09Z INFO transfer 125 done
+2026-09-29T09:19:40Z INFO transfer 126 done
+2026-09-29T02:42:04Z INFO transfer 127 done
+2026-09-29T16:06:43Z INFO transfer 128 done
+2026-09-29T11:17:22Z INFO transfer 129 done
+2026-09-29T05:02:37Z WARN transfer 130 done
+2026-09-29T08:43:50Z WARN transfer 131 done
+2026-09-29T05:02:06Z INFO transfer 132 done
+2026-09-29T11:34:16Z WARN transfer 133 done
+2026-09-29T06:44:12Z ERROR transfer 134 failed: connection lost
+2026-09-29T13:05:20Z INFO transfer 135 done
+2026-09-29T06:32:02Z INFO transfer 136 done
+2026-09-29T19:34:40Z INFO transfer 137 done
+2026-09-29T00:45:23Z WARN transfer 138 done
+2026-09-29T15:10:55Z WARN transfer 139 done
+2026-09-29T00:58:17Z INFO transfer 140 done
+2026-09-29T06:43:49Z ERROR transfer 141 failed: connection lost
+2026-09-29T17:38:58Z INFO transfer 142 done
+2026-09-29T09:24:13Z WARN transfer 143 done
+2026-09-29T22:50:23Z INFO transfer 144 done
+2026-09-29T11:11:39Z INFO transfer 145 done
+2026-09-29T19:01:48Z WARN transfer 146 done
+2026-09-29T20:47:10Z INFO transfer 147 done
+2026-09-29T17:32:56Z WARN transfer 148 done
+2026-09-29T06:14:32Z ERROR transfer 149 failed: connection lost
+2026-09-29T09:49:28Z INFO transfer 150 done
+2026-09-29T02:15:25Z ERROR transfer 151 failed: connection lost
+2026-09-29T05:22:34Z INFO transfer 152 done
+2026-09-29T18:08:01Z WARN transfer 153 done
+2026-09-29T18:48:01Z INFO transfer 154 done
+2026-09-29T23:06:13Z ERROR transfer 155 failed: connection lost
+2026-09-29T16:23:57Z ERROR transfer 156 failed: connection lost
+2026-09-29T09:07:10Z INFO transfer 157 done
+2026-09-29T21:27:39Z WARN transfer 158 done
+2026-09-29T15:48:12Z INFO transfer 159 done
+2026-09-29T08:11:27Z WARN transfer 160 done
+2026-09-29T07:31:30Z INFO transfer 161 done
+2026-09-29T01:34:54Z WARN transfer 162 done
+2026-09-29T06:02:50Z INFO transfer 163 done
+2026-09-29T18:28:51Z INFO transfer 164 done
+2026-09-29T23:08:46Z INFO transfer 165 done
+2026-09-29T05:24:09Z WARN transfer 166 done
+2026-09-29T01:00:49Z ERROR transfer 167 failed: connection lost
+2026-09-29T09:36:53Z WARN transfer 168 done
+2026-09-29T06:31:14Z ERROR transfer 169 failed: connection lost
+2026-09-29T15:43:03Z INFO transfer 170 done
+2026-09-29T11:58:52Z INFO transfer 171 done
+2026-09-29T15:21:29Z INFO transfer 172 done
+2026-09-29T12:36:40Z WARN transfer 173 done
+2026-09-29T19:45:44Z INFO transfer 174 done
+2026-09-29T08:48:06Z INFO transfer 175 done
+2026-09-29T20:16:46Z WARN transfer 176 done
+2026-09-29T03:59:57Z INFO transfer 177 done
+2026-09-29T19:54:21Z INFO transfer 178 done
+2026-09-29T23:19:15Z INFO transfer 179 done
+2026-09-29T04:48:53Z INFO transfer 180 done
+2026-09-29T03:43:39Z INFO transfer 181 done
+2026-09-29T20:13:32Z INFO transfer 182 done
+2026-09-29T04:31:49Z WARN transfer 183 done
+2026-09-29T06:02:43Z INFO transfer 184 done
+2026-09-29T20:33:23Z INFO transfer 185 done
+2026-09-29T06:53:09Z INFO transfer 186 done
+2026-09-29T01:16:44Z WARN transfer 187 done
+2026-09-29T01:07:48Z ERROR transfer 188 failed: connection lost
+2026-09-29T20:32:01Z INFO transfer 189 done
+2026-09-29T19:45:28Z WARN transfer 190 done
+2026-09-29T16:34:35Z INFO transfer 191 done
+2026-09-29T13:40:01Z INFO transfer 192 done
+2026-09-29T04:22:25Z WARN transfer 193 done
+2026-09-29T20:41:29Z ERROR transfer 194 failed: connection lost
+2026-09-29T18:14:28Z INFO transfer 195 done
+2026-09-29T00:54:41Z WARN transfer 196 done
+2026-09-29T07:49:37Z ERROR transfer 197 failed: connection lost
+2026-09-29T23:05:22Z WARN transfer 198 done
+2026-09-29T04:10:00Z INFO transfer 199 done
+2026-09-29T10:44:21Z INFO transfer 200 done
+2026-09-29T06:03:29Z INFO transfer 201 done
+2026-09-29T06:09:00Z ERROR transfer 202 failed: connection lost
+2026-09-29T05:54:09Z INFO transfer 203 done
+2026-09-29T17:07:10Z ERROR transfer 204 failed: connection lost
+2026-09-29T20:07:40Z WARN transfer 205 done
+2026-09-29T03:48:07Z INFO transfer 206 done
+2026-09-29T22:44:13Z ERROR transfer 207 failed: connection lost
+2026-09-29T00:05:49Z INFO transfer 208 done
+2026-09-29T07:38:36Z INFO transfer 209 done
+2026-09-29T07:13:27Z ERROR transfer 210 failed: connection lost
+2026-09-29T16:44:42Z INFO transfer 211 done
+2026-09-29T12:19:20Z INFO transfer 212 done
+2026-09-29T13:02:36Z WARN transfer 213 done
+2026-09-29T01:57:25Z ERROR transfer 214 failed: connection lost
+2026-09-29T15:11:02Z INFO transfer 215 done
+2026-09-29T08:49:30Z INFO transfer 216 done
+2026-09-29T16:52:10Z INFO transfer 217 done
+2026-09-29T10:23:42Z WARN transfer 218 done
+2026-09-29T20:16:24Z INFO transfer 219 done
+2026-09-29T01:07:18Z ERROR transfer 220 failed: connection lost
+2026-09-29T02:31:20Z INFO transfer 221 done
+2026-09-29T23:09:19Z INFO transfer 222 done
+2026-09-29T12:07:17Z WARN transfer 223 done
+2026-09-29T07:03:23Z WARN transfer 224 done
+2026-09-29T16:44:06Z WARN transfer 225 done
+2026-09-29T06:35:56Z INFO transfer 226 done
+2026-09-29T23:12:02Z WARN transfer 227 done
+2026-09-29T20:19:38Z INFO transfer 228 done
+2026-09-29T13:11:49Z INFO transfer 229 done
+2026-09-29T13:32:12Z INFO transfer 230 done
+2026-09-29T01:13:13Z INFO transfer 231 done
+2026-09-29T10:00:42Z INFO transfer 232 done
+2026-09-29T20:28:15Z INFO transfer 233 done
+2026-09-29T16:54:24Z INFO transfer 234 done
+2026-09-29T08:44:38Z INFO transfer 235 done
+2026-09-29T22:23:30Z INFO transfer 236 done
+2026-09-29T10:23:57Z INFO transfer 237 done
+2026-09-29T09:43:48Z INFO transfer 238 done
+2026-09-29T01:15:46Z INFO transfer 239 done
+2026-09-29T10:35:24Z INFO transfer 240 done
+2026-09-29T23:25:01Z ERROR transfer 241 failed: connection lost
+2026-09-29T08:58:17Z INFO transfer 242 done
+2026-09-29T19:49:47Z INFO transfer 243 done
+2026-09-29T03:55:01Z INFO transfer 244 done
+2026-09-29T12:12:31Z ERROR transfer 245 failed: connection lost
+2026-09-29T06:10:41Z WARN transfer 246 done
+2026-09-29T12:42:59Z INFO transfer 247 done
+2026-09-29T04:33:24Z INFO transfer 248 done
+2026-09-29T04:45:00Z INFO transfer 249 done
+2026-09-29T05:29:07Z WARN transfer 250 done
+2026-09-29T01:04:40Z INFO transfer 251 done
+2026-09-29T03:11:32Z ERROR transfer 252 failed: connection lost
+2026-09-29T09:41:28Z INFO transfer 253 done
+2026-09-29T13:49:25Z ERROR transfer 254 failed: connection lost
+2026-09-29T03:17:22Z INFO transfer 255 done
+2026-09-29T22:26:53Z INFO transfer 256 done
+2026-09-29T14:40:58Z INFO transfer 257 done
+2026-09-29T22:16:54Z INFO transfer 258 done
+2026-09-29T04:33:22Z INFO transfer 259 done
+2026-09-29T06:40:10Z INFO transfer 260 done
+2026-09-29T08:50:50Z INFO transfer 261 done
+2026-09-29T00:21:02Z INFO transfer 262 done
+2026-09-29T11:44:13Z ERROR transfer 263 failed: connection lost
+2026-09-29T00:02:51Z INFO transfer 264 done
+2026-09-29T05:20:36Z ERROR transfer 265 failed: connection lost
+2026-09-29T07:54:08Z INFO transfer 266 done
+2026-09-29T19:45:10Z ERROR transfer 267 failed: connection lost
+2026-09-29T06:06:11Z INFO transfer 268 done
+2026-09-29T13:16:20Z INFO transfer 269 done
+2026-09-29T23:25:24Z INFO transfer 270 done
+2026-09-29T23:59:46Z INFO transfer 271 done
+2026-09-29T07:19:20Z INFO transfer 272 done
+2026-09-29T09:52:27Z INFO transfer 273 done
+2026-09-29T02:39:57Z WARN transfer 274 done
+2026-09-29T14:45:44Z INFO transfer 275 done
+2026-09-29T05:46:39Z WARN transfer 276 done
+2026-09-29T01:56:24Z WARN transfer 277 done
+2026-09-29T02:57:45Z ERROR transfer 278 failed: connection lost
+2026-09-29T15:57:58Z INFO transfer 279 done
+2026-09-29T17:58:07Z ERROR transfer 280 failed: connection lost
+2026-09-29T00:46:49Z INFO transfer 281 done
+2026-09-29T09:33:09Z INFO transfer 282 done
+2026-09-29T20:56:04Z WARN transfer 283 done
+2026-09-29T02:36:26Z INFO transfer 284 done
+2026-09-29T19:55:25Z WARN transfer 285 done
+2026-09-29T15:47:16Z INFO transfer 286 done
+2026-09-29T18:19:40Z INFO transfer 287 done
+2026-09-29T09:04:59Z INFO transfer 288 done
+2026-09-29T05:58:26Z INFO transfer 289 done
+2026-09-29T17:16:49Z INFO transfer 290 done
+2026-09-29T12:34:47Z INFO transfer 291 done
+2026-09-29T11:34:32Z INFO transfer 292 done
+2026-09-29T02:41:12Z INFO transfer 293 done
+2026-09-29T14:21:30Z INFO transfer 294 done
+2026-09-29T16:53:15Z ERROR transfer 295 failed: connection lost
+2026-09-29T15:17:49Z INFO transfer 296 done
+2026-09-29T21:36:20Z INFO transfer 297 done
+2026-09-29T19:37:47Z WARN transfer 298 done
+2026-09-29T17:26:48Z INFO transfer 299 done
+2026-09-29T20:57:59Z INFO transfer 300 done
+2026-09-29T06:42:11Z ERROR transfer 301 failed: connection lost
+2026-09-29T16:57:10Z INFO transfer 302 done
+2026-09-29T23:11:16Z WARN transfer 303 done
+2026-09-29T13:38:34Z INFO transfer 304 done
+2026-09-29T07:32:16Z INFO transfer 305 done
+2026-09-29T19:41:51Z INFO transfer 306 done
+2026-09-29T09:36:04Z INFO transfer 307 done
+2026-09-29T17:10:44Z INFO transfer 308 done
+2026-09-29T16:49:35Z ERROR transfer 309 failed: connection lost
+2026-09-29T20:15:40Z WARN transfer 310 done
+2026-09-29T22:26:43Z WARN transfer 311 done
+2026-09-29T08:39:44Z INFO transfer 312 done
+2026-09-29T13:12:00Z INFO transfer 313 done
+2026-09-29T12:26:12Z INFO transfer 314 done
+2026-09-29T23:40:42Z WARN transfer 315 done
+2026-09-29T15:18:37Z INFO transfer 316 done
+2026-09-29T01:42:23Z INFO transfer 317 done
+2026-09-29T11:21:33Z WARN transfer 318 done
+2026-09-29T16:03:16Z INFO transfer 319 done
+2026-09-29T07:55:11Z INFO transfer 320 done
+2026-09-29T10:41:50Z INFO transfer 321 done
+2026-09-29T05:49:37Z INFO transfer 322 done
+2026-09-29T10:38:33Z ERROR transfer 323 failed: connection lost
+2026-09-29T02:02:03Z WARN transfer 324 done
+2026-09-29T18:38:11Z INFO transfer 325 done
+2026-09-29T12:24:52Z INFO transfer 326 done
+2026-09-29T14:50:02Z INFO transfer 327 done
+2026-09-29T04:11:59Z ERROR transfer 328 failed: connection lost
+2026-09-29T12:41:40Z WARN transfer 329 done
+2026-09-29T05:25:51Z WARN transfer 330 done
+2026-09-29T10:07:43Z INFO transfer 331 done
+2026-09-29T20:32:53Z INFO transfer 332 done
+2026-09-29T03:07:21Z INFO transfer 333 done
+2026-09-29T03:24:51Z INFO transfer 334 done
+2026-09-29T17:25:50Z WARN transfer 335 done
+2026-09-29T08:05:51Z WARN transfer 336 done
+2026-09-29T01:48:49Z ERROR transfer 337 failed: connection lost
+2026-09-29T18:16:09Z INFO transfer 338 done
+2026-09-29T16:31:05Z INFO transfer 339 done
+2026-09-29T03:29:25Z WARN transfer 340 done
+2026-09-29T20:28:52Z WARN transfer 341 done
+2026-09-29T09:56:39Z INFO transfer 342 done
+2026-09-29T13:15:41Z INFO transfer 343 done
+2026-09-29T23:45:36Z INFO transfer 344 done
+2026-09-29T07:30:16Z INFO transfer 345 done
+2026-09-29T18:50:35Z WARN transfer 346 done
+2026-09-29T07:49:59Z WARN transfer 347 done
+2026-09-29T12:57:21Z INFO transfer 348 done
+2026-09-29T10:23:53Z INFO transfer 349 done
+2026-09-29T09:43:28Z INFO transfer 350 done
+2026-09-29T20:05:17Z INFO transfer 351 done
+2026-09-29T21:07:58Z WARN transfer 352 done
+2026-09-29T20:30:20Z WARN transfer 353 done
+2026-09-29T10:24:14Z ERROR transfer 354 failed: connection lost
+2026-09-29T08:04:50Z INFO transfer 355 done
+2026-09-29T05:34:47Z INFO transfer 356 done
+2026-09-29T06:23:40Z WARN transfer 357 done
+2026-09-29T16:35:32Z WARN transfer 358 done
+2026-09-29T15:06:57Z ERROR transfer 359 failed: connection lost
+2026-09-29T04:05:51Z ERROR transfer 360 failed: connection lost
+2026-09-29T12:45:59Z WARN transfer 361 done
+2026-09-29T06:26:50Z INFO transfer 362 done
+2026-09-29T07:17:52Z INFO transfer 363 done
+2026-09-29T00:10:41Z INFO transfer 364 done
+2026-09-29T01:21:38Z WARN transfer 365 done
+2026-09-29T19:44:47Z INFO transfer 366 done
+2026-09-29T18:07:59Z WARN transfer 367 done
+2026-09-29T09:53:05Z ERROR transfer 368 failed: connection lost
+2026-09-29T08:56:48Z INFO transfer 369 done
+2026-09-29T22:48:53Z INFO transfer 370 done
+2026-09-29T15:51:24Z WARN transfer 371 done
+2026-09-29T11:03:23Z WARN transfer 372 done
+2026-09-29T23:41:17Z INFO transfer 373 done
+2026-09-29T00:34:57Z INFO transfer 374 done
+2026-09-29T01:31:35Z ERROR transfer 375 failed: connection lost
+2026-09-29T12:20:45Z WARN transfer 376 done
+2026-09-29T22:48:58Z INFO transfer 377 done
+2026-09-29T18:54:17Z INFO transfer 378 done
+2026-09-29T08:47:20Z INFO transfer 379 done
+2026-09-29T05:46:02Z INFO transfer 380 done
+2026-09-29T19:57:10Z ERROR transfer 381 failed: connection lost
+2026-09-29T01:52:16Z ERROR transfer 382 failed: connection lost
+2026-09-29T05:24:39Z ERROR transfer 383 failed: connection lost
+2026-09-29T07:50:01Z INFO transfer 384 done
+2026-09-29T08:27:44Z INFO transfer 385 done
+2026-09-29T16:22:24Z WARN transfer 386 done
+2026-09-29T15:50:58Z INFO transfer 387 done
+2026-09-29T02:31:40Z INFO transfer 388 done
+2026-09-29T07:34:42Z INFO transfer 389 done
+2026-09-29T06:00:10Z WARN transfer 390 done
+2026-09-29T22:41:40Z WARN transfer 391 done
+2026-09-29T18:10:00Z ERROR transfer 392 failed: connection lost
+2026-09-29T00:30:16Z INFO transfer 393 done
+2026-09-29T04:11:16Z INFO transfer 394 done
+2026-09-29T04:41:58Z ERROR transfer 395 failed: connection lost
+2026-09-29T07:30:58Z INFO transfer 396 done
+2026-09-29T06:23:54Z WARN transfer 397 done
+2026-09-29T10:03:55Z INFO transfer 398 done
+2026-09-29T04:41:22Z INFO transfer 399 done
+2026-09-29T13:42:17Z INFO transfer 400 done
+2026-09-29T11:24:23Z INFO transfer 401 done
+2026-09-29T19:11:55Z INFO transfer 402 done
+2026-09-29T17:02:56Z INFO transfer 403 done
+2026-09-29T07:33:16Z ERROR transfer 404 failed: connection lost
+2026-09-29T18:53:26Z INFO transfer 405 done
+2026-09-29T20:38:20Z INFO transfer 406 done
+2026-09-29T04:35:00Z ERROR transfer 407 failed: connection lost
+2026-09-29T01:36:02Z WARN transfer 408 done
+2026-09-29T05:31:43Z WARN transfer 409 done
+2026-09-29T14:54:33Z INFO transfer 410 done
+2026-09-29T16:27:27Z INFO transfer 411 done
+2026-09-29T04:33:55Z ERROR transfer 412 failed: connection lost
+2026-09-29T17:02:21Z WARN transfer 413 done
+2026-09-29T03:35:32Z WARN transfer 414 done
+2026-09-29T10:16:27Z INFO transfer 415 done
+2026-09-29T09:57:01Z INFO transfer 416 done
+2026-09-29T07:19:30Z INFO transfer 417 done
+2026-09-29T02:21:21Z WARN transfer 418 done
+2026-09-29T23:40:22Z WARN transfer 419 done
+2026-09-29T05:45:55Z WARN transfer 420 done
+2026-09-29T11:44:52Z WARN transfer 421 done
+2026-09-29T07:51:41Z ERROR transfer 422 failed: connection lost
+2026-09-29T05:38:52Z INFO transfer 423 done
+2026-09-29T23:39:31Z ERROR transfer 424 failed: connection lost
+2026-09-29T02:24:10Z INFO transfer 425 done
+2026-09-29T11:56:09Z WARN transfer 426 done
+2026-09-29T18:54:18Z ERROR transfer 427 failed: connection lost
+2026-09-29T15:24:20Z INFO transfer 428 done
+2026-09-29T06:24:19Z ERROR transfer 429 failed: connection lost
+2026-09-29T19:52:14Z ERROR transfer 430 failed: connection lost
+2026-09-29T01:50:20Z INFO transfer 431 done
+2026-09-29T09:43:34Z INFO transfer 432 done
+2026-09-29T19:40:01Z INFO transfer 433 done
+2026-09-29T21:48:00Z WARN transfer 434 done
+2026-09-29T09:28:07Z INFO transfer 435 done
+2026-09-29T21:46:46Z INFO transfer 436 done
+2026-09-29T00:13:15Z WARN transfer 437 done
+2026-09-29T02:39:43Z WARN transfer 438 done
+2026-09-29T05:39:13Z INFO transfer 439 done
+2026-09-29T14:01:36Z INFO transfer 440 done
+2026-09-29T21:31:26Z ERROR transfer 441 failed: connection lost
+2026-09-29T01:08:30Z WARN transfer 442 done
+2026-09-29T18:12:08Z INFO transfer 443 done
+2026-09-29T01:36:46Z INFO transfer 444 done
+2026-09-29T04:49:12Z INFO transfer 445 done
+2026-09-29T19:58:40Z ERROR transfer 446 failed: connection lost
+2026-09-29T03:19:11Z WARN transfer 447 done
+2026-09-29T11:46:25Z INFO transfer 448 done
+2026-09-29T22:37:16Z ERROR transfer 449 failed: connection lost
+2026-09-29T17:28:26Z INFO transfer 450 done
+2026-09-29T20:02:27Z INFO transfer 451 done
+2026-09-29T01:08:19Z WARN transfer 452 done
+2026-09-29T20:44:29Z INFO transfer 453 done
+2026-09-29T09:41:45Z ERROR transfer 454 failed: connection lost
+2026-09-29T11:24:45Z ERROR transfer 455 failed: connection lost
+2026-09-29T02:38:54Z INFO transfer 456 done
+2026-09-29T09:14:30Z INFO transfer 457 done
+2026-09-29T13:56:06Z INFO transfer 458 done
+2026-09-29T00:54:09Z INFO transfer 459 done
+2026-09-29T17:27:01Z INFO transfer 460 done
+2026-09-29T09:22:07Z WARN transfer 461 done
+2026-09-29T12:06:09Z INFO transfer 462 done
+2026-09-29T01:12:09Z INFO transfer 463 done
+2026-09-29T04:29:58Z ERROR transfer 464 failed: connection lost
+2026-09-29T14:32:07Z INFO transfer 465 done
+2026-09-29T14:36:36Z INFO transfer 466 done
+2026-09-29T04:02:50Z INFO transfer 467 done
+2026-09-29T02:27:05Z INFO transfer 468 done
+2026-09-29T11:41:17Z INFO transfer 469 done
+2026-09-29T06:23:14Z ERROR transfer 470 failed: connection lost
+2026-09-29T16:30:59Z INFO transfer 471 done
+2026-09-29T05:30:18Z INFO transfer 472 done
+2026-09-29T09:11:27Z INFO transfer 473 done
+2026-09-29T13:38:26Z INFO transfer 474 done
+2026-09-29T20:55:17Z ERROR transfer 475 failed: connection lost
+2026-09-29T08:12:24Z ERROR transfer 476 failed: connection lost
+2026-09-29T12:34:28Z INFO transfer 477 done
+2026-09-29T20:50:55Z INFO transfer 478 done
+2026-09-29T02:51:28Z WARN transfer 479 done
+2026-09-29T11:46:29Z INFO transfer 480 done
+2026-09-29T18:54:51Z INFO transfer 481 done
+2026-09-29T19:07:17Z INFO transfer 482 done
+2026-09-29T06:43:41Z INFO transfer 483 done
+2026-09-29T02:14:00Z ERROR transfer 484 failed: connection lost
+2026-09-29T10:02:58Z WARN transfer 485 done
+2026-09-29T03:35:52Z INFO transfer 486 done
+2026-09-29T16:32:39Z ERROR transfer 487 failed: connection lost
+2026-09-29T03:53:13Z INFO transfer 488 done
+2026-09-29T19:51:28Z INFO transfer 489 done
+2026-09-29T11:46:39Z WARN transfer 490 done
+2026-09-29T04:27:01Z INFO transfer 491 done
+2026-09-29T16:33:55Z WARN transfer 492 done
+2026-09-29T06:28:51Z INFO transfer 493 done
+2026-09-29T08:13:58Z INFO transfer 494 done
+2026-09-29T07:08:09Z INFO transfer 495 done
+2026-09-29T11:51:46Z INFO transfer 496 done
+2026-09-29T18:24:54Z ERROR transfer 497 failed: connection lost
+2026-09-29T15:58:01Z ERROR transfer 498 failed: connection lost
+2026-09-29T03:54:15Z WARN transfer 499 done
+2026-09-29T18:52:05Z WARN transfer 500 done
+2026-09-29T03:22:10Z INFO transfer 501 done
+2026-09-29T14:14:59Z ERROR transfer 502 failed: connection lost
+2026-09-29T18:49:37Z WARN transfer 503 done
+2026-09-29T05:07:23Z INFO transfer 504 done
+2026-09-29T18:02:24Z INFO transfer 505 done
+2026-09-29T16:55:58Z INFO transfer 506 done
+2026-09-29T00:42:50Z INFO transfer 507 done
+2026-09-29T09:44:17Z INFO transfer 508 done
+2026-09-29T10:38:34Z INFO transfer 509 done
+2026-09-29T22:15:51Z ERROR transfer 510 failed: connection lost
+2026-09-29T08:20:42Z WARN transfer 511 done
+2026-09-29T23:33:00Z INFO transfer 512 done
+2026-09-29T00:38:48Z WARN transfer 513 done
+2026-09-29T14:23:06Z ERROR transfer 514 failed: connection lost
+2026-09-29T16:18:07Z INFO transfer 515 done
+2026-09-29T10:02:58Z ERROR transfer 516 failed: connection lost
+2026-09-29T14:29:45Z INFO transfer 517 done
+2026-09-29T12:14:05Z INFO transfer 518 done
+2026-09-29T07:01:00Z INFO transfer 519 done
+2026-09-29T02:02:31Z WARN transfer 520 done
+2026-09-29T20:37:19Z WARN transfer 521 done
+2026-09-29T13:25:52Z WARN transfer 522 done
+2026-09-29T21:58:52Z INFO transfer 523 done
+2026-09-29T04:55:39Z INFO transfer 524 done
+2026-09-29T18:12:34Z ERROR transfer 525 failed: connection lost
+2026-09-29T02:39:15Z WARN transfer 526 done
+2026-09-29T11:15:14Z INFO transfer 527 done
+2026-09-29T01:45:04Z WARN transfer 528 done
+2026-09-29T07:47:24Z WARN transfer 529 done
+2026-09-29T00:54:15Z INFO transfer 530 done
+2026-09-29T16:43:27Z INFO transfer 531 done
+2026-09-29T04:34:04Z WARN transfer 532 done
+2026-09-29T13:39:14Z INFO transfer 533 done
+2026-09-29T17:09:59Z INFO transfer 534 done
+2026-09-29T03:31:59Z WARN transfer 535 done
+2026-09-29T02:05:38Z WARN transfer 536 done
+2026-09-29T01:28:00Z INFO transfer 537 done
+2026-09-29T05:49:07Z INFO transfer 538 done
+2026-09-29T19:47:09Z INFO transfer 539 done
+2026-09-29T23:33:54Z INFO transfer 540 done
+2026-09-29T09:42:47Z ERROR transfer 541 failed: connection lost
+2026-09-29T15:14:15Z INFO transfer 542 done
+2026-09-29T00:37:51Z WARN transfer 543 done
+2026-09-29T09:31:57Z ERROR transfer 544 failed: connection lost
+2026-09-29T15:29:35Z INFO transfer 545 done
+2026-09-29T21:54:41Z ERROR transfer 546 failed: connection lost
+2026-09-29T18:37:23Z INFO transfer 547 done
+2026-09-29T08:38:30Z INFO transfer 548 done
+2026-09-29T20:52:36Z ERROR transfer 549 failed: connection lost
+2026-09-29T15:55:02Z INFO transfer 550 done
+2026-09-29T06:37:21Z ERROR transfer 551 failed: connection lost
+2026-09-29T02:52:21Z INFO transfer 552 done
+2026-09-29T05:25:19Z ERROR transfer 553 failed: connection lost
+2026-09-29T17:07:05Z ERROR transfer 554 failed: connection lost
+2026-09-29T12:49:57Z INFO transfer 555 done
+2026-09-29T20:18:31Z WARN transfer 556 done
+2026-09-29T11:39:51Z ERROR transfer 557 failed: connection lost
+2026-09-29T00:11:05Z INFO transfer 558 done
+2026-09-29T12:01:47Z WARN transfer 559 done
+2026-09-29T05:05:40Z WARN transfer 560 done
+2026-09-29T11:38:27Z ERROR transfer 561 failed: connection lost
+2026-09-29T13:11:29Z INFO transfer 562 done
+2026-09-29T03:16:33Z INFO transfer 563 done
+2026-09-29T02:55:56Z WARN transfer 564 done
+2026-09-29T07:22:21Z INFO transfer 565 done
+2026-09-29T07:53:51Z INFO transfer 566 done
+2026-09-29T05:03:01Z INFO transfer 567 done
+2026-09-29T14:39:22Z INFO transfer 568 done
+2026-09-29T03:16:56Z INFO transfer 569 done
+2026-09-29T22:44:54Z INFO transfer 570 done
+2026-09-29T02:11:29Z INFO transfer 571 done
+2026-09-29T17:04:18Z WARN transfer 572 done
+2026-09-29T05:59:23Z INFO transfer 573 done
+2026-09-29T23:08:30Z INFO transfer 574 done
+2026-09-29T20:28:58Z INFO transfer 575 done
+2026-09-29T04:35:06Z INFO transfer 576 done
+2026-09-29T02:47:03Z WARN transfer 577 done
+2026-09-29T07:06:44Z WARN transfer 578 done
+2026-09-29T05:12:53Z WARN transfer 579 done
+2026-09-29T19:50:42Z ERROR transfer 580 failed: connection lost
+2026-09-29T06:20:34Z WARN transfer 581 done
+2026-09-29T08:01:55Z INFO transfer 582 done
+2026-09-29T02:32:56Z INFO transfer 583 done
+2026-09-29T01:27:18Z WARN transfer 584 done
+2026-09-29T17:56:10Z WARN transfer 585 done
+2026-09-29T19:09:00Z WARN transfer 586 done
+2026-09-29T05:46:33Z WARN transfer 587 done
+2026-09-29T05:48:54Z INFO transfer 588 done
+2026-09-29T16:58:29Z INFO transfer 589 done
+2026-09-29T20:07:09Z ERROR transfer 590 failed: connection lost
+2026-09-29T14:40:37Z WARN transfer 591 done
+2026-09-29T21:07:03Z INFO transfer 592 done
+2026-09-29T07:17:05Z ERROR transfer 593 failed: connection lost
+2026-09-29T11:08:47Z INFO transfer 594 done
+2026-09-29T20:35:55Z INFO transfer 595 done
+2026-09-29T12:05:49Z INFO transfer 596 done
+2026-09-29T04:08:54Z INFO transfer 597 done
+2026-09-29T05:11:45Z INFO transfer 598 done
+2026-09-29T03:37:06Z INFO transfer 599 done
+2026-09-29T20:37:52Z INFO transfer 600 done
+2026-09-29T01:53:38Z INFO transfer 601 done
+2026-09-29T00:57:43Z INFO transfer 602 done
+2026-09-29T11:38:38Z INFO transfer 603 done
+2026-09-29T21:40:07Z WARN transfer 604 done
+2026-09-29T14:55:32Z INFO transfer 605 done
+2026-09-29T00:12:17Z ERROR transfer 606 failed: connection lost
+2026-09-29T00:47:47Z INFO transfer 607 done
+2026-09-29T22:53:45Z INFO transfer 608 done
+2026-09-29T05:11:21Z WARN transfer 609 done
+2026-09-29T06:28:59Z INFO transfer 610 done
+2026-09-29T11:43:15Z WARN transfer 611 done
+2026-09-29T14:16:24Z INFO transfer 612 done
+2026-09-29T04:36:25Z ERROR transfer 613 failed: connection lost
+2026-09-29T04:22:38Z INFO transfer 614 done
+2026-09-29T11:22:30Z ERROR transfer 615 failed: connection lost
+2026-09-29T13:38:28Z INFO transfer 616 done
+2026-09-29T04:14:34Z ERROR transfer 617 failed: connection lost
+2026-09-29T06:04:20Z INFO transfer 618 done
+2026-09-29T02:50:29Z WARN transfer 619 done
+2026-09-29T20:14:42Z INFO transfer 620 done
+2026-09-29T07:28:47Z INFO transfer 621 done
+2026-09-29T18:36:40Z INFO transfer 622 done
+2026-09-29T00:13:55Z WARN transfer 623 done
+2026-09-29T05:09:40Z INFO transfer 624 done
+2026-09-29T13:53:24Z INFO transfer 625 done
+2026-09-29T10:25:02Z INFO transfer 626 done
+2026-09-29T17:40:06Z INFO transfer 627 done
+2026-09-29T21:26:16Z INFO transfer 628 done
+2026-09-29T18:39:12Z INFO transfer 629 done
+2026-09-29T23:55:44Z INFO transfer 630 done
+2026-09-29T18:28:07Z INFO transfer 631 done
+2026-09-29T18:52:33Z INFO transfer 632 done
+2026-09-29T05:28:48Z ERROR transfer 633 failed: connection lost
+2026-09-29T13:44:04Z INFO transfer 634 done
+2026-09-29T17:36:13Z ERROR transfer 635 failed: connection lost
+2026-09-29T08:45:46Z INFO transfer 636 done
+2026-09-29T15:29:54Z ERROR transfer 637 failed: connection lost
+2026-09-29T08:07:58Z ERROR transfer 638 failed: connection lost
+2026-09-29T23:21:12Z WARN transfer 639 done
+2026-09-29T22:33:55Z ERROR transfer 640 failed: connection lost
+2026-09-29T22:34:42Z INFO transfer 641 done
+2026-09-29T07:42:48Z ERROR transfer 642 failed: connection lost
+2026-09-29T09:16:51Z INFO transfer 643 done
+2026-09-29T15:31:03Z ERROR transfer 644 failed: connection lost
+2026-09-29T05:58:03Z INFO transfer 645 done
+2026-09-29T23:51:44Z WARN transfer 646 done
+2026-09-29T18:34:01Z WARN transfer 647 done
+2026-09-29T05:21:25Z INFO transfer 648 done
+2026-09-29T01:45:20Z ERROR transfer 649 failed: connection lost
+2026-09-29T17:10:08Z INFO transfer 650 done
+2026-09-29T02:46:29Z ERROR transfer 651 failed: connection lost
+2026-09-29T14:48:45Z WARN transfer 652 done
+2026-09-29T18:32:21Z INFO transfer 653 done
+2026-09-29T03:10:00Z INFO transfer 654 done
+2026-09-29T07:21:12Z ERROR transfer 655 failed: connection lost
+2026-09-29T11:31:57Z INFO transfer 656 done
+2026-09-29T10:10:50Z WARN transfer 657 done
+2026-09-29T22:44:37Z INFO transfer 658 done
+2026-09-29T22:19:51Z INFO transfer 659 done
+2026-09-29T17:40:33Z ERROR transfer 660 failed: connection lost
+2026-09-29T15:33:45Z INFO transfer 661 done
+2026-09-29T04:53:20Z ERROR transfer 662 failed: connection lost
+2026-09-29T06:19:39Z INFO transfer 663 done
+2026-09-29T14:20:19Z INFO transfer 664 done
+2026-09-29T10:19:26Z WARN transfer 665 done
+2026-09-29T18:24:17Z INFO transfer 666 done
+2026-09-29T08:34:45Z INFO transfer 667 done
+2026-09-29T15:07:53Z INFO transfer 668 done
+2026-09-29T17:34:09Z INFO transfer 669 done
+2026-09-29T09:11:01Z INFO transfer 670 done
+2026-09-29T14:45:49Z INFO transfer 671 done
+2026-09-29T19:14:56Z INFO transfer 672 done
+2026-09-29T14:33:59Z INFO transfer 673 done
+2026-09-29T16:17:14Z ERROR transfer 674 failed: connection lost
+2026-09-29T06:06:04Z ERROR transfer 675 failed: connection lost
+2026-09-29T11:11:47Z INFO transfer 676 done
+2026-09-29T20:25:26Z INFO transfer 677 done
+2026-09-29T07:11:45Z ERROR transfer 678 failed: connection lost
+2026-09-29T03:31:14Z ERROR transfer 679 failed: connection lost
+2026-09-29T06:47:27Z ERROR transfer 680 failed: connection lost
+2026-09-29T13:55:11Z INFO transfer 681 done
+2026-09-29T16:07:23Z INFO transfer 682 done
+2026-09-29T16:37:15Z INFO transfer 683 done
+2026-09-29T23:54:28Z INFO transfer 684 done
+2026-09-29T00:18:25Z INFO transfer 685 done
+2026-09-29T01:44:01Z INFO transfer 686 done
+2026-09-29T19:09:51Z WARN transfer 687 done
+2026-09-29T19:26:14Z INFO transfer 688 done
+2026-09-29T20:28:17Z INFO transfer 689 done
+2026-09-29T07:21:21Z INFO transfer 690 done
+2026-09-29T04:30:07Z WARN transfer 691 done
+2026-09-29T02:25:40Z INFO transfer 692 done
+2026-09-29T12:43:49Z INFO transfer 693 done
+2026-09-29T16:54:29Z INFO transfer 694 done
+2026-09-29T23:00:17Z ERROR transfer 695 failed: connection lost
+2026-09-29T18:33:04Z INFO transfer 696 done
+2026-09-29T02:23:22Z ERROR transfer 697 failed: connection lost
+2026-09-29T10:20:44Z INFO transfer 698 done
+2026-09-29T01:06:57Z INFO transfer 699 done
+2026-09-29T08:04:04Z WARN transfer 700 done
+2026-09-29T09:13:13Z ERROR transfer 701 failed: connection lost
+2026-09-29T17:52:03Z ERROR transfer 702 failed: connection lost
+2026-09-29T20:02:34Z ERROR transfer 703 failed: connection lost
+2026-09-29T19:15:14Z WARN transfer 704 done
+2026-09-29T23:51:18Z INFO transfer 705 done
+2026-09-29T01:12:30Z INFO transfer 706 done
+2026-09-29T07:42:08Z INFO transfer 707 done
+2026-09-29T11:57:18Z INFO transfer 708 done
+2026-09-29T16:23:23Z INFO transfer 709 done
+2026-09-29T22:47:53Z INFO transfer 710 done
+2026-09-29T16:06:18Z WARN transfer 711 done
+2026-09-29T13:03:28Z INFO transfer 712 done
+2026-09-29T02:21:17Z WARN transfer 713 done
+2026-09-29T21:50:27Z ERROR transfer 714 failed: connection lost
+2026-09-29T02:24:26Z ERROR transfer 715 failed: connection lost
+2026-09-29T10:16:45Z WARN transfer 716 done
+2026-09-29T17:27:23Z INFO transfer 717 done
+2026-09-29T01:59:34Z INFO transfer 718 done
+2026-09-29T18:58:43Z INFO transfer 719 done
+2026-09-29T03:26:30Z INFO transfer 720 done
+2026-09-29T03:14:41Z INFO transfer 721 done
+2026-09-29T08:10:05Z INFO transfer 722 done
+2026-09-29T12:15:57Z INFO transfer 723 done
+2026-09-29T08:56:38Z INFO transfer 724 done
+2026-09-29T08:46:35Z WARN transfer 725 done
+2026-09-29T19:10:36Z WARN transfer 726 done
+2026-09-29T12:07:37Z INFO transfer 727 done
+2026-09-29T17:09:16Z WARN transfer 728 done
+2026-09-29T02:01:44Z WARN transfer 729 done
+2026-09-29T06:02:26Z INFO transfer 730 done
+2026-09-29T14:35:48Z ERROR transfer 731 failed: connection lost
+2026-09-29T18:24:04Z INFO transfer 732 done
+2026-09-29T21:54:16Z INFO transfer 733 done
+2026-09-29T02:16:40Z WARN transfer 734 done
+2026-09-29T03:47:59Z WARN transfer 735 done
+2026-09-29T19:08:16Z INFO transfer 736 done
+2026-09-29T03:29:01Z INFO transfer 737 done
+2026-09-29T23:30:54Z INFO transfer 738 done
+2026-09-29T07:16:02Z INFO transfer 739 done
+2026-09-29T02:07:58Z INFO transfer 740 done
+2026-09-29T15:37:34Z INFO transfer 741 done
+2026-09-29T00:44:39Z WARN transfer 742 done
+2026-09-29T09:57:45Z WARN transfer 743 done
+2026-09-29T07:53:23Z INFO transfer 744 done
+2026-09-29T02:49:50Z ERROR transfer 745 failed: connection lost
+2026-09-29T17:37:17Z WARN transfer 746 done
+2026-09-29T19:09:53Z ERROR transfer 747 failed: connection lost
+2026-09-29T12:33:31Z WARN transfer 748 done
+2026-09-29T00:10:37Z ERROR transfer 749 failed: connection lost
+2026-09-29T17:09:06Z INFO transfer 750 done
+2026-09-29T18:17:12Z WARN transfer 751 done
+2026-09-29T23:30:53Z ERROR transfer 752 failed: connection lost
+2026-09-29T05:04:35Z ERROR transfer 753 failed: connection lost
+2026-09-29T05:09:24Z INFO transfer 754 done
+2026-09-29T17:29:41Z INFO transfer 755 done
+2026-09-29T07:07:51Z ERROR transfer 756 failed: connection lost
+2026-09-29T17:13:18Z ERROR transfer 757 failed: connection lost
+2026-09-29T16:13:57Z ERROR transfer 758 failed: connection lost
+2026-09-29T19:31:04Z INFO transfer 759 done
+2026-09-29T23:55:02Z INFO transfer 760 done
+2026-09-29T23:26:32Z WARN transfer 761 done
+2026-09-29T17:03:35Z WARN transfer 762 done
+2026-09-29T04:29:54Z INFO transfer 763 done
+2026-09-29T03:34:39Z ERROR transfer 764 failed: connection lost
+2026-09-29T11:02:52Z INFO transfer 765 done
+2026-09-29T15:14:24Z INFO transfer 766 done
+2026-09-29T04:15:06Z INFO transfer 767 done
+2026-09-29T07:41:52Z WARN transfer 768 done
+2026-09-29T04:28:48Z INFO transfer 769 done
+2026-09-29T11:49:05Z INFO transfer 770 done
+2026-09-29T12:45:29Z WARN transfer 771 done
+2026-09-29T06:40:45Z INFO transfer 772 done
+2026-09-29T04:52:02Z WARN transfer 773 done
+2026-09-29T07:19:14Z WARN transfer 774 done
+2026-09-29T05:11:24Z INFO transfer 775 done
+2026-09-29T20:12:12Z INFO transfer 776 done
+2026-09-29T07:52:59Z WARN transfer 777 done
+2026-09-29T23:55:28Z ERROR transfer 778 failed: connection lost
+2026-09-29T17:51:35Z INFO transfer 779 done
+2026-09-29T22:22:00Z INFO transfer 780 done
+2026-09-29T07:42:58Z ERROR transfer 781 failed: connection lost
+2026-09-29T10:45:53Z INFO transfer 782 done
+2026-09-29T21:51:02Z WARN transfer 783 done
+2026-09-29T16:15:30Z INFO transfer 784 done
+2026-09-29T21:08:25Z ERROR transfer 785 failed: connection lost
+2026-09-29T20:34:53Z WARN transfer 786 done
+2026-09-29T00:51:04Z WARN transfer 787 done
+2026-09-29T08:24:16Z INFO transfer 788 done
+2026-09-29T09:21:23Z WARN transfer 789 done
+2026-09-29T17:34:18Z INFO transfer 790 done
+2026-09-29T14:02:17Z WARN transfer 791 done
+2026-09-29T11:51:14Z INFO transfer 792 done
+2026-09-29T08:56:49Z WARN transfer 793 done
+2026-09-29T20:31:57Z INFO transfer 794 done
+2026-09-29T18:20:20Z INFO transfer 795 done
+2026-09-29T16:22:06Z INFO transfer 796 done
+2026-09-29T04:46:49Z WARN transfer 797 done
+2026-09-29T10:33:21Z WARN transfer 798 done
+2026-09-29T09:31:09Z ERROR transfer 799 failed: connection lost

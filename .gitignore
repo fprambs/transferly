@@ -11,6 +11,7 @@ frontend/playwright-report/
 .env
 .env.local
 *.log
+!testenv/preview-samples/text/server.log
 # Editor and OS
 .idea/
 .DS_Store
