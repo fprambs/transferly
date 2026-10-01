@@ -110,7 +110,7 @@ describe('settings', () => {
 
     await choose(user, await screen.findByLabelText('Interface language'), 'Español')
 
-    expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
     await waitFor(() => expect(saved).toEqual([{ locale: 'es' }]))
   })
 
@@ -129,7 +129,7 @@ describe('settings', () => {
 
     await renderApp({ path: '/settings' })
 
-    expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
   })
 
   it('keeps the language of the browser when the interface is not translated into the account language', async () => {
@@ -138,7 +138,7 @@ describe('settings', () => {
 
     await renderApp({ path: '/settings', language: 'es' })
 
-    expect(await screen.findByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
     expect(saved).toEqual([])
   })
 
@@ -148,7 +148,7 @@ describe('settings', () => {
     await renderApp({ path: '/settings', language: 'es' })
 
     await waitFor(() => expect(saved).toEqual([{ fileDoubleClick: 'edit', locale: 'es' }]))
-    expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
     cleanup()
 
     await renderApp({ path: '/settings', language: 'es' })
@@ -234,6 +234,6 @@ describe('settings', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Settings' }))
 
     expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
-    expect(history.location.pathname).toBe('/settings')
+    expect(history.location.search).toContain('settings=general')
   })
 })

@@ -70,7 +70,7 @@ function AddBody({ onClose }: Pick<AddPasskeyDialogProps, 'onClose'>) {
         <Loading label={t(($) => $.addPasskey.working)} />
       )}
       {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
           {t(($) => $.errors[failure])}
         </p>
       )}

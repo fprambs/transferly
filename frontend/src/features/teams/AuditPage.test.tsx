@@ -163,7 +163,7 @@ describe('audit page', () => {
     await user.click(await screen.findByRole('button', { name: 'Workspace' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Audit log' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/audit'))
+    await waitFor(() => expect(history.location.search).toContain('settings=audit'))
   })
 
   it('does not offer the audit log to editors', async () => {

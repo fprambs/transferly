@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useUiStore } from '@/state/ui-store'
+import { findInnerDialog, queryInnerDialog } from '@/test/dialogs'
 import { adminSession, mockSession, mockUnlocking, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { choose, optionsOf } from '@/test/select'
@@ -72,7 +73,7 @@ describe('members page', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New team workspace' })).not.toBeInTheDocument())
     expect(created).toEqual({ name: 'Acme Web' })
     expect(useUiStore.getState().workspaceId).toBe(teamId)
-    expect(history.location.pathname).toBe('/members')
+    expect(history.location.search).toContain('settings=members')
   })
 
   it('explains why a team could not be created', async () => {
@@ -84,7 +85,7 @@ describe('members page', () => {
     await renderApp({ path: '/members' })
 
     await user.click(await screen.findByRole('button', { name: 'New team workspace' }))
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await findInnerDialog()
     await user.type(within(dialog).getByLabelText('Name'), 'Acme')
     await user.click(within(dialog).getByRole('button', { name: 'Create' }))
 
@@ -97,7 +98,7 @@ describe('members page', () => {
     await user.click(within(unlock).getByRole('button', { name: 'Unlock' }))
     await waitFor(() => expect(within(dialog).queryByRole('status')).not.toBeInTheDocument())
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
   })
 
   it('shows the members, their roles and keys, and what each role can do', async () => {
@@ -179,11 +180,11 @@ describe('members page', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Remove jorge@acme.dev?' })
     expect(within(dialog).getByText('The workspace key will be rotated')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
     expect(team.calls).toHaveLength(0)
 
     await pick(user, 'jorge@acme.dev', 'Remove from team')
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove and rotate key' }))
+    await user.click(within(await findInnerDialog()).getByRole('button', { name: 'Remove and rotate key' }))
 
     await waitFor(() => expect(screen.queryByText('jorge@acme.dev')).not.toBeInTheDocument())
     expect(team.calls).toEqual([{ method: 'DELETE', path: `/api/v1/workspaces/${teamId}/members/u-jorge`, body: undefined }])
@@ -195,7 +196,7 @@ describe('members page', () => {
     const { user } = await openMembers()
 
     await pick(user, 'pablo@acme.dev', 'Remove from team')
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await findInnerDialog()
     await user.click(within(dialog).getByRole('button', { name: 'Remove and rotate key' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('The owner cannot be changed')
@@ -220,7 +221,7 @@ describe('members page', () => {
     await user.type(within(dialog).getByLabelText('Type the workspace name to confirm'), 'Acme Web')
     await user.click(confirm)
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
     expect(team.calls).toEqual([{ method: 'POST', path: `/api/v1/workspaces/${teamId}/transfer`, body: { userId: 'u-pablo' } }])
   })
 
@@ -230,7 +231,7 @@ describe('members page', () => {
     const { user } = await openMembers()
 
     await pick(user, 'maria@acme.dev', 'Transfer ownership')
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await findInnerDialog()
     await user.type(within(dialog).getByLabelText('Type the workspace name to confirm'), 'Acme Web')
     await user.click(within(dialog).getByRole('button', { name: 'Transfer' }))
 
@@ -242,7 +243,7 @@ describe('members page', () => {
     const { user } = await openMembers()
 
     await pick(user, 'maria@acme.dev', 'Transfer ownership')
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await findInnerDialog()
     await user.type(within(dialog).getByLabelText('Type the workspace name to confirm'), 'Acme Wob{Enter}')
 
     expect(within(dialog).getByRole('button', { name: 'Transfer' })).toBeDisabled()
@@ -268,7 +269,7 @@ describe('members page', () => {
     const { user } = await openMembers()
 
     await pick(user, adminSession.user.email, 'Leave team')
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await findInnerDialog()
     await user.click(within(dialog).getByRole('button', { name: 'Leave' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('The owner cannot be changed')
@@ -342,7 +343,7 @@ describe('members page', () => {
     expect(await screen.findByRole('menuitem', { name: /Acme Web\s*Admin/ })).toBeInTheDocument()
     await user.click(screen.getByRole('menuitem', { name: 'Members' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
   })
 
   it('offers a new team from the switcher', async () => {
@@ -359,6 +360,6 @@ describe('members page', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'New team workspace' })
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
   })
 })

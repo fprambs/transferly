@@ -422,7 +422,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
         </Button>
       </div>
       {moveFailure !== null && (
-        <p role="alert" className="mx-2 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <p role="alert" className="mx-2 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-danger-text">
           {sitesT(($) => $.errors[moveFailure])}
         </p>
       )}

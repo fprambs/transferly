@@ -115,7 +115,7 @@ describe('accept invitation page', () => {
     await user.type(screen.getByLabelText('Repeat password'), 'a long enough password')
     await user.click(screen.getByRole('button', { name: 'Create account and join' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
     expect(joined).toEqual({ token: 'tok-abc', password: 'a long enough password' })
     expect(useUiStore.getState().workspaceId).toBe(teamId)
   })
@@ -132,7 +132,7 @@ describe('accept invitation page', () => {
     await user.type(screen.getByLabelText('Repeat password'), 'a long enough password')
     await user.click(screen.getByRole('button', { name: 'Create account and join' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
     expect(useUiStore.getState().workspaceId).toBeNull()
   })
 
@@ -172,7 +172,7 @@ describe('accept invitation page', () => {
     await user.type(await screen.findByLabelText('Account password'), 'my account password')
     await user.click(screen.getByRole('button', { name: 'Sign in and join' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
     expect(login).toEqual({ email: 'ana@acme.dev', password: 'my account password' })
     expect(accepted).toEqual({ token: 'tok-abc' })
     expect(useUiStore.getState().workspaceId).toBe(teamId)
@@ -199,7 +199,7 @@ describe('accept invitation page', () => {
     await user.type(await screen.findByLabelText('Code'), '123456')
     await user.click(screen.getByRole('button', { name: 'Verify' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
     expect(accepted).toBe(true)
   })
 
@@ -250,7 +250,7 @@ describe('accept invitation page', () => {
     expect(await screen.findByText('You are signed in as ana@acme.dev.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Join Acme Web' }))
 
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
   })
 
   it('explains why accepting failed', async () => {

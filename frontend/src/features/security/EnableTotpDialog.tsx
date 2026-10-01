@@ -77,7 +77,7 @@ function EnableBody({ onClose }: Pick<EnableTotpDialogProps, 'onClose'>) {
         <Input id="totp-code" inputMode="numeric" autoComplete="one-time-code" className="font-mono tracking-widest" value={code} onChange={(event) => setCode(event.target.value)} />
       </div>
       {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
           {t(($) => $.errors[failure])}
         </p>
       )}

@@ -175,7 +175,7 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
           {failure === 'vault_locked' ? (
             <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
           ) : failure === null ? null : (
-            <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive">
+            <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-danger-text">
               <p>{t(($) => $.errors[failure])}</p>
               <ErrorGuide failure={failure} className="mt-2" />
             </div>

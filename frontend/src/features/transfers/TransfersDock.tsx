@@ -21,9 +21,9 @@ import { isActive, newestFirst, useTransfersStore, type TransferItem } from './t
 /** The color of the count of finished transfers: danger when any failed, success when some finished, muted when none. */
 function finishedTone(finished: readonly TransferItem[]): string {
   if (finished.some((item) => item.record.status === 'failed' || item.record.status === 'interrupted')) {
-    return 'bg-destructive/15 text-destructive'
+    return 'bg-destructive/15 text-danger-text'
   }
-  return finished.length > 0 ? 'bg-ok/15 text-ok' : 'bg-muted text-muted-foreground'
+  return finished.length > 0 ? 'bg-ok/15 text-ok-text' : 'bg-muted text-muted-foreground'
 }
 
 /** A count in a colored badge; its parentheses are kept for assistive technology, so the tab still reads "Active (2)". */

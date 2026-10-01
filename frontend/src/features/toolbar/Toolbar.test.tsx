@@ -101,11 +101,16 @@ describe('Toolbar', () => {
     }
   })
 
-  it('is shown with the explorer only, not on the settings page', async () => {
+  it('stays under the settings dialog and is back once it closes', async () => {
     mockSecurity()
+    const user = userEvent.setup()
     await renderApp({ path: '/settings' })
-    await screen.findByRole('heading', { level: 1, name: 'Settings' })
+    await screen.findByRole('heading', { level: 1, name: 'General' })
     expect(screen.queryByRole('toolbar', { name: 'Toolbar' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Close settings' }))
+
+    expect(await screen.findByRole('toolbar', { name: 'Toolbar' })).toBeInTheDocument()
   })
 
   it('refreshes the folder in view and names the connection', async () => {

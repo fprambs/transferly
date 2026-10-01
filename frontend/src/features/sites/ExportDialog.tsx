@@ -108,7 +108,7 @@ function ExportForm({ workspaceId, onClose, save = download }: Omit<ExportDialog
       {failure === 'vault_locked' ? (
         <VaultLockedNotice need="export" onUnlocked={() => setFailure(null)} />
       ) : failure === null ? null : (
-        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
           <p>{failure === 'mismatch' ? t(($) => $.export.mismatch) : failure === 'weak' ? t(($) => $.errors.weak_export_password) : t(($) => $.errors[failure])}</p>
           <ErrorGuide failure={failure} className="mt-2" />
         </div>

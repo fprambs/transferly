@@ -223,13 +223,13 @@ describe('command palette', () => {
 
     expect(within(palette).queryByRole('option', { name: 'Members' })).not.toBeInTheDocument()
     await user.click(await option(palette, 'Trusted servers'))
-    await waitFor(() => expect(history.location.pathname).toBe('/servers'))
+    await waitFor(() => expect(history.location.search).toContain('settings=servers'))
     palette = await openPalette()
     await user.click(await option(palette, 'Settings'))
-    await waitFor(() => expect(history.location.pathname).toBe('/settings'))
+    await waitFor(() => expect(history.location.search).toContain('settings=general'))
     palette = await openPalette()
     await user.click(await option(palette, 'Administration'))
-    await waitFor(() => expect(history.location.pathname).toBe('/admin'))
+    await waitFor(() => expect(history.location.search).toContain('settings=admin'))
   })
 
   it('opens the pages of a team whoever may see them', async () => {
@@ -248,9 +248,9 @@ describe('command palette', () => {
 
     expect(within(palette).queryByRole('option', { name: 'Administration' })).not.toBeInTheDocument()
     await user.click(await option(palette, 'Members'))
-    await waitFor(() => expect(history.location.pathname).toBe('/members'))
+    await waitFor(() => expect(history.location.search).toContain('settings=members'))
     palette = await openPalette()
     await user.click(await option(palette, 'Audit log'))
-    await waitFor(() => expect(history.location.pathname).toBe('/audit'))
+    await waitFor(() => expect(history.location.search).toContain('settings=audit'))
   })
 })

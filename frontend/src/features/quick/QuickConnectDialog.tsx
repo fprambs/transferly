@@ -158,7 +158,7 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
               {t(($) => $.memoryNote)}
             </p>
             {failure !== null && (
-              <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
                 <p>{t(($) => $.errors[failure])}</p>
                 <ErrorGuide failure={failure} className="mt-2" />
               </div>

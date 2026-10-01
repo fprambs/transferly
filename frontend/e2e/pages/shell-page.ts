@@ -7,7 +7,7 @@ export type Language = 'en' | 'es'
 /** Identifier of a theme the interface offers, such as `monokai`. */
 export type Theme = string
 
-/** Page object for the application shell: toolbar, sites sidebar, explorer and transfer queue, and the settings page. */
+/** Page object for the application shell: toolbar, sites sidebar, explorer and transfer queue, and the settings dialog. */
 export class ShellPage {
   /** Level one heading with the product name. */
   readonly heading: Locator
@@ -27,7 +27,7 @@ export class ShellPage {
     await this.heading.waitFor()
   }
 
-  /** Opens the settings page, runs an action there, and returns to the page the test was on. */
+  /** Opens the settings dialog, runs an action there, and returns to the page the test was on. */
   private async inSettings(action: () => Promise<void>): Promise<void> {
     const back = this.page.url()
     await this.page.goto('/settings')

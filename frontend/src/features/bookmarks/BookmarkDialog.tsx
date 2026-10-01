@@ -73,7 +73,7 @@ function BookmarkFormBody({ mode, siteName, initial, onSubmit, onClose }: Bookma
         {errors.path?.message !== undefined && <p className="text-xs text-destructive">{t(($) => $.bookmarks.errors[errors.path?.message as FieldError])}</p>}
       </div>
       {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
           {t(($) => $.bookmarks.errors[failure])}
         </p>
       )}

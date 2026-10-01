@@ -83,7 +83,7 @@ test.describe('screenshots', () => {
     await shoot(page, '04-invite-link')
     await ready.getByRole('button', { name: 'Done' }).click()
     await page.getByRole('tab', { name: /Invitations/ }).click()
-    await expect(page.getByRole('list', { name: 'Invitations' })).toContainText(invitee)
+    await expect(page.getByRole('table', { name: 'Invitations' })).toContainText(invitee)
     await shoot(page, '05-invitations')
 
     const wrong = await page.context().newPage()
@@ -101,13 +101,13 @@ test.describe('screenshots', () => {
     await guest.getByLabel('Account password').fill('a long guest password')
     await guest.getByLabel('Repeat password').fill('a long guest password')
     await guest.getByRole('button', { name: 'Create account and join' }).click()
-    await expect(guest.getByRole('list', { name: 'Members' }).getByRole('listitem')).toHaveCount(2)
+    await expect(guest.getByRole('table', { name: 'Members' }).locator('tbody tr')).toHaveCount(2)
     await shoot(guest, '07-members-as-viewer')
     await context.close()
 
     await page.reload()
     await page.getByRole('tab', { name: /Members/ }).click()
-    await expect(page.getByRole('list', { name: 'Members' }).getByRole('listitem')).toHaveCount(2)
+    await expect(page.getByRole('table', { name: 'Members' }).locator('tbody tr')).toHaveCount(2)
     await shoot(page, '09-members-with-a-viewer')
     await page.getByRole('button', { name: `Actions for ${invitee}` }).click()
     await expect(page.getByRole('menuitem', { name: 'Remove from team' })).toBeVisible()
@@ -117,9 +117,8 @@ test.describe('screenshots', () => {
     await shoot(page, '11-remove-dialog')
     await page.getByRole('button', { name: 'Cancel' }).click()
 
-    await page.getByRole('button', { name: 'Workspace' }).click()
-    await page.getByRole('menuitem', { name: 'Audit log' }).click()
-    await expect(page.getByRole('list', { name: 'Audit log' })).toContainText(`invited ${invitee}`)
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Audit log', exact: true }).click()
+    await expect(page.getByRole('table', { name: 'Audit log' })).toContainText(`invited ${invitee}`)
     await shoot(page, '11b-audit-log')
 
     const csrf = await csrfOf(page)
@@ -184,8 +183,7 @@ test.describe('screenshots', () => {
     await shoot(page, '18-members-es')
 
     await shell.setLanguage('en')
-    await page.getByRole('button', { name: 'Account' }).click()
-    await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     const section = page.getByRole('heading', { name: 'Two-step verification' }).locator('xpath=ancestor::section')
     await section.scrollIntoViewIfNeeded()
     await shoot(page, '19-security-off')
@@ -233,6 +231,7 @@ test.describe('screenshots', () => {
     await signIn()
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     await page.getByRole('button', { name: 'Add a passkey' }).click()
     const dialog = page.getByRole('dialog', { name: 'Add a passkey' })
     await dialog.getByLabel('Name').fill('MacBook fingerprint')
@@ -252,6 +251,7 @@ test.describe('screenshots', () => {
     await expect(page.getByRole('button', { name: 'Account' })).toBeVisible()
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     await page.getByRole('button', { name: 'Remove the passkey MacBook fingerprint' }).click()
     const remove = page.getByRole('dialog', { name: 'Remove the passkey MacBook fingerprint' })
     await remove.getByLabel('Account password').fill(password)
@@ -268,7 +268,7 @@ test.describe('screenshots', () => {
     await page.goto('/')
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Administration' }).click()
-    await expect(page.getByRole('list', { name: 'Accounts' })).toBeVisible()
+    await expect(page.getByRole('table', { name: 'Accounts' })).toBeVisible()
     await shoot(page, '27-admin-accounts')
 
     await page.getByRole('button', { name: `Actions for ${email}` }).click()
@@ -276,11 +276,14 @@ test.describe('screenshots', () => {
     await page.getByRole('menuitem', { name: 'Remove second step' }).click()
     await expect(page.getByRole('dialog', { name: `Remove the second step of ${email}?` })).toBeVisible()
     await shoot(page, '29-admin-reset-confirm')
-    await page.getByRole('dialog').getByRole('button', { name: 'Remove second step' }).click()
-    await expect(page.getByRole('list', { name: 'Accounts' }).getByRole('listitem').filter({ hasText: email })).toContainText('Off')
+    await page.getByRole('dialog', { name: `Remove the second step of ${email}?` }).getByRole('button', { name: 'Remove second step' }).click()
+    await expect(page.getByRole('table', { name: 'Accounts' }).locator('tbody tr').filter({ hasText: email })).toContainText('Off')
 
     await page.getByRole('tab', { name: 'Networks' }).click()
-    await page.getByLabel('Added by administrators').fill('192.168.1.0/24\n10.20.0.5')
+    for (const network of ['192.168.1.0/24', '10.20.0.5']) {
+      await page.getByLabel('Network to add').fill(network)
+      await page.getByRole('button', { name: 'Add', exact: true }).click()
+    }
     await page.getByRole('button', { name: 'Save networks' }).click()
     await expect(page.getByRole('status')).toBeVisible()
     await shoot(page, '30-admin-networks')
@@ -293,11 +296,12 @@ test.describe('screenshots', () => {
     await shoot(page, '32-admin-limits')
 
     await page.getByRole('tab', { name: 'Audit log' }).click()
-    await expect(page.getByRole('list', { name: 'Instance audit log' })).toContainText('changed the allowed networks')
+    await expect(page.getByRole('table', { name: 'Instance audit log' })).toContainText('changed the allowed networks')
     await shoot(page, '31-admin-audit')
 
     await page.getByRole('tab', { name: 'Networks' }).click()
-    await page.getByLabel('Added by administrators').fill('')
+    await page.getByRole('button', { name: 'Remove 10.20.0.5/32' }).click()
+    await page.getByRole('button', { name: 'Remove 192.168.1.0/24' }).click()
     await page.getByRole('button', { name: 'Save networks' }).click()
     await expect(page.getByRole('status')).toBeVisible()
     await guest.dispose()
@@ -687,7 +691,7 @@ test.describe('screenshots', () => {
     await shoot(page, '43-load-failed-retry')
     await page.unroute('**/api/v1/admin/networks')
     await page.getByRole('button', { name: 'Retry' }).click()
-    await expect(page.getByLabel('Added by administrators')).toBeVisible()
+    await expect(page.getByLabel('Network to add')).toBeVisible()
 
     await page.goto(`/sites/${quickId}?path=%2F`)
     const grid = page.getByRole('grid', { name: 'Files' })

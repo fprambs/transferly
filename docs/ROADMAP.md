@@ -353,6 +353,17 @@ Las páginas dejan el fondo vacío: bloques comunes (`components/page`: cabecera
 - [x] Colores fijos (violeta, esmeralda, ámbar, rojo, celeste) reemplazados por tokens del tema en roles, estados y avisos
 - [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con las páginas nuevas
 
+## Configuración en un diálogo (pedido del 2026-10-01)
+
+Ajustes, seguridad, miembros, auditoría, servidores de confianza y administración dejan de ser páginas dentro del explorador (con la barra de sitios y la cola de transferencias alrededor) y se abren en un diálogo amplio sobre el trabajo en curso.
+
+- [x] Diálogo con barra lateral agrupada (Cuenta, Workspace, Instancia) que muestra solo las secciones permitidas; la sección vive en el parámetro `settings` de la dirección, así que el botón atrás, Escape o la ✕ vuelven a los sitios y conexiones tal como estaban
+- [x] Las direcciones antiguas (`/settings`, `/members`, `/audit`, `/admin`, `/servers`) redirigen a su sección; el menú de cuenta, el selector de workspace, la paleta, la creación de equipos y la aceptación de invitaciones abren el diálogo
+- [x] Seguridad pasa a su propia sección; Ajustes se llama General
+- [x] Contraste: textos de estado sobre tintes con tokens propios (`text-ok-text`, `text-warn-text`, `text-danger-text`, `text-info-text`, el color del estado mezclado con el del texto) y tintes de 15 % como máximo, para 4.5:1 en todos los temas; pestañas inactivas con `muted-foreground`
+- [x] E2E: specs de administración, equipos, segundo factor y capturas al diálogo y las tablas; los análisis de accesibilidad esperan a que terminen las animaciones de entrada
+- [ ] Líneas base visuales de ajustes regeneradas con el diálogo
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común

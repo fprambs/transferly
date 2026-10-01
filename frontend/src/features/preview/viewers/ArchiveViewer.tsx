@@ -249,7 +249,7 @@ function ArchiveTree({ source, entries, format, truncated, onOpen }: ArchiveTree
                     </span>
                     {entry !== undefined && looksLikeBomb(entry) && (
                       <Tip label={t(($) => $.archive.bombHint)}>
-                        <span className="flex shrink-0 items-center gap-1 rounded bg-destructive/15 px-1 text-[10px] text-destructive">
+                        <span className="flex shrink-0 items-center gap-1 rounded bg-destructive/15 px-1 text-[10px] text-danger-text">
                           <TriangleAlert aria-hidden="true" className="size-3" />
                           {t(($) => $.archive.bomb)}
                         </span>
@@ -257,7 +257,7 @@ function ArchiveTree({ source, entries, format, truncated, onOpen }: ArchiveTree
                     )}
                     {node.unsafe && (
                       <Tip label={t(($) => $.archive.unsafeHint)}>
-                        <span className="flex shrink-0 items-center gap-1 rounded bg-warn/15 px-1 text-[10px] text-warn">
+                        <span className="flex shrink-0 items-center gap-1 rounded bg-warn/15 px-1 text-[10px] text-warn-text">
                           <TriangleAlert aria-hidden="true" className="size-3" />
                           {t(($) => $.archive.unsafe)}
                         </span>

@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
 import { totpCode } from '../totp.ts'
+import { settle } from '../settle.ts'
 
 /** Password of the test account, as the global setup creates it. */
 const password = 'a long e2e password'
@@ -50,6 +51,7 @@ test.describe('second factor', () => {
     void shell
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     const section = page.getByRole('heading', { name: 'Two-step verification' }).locator('xpath=ancestor::section')
     await section.getByRole('button', { name: 'Turn on' }).click()
 
@@ -79,6 +81,7 @@ test.describe('second factor', () => {
     await guest.getByRole('button', { name: 'Sign in' }).click()
 
     await expect(guest.getByLabel('Code')).toBeVisible()
+    await settle(guest)
     expect((await new AxeBuilder({ page: guest }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()).violations).toEqual([])
     await guest.getByLabel('Code').fill(totpCode(secret, 1))
     await guest.getByRole('button', { name: 'Verify' }).click()
@@ -102,8 +105,10 @@ test.describe('second factor', () => {
     void shell
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     const section = page.getByRole('heading', { name: 'Two-step verification' }).locator('xpath=ancestor::section')
     await expect(section.getByText('On', { exact: true })).toBeVisible()
+    await settle(page)
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()).violations).toEqual([])
 
     await section.getByRole('button', { name: 'Turn off' }).click()
@@ -121,6 +126,7 @@ test.describe('second factor', () => {
     await signIn(page)
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     await page.getByRole('button', { name: 'Add a passkey' }).click()
     const dialog = page.getByRole('dialog', { name: 'Add a passkey' })
     await dialog.getByLabel('Name').fill('Virtual key')
@@ -138,6 +144,7 @@ test.describe('second factor', () => {
 
     await page.getByRole('button', { name: 'Account' }).click()
     await page.getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Security', exact: true }).click()
     await expect(page.getByText(/last used/)).toBeVisible()
     await page.getByRole('button', { name: 'Remove the passkey Virtual key' }).click()
     const remove = page.getByRole('dialog', { name: 'Remove the passkey Virtual key' })

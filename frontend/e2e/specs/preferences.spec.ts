@@ -51,7 +51,7 @@ test.describe('preferences', () => {
     await page.evaluate(() => globalThis.localStorage.clear())
     await page.reload()
 
-    await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Configuración' })).toBeVisible()
     await expect(page.getByLabel('Doble clic en un archivo')).toHaveText('Abrirlo en el editor')
     await context.close()
     await guest.dispose()

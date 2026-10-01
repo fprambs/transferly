@@ -42,7 +42,7 @@ function Card({ icon: Icon, title, badges, tone = 'default', children }: { icon:
 
 /** A badge of a card. */
 function Badge({ tone, children }: { tone: 'ok' | 'warn' | 'danger' | 'muted'; children: ReactNode }) {
-  const tones = { ok: 'bg-ok/15 text-ok', warn: 'bg-warn/15 text-warn', danger: 'bg-destructive/15 text-destructive', muted: 'bg-muted text-muted-foreground' }
+  const tones = { ok: 'bg-ok/15 text-ok-text', warn: 'bg-warn/15 text-warn-text', danger: 'bg-destructive/15 text-danger-text', muted: 'bg-muted text-muted-foreground' }
   return <span className={cn('rounded px-1.5 py-0.5 text-[11px] font-medium', tones[tone])}>{children}</span>
 }
 

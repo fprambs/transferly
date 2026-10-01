@@ -35,7 +35,7 @@ function Structured({ kind, name, text }: { kind: 'json' | 'yaml' | 'xml'; name:
         ))}
       </div>
       {failure !== null && (
-        <p role="alert" className="border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">
+        <p role="alert" className="border-b bg-destructive/10 px-4 py-2 text-xs text-danger-text">
           {t(($) => $.tree.invalid, { error: failure.message })}
         </p>
       )}

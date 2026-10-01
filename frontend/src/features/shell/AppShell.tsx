@@ -24,6 +24,7 @@ import { useSitesData } from '@/features/sites/use-sites-data'
 import { SitesSidebar } from '@/features/sites/SitesSidebar'
 import { TransfersDock } from '@/features/transfers/TransfersDock'
 import { useAccountPreferences } from '@/features/settings/use-account-preferences'
+import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { useTransferStream } from '@/features/transfers/use-transfer-stream'
 
 /** Height of the transfers panel while collapsed: its header, which keeps the button that opens it again. */
@@ -38,8 +39,8 @@ function typing(target: EventTarget | null): boolean {
 }
 
 /**
- * Application layout: top bar, sites panel, the toolbar above the explorer (on the start page and the sites, not on settings or
- * administration), and the transfer queue. The sites and transfers panels are resizable, remember their sizes in the browser, and collapse
+ * Application layout: top bar, sites panel, the toolbar above the explorer, the transfer queue, and the settings dialog
+ * over them. The sites and transfers panels are resizable, remember their sizes in the browser, and collapse
  * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it: in the active tab,
  * closing the connections of the sites it replaces in either pane unless another tab shows them (4.11, a transfer running on them finishes first), or in a new
  * tab with Ctrl+click, a middle click or its menu; a site that has a tab already activates it (4.12).
@@ -57,7 +58,6 @@ export function AppShell() {
   const { sites: savedSites } = useSitesData(workspace?.id)
   const deactivate = useTabs((state) => state.deactivate)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const explorerView = pathname === '/' || pathname.startsWith('/sites/')
 
   useEffect(() => {
     if (pathname === '/') {
@@ -121,8 +121,8 @@ export function AppShell() {
             <ResizeHandle aria-label={shell(($) => $.panels.sites)} />
             <Panel id="main" minSize="30%" className="h-full">
               <main aria-label={explorer(($) => $.label)} className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto bg-background">
-                {explorerView && <Toolbar />}
-                {explorerView && <TabBar />}
+                <Toolbar />
+                <TabBar />
                 <Outlet />
               </main>
             </Panel>
@@ -136,6 +136,7 @@ export function AppShell() {
       <QuickConnectFlow />
       <CommandPalette onOpenSite={open} />
       <PromptDialog />
+      <SettingsDialog />
     </div>
   )
 }

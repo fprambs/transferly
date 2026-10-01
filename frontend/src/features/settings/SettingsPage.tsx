@@ -7,8 +7,6 @@ import { Select } from '@/components/ui/select'
 import { languages } from '@/i18n'
 import { useUiStore } from '@/state/ui-store'
 
-import { SecuritySection } from '../security/SecuritySection'
-
 import { ThemeList } from './ThemeList'
 import { useSavePreferences } from './use-save-preferences'
 import { useThemeChoice } from './use-theme-choice'
@@ -46,7 +44,7 @@ export function SettingsPage() {
           </div>
           <ThemeList onChoose={choose} />
           {saveFailed ? (
-            <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
               {t(($) => $.appearance.saveFailed)}
             </p>
           ) : null}
@@ -69,7 +67,7 @@ export function SettingsPage() {
               }}
             />
             {language.saveFailed ? (
-              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
                 {t(($) => $.language.saveFailed)}
               </p>
             ) : null}
@@ -97,13 +95,12 @@ export function SettingsPage() {
             />
             <p className="text-xs text-muted-foreground">{t(($) => $.explorer.doubleClickHint)}</p>
             {doubleClick.saveFailed ? (
-              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
                 {t(($) => $.explorer.saveFailed)}
               </p>
             ) : null}
           </section>
         </div>
-        <SecuritySection />
       </Page>
     </div>
   )

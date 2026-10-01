@@ -42,7 +42,7 @@ function ForgetDialog({ host, workspaceId, onClose }: ForgetDialogProps) {
           <DialogDescription>{t(($) => $.servers.forgetBody, { host: `${host.host}:${host.port}`, fingerprint: host.fingerprint })}</DialogDescription>
         </DialogHeader>
         {failure !== null && (
-          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
             {t(($) => $.servers.errors[failure])}
           </p>
         )}

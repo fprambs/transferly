@@ -4,6 +4,7 @@ import { http } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { useUiStore } from '@/state/ui-store'
+import { queryInnerDialog } from '@/test/dialogs'
 import { problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
@@ -59,7 +60,7 @@ describe('invite dialog', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('This person is already a member.')
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
   })
 
   it('shows the one-time link, copies it and keeps the invitation in the list', async () => {
@@ -83,7 +84,7 @@ describe('invite dialog', () => {
     expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/invite#tok-new-0123456789`)
 
     await user.click(within(dialog).getByRole('button', { name: 'Done' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
     await user.click(screen.getByRole('tab', { name: /Invitations/ }))
     expect(await screen.findByText('ana@acme.dev')).toBeInTheDocument()
   })

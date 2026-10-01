@@ -4,22 +4,35 @@ import type { APIRequestContext, Page } from '@playwright/test'
 import { createAccountWithSecondStep } from '../accounts.ts'
 import { expect, test } from '../fixtures.ts'
 import { choose } from '../select.ts'
+import { settle } from '../settle.ts'
 
-/** Opens the administration page from the account menu and waits for its accounts. */
+/** Opens the administration in the settings dialog from the account menu and waits for its accounts. */
 async function openAdmin(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Account' }).click()
   await page.getByRole('menuitem', { name: 'Administration' }).click()
-  await expect(page).toHaveURL(/\/admin$/)
-  await expect(page.getByRole('list', { name: 'Accounts' })).toBeVisible()
+  await expect(page).toHaveURL(/settings=admin/)
+  await expect(page.getByRole('table', { name: 'Accounts' })).toBeVisible()
 }
 
 /** The row of an account in the accounts table. */
 function rowOf(page: Page, email: string) {
-  return page.getByRole('list', { name: 'Accounts' }).getByRole('listitem').filter({ hasText: email })
+  return page.getByRole('table', { name: 'Accounts' }).locator('tbody tr').filter({ hasText: email })
+}
+
+/** The networks an administrator added, as the table lists them. */
+function addedNetworks(page: Page) {
+  return page.getByRole('table', { name: 'Allowed private networks' }).locator('tbody tr').filter({ hasText: 'Added by an administrator' })
+}
+
+/** Types a network in the field under the table and adds it to the list. */
+async function addNetwork(page: Page, network: string): Promise<void> {
+  await page.getByLabel('Network to add').fill(network)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
 }
 
 /** Runs the accessibility rules against the page and expects no violations. */
 async function expectAccessible(page: Page, label: string): Promise<void> {
+  await settle(page)
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations, label).toEqual([])
 }
@@ -28,11 +41,11 @@ async function expectAccessible(page: Page, label: string): Promise<void> {
  * Administration of the instance against the production image, as the administrator the global setup created.
  *
  * Scenarios:
- * - the account menu offers Administration, and the page lists the accounts, among them one created through an invitation whose second step is on
+ * - the account menu offers Administration, and the settings dialog lists the accounts, among them one created through an invitation whose second step is on
  * - making the account an administrator and back changes its role in the list
  * - removing its second step asks first, and afterwards the list shows it off
  * - disabling it asks first, ends its session at once, and enabling it makes it active again without a question
- * - the networks page saves an entry, keeps it after a reload, refuses the whole internet and clears the list
+ * - the networks tab adds entries to its table, saves them, keeps them after a reload, refuses the whole internet and clears the list
  * - the limits page saves values in its units, keeps them after a reload, refuses what is not a number and goes back to the starting values
  * - the audit log words each change and narrows by group
  * - the four tabs and the confirmation have no WCAG violations in the light and dark themes
@@ -113,23 +126,25 @@ test.describe('administration', () => {
     void shell
     await page.goto('/admin')
     await page.getByRole('tab', { name: 'Networks' }).click()
-    const box = page.getByLabel('Added by administrators')
-    await expect(box).toHaveValue('')
-    await box.fill('0.0.0.0/0')
+    await expect(page.getByRole('table', { name: 'Allowed private networks' })).toContainText('No network was added yet.')
+    await addNetwork(page, '0.0.0.0/0')
     await page.getByRole('button', { name: 'Save networks' }).click()
     await expect(page.getByRole('alert')).toContainText('not a network that can be allowed')
 
-    await box.fill('192.168.77.0/24\n\n10.77.0.5')
+    await page.getByRole('button', { name: 'Remove 0.0.0.0/0' }).click()
+    await addNetwork(page, '192.168.77.0/24')
+    await addNetwork(page, '10.77.0.5')
     await page.getByRole('button', { name: 'Save networks' }).click()
     await expect(page.getByRole('status')).toContainText('Saved.')
     await page.reload()
     await page.getByRole('tab', { name: 'Networks' }).click()
-    await expect(page.getByLabel('Added by administrators')).toHaveValue('10.77.0.5/32\n192.168.77.0/24')
+    await expect(addedNetworks(page)).toHaveText([/10\.77\.0\.5\/32/, /192\.168\.77\.0\/24/])
 
-    await page.getByLabel('Added by administrators').fill('')
+    await page.getByRole('button', { name: 'Remove 10.77.0.5/32' }).click()
+    await page.getByRole('button', { name: 'Remove 192.168.77.0/24' }).click()
     await page.getByRole('button', { name: 'Save networks' }).click()
     await expect(page.getByRole('status')).toBeVisible()
-    await expect(page.getByLabel('Added by administrators')).toHaveValue('')
+    await expect(addedNetworks(page)).toHaveCount(0)
   })
 
   test('saves and restores the limits', async ({ shell, page }) => {
@@ -162,14 +177,14 @@ test.describe('administration', () => {
     void shell
     await page.goto('/admin')
     await page.getByRole('tab', { name: 'Audit log' }).click()
-    const log = page.getByRole('list', { name: 'Instance audit log' })
+    const log = page.getByRole('table', { name: 'Instance audit log' })
     await expect(log).toContainText(`removed the second step of ${email}`)
     await expect(log).toContainText(`disabled the account ${email}`)
     await expect(log).toContainText(`enabled the account ${email}`)
     await expect(log).toContainText(`made ${email} Administrator`)
     await expect(log).toContainText('changed the allowed networks (2 networks)')
     await expect(log).toContainText('changed the limits of the instance')
-    await expect(log.getByRole('listitem').first()).toContainText('e2e@example.com')
+    await expect(log.locator('tbody tr').first()).toContainText('e2e@example.com')
 
     await choose(page.getByLabel('Show'), 'Networks')
     await expect(log).not.toContainText('disabled the account')
@@ -181,16 +196,16 @@ test.describe('administration', () => {
       await page.goto('/')
       await shell.setTheme(theme)
       await page.goto('/admin')
-      await expect(page.getByRole('list', { name: 'Accounts' })).toBeVisible()
+      await expect(page.getByRole('table', { name: 'Accounts' })).toBeVisible()
       await expectAccessible(page, `${theme} accounts`)
       await page.getByRole('tab', { name: 'Networks' }).click()
-      await expect(page.getByLabel('Added by administrators')).toBeVisible()
+      await expect(page.getByLabel('Network to add')).toBeVisible()
       await expectAccessible(page, `${theme} networks`)
       await page.getByRole('tab', { name: 'Limits' }).click()
       await expect(page.getByLabel('Sites per workspace')).toBeVisible()
       await expectAccessible(page, `${theme} limits`)
       await page.getByRole('tab', { name: 'Audit log' }).click()
-      await expect(page.getByRole('list', { name: 'Instance audit log' })).toBeVisible()
+      await expect(page.getByRole('table', { name: 'Instance audit log' })).toBeVisible()
       await expectAccessible(page, `${theme} audit`)
     }
   })

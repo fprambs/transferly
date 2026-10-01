@@ -130,10 +130,10 @@ export type Tone = 'accent' | 'ok' | 'warn' | 'danger' | 'info' | 'muted'
 /** Classes of the soft background and the text of each tone. */
 const tones: Record<Tone, string> = {
   accent: 'bg-primary/12 text-accent-text',
-  ok: 'bg-ok/12 text-ok',
-  warn: 'bg-warn/12 text-warn',
-  danger: 'bg-destructive/12 text-destructive',
-  info: 'bg-info/12 text-info',
+  ok: 'bg-ok/12 text-ok-text',
+  warn: 'bg-warn/12 text-warn-text',
+  danger: 'bg-destructive/12 text-danger-text',
+  info: 'bg-info/12 text-info-text',
   muted: 'bg-muted text-muted-foreground',
 }
 

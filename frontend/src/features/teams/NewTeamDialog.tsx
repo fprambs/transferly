@@ -48,7 +48,7 @@ function NewTeamForm({ onClose }: Pick<NewTeamDialogProps, 'onClose'>) {
       await queryClient.invalidateQueries({ queryKey: workspacesKey })
       setWorkspace(created.id)
       onClose()
-      await navigate({ to: '/members' })
+      await navigate({ to: '/', search: { settings: 'members' } })
     } catch (error) {
       setFailure(teamErrorKeyOf(error))
       setBusy(false)

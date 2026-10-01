@@ -136,7 +136,7 @@ describe('explorer', () => {
 
     await renderExplorer()
 
-    expect(await screen.findByText('Connected')).toHaveClass('text-ok')
+    expect(await screen.findByText('Connected')).toHaveClass('text-ok-text')
     expect(document.querySelector('[data-color="violet"]')).toHaveClass('bg-(--label-violet)')
   })
 

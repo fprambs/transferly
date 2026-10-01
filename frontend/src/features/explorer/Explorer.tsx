@@ -353,7 +353,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         {savedSite !== undefined && <BookmarksMenu workspaceId={workspaceId} siteId={siteId} siteName={savedSite.name} path={path} onNavigate={onNavigate} />}
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>
         {live && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/12 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-ok duration-300 animate-in fade-in-0 zoom-in-90 @max-2xl:hidden">
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-ok/12 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-ok-text duration-300 animate-in zoom-in-90 @max-2xl:hidden">
             <span aria-hidden="true" className="relative flex size-1.5">
               <span className="absolute inset-0 rounded-full bg-ok motion-safe:animate-[ping_1s_var(--ease-fluid)_1]" />
               <span className="size-1.5 rounded-full bg-ok" />

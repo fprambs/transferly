@@ -1,6 +1,6 @@
 {
-  "title": "Settings",
-  "description": "Appearance, language, the explorer and the security of your account.",
+  "title": "General",
+  "description": "Appearance, language and the explorer, in this browser and on your account.",
   "appearance": {
     "title": "Appearance",
     "description": "Choose how Transferly looks. The theme is saved to your account and follows you to other browsers.",
@@ -60,5 +60,26 @@
     "preview": "Show it in the viewer",
     "doubleClickHint": "Enter does the same, and Space always shows the file in the viewer. The other actions stay in the right-click menu and in the details panel.",
     "saveFailed": "The choice applies here, but it could not be saved to your account."
+  },
+  "dialog": {
+    "title": "Settings",
+    "close": "Close settings",
+    "groups": {
+      "account": "Account",
+      "workspace": "Workspace",
+      "instance": "Instance"
+    },
+    "sections": {
+      "general": "General",
+      "security": "Security",
+      "servers": "Trusted servers",
+      "members": "Members",
+      "audit": "Audit log",
+      "admin": "Administration"
+    }
+  },
+  "securityPage": {
+    "title": "Security",
+    "description": "How you sign in and what protects your account."
   }
 }

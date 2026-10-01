@@ -4,6 +4,7 @@ import { delay, http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import type { AuditEvent } from '@/lib/api'
+import { queryInnerDialog } from '@/test/dialogs'
 import { adminSession, mockSession, mockWorkspaceData } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { choose } from '@/test/select'
@@ -90,7 +91,7 @@ describe('administration', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Disable account' }))
     const dialog = await screen.findByRole('dialog', { name: 'Disable maria@acme.dev?' })
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
     expect(mock.calls).toEqual([])
 
     await user.click(screen.getByRole('button', { name: 'Actions for maria@acme.dev' }))
@@ -99,7 +100,7 @@ describe('administration', () => {
 
     await waitFor(() => expect(mock.calls).toEqual([{ method: 'PATCH', path: '/api/v1/admin/users/u-maria', body: { disabled: true } }]))
     await waitFor(() => expect(accountRows()[1]).toHaveTextContent('Disabled'))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
   })
 
   it('enables an account without asking', async () => {

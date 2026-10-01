@@ -8,6 +8,7 @@ import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
 
 import { useSession } from '../auth/use-session'
+import { useSettingsDialog } from '../settings/sections'
 
 /** Builds the initials shown in the avatar from an email address. */
 function initialsOf(email: string): string {
@@ -22,6 +23,7 @@ export function UserMenu() {
   const transport = useTransport()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const settingsDialog = useSettingsDialog()
   const session = useSession()
 
   return (
@@ -37,9 +39,9 @@ export function UserMenu() {
           <DropdownMenuLabel className="truncate">{session?.user.email}</DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void navigate({ to: '/settings' })}>{settings(($) => $.menu.settings)}</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => void navigate({ to: '/servers' })}>{settings(($) => $.menu.servers)}</DropdownMenuItem>
-        {session?.user.role === 'admin' && <DropdownMenuItem onClick={() => void navigate({ to: '/admin' })}>{settings(($) => $.menu.administration)}</DropdownMenuItem>}
+        <DropdownMenuItem onClick={() => settingsDialog.open('general')}>{settings(($) => $.menu.settings)}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => settingsDialog.open('servers')}>{settings(($) => $.menu.servers)}</DropdownMenuItem>
+        {session?.user.role === 'admin' && <DropdownMenuItem onClick={() => settingsDialog.open('admin')}>{settings(($) => $.menu.administration)}</DropdownMenuItem>}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {

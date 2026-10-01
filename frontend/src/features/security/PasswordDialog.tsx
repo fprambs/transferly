@@ -66,7 +66,7 @@ function PasswordBody({ action, onClose }: PasswordDialogProps & { action: Passw
         <Input id="security-password" type="password" autoComplete="current-password" autoFocus value={password} onChange={(event) => setPassword(event.target.value)} />
       </div>
       {failure !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
           {t(($) => $.errors[failure])}
         </p>
       )}

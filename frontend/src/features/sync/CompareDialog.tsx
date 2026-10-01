@@ -138,7 +138,7 @@ export function CompareDialog({ left, right, leftLabel, rightLabel, onClose }: C
         {plan.loading ? (
           <Loading label={t(($) => $.loading)} className="justify-center py-6" />
         ) : failure !== null ? (
-          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
             {t(($) => $.errors[failure])}
           </p>
         ) : plan.rows.length === 0 ? (
@@ -162,7 +162,7 @@ export function CompareDialog({ left, right, leftLabel, rightLabel, onClose }: C
           </div>
         )}
         {confirming && (
-          <div role="alert" className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm leading-relaxed text-destructive">
+          <div role="alert" className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm leading-relaxed text-danger-text">
             {plan.hasDeletes && <p>{t(($) => $.confirmDeletes, { count: checked.filter((row) => row.action === 'delete').length, target: targetLabel })}</p>}
             {plan.hasOverwrites && <p>{t(($) => $.confirmOverwrites, { count: checked.filter((row) => row.newerTarget).length, target: targetLabel })}</p>}
           </div>

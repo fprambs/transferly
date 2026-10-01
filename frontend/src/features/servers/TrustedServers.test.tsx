@@ -4,6 +4,7 @@ import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { KnownHost } from '@/lib/api'
+import { findInnerDialog, queryInnerDialog } from '@/test/dialogs'
 import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
@@ -115,12 +116,12 @@ describe('trusted servers', () => {
     await renderApp({ path: '/servers' })
 
     await user.click(await screen.findByRole('button', { name: 'Forget prod.example.com:2222 SHA256:abc' }))
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await findInnerDialog()
     await user.click(within(dialog).getByRole('button', { name: 'Forget' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(message)
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
   })
 
   it('opens from the user menu', async () => {
@@ -132,7 +133,7 @@ describe('trusted servers', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Trusted servers' }))
 
     expect(await screen.findByRole('heading', { name: 'Trusted servers' })).toBeInTheDocument()
-    expect(history.location.pathname).toBe('/servers')
+    expect(history.location.search).toContain('settings=servers')
   })
 
   it('shows the not found screen for an unknown address and leads home', async () => {

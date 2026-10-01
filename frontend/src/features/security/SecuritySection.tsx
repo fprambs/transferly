@@ -44,7 +44,7 @@ export function SecuritySection() {
         <Loading label={t(($) => $.section.loading)} />
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <span className={on ? 'rounded-full bg-ok/15 px-2.5 py-0.5 text-xs font-medium text-ok' : 'rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'}>
+          <span className={on ? 'rounded-full bg-ok/15 px-2.5 py-0.5 text-xs font-medium text-ok-text' : 'rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground'}>
             {on ? t(($) => $.section.statusOn) : t(($) => $.section.statusOff)}
           </span>
           {on && <span className="text-sm text-muted-foreground">{t(($) => $.section.recoveryLeft, { count: status.data?.recoveryCodesLeft })}</span>}

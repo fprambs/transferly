@@ -1,6 +1,6 @@
 {
-  "title": "Ajustes",
-  "description": "Apariencia, idioma, explorador y seguridad de tu cuenta.",
+  "title": "General",
+  "description": "Apariencia, idioma y explorador de este navegador y de tu cuenta.",
   "appearance": {
     "title": "Apariencia",
     "description": "Elige cómo se ve Transferly. El tema se guarda en tu cuenta y te acompaña a otros navegadores.",
@@ -60,5 +60,26 @@
     "preview": "Mostrarlo en el visor",
     "doubleClickHint": "Enter hace lo mismo, y Espacio siempre muestra el archivo en el visor. Las otras acciones quedan en el menú del clic derecho y en el panel de detalles.",
     "saveFailed": "La elección se aplicó aquí, pero no se pudo guardar en tu cuenta."
+  },
+  "dialog": {
+    "title": "Configuración",
+    "close": "Cerrar configuración",
+    "groups": {
+      "account": "Cuenta",
+      "workspace": "Workspace",
+      "instance": "Instancia"
+    },
+    "sections": {
+      "general": "General",
+      "security": "Seguridad",
+      "servers": "Servidores de confianza",
+      "members": "Miembros",
+      "audit": "Registro de auditoría",
+      "admin": "Administración"
+    }
+  },
+  "securityPage": {
+    "title": "Seguridad",
+    "description": "Cómo inicias sesión y qué protege tu cuenta."
   }
 }

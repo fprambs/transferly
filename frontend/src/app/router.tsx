@@ -9,12 +9,8 @@ import {
 import type { RouterHistory } from '@tanstack/react-router'
 import { z } from 'zod'
 
-import { TrustedServers } from '@/features/servers/TrustedServers'
-import { AdminPage } from '@/features/admin/AdminPage'
-import { AuditPage } from '@/features/teams/AuditPage'
 import { AcceptInvitationPage } from '@/features/teams/AcceptInvitationPage'
-import { MembersPage } from '@/features/teams/MembersPage'
-import { SettingsPage } from '@/features/settings/SettingsPage'
+import { settingsSections, type SettingsSection } from '@/features/settings/sections'
 import { NotFound } from '@/features/shell/NotFound'
 import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
 import { SiteExplorer } from '@/features/explorer/SiteExplorer'
@@ -50,26 +46,41 @@ const shellRoute = createRoute({
     const setupRequired = await context.queryClient.ensureQueryData(setupQuery(context.api))
     throw redirect({ to: setupRequired ? '/setup' : '/login' })
   },
+  validateSearch: z.object({ settings: z.enum(settingsSections).optional().catch(undefined) }),
   component: AppShell,
 })
 
 /** Home of a signed-in user: no site is open yet. */
 const homeRoute = createRoute({ getParentRoute: () => shellRoute, path: '/', component: EmptyExplorer })
 
-/** Settings of the interface. */
-const settingsRoute = createRoute({ getParentRoute: () => shellRoute, path: '/settings', component: SettingsPage })
+/**
+ * An address of the time settings, administration and the people of a workspace were pages of their own: it now opens the section of the
+ * settings dialog over the start page, so old bookmarks and links keep working.
+ */
+function legacySection(path: string, section: SettingsSection) {
+  return createRoute({
+    getParentRoute: () => shellRoute,
+    path,
+    beforeLoad: () => {
+      throw redirect({ to: '/', search: { settings: section } })
+    },
+  })
+}
 
-/** Members and invitations of the team workspace in use. */
-const membersRoute = createRoute({ getParentRoute: () => shellRoute, path: '/members', component: MembersPage })
+/** Former page of the settings of the interface. */
+const settingsRoute = legacySection('/settings', 'general')
 
-/** Audit trail of the team workspace in use. */
-const auditRoute = createRoute({ getParentRoute: () => shellRoute, path: '/audit', component: AuditPage })
+/** Former page of the members and invitations of the team workspace in use. */
+const membersRoute = legacySection('/members', 'members')
 
-/** Administration of the instance. */
-const adminRoute = createRoute({ getParentRoute: () => shellRoute, path: '/admin', component: AdminPage })
+/** Former page of the audit trail of the team workspace in use. */
+const auditRoute = legacySection('/audit', 'audit')
 
-/** Servers whose key the user trusted. */
-const serversRoute = createRoute({ getParentRoute: () => shellRoute, path: '/servers', component: TrustedServers })
+/** Former page of the administration of the instance. */
+const adminRoute = legacySection('/admin', 'admin')
+
+/** Former page of the servers whose key the user trusted. */
+const serversRoute = legacySection('/servers', 'servers')
 
 /**
  * A saved site or quick connection, browsed at the folder given by the `path` search parameter. The `split` parameter opens a

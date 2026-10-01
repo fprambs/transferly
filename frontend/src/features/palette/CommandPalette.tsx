@@ -30,6 +30,7 @@ import { useSession } from '../auth/use-session'
 import { useBookmarks } from '../bookmarks/use-bookmarks'
 import { useOpenConnections } from '../sites/use-open-connections'
 import { useSitesData } from '../sites/use-sites-data'
+import { useSettingsDialog } from '../settings/sections'
 import { useTabs } from '../tabs/tabs-store'
 import { useGoToTab } from '../tabs/use-go-to-tab'
 import { canManageMembers } from '../teams/roles'
@@ -102,6 +103,7 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
   const setOpen = useDialogsStore((state) => state.setPaletteOpen)
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
   const navigate = useNavigate()
+  const settingsDialog = useSettingsDialog()
   const workspace = useWorkspace()
   const session = useSession()
   const ui = useUiStore()
@@ -220,11 +222,11 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
               })}
             </Command.Group>
             <Command.Group heading={t(($) => $.palette.groups.pages)}>
-              <Item value="page-settings" keywords={[t(($) => $.palette.pages.settings)]} icon={Settings} label={t(($) => $.palette.pages.settings)} onSelect={run(() => void navigate({ to: '/settings' }))} />
-              <Item value="page-servers" keywords={[t(($) => $.palette.pages.servers)]} icon={ShieldCheck} label={t(($) => $.palette.pages.servers)} onSelect={run(() => void navigate({ to: '/servers' }))} />
-              {workspace?.kind === 'team' && <Item value="page-members" keywords={[t(($) => $.palette.pages.members)]} icon={Users} label={t(($) => $.palette.pages.members)} onSelect={run(() => void navigate({ to: '/members' }))} />}
-              {workspace?.kind === 'team' && canManageMembers(workspace.role) && <Item value="page-audit" keywords={[t(($) => $.palette.pages.audit)]} icon={ScrollText} label={t(($) => $.palette.pages.audit)} onSelect={run(() => void navigate({ to: '/audit' }))} />}
-              {session?.user.role === 'admin' && <Item value="page-admin" keywords={[t(($) => $.palette.pages.admin)]} icon={KeyRound} label={t(($) => $.palette.pages.admin)} onSelect={run(() => void navigate({ to: '/admin' }))} />}
+              <Item value="page-settings" keywords={[t(($) => $.palette.pages.settings)]} icon={Settings} label={t(($) => $.palette.pages.settings)} onSelect={run(() => settingsDialog.open('general'))} />
+              <Item value="page-servers" keywords={[t(($) => $.palette.pages.servers)]} icon={ShieldCheck} label={t(($) => $.palette.pages.servers)} onSelect={run(() => settingsDialog.open('servers'))} />
+              {workspace?.kind === 'team' && <Item value="page-members" keywords={[t(($) => $.palette.pages.members)]} icon={Users} label={t(($) => $.palette.pages.members)} onSelect={run(() => settingsDialog.open('members'))} />}
+              {workspace?.kind === 'team' && canManageMembers(workspace.role) && <Item value="page-audit" keywords={[t(($) => $.palette.pages.audit)]} icon={ScrollText} label={t(($) => $.palette.pages.audit)} onSelect={run(() => settingsDialog.open('audit'))} />}
+              {session?.user.role === 'admin' && <Item value="page-admin" keywords={[t(($) => $.palette.pages.admin)]} icon={KeyRound} label={t(($) => $.palette.pages.admin)} onSelect={run(() => settingsDialog.open('admin'))} />}
             </Command.Group>
           </Command.List>
           <div className="flex items-center gap-4 border-t px-3 py-2 text-[11px] text-muted-foreground">

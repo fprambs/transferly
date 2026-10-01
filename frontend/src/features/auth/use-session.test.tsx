@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react'
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { describe, expect, it } from 'vitest'
 
 import { UserMenu } from '@/features/topbar/UserMenu'
@@ -42,7 +43,8 @@ describe('useSession', () => {
   it('shows an empty avatar without a session', async () => {
     mockSession(null)
 
-    await renderWithProviders(<UserMenu />)
+    const router = createRouter({ routeTree: createRootRoute({ component: UserMenu }), history: createMemoryHistory() })
+    await renderWithProviders(<RouterProvider router={router} />)
 
     expect(await screen.findByRole('button', { name: 'Account' })).toHaveTextContent('')
   })

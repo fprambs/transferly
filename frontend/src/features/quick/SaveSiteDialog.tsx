@@ -85,7 +85,7 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
         <VaultLockedNotice need="save" onUnlocked={() => setFailure(null)} />
       ) : (
         failure !== null && (
-          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
             {t(($) => $.errors[failure])}
           </p>
         )

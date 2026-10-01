@@ -5,6 +5,7 @@ import { AxeBuilder } from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
+import { settle } from '../settle.ts'
 
 const themes = [
   'transferly-dark',
@@ -279,6 +280,7 @@ test.describe('explorer', () => {
     for (const theme of themes) {
       await shell.setTheme(theme)
       await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
+      await settle(page)
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(results.violations, theme).toEqual([])
     }

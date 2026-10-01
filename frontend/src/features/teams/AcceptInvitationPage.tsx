@@ -72,7 +72,7 @@ function useEnter() {
     if (workspaceId !== undefined) {
       setWorkspace(workspaceId)
     }
-    await navigate({ to: '/members' })
+    await navigate({ to: '/', search: { settings: 'members' } })
   }
 }
 
@@ -235,7 +235,7 @@ function SignedIn({ token, preview, session }: InvitationProps & { session: Sess
   if (session.user.email !== preview.email) {
     return (
       <>
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
           {t(($) => $.accept.wrongAccount, { email: preview.email, current: session.user.email })}
         </p>
         <Button

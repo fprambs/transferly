@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SecurityStatus } from '@/lib/api'
+import { queryInnerDialog } from '@/test/dialogs'
 import { adminSession, mockSession, mockSetupRequired, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
@@ -124,7 +125,7 @@ describe('second factor', () => {
     it('shows it off and turns it on', async () => {
       const factor = mockFactor()
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       const section = (await screen.findByRole('heading', { name: 'Two-step verification' })).closest('section') as HTMLElement
       expect(await within(section).findByText('Off')).toBeInTheDocument()
@@ -161,19 +162,19 @@ describe('second factor', () => {
     it('can be cancelled while setting up', async () => {
       mockFactor()
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       await user.click(await screen.findByRole('button', { name: 'Turn on' }))
       const dialog = await screen.findByRole('dialog', { name: 'Turn on two-step verification' })
       await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
     })
 
     it('turns it off with the password', async () => {
       const factor = mockFactor({ totp: true, recoveryCodesLeft: 4, passkeys: [] })
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       await user.click(await screen.findByRole('button', { name: 'Turn off' }))
       const dialog = await screen.findByRole('dialog', { name: 'Turn off two-step verification' })
@@ -189,14 +190,14 @@ describe('second factor', () => {
       mockFactor({ totp: true, recoveryCodesLeft: 4, passkeys: [] })
       await user.type(within(dialog).getByLabelText('Account password'), 'a long enough password')
       await user.click(within(dialog).getByRole('button', { name: 'Turn off' }))
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
       expect(factor.calls).toEqual([])
     })
 
     it('renews the recovery codes', async () => {
       const factor = mockFactor({ totp: true, recoveryCodesLeft: 4, passkeys: [] })
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       expect(await screen.findByText('4 recovery codes left')).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'New recovery codes' }))
@@ -229,7 +230,7 @@ describe('second factor', () => {
         }),
       )
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       const list = await screen.findByRole('list', { name: 'Passkeys' })
       expect(within(list).getByText(/Added Sep 1, 2026 · last used Sep 20, 2026/)).toBeInTheDocument()
@@ -252,7 +253,7 @@ describe('second factor', () => {
       )
       await user.type(within(dialog).getByLabelText('Account password'), 'a long enough password')
       await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
       expect(removed).toBe('p1')
     })
 
@@ -268,20 +269,20 @@ describe('second factor', () => {
         }),
       )
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       expect(await screen.findByText('No passkeys yet.')).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'Add a passkey' }))
       let dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
       await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
 
       await user.click(screen.getByRole('button', { name: 'Add a passkey' }))
       dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
       await user.type(within(dialog).getByLabelText('Name'), ' Laptop ')
       await user.click(within(dialog).getByRole('button', { name: 'Continue' }))
 
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
       expect(calls.created).toBe(1)
       expect(finished).toEqual({ ceremony: 'cer-1', name: 'Laptop', credential: { id: 'created' } })
     })
@@ -296,7 +297,7 @@ describe('second factor', () => {
         ),
       )
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       await user.click(await screen.findByRole('button', { name: 'Add a passkey' }))
       const dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
@@ -306,13 +307,13 @@ describe('second factor', () => {
       const codes = await screen.findByRole('dialog', { name: 'Save your recovery codes' })
       expect(within(codes).getByText('AAAAA-BBBBB')).toBeInTheDocument()
       await user.click(within(codes).getByRole('button', { name: 'I have saved them' }))
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(queryInnerDialog()).not.toBeInTheDocument())
     })
 
     it('explains a browser that cannot, a cancelled request and a refusal of the server', async () => {
       mockStatus([])
       const user = userEvent.setup()
-      await renderApp({ path: '/settings' })
+      await renderApp({ path: '/?settings=security' })
 
       await user.click(await screen.findByRole('button', { name: 'Add a passkey' }))
       const dialog = await screen.findByRole('dialog', { name: 'Add a passkey' })
