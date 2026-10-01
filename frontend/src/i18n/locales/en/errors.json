@@ -253,6 +253,10 @@
       "cause": "The default folder is relative, too long or has control characters.",
       "next": "Write an absolute path, or leave it empty for the root."
     },
+    "invalid_color": {
+      "cause": "The label color is not one Transferly offers.",
+      "next": "Pick one of the colors of the list, or none."
+    },
     "invalid_request": {
       "cause": "The request was malformed or too large, usually because the page is out of date.",
       "next": "Reload the page and try again."

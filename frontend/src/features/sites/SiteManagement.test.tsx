@@ -119,6 +119,9 @@ describe('site management', () => {
     expect(await within(dialog).findByText('Enter a port between 1 and 65535.')).toBeInTheDocument()
 
     await user.clear(within(dialog).getByLabelText('Port'))
+    expect(within(dialog).getByRole('radio', { name: 'No color' })).toBeChecked()
+    await user.click(within(dialog).getByRole('radio', { name: 'Red' }))
+    expect(within(dialog).getByRole('radio', { name: 'Red' })).toBeChecked()
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -131,6 +134,7 @@ describe('site management', () => {
       authMethod: 'password',
       listTimezone: 'UTC',
       remoteDir: '',
+      color: 'red',
       charset: 'utf-8',
       speedLimitBps: 0,
       password: 'secret',

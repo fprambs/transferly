@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
@@ -20,6 +20,7 @@ import { VaultDialog } from '../vault/VaultDialog'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
 import { collectionOptions } from './collection-paths'
+import { ColorPicker } from './ColorPicker'
 import { ConnectionTest } from './ConnectionTest'
 import { KeyFileField } from './KeyFileField'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
@@ -248,6 +249,13 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                 control={control}
                 name="collectionId"
                 options={[{ value: '', label: t(($) => $.site.noCollection) }, ...collectionOptions(collections).map((option) => ({ value: option.id, label: option.label }))]}
+              />
+            </Row>
+            <Row id="site-color" label={t(($) => $.site.color)} hint={t(($) => $.site.colorHint)}>
+              <Controller
+                control={control}
+                name="color"
+                render={({ field }) => <ColorPicker id="site-color" label={t(($) => $.site.color)} value={field.value} onChange={field.onChange} />}
               />
             </Row>
           </Group>

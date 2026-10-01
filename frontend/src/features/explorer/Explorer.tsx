@@ -16,6 +16,7 @@ import { uuid } from '@/lib/uuid'
 
 import { useTimeZone } from '../auth/use-time-zone'
 import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
+import { colorFill } from '../sites/site-colors'
 import { useOpenConnections } from '../sites/use-open-connections'
 import { useSitesData } from '../sites/use-sites-data'
 
@@ -331,6 +332,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           {dragging === 'copy' ? t(($) => $.copy.dropHint) : t(($) => $.upload.dropHint)}
         </div>
       ) : null}
+      {savedSite?.color !== undefined && <div aria-hidden="true" data-color={savedSite.color} className={cn('h-0.5 shrink-0', colorFill(savedSite.color))} />}
       <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b px-3">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={path === '/'} onClick={() => onNavigate(parentPath(path))}>
           <ArrowUp />

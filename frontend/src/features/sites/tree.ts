@@ -1,5 +1,5 @@
 import { transportOf, type Transport } from '@/components/brand/transport'
-import type { Collection, QuickConnection, Site } from '@/lib/api'
+import type { Collection, QuickConnection, Site, SiteColor } from '@/lib/api'
 
 /** A collection row of the sites tree. */
 export interface CollectionNode {
@@ -31,6 +31,8 @@ export interface SiteNode {
   host: string
   /** How the site reaches its server, shown by its icon. */
   transport: Transport
+  /** The label color of the site, left out when it has none. */
+  color?: SiteColor
   /** Collection that holds the site, left out at the top level. */
   collectionId?: string
 }
@@ -106,7 +108,7 @@ function visit(
     }
   }
   for (const site of sites.get(parent) ?? []) {
-    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host, transport: transportOf(site), collectionId: site.collectionId })
+    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host, transport: transportOf(site), color: site.color, collectionId: site.collectionId })
   }
 }
 

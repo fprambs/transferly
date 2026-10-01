@@ -39,6 +39,7 @@ function site(id: string, name: string, collectionId?: string): Site {
  * - a double click or Enter connects a site or a quick connection, Ctrl with the double click opens it in a new tab, and a click only selects (4.14f)
  * - the toolbar offers quick connect and the create actions
  * - the labels follow the interface language
+ * - a site wears its color label and the icon of its protocol
  * - connected sites and quick connections carry a green dot named for screen readers, and connected sites offer to disconnect in their menu
  */
 describe('SitesSidebar', () => {
@@ -61,6 +62,18 @@ describe('SitesSidebar', () => {
     await user.click(within(screen.getByRole('treeitem', { name: /Stage/ })).getByRole('button', { name: 'Actions for Stage' }))
     await screen.findByRole('menuitem', { name: 'Edit' })
     expect(screen.queryByRole('menuitem', { name: 'Disconnect' })).not.toBeInTheDocument()
+  })
+
+  it('draws the color label of a site and the icon of its protocol', async () => {
+    mockWorkspaceData({ sites: [{ ...site('s1', 'Prod'), color: 'green' }, { ...site('s2', 'Legacy'), protocol: 'ftp', ftpEncryption: 'plain' }] })
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
+
+    const prod = await screen.findByRole('treeitem', { name: /Prod/ })
+    expect(prod.querySelector('[data-color="green"]')).toHaveClass('bg-(--label-green)')
+    expect(prod.querySelector('[data-transport]')).toHaveAttribute('data-transport', 'sftp')
+    const legacy = screen.getByRole('treeitem', { name: /Legacy/ })
+    expect(legacy.querySelector('[data-color]')).toBeNull()
+    expect(legacy.querySelector('[data-transport]')).toHaveAttribute('data-transport', 'plain')
   })
 
   it('offers no way to disconnect when none is given', async () => {

@@ -253,6 +253,10 @@
       "cause": "La carpeta por defecto es relativa, demasiado larga o tiene caracteres de control.",
       "next": "Escribe una ruta absoluta, o déjala vacía para la raíz."
     },
+    "invalid_color": {
+      "cause": "El color de la etiqueta no es uno de los que ofrece Transferly.",
+      "next": "Elige uno de los colores de la lista, o ninguno."
+    },
     "invalid_request": {
       "cause": "La solicitud estaba mal formada o era demasiado grande, normalmente porque la página está desactualizada.",
       "next": "Recarga la página e inténtalo de nuevo."

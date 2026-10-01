@@ -113,6 +113,29 @@ html.dark {
     --brand-arrow: #43a047;
 }
 
+/* Label colors of the sites (ADR-0021): stronger tones on light schemes, lighter ones on dark schemes. */
+html {
+    --label-red: #d32f2f;
+    --label-orange: #ef6c00;
+    --label-yellow: #f9a825;
+    --label-green: #2e7d32;
+    --label-teal: #00897b;
+    --label-blue: #1565c0;
+    --label-violet: #7e57c2;
+    --label-pink: #c2185b;
+}
+
+html.dark {
+    --label-red: #ef5350;
+    --label-orange: #ffa726;
+    --label-yellow: #ffee58;
+    --label-green: #66bb6a;
+    --label-teal: #4db6ac;
+    --label-blue: #64b5f6;
+    --label-violet: #b39ddb;
+    --label-pink: #f48fb1;
+}
+
 /* The brand panel of the sign-in pages: Core Blue in every theme, with the mark's arrow in a light tint. */
 html {
     --brand-panel: #0d47a1;

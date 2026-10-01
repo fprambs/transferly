@@ -24,6 +24,7 @@ import { DeleteSiteDialog } from './DeleteSiteDialog'
 import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
 import { SiteDialog, type SiteTarget } from './SiteDialog'
+import { colorFill } from './site-colors'
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
 import { buildTree, type CollectionNode, type TreeNode } from './tree'
 import { canDrop, treeDragType, type TreeDrag } from './tree-drag'
@@ -237,7 +238,9 @@ function Row({ node, actions }: RowProps) {
       className={cn(base, 'group')}
       style={style}
     >
-      <span className="w-3 shrink-0" />
+      <span className="flex w-3 shrink-0 justify-center">
+        <span data-color={node.color} className={cn('h-4 w-[3px] rounded-full', colorFill(node.color))} />
+      </span>
       {actions.connected.has(node.id) ? <ConnectedDot /> : <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />}
       <ProtocolIcon transport={node.transport} className="size-[15px]" />
       <span className="min-w-0 flex-1 truncate">{node.name}</span>

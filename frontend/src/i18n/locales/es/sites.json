@@ -49,6 +49,7 @@
     "jump_private_key_unsupported": "La clave del salto no se puede usar.",
     "remoteDirInvalid": "La carpeta debe empezar con /.",
     "invalid_remote_dir": "La carpeta remota inicial debe ser una ruta absoluta.",
+    "invalid_color": "Elige uno de los colores de etiqueta, o ninguno.",
     "invalid_export": "Este archivo no es una exportación de Transferly.",
     "wrong_export_password": "Esa contraseña no abre el archivo, o el archivo fue modificado.",
     "weak_export_password": "La contraseña necesita al menos 12 caracteres."
@@ -79,6 +80,19 @@
     "editTitle": "Editar sitio",
     "name": "Nombre",
     "collection": "Colección",
+    "color": "Etiqueta de color",
+    "colorHint": "Tiñe el sitio en la barra lateral, sus pestañas y su explorador, para distinguir los servidores de un vistazo.",
+    "colors": {
+      "none": "Sin color",
+      "red": "Rojo",
+      "orange": "Naranja",
+      "yellow": "Amarillo",
+      "green": "Verde",
+      "teal": "Turquesa",
+      "blue": "Azul",
+      "violet": "Violeta",
+      "pink": "Rosa"
+    },
     "noCollection": "Sin colección",
     "protocol": "Protocolo",
     "host": "Servidor",

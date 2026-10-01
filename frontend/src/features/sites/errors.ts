@@ -17,6 +17,7 @@ const siteErrorKeys = [
   'invalid_charset',
   'invalid_speed_limit',
   'invalid_remote_dir',
+  'invalid_color',
   'invalid_proxy',
   'invalid_jump',
   'invalid_protocol',

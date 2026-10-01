@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 import { useOpenConnections } from '../sites/use-open-connections'
+import { colorEdge } from '../sites/site-colors'
 import { useSitesData } from '../sites/use-sites-data'
 import { useWorkspace } from '../workspace/use-workspace'
 
@@ -76,6 +77,7 @@ export function TabBar() {
     <nav aria-label={t(($) => $.tabs.label)} className="flex h-9 flex-none items-end gap-0.5 overflow-x-auto border-b bg-card px-2">
       {tabs.map((tab) => {
         const name = [...sites, ...quick].find((connection) => connection.id === tab.siteId)?.name ?? tab.siteId
+        const color = sites.find((saved) => saved.id === tab.siteId)?.color
         const active = tab.id === activeId
         return (
           <div
@@ -83,7 +85,9 @@ export function TabBar() {
             className={cn(
               'group flex h-8 max-w-56 min-w-0 shrink-0 items-center gap-1 rounded-t-md border border-b-0 ps-2.5 pe-1 text-xs transition-colors',
               active ? 'border-border bg-background font-medium text-foreground' : 'border-transparent text-muted-foreground hover:bg-accent hover:text-foreground',
+              color !== undefined && cn('border-t-2', colorEdge(color)),
             )}
+            data-color={color}
           >
             <button
               type="button"

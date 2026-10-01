@@ -66,6 +66,7 @@ async function showing(siteId: string): Promise<void> {
  * Covers the connection tabs (4.12): {@link TabBar} and opening sites from the sidebar.
  *
  * Scenarios:
+ * - the tab of a site with a color label wears it as its top edge
  * - a click shows a site in the active tab and closes the connections of the site it replaces; Ctrl+click, a middle click or the menu open it
  *   in a new tab and keep the others connected; a site that has a tab activates it
  * - a click on a tab shows its site at its folder, and its selection comes back
@@ -238,6 +239,19 @@ describe('connection tabs', () => {
     await waitFor(() => expect(disconnected).toEqual(['s1']))
     await user.dblClick(screen.getByRole('treeitem', { name: /Stage/ }))
     await waitFor(() => expect(disconnected).toEqual(['s1', 's2']))
+  })
+
+  it('tints the tab of a site with a color label', async () => {
+    mockWorkspaceData({ sites: [{ ...site('s1', 'Prod'), color: 'red' }, site('s2', 'Backup')], connected: ['s1'] })
+    mockServer()
+    const user = userEvent.setup()
+    await renderApp({ path: '/' })
+    await user.dblClick(await screen.findByRole('treeitem', { name: /Prod/ }))
+    await showing('s1')
+
+    const tab = within(screen.getByRole('navigation', { name: 'Connection tabs' })).getByRole('button', { name: /Connected ?Prod/ }).parentElement
+    expect(tab).toHaveAttribute('data-color', 'red')
+    expect(tab).toHaveClass('border-t-2', 'border-t-(--label-red)')
   })
 
   it('names a site it does not know by its identifier', async () => {

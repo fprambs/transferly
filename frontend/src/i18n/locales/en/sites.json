@@ -49,6 +49,7 @@
     "jump_private_key_unsupported": "The jump host key cannot be used.",
     "remoteDirInvalid": "The folder must start with /.",
     "invalid_remote_dir": "The default remote folder must be an absolute path.",
+    "invalid_color": "Pick one of the label colors, or none.",
     "invalid_export": "This file is not an export of Transferly.",
     "wrong_export_password": "That password does not open the file, or the file was changed.",
     "weak_export_password": "The password needs at least 12 characters."
@@ -79,6 +80,19 @@
     "editTitle": "Edit site",
     "name": "Name",
     "collection": "Collection",
+    "color": "Color label",
+    "colorHint": "Tints the site in the sidebar, its tabs and its explorer, so servers tell apart at a glance.",
+    "colors": {
+      "none": "No color",
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "green": "Green",
+      "teal": "Teal",
+      "blue": "Blue",
+      "violet": "Violet",
+      "pink": "Pink"
+    },
     "noCollection": "No collection",
     "protocol": "Protocol",
     "host": "Host",
