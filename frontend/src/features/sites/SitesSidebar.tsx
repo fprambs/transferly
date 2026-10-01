@@ -422,6 +422,12 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           {sitesT(($) => $.errors[moveFailure])}
         </p>
       )}
+      {rows.length === 0 && (
+        <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+          <Illustration scene="sites" className="h-16 w-24" />
+          <p className="text-sm text-muted-foreground">{t(($) => $.sidebar.empty)}</p>
+        </div>
+      )}
       <div
         role="tree"
         aria-label={t(($) => $.sidebar.sites)}
@@ -434,12 +440,6 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           <Row key={`${node.kind}-${node.id}`} node={node} actions={actions} />
         ))}
       </div>
-      {rows.length === 0 && (
-        <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
-          <Illustration scene="sites" className="h-16 w-24" />
-          <p className="text-sm text-muted-foreground">{t(($) => $.sidebar.empty)}</p>
-        </div>
-      )}
       {workspace !== undefined && (
         <>
           <ImportDialog open={importing} workspaceId={workspace.id} onClose={() => setImporting(false)} />
