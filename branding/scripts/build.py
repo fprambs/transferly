@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PALETTE = {
     'core-blue': ('#0D47A1', 'Core Blue', 'Brand, links, primary actions on light surfaces'),
     'action-orange': ('#FF9800', 'Action Orange', 'Calls to action, active transfers, highlights'),
-    'status-cyan': ('#00BCD4', 'Status Cyan', 'Live connections and progress; brand blue on dark surfaces'),
+    'sky-blue': ('#42A5F5', 'Sky Blue', 'Brand blue on dark surfaces, progress and information'),
     'deep-grey': ('#121212', 'Deep Grey', 'Dark surfaces'),
     'light-grey-blue': ('#E0F2F1', 'Light Grey-Blue', 'Light surfaces and text on dark'),
     'ink': ('#0A1F44', 'Ink', 'Wordmark and headings on light surfaces'),
@@ -34,32 +34,37 @@ PALETTE = {
 SCALES = {
     'blue': ['#E8F0FB', '#C5D7F2', '#8FB2E6', '#5288D6', '#2563C2', '#0D47A1', '#0B3C88', '#08306D', '#062452', '#041838'],
     'orange': ['#FFF5E6', '#FFE3BA', '#FFCC80', '#FFB74D', '#FFA726', '#FF9800', '#F08A00', '#D17600', '#A65E00', '#7A4500'],
-    'cyan': ['#E0F7FA', '#B2EBF2', '#80DEEA', '#4DD0E1', '#26C6DA', '#00BCD4', '#00A5BA', '#008A9C', '#006E7D', '#00525D'],
+    'sky': ['#EAF4FE', '#C9E3FC', '#A3CFFA', '#78B9F8', '#5DAEF6', '#42A5F5', '#2E8FE0', '#2277C4', '#1A5FA0', '#12477A'],
     'grey': ['#F4F8F8', '#E0F2F1', '#C9D6D8', '#A3B1B5', '#7A888D', '#566368', '#3A4448', '#262D31', '#1A1F22', '#121212'],
 }
 STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
-STATUS = {'success': '#2E7D32', 'warning': '#FF9800', 'danger': '#D32F2F', 'info': '#00BCD4'}
+STATUS = {'success': '#2E7D32', 'warning': '#FF9800', 'danger': '#D32F2F', 'info': '#42A5F5'}
 
-BLUE, ORANGE, CYAN, DEEP, MIST, INK = (PALETTE[k][0] for k in PALETTE)
-WHITE = '#FFFFFF'
+BLUE, ORANGE, SKY, DEEP, MIST, INK = (PALETTE[k][0] for k in PALETTE)
+FROST = '#E3EDF7'
 
-# Mark: a transfer arrow that loops into a T, joined to an "f" whose stem carries an upload arrow.
-# Drawn on a 64 grid; the stroke widths are part of the geometry.
+# Mark: a return arrow that loops into the bar of a T, and a ribbon that draws the "f" of Transferly and rises
+# back as an upload arrow. Drawn on a 64 grid; the stroke width is part of the geometry.
 
-STROKE = 6.5
+STROKE = 5.7
+ARROW = (
+    '<path d="M24 10H15.5a6.5 6.5 0 0 0 0 13H28" stroke="currentColor" stroke-width="{w}" stroke-linecap="round" fill="none"/>'
+    '<path d="M22.5 4.2 32.5 10l-10 5.8z" fill="currentColor" stroke="currentColor" stroke-width=".6" stroke-linejoin="round"/>'
+)
+RIBBON = (
+    '<path d="M40 24.1h14.2a6.1 6.1 0 0 0 0-12.2H44C34 11.9 28.2 18 28.2 28v21a6.1 6.1 0 0 0 12.2 0v-9.5" stroke="currentColor" stroke-width="{w}" fill="none"/>'
+    '<path d="M34.6 40.2 40.4 29.8l5.8 10.4z" fill="currentColor" stroke="currentColor" stroke-width=".6" stroke-linejoin="round"/>'
+)
 
 
-def mark(arrow: str, body: str, cut: str | None = None, uid: str = 'm', box: tuple[float, float, float] = (0, 0, 1)) -> str:
-    """The mark as an SVG group; `cut` paints the upload arrow instead of knocking it out of the stem."""
+def mark(arrow: str, body: str, box: tuple[float, float, float] = (0, 0, 1)) -> str:
+    """The mark as an SVG group, centered on the 64 grid; the arrow passes behind the ribbon."""
     x, y, s = box
-    knock = f'<mask id="{uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/><path d="M40 57V43M35 48l5-5 5 5" stroke="#000" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/></mask>'
-    stem = f'<path d="M40 37V18a7 7 0 0 1 7-7h1a9.5 9.5 0 0 1 0 19h-8" stroke="{body}" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="33" y="33" width="14" height="28" rx="7" fill="{body}"/>'
-    arrow_path = f'<path d="M37 26H18a7.5 7.5 0 0 1 0-15h12M24.5 5.5 30 11l-5.5 5.5" stroke="{arrow}" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-    if cut is None:
-        inner = f'{arrow_path}<g mask="url(#{uid})">{stem}</g>'
-        return f'<g transform="translate({x} {y}) scale({s})"><defs>{knock}</defs>{inner}</g>'
-    up = f'<path d="M40 57V43M35 48l5-5 5 5" stroke="{cut}" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-    return f'<g transform="translate({x} {y}) scale({s})">{arrow_path}{stem}{up}</g>'
+    return (
+        f'<g transform="translate({x} {y}) scale({s}) translate(-2.65 .92)">'
+        f'<g class="tf-arrow" color="{arrow}">{ARROW.format(w=STROKE)}</g>'
+        f'<g class="tf-ribbon" color="{body}">{RIBBON.format(w=STROKE)}</g></g>'
+    )
 
 
 # Wordmark
@@ -113,7 +118,7 @@ def logos(bold: Type, regular: Type, out: Path) -> None:
     cap = bold.cap(size)
     pad = 8
 
-    def horizontal(arrow, body, cut, head, tail, uid, tagline=None):
+    def horizontal(arrow, body, head, tail, tagline=None):
         mark_h = 64
         base = pad + (mark_h + cap) / 2 + 2
         text_x = pad + 64 + 14
@@ -126,18 +131,18 @@ def logos(bold: Type, regular: Type, out: Path) -> None:
             extra = f'<path fill="{tagline}" d="{tag}"/>'
             width = max(width, text_x + tw + pad)
             height += 18
-        return width, height, mark(arrow, body, cut, uid, (pad, pad, 1)) + words + extra
+        return width, height, mark(arrow, body, (pad, pad, 1)) + words + extra
 
     variants = {
-        'logo-horizontal.svg': (BLUE, ORANGE, None, INK, BLUE),
-        'logo-horizontal-on-dark.svg': (CYAN, ORANGE, None, MIST, CYAN),
-        'logo-mono.svg': ('currentColor', 'currentColor', None, 'currentColor', 'currentColor'),
+        'logo-horizontal.svg': (BLUE, ORANGE, INK, BLUE),
+        'logo-horizontal-on-dark.svg': (SKY, ORANGE, MIST, SKY),
+        'logo-mono.svg': ('currentColor', 'currentColor', 'currentColor', 'currentColor'),
     }
-    for name, (a, b, c, h, t) in variants.items():
-        w, hgt, body = horizontal(a, b, c, h, t, 'logo-mask')
+    for name, (a, b, h, t) in variants.items():
+        w, hgt, body = horizontal(a, b, h, t)
         (out / name).write_text(svg(w, hgt, body, 'Transferly'))
 
-    w, hgt, body = horizontal(BLUE, ORANGE, None, INK, BLUE, 'logo-mask', tagline='#3A4448')
+    w, hgt, body = horizontal(BLUE, ORANGE, INK, BLUE, tagline='#3A4448')
     (out / 'logo-tagline.svg').write_text(svg(w, hgt, body, 'Transferly — Seamless data flow between all your connections.'))
 
     # Vertical: mark above the wordmark.
@@ -145,31 +150,31 @@ def logos(bold: Type, regular: Type, out: Path) -> None:
         mark_s = 1.5
         _, w = wordmark(bold, size, 0, 0, head, tail)
         width = w + 2 * pad
-        mx = (width - 64 * mark_s) / 2 - 2 * mark_s
+        mx = (width - 64 * mark_s) / 2
         base = pad + 64 * mark_s + 10 + cap
         words, _ = wordmark(bold, size, pad, base, head, tail)
-        return width, base + pad + 4, mark(arrow, body, None, 'logo-mask', (mx, pad, mark_s)) + words
+        return width, base + pad + 4, mark(arrow, body, (mx, pad, mark_s)) + words
 
-    for name, (a, b, h, t) in {'logo-vertical.svg': (BLUE, ORANGE, INK, BLUE), 'logo-vertical-on-dark.svg': (CYAN, ORANGE, MIST, CYAN)}.items():
+    for name, (a, b, h, t) in {'logo-vertical.svg': (BLUE, ORANGE, INK, BLUE), 'logo-vertical-on-dark.svg': (SKY, ORANGE, MIST, SKY)}.items():
         w, hgt, body = vertical(a, b, h, t)
         (out / name).write_text(svg(w, hgt, body, 'Transferly'))
 
     # The mark alone, 64 grid.
-    for name, (a, b) in {'mark.svg': (BLUE, ORANGE), 'mark-on-dark.svg': (CYAN, ORANGE), 'mark-mono.svg': ('currentColor', 'currentColor')}.items():
-        (out / name).write_text(svg(64, 64, mark(a, b, None, 'mark-mask'), 'Transferly'))
+    for name, (a, b) in {'mark.svg': (BLUE, ORANGE), 'mark-on-dark.svg': (SKY, ORANGE), 'mark-mono.svg': ('currentColor', 'currentColor')}.items():
+        (out / name).write_text(svg(64, 64, mark(a, b), 'Transferly'))
 
 
 def app_icons(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
-    inset = (6.7, 8.3, 0.75)
+    inset = (32 - 32 * 0.72, 32 - 32 * 0.72, 0.72)
     grad = f'<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1565C0"/><stop offset="1" stop-color="{BLUE}"/></linearGradient></defs>'
-    (out / 'app-icon.svg').write_text(svg(64, 64, f'{grad}<rect width="64" height="64" rx="14" fill="url(#bg)"/>' + mark(WHITE, ORANGE, None, 'icon-mask', inset), 'Transferly'))
-    (out / 'app-icon-dark.svg').write_text(svg(64, 64, f'<circle cx="32" cy="32" r="32" fill="#1A1F22"/><circle cx="32" cy="32" r="31.25" fill="none" stroke="#262D31" stroke-width="1.5"/>' + mark(CYAN, ORANGE, None, 'icon-mask', (7.7, 9.3, 0.72)), 'Transferly'))
-    (out / 'app-icon-maskable.svg').write_text(svg(64, 64, f'{grad}<rect width="64" height="64" fill="url(#bg)"/>' + mark(WHITE, ORANGE, None, 'icon-mask', (11.75, 13, 0.6)), 'Transferly'))
+    (out / 'app-icon.svg').write_text(svg(64, 64, f'{grad}<rect width="64" height="64" rx="14" fill="url(#bg)"/>' + mark(FROST, ORANGE, inset), 'Transferly'))
+    (out / 'app-icon-dark.svg').write_text(svg(64, 64, f'<circle cx="32" cy="32" r="32" fill="#1A1F22"/><circle cx="32" cy="32" r="31.25" fill="none" stroke="#262D31" stroke-width="1.5"/>' + mark(SKY, ORANGE, (32 - 32 * 0.74, 32 - 32 * 0.74, 0.74)), 'Transferly'))
+    (out / 'app-icon-maskable.svg').write_text(svg(64, 64, f'{grad}<rect width="64" height="64" fill="url(#bg)"/>' + mark(FROST, ORANGE, (32 - 32 * 0.62, 32 - 32 * 0.62, 0.62)), 'Transferly'))
     # Favicon: transparent, the mark adapts to the browser theme.
     favicon = (
-        '<style>.a{stroke:' + BLUE + '}@media (prefers-color-scheme: dark){.a{stroke:' + CYAN + '}}</style>'
-        + mark(BLUE, ORANGE, None, 'fav-mask').replace(f'stroke="{BLUE}"', f'class="a" stroke="{BLUE}"')
+        '<style>@media (prefers-color-scheme: dark){.tf-arrow{color:' + SKY + '}}</style>'
+        + mark(BLUE, ORANGE)
     )
     (out / 'favicon.svg').write_text(svg(64, 64, favicon, 'Transferly'))
 

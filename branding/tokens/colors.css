@@ -2,7 +2,7 @@
 :root {
     --tf-core-blue: #0D47A1;
     --tf-action-orange: #FF9800;
-    --tf-status-cyan: #00BCD4;
+    --tf-sky-blue: #42A5F5;
     --tf-deep-grey: #121212;
     --tf-light-grey-blue: #E0F2F1;
     --tf-ink: #0A1F44;
@@ -26,16 +26,16 @@
     --tf-orange-700: #D17600;
     --tf-orange-800: #A65E00;
     --tf-orange-900: #7A4500;
-    --tf-cyan-50: #E0F7FA;
-    --tf-cyan-100: #B2EBF2;
-    --tf-cyan-200: #80DEEA;
-    --tf-cyan-300: #4DD0E1;
-    --tf-cyan-400: #26C6DA;
-    --tf-cyan-500: #00BCD4;
-    --tf-cyan-600: #00A5BA;
-    --tf-cyan-700: #008A9C;
-    --tf-cyan-800: #006E7D;
-    --tf-cyan-900: #00525D;
+    --tf-sky-50: #EAF4FE;
+    --tf-sky-100: #C9E3FC;
+    --tf-sky-200: #A3CFFA;
+    --tf-sky-300: #78B9F8;
+    --tf-sky-400: #5DAEF6;
+    --tf-sky-500: #42A5F5;
+    --tf-sky-600: #2E8FE0;
+    --tf-sky-700: #2277C4;
+    --tf-sky-800: #1A5FA0;
+    --tf-sky-900: #12477A;
     --tf-grey-50: #F4F8F8;
     --tf-grey-100: #E0F2F1;
     --tf-grey-200: #C9D6D8;
@@ -49,6 +49,6 @@
     --tf-success: #2E7D32;
     --tf-warning: #FF9800;
     --tf-danger: #D32F2F;
-    --tf-info: #00BCD4;
+    --tf-info: #42A5F5;
     --tf-accent: var(--tf-action-orange);
 }

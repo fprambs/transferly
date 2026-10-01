@@ -6,7 +6,7 @@ Visual identity for Transferly: logo, app icons, palette, typography and icons. 
 
 ## Logo
 
-The mark joins a transfer arrow, which loops into the bar of a **T**, with an **f** whose stem carries an upload arrow.
+The mark is a return arrow that loops into the bar of a **T**, passing behind a ribbon that draws the **f** of Transferly and rises back as an upload arrow.
 
 | File | Use |
 | --- | --- |
@@ -17,13 +17,13 @@ The mark joins a transfer arrow, which loops into the bar of a **T**, with an **
 | `logo/logo-mono.svg`, `logo/mark-mono.svg` | One color; they take `currentColor` |
 | `logo/mark.svg`, `logo/mark-on-dark.svg` | The mark alone, for the top bar |
 
-On dark surfaces Core Blue becomes Status Cyan. Keep a clear space of half the mark's height around the logo, and do not use the mark below 16 px.
+On dark surfaces Core Blue becomes Sky Blue. Keep a clear space of half the mark's height around the logo, and do not use the mark below 16 px.
 
 ## Application icon
 
 | File | Use |
 | --- | --- |
-| `app-icon/favicon.svg` | Browser tab; switches to cyan in dark mode |
+| `app-icon/favicon.svg` | Browser tab; switches its arrow to Sky Blue in dark mode |
 | `app-icon/app-icon.svg` | Rounded square, light |
 | `app-icon/app-icon-dark.svg` | Circle, dark |
 | `app-icon/app-icon-maskable.svg` | PWA maskable icon, full bleed with a safe zone |
@@ -34,7 +34,7 @@ On dark surfaces Core Blue becomes Status Cyan. Keep a clear space of half the m
 | --- | --- | --- |
 | Core Blue | `#0D47A1` | Brand, links, primary actions on light surfaces |
 | Action Orange | `#FF9800` | Calls to action, active transfers, highlights |
-| Status Cyan | `#00BCD4` | Live connections and progress; brand blue on dark |
+| Sky Blue | `#42A5F5` | Brand blue on dark surfaces, progress and information |
 | Deep Grey | `#121212` | Dark surfaces |
 | Light Grey-Blue | `#E0F2F1` | Light surfaces and text on dark |
 | Ink | `#0A1F44` | Wordmark and headings on light surfaces |
