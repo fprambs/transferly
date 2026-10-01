@@ -326,6 +326,14 @@ El producto se publica como Transferly: un solo nombre en código, operación e 
 - [x] Muestras de `testenv/preview-samples` regeneradas con el nombre nuevo
 - [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con la marca nueva
 
+## Color con función (pedido del 2026-10-01)
+
+La interfaz usaba casi solo grises: el color pasa a decir algo, siempre desde los tokens del tema. Decisiones en [ADR-0021](adr/0021-site-color-labels.md).
+
+- [x] Color por estado: barras de transferencia con franjas de marca mientras avanzan y colores de éxito, error y pausa; contadores de color en el panel; pasos del registro que salen bien en verde; «Subir» como acción principal; «Conectado» junto a la ruta; ícono del protocolo de cada sitio, que avisa cuando FTP puede ir o va sin cifrar; bóveda abierta en verde
+- [x] Marca en pantallas clave: inicio de sesión, primer arranque e invitaciones junto a un panel de marca; ilustraciones en los estados vacíos; el símbolo se dibuja mientras se abre una conexión; íconos propios en los encabezados de sitios, registro y transferencias
+- [x] Etiqueta de color por sitio (ocho colores): barra en la lista de sitios, borde de sus pestañas y línea sobre la ruta del explorador; el importador de FileZilla lee su `Colour` y la exportación cifrada la conserva
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común
