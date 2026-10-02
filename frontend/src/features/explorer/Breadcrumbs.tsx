@@ -58,13 +58,13 @@ export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
           return (
             <Fragment key={segment.path}>
               {index > 1 && <ChevronRight aria-hidden="true" className="size-3 shrink-0 text-faint rtl:-scale-x-100" />}
-              <li className="min-w-0">
+              <li className={cn('max-w-48 min-w-0', current && 'shrink-0')}>
                 <button
                   type="button"
                   aria-current={current ? 'page' : undefined}
                   onClick={() => onNavigate(segment.path)}
                   className={cn(
-                    'max-w-48 cursor-pointer truncate rounded px-1.5 py-0.5 hover:bg-accent',
+                    'block max-w-full cursor-pointer truncate rounded px-1.5 py-0.5 hover:bg-accent',
                     current ? 'font-medium text-foreground' : 'text-muted-foreground',
                   )}
                 >
