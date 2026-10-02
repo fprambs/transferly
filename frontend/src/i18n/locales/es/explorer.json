@@ -433,5 +433,10 @@
     "noneTitle": "Nada coincide con el filtro",
     "noneBody": "Ninguno de los {{total}} elementos de esta carpeta coincide. Cambia o quita el filtro.",
     "text": "Texto"
+  },
+  "notices": {
+    "created": "Carpeta {{name}} creada.",
+    "renamed": "{{from}} renombrado a {{to}}.",
+    "deleted": "{{name}} eliminado."
   }
 }

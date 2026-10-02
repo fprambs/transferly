@@ -30,6 +30,7 @@ import { Breadcrumbs } from './Breadcrumbs'
 import { TimeZoneProbe } from './TimeZoneProbe'
 import { localSiteId, readLocalFile } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
+import { useNotices } from '../notices/notices-store'
 import { readDropped, treeFromHandle, treeFromInput, TreeTooLarge, type UploadTree } from '../local/tree'
 import { collectFiles, eachDelayMs, maxEachFiles, preparingTimeoutMs, startDownload, TooManyFiles } from './download'
 import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from './entry-drag'
@@ -118,6 +119,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const detailsOpen = useUiStore((state) => state.detailsOpen)
   const setDetailsOpen = useUiStore((state) => state.setDetailsOpen)
   const narrow = useNarrow()
+  const notify = useNotices((state) => state.notify)
   const details = useCollapsible(detailsOpen && !narrow, setDetailsOpen)
   const beside = useDefaultLayout({ id: `transferly-details-${pane}`, storage: layoutStorage })
   const reconnect = useConnectionState((state) => state.reconnect)
@@ -636,6 +638,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           onSubmit={async (name) => {
             const created = await api.files.mkdir(workspaceId, siteId, joinPath(path, name))
             setSelectedPath(created.path)
+            notify(t(($) => $.notices.created, { name }))
             await reload()
           }}
           onClose={() => setDialog(null)}
@@ -648,6 +651,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           onSubmit={async (name) => {
             const renamed = await api.files.rename(workspaceId, siteId, dialog.entry.path, joinPath(path, name))
             setSelectedPath(renamed.path)
+            notify(t(($) => $.notices.renamed, { from: dialog.entry.name, to: name }))
             await reload()
           }}
           onClose={() => setDialog(null)}
@@ -669,6 +673,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           entry={dialog.entry}
           onDelete={async (recursive) => {
             await api.files.remove(workspaceId, siteId, dialog.entry.path, recursive)
+            notify(t(($) => $.notices.deleted, { name: dialog.entry.name }))
             await reload()
           }}
           onClose={() => setDialog(null)}

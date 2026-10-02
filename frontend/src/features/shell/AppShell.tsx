@@ -26,6 +26,7 @@ import { TransfersDock } from '@/features/transfers/TransfersDock'
 import { useAccountPreferences } from '@/features/settings/use-account-preferences'
 import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { ShortcutsDialog } from '@/features/shortcuts/ShortcutsDialog'
+import { Notices } from '@/features/notices/Notices'
 import { useTransferStream } from '@/features/transfers/use-transfer-stream'
 
 /** Height of the transfers panel while collapsed: its header, which keeps the button that opens it again. */
@@ -141,6 +142,7 @@ export function AppShell() {
       <PromptDialog />
       <SettingsDialog />
       <ShortcutsDialog />
+      <Notices />
     </div>
   )
 }

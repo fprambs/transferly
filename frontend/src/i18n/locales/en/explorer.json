@@ -433,5 +433,10 @@
     "noneTitle": "Nothing matches the filter",
     "noneBody": "None of the {{total}} entries of this folder matches. Change or clear the filter.",
     "text": "Text"
+  },
+  "notices": {
+    "created": "Created the folder {{name}}.",
+    "renamed": "Renamed {{from}} to {{to}}.",
+    "deleted": "Deleted {{name}}."
   }
 }

@@ -387,7 +387,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 15. Pantallas angostas (menos de 768 px): sitios siempre en el riel con su hoja deslizable, detalles ocultos, buscador como ícono, tabla con solo nombre y tamaño; las transferencias quedan como barra inferior plegada (punto 2)
 - [x] 16. Paleta con las secciones de la configuración y los sitios recientes
 - [x] 17. Ayuda de atajos con ?
-- [ ] 18. Avisos breves tras renombrar, borrar o crear carpeta, con acceso al log
+- [x] 18. Avisos breves tras renombrar, borrar o crear carpeta, con acceso al log
 
 ## Fase 5: Escala e integraciones
 

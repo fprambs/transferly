@@ -100,5 +100,10 @@
       "filter": "Filter the folder"
     },
     "palette": "Keyboard shortcuts"
+  },
+  "notices": {
+    "label": "Notices",
+    "log": "View log",
+    "dismiss": "Dismiss"
   }
 }

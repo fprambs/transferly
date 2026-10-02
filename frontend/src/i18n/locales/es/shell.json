@@ -100,5 +100,10 @@
       "filter": "Filtrar la carpeta"
     },
     "palette": "Atajos de teclado"
+  },
+  "notices": {
+    "label": "Avisos",
+    "log": "Ver log",
+    "dismiss": "Descartar"
   }
 }

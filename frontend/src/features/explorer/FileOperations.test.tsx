@@ -8,6 +8,8 @@ import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/ha
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 
+import { useNotices } from '../notices/notices-store'
+
 import { Explorer } from './Explorer'
 
 /** Workspace the mock server answers for. */
@@ -76,11 +78,13 @@ async function renderExplorer() {
  * - names are validated before calling the server, and server failures are shown
  * - a file is deleted with the Delete key or the context menu and a folder only with its contents when asked to
  * - deleting can be cancelled and a failure is shown
+ * - creating a folder, renaming and deleting each leave a short notice of what was done
  * - the context menu offers Open only for folders and selects the row it opens on; its actions show the key that does the same, out of
  *   their names, and Delete is drawn as destructive
  */
 describe('file operations', () => {
   beforeEach(() => {
+    useNotices.setState({ notices: [], next: 1 })
     mockSession(adminSession)
     mockWorkspaceData({ sites: [prod] })
   })
@@ -116,6 +120,7 @@ describe('file operations', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(seen).toEqual(['mkdir {"path":"/www/releases"}'])
+    expect(useNotices.getState().notices.map((notice) => notice.text)).toEqual(['Created the folder releases.'])
   })
 
   it('creates a folder from the context menu', async () => {
@@ -143,6 +148,7 @@ describe('file operations', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Rename' }))
 
     await waitFor(() => expect(seen).toEqual(['rename {"from":"/www/assets","to":"/www/static"}']))
+    expect(useNotices.getState().notices.map((notice) => notice.text)).toEqual(['Renamed assets to static.'])
   })
 
   it('renames with F2 and from the context menu', async () => {
@@ -225,6 +231,7 @@ describe('file operations', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(seen).toEqual(['delete /www/index.html recursive=null']))
+    expect(useNotices.getState().notices.map((notice) => notice.text)).toEqual(['Deleted index.html.'])
   })
 
   it('deletes from the context menu', async () => {
