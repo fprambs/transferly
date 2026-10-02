@@ -218,8 +218,9 @@ describe('SitesSidebar', () => {
     await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
     expect(await screen.findByRole('button', { name: /Quick connect/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New collection' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New site' })).toBeInTheDocument()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'More site actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'New collection' })).toBeInTheDocument()
   })
 
   it('speaks the interface language', async () => {

@@ -390,21 +390,36 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
           <BrandIcon name="sites" className="size-3.5" />
           {t(($) => $.sidebar.sites)}
         </h2>
-        <div className="flex gap-1">
-          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newCollection)} onClick={() => setTarget({ mode: 'create' })}>
-            <FolderPlus />
-          </Button>
-          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.importSites)} onClick={() => setImporting(true)}>
-            <FileInput />
-          </Button>
-          {canExport(workspace) && (
-            <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.exportSites)} onClick={() => setExporting(true)}>
-              <FileLock2 />
+        <div className="flex gap-0.5">
+          <Tip label={t(($) => $.sidebar.newSite)}>
+            <Button variant="ghost" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
+              <Plus />
             </Button>
-          )}
-          <Button variant="outline" size="icon-xs" aria-label={t(($) => $.sidebar.newSite)} onClick={() => setSiteTarget({ mode: 'create' })}>
-            <Plus />
-          </Button>
+          </Tip>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={t(($) => $.sidebar.more)}
+              className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground data-popup-open:bg-accent data-popup-open:text-foreground"
+            >
+              <Ellipsis aria-hidden="true" className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => setTarget({ mode: 'create' })}>
+                <FolderPlus aria-hidden="true" />
+                {t(($) => $.sidebar.newCollection)}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setImporting(true)}>
+                <FileInput aria-hidden="true" />
+                {t(($) => $.sidebar.importSites)}
+              </DropdownMenuItem>
+              {canExport(workspace) && (
+                <DropdownMenuItem onClick={() => setExporting(true)}>
+                  <FileLock2 aria-hidden="true" />
+                  {t(($) => $.sidebar.exportSites)}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {onHide !== undefined && (
             <Tip label={t(($) => $.sidebar.hide)} shortcut="Mod+B">
               <Button variant="ghost" size="icon-xs" aria-label={t(($) => $.sidebar.hide)} onClick={onHide}>

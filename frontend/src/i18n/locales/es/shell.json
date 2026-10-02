@@ -25,7 +25,8 @@
     "browse": "Explorar los sitios",
     "rail": "Sitios, panel oculto",
     "connected": "Conectado",
-    "exportSites": "Exportar sitios"
+    "exportSites": "Exportar sitios",
+    "more": "Más acciones de sitios"
   },
   "queue": {
     "title": "Transferencias",

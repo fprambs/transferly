@@ -35,7 +35,8 @@ test.describe('import and export sites', () => {
     await writeFile(file, xml)
 
     await page.goto('/')
-    await page.getByRole('button', { name: 'Import sites' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'Import sites' }).click()
     const dialog = page.getByRole('dialog', { name: 'Import sites' })
     await dialog.getByLabel('File to import').setInputFiles(file)
     await expect(dialog.getByText('FileZilla site manager')).toBeVisible()
@@ -75,7 +76,8 @@ test.describe('import and export sites', () => {
     await form.getByRole('button', { name: 'Create site' }).click()
     await expect(form).toBeHidden()
 
-    await page.getByRole('button', { name: 'Export sites' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'Export sites' }).click()
     const exporting = page.getByRole('dialog', { name: 'Export sites' })
     await exporting.getByLabel('File password').fill('a long export password')
     await exporting.getByLabel('Repeat the password').fill('a long export password')
@@ -88,7 +90,8 @@ test.describe('import and export sites', () => {
     expect(text).toContain('"format": "transferly-export"')
     expect(text).not.toContain(name)
 
-    await page.getByRole('button', { name: 'Import sites' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'Import sites' }).click()
     const dialog = page.getByRole('dialog', { name: 'Import sites' })
     await dialog.getByLabel('File to import').setInputFiles(file)
     await expect(dialog.getByText('Transferly export, encrypted')).toBeVisible()

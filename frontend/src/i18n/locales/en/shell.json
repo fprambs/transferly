@@ -25,7 +25,8 @@
     "browse": "Browse the sites",
     "rail": "Sites, panel hidden",
     "connected": "Connected",
-    "exportSites": "Export sites"
+    "exportSites": "Export sites",
+    "more": "More site actions"
   },
   "queue": {
     "title": "Transfers",

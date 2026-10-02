@@ -193,7 +193,8 @@ describe('ImportDialog', () => {
     const user = userEvent.setup()
     await renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Import sites' }))
+    await user.click(await screen.findByRole('button', { name: 'More site actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Import sites' }))
 
     expect(await screen.findByRole('dialog', { name: 'Import sites' })).toBeInTheDocument()
     await user.keyboard('{Escape}')

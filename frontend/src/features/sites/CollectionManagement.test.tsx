@@ -58,7 +58,8 @@ describe('collection management', () => {
     )
     const user = await renderSidebar()
 
-    await user.click(screen.getByRole('button', { name: 'New collection' }))
+    await user.click(await screen.findByRole('button', { name: 'More site actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'New collection' }))
     const dialog = await screen.findByRole('dialog', { name: 'New collection' })
     await user.type(within(dialog).getByLabelText('Name'), ' New ')
     await user.click(within(dialog).getByRole('button', { name: 'Create' }))
@@ -77,7 +78,8 @@ describe('collection management', () => {
     )
     const user = await renderSidebar()
 
-    await user.click(screen.getByRole('button', { name: 'New collection' }))
+    await user.click(await screen.findByRole('button', { name: 'More site actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'New collection' }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Name'), 'New')
     await choose(user, within(dialog).getByLabelText('Inside'), 'Home')
@@ -143,7 +145,8 @@ describe('collection management', () => {
   it('requires a name and explains a server error', async () => {
     server.use(http.post('/api/v1/workspaces/:id/collections', () => problem(409, 'collection_name_taken')))
     const user = await renderSidebar()
-    await user.click(screen.getByRole('button', { name: 'New collection' }))
+    await user.click(await screen.findByRole('button', { name: 'More site actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'New collection' }))
     const dialog = await screen.findByRole('dialog')
 
     await user.click(within(dialog).getByRole('button', { name: 'Create' }))

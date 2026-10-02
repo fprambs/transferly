@@ -29,7 +29,8 @@ test.describe('sites sidebar', () => {
     const { page } = shell
     const name = unique('Collection')
 
-    await page.getByRole('button', { name: 'New collection' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'New collection' }).click()
     await page.getByRole('dialog').getByLabel('Name').fill(name)
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
 
@@ -39,7 +40,8 @@ test.describe('sites sidebar', () => {
   test('keeps the actions menu next to its button when the pointer moves away', async ({ shell }) => {
     const { page } = shell
     const name = unique('Menu')
-    await page.getByRole('button', { name: 'New collection' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'New collection' }).click()
     await page.getByRole('dialog').getByLabel('Name').fill(name)
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
     const row = page.getByRole('treeitem', { name: new RegExp(name) })
@@ -71,7 +73,8 @@ test.describe('sites sidebar', () => {
   test('shows hover, pointer and selection feedback on rows and menu items', async ({ shell }) => {
     const { page } = shell
     const name = unique('Feedback')
-    await page.getByRole('button', { name: 'New collection' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'New collection' }).click()
     await page.getByRole('dialog').getByLabel('Name').fill(name)
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
     const row = page.getByRole('treeitem', { name: new RegExp(name) })
@@ -102,7 +105,8 @@ test.describe('sites sidebar', () => {
     const { page } = shell
     const collection = unique('Group')
     const site = unique('Site')
-    await page.getByRole('button', { name: 'New collection' }).click()
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'New collection' }).click()
     await page.getByRole('dialog').getByLabel('Name').fill(collection)
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click()
     await page.getByRole('treeitem', { name: new RegExp(collection) }).hover()

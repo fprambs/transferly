@@ -105,7 +105,8 @@ describe('ExportDialog', () => {
     const user = userEvent.setup()
     await renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Export sites' }))
+    await user.click(await screen.findByRole('button', { name: 'More site actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Export sites' }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Export sites' }))
     await user.type(dialog.getByLabelText('File password'), 'a long export password')
     await user.type(dialog.getByLabelText('Repeat the password'), 'a long export password')
@@ -121,7 +122,8 @@ describe('ExportDialog', () => {
   it('offers the export to admins and owners only', async () => {
     mockWorkspaceData({ workspaces: [{ ...personalWorkspace, kind: 'team', name: 'Acme', role: 'editor' }] })
     await renderApp()
-    expect(await screen.findByRole('button', { name: 'Import sites' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Export sites' })).not.toBeInTheDocument()
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'More site actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'Import sites' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Export sites' })).not.toBeInTheDocument()
   })
 })
