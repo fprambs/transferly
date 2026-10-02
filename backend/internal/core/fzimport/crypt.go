@@ -74,6 +74,7 @@ func DecryptCryptPassword(masterPassword, xmlPubKey, xmlPass string) (string, er
 	return string(plain), nil
 }
 
+// decodeCryptBase64 reads FileZilla crypt fields that may carry whitespace or missing padding.
 func decodeCryptBase64(raw string) ([]byte, error) {
 	clean := strings.NewReplacer(" ", "", "\n", "", "\r", "").Replace(strings.TrimSpace(raw))
 	if clean == "" {
@@ -89,6 +90,7 @@ func decodeCryptBase64(raw string) ([]byte, error) {
 	return out, nil
 }
 
+// deriveCryptPrivateKey turns the master password and salt into a clamped Curve25519 private key.
 func deriveCryptPrivateKey(password string, salt []byte) []byte {
 	key := pbkdf2.Key([]byte(password), salt, cryptPBKDF2Iter, cryptKeySize, sha256.New)
 	key[0] &= 248
@@ -97,6 +99,7 @@ func deriveCryptPrivateKey(password string, salt []byte) []byte {
 	return key
 }
 
+// cryptHashAccumulator mixes the ephemeral salt, kind byte and key material into a 32-byte digest.
 func cryptHashAccumulator(ephemeralSalt []byte, kind byte, shared, ephemeralKey, storedPublicKey, mySalt []byte) []byte {
 	h := sha256.New()
 	for _, part := range [][]byte{ephemeralSalt, {kind}, shared, ephemeralKey, storedPublicKey, mySalt} {
