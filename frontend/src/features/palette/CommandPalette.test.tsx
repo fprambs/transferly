@@ -10,6 +10,7 @@ import { renderApp } from '@/test/render-app'
 import { useDialogsStore } from '@/state/dialogs-store'
 import { useUiStore } from '@/state/ui-store'
 
+import { useRecentSites } from '../sites/recent-sites'
 import { useTabs } from '../tabs/tabs-store'
 
 /** Builds a saved site. */
@@ -71,15 +72,16 @@ function option(palette: HTMLElement, name: string | RegExp): Promise<HTMLElemen
  * - on an open site it refreshes, disconnects and focuses the filter of the folder; canceling is off while nothing runs
  * - it lists the tabs, marking the current one, and goes to another
  * - it lists the bookmarks of the site in focus and opens one in its pane, the second pane included
- * - a search by host finds a site, which opens, and connected sites say so
+ * - a search by host finds a site, which opens, and connected sites say so; the sites opened last come first under Recent, once each
  * - the panels are shown and hidden, with the shortcut of the sites panel
- * - the pages open, members and the audit log only in a team whoever may see them, administration only for administrators
+ * - the pages open, security among them, members and the audit log only in a team whoever may see them, administration only for administrators
  */
 describe('command palette', () => {
   beforeEach(() => {
     mockSession(adminSession)
     mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Backup')], connected: ['s2'], bookmarks: [{ id: 'b1', name: 'Logs', path: '/var/log', createdAt: '2026-01-01T00:00:00Z' }] })
     useUiStore.setState({ sitesOpen: true, logOpen: true, detailsOpen: true, queueOpen: true })
+    useRecentSites.setState({ recent: {} })
   })
 
   afterEach(() => {
@@ -198,6 +200,20 @@ describe('command palette', () => {
     await waitFor(() => expect(history.location.pathname).toBe('/sites/s1'))
   })
 
+  it('offers the sites opened last first, once each', async () => {
+    useRecentSites.setState({ recent: { [personalWorkspace.id]: ['s2'] } })
+    await renderApp({ path: '/' })
+    const palette = await openPalette()
+    await option(palette, /Backup/)
+
+    expect(within(palette).getByText('Recent')).toBeInTheDocument()
+    const names = within(palette)
+      .getAllByRole('option')
+      .map((item) => item.textContent ?? '')
+    expect(names.filter((name) => name.includes('Backup'))).toHaveLength(1)
+    expect(names.findIndex((name) => name.includes('Backup'))).toBeLessThan(names.findIndex((name) => name.includes('Prod')))
+  })
+
   it('shows and hides the panels', async () => {
     const user = userEvent.setup()
     await renderApp({ path: '/' })
@@ -227,6 +243,9 @@ describe('command palette', () => {
     palette = await openPalette()
     await user.click(await option(palette, 'Settings'))
     await waitFor(() => expect(history.location.search).toContain('settings=general'))
+    palette = await openPalette()
+    await user.click(await option(palette, 'Security'))
+    await waitFor(() => expect(history.location.search).toContain('settings=security'))
     palette = await openPalette()
     await user.click(await option(palette, 'Administration'))
     await waitFor(() => expect(history.location.search).toContain('settings=admin'))

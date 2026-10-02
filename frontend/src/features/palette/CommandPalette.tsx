@@ -5,6 +5,7 @@ import {
   CircleStop,
   KeyRound,
   ListFilter,
+  Lock,
   type LucideIcon,
   RefreshCw,
   ScrollText,
@@ -29,6 +30,7 @@ import { useUiStore } from '@/state/ui-store'
 import { useSession } from '../auth/use-session'
 import { useBookmarks } from '../bookmarks/use-bookmarks'
 import { useOpenConnections } from '../sites/use-open-connections'
+import { useRecentSites } from '../sites/recent-sites'
 import { useSitesData } from '../sites/use-sites-data'
 import { useSettingsDialog } from '../settings/sections'
 import { useTabs } from '../tabs/tabs-store'
@@ -90,6 +92,9 @@ export interface CommandPaletteProps {
   onOpenSite: (siteId: string) => void
 }
 
+/** No recent sites; stable, so the store selector does not rerender for nothing. */
+const noRecent: string[] = []
+
 /**
  * The command palette (4.14c): the main modifier and K (Ctrl on Windows and Linux, ⌘ on Apple systems) or the button of the top bar open
  * it, and a search reaches the actions on the connection in focus, the tabs, the bookmarks of the site in view, every site, the panels
@@ -119,6 +124,10 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
   const bookmarks = useBookmarks(workspace?.id ?? '', bookmarkedSite?.id ?? '', open && bookmarkedSite !== undefined)
   const bookmarkList = bookmarks.data ?? []
   const names = new Map([...sites, ...quick].map((connection) => [connection.id, connection.name]))
+  const recentIds = useRecentSites((state) => (workspace === undefined ? noRecent : (state.recent[workspace.id] ?? noRecent)))
+  const connections = [...sites, ...quick]
+  const recent = recentIds.flatMap((id) => connections.filter((connection) => connection.id === id))
+  const others = connections.filter((connection) => !recentIds.includes(connection.id))
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -135,6 +144,18 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
     setOpen(false)
     action()
   }
+  const siteItem = (connection: (typeof connections)[number], value: string) => (
+    <Item
+      key={value}
+      value={value}
+      keywords={[connection.name, connection.host, connection.username]}
+      icon={'secrets' in connection ? Server : Zap}
+      label={connection.name}
+      detail={`${connection.username}@${connection.host}`}
+      end={connected.has(connection.id) ? <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-ok" />{t(($) => $.sidebar.connected)}</span> : undefined}
+      onSelect={run(() => onOpenSite(connection.id))}
+    />
+  )
   const openBookmark = (path: string): void => {
     const view = match as NonNullable<typeof match>
     const pane = view.params.siteId === target?.siteId ? 'path' : 'splitPath'
@@ -189,19 +210,17 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
                 ))}
               </Command.Group>
             )}
-            {sites.length + quick.length > 0 && (
+            {recent.length > 0 && (
+              <Command.Group heading={t(($) => $.palette.groups.recent)}>
+                {recent.map((connection) => (
+                  siteItem(connection, `recent-${connection.id}`)
+                ))}
+              </Command.Group>
+            )}
+            {others.length > 0 && (
               <Command.Group heading={t(($) => $.palette.groups.sites)}>
-                {[...sites, ...quick].map((connection) => (
-                  <Item
-                    key={connection.id}
-                    value={`site-${connection.id}`}
-                    keywords={[connection.name, connection.host, connection.username]}
-                    icon={'secrets' in connection ? Server : Zap}
-                    label={connection.name}
-                    detail={`${connection.username}@${connection.host}`}
-                    end={connected.has(connection.id) ? <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-ok" />{t(($) => $.sidebar.connected)}</span> : undefined}
-                    onSelect={run(() => onOpenSite(connection.id))}
-                  />
+                {others.map((connection) => (
+                  siteItem(connection, `site-${connection.id}`)
                 ))}
               </Command.Group>
             )}
@@ -223,6 +242,7 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
             </Command.Group>
             <Command.Group heading={t(($) => $.palette.groups.pages)}>
               <Item value="page-settings" keywords={[t(($) => $.palette.pages.settings)]} icon={Settings} label={t(($) => $.palette.pages.settings)} onSelect={run(() => settingsDialog.open('general'))} />
+              <Item value="page-security" keywords={[t(($) => $.palette.pages.security)]} icon={Lock} label={t(($) => $.palette.pages.security)} onSelect={run(() => settingsDialog.open('security'))} />
               <Item value="page-servers" keywords={[t(($) => $.palette.pages.servers)]} icon={ShieldCheck} label={t(($) => $.palette.pages.servers)} onSelect={run(() => settingsDialog.open('servers'))} />
               {workspace?.kind === 'team' && <Item value="page-members" keywords={[t(($) => $.palette.pages.members)]} icon={Users} label={t(($) => $.palette.pages.members)} onSelect={run(() => settingsDialog.open('members'))} />}
               {workspace?.kind === 'team' && canManageMembers(workspace.role) && <Item value="page-audit" keywords={[t(($) => $.palette.pages.audit)]} icon={ScrollText} label={t(($) => $.palette.pages.audit)} onSelect={run(() => settingsDialog.open('audit'))} />}

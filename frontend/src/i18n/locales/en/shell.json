@@ -51,10 +51,12 @@
       "bookmarks": "Bookmarks of {{site}}",
       "sites": "Sites",
       "panels": "Panels",
-      "pages": "Go to"
+      "pages": "Go to",
+      "recent": "Recent"
     },
     "pages": {
       "settings": "Settings",
+      "security": "Security",
       "servers": "Trusted servers",
       "members": "Members",
       "audit": "Audit log",

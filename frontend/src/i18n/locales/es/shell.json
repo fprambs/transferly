@@ -51,10 +51,12 @@
       "bookmarks": "Marcadores de {{site}}",
       "sites": "Sitios",
       "panels": "Paneles",
-      "pages": "Ir a"
+      "pages": "Ir a",
+      "recent": "Recientes"
     },
     "pages": {
       "settings": "Ajustes",
+      "security": "Seguridad",
       "servers": "Servidores de confianza",
       "members": "Miembros",
       "audit": "Registro de auditoría",
