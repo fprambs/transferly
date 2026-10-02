@@ -4,6 +4,7 @@ import {
   Bookmark,
   CircleStop,
   KeyRound,
+  Keyboard,
   ListFilter,
   Lock,
   type LucideIcon,
@@ -107,6 +108,7 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
   const open = useDialogsStore((state) => state.paletteOpen)
   const setOpen = useDialogsStore((state) => state.setPaletteOpen)
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
+  const setShortcutsOpen = useDialogsStore((state) => state.setShortcutsOpen)
   const navigate = useNavigate()
   const settingsDialog = useSettingsDialog()
   const workspace = useWorkspace()
@@ -247,6 +249,7 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
               {workspace?.kind === 'team' && <Item value="page-members" keywords={[t(($) => $.palette.pages.members)]} icon={Users} label={t(($) => $.palette.pages.members)} onSelect={run(() => settingsDialog.open('members'))} />}
               {workspace?.kind === 'team' && canManageMembers(workspace.role) && <Item value="page-audit" keywords={[t(($) => $.palette.pages.audit)]} icon={ScrollText} label={t(($) => $.palette.pages.audit)} onSelect={run(() => settingsDialog.open('audit'))} />}
               {session?.user.role === 'admin' && <Item value="page-admin" keywords={[t(($) => $.palette.pages.admin)]} icon={KeyRound} label={t(($) => $.palette.pages.admin)} onSelect={run(() => settingsDialog.open('admin'))} />}
+              <Item value="page-shortcuts" keywords={[t(($) => $.shortcuts.palette), 'keyboard']} icon={Keyboard} label={t(($) => $.shortcuts.palette)} end={<Keys spec="?" />} onSelect={run(() => setShortcutsOpen(true))} />
             </Command.Group>
           </Command.List>
           <div className="flex items-center gap-4 border-t px-3 py-2 text-[11px] text-muted-foreground">

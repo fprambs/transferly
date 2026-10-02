@@ -10,6 +10,10 @@ export interface DialogsState {
   paletteOpen: boolean
   /** Opens or closes the command palette. */
   setPaletteOpen: (open: boolean) => void
+  /** Whether the help of the keyboard shortcuts is open. */
+  shortcutsOpen: boolean
+  /** Opens or closes the help of the keyboard shortcuts. */
+  setShortcutsOpen: (open: boolean) => void
 }
 
 /** Store of the global dialogs, so any part of the shell can open them. */
@@ -18,4 +22,6 @@ export const useDialogsStore = create<DialogsState>()((set) => ({
   setQuickConnectOpen: (quickConnectOpen) => set({ quickConnectOpen }),
   paletteOpen: false,
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+  shortcutsOpen: false,
+  setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
 }))

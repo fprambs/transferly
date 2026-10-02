@@ -73,5 +73,32 @@
       "details": "the details panel",
       "transfers": "the transfers panel"
     }
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "description": "Press ? anywhere outside a field to see them again.",
+    "or": "or",
+    "groups": {
+      "general": "General",
+      "tabs": "Tabs",
+      "files": "Files"
+    },
+    "does": {
+      "palette": "Search or run a command",
+      "quickConnect": "Quick connect",
+      "sites": "Show or hide the sites panel",
+      "help": "These shortcuts",
+      "nextTab": "Next tab",
+      "previousTab": "Previous tab",
+      "closeTab": "Close the tab",
+      "move": "Move through the list",
+      "open": "Open a folder, or a file as the double click does",
+      "preview": "Preview a file",
+      "up": "Up one level",
+      "rename": "Rename",
+      "delete": "Delete",
+      "filter": "Filter the folder"
+    },
+    "palette": "Keyboard shortcuts"
   }
 }

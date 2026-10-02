@@ -73,5 +73,32 @@
       "details": "el panel de detalles",
       "transfers": "el panel de transferencias"
     }
+  },
+  "shortcuts": {
+    "title": "Atajos de teclado",
+    "description": "Pulsa ? fuera de un campo para volver a verlos.",
+    "or": "o",
+    "groups": {
+      "general": "General",
+      "tabs": "Pestañas",
+      "files": "Archivos"
+    },
+    "does": {
+      "palette": "Buscar o ejecutar un comando",
+      "quickConnect": "Conexión rápida",
+      "sites": "Mostrar u ocultar el panel de sitios",
+      "help": "Estos atajos",
+      "nextTab": "Pestaña siguiente",
+      "previousTab": "Pestaña anterior",
+      "closeTab": "Cerrar la pestaña",
+      "move": "Moverse por la lista",
+      "open": "Abrir una carpeta, o un archivo como lo hace el doble clic",
+      "preview": "Vista previa de un archivo",
+      "up": "Subir un nivel",
+      "rename": "Renombrar",
+      "delete": "Eliminar",
+      "filter": "Filtrar la carpeta"
+    },
+    "palette": "Atajos de teclado"
   }
 }
