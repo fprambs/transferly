@@ -19,6 +19,7 @@
   "breadcrumbs": "Ruta",
   "pathEdit": "Editar la ruta",
   "pathField": "Ruta de la carpeta",
+  "pathHidden": "Carpetas intermedias",
   "columns": {
     "name": "Nombre",
     "size": "Tamaño",

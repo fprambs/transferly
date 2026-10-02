@@ -1,7 +1,8 @@
-import { ChevronRight, PencilLine } from 'lucide-react'
+import { ChevronRight, Ellipsis, PencilLine } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -16,12 +17,14 @@ export interface BreadcrumbsProps {
 }
 
 /**
- * Path of the folder in view as clickable steps; the last one is the current folder. Its pencil, or a double click beside the steps, turns
+ * Path of the folder in view as clickable steps; the last one is the current folder. In a narrow pane the steps between the root and
+ * the last two fold into a menu, so the ones that stay keep a readable width. Its pencil, or a double click beside the steps, turns
  * it into a field to type a path: Enter goes there, Escape or leaving the field puts the steps back.
  */
 export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
   const { t } = useTranslation('explorer')
   const segments = pathSegments(path)
+  const hidden = segments.slice(1, -2)
   const [editing, setEditing] = useState(false)
 
   if (editing) {
@@ -55,10 +58,11 @@ export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
       <ol className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden font-mono text-[13px] whitespace-nowrap">
         {segments.map((segment, index) => {
           const current = index === segments.length - 1
+          const folds = hidden.includes(segment)
           return (
             <Fragment key={segment.path}>
-              {index > 1 && <ChevronRight aria-hidden="true" className="size-3 shrink-0 text-faint rtl:-scale-x-100" />}
-              <li className={cn('max-w-48 min-w-0', current && 'shrink-0')}>
+              {index > 1 && <ChevronRight aria-hidden="true" className={cn('size-3 shrink-0 text-faint rtl:-scale-x-100', folds && '@max-3xl:hidden')} />}
+              <li className={cn('max-w-48 min-w-[4ch]', current && 'shrink-0', folds && '@max-3xl:hidden')}>
                 <button
                   type="button"
                   aria-current={current ? 'page' : undefined}
@@ -71,6 +75,25 @@ export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
                   {segment.name}
                 </button>
               </li>
+              {index === 0 && hidden.length > 0 && (
+                <li className="shrink-0 @3xl:hidden">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label={t(($) => $.pathHidden)}
+                      className="flex h-6 items-center rounded px-1 text-muted-foreground hover:bg-accent hover:text-foreground data-popup-open:bg-accent"
+                    >
+                      <Ellipsis aria-hidden="true" className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-40 font-mono text-[13px]">
+                      {hidden.map((folder) => (
+                        <DropdownMenuItem key={folder.path} onClick={() => onNavigate(folder.path)}>
+                          {folder.path}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              )}
             </Fragment>
           )
         })}

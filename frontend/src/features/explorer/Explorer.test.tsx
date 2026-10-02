@@ -88,7 +88,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - directories open with double click and Enter, files do not navigate, and Backspace goes up
  * - a double click or Enter downloads a file by default and opens it in the editor when the user prefers; the details panel always offers Edit
  * - the arrow keys, Home and End move the selection and other keys are ignored
- * - the path steps, the up button and the refresh button navigate and reload; the pencil or a double click beside the steps turns the path into a field, where Enter goes to the typed path and Escape or leaving it puts the steps back
+ * - the path steps, the up button and the refresh button navigate and reload; a narrow pane folds the folders in between into a menu; the pencil or a double click beside the steps turns the path into a field, where Enter goes to the typed path and Escape or leaving it puts the steps back
  * - only the rows near the window are drawn in a long folder
  * - failures are explained and can be retried, and what needs the folder (upload, new folder, search, the filter) is off until it lists
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
@@ -260,6 +260,17 @@ describe('explorer', () => {
     await user.type(screen.getByRole('textbox', { name: 'Folder path' }), 'etc//nginx/../ssh/{Enter}')
     expect(onNavigate).toHaveBeenLastCalledWith('/etc/ssh')
     expect(screen.getByRole('navigation', { name: 'Path' })).toBeInTheDocument()
+  })
+
+  it('offers the folders in between in a menu for a narrow pane', async () => {
+    mockListing([entry('a')])
+    const { user, onNavigate } = await renderExplorer('/srv/www/site/assets')
+    await screen.findByRole('grid')
+
+    await user.click(screen.getByRole('button', { name: 'Folders in between' }))
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['/srv', '/srv/www'])
+    await user.click(screen.getByRole('menuitem', { name: '/srv/www' }))
+    expect(onNavigate).toHaveBeenLastCalledWith('/srv/www')
   })
 
   it('disables the up button at the root', async () => {

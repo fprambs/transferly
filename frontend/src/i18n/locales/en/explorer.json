@@ -19,6 +19,7 @@
   "breadcrumbs": "Path",
   "pathEdit": "Edit the path",
   "pathField": "Folder path",
+  "pathHidden": "Folders in between",
   "columns": {
     "name": "Name",
     "size": "Size",
