@@ -383,7 +383,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 11. Barra de sitios vacía con botones Nuevo sitio e Importar
 - [x] 12. Inicio con sitios recientes, conexión rápida y una lista de primeros pasos
 - [x] 13. Cabecera de Sitios con + (nuevo sitio) y un menú ⋯ con nueva colección, importar y exportar, en vez de cuatro íconos con borde
-- [ ] 14. Chip del vault discreto cuando está desbloqueado y destacado solo cuando está bloqueado
+- [x] 14. Chip del vault discreto cuando está desbloqueado y destacado solo cuando está bloqueado
 - [ ] 15. Pantallas angostas: sitios en panel deslizable, transferencias en hoja inferior, detalles ocultos y buscador como ícono
 - [ ] 16. Paleta con las secciones de la configuración y los sitios recientes
 - [ ] 17. Ayuda de atajos con ?
