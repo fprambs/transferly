@@ -373,7 +373,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 1. Una sola barra sobre la vista: pestañas a la izquierda; refrescar, detener y desconectar a la derecha; los paneles en un menú Vista (el nombre de la conexión queda para lectores de pantalla, las pestañas ya lo muestran)
 - [x] 2. Cola de transferencias que se reduce a su barra cuando no hay nada en curso, se abre al empezar una transferencia y se vuelve a cerrar al terminar
 - [x] 3. Log como barra de estado de una línea con el último mensaje (en rojo si es un error) que se despliega al hacer clic
-- [ ] 4. Estado activo neutro en los interruptores de paneles en vez de todos en naranja
+- [x] 4. Estado activo neutro en los interruptores (ahora en el menú Vista con marcas) y en todo botón que se mantiene presionado, como el de dividir la vista
 - [ ] 5. Ruta en migas de pan clicables, editable con un clic
 - [ ] 6. Menú contextual con íconos, atajos, separadores por grupo y Eliminar en rojo
 - [ ] 7. Panel de detalles cerrado por defecto y con un resumen visual (ícono del tipo, vista previa) sin repetir el menú contextual
