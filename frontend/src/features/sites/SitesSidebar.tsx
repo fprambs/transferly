@@ -384,7 +384,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
   }
 
   return (
-    <nav aria-label={t(($) => $.sidebar.label)} className="flex h-full min-h-0 w-full flex-col bg-card">
+    <nav aria-label={t(($) => $.sidebar.label)} className="@container/sites flex h-full min-h-0 w-full flex-col bg-card">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
         <h2 className="flex items-center gap-2 text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
           <BrandIcon name="sites" className="size-3.5" />
@@ -432,8 +432,8 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
       <div className="px-2 pb-2.5">
         <Button variant="outline" className="h-8 w-full justify-start gap-2 bg-muted/40" onClick={() => setQuickConnectOpen(true)}>
           <Zap className="text-warn" />
-          <span className="flex-1 text-start">{t(($) => $.sidebar.quickConnect)}</span>
-          <kbd className="rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground">{formatShortcut('Mod+Shift+K')}</kbd>
+          <span className="min-w-0 flex-1 truncate text-start">{t(($) => $.sidebar.quickConnect)}</span>
+          <kbd className="shrink-0 rounded-md border px-1.5 font-mono text-[11px] text-muted-foreground @max-[18rem]/sites:hidden">{formatShortcut('Mod+Shift+K')}</kbd>
         </Button>
       </div>
       {moveFailure !== null && (
