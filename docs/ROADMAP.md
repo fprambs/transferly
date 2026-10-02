@@ -378,7 +378,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 6. Menú contextual con íconos, atajos, separadores por grupo y Eliminar en rojo
 - [x] 7. Panel de detalles cerrado por defecto y con un resumen visual: ícono del tipo, nombre, tipo y tamaño arriba; Vista previa y Descargar como botones y el resto como íconos con su nombre en tooltip
 - [x] 8. Subir y Subir carpeta en un solo botón con menú; Filtros sin borde naranja
-- [ ] 9. Íconos por tipo de archivo con color sutil
+- [x] 9. Íconos por tipo de archivo con color sutil: ya existían; ahora las carpetas van rellenas y audio, video, presentaciones, datos, configuración, logs, respaldos, discos y certificados tienen su propia forma
 - [ ] 10. Sitio borrado: la pestaña dice Sitio no encontrado en vez del identificador y las acciones que no aplican quedan desactivadas
 - [ ] 11. Barra de sitios vacía con botones Nuevo sitio e Importar
 - [ ] 12. Inicio con sitios recientes, conexión rápida y una lista de primeros pasos
