@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { filezillaMasterRejected } from './import-dialog-logic'
 
+/**
+ * Covers {@link filezillaMasterRejected}.
+ *
+ * Scenarios:
+ * - a preview is not taken as a refused master password when passwords are not imported, is when every site password was skipped, and
+ *   is not when at least one password was read
+ */
 describe('filezillaMasterRejected', () => {
   it('is false when passwords are not imported', () => {
     expect(
