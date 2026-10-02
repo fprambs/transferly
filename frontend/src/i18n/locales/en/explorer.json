@@ -125,7 +125,9 @@
     "skip": "Skip",
     "fileInput": "Choose files to upload",
     "folder": "Upload folder",
-    "folderInput": "Choose a folder to upload"
+    "folderInput": "Choose a folder to upload",
+    "more": "More ways to upload",
+    "files": "Upload files"
   },
   "connecting": {
     "title": "Connecting to {{name}}…",

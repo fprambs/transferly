@@ -125,7 +125,9 @@
     "skip": "Omitir",
     "fileInput": "Elegir archivos para subir",
     "folder": "Subir carpeta",
-    "folderInput": "Elige una carpeta para subir"
+    "folderInput": "Elige una carpeta para subir",
+    "more": "Más formas de subir",
+    "files": "Subir archivos"
   },
   "connecting": {
     "title": "Conectando con {{name}}…",

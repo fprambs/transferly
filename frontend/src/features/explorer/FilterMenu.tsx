@@ -62,7 +62,7 @@ export function FilterMenu({ filter, onChange, timeZone }: FilterMenuProps) {
     <Popover>
       <PopoverTrigger
         aria-label={t(($) => $.filter.facets, { count })}
-        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0', count > 0 && 'border-primary/50 text-primary')}
+        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'shrink-0 text-muted-foreground hover:text-foreground data-popup-open:bg-accent', count > 0 && 'bg-accent text-foreground')}
       >
         <SlidersHorizontal aria-hidden="true" />
         <span className="@max-3xl:sr-only">{t(($) => $.filter.facetsButton)}</span>

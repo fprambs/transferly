@@ -127,7 +127,7 @@ async function confirmWith(user: ReturnType<typeof userEvent.setup>, option: str
  * - a folder that cannot be created is reported and nothing is uploaded into it
  * - a folder that is too big, or cannot be read, is explained, and giving up at the dialog uploads nothing
  * - loose files dropped with a folder are uploaded as before
- * - the upload folder button opens the folder chooser and reads the picked folder the same way
+ * - the menu beside the upload button opens the folder chooser, which reads the picked folder the same way, or the file chooser
  * - a failing check for a free name is reported for the file
  */
 describe('folder uploads', () => {
@@ -272,9 +272,12 @@ describe('folder uploads', () => {
     })
     const { user } = await renderExplorer()
 
-    await user.click(screen.getByRole('button', { name: 'Upload folder' }))
+    await user.click(screen.getByRole('button', { name: 'More ways to upload' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Upload folder' }))
+    await user.click(screen.getByRole('button', { name: 'More ways to upload' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Upload files' }))
 
-    expect(opened).toEqual(['Choose a folder to upload'])
+    expect(opened).toEqual(['Choose a folder to upload', 'Choose files to upload'])
   })
 
   it('reports a file when the check for a free name fails', async () => {

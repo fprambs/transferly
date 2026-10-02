@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, CircleAlert, CircleStop, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, Unplug, Upload } from 'lucide-react'
+import { ArrowUp, ChevronDown, CircleAlert, CircleStop, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, Unplug, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Illustration } from '@/components/brand/Illustration'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PanelState } from '@/components/ui/panel-state'
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
 import { LoadingBar } from '@/components/ui/loading-bar'
@@ -379,10 +380,31 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             event.target.value = ''
           }}
         />
-        <Button size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()}>
-          <Upload />
-          <span className="@max-3xl:sr-only">{t(($) => $.toolbar.upload)}</span>
-        </Button>
+        <div className="flex shrink-0 items-center">
+          <Button size="sm" disabled={!listing.isSuccess || opening} onClick={() => (picker.current as HTMLInputElement).click()} className="rounded-e-none">
+            <Upload />
+            <span className="@max-3xl:sr-only">{t(($) => $.toolbar.upload)}</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={t(($) => $.upload.more)}
+              disabled={!listing.isSuccess || opening}
+              className={cn(buttonVariants({ size: 'sm' }), 'rounded-s-none border-s border-primary-foreground/20 px-1.5')}
+            >
+              <ChevronDown aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => (picker.current as HTMLInputElement).click()}>
+                <FileUp aria-hidden="true" />
+                {t(($) => $.upload.files)}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => (folderPicker.current as HTMLInputElement).click()}>
+                <FolderUp aria-hidden="true" />
+                {t(($) => $.upload.folder)}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <input
           ref={folderPicker}
           type="file"
@@ -397,10 +419,6 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             event.target.value = ''
           }}
         />
-        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => (folderPicker.current as HTMLInputElement).click()}>
-          <FolderUp />
-          <span className="@max-3xl:sr-only">{t(($) => $.upload.folder)}</span>
-        </Button>
         <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
           <FolderPlus />
           <span className="@max-3xl:sr-only">{t(($) => $.toolbar.newFolder)}</span>

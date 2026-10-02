@@ -377,7 +377,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 5. Ruta en migas de pan clicables, editable con un clic
 - [x] 6. Menú contextual con íconos, atajos, separadores por grupo y Eliminar en rojo
 - [x] 7. Panel de detalles cerrado por defecto y con un resumen visual: ícono del tipo, nombre, tipo y tamaño arriba; Vista previa y Descargar como botones y el resto como íconos con su nombre en tooltip
-- [ ] 8. Subir y Subir carpeta en un solo botón con menú; Filtros sin borde naranja
+- [x] 8. Subir y Subir carpeta en un solo botón con menú; Filtros sin borde naranja
 - [ ] 9. Íconos por tipo de archivo con color sutil
 - [ ] 10. Sitio borrado: la pestaña dice Sitio no encontrado en vez del identificador y las acciones que no aplican quedan desactivadas
 - [ ] 11. Barra de sitios vacía con botones Nuevo sitio e Importar
