@@ -121,7 +121,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const narrow = useNarrow()
   const notify = useNotices((state) => state.notify)
   const details = useCollapsible(detailsOpen && !narrow, setDetailsOpen)
-  const beside = useDefaultLayout({ id: `transferly-details-${pane}`, storage: layoutStorage })
+  const beside = useDefaultLayout({ id: `transferly-details-v2-${pane}`, storage: layoutStorage })
   const reconnect = useConnectionState((state) => state.reconnect)
   const focus = useConnectionState((state) => state.focus)
   const listing = useQuery({
@@ -570,7 +570,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       )}
       {listing.isSuccess && !canceled && visible.length > 0 && (
         <Group
-          id={`transferly-details-${pane}`}
+          id={`transferly-details-v2-${pane}`}
           aria-busy={opening}
           className={cn('min-h-0 flex-1 transition-opacity', opening && 'pointer-events-none opacity-50')}
           {...beside}
@@ -600,7 +600,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
               />
           </Panel>
           <ResizeHandle aria-label={t(($) => $.panels.details)} />
-          <Panel id="details" collapsible collapsedSize={0} defaultSize={260} minSize={200} maxSize="45%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...details}>
+          <Panel id="details" collapsible collapsedSize={0} defaultSize={360} minSize={280} maxSize="50%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...details}>
               <Inspector
                 entry={visible[resolveSelection(visible, selectedPath)]}
                 showPermissions={showPermissions}

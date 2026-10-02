@@ -102,7 +102,7 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
             {entry.type === 'file' ? t(($) => $.toolbar.download) : t(($) => $.toolbar.downloadZip)}
           </Button>
         ) : null}
-        <span className="ms-auto flex items-center gap-1">
+        <span className="flex items-center gap-1">
           {entry.type === 'file' && onEdit ? <IconAction label={t(($) => $.toolbar.edit)} icon={FilePen} onClick={() => onEdit(entry)} /> : null}
           {entry.type === 'directory' ? <IconAction label={t(($) => $.menu.downloadEach)} icon={Files} onClick={() => onDownloadEach(entry)} /> : null}
           <IconAction label={t(($) => $.toolbar.rename)} icon={Pencil} onClick={() => onRename(entry)} />
