@@ -72,8 +72,7 @@
     "delete": "Eliminar",
     "upload": "Subir",
     "download": "Descargar",
-    "downloadZip": "Descargar como ZIP",
-    "downloadEach": "Uno por uno"
+    "downloadZip": "Descargar como ZIP"
   },
   "menu": {
     "label": "Acciones del elemento seleccionado",
@@ -111,10 +110,7 @@
   },
   "inspector": {
     "label": "Detalles",
-    "name": "Nombre",
     "path": "Ruta",
-    "kind": "Tipo",
-    "size": "Tamaño",
     "modified": "Modificado",
     "mode": "Permisos"
   },

@@ -85,7 +85,7 @@ describe('folder downloads', () => {
     mockListings()
     const { user, grid, links } = await renderExplorer()
 
-    await user.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'One by one' }))
+    await user.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Download files one by one' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Starting the download of 2 files…')
     await waitFor(() => expect(links).toHaveLength(2))
     expect(links.map((link) => new URL(link).searchParams.get('path'))).toEqual(['/www/docs/a.txt', '/www/docs/sub/b.txt'])
@@ -101,7 +101,7 @@ describe('folder downloads', () => {
     const many = Array.from({ length: 501 }, (_, index) => entry('/www/docs', `f${index}.txt`))
     mockListings(() => HttpResponse.json(many))
     const { user, links } = await renderExplorer()
-    const each = () => user.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'One by one' }))
+    const each = () => user.click(within(screen.getByRole('complementary')).getByRole('button', { name: 'Download files one by one' }))
 
     await each()
     const alert = await screen.findByRole('alert')
@@ -169,7 +169,7 @@ describe('folder downloads', () => {
     await user.click(within(grid).getByText('readme.txt'))
     const inspector = within(screen.getByRole('complementary'))
     expect(inspector.getByRole('button', { name: 'Download' })).toBeInTheDocument()
-    expect(inspector.queryByRole('button', { name: 'One by one' })).not.toBeInTheDocument()
+    expect(inspector.queryByRole('button', { name: 'Download files one by one' })).not.toBeInTheDocument()
     fireEvent.contextMenu(within(grid).getByText('readme.txt'))
     await screen.findByRole('menuitem', { name: 'Download' })
     expect(screen.queryByRole('menuitem', { name: 'Download files one by one' })).not.toBeInTheDocument()

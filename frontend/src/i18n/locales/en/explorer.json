@@ -72,8 +72,7 @@
     "delete": "Delete",
     "upload": "Upload",
     "download": "Download",
-    "downloadZip": "Download as ZIP",
-    "downloadEach": "One by one"
+    "downloadZip": "Download as ZIP"
   },
   "menu": {
     "label": "Actions for the selected item",
@@ -111,10 +110,7 @@
   },
   "inspector": {
     "label": "Details",
-    "name": "Name",
     "path": "Path",
-    "kind": "Type",
-    "size": "Size",
     "modified": "Modified",
     "mode": "Permissions"
   },

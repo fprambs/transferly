@@ -1,14 +1,17 @@
-import { Copy, Download, Eye, FilePen, Files, Hash, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Download, Eye, FilePen, Files, Hash, Pencil, Trash2, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
+import { Tip } from '@/components/ui/tip'
 import type { Checksum, ChecksumAlgorithm, RemoteEntry } from '@/lib/api'
 import { formatInstant } from '@/lib/datetime'
 
 import { formatSize } from './entries'
+import { fileTypeOf } from './file-types'
+import { FileTypeIcon } from './FileTypeIcon'
 import { useDescribeType } from './use-file-type'
 
 /** Props of {@link Inspector}. */
@@ -37,7 +40,33 @@ export interface InspectorProps {
   onDelete: (entry: RemoteEntry) => void
 }
 
-/** Side panel with the details of the selected entry and its actions. */
+/** Props of {@link IconAction}. */
+interface IconActionProps {
+  /** Name of the action, read aloud and shown as a tooltip. */
+  label: string
+  /** Icon of the action. */
+  icon: LucideIcon
+  /** Whether the action destroys something, which draws it in red. */
+  destructive?: boolean
+  /** Runs the action. */
+  onClick: () => void
+}
+
+/** A secondary action of the panel as an icon button with its name as a tooltip. */
+function IconAction({ label, icon: Icon, destructive = false, onClick }: IconActionProps) {
+  return (
+    <Tip label={label}>
+      <Button variant={destructive ? 'destructive' : 'outline'} size="icon-sm" aria-label={label} onClick={onClick}>
+        <Icon />
+      </Button>
+    </Tip>
+  )
+}
+
+/**
+ * Side panel with the selected entry: its type icon, name, kind and size at the top, its path, date and permissions below, the main actions
+ * (preview and download) as buttons and the others (edit, one by one, rename, delete) as icons, and the checksum of a file.
+ */
 export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onPreview, onEdit, onRename, onDelete }: InspectorProps) {
   const { t } = useTranslation('explorer')
   const describeType = useDescribeType()
@@ -48,22 +77,48 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
 
   return (
     <aside aria-label={t(($) => $.inspector.label)} className="flex h-full w-full flex-col gap-4 overflow-y-auto bg-card p-4">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-        <dt className="text-muted-foreground">{t(($) => $.inspector.name)}</dt>
-        <dd className="font-mono break-all">{entry.name}</dd>
+      <div className="flex items-start gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border bg-background">
+          <FileTypeIcon type={fileTypeOf(entry)} className="size-5" />
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="font-medium break-all">{entry.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {describeType(entry)}
+            {entry.type === 'directory' ? null : ` · ${formatSize(entry.size)}`}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {entry.type === 'file' && onPreview ? (
+          <Button size="sm" onClick={() => onPreview(entry)}>
+            <Eye />
+            {t(($) => $.menu.preview)}
+          </Button>
+        ) : null}
+        {entry.type === 'file' || entry.type === 'directory' ? (
+          <Button variant={entry.type === 'file' && onPreview ? 'outline' : 'default'} size="sm" onClick={() => onDownload(entry)}>
+            <Download />
+            {entry.type === 'file' ? t(($) => $.toolbar.download) : t(($) => $.toolbar.downloadZip)}
+          </Button>
+        ) : null}
+        <span className="ms-auto flex items-center gap-1">
+          {entry.type === 'file' && onEdit ? <IconAction label={t(($) => $.toolbar.edit)} icon={FilePen} onClick={() => onEdit(entry)} /> : null}
+          {entry.type === 'directory' ? <IconAction label={t(($) => $.menu.downloadEach)} icon={Files} onClick={() => onDownloadEach(entry)} /> : null}
+          <IconAction label={t(($) => $.toolbar.rename)} icon={Pencil} onClick={() => onRename(entry)} />
+          <IconAction label={t(($) => $.toolbar.delete)} icon={Trash2} destructive onClick={() => onDelete(entry)} />
+        </span>
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t pt-4 text-xs">
         <dt className="text-muted-foreground">{t(($) => $.inspector.path)}</dt>
         <dd className="font-mono break-all">{entry.path}</dd>
-        <dt className="text-muted-foreground">{t(($) => $.inspector.kind)}</dt>
-        <dd>{describeType(entry)}</dd>
-        <dt className="text-muted-foreground">{t(($) => $.inspector.size)}</dt>
-        <dd className="font-mono">{entry.type === 'directory' ? '—' : formatSize(entry.size)}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.modified)}</dt>
         <dd>{formatInstant(entry.modifiedAt, { locale, timeZone, dateStyle: 'medium', timeStyle: 'medium' })}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.mode)}</dt>
         <dd className="font-mono">{showPermissions ? entry.mode : '—'}</dd>
       </dl>
       {entry.type === 'file' ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 border-t pt-4">
           <div className="flex items-center gap-2">
             <Select
               aria-label={t(($) => $.checksum.algorithm)}
@@ -115,40 +170,6 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
           ) : null}
         </div>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {entry.type === 'file' && onPreview ? (
-          <Button variant="outline" size="sm" onClick={() => onPreview(entry)}>
-            <Eye />
-            {t(($) => $.menu.preview)}
-          </Button>
-        ) : null}
-        {entry.type === 'file' || entry.type === 'directory' ? (
-          <Button variant="outline" size="sm" onClick={() => onDownload(entry)}>
-            <Download />
-            {entry.type === 'file' ? t(($) => $.toolbar.download) : t(($) => $.toolbar.downloadZip)}
-          </Button>
-        ) : null}
-        {entry.type === 'file' && onEdit ? (
-          <Button variant="outline" size="sm" onClick={() => onEdit(entry)}>
-            <FilePen />
-            {t(($) => $.toolbar.edit)}
-          </Button>
-        ) : null}
-        {entry.type === 'directory' ? (
-          <Button variant="outline" size="sm" onClick={() => onDownloadEach(entry)}>
-            <Files />
-            {t(($) => $.toolbar.downloadEach)}
-          </Button>
-        ) : null}
-        <Button variant="outline" size="sm" onClick={() => onRename(entry)}>
-          <Pencil />
-          {t(($) => $.toolbar.rename)}
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => onDelete(entry)}>
-          <Trash2 />
-          {t(($) => $.toolbar.delete)}
-        </Button>
-      </div>
     </aside>
   )
 }

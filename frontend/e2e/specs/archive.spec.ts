@@ -56,7 +56,7 @@ test.describe('folder download', () => {
 
     const names: string[] = []
     page.on('download', (download) => names.push(download.suggestedFilename()))
-    await inspector.getByRole('button', { name: 'One by one' }).click()
+    await inspector.getByRole('button', { name: 'Download files one by one' }).click()
     await expect.poll(() => [...names].sort(), { timeout: 20_000 }).toEqual([`deep-${stamp}.txt`, `top-${stamp}.txt`])
 
     await request.delete(files, { params: { path: `/upload/${parent}`, recursive: true }, headers })

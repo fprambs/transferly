@@ -123,7 +123,7 @@ export const useUiStore = create<UiState>()(
       preferencesSynced: false,
       logOpen: false,
       sitesOpen: true,
-      detailsOpen: true,
+      detailsOpen: false,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen, queueAuto: false })),
