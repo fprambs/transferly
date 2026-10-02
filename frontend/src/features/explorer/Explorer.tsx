@@ -367,8 +367,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           onChange={(text) => setFilter({ ...filter, text })}
           onLeave={() => section.current?.querySelector<HTMLElement>('[role="grid"]')?.focus()}
           inputRef={filterField}
+          disabled={!listing.isSuccess}
         />
-        <FilterMenu filter={filter} onChange={setFilter} timeZone={timeZone} />
+        <FilterMenu filter={filter} onChange={setFilter} timeZone={timeZone} disabled={!listing.isSuccess} />
         <input
           ref={picker}
           type="file"
@@ -431,7 +432,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         >
           <RefreshCw />
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setSearching(true)}>
+        <Button variant="outline" size="sm" disabled={!listing.isSuccess} onClick={() => setSearching(true)}>
           <Search />
           <span className="@max-3xl:sr-only">{t(($) => $.search.title)}</span>
         </Button>

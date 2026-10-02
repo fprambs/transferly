@@ -303,7 +303,8 @@
   "tabs": {
     "label": "Pestañas de conexión",
     "close": "Cerrar {{name}}",
-    "connected": "Conectado"
+    "connected": "Conectado",
+    "missing": "Sitio no encontrado"
   },
   "bookmarks": {
     "title": "Marcadores",

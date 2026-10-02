@@ -303,7 +303,8 @@
   "tabs": {
     "label": "Connection tabs",
     "close": "Close {{name}}",
-    "connected": "Connected"
+    "connected": "Connected",
+    "missing": "Site not found"
   },
   "bookmarks": {
     "title": "Bookmarks",

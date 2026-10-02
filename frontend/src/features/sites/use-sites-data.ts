@@ -18,6 +18,8 @@ export interface SitesData {
   sites: Site[]
   /** Open quick connections. */
   quick: QuickConnection[]
+  /** Whether the saved sites and quick connections have loaded, so a site missing from them is gone rather than not yet known. */
+  loaded: boolean
 }
 
 /** Loads the collections, sites and quick connections of a workspace. */
@@ -28,5 +30,5 @@ export function useSitesData(workspaceId: string | undefined): SitesData {
   const collections = useQuery({ queryKey: sitesKeys.collections(id), queryFn: () => api.collections.list(id), enabled })
   const sites = useQuery({ queryKey: sitesKeys.sites(id), queryFn: () => api.sites.list(id), enabled })
   const quick = useQuery({ queryKey: sitesKeys.quick(id), queryFn: () => api.quick.list(id), enabled })
-  return { collections: collections.data ?? [], sites: sites.data ?? [], quick: quick.data ?? [] }
+  return { collections: collections.data ?? [], sites: sites.data ?? [], quick: quick.data ?? [], loaded: sites.isSuccess && quick.isSuccess }
 }

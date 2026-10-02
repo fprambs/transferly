@@ -45,13 +45,15 @@ export interface FilterMenuProps {
   onChange: (filter: EntryFilter) => void
   /** Time zone of the account, whose today the calendar marks. */
   timeZone: string
+  /** Whether there is nothing to filter, such as a folder that could not be listed. */
+  disabled?: boolean
 }
 
 /**
  * The facets of the filter of a folder (4.14d): the groups of types to keep, how recently the entries changed, with a range of days of
  * its own, and how big the files are. Its button counts the facets in use.
  */
-export function FilterMenu({ filter, onChange, timeZone }: FilterMenuProps) {
+export function FilterMenu({ filter, onChange, timeZone, disabled = false }: FilterMenuProps) {
   const { t, i18n } = useTranslation('explorer')
   const today = dateOfDay(dayOf(new Date(), timeZone)) as Date
   const count = facetCount(filter)
@@ -61,6 +63,7 @@ export function FilterMenu({ filter, onChange, timeZone }: FilterMenuProps) {
   return (
     <Popover>
       <PopoverTrigger
+        disabled={disabled}
         aria-label={t(($) => $.filter.facets, { count })}
         className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'shrink-0 text-muted-foreground hover:text-foreground data-popup-open:bg-accent', count > 0 && 'bg-accent text-foreground')}
       >

@@ -14,13 +14,15 @@ export interface FilterBoxProps {
   onLeave: () => void
   /** The field, so the explorer can focus it with its shortcuts. */
   inputRef: RefObject<HTMLInputElement | null>
+  /** Whether there is nothing to filter, such as a folder that could not be listed. */
+  disabled?: boolean
 }
 
 /**
  * The box that filters the folder in view as the user types (4.14d). Escape clears the text, and on an empty box goes back to the list, as
  * does the down arrow; the hint shows the shortcut while the box is empty.
  */
-export function FilterBox({ value, onChange, onLeave, inputRef }: FilterBoxProps) {
+export function FilterBox({ value, onChange, onLeave, inputRef, disabled = false }: FilterBoxProps) {
   const { t } = useTranslation('explorer')
 
   return (
@@ -28,12 +30,14 @@ export function FilterBox({ value, onChange, onLeave, inputRef }: FilterBoxProps
       className={cn(
         'group/filter flex h-7 w-44 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 transition-[width,border-color] focus-within:w-60 focus-within:border-ring hover:border-foreground/25 @max-3xl:w-32 @max-3xl:focus-within:w-48',
         value !== '' && 'border-primary/50',
+        disabled && 'pointer-events-none opacity-50',
       )}
     >
       <ListFilter aria-hidden="true" className={cn('size-3.5 shrink-0', value !== '' ? 'text-primary' : 'text-muted-foreground')} />
       <input
         ref={inputRef}
         type="search"
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {

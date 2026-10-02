@@ -90,7 +90,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - the arrow keys, Home and End move the selection and other keys are ignored
  * - the path steps, the up button and the refresh button navigate and reload; the pencil or a double click beside the steps turns the path into a field, where Enter goes to the typed path and Escape or leaving it puts the steps back
  * - only the rows near the window are drawn in a long folder
- * - failures are explained and can be retried
+ * - failures are explained and can be retried, and what needs the folder (upload, new folder, search, the filter) is off until it lists
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
  * - a changed server key shows the trusted and the new fingerprints and lets the user add the key, replace the trusted ones or cancel and
  *   disconnect (only when the view can disconnect), with no way to connect without deciding (4.13b); a failure to trust is shown
@@ -283,7 +283,7 @@ describe('explorer', () => {
     expect(drawn).toBeLessThan(40)
   })
 
-  it('explains a failure and retries', async () => {
+  it('explains a failure, turns off what needs the folder, and retries', async () => {
     let attempts = 0
     server.use(
       http.get('/api/v1/workspaces/:id/sites/s1/files', () => (++attempts === 1 ? problem(404, 'path_not_found') : HttpResponse.json([entry('a')]))),
@@ -291,9 +291,14 @@ describe('explorer', () => {
     const { user } = await renderExplorer()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This folder does not exist.')
+    for (const name of ['Upload', 'More ways to upload', 'New folder', 'Search', /Filters/]) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
+    expect(screen.getByRole('searchbox', { name: 'Filter this folder' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByRole('grid')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled()
   })
 
   it('asks to trust a new server key and then lists the folder', async () => {

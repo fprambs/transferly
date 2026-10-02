@@ -74,7 +74,7 @@ async function showing(siteId: string): Promise<void> {
  * - closing a tab keeps its site connected while another tab shows it in either pane, and disconnects the site of its second pane that no
  *   other tab shows; the local folder has nothing to disconnect
  * - Ctrl+Tab, Ctrl+Shift+Tab, Alt+Page Down and Alt+Page Up move between tabs, Ctrl+W and Alt+W close the active one, except while typing
- * - a tab shows the green dot of a connected site, and the identifier of a site it does not know
+ * - a tab shows the green dot of a connected site, and says a site that no longer exists is not found, rather than its identifier
  * - the site a click replaces stays connected while the second pane of another tab shows it, and a right click opens nothing
  * - a click also disconnects the site of the second pane it replaces, unless that is the site it opens
  */
@@ -254,10 +254,12 @@ describe('connection tabs', () => {
     expect(tab).toHaveClass('border-t-2', 'border-t-(--label-red)')
   })
 
-  it('names a site it does not know by its identifier', async () => {
+  it('says a site that no longer exists is not found instead of showing its identifier', async () => {
     mockServer()
     useTabs.setState({ tabs: [{ id: 't1', workspaceId: personalWorkspace.id, siteId: 'gone', path: '/' }], activeId: null })
     await renderApp({ path: '/' })
-    expect(await screen.findByRole('button', { name: 'gone' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Site not found' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'gone' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close Site not found' })).toBeInTheDocument()
   })
 })

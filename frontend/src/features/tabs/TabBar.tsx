@@ -21,7 +21,7 @@ function typing(target: EventTarget | null): boolean {
 
 /**
  * The tabs of the open connections of the workspace, on the left of the toolbar above the log (4.12). Each shows its site with the green dot of an open connection,
- * activates on click, and closes with its button or a middle click; closing disconnects the sites of its panes that no other tab shows, so
+ * activates on click, and closes with its button or a middle click; a site that no longer exists says so instead of showing its identifier; closing disconnects the sites of its panes that no other tab shows, so
  * their green dot goes out.
  * Ctrl+Tab and Ctrl+Shift+Tab move between tabs and Ctrl+W closes the active one where the browser allows it, and Alt+Page Down, Alt+Page Up
  * and Alt+W everywhere.
@@ -35,7 +35,7 @@ export function TabBar() {
   const activeId = useTabs((state) => state.activeId)
   const closeTab = useTabs((state) => state.close)
   const closeUnused = useCloseUnused()
-  const { sites, quick } = useSitesData(workspace?.id)
+  const { sites, quick, loaded } = useSitesData(workspace?.id)
   const connected = useOpenConnections(workspace?.id)
   const tabs = allTabs.filter((tab) => tab.workspaceId === workspace?.id)
 
@@ -76,7 +76,8 @@ export function TabBar() {
   return (
     <nav aria-label={t(($) => $.tabs.label)} className="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto px-2">
       {tabs.map((tab) => {
-        const name = [...sites, ...quick].find((connection) => connection.id === tab.siteId)?.name ?? tab.siteId
+        const known = [...sites, ...quick].find((connection) => connection.id === tab.siteId)
+        const name = known?.name ?? (loaded ? t(($) => $.tabs.missing) : '…')
         const color = sites.find((saved) => saved.id === tab.siteId)?.color
         const active = tab.id === activeId
         return (
@@ -104,7 +105,7 @@ export function TabBar() {
                   </>
                 )}
               </span>
-              <span className="truncate">{name}</span>
+              <span className={cn('truncate', known === undefined && 'text-muted-foreground italic')}>{name}</span>
             </button>
             <button
               type="button"
