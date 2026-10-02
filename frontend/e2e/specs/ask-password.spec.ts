@@ -45,7 +45,7 @@ test.describe('ask for password', () => {
 
   test('tells a wrong password apart from a server that does not answer', async ({ shell }) => {
     const { page } = shell
-    await page.getByRole('button', { name: /Quick connect/ }).click()
+    await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
     const dialog = page.getByRole('dialog', { name: 'Quick connect' })
     await dialog.getByLabel('Host').fill('sftp')
     await dialog.getByLabel('Username').fill('transferly')

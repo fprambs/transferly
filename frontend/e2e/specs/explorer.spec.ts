@@ -54,7 +54,7 @@ test.describe('explorer', () => {
   test('connects from the quick connect dialog', async ({ shell }) => {
     const { page } = shell
 
-    await page.getByRole('button', { name: /Quick connect/ }).click()
+    await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
     const dialog = page.getByRole('dialog', { name: 'Quick connect' })
     await dialog.getByLabel('Host').fill('sftp')
     await dialog.getByLabel('Username').fill('transferly')

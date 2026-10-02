@@ -92,12 +92,12 @@ export function EmptyExplorer() {
             <Button size="sm" onClick={() => setQuickConnectOpen(true)}>
               <Zap />
               {t(($) => $.empty.quickConnect)}
-              <kbd className="ms-1 font-mono text-[11px] opacity-70">{formatShortcut('Mod+Shift+K')}</kbd>
+              <kbd aria-hidden="true" className="ms-1 font-mono text-[11px]">{formatShortcut('Mod+Shift+K')}</kbd>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setPaletteOpen(true)}>
               <Command />
               {t(($) => $.empty.palette)}
-              <kbd className="ms-1 font-mono text-[11px] text-muted-foreground">{formatShortcut('Mod+K')}</kbd>
+              <kbd aria-hidden="true" className="ms-1 font-mono text-[11px] text-muted-foreground">{formatShortcut('Mod+K')}</kbd>
             </Button>
           </div>
         </div>

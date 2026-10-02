@@ -20,7 +20,7 @@ test.describe('command palette', () => {
     })
     const { id: siteId } = (await created.json()) as { id: string }
     await page.reload()
-    await expect(page.getByRole('button', { name: /Search or run a command/ })).toContainText('Ctrl+K')
+    await expect(page.getByRole('banner', { name: 'Main toolbar' }).getByRole('button', { name: /Search or run a command/ })).toContainText('Ctrl+K')
 
     await page.keyboard.press('Control+k')
     const palette = page.getByRole('dialog', { name: 'Command palette' })

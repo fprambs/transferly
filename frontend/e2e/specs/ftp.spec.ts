@@ -8,7 +8,7 @@ import { choose } from '../select.ts'
 
 /** Fills the quick connect dialog for a server of the test stack and presses Connect. */
 async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string): Promise<void> {
-  await page.getByRole('button', { name: /Quick connect/ }).click()
+  await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
   const dialog = page.getByRole('dialog', { name: 'Quick connect' })
   await dialog.getByRole('tab', { name: protocol, exact: true }).click()
   await dialog.getByLabel('Host').fill(host)
@@ -40,7 +40,7 @@ test.describe('ftp and ftps', () => {
 
   test('lists a plain FTP server and shows no permissions', async ({ shell }) => {
     const { page } = shell
-    await page.getByRole('button', { name: /Quick connect/ }).click()
+    await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
     await page.getByRole('dialog').getByRole('tab', { name: 'FTP', exact: true }).click()
     await expect(page.getByRole('dialog').getByRole('note')).toContainText('Uses TLS when the server offers it')
     await page.keyboard.press('Escape')
