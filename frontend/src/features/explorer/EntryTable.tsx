@@ -46,8 +46,8 @@ function MenuEntry({ icon: Icon, label, shortcut, destructive = false, onClick }
 /** Height of every row, in pixels. */
 const rowHeight = 32
 
-/** Column layout shared by the header and the rows; the type column shows once the pane is wide enough (4.14e). */
-const columns = 'grid grid-cols-[minmax(10rem,1fr)_88px_160px_112px] @3xl:grid-cols-[minmax(10rem,1fr)_88px_150px_160px_112px] items-center gap-3 px-4'
+/** Column layout shared by the header and the rows; the type column shows once the pane is wide enough (4.14e), and a pane as narrow as a phone keeps only the name and size. */
+const columns = 'grid grid-cols-[minmax(10rem,1fr)_88px_160px_112px] @max-lg:grid-cols-[minmax(0,1fr)_72px] @3xl:grid-cols-[minmax(10rem,1fr)_88px_150px_160px_112px] items-center gap-3 px-4'
 
 /** Props of {@link EntryTable}. */
 export interface EntryTableProps {
@@ -199,8 +199,12 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
         <span role="columnheader" className="@max-3xl:hidden">
           {t(($) => $.columns.type)}
         </span>
-        <span role="columnheader">{t(($) => $.columns.modified)}</span>
-        <span role="columnheader">{t(($) => $.columns.mode)}</span>
+        <span role="columnheader" className="@max-lg:hidden">
+          {t(($) => $.columns.modified)}
+        </span>
+        <span role="columnheader" className="@max-lg:hidden">
+          {t(($) => $.columns.mode)}
+        </span>
       </div>
       <div role="rowgroup" style={{ height: virtualizer.getTotalSize() }} className="relative w-full">
         {virtualizer.getVirtualItems().map((item) => {
@@ -233,10 +237,10 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
               <span role="gridcell" className="truncate text-xs text-muted-foreground @max-3xl:hidden">
                 {describeType(entry)}
               </span>
-              <span role="gridcell" className="truncate text-xs text-muted-foreground">
+              <span role="gridcell" className="truncate text-xs text-muted-foreground @max-lg:hidden">
                 {modified(entry, locale, timeZone)}
               </span>
-              <span role="gridcell" className="font-mono text-xs text-muted-foreground">
+              <span role="gridcell" className="font-mono text-xs text-muted-foreground @max-lg:hidden">
                 {showPermissions ? entry.mode : '—'}
               </span>
             </div>

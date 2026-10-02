@@ -16,13 +16,15 @@ export interface SitesRailProps {
   onOpen: (siteId: string, newTab?: boolean) => void
   /** Closes the connections of a site, from its menu in the sheet. */
   onDisconnect: (siteId: string) => void
+  /** Whether the window is too narrow for the panel, which leaves out the button that shows it. */
+  narrow?: boolean
 }
 
 /**
  * What stays of the sites panel while it is hidden, as in VS Code: a narrow rail that shows the panel again, opens the sites in a sheet over
  * the page (closed as soon as one is picked), or starts a quick connection. The files keep the room the panel had.
  */
-export function SitesRail({ onOpen, onDisconnect }: SitesRailProps) {
+export function SitesRail({ onOpen, onDisconnect, narrow = false }: SitesRailProps) {
   const { t } = useTranslation('shell')
   const [browsing, setBrowsing] = useState(false)
   const setSitesOpen = useUiStore((state) => state.setSitesOpen)
@@ -30,11 +32,13 @@ export function SitesRail({ onOpen, onDisconnect }: SitesRailProps) {
 
   return (
     <nav aria-label={t(($) => $.sidebar.rail)} className="flex h-full flex-col items-center gap-1 bg-card py-2">
-      <Tip label={t(($) => $.sidebar.show)} shortcut="Mod+B" side="right">
-        <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.sidebar.show)} onClick={() => setSitesOpen(true)}>
-          <PanelLeftOpen />
-        </Button>
-      </Tip>
+      {!narrow && (
+        <Tip label={t(($) => $.sidebar.show)} shortcut="Mod+B" side="right">
+          <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.sidebar.show)} onClick={() => setSitesOpen(true)}>
+            <PanelLeftOpen />
+          </Button>
+        </Tip>
+      )}
       <Tip label={t(($) => $.sidebar.browse)} side="right">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.sidebar.browse)} className="text-accent-text" onClick={() => setBrowsing(true)}>
           <Server />

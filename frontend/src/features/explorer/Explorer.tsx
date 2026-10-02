@@ -14,6 +14,7 @@ import { refresh } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import type { HostKeyTrustMode, RemoteEntry } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
+import { useNarrow } from '@/lib/layout/use-narrow'
 import { uuid } from '@/lib/uuid'
 
 import { useTimeZone } from '../auth/use-time-zone'
@@ -116,7 +117,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const live = useOpenConnections(workspaceId).has(siteId)
   const detailsOpen = useUiStore((state) => state.detailsOpen)
   const setDetailsOpen = useUiStore((state) => state.setDetailsOpen)
-  const details = useCollapsible(detailsOpen, setDetailsOpen)
+  const narrow = useNarrow()
+  const details = useCollapsible(detailsOpen && !narrow, setDetailsOpen)
   const beside = useDefaultLayout({ id: `transferly-details-${pane}`, storage: layoutStorage })
   const reconnect = useConnectionState((state) => state.reconnect)
   const focus = useConnectionState((state) => state.focus)

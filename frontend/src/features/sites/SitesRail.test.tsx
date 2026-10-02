@@ -8,6 +8,7 @@ import { useDialogsStore } from '@/state/dialogs-store'
 import { useUiStore } from '@/state/ui-store'
 import { adminSession, mockSession, mockWorkspaceData } from '@/test/handlers'
 import { server } from '@/test/msw'
+import { narrowQuery } from '@/lib/layout/use-narrow'
 import { renderApp } from '@/test/render-app'
 
 /** A saved site. */
@@ -34,6 +35,7 @@ const prod: Site = {
  * - the sidebar hides itself from its header, leaving a rail that shows it again
  * - Ctrl+B (or Cmd+B) shows and hides the panel, except while typing in a field
  * - the rail opens the sites in a sheet, which closes once a site is opened, and starts a quick connection
+ * - in a narrow window the sites stay in the rail even when the panel is meant to show, and the rail has no button to show it
  */
 describe('sites rail', () => {
   beforeEach(() => {
@@ -89,5 +91,18 @@ describe('sites rail', () => {
 
     await user.click(within(rail).getByRole('button', { name: 'Quick connect' }))
     expect(useDialogsStore.getState().quickConnectOpen).toBe(true)
+  })
+
+  it('keeps the sites in the rail in a narrow window', async () => {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({ matches: query === narrowQuery, media: query, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia
+    useUiStore.setState({ sitesOpen: true, detailsOpen: true })
+    await renderApp({ path: '/sites/s1?path=%2F' })
+
+    const rail = await screen.findByRole('navigation', { name: 'Sites, panel hidden' })
+    expect(within(rail).queryByRole('button', { name: 'Show the sites panel' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tree', { name: 'Sites' })).not.toBeInTheDocument()
+    expect(useUiStore.getState().sitesOpen).toBe(true)
+    window.matchMedia = original
   })
 })

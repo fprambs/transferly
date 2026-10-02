@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLayout } from '@/components/ui/resizable'
 import type { Workspace } from '@/lib/api'
+import { useNarrow } from '@/lib/layout/use-narrow'
 import { useUiStore } from '@/state/ui-store'
 
 import { CommandPalette } from '@/features/palette/CommandPalette'
@@ -40,7 +41,8 @@ function typing(target: EventTarget | null): boolean {
 /**
  * Application layout: top bar, sites panel, the toolbar above the explorer, the transfer queue, and the settings dialog
  * over them. The sites and transfers panels are resizable, remember their sizes in the browser, and collapse
- * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. Opening a site from the sidebar connects it again if the user had disconnected it: in the active tab,
+ * as the preferences say (4.10); the hidden sites panel leaves a rail, and Ctrl+B shows or hides it. In a narrow window the sites stay in
+ * the rail, whose sheet lists them, and the files take the width. Opening a site from the sidebar connects it again if the user had disconnected it: in the active tab,
  * closing the connections of the sites it replaces in either pane unless another tab shows them (4.11, a transfer running on them finishes first), or in a new
  * tab with Ctrl+click, a middle click or its menu; a site that has a tab already activates it (4.12).
  */
@@ -67,7 +69,9 @@ export function AppShell() {
   const setSitesOpen = useUiStore((state) => state.setSitesOpen)
   const queueOpen = useUiStore((state) => state.queueOpen)
   const setQueueOpen = useUiStore((state) => state.setQueueOpen)
-  const sites = useCollapsible(sitesOpen, setSitesOpen)
+  const narrow = useNarrow()
+  const sitesShown = sitesOpen && !narrow
+  const sites = useCollapsible(sitesShown, setSitesOpen)
   const transfers = useCollapsible(queueOpen, setQueueOpen)
   const outer = useDefaultLayout({ id: 'transferly-shell', storage: layoutStorage })
   const inner = useDefaultLayout({ id: 'transferly-work', storage: layoutStorage })
@@ -115,7 +119,7 @@ export function AppShell() {
         <Panel id="work" minSize={160}>
           <Group id="transferly-work" className="h-full" {...inner}>
             <Panel id="sites" collapsible collapsedSize={railPx} defaultSize={248} minSize={180} maxSize="45%" groupResizeBehavior="preserve-pixel-size" className="h-full" {...sites}>
-              {sitesOpen ? <SitesSidebar onOpen={open} onHide={() => setSitesOpen(false)} onDisconnect={disconnect} /> : <SitesRail onOpen={open} onDisconnect={disconnect} />}
+              {sitesShown ? <SitesSidebar onOpen={open} onHide={() => setSitesOpen(false)} onDisconnect={disconnect} /> : <SitesRail onOpen={open} onDisconnect={disconnect} narrow={narrow} />}
             </Panel>
             <ResizeHandle aria-label={shell(($) => $.panels.sites)} />
             <Panel id="main" minSize="30%" className="h-full">

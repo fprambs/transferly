@@ -110,7 +110,7 @@ function ViewMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground data-popup-open:bg-accent data-popup-open:text-foreground">
         <LayoutPanelLeft aria-hidden="true" className="size-4" />
-        {t(($) => $.commands.view)}
+        <span className="max-md:sr-only">{t(($) => $.commands.view)}</span>
         <ChevronDown aria-hidden="true" className="size-3" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
