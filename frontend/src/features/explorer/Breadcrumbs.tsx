@@ -17,7 +17,7 @@ export interface BreadcrumbsProps {
 }
 
 /**
- * Path of the folder in view as clickable steps; the last one is the current folder. In a narrow pane the steps between the root and
+ * Path of the folder in view as clickable steps; the last one is the current folder. Unless the pane is very wide (80rem), the steps between the root and
  * the last two fold into a menu, so the ones that stay keep a readable width. Its pencil, or a double click beside the steps, turns
  * it into a field to type a path: Enter goes there, Escape or leaving the field puts the steps back.
  */
@@ -61,8 +61,8 @@ export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
           const folds = hidden.includes(segment)
           return (
             <Fragment key={segment.path}>
-              {index > 1 && <ChevronRight aria-hidden="true" className={cn('size-3 shrink-0 text-faint rtl:-scale-x-100', folds && '@max-3xl:hidden')} />}
-              <li className={cn('max-w-48 min-w-[4ch]', current && 'shrink-0', folds && '@max-3xl:hidden')}>
+              {index > 1 && <ChevronRight aria-hidden="true" className={cn('size-3 shrink-0 text-faint rtl:-scale-x-100', folds && '@max-7xl:hidden')} />}
+              <li className={cn('max-w-48 min-w-[4ch]', current && 'shrink-0', folds && '@max-7xl:hidden')}>
                 <button
                   type="button"
                   aria-current={current ? 'page' : undefined}
@@ -76,7 +76,7 @@ export function Breadcrumbs({ path, onNavigate }: BreadcrumbsProps) {
                 </button>
               </li>
               {index === 0 && hidden.length > 0 && (
-                <li className="shrink-0 @3xl:hidden">
+                <li className="shrink-0 @7xl:hidden">
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       aria-label={t(($) => $.pathHidden)}
