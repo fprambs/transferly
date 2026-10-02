@@ -40,6 +40,7 @@ function shown(): string[] {
  * - a connection that starts after the site was disconnected starts the log again, while one that starts after a failure keeps the failure
  * - lines of problems are colored, steps that went right are green and the end of a session is muted, times use the clock of the browser, and the newest line stays in view unless the user scrolled up
  * - the panel can be collapsed and opened, copied as text and cleared
+ * - collapsed, it shows only the newest line, colored as in the log, which opens the log when clicked
  */
 describe('ConnectionLog', () => {
   beforeEach(() => {
@@ -174,5 +175,21 @@ describe('ConnectionLog', () => {
     expect(screen.getByText('The steps of the connection show here.')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Clear the log' })).toBeDisabled()
+  })
+
+  it('shows the newest line while collapsed and opens on it', async () => {
+    useUiStore.setState({ logOpen: false })
+    const user = userEvent.setup()
+    await renderWithProviders(<ConnectionLog workspaceId="w1" siteId="s1" />)
+    add(entry('connected', { address: '10.0.0.1:22' }), entry('failed', { code: 'auth_failed' }, 'error'))
+
+    const newest = await screen.findByTitle('Show the whole log')
+    expect(newest).toHaveClass('text-destructive')
+    expect(screen.queryByText('Connected to 10.0.0.1:22.')).not.toBeInTheDocument()
+
+    await user.click(newest)
+    expect(useUiStore.getState().logOpen).toBe(true)
+    expect(screen.getByText('Connected to 10.0.0.1:22.')).toBeInTheDocument()
+    expect(screen.queryByTitle('Show the whole log')).not.toBeInTheDocument()
   })
 })

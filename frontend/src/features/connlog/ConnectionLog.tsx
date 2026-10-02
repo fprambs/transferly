@@ -48,7 +48,8 @@ interface ConnectionLogProps {
 
 /**
  * The connection log of a site, above its files as in FileZilla (ADR-0011): each step the server tells, with its time, colored by how it
- * reads, following the newest line unless the user scrolled up. It can be collapsed, copied as text and cleared.
+ * reads, following the newest line unless the user scrolled up. It can be collapsed, copied as text and cleared; collapsed, it is a status
+ * bar with the newest line, red when it is an error, that opens the log when clicked.
  */
 export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
   const { t, i18n } = useTranslation('explorer')
@@ -59,6 +60,7 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
   const scroller = useRef<HTMLOListElement>(null)
   const following = useRef(true)
   const [copied, setCopied] = useState(false)
+  const last = lines.at(-1)
 
   useEffect(() => {
     const list = scroller.current
@@ -81,7 +83,21 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
           {t(($) => $.log.title)}
           <span className="tabular-nums text-muted-foreground group-aria-expanded/button:text-foreground/75">{lines.length}</span>
         </Button>
-        <span className="flex-1" />
+        {!open && last !== undefined ? (
+          <button
+            type="button"
+            onClick={toggle}
+            title={t(($) => $.log.expand)}
+            className={cn('flex min-w-0 flex-1 items-center gap-3 rounded px-1.5 py-0.5 text-start font-mono text-[11px] hover:bg-accent', toneOf(last))}
+          >
+            <time dateTime={last.time} className="shrink-0 text-faint tabular-nums">
+              {clockOf(last.time, i18n.language)}
+            </time>
+            <span className="truncate">{messageOf(last, t)}</span>
+          </button>
+        ) : (
+          <span className="flex-1" />
+        )}
         {copied && (
           <span role="status" className="text-muted-foreground">
             {t(($) => $.log.copied)}

@@ -121,7 +121,7 @@ export const useUiStore = create<UiState>()(
       workspaceId: null,
       fileDoubleClick: 'download',
       preferencesSynced: false,
-      logOpen: true,
+      logOpen: false,
       sitesOpen: true,
       detailsOpen: true,
       setTheme: (themeId) => set({ themeId }),

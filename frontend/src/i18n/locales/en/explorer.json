@@ -264,7 +264,8 @@
       "failed": "Failed: {{reason}} ({{code}})",
       "canceled": "Canceled: {{path}}.",
       "disconnected": "Disconnected."
-    }
+    },
+    "expand": "Show the whole log"
   },
   "disconnected": {
     "title": "Disconnected from {{name}}",
