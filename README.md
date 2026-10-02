@@ -1,35 +1,251 @@
-<p align="center"><img src="branding/logo/logo-tagline.svg" alt="Transferly" width="480"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="branding/logo/logo-horizontal-on-dark.svg">
+    <img src="branding/logo/logo-horizontal.svg" alt="Transferly" width="420">
+  </picture>
+</p>
 
-# Transferly
+<h3 align="center">Tus servidores SFTP, FTP y FTPS en el navegador, con un equipo, un vault cifrado y transferencias que no se pierden.</h3>
 
-Self-hosted web client for FTP, FTPS and SFTP: multi-user workspaces, an encrypted credential vault and concurrent, resumable transfers.
+<p align="center">
+  <a href="LICENSE"><img alt="Licencia Apache 2.0" src="https://img.shields.io/badge/licencia-Apache%202.0-0d47a1"></a>
+  <img alt="Autoalojado" src="https://img.shields.io/badge/autoalojado-Docker-ff9800">
+  <img alt="SFTP, FTP y FTPS" src="https://img.shields.io/badge/protocolos-SFTP%20%C2%B7%20FTP%20%C2%B7%20FTPS-4caf50">
+  <img alt="Go y React" src="https://img.shields.io/badge/hecho%20con-Go%20%C2%B7%20React-64a0f0">
+  <img alt="Español e inglés" src="https://img.shields.io/badge/idiomas-espa%C3%B1ol%20%C2%B7%20ingl%C3%A9s-7e57c2">
+</p>
 
-## Run
+<p align="center">
+  <a href="#inicio-rápido"><b>Inicio rápido</b></a> ·
+  <a href="#características"><b>Características</b></a> ·
+  <a href="#galería"><b>Galería</b></a> ·
+  <a href="#lo-que-viene"><b>Lo que viene</b></a> ·
+  <a href="docs/ROADMAP.md"><b>Roadmap</b></a>
+</p>
+
+<p align="center">
+  <img src="docs/images/readme/explorador.png" alt="El explorador de Transferly con dos sitios abiertos en pestañas, la lista de archivos y el panel de detalles" width="100%">
+</p>
+
+---
+
+**Transferly** es un cliente de transferencia de archivos que vive en tu propio servidor. Todo lo que hacías con FileZilla o WinSCP (sitios guardados, doble panel, cola de transferencias, reanudación, registro de la conexión) ahora funciona desde cualquier navegador. Sin instalar nada en cada equipo y sin que las contraseñas de tus servidores salgan del vault.
+
+Está pensado para equipos: cada persona tiene su cuenta y su espacio personal, y los workspaces de equipo comparten sitios con roles, invitaciones y auditoría. Las credenciales se cifran con una contraseña maestra que el servidor nunca guarda.
+
+## Índice
+
+- [¿Por qué Transferly?](#por-qué-transferly)
+- [Inicio rápido](#inicio-rápido)
+- [Características](#características)
+  - [Explorador y transferencias](#explorador-y-transferencias)
+  - [Protocolos y formas de conectarse](#protocolos-y-formas-de-conectarse)
+  - [Visor de archivos sin descargar](#visor-de-archivos-sin-descargar)
+  - [Seguridad](#seguridad)
+  - [Equipos y administración](#equipos-y-administración)
+  - [Una interfaz cómoda](#una-interfaz-cómoda)
+- [Galería](#galería)
+- [Lo que viene](#lo-que-viene)
+- [Configuración](#configuración)
+- [Cómo está hecho](#cómo-está-hecho)
+- [Desarrollo](#desarrollo)
+- [Documentación](#documentación)
+- [Licencia](#licencia)
+
+## ¿Por qué Transferly?
+
+| | Cliente de escritorio clásico | **Transferly** |
+|---|---|---|
+| Dónde se usa | En cada equipo donde se instaló | En cualquier navegador, también en el teléfono |
+| Contraseñas de los servidores | En un archivo del equipo | En un vault cifrado con Argon2id y AES-256-GCM |
+| Trabajo en equipo | Cada uno con su lista de sitios | Workspaces compartidos con roles, invitaciones y auditoría |
+| Acceso a la red interna | Directo desde el equipo | Lo controla el servidor con una política de redes permitidas |
+| Ver un archivo | Descargarlo y abrirlo | Vista previa en el navegador, sin descargar |
+| Un corte de red | La transferencia empieza de nuevo | Se reanuda donde quedó |
+
+## Inicio rápido
+
+Solo necesitas Docker con Compose v2 y git.
 
 ```sh
-git clone <repository> transferly && cd transferly
+git clone https://github.com/fprambs/transferly.git
+cd transferly
 docker compose up -d
 ```
 
-The application answers on http://localhost:8080. Only Docker with Compose v2 and git are required.
+Abre **http://localhost:8080**. El asistente del primer arranque crea la cuenta de administración. Después configuras el vault con tu contraseña maestra y guardas tu primer sitio.
 
-## Develop
+Para publicarlo con HTTPS y certificados automáticos:
 
 ```sh
-make up          # backend and frontend with hot reload, and Postgres
-make test        # tests with coverage
-make lint        # linters and type checks
+TRANSFERLY_DOMAIN=transferly.tuempresa.com docker compose --profile https up -d
 ```
 
-Add `--profile testenv` (`make testenv`) for the SFTP, FTP and FTPS test servers; see [testenv/README.md](testenv/README.md). For file-viewer samples over SFTP in dev: `make preview-sftp` (host `sftp`, user `transferly`).
+La imagen corre sin privilegios, con el sistema de archivos de solo lectura y sin capacidades del kernel.
 
-## License
+## Características
 
-Apache License 2.0; see [LICENSE](LICENSE).
+### Explorador y transferencias
 
-## Documentation
+- **Pestañas de conexión**: varias conexiones abiertas a la vez. Cada una recuerda su carpeta, su selección y su vista dividida.
+- **Doble panel** con arrastrar y soltar: copia archivos y carpetas entre dos servidores, o entre un servidor y una carpeta de tu equipo.
+- **Cola de transferencias** con prioridades, pausa, reanudación y cancelación. Hay límites globales, por workspace, por persona y por sitio.
+- **Transferencias que se reanudan** tras un corte, en SFTP y en FTP. Las subidas son atómicas: se escriben como `.part` y se renombran al terminar.
+- **Carpetas completas**: súbelas desde el navegador, descárgalas como ZIP en streaming o archivo por archivo, y cópialas entre sitios con una política para los archivos que ya existen.
+- **Comparar y sincronizar carpetas** (local con remota o remota con remota), con una simulación antes de tocar nada.
+- **Búsqueda recursiva** en el servidor y un **filtro instantáneo** sobre la carpeta en vista: comodines, tipos, fechas y tamaños.
+- **Editor remoto** con resaltado de sintaxis y detección de conflictos antes de guardar.
+- **Marcadores** por sitio, **checksums** (MD5, SHA-1, SHA-256, SHA-512) y un **registro de la conexión en vivo**, paso a paso y sin secretos.
+- **Importación desde FileZilla**: trae tu `sitemanager.xml` con sus carpetas y, si quieres, sus contraseñas, que van directo al vault.
 
-- [Architecture](docs/ARCHITECTURE.md) and [roadmap](docs/ROADMAP.md) (Spanish)
-- [Decisions](docs/adr), [library guides](docs/guides/README.md), [security reviews](docs/security/README.md)
-- [Contributing](CONTRIBUTING.md)
-- [Brand kit](branding/README.md): logo, colors, typography and icons
+### Protocolos y formas de conectarse
+
+- **SFTP**: contraseña, archivo de clave (OpenSSH, PEM y PuTTY `.ppk`), anónimo, interactivo (por ejemplo un código de un solo uso) o contraseña pedida al conectar.
+- **FTP y FTPS**: TLS explícito o implícito, o solo FTP plano. Admite el comando ACCT, el juego de caracteres configurable por sitio y la zona horaria de `LIST` detectada automáticamente.
+- **Saltos y proxies**: ProxyJump por SSH y proxies SOCKS5 o HTTP. Cada salto pasa por la política de red.
+- **Claves de servidor**: confianza en el primer uso, aviso si la clave cambia y soporte para servidores con varias claves detrás de un balanceador.
+- **Conexión rápida** para probar un servidor sin guardarlo. Si funciona, se guarda como sitio con un clic.
+
+### Visor de archivos sin descargar
+
+Abre cualquier archivo con la barra espaciadora y recorre la carpeta con las flechas, como en Quick Look. Los archivos se leen por rangos: nunca se trae el archivo entero solo para mostrar el principio.
+
+- Texto y código con resaltado, Markdown, JSON, YAML y XML en árbol, CSV y TSV como tabla.
+- Imágenes (incluidas TIFF, AVIF y SVG sin scripts) con zoom, rotación y datos EXIF.
+- PDF con páginas, miniaturas y búsqueda, sin ejecutar el JavaScript del documento.
+- Audio y video.
+- Comprimidos (zip, tar, gz, 7z, rar y más) como árbol navegable, leído en el servidor y con protección contra bombas de descompresión.
+- Documentos de Word y OpenDocument, planillas de Excel y diapositivas de PowerPoint.
+- Bases SQLite, certificados, claves públicas y correos `.eml`.
+
+Todo lo que puede ser peligroso se dibuja en una página aislada: origen opaco, sin cookies, sin acceso a la API y sin red.
+
+### Seguridad
+
+- **Vault cifrado** por persona: Argon2id para derivar la clave y AES-256-GCM para los secretos, con kit de recuperación y bloqueo por inactividad. El servidor nunca guarda la contraseña maestra.
+- **Claves por workspace** con X25519. Se rotan automáticamente cuando alguien deja el equipo.
+- **Segundo factor**: app de autenticación (TOTP), **passkeys** (WebAuthn) y códigos de recuperación.
+- **Política de red** contra SSRF y DNS rebinding: los servidores en redes privadas solo se alcanzan si un administrador lo permite.
+- Sesiones opacas, CSRF firmado, límites de intentos y WebSocket con origen validado.
+- **Exportación cifrada** de los sitios con su propia contraseña.
+- Cada fase del proyecto cierra con una [revisión de seguridad](docs/security/README.md) publicada.
+
+### Equipos y administración
+
+- **Workspaces de equipo** con roles (propietario, administrador, editor, lector), invitaciones de un solo uso y transferencia de propiedad.
+- **Registro de auditoría** del equipo y de la instancia: miembros, invitaciones, sitios, claves y servidores de confianza.
+- **Panel de administración**: cuentas, roles, deshabilitar accesos, quitar un segundo factor perdido, redes permitidas y límites. Todo se edita en caliente.
+- **Cuotas y límites**: ancho de banda global y por persona, transferencias simultáneas, sitios, equipos, miembros y volumen diario.
+- **Registro de actividad** privado por persona, con retención configurable.
+
+### Una interfaz cómoda
+
+- **Paleta de comandos** (`Ctrl+K` o `⌘K`) para abrir sitios, pestañas y marcadores, ejecutar acciones e ir a la configuración.
+- **Atajos de teclado** en todo el explorador. Pulsa `?` para verlos.
+- **Inicio** con los sitios recientes y una guía de primeros pasos.
+- **12 temas**: Transferly oscuro y claro, Monokai, Dracula, Nord, Solarized, One Dark, Tokyo Night, Gruvbox y GitHub. Guardados en tu cuenta.
+- **Etiquetas de color** por sitio, visibles en la barra, las pestañas y el explorador, para no confundir producción con staging.
+- **Paneles redimensionables** y un diseño que se adapta a pantallas angostas.
+- **Español e inglés**, con la estructura lista para que la comunidad sume idiomas.
+- **Mensajes de error guiados**: cada error dice su causa probable y qué hacer.
+- **Accesible**: navegable con teclado, compatible con lectores de pantalla y con contraste WCAG AA en todos los temas.
+
+## Galería
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/readme/vista-dividida.png" alt="Vista dividida entre dos sitios"><br><sub><b>Doble panel</b> entre Producción y Staging, cada uno con su carpeta.</sub></td>
+    <td width="50%"><img src="docs/images/readme/vista-previa-planilla.png" alt="Vista previa de una planilla de Excel"><br><sub><b>Vista previa</b> de una planilla de Excel, sin descargarla.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/readme/vista-previa-codigo.png" alt="Vista previa de código con resaltado"><br><sub><b>Código con resaltado</b> y un botón para editarlo en el servidor.</sub></td>
+    <td><img src="docs/images/readme/vista-previa-diapositivas.png" alt="Vista previa de una presentación de PowerPoint"><br><sub><b>Diapositivas</b> de PowerPoint en el navegador.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/readme/menu-contextual.png" alt="Menú contextual de un archivo"><br><sub><b>Menú contextual</b> con íconos y atajos.</sub></td>
+    <td><img src="docs/images/readme/paleta.png" alt="Paleta de comandos"><br><sub><b>Paleta de comandos</b> con sitios recientes, pestañas y acciones.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/readme/inicio.png" alt="Pantalla de inicio"><br><sub><b>Inicio</b> con sitios recientes y primeros pasos.</sub></td>
+    <td><img src="docs/images/readme/configuracion.png" alt="Configuración de seguridad"><br><sub><b>Configuración</b> en un diálogo: seguridad, miembros, servidores de confianza y administración.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/readme/explorador-claro.png" alt="Explorador con el tema claro"><br><sub><b>Tema claro</b>, uno de los 12 temas.</sub></td>
+    <td><img src="docs/images/readme/atajos.png" alt="Ayuda de atajos de teclado"><br><sub><b>Atajos de teclado</b> a un <code>?</code> de distancia.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/readme/login.png" alt="Pantalla de inicio de sesión"><br><sub><b>Inicio de sesión</b>, con segundo factor y passkeys si los activas.</sub></td>
+    <td align="center"><img src="docs/images/readme/movil.png" alt="Transferly en un teléfono" width="45%"><br><sub><b>En el teléfono</b>: los sitios en un panel deslizable.</sub></td>
+  </tr>
+</table>
+
+## Lo que viene
+
+Ya están terminadas las fases 0 a 4 del [roadmap](docs/ROADMAP.md): MVP, el núcleo tipo FileZilla, equipos multiusuario, funciones avanzadas y el visor de archivos. Esto es lo próximo:
+
+**Fase 5: escala e integraciones**
+
+- 🧩 **Catálogo de conectores** ("Transferly Store"): conectores que se habilitan por instalación o por workspace, con formularios generados a partir de su esquema. Ya está en marcha.
+- ☁️ **Nuevos destinos**: S3 y compatibles (MinIO, Cloudflare R2, Wasabi), WebDAV y Google Drive. Después, SMB y Azure Blob.
+- 🔑 **Inicio de sesión único** con OIDC.
+- 🗓️ **Transferencias programadas** con cron consciente de las zonas horarias, y webhooks.
+- 🔌 **Tokens de API** y documentación pública del contrato.
+- 📈 **Observabilidad**: dashboards de Grafana y trazas de OpenTelemetry.
+- 🏗️ **Varios nodos**: sesiones pegajosas, eventos compartidos y un worker separado.
+
+**Diferenciadores**
+
+- 🕵️ **Auditoría de acceso a los sitios**: quién se conectó, qué descargó, subió, borró o renombró, y cuándo. Con filtros y exportación a CSV.
+- 🤖 **Conexiones y archivos por API**: tokens personales con alcance y caducidad, y una CLI de referencia para automatizar transferencias.
+
+**Más adelante**
+
+- 🖥️ **Transferly Desktop**: la misma aplicación como programa de escritorio para Windows, macOS y Linux, con acceso directo al disco.
+
+## Configuración
+
+Variables principales del despliegue con Docker Compose:
+
+| Variable | Para qué sirve | Por defecto |
+|---|---|---|
+| `TRANSFERLY_BASE_URL` | Dirección pública de la aplicación | `http://localhost:8080` |
+| `TRANSFERLY_DOMAIN` | Dominio para HTTPS automático (perfil `https`) | `localhost` |
+| `TRANSFERLY_BIND` y `TRANSFERLY_HTTP_PORT` | Interfaz y puerto donde escucha | `127.0.0.1` y `8080` |
+| `TRANSFERLY_DB_PASSWORD` | Contraseña de Postgres | `transferly` |
+| `TRANSFERLY_ALLOWED_NETWORKS` | Redes privadas que los sitios pueden alcanzar, separadas por coma | ninguna |
+| `TRANSFERLY_TRUSTED_PROXIES` | Proxies de confianza, para conocer la IP real del cliente | ninguno |
+
+Las redes permitidas y los límites también se cambian en caliente desde el panel de administración.
+
+## Cómo está hecho
+
+- **Backend** en Go con arquitectura hexagonal, PostgreSQL, migraciones versionadas y un contrato OpenAPI del que se genera el código del servidor y del cliente.
+- **Frontend** en React con TanStack Router y Query, Tailwind y componentes accesibles sobre Base UI.
+- **Una sola imagen** sin distribución (distroless) que lleva la interfaz embebida en el binario.
+- **Calidad**: 100 % de cobertura en el código de producción, pruebas de conformidad contra servidores reales (OpenSSH y vsftpd), pruebas de extremo a extremo con Playwright, revisiones de accesibilidad con axe en todos los temas y una revisión de seguridad al cerrar cada fase.
+
+Más detalles en la [arquitectura](docs/ARCHITECTURE.md) y en las [decisiones de diseño](docs/adr).
+
+## Desarrollo
+
+Todo corre en Docker, así que no necesitas Go ni Node instalados.
+
+```sh
+make up          # backend y frontend con recarga en caliente, y Postgres
+make test        # pruebas con cobertura
+make lint        # linters y chequeo de tipos
+make e2e         # pruebas de extremo a extremo contra la imagen de producción
+```
+
+Con `make testenv` se levantan servidores SFTP, FTP y FTPS de prueba; ver [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Documentación
+
+- [Roadmap](docs/ROADMAP.md) y [arquitectura](docs/ARCHITECTURE.md)
+- [Decisiones de diseño (ADR)](docs/adr), [guías de librerías](docs/guides/README.md) y [revisiones de seguridad](docs/security/README.md)
+- [Kit de marca](branding/README.md): logo, colores, tipografía e íconos
+- [Cómo contribuir](CONTRIBUTING.md) y [cómo agregar un idioma](docs/guides/i18n.md#adding-a-language)
+
+## Licencia
+
+Transferly se distribuye bajo la [licencia Apache 2.0](LICENSE).
