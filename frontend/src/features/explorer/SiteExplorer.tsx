@@ -12,6 +12,7 @@ import { ConnectionLog } from '../connlog/ConnectionLog'
 import { LocalExplorer } from '../local/LocalExplorer'
 import { localSiteId, localSupported } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
+import { useRecentSites } from '../sites/recent-sites'
 import { useSitesData } from '../sites/use-sites-data'
 import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
@@ -51,6 +52,13 @@ export function SiteExplorer() {
   const selectInTab = useTabs((state) => state.select)
   const active = useTabs((state) => state.tabs.find((candidate) => candidate.id === state.activeId))
   const tab = active?.siteId === siteId && active.workspaceId === workspaceId ? active : undefined
+
+  const remember = useRecentSites((state) => state.remember)
+  useEffect(() => {
+    if (workspaceId !== undefined) {
+      remember(workspaceId, siteId)
+    }
+  }, [remember, workspaceId, siteId])
 
   useEffect(() => {
     if (workspaceId !== undefined) {

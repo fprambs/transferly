@@ -2,7 +2,19 @@
   "label": "Explorador",
   "empty": {
     "title": "Elige un sitio para empezar",
-    "body": "Haz doble clic en un sitio guardado de la barra lateral para conectarte, o usa la conexión rápida para probar un servidor."
+    "body": "Haz doble clic en un sitio guardado de la barra lateral para conectarte, o usa la conexión rápida para probar un servidor.",
+    "quickConnect": "Conexión rápida",
+    "palette": "Buscar o ejecutar un comando",
+    "recent": "Recientes",
+    "steps": {
+      "title": "Primeros pasos",
+      "vault": "Configura el vault que guarda tus contraseñas y llaves",
+      "vaultAction": "Configurar",
+      "site": "Guarda tu primer sitio",
+      "siteAction": "Agregar",
+      "team": "Trabaja con tu equipo en un workspace compartido",
+      "teamAction": "Crear un equipo"
+    }
   },
   "breadcrumbs": "Ruta",
   "pathEdit": "Editar la ruta",

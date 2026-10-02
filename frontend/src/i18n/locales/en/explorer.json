@@ -2,7 +2,19 @@
   "label": "Explorer",
   "empty": {
     "title": "Pick a site to start",
-    "body": "Double-click a saved site in the sidebar to connect, or use quick connect to try a server."
+    "body": "Double-click a saved site in the sidebar to connect, or use quick connect to try a server.",
+    "quickConnect": "Quick connect",
+    "palette": "Search or run a command",
+    "recent": "Recent",
+    "steps": {
+      "title": "First steps",
+      "vault": "Set up the vault that keeps your passwords and keys",
+      "vaultAction": "Set up",
+      "site": "Save your first site",
+      "siteAction": "Add",
+      "team": "Work with your team in a shared workspace",
+      "teamAction": "Create a team"
+    }
   },
   "breadcrumbs": "Path",
   "pathEdit": "Edit the path",
