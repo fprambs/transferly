@@ -21,7 +21,7 @@ make test        # tests with coverage
 make lint        # linters and type checks
 ```
 
-Add `--profile testenv` (`make testenv`) for the SFTP, FTP and FTPS test servers; see [testenv/README.md](testenv/README.md).
+Add `--profile testenv` (`make testenv`) for the SFTP, FTP and FTPS test servers; see [testenv/README.md](testenv/README.md). For file-viewer samples over SFTP in dev: `make preview-sftp` (host `sftp`, user `transferly`).
 
 ## License
 

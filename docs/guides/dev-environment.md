@@ -23,3 +23,15 @@ Source: [devcontainer.json reference](https://containers.dev/implementors/json_r
 - Vite proxies `/api`, `/healthz` and `/readyz` to `TRANSFERLY_API_URL`; `server.allowedHosts` lists `frontend` for container-to-container requests.
 - Run a one-off command without waiting for other services: `docker compose run --rm --no-deps -T tools <command>`; `-T` avoids a TTY in scripts.
 - Pin third-party images by version; pin by digest before closing a phase.
+
+## Preview samples over SFTP
+
+The `testenv` profile includes an SFTP server with every file-viewer sample under `testenv/preview-samples`, mounted read-only at `/preview-samples`. Credentials are `transferly` / `transferly`; the hostname inside Compose is `sftp` on port 22. Nothing is published to the host.
+
+With the dev stack running (`make up`), start only SFTP and print connection steps for the web UI:
+
+```sh
+make preview-sftp
+```
+
+In Transferly (http://localhost:5173 by default), use **Quick connect** (Ctrl+Shift+K) or a new saved site with host **`sftp`**, not `localhost`, because the backend dials the server from the Docker network. Open `/preview-samples` after connecting. See [testenv/README.md](../../testenv/README.md) and [testenv/preview-samples/README.md](../../testenv/preview-samples/README.md).

@@ -3,7 +3,7 @@ TOOLS := $(COMPOSE) run --rm -T tools
 
 TEST := docker compose -f compose.test.yaml
 
-.PHONY: up down testenv logs shell test unit e2e e2e-update lint hooks
+.PHONY: up down testenv preview-sftp logs shell test unit e2e e2e-update lint hooks
 
 up:
 	$(COMPOSE) up -d --build
@@ -13,6 +13,9 @@ down:
 
 testenv:
 	$(COMPOSE) --profile testenv up -d --build
+
+preview-sftp:
+	./scripts/dev-preview-sftp.sh
 
 seed:
 	./scripts/seed-testenv.sh
