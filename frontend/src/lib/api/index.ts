@@ -102,6 +102,8 @@ export interface ImportOptions {
   passwords?: boolean
   /** What to do with a site whose name is taken. */
   onConflict?: 'skip' | 'rename'
+  /** Master password of FileZilla when the file uses encoding crypt. */
+  filezillaMasterPassword?: string
 }
 
 /** How to import a file exported by Transferly (ADR-0017). */
@@ -370,6 +372,10 @@ export function createApi(transport: Transport) {
           query: { dryRun: options.dryRun, passwords: options.passwords, onConflict: options.onConflict },
           body: file,
           contentType: 'application/xml',
+          headers:
+            options.filezillaMasterPassword === undefined || options.filezillaMasterPassword === ''
+              ? undefined
+              : { 'X-FileZilla-Master-Password': options.filezillaMasterPassword },
         }),
     },
     activity: {

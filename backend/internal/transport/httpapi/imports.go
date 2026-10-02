@@ -13,27 +13,31 @@ import (
 // ImportFilezilla creates the folders and sites of a FileZilla site manager file.
 func (s *server) ImportFilezilla(ctx context.Context, request ImportFilezillaRequestObject) (ImportFilezillaResponseObject, error) {
 	p, _ := principalFrom(ctx)
-	servers, skipped, err := fzimport.Parse(request.Body)
+	opts := fzimport.ParseOptions{}
+	if request.Params.XFileZillaMasterPassword != nil {
+		opts.MasterPassword = *request.Params.XFileZillaMasterPassword
+	}
+	servers, skipped, err := fzimport.ParseWithOptions(request.Body, opts)
 	if err != nil {
 		return importFailure(err)
 	}
-	opts := fzimport.Options{
+	importOpts := fzimport.Options{
 		DryRun: request.Params.DryRun != nil && *request.Params.DryRun, Passwords: request.Params.Passwords != nil && *request.Params.Passwords,
 	}
 	if request.Params.OnConflict != nil {
-		opts.OnConflict = fzimport.Conflict(*request.Params.OnConflict)
+		importOpts.OnConflict = fzimport.Conflict(*request.Params.OnConflict)
 	}
 	if request.Params.CollectionId != nil {
-		opts.Into = uuid.UUID(*request.Params.CollectionId)
+		importOpts.Into = uuid.UUID(*request.Params.CollectionId)
 	}
-	result, err := s.deps.Import.Import(ctx, p.User.ID, request.WorkspaceId, vaultKey(p), servers, skipped, opts)
+	result, err := s.deps.Import.Import(ctx, p.User.ID, request.WorkspaceId, vaultKey(p), servers, skipped, importOpts)
 	if err != nil {
 		return importFailure(err)
 	}
-	if created := result.Created(); !opts.DryRun && created > 0 {
+	if created := result.Created(); !importOpts.DryRun && created > 0 {
 		s.record(ctx, p.User.ID, request.WorkspaceId, audit.SitesImported, "filezilla", map[string]string{"sites": strconv.Itoa(created)})
 	}
-	return ImportFilezilla200JSONResponse(importResultDTO(result, opts.DryRun)), nil
+	return ImportFilezilla200JSONResponse(importResultDTO(result, importOpts.DryRun)), nil
 }
 
 // importResultDTO renders what an import did, or would do, to each site.

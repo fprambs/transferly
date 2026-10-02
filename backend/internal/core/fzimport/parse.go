@@ -85,6 +85,7 @@ type rawServer struct {
 	User      string `xml:"User"`
 	Pass      struct {
 		Encoding string `xml:"encoding,attr"`
+		PubKey   string `xml:"pubkey,attr"`
 		Value    string `xml:",chardata"`
 	} `xml:"Pass"`
 	Name      string `xml:"Name"`
@@ -93,18 +94,30 @@ type rawServer struct {
 	Colour    string `xml:"Colour"`
 }
 
+// ParseOptions tells how to read passwords from the file.
+type ParseOptions struct {
+	// MasterPassword opens passwords stored with FileZilla's encoding="crypt".
+	MasterPassword string
+}
+
 // parser walks the tokens of the file.
 type parser struct {
-	dec     *xml.Decoder
-	servers []Server
-	skipped []Skipped
-	count   int
+	dec            *xml.Decoder
+	servers        []Server
+	skipped        []Skipped
+	count          int
+	masterPassword string
 }
 
 // Parse reads a site manager file. Sites it cannot represent are reported as skipped rather than failing the file.
 func Parse(r io.Reader) ([]Server, []Skipped, error) {
+	return ParseWithOptions(r, ParseOptions{})
+}
+
+// ParseWithOptions reads a site manager file like [Parse], decrypting crypt-encoded passwords when a master password is given.
+func ParseWithOptions(r io.Reader, opts ParseOptions) ([]Server, []Skipped, error) {
 	limited := &io.LimitedReader{R: r, N: MaxBytes + 1}
-	p := &parser{dec: xml.NewDecoder(limited)}
+	p := &parser{dec: xml.NewDecoder(limited), masterPassword: opts.MasterPassword}
 	p.dec.Strict = true
 	if err := p.document(); err != nil {
 		if limited.N <= 0 {
@@ -250,7 +263,7 @@ func (p *parser) server(start xml.StartElement, path []string) error {
 	if name == "" {
 		name = clean(raw.Host)
 	}
-	if server, reason := convert(raw, name, path); reason != "" {
+	if server, reason := p.convert(raw, name, path); reason != "" {
 		p.skipped = append(p.skipped, Skipped{Path: path, Name: name, Reason: reason})
 	} else {
 		p.servers = append(p.servers, server)
@@ -277,7 +290,7 @@ var fileZillaProtocols = map[string]struct {
 var fileZillaColours = map[string]site.Color{"1": "red", "2": "green", "3": "blue", "4": "yellow", "5": "teal", "6": "pink", "7": "orange"}
 
 // convert maps the settings of FileZilla to the ones of a site, or gives the reason why that cannot be done.
-func convert(raw rawServer, name string, path []string) (Server, string) {
+func (p *parser) convert(raw rawServer, name string, path []string) (Server, string) {
 	server := Server{
 		Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User), RemoteDir: remoteDir(raw.RemoteDir),
 		Color: fileZillaColours[strings.TrimSpace(raw.Colour)],
@@ -306,30 +319,42 @@ func convert(raw rawServer, name string, path []string) (Server, string) {
 		server.AuthMethod = site.AuthInteractive
 	case "4":
 		server.AuthMethod, server.Account = site.AuthAccount, strings.TrimSpace(raw.Account)
-		readPassword(&server, raw)
+		readPassword(&server, raw, p.masterPassword)
 	default:
 		server.AuthMethod = site.AuthPassword
-		readPassword(&server, raw)
+		readPassword(&server, raw, p.masterPassword)
 	}
 	return server, ""
 }
 
 // readPassword decodes the password of a server.
-func readPassword(server *Server, raw rawServer) {
+func readPassword(server *Server, raw rawServer, masterPassword string) {
 	value := strings.TrimSpace(raw.Pass.Value)
 	if value == "" {
 		return
 	}
-	if raw.Pass.Encoding != "base64" {
+	switch strings.TrimSpace(raw.Pass.Encoding) {
+	case "base64":
+		decoded, err := base64.StdEncoding.DecodeString(value)
+		if err != nil || !utf8.Valid(decoded) {
+			server.PasswordSkipped = true
+			return
+		}
+		server.Password = string(decoded)
+	case "crypt":
+		if masterPassword == "" {
+			server.PasswordSkipped = true
+			return
+		}
+		plain, err := DecryptCryptPassword(masterPassword, raw.Pass.PubKey, value)
+		if err != nil {
+			server.PasswordSkipped = true
+			return
+		}
+		server.Password = plain
+	default:
 		server.Password = value
-		return
 	}
-	decoded, err := base64.StdEncoding.DecodeString(value)
-	if err != nil || !utf8.Valid(decoded) {
-		server.PasswordSkipped = true
-		return
-	}
-	server.Password = string(decoded)
 }
 
 // remoteDir reads FileZilla's encoding of a server path, such as "1 0 4 home 4 user" for /home/user: the server type, the length of a

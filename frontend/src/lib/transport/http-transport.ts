@@ -110,6 +110,9 @@ export class HttpTransport implements Transport {
     if (request.range !== undefined) {
       headers.Range = `bytes=${request.range.start}-${request.range.end}`
     }
+    if (request.headers !== undefined) {
+      Object.assign(headers, request.headers)
+    }
     let response: Response
     try {
       response = await this.send(this.url(request.path, request.query), { method: request.method, headers, body, signal: request.signal })

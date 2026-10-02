@@ -92,6 +92,8 @@ export interface ApiRequest {
   signal?: AbortSignal
   /** Asks for only the bytes from `start` to `end`, both included, of a download (ADR-0018). */
   range?: { start: number; end: number }
+  /** Extra headers; values are sent only for the request. */
+  headers?: Readonly<Record<string, string>>
 }
 
 /**

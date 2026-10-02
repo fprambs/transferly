@@ -2468,6 +2468,8 @@ export interface components {
     parameters: {
         /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
         CsrfToken: string;
+        /** @description Master password of FileZilla when the file stores site passwords with encoding crypt. Sent only for the request; never returned or stored. */
+        FileZillaMasterPassword: string;
         /** @description Identifier of the workspace. */
         WorkspaceId: string;
         /** @description Identifier of the invitation. */
@@ -7463,6 +7465,8 @@ export interface operations {
             header?: {
                 /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
                 "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+                /** @description Master password of FileZilla when the file stores site passwords with encoding crypt. Sent only for the request; never returned or stored. */
+                "X-FileZilla-Master-Password"?: components["parameters"]["FileZillaMasterPassword"];
             };
             path: {
                 /** @description Identifier of the workspace. */

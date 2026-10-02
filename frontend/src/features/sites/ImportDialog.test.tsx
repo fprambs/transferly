@@ -66,7 +66,7 @@ async function choose(dialog: ReturnType<typeof within>, name = 'sitemanager.xml
  * Covers {@link ImportDialog}.
  *
  * Scenarios:
- * - nothing can be previewed until a file is chosen, and nothing can be imported until it was previewed
+ * - nothing can be previewed until a file is chosen; import runs a preview first when needed
  * - the preview sends the file as XML with the options, lists the sites with their folder, status, reason and password notes, and counts them
  * - reasons the interface knows are explained and others are shown as they are
  * - importing sends the request without the dry run, shows what was created and offers to close
@@ -91,6 +91,7 @@ describe('ImportDialog', () => {
     expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled()
     expect(dialog.getByRole('button', { name: 'Import' })).toBeDisabled()
     await choose(dialog)
+    expect(dialog.getByRole('button', { name: 'Import' })).toBeEnabled()
     await user.click(dialog.getByRole('checkbox'))
     await chooseOption(user, dialog.getByRole('combobox'), 'Keep both, renaming the new one')
     await user.click(dialog.getByRole('button', { name: 'Preview' }))
@@ -114,12 +115,10 @@ describe('ImportDialog', () => {
     const seen = mockImport(items)
     const { user, onClose, dialog } = await renderDialog()
     await choose(dialog)
-    await user.click(dialog.getByRole('button', { name: 'Preview' }))
-    await dialog.findByText(/will be created/)
-
     await user.click(dialog.getByRole('button', { name: 'Import' }))
 
     expect(await dialog.findByText('0 sites created, 1 skipped, 1 failed.')).toBeInTheDocument()
+    expect(seen[0].query).toBe('?dryRun=true&passwords=false&onConflict=skip')
     expect(seen[1].query).toBe('?dryRun=false&passwords=false&onConflict=skip')
     expect(dialog.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
     await user.click(dialog.getByRole('button', { name: 'Close' }))

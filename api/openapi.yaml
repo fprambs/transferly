@@ -3709,6 +3709,7 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: "#/components/parameters/FileZillaMasterPassword"
       requestBody:
         required: true
         content:
@@ -4642,6 +4643,14 @@ components:
       description: Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it.
       schema:
         type: string
+    FileZillaMasterPassword:
+      name: X-FileZilla-Master-Password
+      in: header
+      required: false
+      description: Master password of FileZilla when the file stores site passwords with encoding crypt. Sent only for the request; never returned or stored.
+      schema:
+        type: string
+        maxLength: 1024
     WorkspaceId:
       name: workspaceId
       in: path
