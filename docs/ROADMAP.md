@@ -380,7 +380,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 8. Subir y Subir carpeta en un solo botón con menú; Filtros sin borde naranja
 - [x] 9. Íconos por tipo de archivo con color sutil: ya existían; ahora las carpetas van rellenas y audio, video, presentaciones, datos, configuración, logs, respaldos, discos y certificados tienen su propia forma
 - [x] 10. Sitio borrado: la pestaña dice Sitio no encontrado en vez del identificador y las acciones que no aplican quedan desactivadas
-- [ ] 11. Barra de sitios vacía con botones Nuevo sitio e Importar
+- [x] 11. Barra de sitios vacía con botones Nuevo sitio e Importar
 - [ ] 12. Inicio con sitios recientes, conexión rápida y una lista de primeros pasos
 - [ ] 13. Cabecera de Sitios con un botón + con menú y otro ⋯, en vez de cuatro íconos
 - [ ] 14. Chip del vault discreto cuando está desbloqueado y destacado solo cuando está bloqueado

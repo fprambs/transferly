@@ -9,6 +9,9 @@
   "sidebar": {
     "label": "Sitios",
     "empty": "Aún no hay sitios",
+    "emptyHint": "Guarda los servidores que usas y conéctate con un doble clic.",
+    "emptyAdd": "Agregar un sitio",
+    "emptyImport": "Importar desde FileZilla",
     "sites": "Sitios",
     "quickConnect": "Conexión rápida",
     "notSaved": "sin guardar",

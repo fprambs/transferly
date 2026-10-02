@@ -9,6 +9,9 @@
   "sidebar": {
     "label": "Sites",
     "empty": "No sites yet",
+    "emptyHint": "Save the servers you use and connect to them with a double click.",
+    "emptyAdd": "Add a site",
+    "emptyImport": "Import from FileZilla",
     "sites": "Sites",
     "quickConnect": "Quick connect",
     "notSaved": "not saved",

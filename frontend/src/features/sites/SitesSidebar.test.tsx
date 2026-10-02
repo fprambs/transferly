@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { QuickConnection, Site } from '@/lib/api'
-import { mockWorkspaceData } from '@/test/handlers'
+import { mockWorkspaceData, personalWorkspace } from '@/test/handlers'
 import { renderWithProviders } from '@/test/render'
 
 import { SitesSidebar } from './SitesSidebar'
@@ -32,7 +32,7 @@ function site(id: string, name: string, collectionId?: string): Site {
  * Covers {@link SitesSidebar}.
  *
  * Scenarios:
- * - a workspace without sites shows the empty message
+ * - a workspace without sites shows the empty message, with buttons to add a site or import them for whoever may manage sites
  * - collections, sites and quick connections appear as a tree with counts and the "not saved" mark
  * - opening a collection reveals its children and closing it hides them again; choosing in its menu does not open or close it
  * - clicking a row selects it and only one row is selected at a time; Space selects the row with focus
@@ -87,12 +87,27 @@ describe('SitesSidebar', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('shows the empty message for a workspace without sites', async () => {
+  it('shows the empty message for a workspace without sites, with ways to add the first ones', async () => {
     mockWorkspaceData()
+    const user = userEvent.setup()
 
     await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
     expect(await screen.findByText('No sites yet')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Add a site' }))
+    expect(await screen.findByRole('dialog', { name: 'New site' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Import from FileZilla' }))
+    expect(await screen.findByRole('dialog', { name: 'Import sites' })).toBeInTheDocument()
+  })
+
+  it('leaves the ways to add sites out of the empty message for a viewer', async () => {
+    mockWorkspaceData({ workspaces: [{ ...personalWorkspace, role: 'viewer' }] })
+
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
+
+    expect(await screen.findByText('No sites yet')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add a site' })).not.toBeInTheDocument()
   })
 
   it('draws the tree and opens and closes collections', async () => {

@@ -429,7 +429,22 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
       {rows.length === 0 && (
         <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
           <Illustration scene="sites" className="h-16 w-24" />
-          <p className="text-sm text-muted-foreground">{t(($) => $.sidebar.empty)}</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">{t(($) => $.sidebar.empty)}</p>
+            <p className="text-xs text-muted-foreground">{t(($) => $.sidebar.emptyHint)}</p>
+          </div>
+          {workspace !== undefined && canManageSites(workspace.role) && (
+            <div className="flex w-full flex-col gap-1.5">
+              <Button size="sm" onClick={() => setSiteTarget({ mode: 'create' })}>
+                <Plus />
+                {t(($) => $.sidebar.emptyAdd)}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setImporting(true)}>
+                <FileInput />
+                {t(($) => $.sidebar.emptyImport)}
+              </Button>
+            </div>
+          )}
         </div>
       )}
       <div
