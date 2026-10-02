@@ -39,6 +39,19 @@ export function pathSegments(path: string): PathSegment[] {
   ]
 }
 
+/** Makes a typed path absolute and plain: repeated and trailing slashes go, `.` steps are dropped and `..` steps climb, never above the root. */
+export function normalizePath(typed: string): string {
+  const names: string[] = []
+  for (const name of typed.trim().split('/')) {
+    if (name === '..') {
+      names.pop()
+    } else if (name !== '' && name !== '.') {
+      names.push(name)
+    }
+  }
+  return `/${names.join('/')}`
+}
+
 /** Returns the path of the directory that holds a path; the root is its own parent. */
 export function parentPath(path: string): string {
   const segments = pathSegments(path)

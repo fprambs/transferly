@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { RemoteEntry } from '@/lib/api'
 
-import { formatSize, joinPath, parentPath, pathSegments, resolveSelection, sortEntries } from './entries'
+import { formatSize, joinPath, normalizePath, parentPath, pathSegments, resolveSelection, sortEntries } from './entries'
 
 /** Builds an entry with only what sorting looks at. */
 function entry(name: string, type: RemoteEntry['type'] = 'file'): RemoteEntry {
@@ -10,12 +10,13 @@ function entry(name: string, type: RemoteEntry['type'] = 'file'): RemoteEntry {
 }
 
 /**
- * Covers the helpers of the explorer: {@link sortEntries}, {@link formatSize}, {@link pathSegments} and {@link parentPath}.
+ * Covers the helpers of the explorer: {@link sortEntries}, {@link formatSize}, {@link pathSegments}, {@link parentPath} and {@link normalizePath}.
  *
  * Scenarios:
  * - directories come first, names sort ignoring case and numbers sort by value, and the input is not changed
  * - sizes use bytes below a kilobyte and one decimal above, up to terabytes and beyond
  * - a path splits into steps that start at the root, and ignores repeated slashes
+ * - a typed path becomes absolute and plain: spaces around it, repeated and trailing slashes and `.` go, `..` climbs but not above the root
  * - the parent of a path is the step before it, and the root is its own parent
  * - names join onto folders, including the root
  * - the selection is the entry with the selected path, or the first one when there is none or it is gone
@@ -70,5 +71,12 @@ describe('explorer entries', () => {
     expect(resolveSelection(entries, '/b')).toBe(1)
     expect(resolveSelection(entries, '/gone')).toBe(0)
     expect(resolveSelection(entries, null)).toBe(0)
+  })
+
+  it('makes a typed path absolute and plain', () => {
+    expect(normalizePath('  var//www/ ')).toBe('/var/www')
+    expect(normalizePath('/var/./log/../www/')).toBe('/var/www')
+    expect(normalizePath('../../etc')).toBe('/etc')
+    expect(normalizePath('')).toBe('/')
   })
 })

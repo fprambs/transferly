@@ -5,6 +5,8 @@
     "body": "Haz doble clic en un sitio guardado de la barra lateral para conectarte, o usa la conexión rápida para probar un servidor."
   },
   "breadcrumbs": "Ruta",
+  "pathEdit": "Editar la ruta",
+  "pathField": "Ruta de la carpeta",
   "columns": {
     "name": "Nombre",
     "size": "Tamaño",

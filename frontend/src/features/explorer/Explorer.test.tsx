@@ -88,7 +88,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - directories open with double click and Enter, files do not navigate, and Backspace goes up
  * - a double click or Enter downloads a file by default and opens it in the editor when the user prefers; the details panel always offers Edit
  * - the arrow keys, Home and End move the selection and other keys are ignored
- * - the path steps, the up button and the refresh button navigate and reload
+ * - the path steps, the up button and the refresh button navigate and reload; the pencil or a double click beside the steps turns the path into a field, where Enter goes to the typed path and Escape or leaving it puts the steps back
  * - only the rows near the window are drawn in a long folder
  * - failures are explained and can be retried
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
@@ -238,6 +238,28 @@ describe('explorer', () => {
 
     await user.click(screen.getByRole('button', { name: 'Refresh' }))
     await waitFor(() => expect(listed).toBe(2))
+  })
+
+  it('goes to a typed path from the pencil of the path, and puts the steps back on Escape or leaving the field', async () => {
+    mockListing([entry('a')])
+    const { user, onNavigate } = await renderExplorer('/var/www')
+    await screen.findByRole('grid')
+
+    await user.click(screen.getByRole('button', { name: 'Edit the path' }))
+    const field = screen.getByRole('textbox', { name: 'Folder path' })
+    expect(field).toHaveValue('/var/www')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('textbox', { name: 'Folder path' })).not.toBeInTheDocument()
+
+    await user.dblClick(screen.getByRole('navigation', { name: 'Path' }))
+    await user.click(screen.getByRole('grid'))
+    expect(screen.queryByRole('textbox', { name: 'Folder path' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit the path' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Folder path' }))
+    await user.type(screen.getByRole('textbox', { name: 'Folder path' }), 'etc//nginx/../ssh/{Enter}')
+    expect(onNavigate).toHaveBeenLastCalledWith('/etc/ssh')
+    expect(screen.getByRole('navigation', { name: 'Path' })).toBeInTheDocument()
   })
 
   it('disables the up button at the root', async () => {

@@ -5,6 +5,8 @@
     "body": "Double-click a saved site in the sidebar to connect, or use quick connect to try a server."
   },
   "breadcrumbs": "Path",
+  "pathEdit": "Edit the path",
+  "pathField": "Folder path",
   "columns": {
     "name": "Name",
     "size": "Size",
