@@ -9,10 +9,16 @@ import { ShellPage } from './pages/shell-page.ts'
  * Test fixtures: the account's saved preferences (theme, language, double click), kept per test so parallel tests cannot change each
  * other's look or language (a test that wants the real account passes `accountTheme: 'real'`), an application shell that is already open, signed in by the global setup, the shared quick connection,
  * and an empty folder of the test's own on the SFTP server of the test stack, removed when the test ends, so what a test lists never depends on what other
- * tests left behind. */
+ * tests left behind. A browser with nothing stored starts with the transfer queue open, as if the user had opened it, so it does not
+ * collapse by itself while a test reads its rows. */
 export const test = base.extend<{ shell: ShellPage; quickId: string; folder: string; accountTheme: 'mocked' | 'real' }>({
   accountTheme: ['mocked', { option: true }],
   page: async ({ page, accountTheme }, use) => {
+    await page.addInitScript(() => {
+      if (globalThis.localStorage.getItem('transferly-ui') === null) {
+        globalThis.localStorage.setItem('transferly-ui', JSON.stringify({ state: { queueOpen: true }, version: 0 }))
+      }
+    })
     if (accountTheme === 'mocked') {
       const preferences: Record<string, unknown> = { theme: 'transferly-dark' }
       await page.route('**/api/v1/me', async (route) => {

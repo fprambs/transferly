@@ -19,6 +19,8 @@ export interface UiState {
   queueOpen: boolean
   /** Tab of the transfer queue that is showing; it is not kept across sessions. */
   queueTab: QueueTab
+  /** Whether the transfer queue opened by itself for a transfer, so it closes again once nothing is moving; it is not kept across sessions. */
+  queueAuto: boolean
   /** Identifier of the workspace the user chose, or `null` to use the personal one. */
   workspaceId: string | null
   /** What a double click, or Enter, does on a file. */
@@ -41,6 +43,8 @@ export interface UiState {
   setQueueTab: (tab: QueueTab) => void
   /** Opens the transfer queue on its active tab so a transfer that just started is seen; an open queue keeps its tab. */
   showActiveTransfers: () => void
+  /** Collapses the transfer queue again if it opened by itself; one the user opened stays open. */
+  settleQueue: () => void
   /** Chooses the workspace to work in. */
   setWorkspace: (workspaceId: string) => void
   /** Goes back to the personal workspace. */
@@ -111,8 +115,9 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       themeId: defaultThemeId,
       followSystem: false,
-      queueOpen: true,
+      queueOpen: false,
       queueTab: 'active',
+      queueAuto: false,
       workspaceId: null,
       fileDoubleClick: 'download',
       preferencesSynced: false,
@@ -121,15 +126,16 @@ export const useUiStore = create<UiState>()(
       detailsOpen: true,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
-      toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen })),
+      toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen, queueAuto: false })),
       setQueueTab: (queueTab) => set({ queueTab }),
-      showActiveTransfers: () => set((state) => ({ queueOpen: true, queueTab: state.queueOpen ? state.queueTab : 'active' })),
+      showActiveTransfers: () => set((state) => (state.queueOpen ? {} : { queueOpen: true, queueTab: 'active', queueAuto: true })),
+      settleQueue: () => set((state) => (state.queueAuto ? { queueOpen: false, queueAuto: false } : {})),
       setWorkspace: (workspaceId) => set({ workspaceId }),
       clearWorkspace: () => set({ workspaceId: null }),
       setFileDoubleClick: (fileDoubleClick) => set({ fileDoubleClick }),
       markPreferencesSynced: () => set({ preferencesSynced: true }),
       toggleLog: () => set((state) => ({ logOpen: !state.logOpen })),
-      setQueueOpen: (queueOpen) => set({ queueOpen }),
+      setQueueOpen: (queueOpen) => set({ queueOpen, queueAuto: false }),
       setLogOpen: (logOpen) => set({ logOpen }),
       setSitesOpen: (sitesOpen) => set({ sitesOpen }),
       setDetailsOpen: (detailsOpen) => set({ detailsOpen }),

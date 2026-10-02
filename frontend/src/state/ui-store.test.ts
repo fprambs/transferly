@@ -67,6 +67,25 @@ describe('useUiStore', () => {
     expect(Object.keys(stored.state)).not.toContain('queueTab')
   })
 
+  it('collapses again only a queue that opened by itself', () => {
+    useUiStore.setState({ queueOpen: false, queueAuto: false })
+    useUiStore.getState().showActiveTransfers()
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueAuto: true })
+    useUiStore.getState().settleQueue()
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: false, queueAuto: false })
+
+    useUiStore.getState().showActiveTransfers()
+    useUiStore.getState().setQueueOpen(true)
+    useUiStore.getState().settleQueue()
+    expect(useUiStore.getState().queueOpen).toBe(true)
+
+    useUiStore.setState({ queueAuto: true })
+    useUiStore.getState().toggleQueue()
+    useUiStore.getState().toggleQueue()
+    useUiStore.getState().settleQueue()
+    expect(useUiStore.getState().queueOpen).toBe(true)
+  })
+
   it('persists only the theme, the follow-system flag, the panels shown, the workspace and the double click action', () => {
     useUiStore.getState().setTheme('nord')
 

@@ -10,7 +10,7 @@ import { choose } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
 import { useUiStore } from '@/state/ui-store'
 
-import { TransfersDock } from './TransfersDock'
+import { settleDelayMs, TransfersDock } from './TransfersDock'
 import { useTransfersStore } from './transfers-store'
 
 /** Builds a transfer record, newest first by the number in its identifier. */
@@ -50,13 +50,40 @@ function record(id: string, overrides: Partial<TransferRecord> = {}): TransferRe
  *   itself up to date while it is on show, and follows the interface language
  * - the tabs switch both ways and the choice is kept in the interface state
  * - the panel collapses and the texts follow the interface language
+ * - a transfer that starts opens a collapsed queue, which collapses again a while after the last one ends; a queue the user opened stays
  */
 describe('TransfersDock', () => {
   beforeEach(() => {
     useTransfersStore.getState().reset()
-    useUiStore.setState({ queueOpen: true, queueTab: 'active' })
+    useUiStore.setState({ queueOpen: true, queueTab: 'active', queueAuto: false })
     mockSession(adminSession)
     mockWorkspaceData()
+  })
+
+  it('opens by itself for a transfer and collapses again once it ends', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    useUiStore.setState({ queueOpen: false, queueAuto: false })
+    await renderWithProviders(<TransfersDock />)
+
+    act(() => useTransfersStore.getState().upsert([record('1')]))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueAuto: true })
+    act(() => useTransfersStore.getState().upsert([record('1', { status: 'done', bytesDone: 2 * 1024 ** 2 })]))
+    act(() => vi.advanceTimersByTime(settleDelayMs - 100))
+    expect(useUiStore.getState().queueOpen).toBe(true)
+    act(() => vi.advanceTimersByTime(200))
+    expect(useUiStore.getState().queueOpen).toBe(false)
+    vi.useRealTimers()
+  })
+
+  it('stays open after the transfers when the user opened it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await renderWithProviders(<TransfersDock />)
+
+    act(() => useTransfersStore.getState().upsert([record('1')]))
+    act(() => useTransfersStore.getState().upsert([record('1', { status: 'done', bytesDone: 2 * 1024 ** 2 })]))
+    act(() => vi.advanceTimersByTime(settleDelayMs * 2))
+    expect(useUiStore.getState()).toMatchObject({ queueOpen: true, queueAuto: false })
+    vi.useRealTimers()
   })
 
   it('says when there are no transfers', async () => {

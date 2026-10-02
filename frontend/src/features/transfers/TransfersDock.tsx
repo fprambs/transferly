@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BrandIcon } from '@/components/brand/BrandIcon'
@@ -39,7 +39,13 @@ function Count({ value, tone }: { value: number; tone: string }) {
   )
 }
 
-/** Bottom panel that lists the transfers, active ones and finished ones, with their progress and actions. */
+/** How long a queue that opened by itself stays open after the last transfer ends, so its outcome can be read. */
+export const settleDelayMs = 4000
+
+/**
+ * Bottom panel that lists the transfers, active ones and finished ones, with their progress and actions. While nothing moves it can rest
+ * as its header; a transfer that starts opens it, and once the last one ends a queue that opened by itself collapses again.
+ */
 export function TransfersDock() {
   const { t } = useTranslation('shell')
   const { t: transfers, i18n } = useTranslation('transfers')
@@ -60,6 +66,25 @@ export function TransfersDock() {
     const all = newestFirst(items)
     return { active: all.filter(isActive), finished: all.filter((item) => !isActive(item)), shown: all.filter((item) => isActive(item) || endedRecently(item, clock)) }
   }, [items, clock])
+
+  const activeCount = active.length
+  const before = useRef(activeCount)
+  const auto = useUiStore((state) => state.queueAuto)
+  const showActive = useUiStore((state) => state.showActiveTransfers)
+  const settle = useUiStore((state) => state.settleQueue)
+  useEffect(() => {
+    if (activeCount > before.current) {
+      showActive()
+    }
+    before.current = activeCount
+  }, [activeCount, showActive])
+  useEffect(() => {
+    if (!auto || activeCount > 0) {
+      return
+    }
+    const timer = setTimeout(settle, settleDelayMs)
+    return () => clearTimeout(timer)
+  }, [auto, activeCount, settle])
 
   const resume = (item: TransferItem): void => {
     const needsFile = resumer.resume(item.record)
