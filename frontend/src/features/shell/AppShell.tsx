@@ -12,7 +12,6 @@ import { QuickConnectFlow } from '@/features/quick/QuickConnectFlow'
 import { Toolbar } from '@/features/toolbar/Toolbar'
 import { useConnectionState } from '@/features/toolbar/connection-store'
 import { useDisconnect } from '@/features/toolbar/use-disconnect'
-import { TabBar } from '@/features/tabs/TabBar'
 import { useTabs } from '@/features/tabs/tabs-store'
 import { useCloseUnused } from '@/features/tabs/use-close-unused'
 import { useGoToTab } from '@/features/tabs/use-go-to-tab'
@@ -122,7 +121,6 @@ export function AppShell() {
             <Panel id="main" minSize="30%" className="h-full">
               <main aria-label={explorer(($) => $.label)} className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto bg-background">
                 <Toolbar />
-                <TabBar />
                 <Outlet />
               </main>
             </Panel>

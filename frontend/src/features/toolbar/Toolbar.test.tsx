@@ -61,7 +61,7 @@ function toolbar() {
  * Covers {@link Toolbar} and the connection states it drives in the explorer (4.9b).
  *
  * Scenarios:
- * - with no site open the connection actions are off, and the switches of the sites, log, details and transfers panels still work; the toolbar is not shown outside the explorer
+ * - with no site open the connection actions are off, and the View menu still shows or hides the sites, log, details and transfers panels
  * - refresh lists the folder in view again; the toolbar names the connection it acts on
  * - cancel is on only while the connection is busy, stops the listing, and the explorer says it was canceled with a way to try again
  * - disconnect asks the server to close the connections and takes the site out of the address (the main pane leaves for the start page,
@@ -80,7 +80,7 @@ describe('Toolbar', () => {
     useUiStore.setState({ logOpen: true, sitesOpen: true, detailsOpen: true, queueOpen: true })
   })
 
-  it('is off with no site open, except the panel switches', async () => {
+  it('is off with no site open, except the View menu of the panels', async () => {
     const user = userEvent.setup()
     await renderApp({ path: '/' })
     await screen.findByRole('toolbar', { name: 'Toolbar' })
@@ -94,11 +94,16 @@ describe('Toolbar', () => {
       ['Details panel', 'detailsOpen'],
       ['Transfers panel', 'queueOpen'],
     ] as const) {
-      expect(toolbar().getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true')
-      await user.click(toolbar().getByRole('button', { name }))
+      await user.click(toolbar().getByRole('button', { name: 'View' }))
+      const item = await screen.findByRole('menuitemcheckbox', { name })
+      expect(item).toHaveAttribute('aria-checked', 'true')
+      await user.click(item)
       expect(useUiStore.getState()[key]).toBe(false)
-      expect(toolbar().getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false')
+      await user.keyboard('{Escape}')
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
     }
+    await user.click(toolbar().getByRole('button', { name: 'View' }))
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Log panel' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('stays under the settings dialog and is back once it closes', async () => {

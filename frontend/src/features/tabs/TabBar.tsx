@@ -20,7 +20,7 @@ function typing(target: EventTarget | null): boolean {
 }
 
 /**
- * The tabs of the open connections of the workspace, above the log (4.12). Each shows its site with the green dot of an open connection,
+ * The tabs of the open connections of the workspace, on the left of the toolbar above the log (4.12). Each shows its site with the green dot of an open connection,
  * activates on click, and closes with its button or a middle click; closing disconnects the sites of its panes that no other tab shows, so
  * their green dot goes out.
  * Ctrl+Tab and Ctrl+Shift+Tab move between tabs and Ctrl+W closes the active one where the browser allows it, and Alt+Page Down, Alt+Page Up
@@ -74,7 +74,7 @@ export function TabBar() {
     return null
   }
   return (
-    <nav aria-label={t(($) => $.tabs.label)} className="flex h-9 flex-none items-end gap-0.5 overflow-x-auto border-b bg-card px-2">
+    <nav aria-label={t(($) => $.tabs.label)} className="flex h-full min-w-0 flex-1 items-end gap-0.5 overflow-x-auto px-2">
       {tabs.map((tab) => {
         const name = [...sites, ...quick].find((connection) => connection.id === tab.siteId)?.name ?? tab.siteId
         const color = sites.find((saved) => saved.id === tab.siteId)?.color

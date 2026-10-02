@@ -280,6 +280,7 @@
     "connection": "Connection: {{name}}",
     "disconnectedFrom": "Disconnected: {{name}}",
     "disconnectFailed": "Could not disconnect. Try again.",
+    "view": "View",
     "panels": {
       "sites": "Sites panel",
       "log": "Log panel",

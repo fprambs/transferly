@@ -366,6 +366,29 @@ Ajustes, seguridad, miembros, auditoría, servidores de confianza y administraci
 - [x] Seguridad en dos tarjetas: verificación en dos pasos (app de autenticación con su estado y, si está activa, los códigos de recuperación en su propia fila) y passkeys (cada una en su fila, con estado vacío)
 - [ ] Líneas base visuales de ajustes regeneradas con el diálogo
 
+## Revisión de UX del explorador (pedido del 2026-10-02)
+
+Cada punto en su propio commit, en este orden.
+
+- [x] 1. Una sola barra sobre la vista: pestañas a la izquierda; refrescar, detener y desconectar a la derecha; los paneles en un menú Vista (el nombre de la conexión queda para lectores de pantalla, las pestañas ya lo muestran)
+- [ ] 2. Cola de transferencias que se reduce a su barra cuando no hay nada en curso, se abre al empezar una transferencia y se vuelve a cerrar al terminar
+- [ ] 3. Log como barra de estado de una línea con el último mensaje (en rojo si es un error) que se despliega al hacer clic
+- [ ] 4. Estado activo neutro en los interruptores de paneles en vez de todos en naranja
+- [ ] 5. Ruta en migas de pan clicables, editable con un clic
+- [ ] 6. Menú contextual con íconos, atajos, separadores por grupo y Eliminar en rojo
+- [ ] 7. Panel de detalles cerrado por defecto y con un resumen visual (ícono del tipo, vista previa) sin repetir el menú contextual
+- [ ] 8. Subir y Subir carpeta en un solo botón con menú; Filtros sin borde naranja
+- [ ] 9. Íconos por tipo de archivo con color sutil
+- [ ] 10. Sitio borrado: la pestaña dice Sitio no encontrado en vez del identificador y las acciones que no aplican quedan desactivadas
+- [ ] 11. Barra de sitios vacía con botones Nuevo sitio e Importar
+- [ ] 12. Inicio con sitios recientes, conexión rápida y una lista de primeros pasos
+- [ ] 13. Cabecera de Sitios con un botón + con menú y otro ⋯, en vez de cuatro íconos
+- [ ] 14. Chip del vault discreto cuando está desbloqueado y destacado solo cuando está bloqueado
+- [ ] 15. Pantallas angostas: sitios en panel deslizable, transferencias en hoja inferior, detalles ocultos y buscador como ícono
+- [ ] 16. Paleta con las secciones de la configuración y los sitios recientes
+- [ ] 17. Ayuda de atajos con ?
+- [ ] 18. Avisos breves tras renombrar, borrar o crear carpeta, con acceso al log
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común

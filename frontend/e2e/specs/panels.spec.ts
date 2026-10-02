@@ -54,7 +54,9 @@ test.describe('resizable panels', () => {
     await grid.waitFor()
     const width = (await grid.boundingBox())?.width ?? 0
 
-    await page.getByRole('toolbar', { name: 'Toolbar' }).getByRole('button', { name: 'Sites panel' }).click()
+    await page.getByRole('toolbar', { name: 'Toolbar' }).getByRole('button', { name: 'View' }).click()
+    await page.getByRole('menuitemcheckbox', { name: 'Sites panel' }).click()
+    await page.keyboard.press('Escape')
     await expect(page.getByRole('navigation', { name: 'Sites, panel hidden' })).toBeVisible()
     await expect.poll(async () => (await grid.boundingBox())?.width ?? 0).toBeGreaterThan(width + 100)
     await page.getByRole('navigation', { name: 'Sites, panel hidden' }).getByRole('button', { name: 'Show the sites panel' }).click()

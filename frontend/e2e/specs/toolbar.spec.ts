@@ -26,7 +26,7 @@ test.describe('toolbar', () => {
     const toolbar = page.getByRole('toolbar', { name: 'Toolbar' })
     const log = page.getByRole('list', { name: 'Connection log' })
     await expect(log.getByText(/^Listed \//)).toHaveCount(1)
-    await expect(toolbar.getByText(`Connection: ${name}`)).toBeVisible()
+    await expect(toolbar.getByText(`Connection: ${name}`)).toBeAttached()
 
     await toolbar.getByRole('button', { name: 'Refresh the folder' }).click()
     await expect(log.getByText(/^Listed \//)).toHaveCount(2)
