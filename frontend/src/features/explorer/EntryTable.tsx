@@ -1,8 +1,9 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Download, Eye, FileArchive, FilePen, Files, FolderOpen, FolderPlus, TextCursorInput, Trash2, type LucideIcon } from 'lucide-react'
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuGroup, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { RemoteEntry } from '@/lib/api'
 import { formatInstant } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
@@ -12,6 +13,35 @@ import { matchRanges } from './entry-filter'
 import { fileTypeOf } from './file-types'
 import { FileTypeIcon } from './FileTypeIcon'
 import { useDescribeType } from './use-file-type'
+
+/** Props of {@link MenuEntry}. */
+interface MenuEntryProps {
+  /** Icon of the action. */
+  icon: LucideIcon
+  /** Name of the action. */
+  label: string
+  /** The key that does the same in the list, shown on the right; left out of the name read aloud. */
+  shortcut?: string
+  /** Whether the action destroys something, which draws it in red. */
+  destructive?: boolean
+  /** Runs the action. */
+  onClick: () => void
+}
+
+/** One action of the menu of an entry: its icon, its name and the key that does the same. */
+function MenuEntry({ icon: Icon, label, shortcut, destructive = false, onClick }: MenuEntryProps) {
+  return (
+    <ContextMenuItem variant={destructive ? 'destructive' : 'default'} onClick={onClick} className="gap-2.5">
+      <Icon aria-hidden="true" className={destructive ? undefined : 'text-muted-foreground'} />
+      {label}
+      {shortcut !== undefined && (
+        <ContextMenuShortcut aria-hidden="true" className="ps-6 font-mono text-[11px] tracking-normal">
+          {shortcut}
+        </ContextMenuShortcut>
+      )}
+    </ContextMenuItem>
+  )
+}
 
 /** Height of every row, in pixels. */
 const rowHeight = 32
@@ -216,16 +246,26 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
       </ContextMenuTrigger>
       {menuItems ? (
         <ContextMenuContent aria-label={t(($) => $.menu.label)} className="min-w-44">
-          {active.type === 'directory' && <ContextMenuItem onClick={() => onOpen(active)}>{t(($) => $.menu.open)}</ContextMenuItem>}
-          {active.type === 'file' && onPreview && <ContextMenuItem onClick={() => onPreview(active)}>{t(($) => $.menu.preview)}</ContextMenuItem>}
-          {active.type === 'file' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.download)}</ContextMenuItem>}
-          {active.type === 'directory' && onDownload && <ContextMenuItem onClick={() => onDownload(active)}>{t(($) => $.menu.downloadZip)}</ContextMenuItem>}
-          {active.type === 'directory' && onDownloadEach && <ContextMenuItem onClick={() => onDownloadEach(active)}>{t(($) => $.menu.downloadEach)}</ContextMenuItem>}
-          {active.type === 'file' && onEdit && <ContextMenuItem onClick={() => onEdit(active)}>{t(($) => $.menu.edit)}</ContextMenuItem>}
-          {onRename && <ContextMenuItem onClick={() => onRename(active)}>{t(($) => $.menu.rename)}</ContextMenuItem>}
-          {onDelete && <ContextMenuItem onClick={() => onDelete(active)}>{t(($) => $.menu.delete)}</ContextMenuItem>}
+          <ContextMenuGroup>
+            {active.type === 'directory' && <MenuEntry icon={FolderOpen} label={t(($) => $.menu.open)} shortcut={t(($) => $.menu.keys.enter)} onClick={() => onOpen(active)} />}
+            {active.type === 'file' && onPreview && <MenuEntry icon={Eye} label={t(($) => $.menu.preview)} shortcut={t(($) => $.menu.keys.space)} onClick={() => onPreview(active)} />}
+            {active.type === 'file' && onEdit && <MenuEntry icon={FilePen} label={t(($) => $.menu.edit)} onClick={() => onEdit(active)} />}
+          </ContextMenuGroup>
+          {onDownload && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuGroup>
+                {active.type === 'file' && <MenuEntry icon={Download} label={t(($) => $.menu.download)} onClick={() => onDownload(active)} />}
+                {active.type === 'directory' && <MenuEntry icon={FileArchive} label={t(($) => $.menu.downloadZip)} onClick={() => onDownload(active)} />}
+                {active.type === 'directory' && onDownloadEach && <MenuEntry icon={Files} label={t(($) => $.menu.downloadEach)} onClick={() => onDownloadEach(active)} />}
+              </ContextMenuGroup>
+            </>
+          )}
+          {(onRename || onDelete) && <ContextMenuSeparator />}
+          {onRename && <MenuEntry icon={TextCursorInput} label={t(($) => $.menu.rename)} shortcut="F2" onClick={() => onRename(active)} />}
+          {onDelete && <MenuEntry icon={Trash2} label={t(($) => $.menu.delete)} shortcut={t(($) => $.menu.keys.delete)} destructive onClick={() => onDelete(active)} />}
           {onNewFolder && <ContextMenuSeparator />}
-          {onNewFolder && <ContextMenuItem onClick={onNewFolder}>{t(($) => $.menu.newFolder)}</ContextMenuItem>}
+          {onNewFolder && <MenuEntry icon={FolderPlus} label={t(($) => $.menu.newFolder)} onClick={onNewFolder} />}
         </ContextMenuContent>
       ) : null}
     </ContextMenu>

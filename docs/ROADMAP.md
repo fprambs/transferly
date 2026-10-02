@@ -375,7 +375,7 @@ Cada punto en su propio commit, en este orden.
 - [x] 3. Log como barra de estado de una línea con el último mensaje (en rojo si es un error) que se despliega al hacer clic
 - [x] 4. Estado activo neutro en los interruptores (ahora en el menú Vista con marcas) y en todo botón que se mantiene presionado, como el de dividir la vista
 - [x] 5. Ruta en migas de pan clicables, editable con un clic
-- [ ] 6. Menú contextual con íconos, atajos, separadores por grupo y Eliminar en rojo
+- [x] 6. Menú contextual con íconos, atajos, separadores por grupo y Eliminar en rojo
 - [ ] 7. Panel de detalles cerrado por defecto y con un resumen visual (ícono del tipo, vista previa) sin repetir el menú contextual
 - [ ] 8. Subir y Subir carpeta en un solo botón con menú; Filtros sin borde naranja
 - [ ] 9. Íconos por tipo de archivo con color sutil

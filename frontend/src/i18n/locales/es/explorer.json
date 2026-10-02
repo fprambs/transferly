@@ -85,7 +85,12 @@
     "preview": "Vista previa",
     "download": "Descargar",
     "downloadZip": "Descargar como ZIP",
-    "downloadEach": "Descargar los archivos uno por uno"
+    "downloadEach": "Descargar los archivos uno por uno",
+    "keys": {
+      "enter": "Intro",
+      "space": "Espacio",
+      "delete": "Supr"
+    }
   },
   "newFolder": {
     "title": "Nueva carpeta",

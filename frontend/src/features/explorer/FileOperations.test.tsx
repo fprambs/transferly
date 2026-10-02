@@ -76,7 +76,8 @@ async function renderExplorer() {
  * - names are validated before calling the server, and server failures are shown
  * - a file is deleted with the Delete key or the context menu and a folder only with its contents when asked to
  * - deleting can be cancelled and a failure is shown
- * - the context menu offers Open only for folders and selects the row it opens on
+ * - the context menu offers Open only for folders and selects the row it opens on; its actions show the key that does the same, out of
+ *   their names, and Delete is drawn as destructive
  */
 describe('file operations', () => {
   beforeEach(() => {
@@ -277,8 +278,10 @@ describe('file operations', () => {
     await user.keyboard('{Escape}')
 
     fireEvent.contextMenu(within(grid).getByText('index.html'))
-    await screen.findByRole('menuitem', { name: 'Rename' })
+    expect(await screen.findByRole('menuitem', { name: 'Rename' })).toHaveTextContent('F2')
     expect(screen.queryByRole('menuitem', { name: 'Open' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveTextContent('Del')
     expect(inspector).toHaveTextContent('/www/index.html')
   })
 
