@@ -125,10 +125,6 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
     conflict: 'skip' | 'rename'
   }): Promise<void> => {
     const { chosen: file, master, importPasswords, conflict } = snapshot
-    if (file.kind !== 'filezilla' || !filezillaUsesCrypt(file.text) || !importPasswords || master === '') {
-      setMasterVerify('idle')
-      return
-    }
     try {
       const preview = await api.imports.filezilla(workspaceId, file.file, {
         dryRun: true,
@@ -205,23 +201,16 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
     filezillaMasterPassword: chosen?.kind === 'filezilla' && filezillaMaster !== '' ? filezillaMaster : undefined,
   })
 
-  const execute = async (dryRun: boolean, silent = false): Promise<ImportResult | null> => {
-    if (chosen === null) {
-      return null
-    }
-    if (!silent) {
-      setWorking(true)
-    }
+  const execute = async (dryRun: boolean): Promise<ImportResult | null> => {
+    const { file, kind, text } = chosen as Chosen
+    setWorking(true)
     setFailure(null)
     try {
-      const { file, kind, text } = chosen
       const next =
         kind === 'transferly'
           ? await api.imports.transferly(workspaceId, { password, file: text }, { dryRun, secrets: passwords, onConflict })
           : await api.imports.filezilla(workspaceId, file, buildOptions(dryRun))
-      if (!silent) {
-        setResult(next)
-      }
+      setResult(next)
       if (!dryRun) {
         await queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId] })
         await queryClient.invalidateQueries({ queryKey: sitesKeys.sites(workspaceId) })
@@ -229,14 +218,10 @@ export function ImportDialog({ open, workspaceId, onClose }: ImportDialogProps) 
       }
       return next
     } catch (error) {
-      if (!silent) {
-        setFailure(siteErrorKeyOf(error))
-      }
+      setFailure(siteErrorKeyOf(error))
       return null
     } finally {
-      if (!silent) {
-        setWorking(false)
-      }
+      setWorking(false)
     }
   }
 
