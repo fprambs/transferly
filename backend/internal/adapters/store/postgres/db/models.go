@@ -34,6 +34,13 @@ type AuditEvent struct {
 	At          time.Time
 }
 
+type ConnectorSetting struct {
+	Type      string
+	Enabled   bool
+	UpdatedBy uuid.NullUUID
+	UpdatedAt time.Time
+}
+
 type InstanceLimit struct {
 	ID        bool
 	Data      []byte
