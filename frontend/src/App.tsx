@@ -2,10 +2,11 @@ import { QueryClientProvider } from '@tanstack/react-query'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { RouterProvider, type RouterHistory } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { createQueryClient } from '@/app/query'
 import { createAppRouter } from '@/app/router'
+import { bindSessionExpiry } from '@/app/session-expired'
 import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
 import { useThemeSync } from '@/lib/theme/use-theme'
@@ -23,6 +24,8 @@ export default function App({ history }: AppProps) {
   const transport = useTransport()
   const [queryClient] = useState(createQueryClient)
   const [router] = useState(() => createAppRouter({ queryClient, api, transport }, history))
+
+  useEffect(() => bindSessionExpiry(transport, queryClient, router), [transport, queryClient, router])
 
   return (
     <QueryClientProvider client={queryClient}>

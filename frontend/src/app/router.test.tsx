@@ -18,6 +18,7 @@ import { renderApp } from '@/test/render-app'
  * - creating the administrator opens the shell
  * - a wrong password shows the server error and clears the password
  * - the form validates the email and the password before calling the server
+ * - a session that expires while browsing a site sends the user to login without reloading
  * - opening a site from the sidebar shows its folder, and moving through folders updates the address
  * - a site opened by its address shows nothing until the workspace is known
  * - the messages follow the interface language
@@ -167,6 +168,42 @@ describe('routes', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByText('Use at least 12 characters.')).toBeInTheDocument()
+  })
+
+  it('sends the user to login when the session expires while browsing a site', async () => {
+    mockSession(adminSession)
+    mockWorkspaceData({
+      sites: [
+        {
+          id: 's1',
+          name: 'Prod',
+          protocol: 'sftp',
+          host: 'prod.example.com',
+          port: 22,
+          username: 'deploy',
+          authMethod: 'password',
+          listTimezone: 'UTC',
+          charset: 'utf-8',
+          speedLimitBps: 0,
+          secrets: [],
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    })
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files', () => {
+        mockSession(null)
+        return problem(401, 'unauthenticated')
+      }),
+    )
+    const user = userEvent.setup()
+    const { history } = await renderApp()
+
+    await user.dblClick(await screen.findByRole('treeitem', { name: /Prod/ }))
+
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(history.location.pathname).toBe('/login')
   })
 
   it('opens a site from the sidebar and moves through its folders', async () => {
