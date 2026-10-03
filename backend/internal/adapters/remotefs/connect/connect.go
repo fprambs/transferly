@@ -53,6 +53,7 @@ type Connector struct {
 	log      *connlog.Recorder
 	prompts  *prompts.Broker
 	strict   *sftpfs.StrictServers
+	offering site.Offering
 }
 
 // Option adjusts a [Connector].
@@ -68,6 +69,12 @@ func AskedPasswords(store *credentials.Store) Option {
 // sites always fail as refused credentials.
 func Prompts(broker *prompts.Broker) Option {
 	return func(c *Connector) { c.prompts = broker }
+}
+
+// Offering sets who tells whether the instance offers the connector of a site (ADR-0019): sites of a connector it does not offer fail with
+// [site.ErrConnectorDisabled] before anything is dialed. Without it every protocol connects.
+func Offering(o site.Offering) Option {
+	return func(c *Connector) { c.offering = o }
 }
 
 // errNoPrompts fails an interactive site when nobody can relay the server's questions.
@@ -109,6 +116,11 @@ func (c *Connector) Connect(ctx context.Context, key connections.Key, session st
 		return nil, err
 	}
 	defer secrets.wipe()
+	if c.offering != nil {
+		if err := c.offering.CheckProtocol(ctx, target.Protocol); err != nil {
+			return nil, err
+		}
+	}
 	fsys, err := c.dial(ctx, key, target, secrets)
 	if target.AuthMethod == site.AuthAsk && errors.Is(err, remotefs.ErrAuth) {
 		c.asked.Forget(askedKey(key, session))
