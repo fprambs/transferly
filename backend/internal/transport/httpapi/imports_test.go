@@ -38,6 +38,7 @@ func (a *api) importCall(ws string, query, body string, cookie *http.Cookie, csr
 //   - a dry run reports what would be created and skipped and writes nothing
 //   - an import creates the folders and the sites, keeps the passwords only when asked and the vault is unlocked, and a second one skips the names taken or renames them
 //   - passwords with a locked vault are refused with vault_locked before anything is written
+//   - crypt passwords are skipped without the master password of the file, and read with it in its header
 //   - a file that is not a site manager, one with a document type definition and one that is too large are 422, and anonymous callers are refused
 func TestImport_Filezilla(t *testing.T) {
 	a := newAPI(t)
@@ -82,6 +83,19 @@ func TestImport_Filezilla(t *testing.T) {
 	}
 	if renamed := decode(a.importCall(wsID, "?onConflict=rename&collectionId="+sites[0].CollectionId.String(), manager, cookie, csrf)); renamed.Items[0].Name != "Imported (2)" || renamed.Items[0].PasswordStored {
 		t.Errorf("renamed import = %+v", renamed)
+	}
+
+	crypt := `<FileZilla3><Servers><Server><Host>c.example.com</Host><Protocol>1</Protocol><Logontype>1</Logontype><User>u</User>` +
+		`<Pass encoding="crypt" pubkey="Uh7F4NQk+KMEVO7RwEtpGxNxQICL3+7XZSHL8NwEOxY02GXqpPVEJUbOrjlSi7Vl6R5u7I81x7uTGOrdY0BD8A==">` +
+		`YrYsSF4x6gsDNnLlknBWKlC6ZXJk2pfVf2ScQ04UDTeq+2qWAU/DbM95OhRmU7NvSwfhr+KGO9Hswd094Prm+S/JEXs14bxUkPS7C/sEnaj9kp2BqBgyXHz1QG7f8A==` +
+		`</Pass><Name>Crypt</Name></Server></Servers></FileZilla3>`
+	if sealed := decode(a.importCall(wsID, "?dryRun=true&passwords=true", crypt, cookie, csrf)); !sealed.Items[0].PasswordSkipped {
+		t.Errorf("crypt without the master password = %+v", sealed)
+	}
+	opened := decode(a.do(request{method: http.MethodPost, path: "/api/v1/workspaces/" + wsID + "/imports/filezilla?dryRun=true&passwords=true", body: crypt, cookie: cookie,
+		headers: map[string]string{"X-CSRF-Token": csrf, "Content-Type": "application/xml", "X-FileZilla-Master-Password": "e2e-master"}}))
+	if opened.Items[0].PasswordSkipped {
+		t.Errorf("crypt with the master password = %+v", opened)
 	}
 
 	expectProblem(t, a.importCall(wsID, "", "not xml at all", cookie, csrf), 422, "invalid_import_file")
