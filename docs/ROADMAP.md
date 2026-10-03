@@ -321,8 +321,8 @@ El diferenciador D2 se adelanta a la fase 5. Abrir cualquier archivo y verlo den
 El producto se publica como Transferly: un solo nombre en código, operación e interfaz, y la marca diseñada en `branding/`. Decisiones en [ADR-0020](adr/0020-transferly-name-and-brand.md).
 
 - [x] Kit de marca en `branding/`: símbolo, logos horizontal, vertical y monocromo, íconos de aplicación y favicon, paleta (Core Blue, Action Orange, Signal Green), tipografía e íconos, todo en SVG y generado por `branding/scripts/build.py`
-- [x] Renombre: módulo Go `github.com/fprambs/transferly`, binario `cmd/transferly`, variables `TRANSFERLY_*`, stacks de Docker, rol y bases de Postgres, usuarios de los servidores de prueba, cookie de sesión, exportación cifrada `transferly-export` y su importación, claves del navegador y mensajes de la página aislada; las etiquetas de cifrado del vault y del segundo factor se conservan
-- [x] Temas Transferly Dark y Transferly Light con la paleta de la marca, migración 30 de los temas guardados, logo en la barra superior, el inicio de sesión y las invitaciones, y favicon nuevo
+- [x] Renombre: módulo Go `github.com/fprambs/transferly`, binario `cmd/transferly`, variables `TRANSFERLY_*`, stacks de Docker, rol y bases de Postgres, usuarios de los servidores de prueba, cookie de sesión, exportación cifrada `transferly-export` y su importación, claves del navegador, mensajes de la página aislada y etiquetas de cifrado del vault y del segundo factor; sin compatibilidad con el nombre de trabajo, que no queda en ningún lado (las bases de desarrollo se recrean)
+- [x] Temas Transferly Dark y Transferly Light con la paleta de la marca y `transferly-dark` como predeterminado desde la migración del tema, logo en la barra superior, el inicio de sesión y las invitaciones, y favicon nuevo
 - [x] Muestras de `testenv/preview-samples` regeneradas con el nombre nuevo
 - [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con la marca nueva
 
