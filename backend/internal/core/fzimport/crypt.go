@@ -20,14 +20,35 @@ const (
 	cryptIVSize     = 12
 	cryptTagSize    = 16
 	cryptPBKDF2Iter = 100_000
+	// maxCryptKeys is the most different keys of one site manager file whose passwords are opened. FileZilla seals every password of a
+	// file with one key; a file with many keys would cost a key derivation each.
+	maxCryptKeys = 4
 )
 
 // ErrCryptPassword means a FileZilla crypt password could not be decrypted.
 var ErrCryptPassword = errors.New("filezilla crypt password could not be decrypted")
 
+// cryptOpener opens the crypt passwords of one site manager file with its master password, deriving the private key once per key of
+// the file, since the derivation is slow on purpose, and refusing a file with more than [maxCryptKeys] keys.
+type cryptOpener struct {
+	master string
+	keys   map[string][]byte
+}
+
+// newCryptOpener returns an opener for the master password of a site manager file.
+func newCryptOpener(master string) *cryptOpener {
+	return &cryptOpener{master: master, keys: map[string][]byte{}}
+}
+
 // DecryptCryptPassword reads a site password from FileZilla's encoding="crypt" form, using the master password
 // of the site manager and the pubkey attribute on the Pass element.
 func DecryptCryptPassword(masterPassword, xmlPubKey, xmlPass string) (string, error) {
+	return newCryptOpener(masterPassword).open(xmlPubKey, xmlPass)
+}
+
+// open reads one crypt password: X25519 between the private key derived from the master password and the ephemeral key of the
+// password, SHA-256 of the key material for the AES key and the nonce, and AES-256-GCM, as libfilezilla seals it.
+func (o *cryptOpener) open(xmlPubKey, xmlPass string) (string, error) {
 	storedPub, err := decodeCryptBase64(xmlPubKey)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrCryptPassword, err)
@@ -39,32 +60,31 @@ func DecryptCryptPassword(masterPassword, xmlPubKey, xmlPass string) (string, er
 	if len(storedPub) != cryptKeySize+cryptSaltSize {
 		return "", fmt.Errorf("%w: invalid pubkey length", ErrCryptPassword)
 	}
+	if len(cipherBlob) < cryptKeySize+cryptSaltSize+cryptTagSize {
+		return "", fmt.Errorf("%w: ciphertext too short", ErrCryptPassword)
+	}
 	mySalt := storedPub[cryptKeySize:]
 	storedPublicKey := storedPub[:cryptKeySize]
-	myPriv := deriveCryptPrivateKey(masterPassword, mySalt)
-	overhead := cryptKeySize + cryptSaltSize + cryptTagSize
-	if len(cipherBlob) < overhead {
-		return "", fmt.Errorf("%w: ciphertext too short", ErrCryptPassword)
+	myPriv, known := o.keys[string(storedPub)]
+	if !known {
+		if len(o.keys) >= maxCryptKeys {
+			return "", fmt.Errorf("%w: the file uses too many keys", ErrCryptPassword)
+		}
+		myPriv = deriveCryptPrivateKey(o.master, mySalt)
+		o.keys[string(storedPub)] = myPriv
 	}
 	ephemeralKey := cipherBlob[:cryptKeySize]
 	ephemeralSalt := cipherBlob[cryptKeySize : cryptKeySize+cryptSaltSize]
-	encrypted := cipherBlob[cryptKeySize+cryptSaltSize : len(cipherBlob)-cryptTagSize]
-	tag := cipherBlob[len(cipherBlob)-cryptTagSize:]
+	sealed := cipherBlob[cryptKeySize+cryptSaltSize:]
 	shared, err := curve25519.X25519(myPriv, ephemeralKey)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrCryptPassword, err)
 	}
 	aesKey := cryptHashAccumulator(ephemeralSalt, 0, shared, ephemeralKey, storedPublicKey, mySalt)
 	iv := cryptHashAccumulator(ephemeralSalt, 2, shared, ephemeralKey, storedPublicKey, mySalt)[:cryptIVSize]
-	block, err := aes.NewCipher(aesKey)
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrCryptPassword, err)
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrCryptPassword, err)
-	}
-	plain, err := gcm.Open(nil, iv, append(encrypted, tag...), nil)
+	block, _ := aes.NewCipher(aesKey)
+	gcm, _ := cipher.NewGCM(block)
+	plain, err := gcm.Open(nil, iv, sealed, nil)
 	if err != nil {
 		return "", fmt.Errorf("%w: wrong master password or corrupted data", ErrCryptPassword)
 	}
@@ -83,11 +103,7 @@ func decodeCryptBase64(raw string) ([]byte, error) {
 	if pad := len(clean) % 4; pad != 0 {
 		clean += strings.Repeat("=", 4-pad)
 	}
-	out, err := base64.StdEncoding.DecodeString(clean)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	return base64.StdEncoding.DecodeString(clean)
 }
 
 // deriveCryptPrivateKey turns the master password and salt into a clamped Curve25519 private key.

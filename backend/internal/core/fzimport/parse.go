@@ -102,11 +102,11 @@ type ParseOptions struct {
 
 // parser walks the tokens of the file.
 type parser struct {
-	dec            *xml.Decoder
-	servers        []Server
-	skipped        []Skipped
-	count          int
-	masterPassword string
+	dec     *xml.Decoder
+	servers []Server
+	skipped []Skipped
+	count   int
+	crypt   *cryptOpener
 }
 
 // Parse reads a site manager file. Sites it cannot represent are reported as skipped rather than failing the file.
@@ -117,7 +117,10 @@ func Parse(r io.Reader) ([]Server, []Skipped, error) {
 // ParseWithOptions reads a site manager file like [Parse], decrypting crypt-encoded passwords when a master password is given.
 func ParseWithOptions(r io.Reader, opts ParseOptions) ([]Server, []Skipped, error) {
 	limited := &io.LimitedReader{R: r, N: MaxBytes + 1}
-	p := &parser{dec: xml.NewDecoder(limited), masterPassword: opts.MasterPassword}
+	p := &parser{dec: xml.NewDecoder(limited)}
+	if opts.MasterPassword != "" {
+		p.crypt = newCryptOpener(opts.MasterPassword)
+	}
 	p.dec.Strict = true
 	if err := p.document(); err != nil {
 		if limited.N <= 0 {
@@ -319,16 +322,16 @@ func (p *parser) convert(raw rawServer, name string, path []string) (Server, str
 		server.AuthMethod = site.AuthInteractive
 	case "4":
 		server.AuthMethod, server.Account = site.AuthAccount, strings.TrimSpace(raw.Account)
-		readPassword(&server, raw, p.masterPassword)
+		p.readPassword(&server, raw)
 	default:
 		server.AuthMethod = site.AuthPassword
-		readPassword(&server, raw, p.masterPassword)
+		p.readPassword(&server, raw)
 	}
 	return server, ""
 }
 
 // readPassword decodes the password of a server.
-func readPassword(server *Server, raw rawServer, masterPassword string) {
+func (p *parser) readPassword(server *Server, raw rawServer) {
 	value := strings.TrimSpace(raw.Pass.Value)
 	if value == "" {
 		return
@@ -342,11 +345,11 @@ func readPassword(server *Server, raw rawServer, masterPassword string) {
 		}
 		server.Password = string(decoded)
 	case "crypt":
-		if masterPassword == "" {
+		if p.crypt == nil {
 			server.PasswordSkipped = true
 			return
 		}
-		plain, err := DecryptCryptPassword(masterPassword, raw.Pass.PubKey, value)
+		plain, err := p.crypt.open(raw.Pass.PubKey, value)
 		if err != nil {
 			server.PasswordSkipped = true
 			return
