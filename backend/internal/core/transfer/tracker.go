@@ -356,15 +356,15 @@ func (w *cancelWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// Close closes the stream and ends the transfer: done when every byte was read (or, for a stream of unknown size, when its end was reached), failed when reading failed,
-// interrupted when the reader stopped early.
+// Close closes the stream and ends the transfer: done when every byte was read (or, for a stream of unknown size, when its end was reached), even if
+// reading failed afterwards, as when a server drops the session once the file was sent; failed when reading failed; interrupted when the reader stopped early.
 func (b *finishingBody) Close() error {
 	err := b.ReadCloser.Close()
 	switch {
-	case b.readErr != nil:
-		b.k.Finish(b.readErr, b.code(b.readErr))
 	case b.k.Complete() || (b.untilEOF && b.eof):
 		b.k.Finish(nil, "")
+	case b.readErr != nil:
+		b.k.Finish(b.readErr, b.code(b.readErr))
 	default:
 		b.k.Finish(ErrIncomplete, "")
 	}

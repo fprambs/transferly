@@ -523,6 +523,7 @@ func (f failingBody) Close() error { return f.closeErr }
 // Scenarios:
 //   - reading every byte and closing ends the transfer as done, and the end of the stream is passed on
 //   - closing early is interrupted, and a read error is failed with its code
+//   - a read error once every byte moved, as when a server drops the session after sending the file, still ends as done
 //   - a canceled transfer stops the reads with the cancellation and ends as canceled
 //   - the error of closing the stream is returned
 //   - a stream of unknown size is done once its end was read, interrupted when closed before it, and failed by a read error
@@ -569,6 +570,17 @@ func TestTracker_Download(t *testing.T) {
 	_ = failing.Close()
 	if got := f.store.stored(broken.ID()); got.Status != transfer.Failed || got.ErrorCode != "remote_unavailable" {
 		t.Errorf("failed download = %+v", got)
+	}
+
+	sent, _ := begin("/sent")
+	dropped := sent.Download(failingBody{Reader: io.MultiReader(strings.NewReader("data"), errReader{errStore})}, code)
+	if _, err := io.ReadAll(dropped); !errors.Is(err, errStore) {
+		t.Errorf("read error after every byte = %v", err)
+	}
+	sent.Progress(4)
+	_ = dropped.Close()
+	if got := f.store.stored(sent.ID()); got.Status != transfer.Done {
+		t.Errorf("download dropped after every byte = %+v; want done", got)
 	}
 
 	canceled, runCtx := begin("/canceled")
