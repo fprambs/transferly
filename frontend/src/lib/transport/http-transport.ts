@@ -32,6 +32,8 @@ export class HttpTransport implements Transport {
   private readonly openSocket: (url: string) => WebSocket
   /** Anti-CSRF token sent with state-changing calls. */
   private csrfToken: string | undefined
+  /** Called when the server answers that nobody is signed in. */
+  private onUnauthenticated: (() => void) | undefined
 
   /** Creates a transport from the given options. */
   constructor(options: HttpTransportOptions = {}) {
@@ -44,6 +46,11 @@ export class HttpTransport implements Transport {
   /** Sets the anti-CSRF token sent with every call that is not a read. */
   setCsrfToken(token: string | undefined): void {
     this.csrfToken = token
+  }
+
+  /** Sets the handler invoked when a call fails with code `unauthenticated`. */
+  setOnUnauthenticated(handler: (() => void) | undefined): void {
+    this.onUnauthenticated = handler
   }
 
   /** Builds the URL of a path under the base URL, with its query string. */
@@ -120,7 +127,11 @@ export class HttpTransport implements Transport {
       throw new ApiError({ type: 'about:blank', title: 'Network Error', status: 0, code: 'network_error' })
     }
     if (!response.ok) {
-      throw new ApiError(await readProblem(response))
+      const problem = await readProblem(response)
+      if (problem.status === 401 && problem.code === 'unauthenticated') {
+        queueMicrotask(() => this.onUnauthenticated?.())
+      }
+      throw new ApiError(problem)
     }
     return response
   }

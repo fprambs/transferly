@@ -125,6 +125,11 @@ export interface Transport {
   events(handlers: EventHandlers): () => void
   /** Sets the anti-CSRF token sent with every state-changing call; `undefined` forgets it. */
   setCsrfToken(token: string | undefined): void
+  /**
+   * Registers a callback for answers with code `unauthenticated` (session cookie expired or invalid).
+   * Implementations that do not track sessions may omit this.
+   */
+  setOnUnauthenticated?(handler: (() => void) | undefined): void
 }
 
 /** Error raised by a {@link Transport} when a request fails. */

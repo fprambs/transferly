@@ -28,6 +28,8 @@ function jsonResponse(body: unknown, status: number, contentType = 'application/
  * - health and readiness return the reported status and use the base URL
  * - a 503 readiness answer is a valid `unavailable` status
  * - RFC 9457 problem documents become an ApiError carrying the stable code and params
+ * - an `unauthenticated` answer tells the handler set for expired sessions, after failing the call, and a missing handler is fine;
+ *   other 401 codes, such as a wrong password, do not
  * - failures without a problem document, with or without a content type, become an ApiError with the generic code
  * - a 503 readiness answer that is not JSON (for example from a proxy) is an error, not a status
  * - a successful answer with a malformed body becomes an ApiError with code `invalid_response`
@@ -56,6 +58,48 @@ describe('HttpTransport', () => {
     const transport = new HttpTransport({ fetch: fetchStub })
 
     await expect(transport.ready()).resolves.toEqual({ status: 'unavailable' })
+  })
+
+  it('notifies when the session cookie is no longer valid', async () => {
+    const onExpired = vi.fn()
+    const problem = {
+      type: 'about:blank',
+      title: 'Unauthorized',
+      status: 401,
+      code: 'unauthenticated',
+    }
+    const { fetchStub } = stubFetch(jsonResponse(problem, 401, 'application/problem+json'))
+    const transport = new HttpTransport({ fetch: fetchStub })
+    transport.setOnUnauthenticated(onExpired)
+
+    await expect(transport.request({ method: 'GET', path: '/api/v1/me' })).rejects.toMatchObject({ code: 'unauthenticated' })
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    expect(onExpired).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not notify on other 401 codes such as wrong password', async () => {
+    const onExpired = vi.fn()
+    const problem = {
+      type: 'about:blank',
+      title: 'Unauthorized',
+      status: 401,
+      code: 'invalid_credentials',
+    }
+    const { fetchStub } = stubFetch(jsonResponse(problem, 401, 'application/problem+json'))
+    const transport = new HttpTransport({ fetch: fetchStub })
+    transport.setOnUnauthenticated(onExpired)
+
+    await expect(transport.request({ method: 'POST', path: '/api/v1/auth/login', body: {} })).rejects.toMatchObject({ code: 'invalid_credentials' })
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+
+  it('fails an expired session without a handler', async () => {
+    const problem = { type: 'about:blank', title: 'Unauthorized', status: 401, code: 'unauthenticated' }
+    const { fetchStub } = stubFetch(jsonResponse(problem, 401, 'application/problem+json'))
+    const transport = new HttpTransport({ fetch: fetchStub })
+
+    await expect(transport.request({ method: 'GET', path: '/api/v1/me' })).rejects.toMatchObject({ code: 'unauthenticated' })
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
   })
 
   it('turns a problem document into an ApiError with its stable code and params', async () => {
