@@ -406,7 +406,7 @@ func TestService_Download(t *testing.T) {
 	}
 	f.fs.failOpen = false
 	f.fs.failRead = true
-	d, err = f.svc.Download(ctx, f.viewer, "/f", files.Range{})
+	d, err = f.svc.WithBufferedLimit(0).Download(ctx, f.viewer, "/f", files.Range{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -682,7 +682,7 @@ func TestService_Observer(t *testing.T) {
 		t.Errorf("Upload() with a canceled context = %v", err)
 	}
 	live, stop := context.WithCancel(ctx)
-	stream, err := f.svc.Download(live, target, "/f", files.Range{})
+	stream, err := f.svc.WithBufferedLimit(0).Download(live, target, "/f", files.Range{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -750,6 +750,7 @@ func TestService_Download_WriteTo(t *testing.T) {
 	f := newFixture(t)
 	f.put(t, "/f", "0123456789")
 	f.fs.writeTo = true
+	f.svc.WithBufferedLimit(0)
 	obs := &recorder{}
 	target := f.editor
 	target.Observer = obs

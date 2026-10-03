@@ -20,12 +20,13 @@ const (
 	cachedBlocks = 64
 	// maxNesting is the most archives nested in one another a request goes through.
 	maxNesting = 4
-	// defaultNestedBytes is the most bytes of an archive nested in another that are read, since a nested archive is held in memory.
+	// defaultNestedBytes is the most bytes of an archive held in memory that are read: one nested in another, or one on a server whose
+	// sizes are not trusted.
 	defaultNestedBytes = 64 << 20
 )
 
-// WithNestedLimit returns the service with another cap on the bytes of an archive nested in another, which is held in memory while it
-// is read. It exists for tests and for installations with unusual archives.
+// WithNestedLimit returns the service with another cap on the bytes of an archive held in memory while it is read: one nested in another,
+// or one on a server whose sizes are not trusted, which may always hold as many bytes as a buffered download. It exists for tests and for installations with unusual archives.
 func (s *Service) WithNestedLimit(bytes int64) *Service {
 	s.nested = bytes
 	return s
@@ -106,7 +107,8 @@ func (r *remoteReader) closeStream() {
 	}
 }
 
-// openedArchive is an archive being read on a borrowed connection: a remote file, or an archive nested in it and held in memory.
+// openedArchive is an archive being read on a borrowed connection: a remote file read by offset or held in memory, or an archive
+// nested in it and held in memory.
 type openedArchive struct {
 	src    archives.Source
 	name   string
@@ -116,14 +118,19 @@ type openedArchive struct {
 
 // release closes the remote file and gives the connection back, discarded when reading the file failed as a lost connection.
 func (o *openedArchive) release() {
+	if o.remote == nil {
+		o.lease.Release(nil)
+		return
+	}
 	o.remote.mu.Lock()
 	defer o.remote.mu.Unlock()
 	o.remote.closeStream()
 	o.lease.Release(o.remote.err)
 }
 
-// openArchive borrows a connection, checks the archive is a file and opens it, going down the chain of nested archives in inner. Each
-// nested archive is read into memory, up to its cap.
+// openArchive borrows a connection, checks the archive is a file and opens it, going down the chain of nested archives in inner. A small
+// archive, or one on a server whose sizes are not trusted, is read whole into memory; a larger one is read by offset. Each nested archive
+// is read into memory, up to its cap.
 func (s *Service) openArchive(ctx context.Context, t Target, p string, inner []string, names ...string) (*openedArchive, error) {
 	if len(inner) > maxNesting {
 		return nil, fmt.Errorf("%w: archives nest deeper than %d", archives.ErrTooLarge, maxNesting)
@@ -140,8 +147,18 @@ func (s *Service) openArchive(ctx context.Context, t Target, p string, inner []s
 		lease.Release(err)
 		return nil, err
 	}
-	remote := &remoteReader{ctx: ctx, fsys: lease.FS(), path: p, size: entry.Size, blocks: map[int64][]byte{}}
-	opened := &openedArchive{src: archives.FromReaderAt(remote, entry.Size), name: p, lease: lease, remote: remote}
+	opened := &openedArchive{name: p, lease: lease}
+	if entry.Size <= s.buffered || !remotefs.SizesTrusted(lease.FS()) {
+		data, err := readWhole(ctx, lease.FS(), p, entry.Size, max(s.nested, s.buffered))
+		if err != nil {
+			lease.Release(err)
+			return nil, err
+		}
+		opened.src = archives.Bytes(data)
+	} else {
+		opened.remote = &remoteReader{ctx: ctx, fsys: lease.FS(), path: p, size: entry.Size, blocks: map[int64][]byte{}}
+		opened.src = archives.FromReaderAt(opened.remote, entry.Size)
+	}
 	for _, name := range inner {
 		data, err := readNested(opened.src, opened.name, name, s.nested)
 		if err != nil {
@@ -151,6 +168,29 @@ func (s *Service) openArchive(ctx context.Context, t Target, p string, inner []s
 		opened.src, opened.name = archives.Bytes(data), name
 	}
 	return opened, nil
+}
+
+// readWhole reads a remote archive into memory up to the end of the file, whatever size the server reported, refusing one over limit
+// bytes, and tells the connection how many bytes came. A ZIP or 7z index sits at the end of the file, so it is found where the bytes
+// end and not where a wrong size says.
+func readWhole(ctx context.Context, fsys remotefs.RemoteFS, p string, reported, limit int64) ([]byte, error) {
+	if reported > limit {
+		return nil, archives.ErrTooLarge
+	}
+	rc, err := fsys.OpenRead(ctx, p, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rc.Close() }()
+	data, err := io.ReadAll(&countingReader{ctx: ctx, src: io.LimitReader(rc, limit+1)})
+	if err != nil {
+		return nil, err
+	}
+	remotefs.NoteWholeRead(fsys, reported, int64(len(data)))
+	if int64(len(data)) > limit {
+		return nil, archives.ErrTooLarge
+	}
+	return data, nil
 }
 
 // readNested reads an archive nested in another into memory, refusing one over limit bytes.

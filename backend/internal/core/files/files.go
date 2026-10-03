@@ -4,6 +4,7 @@
 package files
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -98,16 +99,17 @@ func (t Target) key() connections.Key {
 
 // Service performs file operations.
 type Service struct {
-	authz  Authorizer
-	pool   Pool
-	limits treeLimits
-	nested int64
-	now    func() time.Time
+	authz    Authorizer
+	pool     Pool
+	limits   treeLimits
+	nested   int64
+	buffered int64
+	now      func() time.Time
 }
 
 // NewService returns a service that checks permissions with authz and borrows connections from pool.
 func NewService(authz Authorizer, pool Pool) *Service {
-	return &Service{authz: authz, pool: pool, limits: treeLimits{depth: defaultTreeDepth, entries: defaultTreeEntries}, nested: defaultNestedBytes, now: time.Now}
+	return &Service{authz: authz, pool: pool, limits: treeLimits{depth: defaultTreeDepth, entries: defaultTreeEntries}, nested: defaultNestedBytes, buffered: defaultBufferedBytes, now: time.Now}
 }
 
 // checkPath refuses paths that cannot be valid: empty, too long, or holding control characters.
@@ -236,6 +238,18 @@ func (r Range) resolve(size int64) (start, end int64, err error) {
 	return r.Start, end, nil
 }
 
+// defaultBufferedBytes is the largest file a whole download reads into memory before answering, so the length it announces is the number
+// of bytes the server sent rather than the size it reported, which some servers get wrong. Reading it whole also tells the connection
+// whether its server's sizes hold.
+const defaultBufferedBytes = 512 << 10
+
+// WithBufferedLimit returns the service with another size up to which a whole download, or an archive, is read into memory first. It
+// exists for tests.
+func (s *Service) WithBufferedLimit(bytes int64) *Service {
+	s.buffered = bytes
+	return s
+}
+
 // Download is an open stream of a file's bytes. Closing it gives the connection back.
 type Download struct {
 	// Entry describes the whole file.
@@ -244,23 +258,36 @@ type Download struct {
 	Start, End int64
 	// Partial is true when the stream is a range of the file.
 	Partial bool
+	// Unsized is true when the server's sizes are not trusted: the stream then runs to the end of the file and its length is not
+	// known in advance.
+	Unsized bool
 	// Body is the stream; the caller closes it.
 	Body io.ReadCloser
 }
 
-// Length returns the number of bytes the stream holds.
-func (d *Download) Length() int64 { return d.End - d.Start + 1 }
+// Length returns the number of bytes the stream holds, or -1 when it is not known in advance.
+func (d *Download) Length() int64 {
+	if d.Unsized {
+		return -1
+	}
+	return d.End - d.Start + 1
+}
 
-// body reads a limited part of a remote file and returns the connection when closed.
+// body reads a part of a remote file and returns the connection when closed. For a whole file it tells the connection how many bytes
+// came once the file ended.
 type body struct {
-	ctx     context.Context
-	src     io.Reader
-	whole   io.WriterTo
-	closer  io.Closer
-	lease   *connections.Lease
-	obs     Observer
-	readErr error
-	closed  bool
+	ctx      context.Context
+	src      io.Reader
+	whole    io.WriterTo
+	closer   io.Closer
+	lease    *connections.Lease
+	obs      Observer
+	reported int64
+	checked  bool
+	read     int64
+	ended    bool
+	readErr  error
+	closed   bool
 }
 
 // Read reads from the file, counts what it read and remembers a failure of the connection. It stops with the
@@ -271,7 +298,11 @@ func (b *body) Read(p []byte) (int, error) {
 	}
 	n, err := b.src.Read(p)
 	progress(b.obs, int64(n))
-	if err != nil && !errors.Is(err, io.EOF) {
+	b.read += int64(n)
+	switch {
+	case errors.Is(err, io.EOF):
+		b.ended = true
+	case err != nil:
 		b.readErr = err
 	}
 	return n, err
@@ -287,7 +318,11 @@ func (b *body) WriteTo(w io.Writer) (int64, error) {
 	}
 	sink := &progressWriter{ctx: b.ctx, dst: w, obs: b.obs}
 	n, err := b.whole.WriteTo(sink)
-	if err != nil && (sink.err == nil || !errors.Is(err, sink.err)) {
+	b.read += n
+	switch {
+	case err == nil:
+		b.ended = true
+	case sink.err == nil || !errors.Is(err, sink.err):
 		b.readErr = err
 	}
 	return n, err
@@ -322,10 +357,29 @@ func (b *body) Close() error {
 		return nil
 	}
 	b.closed = true
+	if b.checked && b.ended {
+		remotefs.NoteWholeRead(b.lease.FS(), b.reported, b.read)
+	}
 	err := b.closer.Close()
 	b.lease.Release(errors.Join(b.readErr, err))
 	return err
 }
+
+// bufferedBody is a whole file read into memory, reporting its bytes as they are read.
+type bufferedBody struct {
+	data *bytes.Reader
+	obs  Observer
+}
+
+// Read implements [io.Reader].
+func (b *bufferedBody) Read(p []byte) (int, error) {
+	n, err := b.data.Read(p)
+	progress(b.obs, int64(n))
+	return n, err
+}
+
+// Close implements [io.Closer]; the connection was given back once the file was read.
+func (b *bufferedBody) Close() error { return nil }
 
 // Download opens a file, or a range of it, for streaming. Directories cannot be downloaded.
 func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*Download, error) {
@@ -351,14 +405,48 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 		lease.Release(err)
 		return nil, err
 	}
+	switch {
+	case !r.Set && entry.Size <= s.buffered:
+		return buffered(ctx, t, lease, src, entry, s.buffered)
+	case !r.Set && !remotefs.SizesTrusted(lease.FS()):
+		return unsized(ctx, t, lease, src, nil, entry), nil
+	}
 	d := &Download{Entry: entry, Start: start, End: end, Partial: r.Set}
 	started(t.Observer, d.Length())
-	b := &body{ctx: ctx, src: io.LimitReader(src, d.Length()), closer: src, lease: lease, obs: t.Observer}
+	b := &body{ctx: ctx, src: io.LimitReader(src, d.Length()), closer: src, lease: lease, obs: t.Observer, reported: entry.Size, checked: !r.Set}
 	if whole, ok := src.(io.WriterTo); ok && end == entry.Size-1 {
 		b.whole = whole
 	}
 	d.Body = b
 	return d, nil
+}
+
+// buffered reads a small file whole, up to the end of the file, and gives the connection back before answering, so the download
+// announces the bytes the server sent. A file that runs past limit was reported smaller than it is, and streams on unsized after the
+// bytes already read.
+func buffered(ctx context.Context, t Target, lease *connections.Lease, src io.ReadCloser, entry remotefs.Entry, limit int64) (*Download, error) {
+	data, err := io.ReadAll(&countingReader{ctx: ctx, src: io.LimitReader(src, limit+1)})
+	if err != nil {
+		_ = src.Close()
+		lease.Release(err)
+		return nil, err
+	}
+	remotefs.NoteWholeRead(lease.FS(), entry.Size, int64(len(data)))
+	if int64(len(data)) > limit {
+		return unsized(ctx, t, lease, src, data, entry), nil
+	}
+	err = src.Close()
+	lease.Release(err)
+	size := int64(len(data))
+	started(t.Observer, size)
+	return &Download{Entry: entry, Start: 0, End: size - 1, Body: &bufferedBody{data: bytes.NewReader(data), obs: t.Observer}}, nil
+}
+
+// unsized streams a whole file to its end, after the bytes of it already read, for a server whose sizes are not trusted.
+func unsized(ctx context.Context, t Target, lease *connections.Lease, src io.ReadCloser, head []byte, entry remotefs.Entry) *Download {
+	started(t.Observer, -1)
+	b := &body{ctx: ctx, src: io.MultiReader(bytes.NewReader(head), src), closer: src, lease: lease, obs: t.Observer}
+	return &Download{Entry: entry, Unsized: true, Body: b}
 }
 
 // partSuffix names the temporary file an upload is staged into, so a reader never sees a half-written file at
