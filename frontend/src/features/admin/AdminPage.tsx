@@ -10,13 +10,14 @@ import { useSession } from '../auth/use-session'
 
 import { AccountsTab } from './AccountsTab'
 import { AdminAuditTab } from './AdminAuditTab'
+import { ConnectorsTab } from './ConnectorsTab'
 import { LimitsTab } from './LimitsTab'
 import { NetworksTab } from './NetworksTab'
 
 /** The tabs of the page. */
-type PageTab = 'accounts' | 'networks' | 'limits' | 'audit'
+type PageTab = 'accounts' | 'networks' | 'limits' | 'connectors' | 'audit'
 
-/** The administration page of the instance: accounts, private networks and the record of what administrators did. Only administrators see it. */
+/** The administration page of the instance: accounts, private networks, limits, the connectors it offers and the record of what administrators did. Only administrators see it. */
 export function AdminPage() {
   const { t } = useTranslation('admin')
   const session = useSession()
@@ -42,6 +43,9 @@ export function AdminPage() {
             <TabsTrigger value="limits" className="flex-none px-3">
               {t(($) => $.page.tabs.limits)}
             </TabsTrigger>
+            <TabsTrigger value="connectors" className="flex-none px-3">
+              {t(($) => $.page.tabs.connectors)}
+            </TabsTrigger>
             <TabsTrigger value="audit" className="flex-none px-3">
               {t(($) => $.page.tabs.audit)}
             </TabsTrigger>
@@ -51,6 +55,7 @@ export function AdminPage() {
       {tab === 'accounts' && <AccountsTab />}
       {tab === 'networks' && <NetworksTab />}
       {tab === 'limits' && <LimitsTab />}
+      {tab === 'connectors' && <ConnectorsTab />}
       {tab === 'audit' && <AdminAuditTab />}
     </Page>
   )

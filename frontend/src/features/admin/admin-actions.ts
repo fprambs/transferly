@@ -9,10 +9,13 @@ const known = {
 } as const
 
 /** Translation key of the sentence that describes an action; an action the interface does not know gets the generic one. */
-export type AdminActionKey = (typeof known)[keyof typeof known] | 'unknown'
+export type AdminActionKey = (typeof known)[keyof typeof known] | 'connectorEnabled' | 'connectorDisabled' | 'unknown'
 
-/** Maps an action of the trail to the key of its sentence. */
-export function adminActionKey(action: string): AdminActionKey {
+/** Maps an action of the trail, with its metadata, to the key of its sentence. A connector change says which way it went. */
+export function adminActionKey(action: string, meta: Readonly<Record<string, string>> = {}): AdminActionKey {
+  if (action === 'admin.connector_changed') {
+    return meta.enabled === 'true' ? 'connectorEnabled' : 'connectorDisabled'
+  }
   return (known as Readonly<Record<string, AdminActionKey>>)[action] ?? 'unknown'
 }
 
@@ -24,6 +27,7 @@ export const adminCategories = [
   { key: 'security', prefix: 'admin.second_' },
   { key: 'networks', prefix: 'admin.networks_' },
   { key: 'limits', prefix: 'admin.limits_' },
+  { key: 'connectors', prefix: 'admin.connector_' },
 ] as const
 
 /** How many events each page of the trail holds. */

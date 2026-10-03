@@ -2,14 +2,15 @@
   "retry": "Retry",
   "page": {
     "title": "Administration",
-    "subtitle": "Accounts, private networks and the record of what administrators did on this instance.",
+    "subtitle": "Accounts, private networks, limits, the connectors the instance offers and the record of what administrators did on this instance.",
     "loading": "Loading…",
     "noAccess": "Only administrators of the instance can open this page.",
     "tabs": {
       "accounts": "Accounts",
       "networks": "Networks",
       "audit": "Audit log",
-      "limits": "Limits"
+      "limits": "Limits",
+      "connectors": "Connectors"
     }
   },
   "accounts": {
@@ -109,7 +110,8 @@
       "roles": "Roles",
       "security": "Second step",
       "networks": "Networks",
-      "limits": "Limits"
+      "limits": "Limits",
+      "connectors": "Connectors"
     },
     "actions": {
       "userDisabled": "disabled the account {{target}}",
@@ -119,7 +121,9 @@
       "networksChanged_one": "changed the allowed networks ({{count}} network)",
       "networksChanged_other": "changed the allowed networks ({{count}} networks)",
       "unknown": "{{action}} {{target}}",
-      "limitsChanged": "changed the limits of the instance"
+      "limitsChanged": "changed the limits of the instance",
+      "connectorEnabled": "enabled the connector {{target}}",
+      "connectorDisabled": "disabled the connector {{target}}"
     }
   },
   "errors": {
@@ -133,7 +137,8 @@
     "rate_limited": "Too many attempts. Wait a moment and try again.",
     "network_error": "Could not reach the server.",
     "unknown": "Something went wrong. Try again.",
-    "invalid_limits": "A limit is not valid. Use whole numbers, or decimals for MiB/s and GiB, and nothing below zero."
+    "invalid_limits": "A limit is not valid. Use whole numbers, or decimals for MiB/s and GiB, and nothing below zero.",
+    "connector_not_found": "This connector is not part of Transferly."
   },
   "limits": {
     "loading": "Loading limits…",
@@ -174,6 +179,32 @@
       "limit": "Limit",
       "value": "Value",
       "started": "At startup"
+    }
+  },
+  "connectors": {
+    "title": "Connectors",
+    "description": "The kinds of storage this instance offers. Sites can only be created and connected with a connector that is offered; turning one off keeps its sites, which stop connecting until it is offered again.",
+    "loading": "Loading the connectors…",
+    "offer": "Offer {{name}}",
+    "offered": "Offered",
+    "notOffered": "Not offered",
+    "capabilities": "What {{name}} can do",
+    "maturity": {
+      "stable": "Stable",
+      "beta": "Beta"
+    },
+    "capability": {
+      "folders": "Folders",
+      "permissions": "Permissions",
+      "setTimes": "Modification times",
+      "resume": "Resume",
+      "rename": "Rename",
+      "serverCopy": "Server-side copy"
+    },
+    "disable": {
+      "title": "Stop offering {{name}}?",
+      "body": "Its sites stay saved, but nobody can create new ones or connect to them until the connector is offered again.",
+      "confirm": "Stop offering"
     }
   }
 }

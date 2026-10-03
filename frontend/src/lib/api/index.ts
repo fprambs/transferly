@@ -310,6 +310,8 @@ export function createApi(transport: Transport) {
     },
     connectors: {
       list: () => transport.request<Connector[]>({ method: 'GET', path: `${root}/connectors` }),
+      setEnabled: (type: string, enabled: boolean) =>
+        transport.request<Connector>({ method: 'PUT', path: `${root}/admin/connectors/${encodeURIComponent(type)}`, body: { enabled } }),
     },
     files: {
       list: (workspaceId: string, siteId: string, path: string, signal?: AbortSignal) =>

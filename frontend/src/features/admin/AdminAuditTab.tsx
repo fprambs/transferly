@@ -23,7 +23,7 @@ import { adminKeys } from './use-admin'
 function EventRow({ event }: { event: AuditEvent }) {
   const { t, i18n } = useTranslation('admin')
   const timeZone = useTimeZone()
-  const key = adminActionKey(event.action)
+  const key = adminActionKey(event.action, event.meta)
   const role = event.meta.role === 'admin' ? t(($) => $.accounts.roles.admin) : t(($) => $.accounts.roles.user)
 
   return (

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { Bookmark, VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
+import type { Bookmark, Connector, VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
 import { server } from './msw'
 
 /** A signed-in administrator with an anti-CSRF token. */
@@ -58,11 +58,48 @@ export interface WorkspaceData {
   connected?: string[]
   /** Bookmarks every saved site has (4.14b). */
   bookmarks?: Bookmark[]
+  /** Catalog of connectors; the built-in ones, both offered, by default. */
+  connectors?: Connector[]
 }
 
-/** Answers the workspace, collection, site, quick connection, open connection and bookmark lists; whatever is not given is empty. */
-export function mockWorkspaceData({ workspaces = [personalWorkspace], collections = [], sites = [], quick = [], connected = [], bookmarks = [] }: WorkspaceData = {}): void {
+/** A connector of the catalog as the server describes it, offered unless said otherwise. */
+export function connector(type: string, name: string, enabled = true, maturity: Connector['maturity'] = 'stable'): Connector {
+  return {
+    type,
+    name,
+    icon: 'server',
+    maturity,
+    capabilities: { folders: true, permissions: true, setTimes: true, resume: true, rename: true, serverCopy: false },
+    fields: [],
+    auth: ['password'],
+    enabledByDefault: true,
+    enabled,
+  }
+}
+
+/** The connectors Transferly is built with, both offered. */
+export const builtinConnectors: Connector[] = [connector('ftp', 'FTP / FTPS'), connector('sftp', 'SFTP')]
+
+/** Answers the catalog of connectors. */
+export function mockConnectors(connectors: Connector[] = builtinConnectors): void {
+  server.use(http.get('/api/v1/connectors', () => HttpResponse.json(connectors)))
+}
+
+/**
+ * Answers the workspace, collection, site, quick connection, open connection and bookmark lists, whatever is not given empty, and the
+ * catalog of connectors, the built-in ones unless given.
+ */
+export function mockWorkspaceData({
+  workspaces = [personalWorkspace],
+  collections = [],
+  sites = [],
+  quick = [],
+  connected = [],
+  bookmarks = [],
+  connectors = builtinConnectors,
+}: WorkspaceData = {}): void {
   mockVault()
+  mockConnectors(connectors)
   server.use(
     http.get('/api/v1/workspaces', () => HttpResponse.json(workspaces)),
     http.get('/api/v1/workspaces/:id/collections', () => HttpResponse.json(collections)),

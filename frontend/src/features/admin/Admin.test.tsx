@@ -319,6 +319,8 @@ describe('administration', () => {
         event(1, 'admin.networks_changed', '', { meta: { count: '2' } }),
         event(0, 'admin.networks_changed', '', { meta: { count: '1' } }),
         event(-2, 'admin.limits_changed', ''),
+        event(-3, 'admin.connector_changed', 's3', { meta: { enabled: 'true' } }),
+        event(-4, 'admin.connector_changed', 'ftp', { meta: { enabled: 'false' } }),
         event(-1, 'admin.thing', 'x', { actor: undefined, ip: undefined, meta: {} }),
       ],
     })
@@ -335,6 +337,8 @@ describe('administration', () => {
       'changed the allowed networks (2 networks)',
       'changed the allowed networks (1 network)',
       'changed the limits of the instance',
+      'enabled the connector s3',
+      'disabled the connector ftp',
       'admin.thing x',
       'Deleted account',
     ]) {
@@ -469,6 +473,7 @@ describe('administration', () => {
   it('maps actions and errors to their keys', () => {
     expect(adminActionKey('admin.user_disabled')).toBe('userDisabled')
     expect(adminActionKey('admin.nothing')).toBe('unknown')
+    expect(adminActionKey('admin.connector_changed')).toBe('connectorDisabled')
     expect(adminErrorKeyOf(new Error('x'))).toBe('unknown')
   })
 })

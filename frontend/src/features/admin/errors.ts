@@ -10,6 +10,7 @@ const adminErrorKeys = [
   'invalid_network',
   'too_many_networks',
   'invalid_limits',
+  'connector_not_found',
   'rate_limited',
   'network_error',
 ] as const

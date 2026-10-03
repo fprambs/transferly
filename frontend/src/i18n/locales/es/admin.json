@@ -2,14 +2,15 @@
   "retry": "Reintentar",
   "page": {
     "title": "Administración",
-    "subtitle": "Cuentas, redes privadas y el registro de lo que hicieron los administradores en esta instancia.",
+    "subtitle": "Cuentas, redes privadas, límites, los conectores que ofrece la instancia y el registro de lo que hicieron los administradores en esta instancia.",
     "loading": "Cargando…",
     "noAccess": "Solo los administradores de la instancia pueden abrir esta página.",
     "tabs": {
       "accounts": "Cuentas",
       "networks": "Redes",
       "audit": "Registro de auditoría",
-      "limits": "Límites"
+      "limits": "Límites",
+      "connectors": "Conectores"
     }
   },
   "accounts": {
@@ -109,7 +110,8 @@
       "roles": "Roles",
       "security": "Segundo paso",
       "networks": "Redes",
-      "limits": "Límites"
+      "limits": "Límites",
+      "connectors": "Conectores"
     },
     "actions": {
       "userDisabled": "deshabilitó la cuenta {{target}}",
@@ -119,7 +121,9 @@
       "networksChanged_one": "cambió las redes permitidas ({{count}} red)",
       "networksChanged_other": "cambió las redes permitidas ({{count}} redes)",
       "unknown": "{{action}} {{target}}",
-      "limitsChanged": "cambió los límites de la instancia"
+      "limitsChanged": "cambió los límites de la instancia",
+      "connectorEnabled": "habilitó el conector {{target}}",
+      "connectorDisabled": "deshabilitó el conector {{target}}"
     }
   },
   "errors": {
@@ -133,7 +137,8 @@
     "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
     "network_error": "No se pudo contactar con el servidor.",
     "unknown": "Algo salió mal. Inténtalo de nuevo.",
-    "invalid_limits": "Un límite no es válido. Usa números enteros, o decimales para MiB/s y GiB, y nada por debajo de cero."
+    "invalid_limits": "Un límite no es válido. Usa números enteros, o decimales para MiB/s y GiB, y nada por debajo de cero.",
+    "connector_not_found": "Este conector no es parte de Transferly."
   },
   "limits": {
     "loading": "Cargando límites…",
@@ -174,6 +179,32 @@
       "limit": "Límite",
       "value": "Valor",
       "started": "Al arrancar"
+    }
+  },
+  "connectors": {
+    "title": "Conectores",
+    "description": "Los tipos de almacenamiento que ofrece esta instancia. Solo se pueden crear y conectar sitios con un conector ofrecido; al desactivar uno, sus sitios se conservan pero dejan de conectar hasta que se vuelva a ofrecer.",
+    "loading": "Cargando los conectores…",
+    "offer": "Ofrecer {{name}}",
+    "offered": "Ofrecido",
+    "notOffered": "No ofrecido",
+    "capabilities": "Lo que puede hacer {{name}}",
+    "maturity": {
+      "stable": "Estable",
+      "beta": "Beta"
+    },
+    "capability": {
+      "folders": "Carpetas",
+      "permissions": "Permisos",
+      "setTimes": "Fechas de modificación",
+      "resume": "Reanudar",
+      "rename": "Renombrar",
+      "serverCopy": "Copia en el servidor"
+    },
+    "disable": {
+      "title": "¿Dejar de ofrecer {{name}}?",
+      "body": "Sus sitios quedan guardados, pero nadie puede crear nuevos ni conectarse a ellos hasta que el conector se vuelva a ofrecer.",
+      "confirm": "Dejar de ofrecer"
     }
   }
 }
