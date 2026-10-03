@@ -49,7 +49,8 @@ async function expectAccessible(page: Page, label: string): Promise<void> {
  * - the networks tab adds entries to its table, saves them, keeps them after a reload, refuses the whole internet and clears the list
  * - the limits page saves values in its units, keeps them after a reload, refuses what is not a number and goes back to the starting values
  * - the audit log words each change and narrows by group
- * - the four tabs and the confirmation have no WCAG violations in the light and dark themes
+ * - the connectors tab shows SFTP and FTP offered, and stopping to offer one asks first and can be canceled without a change
+ * - the five tabs and the confirmations have no WCAG violations in the light and dark themes
  */
 test.describe('administration', () => {
   test.describe.configure({ mode: 'serial' })
@@ -192,6 +193,23 @@ test.describe('administration', () => {
     await expect(log).toContainText('changed the allowed networks')
   })
 
+  test('shows the connectors and asks before it stops offering one', async ({ shell, page }) => {
+    void shell
+    await openAdmin(page)
+    await page.getByRole('tab', { name: 'Connectors' }).click()
+    const sftp = page.getByRole('listitem', { name: 'SFTP' })
+    await expect(sftp).toContainText('Offered')
+    await expect(page.getByRole('listitem', { name: 'FTP / FTPS' })).toContainText('Offered')
+
+    await sftp.getByRole('switch', { name: 'Offer SFTP' }).click()
+    const question = page.getByRole('dialog', { name: 'Stop offering SFTP?' })
+    await expect(question).toBeVisible()
+    await expectAccessible(page, 'connector question')
+    await question.getByRole('button', { name: 'Cancel' }).click()
+    await expect(question).toBeHidden()
+    await expect(sftp.getByRole('switch', { name: 'Offer SFTP' })).toBeChecked()
+  })
+
   test('has no WCAG violations in the light and dark themes', async ({ shell, page }) => {
     test.setTimeout(120_000)
     for (const theme of ['transferly-dark', 'transferly-light']) {
@@ -212,6 +230,11 @@ test.describe('administration', () => {
       await page.getByRole('tab', { name: 'Limits' }).click()
       await expect(page.getByLabel('Sites per workspace')).toBeVisible()
       await expectAccessible(page, `${theme} limits`)
+      await settle(page)
+      await page.getByRole('tab', { name: 'Connectors' }).scrollIntoViewIfNeeded()
+      await page.getByRole('tab', { name: 'Connectors' }).click()
+      await expect(page.getByRole('switch', { name: 'Offer SFTP' })).toBeVisible()
+      await expectAccessible(page, `${theme} connectors`)
       await settle(page)
       await page.getByRole('tab', { name: 'Audit log' }).scrollIntoViewIfNeeded()
       await page.getByRole('tab', { name: 'Audit log' }).click()
