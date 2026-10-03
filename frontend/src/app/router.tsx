@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { AcceptInvitationPage } from '@/features/teams/AcceptInvitationPage'
 import { settingsSections, type SettingsSection } from '@/features/settings/sections'
 import { NotFound } from '@/features/shell/NotFound'
+import { RouteFault } from '@/features/shell/RouteFault'
 import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
 import { SiteExplorer } from '@/features/explorer/SiteExplorer'
 import { AppShell } from '@/features/shell/AppShell'
@@ -32,7 +33,11 @@ export interface RouterContext {
 }
 
 /** Root route: renders whatever child matches. */
-const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet, notFoundComponent: NotFound })
+const rootRoute = createRootRouteWithContext<RouterContext>()({
+  component: Outlet,
+  notFoundComponent: NotFound,
+  errorComponent: RouteFault,
+})
 
 /** Layout of everything a signed-in user sees; it sends everybody else to setup or login. */
 const shellRoute = createRoute({

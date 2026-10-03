@@ -105,5 +105,10 @@
     "label": "Avisos",
     "log": "Ver log",
     "dismiss": "Descartar"
+  },
+  "routeError": {
+    "title": "Algo salió mal",
+    "body": "Recarga la página para intentarlo de nuevo. Si sigue pasando, vuelve a iniciar sesión.",
+    "reload": "Recargar"
   }
 }
