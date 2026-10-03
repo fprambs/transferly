@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures.ts'
+import { settle } from '../settle.ts'
 
 /**
  * Resizable panels (4.10) in a real browser, where layout is measured.
@@ -52,6 +53,8 @@ test.describe('resizable panels', () => {
     await page.goto(`/sites/${quickId}?path=%2F`)
     const grid = page.getByRole('grid', { name: 'Files' })
     await grid.waitFor()
+    await expect(page.getByRole('tree', { name: 'Sites' })).toBeVisible()
+    await settle(page)
     const width = (await grid.boundingBox())?.width ?? 0
 
     await page.getByRole('toolbar', { name: 'Toolbar' }).getByRole('button', { name: 'View' }).click()
