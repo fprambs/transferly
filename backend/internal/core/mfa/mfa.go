@@ -87,9 +87,10 @@ func NewService(store Store, instanceKey []byte, random io.Reader, clock ports.C
 	return &Service{store: store, key: instanceKey, random: random, clock: clock}
 }
 
-// derive returns a key for one purpose from the instance key.
+// derive returns a key for one purpose from the instance key. Its label is frozen: changing it makes every stored value unreadable
+// (ADR-0020).
 func (s *Service) derive(purpose string) []byte {
-	key, _ := hkdf.Key(sha256.New, s.key, nil, "sentinel/mfa/v1/"+purpose, 32)
+	key, _ := hkdf.Key(sha256.New, s.key, nil, "transferly/mfa/v1/"+purpose, 32)
 	return key
 }
 
@@ -238,9 +239,10 @@ func (s *Service) newRecovery() ([]string, [][]byte, error) {
 	return plain, hashes, nil
 }
 
-// hashRecovery returns the stored form of a recovery code, given without dashes in upper case.
+// hashRecovery returns the stored form of a recovery code, given without dashes in upper case. Its label is frozen: changing it makes
+// every stored value unreadable (ADR-0020).
 func hashRecovery(text string) []byte {
-	sum := sha256.Sum256([]byte("sentinel/mfa/recovery/v1|" + text))
+	sum := sha256.Sum256([]byte("transferly/mfa/recovery/v1|" + text))
 	return sum[:]
 }
 
