@@ -240,7 +240,7 @@ test.describe('security', () => {
     const dock = page.getByRole('region', { name: 'Transfers' })
     await dock.getByRole('tab', { name: 'Activity' }).click()
     const log = dock.getByRole('list', { name: 'Activity log' })
-    await expect(log.getByRole('listitem').filter({ hasText: folder })).toBeVisible()
+    await expect(log.getByRole('listitem').filter({ hasText: folder }).filter({ hasText: 'Created a folder' })).toBeVisible()
     await expect(log.locator('img')).toHaveCount(0)
     expect(await page.evaluate(() => (globalThis as { __xss?: number }).__xss)).toBeUndefined()
 
