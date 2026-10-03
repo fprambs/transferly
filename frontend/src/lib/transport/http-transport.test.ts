@@ -158,7 +158,7 @@ function recorder(make: () => Response | Error) {
  * - a stream call returns the body of the answer, asks for a byte range when given one, and reports problems, network failures and answers
  *   without a body
  * - the URL joins the base URL, the path and the encoded query, repeating a parameter for each item of a list and leaving out undefined values
- * - the abort signal is passed to fetch
+ * - the extra headers of a request are sent, and the abort signal is passed to fetch
  */
 describe('HttpTransport.request', () => {
   it('streams the body of a GET answer', async () => {
@@ -255,6 +255,14 @@ describe('HttpTransport.request', () => {
     expect(transport.url('/p', { path: '/a b', n: 2, flag: true, none: undefined })).toBe('http://api.test/p?path=%2Fa+b&n=2&flag=true')
     expect(transport.url('/p')).toBe('http://api.test/p')
     expect(transport.url('/p', { none: undefined })).toBe('http://api.test/p')
+  })
+
+  it('sends the extra headers of a request', async () => {
+    const { fetchStub, inits } = recorder(() => jsonResponse({}, 200))
+
+    await new HttpTransport({ fetch: fetchStub }).request({ method: 'GET', path: '/a', headers: { 'X-Extra': 'yes' } })
+
+    expect(inits[0].headers).toMatchObject({ 'X-Extra': 'yes' })
   })
 
   it('passes the abort signal to fetch', async () => {

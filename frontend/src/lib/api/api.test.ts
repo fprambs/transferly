@@ -21,6 +21,8 @@ interface Seen {
   csrf: string | null
   /** Content type header, if any. */
   type: string | null
+  /** FileZilla master password header, if any. */
+  master: string | null
 }
 
 let seen: Seen[] = []
@@ -37,6 +39,7 @@ function recordEverything(status = 200): void {
         body: await request.text(),
         csrf: request.headers.get('X-CSRF-Token'),
         type: request.headers.get('Content-Type'),
+        master: request.headers.get('X-FileZilla-Master-Password'),
       })
       return status === 204 ? new HttpResponse(null, { status }) : HttpResponse.json({})
     }),
@@ -63,6 +66,7 @@ const files = `/api/v1/workspaces/${ws}/sites/${site}/files`
  * - bodies are JSON, query parameters are encoded and left-out ones are not sent
  * - state-changing calls carry the anti-CSRF token and reads do not
  * - uploads send the blob as it is with the resume options in the query, and the download URLs are built without a request
+ * - a site manager goes as XML, with its FileZilla master password in a header only when one is given
  * - ranges of files are read as bytes and entries of archives streamed, with the chain of nested archives as repeated parameters
  */
 describe('createApi', () => {
@@ -177,13 +181,19 @@ describe('createApi', () => {
     expect(seen[0]?.csrf).toBe(method === 'GET' ? null : 'csrf-1')
   })
 
-  it('sends a site manager file as XML with the import options', async () => {
+  it('sends a site manager file as XML with the import options, and its master password only when given', async () => {
     recordEverything()
 
     await client().api.imports.filezilla(ws, new TextEncoder().encode('<FileZilla3/>'), { dryRun: true, passwords: false, onConflict: 'rename' })
 
     expect(seen[0]).toMatchObject({ method: 'POST', path: `/api/v1/workspaces/${ws}/imports/filezilla`, query: '?dryRun=true&passwords=false&onConflict=rename', type: 'application/xml' })
     expect(seen[0]?.body).toBe('<FileZilla3/>')
+    expect(seen[0]?.master).toBeNull()
+
+    await client().api.imports.filezilla(ws, new TextEncoder().encode('<FileZilla3/>'), { filezillaMasterPassword: '' })
+    expect(seen[1]?.master).toBeNull()
+    await client().api.imports.filezilla(ws, new TextEncoder().encode('<FileZilla3/>'), { filezillaMasterPassword: 'master' })
+    expect(seen[2]?.master).toBe('master')
   })
 
   it('uploads a blob as it is with the resume options in the query', async () => {
