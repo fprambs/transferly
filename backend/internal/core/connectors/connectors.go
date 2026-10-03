@@ -4,6 +4,7 @@
 package connectors
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -171,15 +172,17 @@ func (c *Catalog) All() []Descriptor {
 		all = append(all, d)
 	}
 	slices.SortFunc(all, func(a, b Descriptor) int {
-		if (a.Maturity == Stable) != (b.Maturity == Stable) {
-			if a.Maturity == Stable {
-				return -1
-			}
-			return 1
-		}
-		return strings.Compare(a.Name, b.Name)
+		return cmp.Or(cmp.Compare(rank(a.Maturity), rank(b.Maturity)), strings.Compare(a.Name, b.Name))
 	})
 	return all
+}
+
+// rank orders maturities: stable connectors before the others.
+func rank(m Maturity) int {
+	if m == Stable {
+		return 0
+	}
+	return 1
 }
 
 // Validate checks a configuration against the fields of a connector and returns it with the defaults filled in. Settings the connector
