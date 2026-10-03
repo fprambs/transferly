@@ -19,7 +19,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -142,9 +142,21 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [setOpen])
 
+  const afterClose = useRef<(() => void) | undefined>(undefined)
   const run = (action: () => void) => (): void => {
     setOpen(false)
     action()
+  }
+  const runClosed = (action: () => void) => (): void => {
+    afterClose.current = action
+    setOpen(false)
+  }
+  const closed = (isOpen: boolean): void => {
+    const action = afterClose.current
+    if (!isOpen && action !== undefined) {
+      afterClose.current = undefined
+      action()
+    }
   }
   const siteItem = (connection: (typeof connections)[number], value: string) => (
     <Item
@@ -164,8 +176,8 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
     void navigate({ to: '/sites/$siteId', params: { siteId: view.params.siteId }, search: { ...view.search, [pane]: path } })
   }
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent showCloseButton={false} className="top-[15vh] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-xl">
+    <Dialog open={open} onOpenChange={setOpen} onOpenChangeComplete={closed}>
+      <DialogContent showCloseButton={false} finalFocus={() => afterClose.current === undefined} className="top-[15vh] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogTitle className="sr-only">{t(($) => $.palette.title)}</DialogTitle>
         <Command key={String(open)} label={t(($) => $.palette.title)} loop className="flex flex-col">
           <div className="flex items-center gap-2 border-b px-3">
@@ -181,7 +193,7 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
                   <Item value="action-refresh" keywords={[explorer(($) => $.commands.refresh), 'reload']} icon={RefreshCw} iconClassName="text-accent-text" label={explorer(($) => $.commands.refresh)} detail={commands.name} disabled={commands.idle} onSelect={run(commands.refresh)} />
                   <Item value="action-cancel" keywords={[explorer(($) => $.commands.cancel), 'stop']} icon={CircleStop} iconClassName="text-destructive" label={explorer(($) => $.commands.cancel)} disabled={!commands.busy} onSelect={run(commands.cancel)} />
                   <Item value="action-disconnect" keywords={[explorer(($) => $.commands.disconnect)]} icon={Unplug} iconClassName="text-warn" label={explorer(($) => $.commands.disconnect)} detail={commands.name} disabled={commands.idle} onSelect={run(() => void commands.disconnect())} />
-                  <Item value="action-filter" keywords={[explorer(($) => $.filter.label), 'filter']} icon={ListFilter} label={explorer(($) => $.filter.label)} end={<Keys spec="/" />} onSelect={run(() => window.dispatchEvent(new Event(focusFilterEvent)))} />
+                  <Item value="action-filter" keywords={[explorer(($) => $.filter.label), 'filter']} icon={ListFilter} label={explorer(($) => $.filter.label)} end={<Keys spec="/" />} onSelect={runClosed(() => window.dispatchEvent(new Event(focusFilterEvent)))} />
                 </>
               )}
               <Item value="action-quick" keywords={[t(($) => $.sidebar.quickConnect)]} icon={Zap} iconClassName="text-warn" label={t(($) => $.sidebar.quickConnect)} end={<Keys spec="Mod+Shift+K" />} onSelect={run(() => setQuickConnectOpen(true))} />
