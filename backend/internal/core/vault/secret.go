@@ -16,9 +16,9 @@ type SecretRef struct {
 	DEKVersion int
 }
 
-// aad renders the reference as associated data.
+// aad renders the reference as associated data. Its label is frozen: changing it makes every stored value unreadable (ADR-0020).
 func (r SecretRef) aad() []byte {
-	return []byte(fmt.Sprintf("sentinel/secret/v1|%s|%s|%d", r.Site, r.Kind, r.DEKVersion))
+	return []byte(fmt.Sprintf("transferly/secret/v1|%s|%s|%d", r.Site, r.Kind, r.DEKVersion))
 }
 
 // SealSecret encrypts a secret with the DEK, binding it to ref.

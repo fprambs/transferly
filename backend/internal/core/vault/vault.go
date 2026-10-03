@@ -228,9 +228,10 @@ func (v *Vault) randomBytes(n int) ([]byte, error) {
 	return b, nil
 }
 
-// wrapAAD is the associated data that binds a wrapped DEK to its purpose.
+// wrapAAD is the associated data that binds a wrapped DEK to its purpose. Its label is frozen: changing it makes every stored value
+// unreadable (ADR-0020).
 func wrapAAD(kind string) []byte {
-	return []byte("sentinel/dek-wrap/v1|" + kind)
+	return []byte("transferly/dek-wrap/v1|" + kind)
 }
 
 var recoveryEncoding = base32.StdEncoding.WithPadding(base32.NoPadding)

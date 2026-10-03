@@ -37,9 +37,9 @@ func newPrivateKey(random io.Reader) (*ecdh.PrivateKey, error) {
 	return ecdh.X25519().NewPrivateKey(seed)
 }
 
-// privateKeyAAD binds a sealed private key to its owner.
+// privateKeyAAD binds a sealed private key to its owner. Its label is frozen: changing it makes every stored value unreadable (ADR-0020).
 func privateKeyAAD(user string) []byte {
-	return []byte("sentinel/user-key/v1|" + user)
+	return []byte("transferly/user-key/v1|" + user)
 }
 
 // SealPrivateKey seals the private key of a user with their DEK.
@@ -63,9 +63,10 @@ type GrantRef struct {
 	Version int
 }
 
-// info renders the reference as the context of the key derivation and as associated data.
+// info renders the reference as the context of the key derivation and as associated data. Its label is frozen: changing it makes every
+// stored value unreadable (ADR-0020).
 func (r GrantRef) info() []byte {
-	return []byte(fmt.Sprintf("sentinel/workspace-key/v1|%s|%s|%d", r.Workspace, r.User, r.Version))
+	return []byte(fmt.Sprintf("transferly/workspace-key/v1|%s|%s|%d", r.Workspace, r.User, r.Version))
 }
 
 // grantKey derives the key that seals a grant from the shared secret of the exchange.

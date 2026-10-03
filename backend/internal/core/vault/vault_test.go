@@ -328,7 +328,7 @@ func TestSealedLayoutMatchesAESGCM(t *testing.T) {
 
 	block, _ := aes.NewCipher(dek)
 	aead, _ := cipher.NewGCM(block)
-	plaintext, err := aead.Open(nil, sealed[:12], sealed[12:], []byte("sentinel/secret/v1|s|password|4"))
+	plaintext, err := aead.Open(nil, sealed[:12], sealed[12:], []byte("transferly/secret/v1|s|password|4"))
 	if err != nil || string(plaintext) != "layout" {
 		t.Errorf("standard library open = %q, %v, want layout", plaintext, err)
 	}
