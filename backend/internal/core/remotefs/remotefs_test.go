@@ -80,3 +80,44 @@ func TestHostKeyError(t *testing.T) {
 		}
 	}
 }
+
+// checkingFS is a connection that learns whether its server's sizes hold, recording what it was told.
+type checkingFS struct {
+	remotefs.RemoteFS
+	trusted bool
+	noted   [][2]int64
+}
+
+// SizesTrusted implements [remotefs.SizeChecker].
+func (c *checkingFS) SizesTrusted() bool { return c.trusted }
+
+// NoteWholeRead implements [remotefs.SizeChecker].
+func (c *checkingFS) NoteWholeRead(reported, read int64) {
+	c.noted = append(c.noted, [2]int64{reported, read})
+}
+
+// TestSizesTrusted verifies whose reported sizes are trusted and who hears about whole reads.
+//
+// Scenarios:
+//   - a connection that does not check sizes is trusted, and telling it about a read does nothing
+//   - a size checker answers for itself and hears every whole read
+func TestSizesTrusted(t *testing.T) {
+	var plain struct{ remotefs.RemoteFS }
+	if !remotefs.SizesTrusted(plain) {
+		t.Error("SizesTrusted(plain) = false; want true")
+	}
+	remotefs.NoteWholeRead(plain, 10, 8)
+
+	checker := &checkingFS{trusted: false}
+	if remotefs.SizesTrusted(checker) {
+		t.Error("SizesTrusted(untrusting checker) = true; want false")
+	}
+	checker.trusted = true
+	if !remotefs.SizesTrusted(checker) {
+		t.Error("SizesTrusted(trusting checker) = false; want true")
+	}
+	remotefs.NoteWholeRead(checker, 10, 8)
+	if len(checker.noted) != 1 || checker.noted[0] != [2]int64{10, 8} {
+		t.Errorf("noted = %v; want [[10 8]]", checker.noted)
+	}
+}

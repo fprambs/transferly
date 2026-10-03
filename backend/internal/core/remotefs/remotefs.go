@@ -129,6 +129,31 @@ type RemoteFS interface {
 	Close() error
 }
 
+// SizeChecker is implemented by connections to servers whose reported sizes may not match the bytes they send, as some
+// enterprise SFTP gateways do. Whoever reads a whole file tells the connection how many bytes came, and stops trusting
+// reported sizes once it says so.
+type SizeChecker interface {
+	// SizesTrusted reports whether the size the server reports for a file is the number of bytes it sends.
+	SizesTrusted() bool
+	// NoteWholeRead records that reading a whole file the server reported as reported bytes gave read bytes.
+	NoteWholeRead(reported, read int64)
+}
+
+// SizesTrusted reports whether the sizes fsys reports are the number of bytes it sends: always, unless it is a
+// [SizeChecker] that learned otherwise.
+func SizesTrusted(fsys RemoteFS) bool {
+	checker, ok := fsys.(SizeChecker)
+	return !ok || checker.SizesTrusted()
+}
+
+// NoteWholeRead tells fsys, when it is a [SizeChecker], how many bytes reading a whole file it reported as reported
+// bytes gave.
+func NoteWholeRead(fsys RemoteFS, reported, read int64) {
+	if checker, ok := fsys.(SizeChecker); ok {
+		checker.NoteWholeRead(reported, read)
+	}
+}
+
 // HostKeyError reports the key a server presented when it was not accepted. It matches [ErrHostKeyUnknown]
 // or [ErrHostKeyMismatch] with [errors.Is], so callers can ask the user to confirm the fingerprint or refuse.
 type HostKeyError struct {
