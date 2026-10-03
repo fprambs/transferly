@@ -6,7 +6,7 @@ Create clients with `sftp.NewClient(sshConn, opts...)`.
 
 | Option | Upstream note | Decision |
 |---|---|---|
-| `UseConcurrentReads(true)` | generally safe; omitting it degrades performance | on |
+| `UseConcurrentReads(true)` | generally safe; omitting it degrades performance | on, except for servers that proved strict (see below) |
 | `UseConcurrentWrites(true)` | errors mid-write can leave holes in the file | on; on error discard the target, or write `.part` and rename |
 | `MaxConcurrentRequestsPerFile(n)` | default 64 | 64, per-site override |
 | `MaxPacketChecked(n)` | up to 32768 bytes | 32768 |
@@ -29,6 +29,7 @@ Source: [pkg.go.dev/golang.org/x/crypto/ssh](https://pkg.go.dev/golang.org/x/cry
 - `ClientConfig.HostKeyCallback` is mandatory and never `InsecureIgnoreHostKey`. The adapter calls `Config.VerifyHostKey(keyType, fingerprint)` and refuses to connect without it.
 - `ssh.FingerprintSHA256(key)` renders the `SHA256:` fingerprint that Transferly stores and shows.
 - `ClientConfig.HostKeyAlgorithms` restricts the accepted key types to the trusted ones, so a server cannot switch to a type that was never trusted.
+- `Config.Ciphers` follows the order OpenSSH prefers, ChaCha20-Poly1305 and CTR before AES-GCM. The library puts AES-GCM first, and some enterprise servers that pick it then close the connection during authentication.
 - Password authentication is offered through `ssh.Password` and `ssh.KeyboardInteractive`, because many servers only accept the latter.
 - Keys are read with `ssh.ParsePrivateKey` or `ParsePrivateKeyWithPassphrase`; `*ssh.PassphraseMissingError` and `x509.IncorrectPasswordError` are reported as authentication errors.
 - `NewClientConn` blocks on the handshake: the adapter closes the connection when the context ends (`context.AfterFunc`).
@@ -66,3 +67,14 @@ Measured with `scripts/bench-sftp-download.sh` against the isolated test stack, 
 | OpenSSH `sftp` | 33–55 MB/s | 28–31 MB/s |
 | Transferly before | 20–27 MB/s | 1.5 MB/s |
 | Transferly after | — | 39–57 MB/s |
+
+## Strict servers
+
+Some enterprise SFTP gateways report sizes that do not match the bytes they send (a file listed as 5.7 KB sends 4.2 KB), or drop the session as soon as a client keeps several reads in flight. Announcing the reported size as `Content-Length` then leaves the browser waiting for bytes that never come, and a ZIP index is looked for where the file does not end. `File.WriteTo` also assumes every read of a regular file returns a full chunk, which such servers do not promise.
+
+- `sftpfs.StrictServers` remembers, by address, the servers that proved strict. The connector keeps one for every connection, because a dropped session is discarded with what it learned. A server proves strict when a whole file comes with another size than it reported (`remotefs.SizeChecker.NoteWholeRead`), or when a pipelined read loses the connection in its first MiB. Later failures are the link's, not the server's, and do not count. The memory forgets everything once it holds 1024 servers.
+- A connection to a strict server reads one request at a time (`UseConcurrentReads(false)`, and `Read` for a connection that learned it while open) and reports `SizesTrusted() == false`.
+- `files.Download` reads a whole file of up to 512 KiB into memory, up to its end, before answering. It announces the bytes that came and gives the connection back at once, on every server. Reading it whole is also how a connection learns whether its sizes hold. A larger whole file streams with the reported size as `Content-Length` while the sizes are trusted, and to its end with no `Content-Length` once they are not; the transfer then ends at the end of the stream. Ranges always use the reported size.
+- The archive viewer reads an archive of up to 512 KiB, or any archive on a strict server, whole into memory up to its end (capped like nested archives, 64 MiB), so a ZIP or 7z index is found where the bytes end.
+- A download whose every expected byte moved ends as done even if the read failed afterwards, as when a server drops the session once the file was sent.
+- What is learned lives in memory and is lost on restart: the first large download from a strict server after a restart can still fail, unless a small file was read before.

@@ -389,6 +389,16 @@ Cada punto en su propio commit, en este orden.
 - [x] 17. Ayuda de atajos con ?
 - [x] 18. Avisos breves tras renombrar, borrar o crear carpeta, con acceso al log
 
+## Servidores SFTP estrictos (pedido del 2026-10-03)
+
+Casos vistos con un gateway SFTP corporativo: tamaños listados que no coinciden con los bytes enviados (5,7 KB anunciados, 4,2 KB recibidos), descargas que quedaban colgadas o interrumpidas, vista previa de ZIP con `archive_unsupported`, sesiones que se caen con lecturas en paralelo y autenticación que se corta con AES-GCM. Detalle en `docs/guides/pkg-sftp.md`.
+
+- [x] Cifrados en el orden de OpenSSH (ChaCha20-Poly1305 y CTR antes que AES-GCM)
+- [x] Descargas completas de hasta 512 KiB leídas enteras antes de responder, con el `Content-Length` de los bytes reales, en cualquier servidor
+- [x] Memoria de servidores estrictos por dirección, que sobrevive a la conexión: se aprende cuando un archivo completo no trae el tamaño informado o cuando una lectura en paralelo pierde la sesión en su primer MiB; esos servidores se leen de a una petición y sus descargas grandes van hasta el final sin `Content-Length`
+- [x] Vista previa de archivos comprimidos: los de hasta 512 KiB, o cualquiera en un servidor estricto, se leen enteros hasta el final (tope de 64 MiB), así el índice del ZIP o 7z se encuentra donde terminan los bytes
+- [x] Una descarga que ya movió todos sus bytes termina como completada aunque la lectura falle después
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común
