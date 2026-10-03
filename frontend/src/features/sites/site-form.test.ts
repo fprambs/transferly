@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Site } from '@/lib/api'
 
-import { accessModesOf, siteDefaults, siteSchema, tabsOf, tabsWithErrors, toSiteInput } from './site-form'
+import { accessModesOf, protocolChoices, siteDefaults, siteSchema, tabsOf, tabsWithErrors, toSiteInput } from './site-form'
 
 /** A stored site. */
 const stored: Site = {
@@ -29,6 +29,7 @@ const stored: Site = {
  *
  * Scenarios:
  * - a new site starts empty on the given collection, an existing one is prefilled without secrets
+ * - the protocols offered are those of the connectors the instance offers, all while that is unknown, plus the one an edited site uses
  * - the schema accepts empty or in-range ports and rejects anything else
  * - the request trims text, defaults port and time zone, and files the site in its collection
  * - the character set is kept for FTP and FTPS and is UTF-8 for SFTP
@@ -46,6 +47,14 @@ const stored: Site = {
  *   once a host is given, whatever the site's own protocol; leaving both unset is always valid
  */
 describe('site form', () => {
+  it('offers the protocols of the offered connectors and keeps the one of an edited site', () => {
+    expect(protocolChoices(undefined)).toEqual(['sftp', 'ftp'])
+    expect(protocolChoices(new Set(['ftp']))).toEqual(['ftp'])
+    expect(protocolChoices(new Set(['ftp']), 'sftp')).toEqual(['sftp', 'ftp'])
+    expect(protocolChoices(new Set(['sftp']), 'ftps')).toEqual(['sftp', 'ftp'])
+    expect(protocolChoices(new Set())).toEqual([])
+  })
+
   it('starts empty for a new site', () => {
     expect(siteDefaults(undefined, 'c9')).toMatchObject({ name: '', collectionId: 'c9', port: '', accessMode: 'normal', listTimezone: 'UTC' })
     expect(siteDefaults(undefined, undefined).collectionId).toBe('')

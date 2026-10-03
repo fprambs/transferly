@@ -52,7 +52,8 @@
     "invalid_color": "Pick one of the label colors, or none.",
     "invalid_export": "This file is not an export of Transferly.",
     "wrong_export_password": "That password does not open the file, or the file was changed.",
-    "weak_export_password": "The password needs at least 12 characters."
+    "weak_export_password": "The password needs at least 12 characters.",
+    "connector_disabled": "The administrators of this instance do not offer this kind of site."
   },
   "collection": {
     "actions": "Actions for {{name}}",

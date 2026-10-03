@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Site } from '@/lib/api'
-import { mockUnlocking, mockVault, mockWorkspaceData, problem } from '@/test/handlers'
+import { connector, mockConnectors, mockUnlocking, mockVault, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { choose, optionsOf } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
@@ -67,6 +67,8 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  *
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
+ * - only the protocols whose connector the instance offers are listed, a new site starts on one of them, an edited site keeps its own,
+ *   and a refusal because its connector is not offered is explained (ADR-0019)
  * - the default remote folder, on Advanced, must be absolute and is sent as typed (4.14i)
  * - an FTP site of the account logon type sends its password and account, and an edited one keeps its stored account (4.8e)
  * - what is needed to connect is on the first tab, the rest on Advanced, Transfer, Character set and Proxy and jump host, and a wrong field opens
@@ -91,6 +93,26 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
 describe('site management', () => {
   beforeEach(() => {
     mockWorkspaceData({ sites: [prod], collections: [{ id: 'c1', name: 'Work' }] })
+  })
+
+  it('offers only the protocols of the connectors the instance offers', async () => {
+    mockConnectors([connector('ftp', 'FTP / FTPS'), connector('sftp', 'SFTP', false)])
+    server.use(http.put('/api/v1/workspaces/:id/sites/:siteId', () => problem(409, 'connector_disabled')))
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const created = await screen.findByRole('dialog', { name: 'New site' })
+    await waitFor(() => expect(within(created).getByLabelText('Port')).toHaveAttribute('placeholder', '21'))
+    expect(await optionsOf(user, within(created).getByLabelText('Protocol'))).toEqual(['FTP - File Transfer Protocol'])
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await user.hover(screen.getByRole('treeitem', { name: /Prod/ }))
+    await user.click(screen.getByRole('button', { name: 'Actions for Prod' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+    const edited = await screen.findByRole('dialog', { name: 'Edit site' })
+    expect(await optionsOf(user, within(edited).getByLabelText('Protocol'))).toEqual(['SFTP - SSH File Transfer Protocol', 'FTP - File Transfer Protocol'])
+    await user.click(within(edited).getByRole('button', { name: 'Save changes' }))
+    expect(await within(edited).findByRole('alert')).toHaveTextContent('The administrators of this instance do not offer this kind of site.')
   })
 
   it('validates and creates a site', async () => {

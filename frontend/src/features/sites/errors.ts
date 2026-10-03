@@ -21,6 +21,7 @@ const siteErrorKeys = [
   'invalid_proxy',
   'invalid_jump',
   'invalid_protocol',
+  'connector_disabled',
   'invalid_auth_method',
   'secret_too_large',
   'vault_locked',

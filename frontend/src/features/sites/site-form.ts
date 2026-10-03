@@ -6,6 +6,18 @@ import type { Charset, Site, SiteInput } from '@/lib/api'
 /** Default port of each protocol; an FTP site with implicit TLS defaults to {@link implicitPort} instead. */
 export const defaultPorts = { sftp: 22, ftp: 21 } as const
 
+/** The protocols of the form, in the order they are listed. */
+export const siteProtocols = ['sftp', 'ftp'] as const
+
+/**
+ * The protocols a site may choose: those whose connector the instance offers (ADR-0019), every one while that is not known, and always the
+ * one an edited site already uses, so its form still shows it. FTPS sites use the FTP connector.
+ */
+export function protocolChoices(offered: ReadonlySet<string> | undefined, current?: Site['protocol']): Array<(typeof siteProtocols)[number]> {
+  const kept = current === undefined ? undefined : current === 'sftp' ? 'sftp' : 'ftp'
+  return siteProtocols.filter((protocol) => offered === undefined || offered.has(protocol) || protocol === kept)
+}
+
 /** Port of implicit FTPS, the default of FTP sites that use it. */
 export const implicitPort = 990
 

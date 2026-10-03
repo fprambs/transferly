@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -15,6 +15,7 @@ import type { Collection, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
+import { useOfferedConnectors } from '../connectors/use-connectors'
 import { useVaultStatus } from '../vault/use-vault'
 import { VaultDialog } from '../vault/VaultDialog'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
@@ -33,6 +34,7 @@ import {
   defaultProxyPort,
   effectiveMode,
   ftpEncryptions,
+  protocolChoices,
   siteDefaults,
   siteSchema,
   siteTabs,
@@ -156,12 +158,21 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SiteValues>({
     resolver: zodResolver(siteSchema),
     defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined),
   })
   const protocol = useWatch({ control, name: 'protocol' })
+  const offered = useOfferedConnectors()
+  const choices = protocolChoices(offered, editing?.protocol)
+  const fallback = choices.includes(protocol) ? undefined : choices[0]
+  useEffect(() => {
+    if (fallback !== undefined) {
+      setValue('protocol', fallback)
+    }
+  }, [fallback, setValue])
   const ftpEncryption = useWatch({ control, name: 'ftpEncryption' })
   const accessMode = useWatch({ control, name: 'accessMode' })
   const mode = effectiveMode({ protocol, accessMode })
@@ -265,10 +276,7 @@ function SiteForm({ target, workspaceId, collections, onClose }: SiteFormProps) 
                 id="site-protocol"
                 control={control}
                 name="protocol"
-                options={[
-                  { value: 'sftp', label: t(($) => $.site.protocols.sftp) },
-                  { value: 'ftp', label: t(($) => $.site.protocols.ftp) },
-                ]}
+                options={choices.map((value) => ({ value, label: t(($) => $.site.protocols[value]) }))}
               />
             </Row>
             <Row id="site-host" label={t(($) => $.site.host)} errors={[errors.host?.message, errors.port?.message]}>

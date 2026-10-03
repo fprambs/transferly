@@ -52,7 +52,8 @@
     "invalid_color": "Elige uno de los colores de etiqueta, o ninguno.",
     "invalid_export": "Este archivo no es una exportación de Transferly.",
     "wrong_export_password": "Esa contraseña no abre el archivo, o el archivo fue modificado.",
-    "weak_export_password": "La contraseña necesita al menos 12 caracteres."
+    "weak_export_password": "La contraseña necesita al menos 12 caracteres.",
+    "connector_disabled": "Los administradores de esta instancia no ofrecen este tipo de sitio."
   },
   "collection": {
     "actions": "Acciones de {{name}}",

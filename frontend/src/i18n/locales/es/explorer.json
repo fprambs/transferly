@@ -76,7 +76,8 @@
     "nameInvalid": "El nombre no puede contener una barra ni ser . o ..",
     "tree_too_large": "Esta carpeta es demasiado grande para copiarla o archivarla: tiene demasiados elementos o es demasiado profunda.",
     "time_zone_inconclusive": "Las horas del servidor no coinciden con el reloj, así que ninguna zona encaja.",
-    "credentials_required": "Este sitio pide su contraseña al conectar."
+    "credentials_required": "Este sitio pide su contraseña al conectar.",
+    "connector_disabled": "Los administradores de esta instancia ya no ofrecen este tipo de sitio. Pídeles que vuelvan a ofrecer su conector."
   },
   "toolbar": {
     "newFolder": "Nueva carpeta",

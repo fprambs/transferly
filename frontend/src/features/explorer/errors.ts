@@ -15,6 +15,7 @@ const explorerErrorKeys = [
   'vault_locked',
   'credentials_required',
   'site_not_found',
+  'connector_disabled',
   'quick_connection_not_found',
   'tree_too_large',
   'time_zone_inconclusive',
