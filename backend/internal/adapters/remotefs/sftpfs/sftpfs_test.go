@@ -891,4 +891,9 @@ func TestDial_RefusesLegacyCryptography(t *testing.T) {
 	if _, err := connect(t, modern, password); err != nil {
 		t.Errorf("modern algorithms: Dial() = %v", err)
 	}
+	for _, cipher := range []string{"chacha20-poly1305@openssh.com", "aes128-ctr", "aes192-ctr", "aes256-ctr", "aes256-gcm@openssh.com"} {
+		if _, err := connect(t, startServer(t, sftptest.Options{Ciphers: []string{cipher}}), password); err != nil {
+			t.Errorf("%s: Dial() = %v", cipher, err)
+		}
+	}
 }

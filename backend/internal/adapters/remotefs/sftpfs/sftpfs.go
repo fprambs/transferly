@@ -178,6 +178,14 @@ var keyExchanges = []string{
 	"diffie-hellman-group16-sha512",
 }
 
+// ciphers are offered in the order OpenSSH prefers them, ChaCha20-Poly1305 and CTR before AES-GCM. The library puts AES-GCM first,
+// and some enterprise servers that pick it then close the connection during authentication.
+var ciphers = []string{
+	"chacha20-poly1305@openssh.com",
+	"aes128-ctr", "aes192-ctr", "aes256-ctr",
+	"aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
+}
+
 // Dial connects, checks the host key, authenticates and starts the SFTP subsystem.
 // Failures are [remotefs.ErrHostKeyUnknown] or [remotefs.ErrHostKeyMismatch] for host keys,
 // [remotefs.ErrAuth] for credentials, the context error when canceled, [netguard.ErrBlocked] for forbidden
@@ -216,7 +224,7 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 
 	var rejected error
 	clientConfig := &ssh.ClientConfig{
-		Config: ssh.Config{KeyExchanges: keyExchanges},
+		Config: ssh.Config{KeyExchanges: keyExchanges, Ciphers: ciphers},
 		User:   cfg.Username,
 		Auth:   methods,
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
