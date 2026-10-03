@@ -399,6 +399,11 @@ Casos vistos con un gateway SFTP corporativo: tamaños listados que no coinciden
 - [x] Vista previa de archivos comprimidos: los de hasta 512 KiB, o cualquiera en un servidor estricto, se leen enteros hasta el final (tope de 64 MiB), así el índice del ZIP o 7z se encuentra donde terminan los bytes
 - [x] Una descarga que ya movió todos sus bytes termina como completada aunque la lectura falle después
 
+## Sesión expirada con la app abierta (pedido del 2026-10-03)
+
+- [x] Cuando la cookie de sesión vence con la app abierta, la primera respuesta `unauthenticated` olvida la sesión y el token anti-CSRF y abre el login sin recargar, en vez de dejar cada sitio con "No se pudo listar esta carpeta"; vuelve a funcionar si la sesión expira otra vez tras entrar de nuevo, y no toca a quien nunca inició sesión (instalación nueva)
+- [x] Pantalla propia y centrada para fallos que ninguna ruta maneja, con botón Recargar, en vez de la del router
+
 ## Fase 5: Escala e integraciones
 
 - [ ] 5.1 Catálogo de conectores ("Transferly Store", ADR-0019). Avance: paquete `internal/core/connectors` con descriptores, registro y validación por esquema, SFTP y FTP descritos, y `GET /api/v1/connectors` con su cliente en el frontend; falta la habilitación por instalación y workspace, el formulario generado desde el esquema, la pantalla de la tienda y conectar el catálogo con el flujo de conexión. Alcance: conectores incluidos en el binario que se registran con un descriptor (tipo, nombre, ícono, madurez, capacidades, esquema de configuración y autenticación); formulario de sitio y validación de la API generados desde el esquema; pantalla de administración para habilitarlos por instalación o workspace; SFTP y FTP migrados al catálogo; secretos en el vault; suite de conformidad común
