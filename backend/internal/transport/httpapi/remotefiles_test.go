@@ -364,6 +364,32 @@ func TestRemoteFiles_SharedByOneUser(t *testing.T) {
 	}
 }
 
+// TestRemoteFiles_DownloadUnsized verifies whole downloads from a server whose sizes are not trusted.
+//
+// Use cases:
+//   - a file too large to buffer streams to its end with no length announced, recorded as a transfer that ends done
+func TestRemoteFiles_DownloadUnsized(t *testing.T) {
+	e := newFileEnv(t)
+	created := e.a.send(http.MethodPost, sitesPath(e.ws), siteBody(strictSite), e.cookie, e.csrf)
+	if created.Status != http.StatusCreated {
+		t.Fatalf("create site = %d %s", created.Status, created.Body)
+	}
+	e.site = created.site(t).Id
+	big := strings.Repeat("0123456789abcdef", 40<<10)
+	if r := e.a.upload(e.ws, e.site, q("path", "/big.bin"), big, e.cookie, e.csrf); r.Status != http.StatusCreated {
+		t.Fatalf("upload = %d %s", r.Status, r.Body)
+	}
+	got := e.get("/content", q("path", "/big.bin"), nil)
+	if got.Status != http.StatusOK || string(got.Body) != big || got.Header.Get("Content-Length") != "" {
+		t.Fatalf("download = %d with %d bytes, Content-Length %q; want every byte and no length", got.Status, len(got.Body), got.Header.Get("Content-Length"))
+	}
+	id, err := uuid.Parse(got.Header.Get("X-Transfer-Id"))
+	if err != nil {
+		t.Fatalf("X-Transfer-Id = %q", got.Header.Get("X-Transfer-Id"))
+	}
+	waitFor(t, "the download to finish", func() bool { return e.a.transferState(e.cookie, id) == "done" })
+}
+
 // TestRemoteFiles_DownloadReadsAhead guards the speed of downloads (4.13): a download over HTTP must reach the file's own WriteTo through
 // the file service, the transfer tracker and the response, since that is what lets SFTP keep several reads in flight instead of one per
 // round trip, which made downloads over a link with 20 ms of latency twenty times slower than other clients.

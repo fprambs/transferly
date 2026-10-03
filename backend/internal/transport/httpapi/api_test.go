@@ -721,9 +721,22 @@ func newMemConnector(clock ports.Clock, sites *site.Service, quickConnections *q
 // slowSite is the name of a site whose connection never opens: connecting waits until the request is given up.
 const slowSite = "Never answers"
 
+// strictSite is the name of a site whose server's sizes are not trusted, as with a strict SFTP gateway.
+const strictSite = "Strict gateway"
+
+// strictFS is a connection to a server whose sizes are not trusted.
+type strictFS struct{ *sharedFS }
+
+// SizesTrusted implements [remotefs.SizeChecker].
+func (strictFS) SizesTrusted() bool { return false }
+
+// NoteWholeRead implements [remotefs.SizeChecker].
+func (strictFS) NoteWholeRead(int64, int64) {}
+
 // Connect returns a connection to the file system of the site; one to the site named [slowSite] waits for the request
-// to end.
+// to end, and one to the site named [strictSite] does not trust its sizes.
 func (c memConnector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
+	strict := false
 	if _, ok := c.quick.Describe(key.UserID, key.WorkspaceID, key.SiteID); !ok {
 		found, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
 		if err != nil {
@@ -736,6 +749,7 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, session 
 			<-ctx.Done()
 			return nil, ctx.Err()
 		}
+		strict = found.Name == strictSite
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -743,6 +757,9 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, session 
 	if !ok {
 		fsys = &sharedFS{memfs.New(c.clock)}
 		c.byID[key.SiteID] = fsys
+	}
+	if strict {
+		return strictFS{fsys}, nil
 	}
 	return fsys, nil
 }

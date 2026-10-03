@@ -271,14 +271,18 @@ func (s *server) DownloadFile(ctx context.Context, request DownloadFileRequestOb
 	}
 	var id *uuid.UUID
 	if tracker != nil {
-		d.Body = tracker.Download(d.Body, problemCode)
+		wrap := tracker.Download
+		if d.Unsized {
+			wrap = tracker.Stream
+		}
+		d.Body = wrap(d.Body, problemCode)
 		trackedID := tracker.ID()
 		id = &trackedID
 	}
 	ranges, disposition, modified := "bytes", attachment(d.Entry.Name), d.Entry.ModTime.UTC().Format(http.TimeFormat)
 	if !d.Partial {
 		return DownloadFile200ApplicationoctetStreamResponse{
-			Body: d.Body, ContentLength: d.Length(),
+			Body: d.Body, ContentLength: max(d.Length(), 0),
 			Headers: DownloadFile200ResponseHeaders{AcceptRanges: &ranges, ContentDisposition: &disposition, LastModified: &modified, XTransferId: id},
 		}, nil
 	}
