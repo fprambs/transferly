@@ -324,7 +324,7 @@ El producto se publica como Transferly: un solo nombre en código, operación e 
 - [x] Renombre: módulo Go `github.com/fprambs/transferly`, binario `cmd/transferly`, variables `TRANSFERLY_*`, stacks de Docker, rol y bases de Postgres, usuarios de los servidores de prueba, cookie de sesión, exportación cifrada `transferly-export` y su importación, claves del navegador, mensajes de la página aislada y etiquetas de cifrado del vault y del segundo factor; sin compatibilidad con el nombre de trabajo, que no queda en ningún lado (las bases de desarrollo se recrean)
 - [x] Temas Transferly Dark y Transferly Light con la paleta de la marca y `transferly-dark` como predeterminado desde la migración del tema, logo en la barra superior, el inicio de sesión y las invitaciones, y favicon nuevo
 - [x] Muestras de `testenv/preview-samples` regeneradas con el nombre nuevo
-- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con la marca nueva
+- [x] Líneas base visuales de Playwright regeneradas y E2E en verde con la marca nueva
 
 ## Color con función (pedido del 2026-10-01)
 
@@ -333,7 +333,7 @@ La interfaz usaba casi solo grises: el color pasa a decir algo, siempre desde lo
 - [x] Color por estado: barras de transferencia con franjas de marca mientras avanzan y colores de éxito, error y pausa; contadores de color en el panel; pasos del registro que salen bien en verde; «Subir» como acción principal; «Conectado» junto a la ruta; ícono del protocolo de cada sitio, que avisa cuando FTP puede ir o va sin cifrar; bóveda abierta en verde
 - [x] Marca en pantallas clave: inicio de sesión, primer arranque e invitaciones junto a un panel de marca; ilustraciones en los estados vacíos; el símbolo se dibuja mientras se abre una conexión; íconos propios en los encabezados de sitios, registro y transferencias
 - [x] Etiqueta de color por sitio (ocho colores): barra en la lista de sitios, borde de sus pestañas y línea sobre la ruta del explorador; el importador de FileZilla lee su `Colour` y la exportación cifrada la conserva
-- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con el color nuevo
+- [x] Líneas base visuales de Playwright regeneradas y E2E en verde con el color nuevo
 
 ## Movimiento (pedido del 2026-10-01)
 
@@ -342,7 +342,7 @@ Animaciones cortas y con una sola curva (`ease-fluid`), solo con CSS y `tw-anima
 - [x] Fluidez básica: los paneles de sitios, registro, detalles y transferencias se deslizan al abrirse o cerrarse con un botón (arrastrar y redimensionar la ventana siguen inmediatos); hover y foco con transición en todo lo que se apunta; la lista se funde al cambiar de carpeta o de pestaña sin perder el foco; barras de progreso con la curva común
 - [x] Respuesta a lo que pasa: las transferencias entran deslizándose, muestran ✓ o ⚠ al terminar y sacuden una vez si fallan; los contadores hacen «pop» al cambiar; el punto de conexión late una vez al conectar; avisos y guías de error entran con fundido; la zona para soltar archivos aparece suave
 - [x] Momentos de marca: el panel del inicio de sesión entra con fundido, su símbolo se dibuja una vez y la tarjeta sube; las ilustraciones de los estados vacíos dibujan sus trazos de marca; el cambio de tema es un fundido cruzado con View Transitions
-- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con el movimiento nuevo
+- [x] Líneas base visuales de Playwright regeneradas y E2E en verde con el movimiento nuevo
 
 ## Páginas en tarjetas y tablas (pedido del 2026-10-01)
 
@@ -351,7 +351,7 @@ Las páginas dejan el fondo vacío: bloques comunes (`components/page`: cabecera
 - [x] Administración: contadores de cuentas sobre una tabla con filtro en su tarjeta; redes como tabla editable (agregar, quitar, origen) junto a tarjetas sobre las redes de arranque y los rangos prohibidos; límites en una tabla por grupo con barra fija para guardar; registro de auditoría en tarjeta con filtro, estado vacío y paginación
 - [x] Miembros, auditoría del equipo, ajustes y servidores de confianza con la misma cabecera, tarjetas y tablas; los workspaces personales muestran una tarjeta de estado vacío; los títulos de página son `h1` en todas
 - [x] Colores fijos (violeta, esmeralda, ámbar, rojo, celeste) reemplazados por tokens del tema en roles, estados y avisos
-- [ ] Líneas base visuales de Playwright regeneradas y E2E en verde con las páginas nuevas
+- [x] Líneas base visuales de Playwright regeneradas y E2E en verde con las páginas nuevas
 
 ## Configuración en un diálogo (pedido del 2026-10-01)
 
@@ -364,7 +364,7 @@ Ajustes, seguridad, miembros, auditoría, servidores de confianza y administraci
 - [x] E2E: specs de administración, equipos, segundo factor y capturas al diálogo y las tablas; los análisis de accesibilidad esperan a que terminen las animaciones de entrada
 - [x] Menú de cuenta con una sola entrada, Ajustes, y selector de workspace sin miembros ni auditoría: el diálogo reúne todas las secciones
 - [x] Seguridad en dos tarjetas: verificación en dos pasos (app de autenticación con su estado y, si está activa, los códigos de recuperación en su propia fila) y passkeys (cada una en su fila, con estado vacío)
-- [ ] Líneas base visuales de ajustes regeneradas con el diálogo
+- [x] Líneas base visuales de ajustes regeneradas con el diálogo
 
 ## Revisión de UX del explorador (pedido del 2026-10-02)
 
