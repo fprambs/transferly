@@ -524,6 +524,14 @@
     "wrong_passphrase": {
       "cause": "La frase no abre la clave privada.",
       "next": "Revisa la frase de la clave."
+    },
+    "connector_disabled": {
+      "cause": "Un administrador de esta instancia dejó de ofrecer este tipo de sitio.",
+      "next": "Pide a un administrador que vuelva a ofrecer su conector en Ajustes → Administración → Conectores."
+    },
+    "connector_not_found": {
+      "cause": "Este conector no es parte de esta versión de Transferly.",
+      "next": "Recarga la página para ver los conectores de esta versión."
     }
   }
 }

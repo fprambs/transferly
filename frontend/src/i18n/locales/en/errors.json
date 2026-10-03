@@ -524,6 +524,14 @@
     "wrong_passphrase": {
       "cause": "The passphrase does not open the private key.",
       "next": "Check the passphrase of the key."
+    },
+    "connector_disabled": {
+      "cause": "An administrator of this instance stopped offering this kind of site.",
+      "next": "Ask an administrator to offer its connector again in Settings → Administration → Connectors."
+    },
+    "connector_not_found": {
+      "cause": "This connector is not part of this version of Transferly.",
+      "next": "Reload the page to see the connectors this version has."
     }
   }
 }
