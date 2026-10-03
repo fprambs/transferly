@@ -52,6 +52,7 @@ type Connector struct {
 	asked    *credentials.Store
 	log      *connlog.Recorder
 	prompts  *prompts.Broker
+	strict   *sftpfs.StrictServers
 }
 
 // Option adjusts a [Connector].
@@ -90,7 +91,7 @@ var (
 
 // New returns a connector. timeout bounds establishing each TCP connection.
 func New(sites *site.Service, quick QuickConnections, hostKeys *hostkey.Service, policy *netguard.Policy, timeout time.Duration, options ...Option) *Connector {
-	c := &Connector{sites: sites, quick: quick, hostKeys: hostKeys, policy: policy, timeout: timeout}
+	c := &Connector{sites: sites, quick: quick, hostKeys: hostKeys, policy: policy, timeout: timeout, strict: &sftpfs.StrictServers{}}
 	for _, option := range options {
 		option(c)
 	}
@@ -246,6 +247,7 @@ func (c *Connector) dialSFTP(ctx context.Context, key connections.Key, target si
 		Password: string(s.password), PrivateKey: s.privateKey, Passphrase: s.passphrase,
 		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
 		Prompt:        leg.ask(ctx, target.AuthMethod),
+		Strict:        c.strict,
 	}
 	if !target.Jump.Set() {
 		leg.connecting(target, target.Host, target.Port, viaOf(target))

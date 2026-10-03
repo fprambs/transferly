@@ -62,17 +62,61 @@ type Config struct {
 	// Prompt, when set, asks the person connecting whatever the server asks (ADR-0016): each keyboard-interactive
 	// challenge, then the password for servers that only take that. Its failures are refused credentials.
 	Prompt func(prompts.Challenge) ([]string, error)
+	// Strict remembers the servers that proved strict across connections; nil remembers nothing.
+	Strict *StrictServers
+}
+
+// maxStrictServers bounds how many servers a [StrictServers] remembers; once full it forgets them all and learns again.
+const maxStrictServers = 1024
+
+// StrictServers remembers, by address, the SFTP servers that proved strict: a whole file did not have the size they reported,
+// or they dropped the session at once under pipelined reads. Connections to them read one request at a time and do not trust
+// reported sizes. It outlives connections, since a dropped session is discarded with what it learned. The zero value is ready
+// and it is safe for concurrent use.
+type StrictServers struct {
+	mu      sync.Mutex
+	servers map[string]struct{}
+}
+
+// Has reports whether the server at address proved strict.
+func (s *StrictServers) Has(address string) bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.servers[address]
+	return ok
+}
+
+// add remembers that the server at address proved strict.
+func (s *StrictServers) add(address string) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.servers == nil || len(s.servers) >= maxStrictServers {
+		s.servers = map[string]struct{}{}
+	}
+	s.servers[address] = struct{}{}
 }
 
 // FS is a connection to an SFTP server. It is safe for concurrent use.
 type FS struct {
-	ssh    *ssh.Client
-	client *sftp.Client
-	closed atomic.Bool
-	once   sync.Once
+	ssh     *ssh.Client
+	client  *sftp.Client
+	address string
+	known   *StrictServers
+	strict  atomic.Bool
+	closed  atomic.Bool
+	once    sync.Once
 }
 
-var _ remotefs.RemoteFS = (*FS)(nil)
+var (
+	_ remotefs.RemoteFS    = (*FS)(nil)
+	_ remotefs.SizeChecker = (*FS)(nil)
+)
 
 // authMethods builds the authentication methods for the credentials in cfg.
 func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
@@ -195,14 +239,17 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	if err != nil {
 		return nil, err
 	}
+	strict := cfg.Strict.Has(cfg.Address)
 	client, err := sftp.NewClient(sshClient,
-		sftp.UseConcurrentReads(true), sftp.UseConcurrentWrites(true),
+		sftp.UseConcurrentReads(!strict), sftp.UseConcurrentWrites(true),
 		sftp.MaxConcurrentRequestsPerFile(maxConcurrentRequests), sftp.MaxPacketChecked(maxPacket))
 	if err != nil {
 		_ = sshClient.Close()
 		return nil, fmt.Errorf("starting the sftp subsystem: %w: %w", remotefs.ErrConnectionLost, err)
 	}
-	return &FS{ssh: sshClient, client: client}, nil
+	f := &FS{ssh: sshClient, client: client, address: cfg.Address, known: cfg.Strict}
+	f.strict.Store(strict)
+	return f, nil
 }
 
 // DialSSH connects, checks the host key and authenticates, like [Dial], but stops short of starting the SFTP
@@ -428,9 +475,16 @@ func (s *sinkWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// earlyDrop is how far into a file a pipelined read that loses the connection marks the server strict: strict servers drop the
+// session at once, while a link that fails later is not the server's doing.
+const earlyDrop = 1 << 20
+
 // reader is the read side of a remote file. It keeps WriteTo, which reads concurrently, and reports
 // connection failures as [remotefs.ErrConnectionLost].
-type reader struct{ file *sftp.File }
+type reader struct {
+	file *sftp.File
+	fs   *FS
+}
 
 // Read implements [io.Reader].
 func (r reader) Read(p []byte) (int, error) {
@@ -438,14 +492,23 @@ func (r reader) Read(p []byte) (int, error) {
 	return n, streamError(err)
 }
 
-// WriteTo implements [io.WriterTo]. Errors of the destination are returned as they are.
+// WriteTo implements [io.WriterTo]. A strict server is read one request at a time through [reader.Read]; others with several reads
+// in flight, and losing the connection early in such a read marks the server strict. Errors of the destination are returned as
+// they are.
 func (r reader) WriteTo(w io.Writer) (int64, error) {
+	if r.fs.strict.Load() {
+		return io.Copy(w, struct{ io.Reader }{r})
+	}
 	sink := &sinkWriter{Writer: w}
 	n, err := r.file.WriteTo(sink)
 	if sink.err != nil && errors.Is(err, sink.err) {
 		return n, err
 	}
-	return n, streamError(err)
+	err = streamError(err)
+	if errors.Is(err, remotefs.ErrConnectionLost) && n < earlyDrop {
+		r.fs.markStrict()
+	}
+	return n, err
 }
 
 // Close implements [io.Closer].
@@ -494,7 +557,7 @@ func (f *FS) OpenRead(ctx context.Context, p string, offset int64) (io.ReadClose
 		return nil, wrap("read", p, err)
 	}
 	seekStart(file, offset)
-	return reader{file}, nil
+	return reader{file: file, fs: f}, nil
 }
 
 // OpenWrite implements [remotefs.RemoteFS].
@@ -676,4 +739,20 @@ func (f *FS) Close() error {
 		_ = f.ssh.Close()
 	})
 	return nil
+}
+
+// SizesTrusted implements [remotefs.SizeChecker]: sizes are trusted until the server proves strict.
+func (f *FS) SizesTrusted() bool { return !f.strict.Load() }
+
+// NoteWholeRead implements [remotefs.SizeChecker]: a whole file whose bytes differ from the size the server reported marks it strict.
+func (f *FS) NoteWholeRead(reported, read int64) {
+	if read != reported {
+		f.markStrict()
+	}
+}
+
+// markStrict stops trusting the server's sizes and reading it with several requests in flight, on this connection and on the next.
+func (f *FS) markStrict() {
+	f.strict.Store(true)
+	f.known.add(f.address)
 }

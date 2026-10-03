@@ -186,3 +186,21 @@ func TestPasswordAnswers(t *testing.T) {
 		t.Errorf("second challenge = %v; want ErrAuth", err)
 	}
 }
+
+// TestStrictServers_Bound verifies that the memory of strict servers stays bounded.
+//
+// Use cases:
+//   - a full memory forgets every server and keeps learning with the next one
+func TestStrictServers_Bound(t *testing.T) {
+	known := &StrictServers{}
+	for i := range maxStrictServers {
+		known.add(fmt.Sprint("host-", i))
+	}
+	if !known.Has("host-0") {
+		t.Fatal("a server was forgotten before the memory was full")
+	}
+	known.add("one-more")
+	if known.Has("host-0") || !known.Has("one-more") || len(known.servers) != 1 {
+		t.Errorf("full memory = %d servers; want only the last one", len(known.servers))
+	}
+}

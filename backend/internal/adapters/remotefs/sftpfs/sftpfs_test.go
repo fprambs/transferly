@@ -897,3 +897,90 @@ func TestDial_RefusesLegacyCryptography(t *testing.T) {
 		}
 	}
 }
+
+// dropAfter accepts every write and drops the server's connections once it received limit bytes.
+type dropAfter struct {
+	server *sftptest.Server
+	limit  int64
+	got    int64
+}
+
+// Write implements [io.Writer].
+func (d *dropAfter) Write(p []byte) (int, error) {
+	d.got += int64(len(p))
+	if d.got >= d.limit && d.limit > 0 {
+		d.server.DropConnections()
+		d.limit = 0
+	}
+	return len(p), nil
+}
+
+// TestFS_StrictServers verifies how a connection learns that its server is strict and what changes then.
+//
+// Use cases:
+//   - a server is trusted until a whole file comes with another size than it reported, and then on this connection and the next
+//   - a strict server is read one request at a time and still sends the whole file
+//   - a pipelined read that loses the connection at once marks the server strict, and one that fails later does not
+//   - nobody remembers anything without a memory of strict servers
+func TestFS_StrictServers(t *testing.T) {
+	server := startServer(t, sftptest.Options{})
+	known := &sftpfs.StrictServers{}
+	config := func(c *sftpfs.Config) { c.Password, c.Strict = testPassword, known }
+	fsys, err := connect(t, server, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := bytes.Repeat([]byte("0123456789abcdef"), 1<<16)
+	put(t, fsys, "/big", string(payload))
+	fsys.NoteWholeRead(10, 10)
+	if !fsys.SizesTrusted() || known.Has(server.Addr) {
+		t.Fatal("a whole file of the reported size made the server strict")
+	}
+	fsys.NoteWholeRead(14, 10)
+	if fsys.SizesTrusted() || !known.Has(server.Addr) {
+		t.Fatal("a whole file of another size did not make the server strict")
+	}
+	r, err := fsys.OpenRead(t.Context(), "/big", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back bytes.Buffer
+	if n, err := io.Copy(&back, r); err != nil || n != int64(len(payload)) || !bytes.Equal(back.Bytes(), payload) {
+		t.Errorf("strict download = %d bytes, %v; want the whole file", n, err)
+	}
+	_ = r.Close()
+	again, err := connect(t, server, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.SizesTrusted() {
+		t.Error("a new connection to a strict server trusted its sizes")
+	}
+
+	early := startServer(t, sftptest.Options{})
+	plain := dial(t, early)
+	put(t, plain, "/big", string(payload))
+	r, err = plain.OpenRead(t.Context(), "/big", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	early.DropConnections()
+	time.Sleep(100 * time.Millisecond)
+	if _, err := io.Copy(io.Discard, r); !errors.Is(err, remotefs.ErrConnectionLost) || plain.SizesTrusted() {
+		t.Errorf("read dropped at once = %v, trusted %v; want ErrConnectionLost and a strict server", err, plain.SizesTrusted())
+	}
+
+	late := startServer(t, sftptest.Options{})
+	plain = dial(t, late)
+	put(t, plain, "/big", strings.Repeat("x", 8<<20))
+	r, err = plain.OpenRead(t.Context(), "/big", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(&dropAfter{server: late, limit: 2 << 20}, r); !errors.Is(err, remotefs.ErrConnectionLost) || !plain.SizesTrusted() {
+		t.Errorf("read dropped late = %v, trusted %v; want ErrConnectionLost and a trusted server", err, plain.SizesTrusted())
+	}
+	if (*sftpfs.StrictServers)(nil).Has(server.Addr) {
+		t.Error("a missing memory remembered a server")
+	}
+}
