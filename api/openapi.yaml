@@ -175,8 +175,8 @@ paths:
         - sessionCookie: []
       summary: List the connectors Transferly is built with
       description: >-
-        The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take and the
-        ways it authenticates. The site form and the store of the admins are drawn from it.
+        The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take, the
+        ways it authenticates and whether the instance offers it. The site form and the store of the admins are drawn from it.
       responses:
         "200":
           description: The connectors, stable ones first.
@@ -1203,6 +1203,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/admin/connectors/{type}:
+    put:
+      operationId: setConnectorEnabled
+      security:
+        - sessionCookie: []
+      summary: Enable or disable a connector for the instance
+      description: >-
+        Needs the administrator role of the instance (ADR-0019). A disabled connector is not offered when creating sites; sites of it stay
+        stored but cannot connect until it is enabled again.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorEnablement"
+      responses:
+        "200":
+          description: The connector with its new state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connector"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
           description: An error. The stable code tells the client what happened.
           content:
             application/problem+json:
@@ -5291,7 +5339,7 @@ components:
           description: The archive holds more entries than the listing.
     Connector:
       type: object
-      required: [type, name, icon, maturity, capabilities, fields, auth, enabledByDefault]
+      required: [type, name, icon, maturity, capabilities, fields, auth, enabledByDefault, enabled]
       properties:
         type:
           type: string
@@ -5315,6 +5363,16 @@ components:
             type: string
             enum: [password, key, ask, anonymous, interactive, account, access-keys, oauth]
         enabledByDefault:
+          type: boolean
+        enabled:
+          type: boolean
+          description: Whether the instance offers it, as an administrator set it or, without a setting, as enabledByDefault says.
+    ConnectorEnablement:
+      type: object
+      required: [enabled]
+      additionalProperties: false
+      properties:
+        enabled:
           type: boolean
     ConnectorCapabilities:
       type: object

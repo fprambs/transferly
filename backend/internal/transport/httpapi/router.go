@@ -104,8 +104,8 @@ type Deps struct {
 	Import *fzimport.Service
 	// Activity keeps the log of what users did on their connections.
 	Activity *activity.Service
-	// Connectors is the catalog of the connectors Transferly is built with (ADR-0019).
-	Connectors *connectors.Catalog
+	// Connectors tells which connectors of the catalog Transferly is built with the instance offers (ADR-0019).
+	Connectors *connectors.Service
 	// Files performs operations on the files of remote sites.
 	Files *files.Service
 	// Connections pools the connections to remote servers; the vault lock and sign-out close a user's connections.

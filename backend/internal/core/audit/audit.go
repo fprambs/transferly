@@ -71,6 +71,8 @@ const (
 	AdminNetworksChanged = "admin.networks_changed"
 	// AdminLimitsChanged is a change of the caps and quotas of the instance.
 	AdminLimitsChanged = "admin.limits_changed"
+	// AdminConnectorChanged is a connector enabled or disabled for the instance; the type is the target and the new state is in the metadata.
+	AdminConnectorChanged = "admin.connector_changed"
 )
 
 const (

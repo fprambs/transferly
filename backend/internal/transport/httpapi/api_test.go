@@ -140,6 +140,8 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	transferService := transfer.NewService(store, fanout{recorded, hub}, clock, transfers, nil)
 	quotas := limits.NewService(store, transferService, limits.Limits{}, clock)
 	sites.UseQuota(quotas)
+	offered := connectors.NewService(connectors.Builtin(), store, clock)
+	sites.UseOffering(offered)
 	invites.UseQuota(quotas)
 	transferService.UseQuota(quotas)
 	deps := httpapi.Deps{
@@ -154,7 +156,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Connections:   pool,
 		Credentials:   asked,
 		Sites:         sites,
-		Connectors:    connectors.Builtin(),
+		Connectors:    offered,
 		Files:         files.NewService(workspaces, pool),
 		Transfers:     transferService,
 		Activity:      activityLog,

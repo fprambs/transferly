@@ -12,6 +12,7 @@ import (
 	"github.com/fprambs/transferly/internal/core/auth"
 	"github.com/fprambs/transferly/internal/core/backup"
 	"github.com/fprambs/transferly/internal/core/bookmark"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/credentials"
 	"github.com/fprambs/transferly/internal/core/files"
 	"github.com/fprambs/transferly/internal/core/fzimport"
@@ -192,6 +193,9 @@ var domainProblems = []struct {
 	{audit.ErrInvalidFilter, http.StatusUnprocessableEntity, "invalid_filter"},
 	{audit.ErrForbidden, http.StatusForbidden, "forbidden"},
 	{admin.ErrForbidden, http.StatusForbidden, "forbidden"},
+	{connectors.ErrForbidden, http.StatusForbidden, "forbidden"},
+	{connectors.ErrUnknown, http.StatusNotFound, "connector_not_found"},
+	{site.ErrConnectorDisabled, http.StatusConflict, "connector_disabled"},
 	{admin.ErrNotFound, http.StatusNotFound, "account_not_found"},
 	{admin.ErrSelf, http.StatusConflict, "own_account"},
 	{admin.ErrLastAdmin, http.StatusConflict, "last_admin"},
@@ -420,3 +424,8 @@ func (p domainProblem) VisitGetLimitsResponse(w http.ResponseWriter) error { ret
 
 // VisitSetLimitsResponse implements [SetLimitsResponseObject].
 func (p domainProblem) VisitSetLimitsResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// VisitSetConnectorEnabledResponse implements [SetConnectorEnabledResponseObject].
+func (p domainProblem) VisitSetConnectorEnabledResponse(w http.ResponseWriter) error {
+	return p.write(w)
+}

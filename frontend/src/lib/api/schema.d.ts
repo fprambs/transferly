@@ -127,7 +127,7 @@ export interface paths {
         };
         /**
          * List the connectors Transferly is built with
-         * @description The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take and the ways it authenticates. The site form and the store of the admins are drawn from it.
+         * @description The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take, the ways it authenticates and whether the instance offers it. The site form and the store of the admins are drawn from it.
          */
         get: operations["listConnectors"];
         put?: never;
@@ -524,6 +524,26 @@ export interface paths {
          * @description Bandwidth caps, how many transfers run at once, and quotas on sites, teams, members and the volume a person moves in a day. The change is stored, survives restarts and applies to the next request or chunk; transfers that run keep running. Send every field.
          */
         put: operations["setLimits"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/connectors/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable a connector for the instance
+         * @description Needs the administrator role of the instance (ADR-0019). A disabled connector is not offered when creating sites; sites of it stay stored but cannot connect until it is enabled again.
+         */
+        put: operations["setConnectorEnabled"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1958,6 +1978,11 @@ export interface components {
             fields: components["schemas"]["ConnectorField"][];
             auth: ("password" | "key" | "ask" | "anonymous" | "interactive" | "account" | "access-keys" | "oauth")[];
             enabledByDefault: boolean;
+            /** @description Whether the instance offers it, as an administrator set it or, without a setting, as enabledByDefault says. */
+            enabled: boolean;
+        };
+        ConnectorEnablement: {
+            enabled: boolean;
         };
         ConnectorCapabilities: {
             folders: boolean;
@@ -4174,6 +4199,62 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setConnectorEnabled: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                type: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectorEnablement"];
+            };
+        };
+        responses: {
+            /** @description The connector with its new state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connector"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

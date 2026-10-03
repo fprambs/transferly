@@ -104,6 +104,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	invites := invite.NewService(store, workspaces, store, authService, system, rand.Reader, 0, nil)
 	quotas := limits.NewService(store, transfers, startingLimits(cfg), system)
 	sites.UseQuota(quotas)
+	offered := connectors.NewService(connectors.Builtin(), store, system)
+	sites.UseOffering(offered)
 	invites.UseQuota(quotas)
 	transfers.UseQuota(quotas)
 	second := mfa.NewService(store, instanceKey, rand.Reader, system)
@@ -120,7 +122,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	importer := fzimport.NewService(workspaces, sites)
 	broker := prompts.New(hub, prompts.DefaultWait)
 	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout,
-		connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog), connect.Prompts(broker))
+		connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog), connect.Prompts(broker),
+		connect.Offering(offered))
 	pool := connections.New(connector, system, connections.Config{OnChange: connections.PublishTo(hub)})
 
 	return wiring{
@@ -140,7 +143,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Bookmarks:     bookmark.NewService(store, store, workspaces, system, nil),
 			Connections:   pool,
 			Credentials:   askedPasswords,
-			Connectors:    connectors.Builtin(),
+			Connectors:    offered,
 			Files:         files.NewService(workspaces, pool),
 			Transfers:     transfers,
 			Activity:      activityLog,
