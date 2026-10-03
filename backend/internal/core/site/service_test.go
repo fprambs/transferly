@@ -1056,6 +1056,47 @@ func TestService_Quota(t *testing.T) {
 	}
 }
 
+// offering refuses the protocols it holds, as an instance that disabled their connectors.
+type offering map[site.Protocol]bool
+
+// CheckProtocol implements [site.Offering].
+func (o offering) CheckProtocol(_ context.Context, protocol site.Protocol) error {
+	if o[protocol] {
+		return site.ErrConnectorDisabled
+	}
+	return nil
+}
+
+// TestService_Offering verifies that sites follow the connectors the instance offers (ADR-0019).
+//
+// Use cases:
+//   - a site of a disabled connector is not created
+//   - an existing site of a disabled connector can still be edited, but no site moves to a disabled connector
+func TestService_Offering(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.svc.UseOffering(offering{site.SFTP: true, site.FTP: true})
+	other := valid()
+	other.Name = "Staging"
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", other, site.SecretChanges{}); !errors.Is(err, site.ErrConnectorDisabled) || len(f.store.sites) != 1 {
+		t.Errorf("Create() of a disabled connector = %v with %d sites; want ErrConnectorDisabled and no new site", err, len(f.store.sites))
+	}
+	renamed := valid()
+	renamed.Name = "Renamed"
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{}); err != nil {
+		t.Errorf("Update() of a site of a disabled connector = %v; want it edited", err)
+	}
+	moved := valid()
+	moved.Protocol = site.FTP
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", moved, site.SecretChanges{}); !errors.Is(err, site.ErrConnectorDisabled) {
+		t.Errorf("Update() to a disabled connector = %v; want ErrConnectorDisabled", err)
+	}
+}
+
 // TestNormalize_FTPEncryption covers how [site.Normalize] settles the FTP encryption of a site (ADR-0012).
 //
 // Use cases:

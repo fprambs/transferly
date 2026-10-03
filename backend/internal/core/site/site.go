@@ -165,6 +165,8 @@ var (
 	ErrInvalidPort = errors.New("invalid port")
 	// ErrInvalidProtocol means the protocol is not supported.
 	ErrInvalidProtocol = errors.New("invalid protocol")
+	// ErrConnectorDisabled means the instance does not offer the connector of the protocol (ADR-0019).
+	ErrConnectorDisabled = errors.New("connector disabled")
 	// ErrInvalidEncryption means the FTP encryption is unknown, was given for SFTP, or contradicts the legacy FTPS protocol.
 	ErrInvalidEncryption = errors.New("invalid FTP encryption")
 	// ErrInvalidAuthMethod means the authentication method is unknown or not available for the protocol.

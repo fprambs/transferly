@@ -130,13 +130,14 @@ type Service struct {
 		Store
 		CollectionStore
 	}
-	authz  Authorizer
-	keys   Keys
-	guard  Guard
-	clock  ports.Clock
-	random io.Reader
-	newID  func() (uuid.UUID, error)
-	quota  Quota
+	authz    Authorizer
+	keys     Keys
+	guard    Guard
+	clock    ports.Clock
+	random   io.Reader
+	newID    func() (uuid.UUID, error)
+	quota    Quota
+	offering Offering
 }
 
 // Quota decides whether a workspace may have another site.
@@ -147,6 +148,24 @@ type Quota interface {
 
 // UseQuota makes the service ask a quota before it creates a site. Without one nothing is refused. Call it before the service is used.
 func (s *Service) UseQuota(q Quota) { s.quota = q }
+
+// Offering tells whether the instance offers the connector of a protocol (ADR-0019).
+type Offering interface {
+	// CheckProtocol returns [ErrConnectorDisabled] when the instance does not offer the connector of protocol.
+	CheckProtocol(ctx context.Context, protocol Protocol) error
+}
+
+// UseOffering makes the service refuse sites of a connector the instance does not offer: new ones, and existing ones moved to it. Without
+// it every protocol is offered. Call it before the service is used.
+func (s *Service) UseOffering(o Offering) { s.offering = o }
+
+// checkOffered refuses a protocol whose connector the instance does not offer.
+func (s *Service) checkOffered(ctx context.Context, protocol Protocol) error {
+	if s.offering == nil {
+		return nil
+	}
+	return s.offering.CheckProtocol(ctx, protocol)
+}
 
 // NewService returns a service. newID may be nil to use UUIDv7.
 func NewService(store interface {
@@ -395,6 +414,9 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err != nil {
 		return Site{}, err
 	}
+	if err := s.checkOffered(ctx, in.Protocol); err != nil {
+		return Site{}, err
+	}
 	changes = withoutStoredPassword(in, changes)
 	if changes, err = checkKeys(in, changes); err != nil {
 		return Site{}, err
@@ -497,6 +519,11 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 	existing, err := s.store.Site(ctx, workspaceID, id)
 	if err != nil {
 		return Site{}, err
+	}
+	if existing.Protocol != in.Protocol {
+		if err := s.checkOffered(ctx, in.Protocol); err != nil {
+			return Site{}, err
+		}
 	}
 	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, changes)
 	if err != nil {
