@@ -41,6 +41,10 @@ export interface ConnectorTexts {
   keep: (name: string) => string
   /** The title of a group of fields drawn under one, or undefined for groups without one. */
   group: (group: string) => string | undefined
+  /** What a connector reaches, as the catalog describes it; empty for a connector without a description. */
+  description: (connector: Connector) => string
+  /** The texts of the catalog of connectors. */
+  catalog: { title: string; description: string; change: string; beta: string }
 }
 
 /** Merges the texts a connector gives a field over the texts every connector shares: its own label, hint and placeholders
@@ -68,6 +72,7 @@ export function useConnectorTexts(type?: string): ConnectorTexts {
   const overrides = t(($) => $.overrides, { returnObjects: true }) as unknown as Record<string, Record<string, FieldTexts | undefined> | undefined>
   const names = t(($) => $.connectors, { returnObjects: true }) as unknown as Record<string, string | undefined>
   const groups = t(($) => $.groups, { returnObjects: true }) as unknown as Record<string, string | undefined>
+  const descriptions = t(($) => $.descriptions, { returnObjects: true }) as unknown as Record<string, string | undefined>
   const own = overrides[type ?? ''] ?? {}
   const field = (name: string): FieldTexts => merge(fields[name], own[name])
   return {
@@ -82,5 +87,12 @@ export function useConnectorTexts(type?: string): ConnectorTexts {
     },
     keep: (name) => field(name).keep ?? t(($) => $.keep),
     group: (group) => groups[group],
+    description: (connector) => descriptions[connector.type] ?? '',
+    catalog: {
+      title: t(($) => $.catalog.title),
+      description: t(($) => $.catalog.description),
+      change: t(($) => $.catalog.change),
+      beta: t(($) => $.catalog.beta),
+    },
   }
 }

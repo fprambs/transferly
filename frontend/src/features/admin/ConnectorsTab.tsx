@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Cloud, Plug, Server, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ConnectorIcon } from '@/components/brand/ConnectorIcon'
 import { Badge, Section } from '@/components/page/Page'
 import { Loading } from '@/components/ui/loading'
 import { RetryFailure } from '@/components/ui/retry-failure'
@@ -15,9 +15,6 @@ import { connectorsKey, useConnectors } from '../connectors/use-connectors'
 import { AdminFailure } from './AdminMessage'
 import { ConfirmDialog } from './ConfirmDialog'
 import { adminErrorKeyOf, type AdminErrorKey } from './errors'
-
-/** Icons of the connectors by the name their descriptor gives; an unknown name gets a plug. */
-const icons: Readonly<Record<string, LucideIcon>> = { server: Server, cloud: Cloud }
 
 /** The capabilities a card lists, in this order, when the connector has them. */
 const capabilityKeys = ['folders', 'permissions', 'setTimes', 'resume', 'rename', 'serverCopy'] as const
@@ -35,14 +32,13 @@ interface ConnectorCardProps {
 /** One connector of the store: its icon, name, maturity, what it can do, and a switch that offers it or stops offering it. */
 function ConnectorCard({ connector, busy, onChange }: ConnectorCardProps) {
   const { t } = useTranslation('admin')
-  const Icon = icons[connector.icon] ?? Plug
   const titleId = `connector-${connector.type}`
 
   return (
     <li aria-labelledby={titleId} className="flex flex-col gap-3 rounded-lg border bg-background p-4">
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-accent-text">
-          <Icon className="size-4.5" />
+          <ConnectorIcon icon={connector.icon} className="size-4.5" />
         </span>
         <h3 id={titleId} className="min-w-0 flex-1 truncate text-sm font-semibold">
           {connector.name}

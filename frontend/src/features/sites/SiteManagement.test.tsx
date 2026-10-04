@@ -61,10 +61,12 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  *
  * Scenarios:
  * - a new site validates its fields, then is created with the typed values and the default port
- * - only the protocols whose connector the instance offers are listed, a new site starts on one of them, an edited site keeps its own,
- *   and a refusal because its connector is not offered is explained (ADR-0019)
+ * - a new site starts on the catalog of the connectors the instance offers, and opens the form of the one chosen, which can go back to
+ *   the catalog; with a single connector offered the form opens directly; an edited site keeps its own protocol among the choices, and a
+ *   refusal because its connector is not offered is explained (ADR-0019)
  * - the default remote folder, on Advanced, must be absolute and is sent as typed (4.14i)
- * - an FTP site of the account logon type sends its password and account, and an edited one keeps its stored account (4.8e)
+ * - an FTP site of the account logon type sends its password and account, and an edited one keeps its stored account (4.8e); moving an
+ *   edited site to a protocol without the open tab goes back to the first one
  * - what is needed to connect is on the first tab, the rest on Advanced, Transfer, Character set and Proxy and jump host, and a wrong field opens
  *   its tab and marks it, as does a setting the server refuses; choosing a protocol without the open tab goes back to the first one
  * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with no user, which
@@ -96,7 +98,10 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const created = await screen.findByRole('dialog', { name: 'New site' })
     await waitFor(() => expect(within(created).getByLabelText('Port')).toHaveAttribute('placeholder', '21'))
-    expect(await optionsOf(user, within(created).getByLabelText('Protocol'))).toEqual(['FTP - File Transfer Protocol'])
+    expect(within(created).queryByRole('list', { name: 'What do you want to connect to?' })).not.toBeInTheDocument()
+    expect(within(created).getByText('FTP - File Transfer Protocol')).toBeInTheDocument()
+    expect(within(created).queryByRole('button', { name: 'Change' })).not.toBeInTheDocument()
+    expect(within(created).queryByLabelText('Protocol')).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
@@ -120,6 +125,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
     expect(await within(dialog).findByText('Enter a name.')).toBeInTheDocument()
@@ -155,6 +161,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
     expect(within(dialog).getByLabelText('Host')).toBeVisible()
@@ -187,9 +194,10 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
-    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
+    await user.click(within(dialog).getByRole('button', { name: /^FTP/ }))
     await user.click(within(dialog).getByRole('tab', { name: 'Character set' }))
-    await choose(user, within(dialog).getByLabelText('Protocol'), 'SFTP - SSH File Transfer Protocol')
+    await user.click(within(dialog).getByRole('button', { name: 'Change' }))
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
     expect(within(dialog).queryByRole('tab', { name: 'Character set' })).not.toBeInTheDocument()
 
@@ -212,8 +220,8 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^FTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Billed')
-    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
     await user.type(within(dialog).getByLabelText('Host'), 'ftp.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
     expect(within(dialog).queryByLabelText('Account')).not.toBeInTheDocument()
@@ -225,7 +233,7 @@ describe('site management', () => {
     await waitFor(() => expect(bodies[0]).toMatchObject({ connector: 'ftp', config: { auth: 'account' }, secrets: { password: 'pw', account: 'billing' } }))
   })
 
-  it('keeps the stored account of a site unless another is typed', async () => {
+  it('keeps the stored account of a site unless another is typed, and leaves a tab its new protocol does not have', async () => {
     mockWorkspaceData({ sites: [{ ...prod, connector: 'ftp', config: { ...prod.config, auth: 'account' }, secrets: ['password', 'account'] }], collections: [] })
     const user = await renderSidebar()
     await user.click(within(await screen.findByRole('treeitem', { name: /Prod/ })).getByRole('button', { name: 'Actions for Prod' }))
@@ -234,6 +242,10 @@ describe('site management', () => {
 
     expect(within(dialog).getByLabelText('Logon type')).toHaveTextContent('Account')
     expect(within(dialog).getByLabelText('Account')).toHaveAttribute('placeholder', 'Leave blank to keep the existing account.')
+
+    await user.click(within(dialog).getByRole('tab', { name: 'Character set' }))
+    await choose(user, within(dialog).getByLabelText('Protocol'), 'SFTP - SSH File Transfer Protocol')
+    expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('asks for an absolute default remote folder on the Advanced tab and sends it', async () => {
@@ -247,6 +259,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Web')
     await user.type(within(dialog).getByLabelText('Host'), 'web.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'deploy')
@@ -272,16 +285,19 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    const catalog = within(dialog).getByRole('list', { name: 'What do you want to connect to?' })
+    expect(within(catalog).getAllByRole('button').map((tile) => tile.textContent)).toEqual([
+      'FTP / FTPSFTP servers, with explicit or implicit TLS.',
+      'SFTPFiles over SSH, with keys, jump hosts and proxies.',
+    ])
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     expect(within(dialog).queryByLabelText('Character set of file names')).not.toBeInTheDocument()
     expect(within(dialog).queryByLabelText('Encryption')).not.toBeInTheDocument()
-    expect(await optionsOf(user, within(dialog).getByLabelText('Protocol'))).toEqual([
-      'FTP - File Transfer Protocol',
-      'SFTP - SSH File Transfer Protocol',
-    ])
     expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Interactive', 'Key file', 'Anonymous'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
 
-    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
+    await user.click(within(dialog).getByRole('button', { name: 'Change' }))
+    await user.click(within(dialog).getByRole('button', { name: /^FTP/ }))
     const encryption = within(dialog).getByLabelText('Encryption')
     expect(await optionsOf(user, encryption)).toEqual([
       'Use explicit FTP over TLS if available',
@@ -326,6 +342,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     await user.type(within(dialog).getByLabelText('Name'), 'Public')
     await user.type(within(dialog).getByLabelText('Host'), 'sftp.example.com')
@@ -352,6 +369,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     await user.type(within(dialog).getByLabelText('Name'), 'Bastion')
     await user.type(within(dialog).getByLabelText('Host'), 'bastion.example.com')
@@ -388,6 +406,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     expect(within(dialog).getByLabelText('Password')).toBeInTheDocument()
     await choose(user, within(dialog).getByLabelText('Logon type'), 'Key file')
@@ -417,6 +436,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     let dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     expect(within(dialog).queryByLabelText('Proxy host')).not.toBeInTheDocument()
     await choose(user, within(dialog).getByLabelText('Proxy'), 'SOCKS5')
@@ -445,6 +465,7 @@ describe('site management', () => {
 
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
     await choose(user, within(dialog).getByLabelText('Jump host logon type'), 'Key file')
     expect(within(dialog).queryByLabelText('Jump host password')).not.toBeInTheDocument()
@@ -463,8 +484,10 @@ describe('site management', () => {
 
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     expect(within(dialog).getByText('SSH jump host')).toBeInTheDocument()
-    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
+    await user.click(within(dialog).getByRole('button', { name: 'Change' }))
+    await user.click(within(dialog).getByRole('button', { name: /^FTP/ }))
     expect(within(dialog).queryByText('SSH jump host')).not.toBeInTheDocument()
   }, 40_000)
 
@@ -474,6 +497,7 @@ describe('site management', () => {
     await pick(user, 'Work', 'New site here')
 
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     expect(within(dialog).getByLabelText('Collection')).toHaveTextContent('Work')
   })
 
@@ -482,6 +506,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Prod')
     await user.type(within(dialog).getByLabelText('Host'), 'h')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
@@ -499,6 +524,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Keyed')
     await user.type(within(dialog).getByLabelText('Host'), 'h')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
@@ -518,6 +544,7 @@ describe('site management', () => {
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
     expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
     await user.type(within(dialog).getByLabelText('Password'), 'secret')

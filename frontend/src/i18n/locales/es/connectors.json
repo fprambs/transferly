@@ -5,6 +5,17 @@
     "ftp": "FTP - Protocolo de Transferencia de Archivos",
     "s3": "S3 - Amazon S3 y servicios compatibles"
   },
+  "descriptions": {
+    "sftp": "Archivos por SSH, con claves, hosts de salto y proxies.",
+    "ftp": "Servidores FTP, con TLS explícito o implícito.",
+    "s3": "Buckets de Amazon S3, MinIO, Cloudflare R2, Wasabi y más."
+  },
+  "catalog": {
+    "title": "¿A qué quieres conectarte?",
+    "description": "Elige el tipo de servidor o almacenamiento. Solo aparecen los que ofrece esta instancia.",
+    "change": "Cambiar",
+    "beta": "Beta"
+  },
   "keep": "Déjalo en blanco para conservar el guardado.",
   "groups": {
     "proxy": "Proxy",

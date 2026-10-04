@@ -52,6 +52,7 @@ describe('vault locked notice', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
 
     await user.type(within(dialog).getByLabelText('Password'), 'secret')
@@ -75,6 +76,7 @@ describe('vault locked notice', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Plain')
 
     expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
@@ -94,6 +96,7 @@ describe('vault locked notice', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Prod')
     await user.type(within(dialog).getByLabelText('Host'), 'prod.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'deploy')
@@ -127,6 +130,7 @@ describe('vault locked notice', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Prod')
     await user.type(within(dialog).getByLabelText('Host'), 'prod.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'deploy')
@@ -154,6 +158,7 @@ describe('vault locked notice', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Password'), 'secret')
 
     const notice = await within(dialog).findByRole('status')
@@ -169,6 +174,7 @@ describe('vault locked notice', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New site' }))
     const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
     await user.type(within(dialog).getByLabelText('Name'), 'Prod')
     await user.type(within(dialog).getByLabelText('Host'), 'prod.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'deploy')

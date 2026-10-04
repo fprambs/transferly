@@ -4,7 +4,8 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ConnectorIcon } from '@/components/brand/ConnectorIcon'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { FormSelect } from '@/components/ui/form-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,6 +13,7 @@ import type { Collection, Connector, Site } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
+import { ConnectorCatalog } from '../connectors/ConnectorCatalog'
 import { Group, Row } from '../connectors/FormRows'
 import { SchemaFields } from '../connectors/SchemaFields'
 import { startingConnector, type FieldGroup } from '../connectors/schema'
@@ -73,10 +75,14 @@ interface SiteFormProps extends Omit<SiteDialogProps, 'target'> {
   target: SiteTarget
   /** The connectors of the catalog. */
   connectors: readonly Connector[]
+  /** The connector a new site was chosen with in the catalog; left out for a saved site. */
+  chosen?: Connector
+  /** Goes back to the catalog to choose another connector; left out when there is nothing else to choose. */
+  onChange?: () => void
 }
 
 /** Form with every setting and credential of a site, the settings of its connector drawn from the connector's schema. */
-function SiteForm({ target, workspaceId, collections, connectors, onClose }: SiteFormProps) {
+function SiteForm({ target, workspaceId, collections, connectors, chosen, onChange, onClose }: SiteFormProps) {
   const { t } = useTranslation('sites')
   const texts = useConnectorTexts()
   const api = useApi()
@@ -93,7 +99,7 @@ function SiteForm({ target, workspaceId, collections, connectors, onClose }: Sit
     formState: { errors, isSubmitting },
   } = useForm<SiteValues>({
     resolver,
-    defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined, startingConnector(choices)),
+    defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined, chosen?.type ?? startingConnector(choices)),
   })
   const type = useWatch({ control, name: 'connector' })
   const connector = connectors.find((candidate) => candidate.type === type)
@@ -163,6 +169,22 @@ function SiteForm({ target, workspaceId, collections, connectors, onClose }: Sit
       <DialogHeader>
         <DialogTitle>{editing === undefined ? t(($) => $.site.createTitle) : t(($) => $.site.editTitle)}</DialogTitle>
       </DialogHeader>
+      {chosen !== undefined && (
+        <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-3 py-2.5">
+          <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/12">
+            <ConnectorIcon icon={chosen.icon} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-sm font-semibold">{texts.connector(chosen)}</span>
+            <span className="truncate text-xs text-muted-foreground">{texts.description(chosen)}</span>
+          </span>
+          {onChange !== undefined && (
+            <Button type="button" variant="outline" size="sm" onClick={onChange}>
+              {texts.catalog.change}
+            </Button>
+          )}
+        </div>
+      )}
       <Tabs value={tab} onValueChange={(value) => setTab(value as SiteTab)}>
         <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b pb-1">
           {shownTabs.map((candidate) => (
@@ -197,9 +219,11 @@ function SiteForm({ target, workspaceId, collections, connectors, onClose }: Sit
                 render={({ field }) => <ColorPicker id="site-color" label={t(($) => $.site.color)} value={field.value} onChange={field.onChange} />}
               />
             </Row>
-            <Row id="site-connector" label={texts.connectorLabel}>
-              <FormSelect id="site-connector" control={control} name="connector" options={choices.map((choice) => ({ value: choice.type, label: texts.connector(choice) }))} />
-            </Row>
+            {editing !== undefined && (
+              <Row id="site-connector" label={texts.connectorLabel}>
+                <FormSelect id="site-connector" control={control} name="connector" options={choices.map((choice) => ({ value: choice.type, label: texts.connector(choice) }))} />
+              </Row>
+            )}
           </Group>
           {schema(tabGroups.general)}
         </TabsContent>
@@ -261,13 +285,53 @@ function SiteForm({ target, workspaceId, collections, connectors, onClose }: Sit
   )
 }
 
+/** Props of {@link SiteFlow}. */
+interface SiteFlowProps extends Omit<SiteDialogProps, 'target'> {
+  /** What to create or edit. */
+  target: SiteTarget
+  /** The connectors of the catalog. */
+  connectors: readonly Connector[]
+}
+
+/**
+ * The steps of the dialog: a new site starts on the catalog of the connectors the instance offers and opens the form of the one chosen,
+ * from which it can go back; with a single connector, or for a saved site, the form opens directly.
+ */
+function SiteFlow({ target, connectors, ...form }: SiteFlowProps) {
+  const texts = useConnectorTexts()
+  const { t } = useTranslation('sites')
+  const offered = connectorChoices(connectors)
+  const [chosen, setChosen] = useState<Connector | undefined>(offered.length === 1 ? offered[0] : undefined)
+  if (target.mode === 'edit') {
+    return <SiteForm target={target} connectors={connectors} {...form} />
+  }
+  if (chosen === undefined) {
+    return (
+      <div className="flex flex-col gap-5">
+        <DialogHeader>
+          <DialogTitle>{t(($) => $.site.createTitle)}</DialogTitle>
+          <DialogDescription>{texts.catalog.description}</DialogDescription>
+        </DialogHeader>
+        <h3 className="text-base font-semibold">{texts.catalog.title}</h3>
+        <ConnectorCatalog connectors={offered} onChoose={(type) => setChosen(offered.find((connector) => connector.type === type))} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={form.onClose}>
+            {t(($) => $.site.cancel)}
+          </Button>
+        </DialogFooter>
+      </div>
+    )
+  }
+  return <SiteForm key={chosen.type} target={target} connectors={connectors} chosen={chosen} onChange={offered.length > 1 ? () => setChosen(undefined) : undefined} {...form} />
+}
+
 /** Dialog to create a site or to edit the settings and credentials of a saved one; it waits for the catalog of connectors. */
 export function SiteDialog({ target, ...form }: SiteDialogProps) {
   const { data: connectors } = useConnectors()
   return (
     <Dialog open={target !== null} onOpenChange={form.onClose}>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[680px]">
-        {target !== null && connectors !== undefined && <SiteForm target={target} connectors={connectors} {...form} />}
+        {target !== null && connectors !== undefined && <SiteFlow target={target} connectors={connectors} {...form} />}
       </DialogContent>
     </Dialog>
   )

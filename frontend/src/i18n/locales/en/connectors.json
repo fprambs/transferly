@@ -5,6 +5,17 @@
     "ftp": "FTP - File Transfer Protocol",
     "s3": "S3 - Amazon S3 and compatible services"
   },
+  "descriptions": {
+    "sftp": "Files over SSH, with keys, jump hosts and proxies.",
+    "ftp": "FTP servers, with explicit or implicit TLS.",
+    "s3": "Buckets of Amazon S3, MinIO, Cloudflare R2, Wasabi and more."
+  },
+  "catalog": {
+    "title": "What do you want to connect to?",
+    "description": "Choose the kind of server or storage. Only the ones this instance offers are listed.",
+    "change": "Change",
+    "beta": "Beta"
+  },
   "keep": "Leave blank to keep the stored one.",
   "groups": {
     "proxy": "Proxy",
