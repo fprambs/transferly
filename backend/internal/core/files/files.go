@@ -459,6 +459,10 @@ const partSuffix = ".part"
 // staged there and must not exceed it. Offsets are only valid for resume. A body that ends early, or a failure
 // while renaming, leaves the ".part" file in place so a resumed upload can complete it; path itself is only ever
 // created or replaced at the very end, atomically, once the whole body has been written.
+//
+// A file system that cannot resume, such as an object store, writes path directly instead: its writes already
+// appear whole, a rename would copy the file on the server, and there is nothing a resume could continue. A body
+// that ends early cancels that write, so path keeps what it had.
 func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.WriteMode, offset int64, data io.Reader) (remotefs.Entry, error) {
 	if offset < 0 || (offset != 0 && mode != remotefs.WriteResume) {
 		return remotefs.Entry{}, fmt.Errorf("%w: an offset is only valid when resuming", remotefs.ErrInvalid)
@@ -466,6 +470,11 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 	lease, err := s.begin(ctx, t, workspace.ActionUpload, p)
 	if err != nil {
 		return remotefs.Entry{}, err
+	}
+	staged := lease.FS().Capabilities().Resume
+	if !staged && mode == remotefs.WriteResume {
+		lease.Release(nil)
+		return remotefs.Entry{}, fmt.Errorf("%w: %s cannot resume an upload", remotefs.ErrInvalid, p)
 	}
 	part := p + partSuffix
 	if mode == remotefs.WriteCreate {
@@ -477,17 +486,25 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 			return remotefs.Entry{}, statErr
 		}
 	}
-	openMode := mode
-	if openMode != remotefs.WriteResume {
+	target, openMode := part, mode
+	switch {
+	case !staged:
+		target = p
+	case openMode != remotefs.WriteResume:
 		openMode = remotefs.WriteOverwrite
 	}
-	w, err := lease.FS().OpenWrite(ctx, part, offset, openMode)
+	writing, cancel := context.WithCancel(ctx)
+	defer cancel()
+	w, err := lease.FS().OpenWrite(writing, target, offset, openMode)
 	if err != nil {
 		lease.Release(err)
 		return remotefs.Entry{}, err
 	}
 	started(t.Observer, -1)
 	_, err = io.Copy(w, &countingReader{ctx: ctx, src: data, obs: t.Observer})
+	if err != nil && !staged {
+		cancel()
+	}
 	if closeErr := w.Close(); err == nil {
 		err = closeErr
 	}
@@ -495,9 +512,11 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 		lease.Release(err)
 		return remotefs.Entry{}, err
 	}
-	if err := s.finish(ctx, lease.FS(), part, p, mode); err != nil {
-		lease.Release(err)
-		return remotefs.Entry{}, err
+	if staged {
+		if err := s.finish(ctx, lease.FS(), part, p, mode); err != nil {
+			lease.Release(err)
+			return remotefs.Entry{}, err
+		}
 	}
 	entry, err := lease.FS().Stat(ctx, p)
 	lease.Release(err)

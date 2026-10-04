@@ -119,7 +119,7 @@ func (f failingCloser) Close() error {
 }
 
 // connector hands out connections to one shared file system.
-type connector struct{ fsys *flakyFS }
+type connector struct{ fsys remotefs.RemoteFS }
 
 // Connect returns a connection to the shared file system.
 func (c connector) Connect(context.Context, connections.Key, string) (remotefs.RemoteFS, error) {
@@ -584,6 +584,96 @@ func TestService_Upload_Atomic(t *testing.T) {
 	}
 	if e, err := f.svc.Stat(ctx, f.editor, "/i.part"); err != nil || e.Size != int64(len("replaced")) {
 		t.Errorf("the staging file after a finishing remove fails = %+v, %v; want it kept", e, err)
+	}
+}
+
+// wholeFS is a file system that cannot resume, as object stores are: it records the files it renames and whether the
+// context of the last write had ended when the write was closed.
+type wholeFS struct {
+	*flakyFS
+	renamed  []string
+	canceled bool
+}
+
+// Capabilities reports no resume.
+func (w *wholeFS) Capabilities() remotefs.Capabilities { return remotefs.Capabilities{} }
+
+// Rename records the file it renames.
+func (w *wholeFS) Rename(ctx context.Context, from, to string) error {
+	w.renamed = append(w.renamed, from)
+	return w.flakyFS.Rename(ctx, from, to)
+}
+
+// OpenWrite returns a writer that stores the file whole when it is closed, as object stores do, and records whether its
+// context had ended by then. Create refuses an existing file when the write starts.
+func (w *wholeFS) OpenWrite(ctx context.Context, p string, _ int64, mode remotefs.WriteMode) (io.WriteCloser, error) {
+	if _, err := w.Stat(ctx, p); err == nil && mode == remotefs.WriteCreate {
+		return nil, fmt.Errorf("%w: %s", remotefs.ErrExists, p)
+	}
+	return &watchedWriter{ctx: ctx, fs: w, path: p}, nil
+}
+
+// watchedWriter is a writer of a [wholeFS], which holds what is written until it is closed.
+type watchedWriter struct {
+	bytes.Buffer
+	ctx  context.Context
+	fs   *wholeFS
+	path string
+}
+
+// Close stores the file, unless the write was abandoned, which keeps the file as it was.
+func (w *watchedWriter) Close() error {
+	w.fs.canceled = w.ctx.Err() != nil
+	if w.fs.canceled {
+		return w.ctx.Err()
+	}
+	inner, err := w.fs.flakyFS.OpenWrite(w.ctx, w.path, 0, remotefs.WriteOverwrite)
+	if err != nil {
+		return err
+	}
+	_, _ = inner.Write(w.Bytes())
+	return inner.Close()
+}
+
+// TestService_Upload_Whole verifies uploads to file systems that cannot resume, such as object stores (ADR-0023).
+//
+// Scenarios:
+//   - an upload writes the file directly, with no staging file nor rename, and create still refuses an existing file
+//   - a body that fails half way abandons the write, so the file keeps what it had
+//   - resuming is refused
+func TestService_Upload_Whole(t *testing.T) {
+	ctx := context.Background()
+	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	fsys := &wholeFS{flakyFS: &flakyFS{shared: shared{memfs.New(clock)}}}
+	pool := connections.New(connector{fsys}, clock, connections.Config{Attempts: 1})
+	t.Cleanup(pool.Close)
+	editor := uuid.New()
+	svc := files.NewService(roles{editor: workspace.RoleEditor}, pool)
+	target := files.Target{Actor: editor, Workspace: uuid.New(), Site: uuid.New(), Session: "s"}
+
+	if e, err := svc.Upload(ctx, target, "/f", remotefs.WriteCreate, 0, strings.NewReader("whole")); err != nil || e.Size != 5 {
+		t.Fatalf("Upload() = %+v, %v", e, err)
+	}
+	if len(fsys.renamed) != 0 || fsys.canceled {
+		t.Errorf("an upload renamed %v and was abandoned %v; want a direct write", fsys.renamed, fsys.canceled)
+	}
+	if _, err := svc.Stat(ctx, target, "/f.part"); !errors.Is(err, remotefs.ErrNotFound) {
+		t.Errorf("staging file of a direct upload = %v; want none", err)
+	}
+	if _, err := svc.Upload(ctx, target, "/f", remotefs.WriteCreate, 0, strings.NewReader("again")); !errors.Is(err, remotefs.ErrExists) {
+		t.Errorf("Upload(create) of an existing file = %v; want ErrExists", err)
+	}
+
+	interrupted := errors.New("client went away")
+	body := io.MultiReader(strings.NewReader("half"), errReader{interrupted})
+	if _, err := svc.Upload(ctx, target, "/f", remotefs.WriteOverwrite, 0, body); !errors.Is(err, interrupted) || !fsys.canceled {
+		t.Errorf("Upload() with a failing body = %v, abandoned %v; want the body error and the write abandoned", err, fsys.canceled)
+	}
+	if e, err := svc.Stat(ctx, target, "/f"); err != nil || e.Size != 5 {
+		t.Errorf("the file after a failed overwrite = %+v, %v; want it untouched", e, err)
+	}
+	if _, err := svc.Upload(ctx, target, "/f", remotefs.WriteResume, 3, strings.NewReader("le")); !errors.Is(err, remotefs.ErrInvalid) {
+		t.Errorf("Upload(resume) = %v; want ErrInvalid", err)
 	}
 }
 
