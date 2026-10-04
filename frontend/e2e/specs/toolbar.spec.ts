@@ -15,6 +15,7 @@ test.describe('toolbar', () => {
     const name = `Toolbar ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await dialog.getByLabel('Username', { exact: true }).fill('transferly')
@@ -49,6 +50,7 @@ test.describe('toolbar', () => {
     const name = `Starts in upload ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await dialog.getByLabel('Username', { exact: true }).fill('transferly')

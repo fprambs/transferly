@@ -68,8 +68,8 @@ test.describe('ftp and ftps', () => {
     const name = `Public ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^FTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Use explicit FTP over TLS if available')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
     await choose(dialog.getByLabel('Logon type'), 'Anonymous')
@@ -89,8 +89,8 @@ test.describe('ftp and ftps', () => {
     const name = `Billed ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^FTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Only use plain FTP (insecure)')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
     await dialog.getByLabel('Username', { exact: true }).fill('transferly')
@@ -109,8 +109,8 @@ test.describe('ftp and ftps', () => {
     const name = `Asks live ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^FTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Only use plain FTP (insecure)')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
     await dialog.getByLabel('Username', { exact: true }).fill('transferly')
@@ -131,8 +131,8 @@ test.describe('ftp and ftps', () => {
     const name = `Implicit ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^FTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Require implicit FTP over TLS')
     await expect(dialog.getByLabel('Port', { exact: true })).toHaveAttribute('placeholder', '990')
     await dialog.getByLabel('Host', { exact: true }).fill('ftps-implicit')

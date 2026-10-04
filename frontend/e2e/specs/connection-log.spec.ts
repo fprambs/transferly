@@ -16,6 +16,7 @@ test.describe('connection log', () => {
     const name = `Logged ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await dialog.getByLabel('Username', { exact: true }).fill('transferly')
@@ -50,8 +51,8 @@ test.describe('connection log', () => {
     const name = `Clear text ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^FTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
-    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await choose(dialog.getByLabel('Encryption'), 'Use explicit FTP over TLS if available')
     await dialog.getByLabel('Host', { exact: true }).fill('ftp')
     await choose(dialog.getByLabel('Logon type'), 'Anonymous')

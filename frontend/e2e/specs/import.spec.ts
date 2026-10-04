@@ -69,6 +69,7 @@ test.describe('import and export sites', () => {
     const name = `Exported ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const form = page.getByRole('dialog', { name: 'New site' })
+    await form.getByRole('button', { name: /^SFTP/ }).click()
     await form.getByLabel('Name', { exact: true }).fill(name)
     await form.getByLabel('Host', { exact: true }).fill('sftp')
     await form.getByLabel('Username', { exact: true }).fill('transferly')

@@ -114,6 +114,7 @@ test.describe('sites sidebar', () => {
     await page.getByRole('menuitem', { name: 'New site here' }).click()
 
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
     await expect(dialog).toBeVisible()
     const viewport = page.viewportSize()!
     const box = (await dialog.boundingBox())!

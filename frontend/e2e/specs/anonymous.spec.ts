@@ -14,6 +14,7 @@ test.describe('anonymous sftp', () => {
     const name = `Public SFTP ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await dialog.getByLabel('Host', { exact: true }).fill('sftp')
     await choose(dialog.getByLabel('Logon type'), 'Anonymous')

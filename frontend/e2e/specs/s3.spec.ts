@@ -1,7 +1,6 @@
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '../fixtures.ts'
-import { choose } from '../select.ts'
 
 /** Offers the S3 connector from the store in Administration, as an administrator does before anyone can use it. */
 async function offerS3(page: Page): Promise<void> {
@@ -39,7 +38,7 @@ test.describe('s3', () => {
 
     await page.getByRole('button', { name: 'New site' }).first().click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
-    await choose(dialog.getByLabel('Protocol'), 'S3 - Amazon S3 and compatible services')
+    await dialog.getByRole('button', { name: /^S3/ }).click()
     await dialog.getByLabel('Name', { exact: true }).fill(name)
     await expect(dialog.getByLabel('Endpoint')).toHaveAttribute('placeholder', 's3.amazonaws.com')
     await dialog.getByLabel('Endpoint').fill('s3')
