@@ -12,6 +12,7 @@ By contributing you agree that your work is licensed under the [Apache License 2
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/): `feat`, `fix`, `docs`, `build`, `ci`, `test`, `refactor`, `perf`, `chore`, with an optional scope, for example `feat(backend): add site store`.
 - Subjects are English, imperative and at most 72 characters.
 - Enable the hooks once: `make hooks`.
+- The commits since the last release become its notes: `feat` and `fix` subjects, and breaking changes marked with `!` or a `BREAKING CHANGE:` footer. See [Releases](docs/guides/releases.md).
 
 ## Definition of done
 

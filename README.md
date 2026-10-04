@@ -218,6 +218,10 @@ Variables principales del despliegue con Docker Compose:
 
 Las redes permitidas y los límites también se cambian en caliente desde el panel de administración.
 
+## Versiones
+
+Cada versión es un tag `vX.Y.Z` en `main`, con sus cambios en el [CHANGELOG](CHANGELOG.md); la primera es la v0.5.0. Cómo se hace una: [guía de releases](docs/guides/releases.md). La versión de una instancia se ve al pie de la navegación de Ajustes y con `transferly version`.
+
 ## Cómo está hecho
 
 - **Backend** en Go con arquitectura hexagonal, PostgreSQL, migraciones versionadas y un contrato OpenAPI del que se genera el código del servidor y del cliente.

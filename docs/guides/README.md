@@ -5,6 +5,7 @@ Before using a library for the first time, read its official documentation and r
 | Guide | Status |
 |---|---|
 | [Documentation](documentation.md) | done |
+| [Releases](releases.md) | done |
 | [Internationalization](i18n.md) | done |
 | [Dates and time zones](datetime.md) | done |
 | [React](react.md) | done |
