@@ -104,6 +104,20 @@ services:
     environment:
       FAKE_GOOGLE_URL: http://fakegoogle:8090
 
+  # Azurite, the emulator of Azure Storage, for the Blob connector (ADR-0025), with its well-known account devstoreaccount1.
+  azurite:
+    profiles: ["azure"]
+    image: mcr.microsoft.com/azure-storage/azurite@sha256:830430c1da1a2d537e08f3e6764dd1f5ae00cf0346bcaf625b968ec3f0971fd5
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--skipApiVersionCheck", "--inMemoryPersistence"]
+
+  # The fake of Azure Files (ADR-0025), which Azurite does not emulate: account transferly, share share.
+  fakeazure:
+    profiles: ["azure"]
+    build:
+      context: .
+      dockerfile: testenv/azure/Dockerfile
+    image: transferly-testenv-azure
+
   sftp:
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
     command: transferly:transferly:1001:100:upload anonymous::1002:100
