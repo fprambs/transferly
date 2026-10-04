@@ -17,7 +17,7 @@ import { useTabs } from '@/features/tabs/tabs-store'
 import { useCloseUnused } from '@/features/tabs/use-close-unused'
 import { useGoToTab } from '@/features/tabs/use-go-to-tab'
 import { TopBar } from '@/features/topbar/TopBar'
-import { useWorkspace } from '@/features/workspace/use-workspace'
+import { useWorkspace, useWorkspaces } from '@/features/workspace/use-workspace'
 import { SitesRail } from '@/features/sites/SitesRail'
 import { startPath } from '@/features/sites/start-path'
 import { useSitesData } from '@/features/sites/use-sites-data'
@@ -60,6 +60,14 @@ export function AppShell() {
   const closeUnused = useCloseUnused()
   const { sites: savedSites } = useSitesData(workspace?.id)
   const deactivate = useTabs((state) => state.deactivate)
+  const pruneTabs = useTabs((state) => state.prune)
+  const workspaces = useWorkspaces()
+
+  useEffect(() => {
+    if (workspaces.length > 0) {
+      pruneTabs(workspaces.map((known) => known.id))
+    }
+  }, [workspaces, pruneTabs])
   const pathname = useRouterState({ select: (state) => state.location.pathname })
 
   useEffect(() => {

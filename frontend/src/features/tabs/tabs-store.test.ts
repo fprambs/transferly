@@ -21,7 +21,9 @@ function tabOf(siteId: string) {
  *   (forgetting its selection), and activates the tab that already shows a site instead of repeating it
  * - with no active tab, or one of another workspace, following activates the tab of the site or opens one
  * - opening a tab for a site adds it at the end, or activates the one that shows it
- * - closing the active tab activates its neighbor, the last one leaves none active, and closing another keeps the active one
+ * - closing the active tab activates its neighbor in the same workspace, never a tab of another, the last one leaves none active, and
+ *   closing another keeps the active one
+ * - the tabs of workspaces the user no longer belongs to, as after a database was reset, are forgotten, with their active tab
  * - the selection of a tab is remembered, and leaving the sites makes no tab active
  * - a tab opens at the folder asked for, and restarting a site sends the tabs that show it, in either pane of its workspace, back to a
  *   folder and forgets their selection
@@ -81,6 +83,41 @@ describe('tabs store', () => {
     expect(summary()).toBe('a*')
     expect(close(a.id)).toBeUndefined()
     expect(useTabs.getState().activeId).toBeNull()
+  })
+
+  it('activates a tab of the same workspace when the active one closes, never one of another', () => {
+    useTabs.setState({
+      tabs: [
+        { id: 'old', workspaceId: 'gone', siteId: 'stale', path: '/' },
+        { id: 't1', workspaceId: 'w1', siteId: 'a', path: '/' },
+        { id: 't2', workspaceId: 'w1', siteId: 'b', path: '/' },
+      ],
+      activeId: 't2',
+    })
+    expect(useTabs.getState().close('t2')?.id).toBe('t1')
+    expect(useTabs.getState().close('t1')).toBeUndefined()
+    expect(summary()).toBe('stale')
+  })
+
+  it('forgets the tabs of workspaces the user no longer belongs to', () => {
+    useTabs.setState({
+      tabs: [
+        { id: 'old', workspaceId: 'gone', siteId: 'stale', path: '/' },
+        { id: 't1', workspaceId: 'w1', siteId: 'a', path: '/' },
+      ],
+      activeId: 'old',
+    })
+    const before = useTabs.getState()
+    useTabs.getState().prune(['w1', 'w2'])
+    expect(summary()).toBe('a')
+    expect(useTabs.getState().activeId).toBeNull()
+    useTabs.setState({ tabs: [{ id: 'old', workspaceId: 'gone', siteId: 'stale', path: '/' }, ...useTabs.getState().tabs], activeId: 't1' })
+    useTabs.getState().prune(['w1'])
+    expect(summary()).toBe('a*')
+    const kept = useTabs.getState()
+    useTabs.getState().prune(['w1'])
+    expect(useTabs.getState()).toBe(kept)
+    expect(before).not.toBe(kept)
   })
 
   it('opens tabs at a folder and restarts the tabs of a site', () => {

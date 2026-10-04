@@ -37,8 +37,10 @@ interface TabsState {
   restart: (workspaceId: string, siteId: string, path: string) => void
   /** Activates a tab. */
   activate: (id: string) => void
-  /** Closes a tab and returns the tab that becomes active, if any. */
+  /** Closes a tab and returns the tab of the same workspace that becomes active, if any. */
   close: (id: string) => ConnectionTab | undefined
+  /** Forgets the tabs of workspaces the user no longer belongs to, such as those of a database that was reset, which no tab bar shows. */
+  prune: (workspaceIds: readonly string[]) => void
   /** Remembers the entry selected in a tab. */
   select: (id: string, selection: string) => void
   /** Makes no tab active, as when the user leaves the sites. */
@@ -107,12 +109,27 @@ export const useTabs = create<TabsState>()(
       activate: (id) => set({ activeId: id }),
       close: (id) => {
         const { tabs, activeId } = get()
-        const index = tabs.findIndex((tab) => tab.id === id)
         const rest = tabs.filter((tab) => tab.id !== id)
-        const next = activeId === id ? (rest[Math.min(index, rest.length - 1)] as ConnectionTab | undefined) : rest.find((tab) => tab.id === activeId)
+        if (activeId !== id) {
+          set({ tabs: rest })
+          return rest.find((tab) => tab.id === activeId)
+        }
+        const closing = tabs.find((tab) => tab.id === id) as ConnectionTab
+        const siblings = tabs.filter((tab) => tab.workspaceId === closing.workspaceId)
+        const index = siblings.findIndex((tab) => tab.id === id)
+        const left = siblings.filter((tab) => tab.id !== id)
+        const next = left[Math.min(index, left.length - 1)] as ConnectionTab | undefined
         set({ tabs: rest, activeId: next?.id ?? null })
         return next
       },
+      prune: (workspaceIds) =>
+        set((state) => {
+          const tabs = state.tabs.filter((tab) => workspaceIds.includes(tab.workspaceId))
+          if (tabs.length === state.tabs.length) {
+            return state
+          }
+          return { tabs, activeId: tabs.some((tab) => tab.id === state.activeId) ? state.activeId : null }
+        }),
       select: (id, selection) => set((state) => ({ tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, selection } : tab)) })),
       deactivate: () => set({ activeId: null }),
     }),
