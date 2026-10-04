@@ -124,14 +124,15 @@ func jumpFields() []Field {
 	}
 }
 
-// FTP describes the FTP connector, plain or with TLS, explicit or implicit. New sites require TLS (ADR-0012).
+// FTP describes the FTP connector, plain or with TLS, explicit or implicit. New sites require TLS (ADR-0012). Listings carry no modes
+// Transferly can rely on, so it does not offer permissions.
 var FTP = Descriptor{
 	Type:     "ftp",
 	Name:     "FTP / FTPS",
 	Icon:     "server",
 	Maturity: Stable,
 	Capabilities: Capabilities{
-		Folders: true, Permissions: true, SetTimes: true, Resume: true, Rename: true,
+		Folders: true, SetTimes: true, Resume: true, Rename: true,
 	},
 	Fields: append([]Field{
 		hostField,
