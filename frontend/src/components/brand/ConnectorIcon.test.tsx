@@ -15,6 +15,7 @@ describe('ConnectorIcon', () => {
   it.each([
     ['sftp', '0 0 48 48'],
     ['ftps', '0 0 48 48'],
+    ['webdav', '0 0 48 48'],
     ['cloud', '0 0 64 64'],
     ['gcs', '0 0 512 512'],
     ['gdrive', '0 -4.65 87.3 87.3'],

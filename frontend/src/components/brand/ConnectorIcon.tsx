@@ -45,6 +45,19 @@ const icons: Readonly<Record<string, { viewBox: string; art: Artwork }>> = {
       </>
     ),
   },
+  webdav: {
+    viewBox: '0 0 48 48',
+    art: (id) => (
+      <>
+        {tile(`${id}-webdav`, '#FB923C', '#C2410C')}
+        <circle cx="20.5" cy="20.5" r="9.5" fill="none" stroke="#FFFFFF" strokeWidth="2.8" />
+        <ellipse cx="20.5" cy="20.5" rx="4" ry="9.5" fill="none" stroke="#FFFFFF" strokeWidth="2.4" />
+        <path d="M11 20.5h19" fill="none" stroke="#FFFFFF" strokeWidth="2.4" />
+        <rect x="26" y="26" width="16" height="14" rx="3" fill="#7C2D12" />
+        <path d="M28.5 30.5a1.5 1.5 0 0 1 1.5-1.5h3l1.5 1.5h4a1.5 1.5 0 0 1 1.5 1.5v4.5a1.5 1.5 0 0 1-1.5 1.5H30a1.5 1.5 0 0 1-1.5-1.5z" fill="#FED7AA" />
+      </>
+    ),
+  },
   cloud: {
     viewBox: '0 0 64 64',
     art: () => (
@@ -160,7 +173,7 @@ export interface ConnectorIconProps {
 /**
  * The icon of a connector, as the catalog, the store and the sites show it. Cloud services keep their official artwork and colors: the
  * Amazon S3 icon of the AWS architecture icons, the Cloud Storage icon of the Google Cloud product icons, the Google Drive logo and the
- * Blob and Files icons of the Azure service icons. SFTP and FTP, which have no brand, get tiles of their own. It is decorative.
+ * Blob and Files icons of the Azure service icons. SFTP, FTP and WebDAV, which have no brand, get tiles of their own. It is decorative.
  */
 export function ConnectorIcon({ icon, className }: ConnectorIconProps) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')

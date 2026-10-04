@@ -7,7 +7,8 @@
     "gcs": "Google Cloud Storage",
     "gdrive": "Google Drive",
     "azblob": "Azure Blob Storage",
-    "azfiles": "Azure Files"
+    "azfiles": "Azure Files",
+    "webdav": "WebDAV"
   },
   "descriptions": {
     "sftp": "Files over SSH, with keys, jump hosts and proxies.",
@@ -16,7 +17,8 @@
     "gcs": "Buckets of Google Cloud, with an HMAC key.",
     "gdrive": "My Drive or a shared drive of a Google account.",
     "azblob": "Containers of an Azure storage account, with its key, a SAS token or public access.",
-    "azfiles": "Shares of Azure Files, with real folders and resumable uploads."
+    "azfiles": "Shares of Azure Files, with real folders and resumable uploads.",
+    "webdav": "Nextcloud, ownCloud, NAS systems and any WebDAV server, with real folders."
   },
   "catalog": {
     "title": "What do you want to connect to?",
@@ -223,6 +225,10 @@
       "label": "SAS token",
       "hint": "The query string of a shared access signature, with or without the leading question mark.",
       "keep": "Leave blank to keep the stored SAS token."
+    },
+    "path": {
+      "label": "Path",
+      "hint": "The folder on the server the site opens, such as /remote.php/dav/files/alice/ on Nextcloud."
     }
   },
   "overrides": {
@@ -296,6 +302,24 @@
       "account": {
         "label": "Storage account",
         "hint": "The name of the storage account, as in account.blob.core.windows.net."
+      }
+    },
+    "webdav": {
+      "host": {
+        "label": "Server",
+        "hint": "The name or address of the WebDAV server, without https:// nor a path."
+      },
+      "tls": {
+        "hint": "Encrypts the password and the files on their way to the server. A self-signed certificate is shown to you to trust, as for FTPS.",
+        "warnings": {
+          "false": "Without HTTPS the password and the files travel in clear text. Turn it off only for a server on your own network."
+        }
+      },
+      "auth": {
+        "notes": {
+          "password": "Signs in with HTTP Basic authentication. The password is sealed in the vault.",
+          "anonymous": "Opens a public share without signing in; nothing is saved."
+        }
       }
     }
   },

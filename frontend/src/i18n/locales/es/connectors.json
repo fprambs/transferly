@@ -7,7 +7,8 @@
     "gcs": "Google Cloud Storage",
     "gdrive": "Google Drive",
     "azblob": "Azure Blob Storage",
-    "azfiles": "Azure Files"
+    "azfiles": "Azure Files",
+    "webdav": "WebDAV"
   },
   "descriptions": {
     "sftp": "Archivos por SSH, con claves, hosts de salto y proxies.",
@@ -16,7 +17,8 @@
     "gcs": "Buckets de Google Cloud, con una clave HMAC.",
     "gdrive": "Mi unidad o una unidad compartida de una cuenta de Google.",
     "azblob": "Contenedores de una cuenta de almacenamiento de Azure, con su clave, un token SAS o acceso público.",
-    "azfiles": "Recursos compartidos de Azure Files, con carpetas reales y subidas reanudables."
+    "azfiles": "Recursos compartidos de Azure Files, con carpetas reales y subidas reanudables.",
+    "webdav": "Nextcloud, ownCloud, NAS y cualquier servidor WebDAV, con carpetas reales."
   },
   "catalog": {
     "title": "¿A qué quieres conectarte?",
@@ -223,6 +225,10 @@
       "label": "Token SAS",
       "hint": "La cadena de consulta de una firma de acceso compartido, con o sin el signo de interrogación inicial.",
       "keep": "Déjalo en blanco para conservar el token SAS guardado."
+    },
+    "path": {
+      "label": "Ruta",
+      "hint": "La carpeta del servidor que abre el sitio, como /remote.php/dav/files/alicia/ en Nextcloud."
     }
   },
   "overrides": {
@@ -296,6 +302,24 @@
       "account": {
         "label": "Cuenta de almacenamiento",
         "hint": "El nombre de la cuenta de almacenamiento, como en cuenta.blob.core.windows.net."
+      }
+    },
+    "webdav": {
+      "host": {
+        "label": "Servidor",
+        "hint": "El nombre o la dirección del servidor WebDAV, sin https:// ni ruta."
+      },
+      "tls": {
+        "hint": "Cifra la contraseña y los archivos en su camino al servidor. Un certificado autofirmado se te muestra para que confíes en él, como en FTPS.",
+        "warnings": {
+          "false": "Sin HTTPS, la contraseña y los archivos viajan en texto plano. Desactívalo solo para un servidor de tu propia red."
+        }
+      },
+      "auth": {
+        "notes": {
+          "password": "Inicia sesión con autenticación HTTP Basic. La contraseña se sella en el vault.",
+          "anonymous": "Abre un recurso compartido público sin iniciar sesión; no se guarda nada."
+        }
       }
     }
   },

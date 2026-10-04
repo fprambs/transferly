@@ -19,15 +19,15 @@ describe('ConnectorCatalog', () => {
   it('lists the connectors as tiles and hands over the one chosen', async () => {
     const onChoose = vi.fn()
     const user = userEvent.setup()
-    await renderWithI18n(<ConnectorCatalog connectors={[connector('sftp', 'SFTP'), connector('webdav', 'WebDAV', true, 'beta')]} onChoose={onChoose} />)
+    await renderWithI18n(<ConnectorCatalog connectors={[connector('sftp', 'SFTP'), connector('smb', 'SMB', true, 'beta')]} onChoose={onChoose} />)
 
     const catalog = screen.getByRole('list', { name: 'What do you want to connect to?' })
-    const [sftp, webdav] = within(catalog).getAllByRole('button')
+    const [sftp, smb] = within(catalog).getAllByRole('button')
     expect(sftp).toHaveTextContent('SFTPFiles over SSH, with keys, jump hosts and proxies.')
     expect(sftp).not.toHaveTextContent('Beta')
-    expect(webdav).toHaveTextContent(/^WebDAVBeta$/)
+    expect(smb).toHaveTextContent(/^SMBBeta$/)
 
-    await user.click(webdav)
-    expect(onChoose).toHaveBeenCalledWith('webdav')
+    await user.click(smb)
+    expect(onChoose).toHaveBeenCalledWith('smb')
   })
 })

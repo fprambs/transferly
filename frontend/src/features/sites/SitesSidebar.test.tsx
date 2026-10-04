@@ -74,7 +74,7 @@ describe('SitesSidebar', () => {
   })
 
   it('draws the generic connector icon for a site whose connector the catalog does not list', async () => {
-    mockWorkspaceData({ sites: [{ ...site('s1', 'Shares'), connector: 'webdav', config: { host: 'dav.example.com' } }] })
+    mockWorkspaceData({ sites: [{ ...site('s1', 'Shares'), connector: 'smb', config: { host: 'files.example.com' } }] })
     await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
     const row = await screen.findByRole('treeitem', { name: /Shares/ })
