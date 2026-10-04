@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { delay, http, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import type { Connector } from '@/lib/api'
@@ -101,15 +101,18 @@ describe('connectors store', () => {
   it('explains a catalog that could not load and retries', async () => {
     mockAdmin()
     let fail = true
+    let answer = () => undefined as void
+    const held = new Promise<void>((resolve) => (answer = resolve))
     server.use(
       http.get('/api/v1/connectors', async () => {
-        await delay(10)
+        await held
         return fail ? problem(503, 'network_error') : HttpResponse.json([connector('sftp', 'SFTP')])
       }),
     )
     const user = await openStore()
 
     expect(await screen.findByText('Loading the connectors…')).toBeInTheDocument()
+    answer()
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server.')
     fail = false
     await user.click(await screen.findByRole('button', { name: 'Retry' }))

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { delay, http, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { KnownHost } from '@/lib/api'
@@ -61,15 +61,18 @@ describe('trusted servers', () => {
 
   it('says when no server is trusted, after a loading state', async () => {
     mockHosts([])
+    let answer = () => undefined as void
+    const held = new Promise<void>((resolve) => (answer = resolve))
     server.use(
       http.get('/api/v1/workspaces/:id/known-hosts', async () => {
-        await delay(100)
+        await held
         return HttpResponse.json([])
       }),
     )
     await renderApp({ path: '/servers' })
 
     expect(await screen.findByText('Loading…')).toBeInTheDocument()
+    answer()
     expect(await screen.findByText('No server has been trusted yet.')).toBeInTheDocument()
   })
 
