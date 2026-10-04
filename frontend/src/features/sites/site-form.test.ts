@@ -36,7 +36,8 @@ function values(config: Record<string, string>, secrets: Record<string, string> 
  * - a new site starts empty on the given collection and connector, an existing one is prefilled with its settings but no secret
  * - the settings every site has are validated, and the speed limit is shown in MiB/s and sent back in bytes per second
  * - the request sends the settings that apply and were given, and only the secrets typed for fields that apply
- * - the form checks the settings every site has and those of the connector together; an unknown connector is left to the server
+ * - the form checks the settings every site has and those of the connector together, and that an account signed in with OAuth is
+ *   connected unless it is stored; an unknown connector is left to the server
  * - an unchanged site is sent back as it is stored, without secrets
  * - the tabs follow the groups of the connector, and the tabs of the fields that are wrong are found; the network tab of a connector
  *   without a jump host is named after the proxy only
@@ -92,6 +93,11 @@ describe('site form', () => {
     expect(invalid.errors).toMatchObject({ name: { message: 'nameRequired' }, config: { port: { type: 'schema', message: 'number' } } })
     expect((await resolve(values({ host: 'h', username: 'u' }))).errors).toEqual({})
     expect((await resolve(values({}, {}, 'gone'))).errors).toEqual({})
+
+    const resolveSaved = (given: SiteValues, saved: string[]) => siteResolver(builtinConnectors, saved)(given, undefined, { fields: {}, shouldUseNativeValidation: false })
+    expect((await resolve(values({}, {}, 'gdrive'))).errors).toMatchObject({ secrets: { refresh_token: { message: 'connect' } } })
+    expect((await resolve(values({}, { refresh_token: 'r' }, 'gdrive'))).errors).toEqual({})
+    expect((await resolveSaved(values({}, {}, 'gdrive'), ['refresh_token'])).errors).toEqual({})
   })
 
   it('sends a stored site back as it is, without secrets', () => {

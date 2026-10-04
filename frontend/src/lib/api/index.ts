@@ -123,6 +123,9 @@ export type Checksum = Schemas['Checksum']
 /** A connector of the catalog Transferly is built with (ADR-0019). */
 export type Connector = Schemas['Connector']
 
+/** A sign-in with Google that was started: the consent page to open and the state its outcome carries (ADR-0024). */
+export type GoogleAuthorization = Schemas['GoogleAuthorization']
+
 /** The entries of an archive, as the server read them (D2.5). */
 export type ArchiveListing = Schemas['ArchiveListing']
 
@@ -305,6 +308,9 @@ export function createApi(transport: Transport) {
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/quick-connections/${quickId}` }),
       save: (workspaceId: string, quickId: string, input: { name: string; collectionId?: string }) =>
         transport.request<Site>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/quick-connections/${quickId}/save`, body: input }),
+    },
+    oauth: {
+      authorizeGoogle: () => transport.request<GoogleAuthorization>({ method: 'POST', path: `${root}/oauth/google/authorizations` }),
     },
     connectors: {
       list: () => transport.request<Connector[]>({ method: 'GET', path: `${root}/connectors` }),

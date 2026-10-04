@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
+import type { Connector } from '@/lib/api'
 import { builtinConnectors, connector } from '@/test/handlers'
 
-import { applies, defaultOf, fixedOf, passphraseOf, hasGroup, holds, isSecret, neededSecrets, settle, startingConnector, toConfig, toSecrets, validate, validHost, type ConnectorField } from './schema'
+import { applies, defaultOf, fixedOf, passphraseOf, hasGroup, holds, isSecret, missingReason, neededSecrets, settle, startingConnector, unconnected, toConfig, toSecrets, validate, validHost, type ConnectorField } from './schema'
 
 /** The FTP and SFTP connectors with their real schemas. */
 const [ftp, sftp] = builtinConnectors
+
+/** Google Drive, whose account is signed in with Google. */
+const drive = builtinConnectors.find((connector) => connector.type === 'gdrive') as Connector
 
 /** A connector with one field of each kind the built-in ones lack. */
 const sample = {
@@ -32,6 +36,7 @@ const sample = {
  * - hosts are addresses or dotted names
  * - the request sends the settings given that apply and are not fixed, and the secrets typed for fields that apply
  * - a new form starts on SFTP when it is offered, otherwise on the first connector, and on SFTP when none is known
+ * - an account signed in with OAuth is a secret that must be connected, unless it is stored, and its absence reads as such
  * - a connection that keeps nothing needs the secrets its chosen values ask for, but not passphrases nor the secrets any value asks for
  */
 describe('connector schema', () => {
@@ -112,6 +117,17 @@ describe('connector schema', () => {
     expect(toConfig(ftp, { host: ' h ', auth: 'anonymous', username: 'someone', port: '', jump_host: 'b' })).toEqual({ host: 'h', auth: 'anonymous' })
     expect(toSecrets(sftp, { auth: 'key' }, { private_key: 'KEY', passphrase: '', password: 'pw', token: 'x' })).toEqual({ private_key: 'KEY' })
     expect(toSecrets(sftp, {}, {})).toEqual({})
+  })
+
+  it('tells which accounts must be connected, and why a secret is missing', () => {
+    expect(isSecret(drive.fields.find((field) => field.kind === 'oauth') as ConnectorField)).toBe(true)
+    expect(neededSecrets(drive, {})).toEqual(['refresh_token'])
+    expect(unconnected(drive, {}, {}, [])).toEqual(['refresh_token'])
+    expect(unconnected(drive, {}, { refresh_token: 'r' }, [])).toEqual([])
+    expect(unconnected(drive, {}, {}, ['refresh_token'])).toEqual([])
+    expect(unconnected(sftp, {}, {}, [])).toEqual([])
+    expect(missingReason(drive, 'refresh_token')).toBe('connect')
+    expect(missingReason(sftp, 'password')).toBe('required')
   })
 
   it('tells which secrets a connection that keeps nothing needs', () => {

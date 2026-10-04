@@ -10,6 +10,7 @@ import { KeyFileField } from '../sites/KeyFileField'
 import type { SiteValues } from '../sites/site-form'
 
 import { Group, Row } from './FormRows'
+import { OAuthField } from './OAuthField'
 import { applies, defaultOf, fixedOf, passphraseOf, settle, type ConfigValues, type ConnectorField, type FieldGroup } from './schema'
 import { useConnectorTexts, type ConnectorTexts } from './use-connector-texts'
 
@@ -44,9 +45,9 @@ export interface SchemaFieldsProps<T extends SchemaValues> {
 /** Time zones the browser knows, offered as suggestions. */
 const timeZones = Intl.supportedValuesOf('timeZone')
 
-/** The names of the fields drawn inside another one: the port of a host and the passphrase of a private key. */
+/** The names of the fields drawn inside another one: the port of a host, the passphrase of a private key and the account of an OAuth field. */
 function drawnInside(connector: Connector): Set<string> {
-  return new Set(connector.fields.flatMap((field) => [field.port, field.passphrase].filter((name): name is string => name !== undefined)))
+  return new Set(connector.fields.flatMap((field) => [field.port, field.passphrase, field.account].filter((name): name is string => name !== undefined)))
 }
 
 /** Props of the drawing of one field. */
@@ -150,6 +151,12 @@ function SchemaField<T extends SchemaValues>({ connector, field, settled, texts,
       return (
         <Row id={id} label={label} errors={[error]} hint={texts.field(field.name).hint}>
           <Input id={id} type="password" autoComplete="off" placeholder={saved.includes(field.name) ? texts.keep(field.name) : undefined} {...register(secret(field.name))} />
+        </Row>
+      )
+    case 'oauth':
+      return (
+        <Row id={id} label={label} errors={[error]} hint={texts.field(field.name).hint}>
+          <OAuthField id={id} field={field} control={control} saved={saved.includes(field.name)} />
         </Row>
       )
     case 'private_key':

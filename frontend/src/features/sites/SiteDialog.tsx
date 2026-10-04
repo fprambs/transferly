@@ -90,7 +90,7 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
   const [failure, setFailure] = useState<SiteErrorKey | null>(null)
   const editing = target.mode === 'edit' ? target.site : undefined
   const choices = connectorChoices(connectors, editing?.connector)
-  const resolver = useMemo(() => siteResolver(connectors), [connectors])
+  const resolver = useMemo(() => siteResolver(connectors, editing?.secrets), [connectors, editing])
   const {
     register,
     handleSubmit,

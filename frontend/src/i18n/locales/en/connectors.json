@@ -4,13 +4,15 @@
     "sftp": "SFTP - SSH File Transfer Protocol",
     "ftp": "FTP - File Transfer Protocol",
     "s3": "S3 - Amazon S3 and compatible services",
-    "gcs": "Google Cloud Storage"
+    "gcs": "Google Cloud Storage",
+    "gdrive": "Google Drive"
   },
   "descriptions": {
     "sftp": "Files over SSH, with keys, jump hosts and proxies.",
     "ftp": "FTP servers, with explicit or implicit TLS.",
     "s3": "Buckets of Amazon S3, MinIO, Cloudflare R2, Wasabi and more.",
-    "gcs": "Buckets of Google Cloud, with an HMAC key."
+    "gcs": "Buckets of Google Cloud, with an HMAC key.",
+    "gdrive": "My Drive or a shared drive of a Google account."
   },
   "catalog": {
     "title": "What do you want to connect to?",
@@ -33,7 +35,8 @@
     "host": "Enter a host name or address, without scheme, port or path.",
     "timezone": "Choose a time zone of the list.",
     "unknown": "This setting is not part of this kind of server.",
-    "secret": "This setting is a secret and is sent apart."
+    "secret": "This setting is a secret and is sent apart.",
+    "connect": "Connect the account first."
   },
   "fields": {
     "host": {
@@ -186,6 +189,17 @@
     "secret_access_key": {
       "label": "Secret access key",
       "keep": "Leave blank to keep the stored secret access key."
+    },
+    "shared_drive": {
+      "label": "Shared drive",
+      "hint": "Leave it blank to open My Drive, or give the name of a shared drive of the account."
+    },
+    "refresh_token": {
+      "label": "Google account",
+      "hint": "Signs in with Google in a new window. Only a token that lets Transferly reach Drive is kept, sealed in the vault; the password never reaches Transferly."
+    },
+    "account_email": {
+      "label": "Account"
     }
   },
   "overrides": {
@@ -226,6 +240,21 @@
           "anonymous": "Reads a public bucket without signing the requests; nothing is saved."
         }
       }
+    }
+  },
+  "oauth": {
+    "connect": "Connect with Google",
+    "reconnect": "Use another account",
+    "connected": "Connected as",
+    "waiting": "Waiting for Google… finish signing in the window that opened.",
+    "cancel": "Cancel",
+    "failures": {
+      "denied": "Google did not grant access. Try again and allow Transferly to see and manage your Drive files.",
+      "expired": "The sign-in took too long or was already used. Try again.",
+      "no_refresh_token": "Google signed in without giving a lasting token. Remove Transferly from the third-party access of the account and try again.",
+      "not_configured": "Signing in with Google is not set up on this instance. Ask an administrator.",
+      "failed": "Signing in with Google failed. Try again.",
+      "blocked": "The browser blocked the window of Google. Allow pop-ups for Transferly and try again."
     }
   }
 }

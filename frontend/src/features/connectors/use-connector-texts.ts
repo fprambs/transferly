@@ -60,7 +60,7 @@ function merge(shared: FieldTexts | undefined, own: FieldTexts | undefined): Fie
 }
 
 /** The reasons the interface words; any other reads as the generic one. */
-const reasons: readonly FieldReason[] = ['required', 'number', 'range', 'boolean', 'choice', 'length', 'host', 'timezone']
+const reasons: readonly FieldReason[] = ['required', 'number', 'range', 'boolean', 'choice', 'length', 'host', 'timezone', 'connect']
 
 /**
  * Returns the texts of the fields of connectors in the language of the interface; given the type of a connector, the texts it gives

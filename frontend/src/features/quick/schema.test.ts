@@ -19,7 +19,8 @@ function resolve(values: QuickValues) {
  * - a new form starts empty on the given connector
  * - the request sends the settings given that apply and the secrets typed for fields that apply
  * - asking for the password, anonymous and interactive logons are left out, since a quick connection cannot use them
- * - the form checks the settings with the schema and asks for the secrets the logon needs, as nothing is stored; an unknown connector is
+ * - the form checks the settings with the schema and asks for the secrets the logon needs, and for the account to be connected, as
+ *   nothing is stored; an unknown connector is
  *   left to the server
  */
 describe('quick connect form', () => {
@@ -51,5 +52,6 @@ describe('quick connect form', () => {
     const valid = { connector: 'sftp', config: { host: 'h', username: 'u' }, secrets: { password: 'pw' } }
     expect(await resolve(valid)).toEqual({ values: valid, errors: {} })
     expect(await resolve({ connector: 'gone', config: {}, secrets: {} })).toEqual({ values: { connector: 'gone', config: {}, secrets: {} }, errors: {} })
+    expect((await resolve({ connector: 'gdrive', config: {}, secrets: {} })).errors).toMatchObject({ secrets: { refresh_token: { message: 'connect' } } })
   })
 })

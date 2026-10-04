@@ -2,7 +2,7 @@ import type { FieldErrors, Resolver } from 'react-hook-form'
 
 import type { Connector, QuickConnectInput } from '@/lib/api'
 
-import { neededSecrets, toConfig, toSecrets, validate } from '../connectors/schema'
+import { missingReason, neededSecrets, toConfig, toSecrets, validate } from '../connectors/schema'
 
 /** The logon types a quick connection cannot use: they ask when connecting or store nothing, which only a saved site can do. */
 export const unattended: Readonly<Record<string, readonly string[]>> = { auth: ['ask', 'anonymous', 'interactive'] }
@@ -40,7 +40,7 @@ export function quickResolver(connectors: readonly Connector[]): Resolver<QuickV
       return { values, errors: {} }
     }
     const config = Object.fromEntries(Object.entries(failures).map(([name, reason]) => [name, { type: 'schema', message: reason }]))
-    const secrets = Object.fromEntries(missing.map((name) => [name, { type: 'schema', message: 'required' }]))
+    const secrets = Object.fromEntries(missing.map((name) => [name, { type: 'schema', message: missingReason(connector as Connector, name) }]))
     return { values: {}, errors: { config, secrets } as FieldErrors<QuickValues> }
   }
 }

@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import type { Connector, Site, SiteInput } from '@/lib/api'
 
-import { hasGroup, toConfig, toSecrets, validate, type FieldGroup } from '../connectors/schema'
+import { hasGroup, toConfig, toSecrets, unconnected, validate, type FieldGroup } from '../connectors/schema'
 
 /** Bytes in a mebibyte, the unit the site's speed limit is shown in. */
 const mebibyte = 1024 * 1024
@@ -33,20 +33,23 @@ export const siteSchema = z.object({
 export type SiteValues = z.infer<typeof siteSchema>
 
 /**
- * A resolver that checks the settings every site has with {@link siteSchema} and the settings of the connector with its own schema; a
- * connector missing from the catalog has its settings left to the server.
+ * A resolver that checks the settings every site has with {@link siteSchema} and the settings of the connector with its own schema, and
+ * that the accounts it signs in with OAuth are connected unless their secrets are among the saved ones; a connector missing from the
+ * catalog has its settings left to the server.
  */
-export function siteResolver(connectors: readonly Connector[]): Resolver<SiteValues> {
+export function siteResolver(connectors: readonly Connector[], saved: readonly string[] = []): Resolver<SiteValues> {
   const base = zodResolver(siteSchema)
   return async (values, context, options) => {
     const result = await base(values, context, options)
     const connector = connectors.find((candidate) => candidate.type === values.connector)
     const failures = connector === undefined ? {} : validate(connector, values.config)
-    if (Object.keys(failures).length === 0) {
+    const missing = connector === undefined ? [] : unconnected(connector, values.config, values.secrets, saved)
+    if (Object.keys(failures).length === 0 && missing.length === 0) {
       return result
     }
     const config = Object.fromEntries(Object.entries(failures).map(([name, reason]) => [name, { type: 'schema', message: reason }]))
-    return { values: {}, errors: { ...result.errors, config } as FieldErrors<SiteValues> }
+    const secrets = Object.fromEntries(missing.map((name) => [name, { type: 'schema', message: 'connect' }]))
+    return { values: {}, errors: { ...result.errors, config, secrets } as FieldErrors<SiteValues> }
   }
 }
 

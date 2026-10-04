@@ -13,7 +13,7 @@ export type FieldGroup = ConnectorField['group']
 export type ConfigValues = Record<string, string>
 
 /** Why a value breaks the schema of its field, as the server names it in invalid_config. */
-export type FieldReason = 'required' | 'number' | 'range' | 'boolean' | 'choice' | 'length' | 'host' | 'timezone'
+export type FieldReason = 'required' | 'number' | 'range' | 'boolean' | 'choice' | 'length' | 'host' | 'timezone' | 'connect'
 
 /** Whether a condition holds for values settled so far: the other field has one of the values, or any value when none are listed. */
 export function holds(condition: ConnectorCondition, values: ConfigValues): boolean {
@@ -26,9 +26,9 @@ export function applies(field: ConnectorField, values: ConfigValues): boolean {
   return field.when === undefined || holds(field.when, values)
 }
 
-/** Whether a field is a secret, sealed in the vault and never part of the configuration. */
+/** Whether a field is a secret, sealed in the vault and never part of the configuration; an account signed in with OAuth is one. */
 export function isSecret(field: ConnectorField): boolean {
-  return field.kind === 'secret' || field.kind === 'private_key'
+  return field.kind === 'secret' || field.kind === 'private_key' || field.kind === 'oauth'
 }
 
 /** The passphrase field of a private key, which the server makes every private key declare; empty for any other field. */
@@ -142,9 +142,21 @@ export function validate(connector: Connector, values: ConfigValues): Record<str
 export function neededSecrets(connector: Connector, values: ConfigValues): string[] {
   const settled = settle(connector, values)
   const passphrases = new Set(connector.fields.map((field) => field.passphrase))
+  const asked = (field: ConnectorField) => field.kind === 'oauth' || (field.when?.in !== undefined && field.when.in.length > 0)
+  return connector.fields.filter((field) => isSecret(field) && asked(field) && applies(field, settled) && !passphrases.has(field.name)).map((field) => field.name)
+}
+
+/** The accounts a site must have connected before it is saved: the OAuth fields that apply, neither connected now nor stored. */
+export function unconnected(connector: Connector, values: ConfigValues, secrets: ConfigValues, saved: readonly string[]): string[] {
+  const settled = settle(connector, values)
   return connector.fields
-    .filter((field) => isSecret(field) && field.when?.in !== undefined && field.when.in.length > 0 && applies(field, settled) && !passphrases.has(field.name))
+    .filter((field) => field.kind === 'oauth' && applies(field, settled) && (secrets[field.name] ?? '') === '' && !saved.includes(field.name))
     .map((field) => field.name)
+}
+
+/** Why a secret a connection needs is missing: an account signed in with OAuth must be connected, other secrets typed. */
+export function missingReason(connector: Connector, name: string): FieldReason {
+  return connector.fields.find((field) => field.name === name)?.kind === 'oauth' ? 'connect' : 'required'
 }
 
 /** The configuration sent for values: the settings that apply and were given, trimmed; fixed values and defaults are left to the server. */

@@ -4,13 +4,15 @@
     "sftp": "SFTP - SSH File Transfer Protocol",
     "ftp": "FTP - Protocolo de Transferencia de Archivos",
     "s3": "S3 - Amazon S3 y servicios compatibles",
-    "gcs": "Google Cloud Storage"
+    "gcs": "Google Cloud Storage",
+    "gdrive": "Google Drive"
   },
   "descriptions": {
     "sftp": "Archivos por SSH, con claves, hosts de salto y proxies.",
     "ftp": "Servidores FTP, con TLS explícito o implícito.",
     "s3": "Buckets de Amazon S3, MinIO, Cloudflare R2, Wasabi y más.",
-    "gcs": "Buckets de Google Cloud, con una clave HMAC."
+    "gcs": "Buckets de Google Cloud, con una clave HMAC.",
+    "gdrive": "Mi unidad o una unidad compartida de una cuenta de Google."
   },
   "catalog": {
     "title": "¿A qué quieres conectarte?",
@@ -33,7 +35,8 @@
     "host": "Escribe un nombre de host o una dirección, sin esquema, puerto ni ruta.",
     "timezone": "Elige una zona horaria de la lista.",
     "unknown": "Este ajuste no es parte de este tipo de servidor.",
-    "secret": "Este ajuste es un secreto y se envía aparte."
+    "secret": "Este ajuste es un secreto y se envía aparte.",
+    "connect": "Conecta la cuenta primero."
   },
   "fields": {
     "host": {
@@ -186,6 +189,17 @@
     "secret_access_key": {
       "label": "Clave de acceso secreta",
       "keep": "Déjala en blanco para conservar la clave de acceso secreta guardada."
+    },
+    "shared_drive": {
+      "label": "Unidad compartida",
+      "hint": "Déjalo en blanco para abrir Mi unidad, o escribe el nombre de una unidad compartida de la cuenta."
+    },
+    "refresh_token": {
+      "label": "Cuenta de Google",
+      "hint": "Inicia sesión con Google en una ventana nueva. Solo se guarda un token que deja a Transferly llegar a Drive, sellado en el vault; la contraseña nunca llega a Transferly."
+    },
+    "account_email": {
+      "label": "Cuenta"
     }
   },
   "overrides": {
@@ -226,6 +240,21 @@
           "anonymous": "Lee un bucket público sin firmar las peticiones; no se guarda nada."
         }
       }
+    }
+  },
+  "oauth": {
+    "connect": "Conectar con Google",
+    "reconnect": "Usar otra cuenta",
+    "connected": "Conectado como",
+    "waiting": "Esperando a Google… termina de iniciar sesión en la ventana que se abrió.",
+    "cancel": "Cancelar",
+    "failures": {
+      "denied": "Google no concedió el acceso. Vuelve a intentarlo y permite que Transferly vea y administre tus archivos de Drive.",
+      "expired": "El inicio de sesión tardó demasiado o ya se usó. Vuelve a intentarlo.",
+      "no_refresh_token": "Google inició sesión sin dar un token duradero. Quita a Transferly del acceso de terceros de la cuenta y vuelve a intentarlo.",
+      "not_configured": "El inicio de sesión con Google no está configurado en esta instancia. Pídeselo a un administrador.",
+      "failed": "El inicio de sesión con Google falló. Vuelve a intentarlo.",
+      "blocked": "El navegador bloqueó la ventana de Google. Permite las ventanas emergentes para Transferly y vuelve a intentarlo."
     }
   }
 }
