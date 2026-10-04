@@ -116,7 +116,7 @@ users --< memberships >-- workspaces --< sites --< site_secrets
 | `memberships` | workspace_id, user_id, role |
 | `workspace_key_grants` | workspace_id, user_id, version, sealed (la clave del workspace sellada con la clave pública X25519 del miembro) |
 | `invitations` | workspace_id, email, role, token_hash, invited_by, expires_at (una fila por invitación pendiente; se borra al aceptar, revocar o vencer) |
-| `sites` | id, workspace_id, folder_id, protocol, host, port, username, auth_method, list_timezone (IANA), options (jsonb) |
+| `sites` | id, workspace_id, collection_id, name, connector, config (jsonb con los ajustes del conector según su esquema, ADR-0022), speed_limit_bps, remote_dir, color |
 | `site_secrets` | site_id, kind, nonce, ciphertext, dek_version |
 | `known_hosts` | workspace_id, host, port, key_type, fingerprint_sha256 |
 | `transfers` | user_id, workspace_id, site_id, direction, path, status, total_bytes, bytes_done (desde dónde se reanuda), error_code, attempts. En la fase 1 cada subida o descarga HTTP es una fila; `transfer_jobs` / `transfer_items` (expansión de carpetas, prioridad, checksum) llegan con las fases 2 y 3 |
@@ -285,12 +285,12 @@ Diseño objetivo (la fase 1 entrega una sola vista con panel de detalles; el dob
 ## 15. Fechas y zonas horarias
 
 - Los instantes se guardan como `timestamptz`, se manejan como `time.Time` en UTC y se exponen como RFC 3339 con `Z`. Nunca se guardan cadenas formateadas.
-- Las preferencias guardan nombres IANA (`America/Santiago`), nunca offsets fijos: `users.timezone`, `sites.list_timezone`. El valor inicial sale de `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+- Las preferencias guardan nombres IANA (`America/Santiago`), nunca offsets fijos: `users.timezone`, el ajuste `list_timezone` de un sitio FTP. El valor inicial sale de `Intl.DateTimeFormat().resolvedOptions().timeZone`.
 - El frontend convierte y formatea solo mediante `lib/datetime` (sobre `Intl` con `timeZone` explícito; Temporal cuando Safari lo soporte).
 - Fechas de los servidores remotos:
   - SFTP: segundos epoch, UTC.
   - FTP `MLSD` y `MDTM`: UTC por especificación.
-  - FTP `LIST`: sin zona. Se interpreta con `sites.list_timezone`, detectada subiendo un archivo de prueba y comparando su hora en `LIST` con el reloj del cliente (redondeo a 15 min), y editable por el usuario. `MDTM` no es fiable: vsftpd con `use_localtime=YES` lo devuelve en hora local. Ver [spikes](spikes/ftp-list-timezone.md).
+  - FTP `LIST`: sin zona. Se interpreta con el ajuste `list_timezone` del sitio, detectada subiendo un archivo de prueba y comparando su hora en `LIST` con el reloj del cliente (redondeo a 15 min), y editable por el usuario. `MDTM` no es fiable: vsftpd con `use_localtime=YES` lo devuelve en hora local. Ver [spikes](spikes/ftp-list-timezone.md).
   - `LIST` puede omitir segundos o el año; las entradas incluyen `modified_precision`.
 - Servidor: `time/tzdata` embebido en el binario; contenedor con `TZ=UTC`; el tiempo pasa por `ports.Clock`.
 - Las transferencias programadas guardan la zona IANA y manejan explícitamente los saltos de horario de verano.

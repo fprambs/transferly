@@ -63,6 +63,8 @@ Features that depended on the protocol depend on the connector's capabilities in
 
 **Failures name the field.** A configuration that does not follow the schema is `invalid_config` (422), with the field and the reason, so the form marks the field. A host the network policy refuses stays `destination_blocked`, and a private key that cannot be used gets a reason of its own.
 
+**The schema draws the security boundaries.** Which settings are secrets and which are destinations is now data, so the validation enforces it: a secret sent in the configuration is refused (`secret`) instead of being stored in clear text, a setting the schema does not declare is refused (`unknown`), and every host field, the jump host and the proxy included, goes through the network guard when the site is saved and again when it connects. Secrets of fields that stop applying are deleted, and a quick connection wipes the bytes of the secrets it drops.
+
 **No compatibility with the previous shape.** Nobody else uses Transferly yet, so this follows ADR-0020:
 
 - a migration moves the settings of existing sites into the configuration and drops the old columns;
