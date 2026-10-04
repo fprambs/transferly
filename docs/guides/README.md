@@ -37,6 +37,7 @@ Before using a library for the first time, read its official documentation and r
 | [Go module layout](go-layout.md) | done |
 | [pkg/sftp](pkg-sftp.md) | done |
 | [S3 (minio-go, gofakes3, Versity Gateway)](minio-go.md) | done |
+| [Google (Drive, Cloud Storage and the sign-in with Google)](google.md) | done |
 | [sqlc and pgx](sqlc-pgx.md) | done |
 | [Protocol specifications (SFTP, SSH, FTP, FTPS)](protocol-specifications.md) | done |
 | [SSH key files](ssh-keys.md) | done |

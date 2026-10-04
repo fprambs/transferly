@@ -214,6 +214,7 @@ Variables principales del despliegue con Docker Compose:
 | `TRANSFERLY_DB_PASSWORD` | Contraseña de Postgres | `transferly` |
 | `TRANSFERLY_ALLOWED_NETWORKS` | Redes privadas que los sitios pueden alcanzar, separadas por coma | ninguna |
 | `TRANSFERLY_TRUSTED_PROXIES` | Proxies de confianza, para conocer la IP real del cliente | ninguno |
+| `TRANSFERLY_GOOGLE_CLIENT_ID`, `TRANSFERLY_GOOGLE_CLIENT_SECRET` | Cliente OAuth registrado en Google Cloud, para los sitios de Google Drive ([guía](docs/guides/google.md)) | ninguno |
 
 Las redes permitidas y los límites también se cambian en caliente desde el panel de administración.
 
