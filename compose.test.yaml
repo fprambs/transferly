@@ -93,6 +93,17 @@ services:
       timeout: 3s
       retries: 20
 
+  # The fake of Google for the Google Drive connector (ADR-0024): OAuth with a consent page that agrees at once, and Drive in memory.
+  # Not named google: browsers force HTTPS on that name, a top-level domain in their HSTS preload list.
+  fakegoogle:
+    profiles: ["google"]
+    build:
+      context: .
+      dockerfile: testenv/google/Dockerfile
+    image: transferly-testenv-google
+    environment:
+      FAKE_GOOGLE_URL: http://fakegoogle:8090
+
   sftp:
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
     command: transferly:transferly:1001:100:upload anonymous::1002:100
@@ -122,6 +133,11 @@ services:
       TRANSFERLY_ALLOWED_NETWORKS: 172.16.0.0/12
       TRANSFERLY_TRANSFER_LIMIT_PER_SITE: "2"
       TRANSFERLY_QUICK_CONNECT_BURST: "40"
+      TRANSFERLY_GOOGLE_CLIENT_ID: transferly-test.apps.googleusercontent.com
+      TRANSFERLY_GOOGLE_CLIENT_SECRET: transferly-test-secret
+      TRANSFERLY_GOOGLE_AUTH_URL: http://fakegoogle:8090/o/oauth2/auth
+      TRANSFERLY_GOOGLE_TOKEN_URL: http://fakegoogle:8090/token
+      TRANSFERLY_GOOGLE_API_URL: http://fakegoogle:8090
     tmpfs:
       - /data:mode=0700,uid=65532,gid=65532
     read_only: true

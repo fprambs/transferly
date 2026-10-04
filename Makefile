@@ -32,11 +32,11 @@ unit:
 	$(TEST) run --rm unit
 
 e2e:
-	$(TEST) --profile ftp --profile s3 up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3
+	$(TEST) --profile ftp --profile s3 --profile google up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle
 	$(TEST) run --rm e2e
 
 e2e-update:
-	$(TEST) --profile ftp --profile s3 up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3
+	$(TEST) --profile ftp --profile s3 --profile google up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle
 	$(TEST) run --rm e2e node_modules/.bin/playwright test --update-snapshots
 
 lint:
