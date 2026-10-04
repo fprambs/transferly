@@ -38,6 +38,8 @@ const (
 	SecretProxyPassword SecretKind = "proxy_password"
 	// SecretAccount is the account an FTP site of the account logon type sends with ACCT.
 	SecretAccount SecretKind = "account"
+	// SecretAccessKey is the secret access key of an object store, the pair of its access key ID (ADR-0023).
+	SecretAccessKey SecretKind = "secret_access_key"
 )
 
 // Errors returned by the package.

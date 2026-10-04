@@ -465,5 +465,178 @@
     "maturity": "stable",
     "name": "SFTP",
     "type": "sftp"
+  },
+  {
+    "capabilities": {
+      "folders": false,
+      "permissions": false,
+      "rename": true,
+      "resume": false,
+      "serverCopy": false,
+      "setTimes": false
+    },
+    "enabled": false,
+    "enabledByDefault": false,
+    "fields": [
+      {
+        "default": "s3.amazonaws.com",
+        "group": "connection",
+        "kind": "host",
+        "name": "host",
+        "port": "port",
+        "required": true
+      },
+      {
+        "default": "true",
+        "group": "connection",
+        "kind": "boolean",
+        "name": "tls",
+        "required": true
+      },
+      {
+        "default": "443",
+        "defaults": [
+          {
+            "value": "80",
+            "when": {
+              "field": "tls",
+              "in": [
+                "false"
+              ]
+            }
+          }
+        ],
+        "group": "connection",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "port",
+        "required": true
+      },
+      {
+        "group": "connection",
+        "kind": "text",
+        "maxLength": 64,
+        "name": "region",
+        "required": false
+      },
+      {
+        "group": "connection",
+        "kind": "text",
+        "maxLength": 63,
+        "name": "bucket",
+        "required": true
+      },
+      {
+        "choices": [
+          "access_key",
+          "anonymous"
+        ],
+        "default": "access_key",
+        "group": "access",
+        "kind": "choice",
+        "name": "auth",
+        "required": true
+      },
+      {
+        "group": "access",
+        "kind": "text",
+        "maxLength": 128,
+        "name": "access_key_id",
+        "required": true,
+        "when": {
+          "field": "auth",
+          "in": [
+            "access_key"
+          ]
+        }
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "secret_access_key",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "access_key"
+          ]
+        }
+      },
+      {
+        "choices": [
+          "socks5",
+          "http"
+        ],
+        "group": "proxy",
+        "kind": "choice",
+        "name": "proxy_kind",
+        "required": false
+      },
+      {
+        "group": "proxy",
+        "kind": "host",
+        "name": "proxy_host",
+        "port": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "defaults": [
+          {
+            "value": "1080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "socks5"
+              ]
+            }
+          },
+          {
+            "value": "8080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "http"
+              ]
+            }
+          }
+        ],
+        "group": "proxy",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "proxy_username",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "secret",
+        "name": "proxy_password",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      }
+    ],
+    "icon": "cloud",
+    "maturity": "beta",
+    "name": "S3",
+    "type": "s3"
   }
 ]

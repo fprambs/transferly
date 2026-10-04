@@ -72,7 +72,7 @@ func TestCatalog(t *testing.T) {
 	for _, d := range catalog.All() {
 		names = append(names, d.Name)
 	}
-	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
+	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "S3", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("all = %v; want %v", names, want)
 	}
 }

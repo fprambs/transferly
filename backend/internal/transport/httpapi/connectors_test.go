@@ -21,7 +21,7 @@ import (
 //
 // Use cases:
 //   - a signed-in user gets the built-in connectors with their capabilities, settings with defaults, bounds and choices, ways of
-//     authenticating and whether the instance offers them; settings without them leave them out
+//     authenticating and whether the instance offers them; settings without them leave them out; S3, in beta, is not offered until enabled
 //   - an anonymous request is refused
 func TestListConnectors(t *testing.T) {
 	a := newAPI(t)
@@ -29,8 +29,11 @@ func TestListConnectors(t *testing.T) {
 	r := a.do(request{method: http.MethodGet, path: "/api/v1/connectors", cookie: cookie})
 	var list []httpapi.Connector
 	mustDecode(t, r.Body, &list)
-	if r.Status != http.StatusOK || len(list) != 2 || list[0].Type != "ftp" || list[1].Type != "sftp" {
+	if r.Status != http.StatusOK || len(list) != 3 || list[0].Type != "ftp" || list[1].Type != "sftp" || list[2].Type != "s3" {
 		t.Fatalf("connectors = %d %+v", r.Status, list)
+	}
+	if s3 := list[2]; s3.Enabled || s3.EnabledByDefault || s3.Maturity != "beta" || s3.Capabilities.Folders || !s3.Capabilities.Rename || s3.Capabilities.Resume {
+		t.Errorf("s3 = %+v; want a beta connector, off until an admin enables it, with prefixes and renames but no resume", s3)
 	}
 	sftp := list[1]
 	if !sftp.EnabledByDefault || !sftp.Enabled || !list[0].Enabled || sftp.Maturity != "stable" || !sftp.Capabilities.Resume || sftp.Capabilities.ServerCopy {
@@ -79,6 +82,7 @@ func connectorsOf(t *testing.T, u *mfaUser) map[string]bool {
 //   - an administrator disables FTP and every user sees it disabled, no FTP site can be created, the change is in the audit log, and
 //     enabling it again restores it
 //   - a regular account is refused and changes nothing, an anonymous caller too, and an unknown type is not found
+//   - S3, off by default, is offered to everyone once an administrator enables it
 func TestSetConnectorEnabled(t *testing.T) {
 	e := newAdminEnv(t)
 	r := e.root.call(http.MethodPut, "/api/v1/admin/connectors/ftp", map[string]bool{"enabled": false})
@@ -114,7 +118,16 @@ func TestSetConnectorEnabled(t *testing.T) {
 	if r := e.a.do(request{method: http.MethodPut, path: "/api/v1/admin/connectors/sftp", body: map[string]bool{"enabled": false}}); r.Status != http.StatusUnauthorized {
 		t.Errorf("anonymous change = %d; want 401", r.Status)
 	}
-	expectProblem(t, e.root.call(http.MethodPut, "/api/v1/admin/connectors/s3", map[string]bool{"enabled": true}), http.StatusNotFound, "connector_not_found")
+	expectProblem(t, e.root.call(http.MethodPut, "/api/v1/admin/connectors/gopher", map[string]bool{"enabled": true}), http.StatusNotFound, "connector_not_found")
+	if got := connectorsOf(t, e.other); got["s3"] {
+		t.Error("S3 is offered before an admin enables it")
+	}
+	if r := e.root.call(http.MethodPut, "/api/v1/admin/connectors/s3", map[string]bool{"enabled": true}); r.Status != http.StatusOK {
+		t.Fatalf("enable s3 = %d %s", r.Status, r.Body)
+	}
+	if got := connectorsOf(t, e.other); !got["s3"] {
+		t.Error("S3 is not offered once an admin enabled it")
+	}
 }
 
 // brokenConnectorSettings is a store whose connector settings cannot be read or saved.

@@ -21,6 +21,8 @@ const (
 	AuthAccount = "account"
 	// AuthInteractive asks the person connecting whatever the server asks, and stores nothing.
 	AuthInteractive = "interactive"
+	// AuthAccessKey signs the requests to an object store with an access key ID and its secret access key (ADR-0023).
+	AuthAccessKey = "access_key"
 )
 
 // The FTP encryptions, as FileZilla offers them (ADR-0012).
@@ -160,10 +162,36 @@ var FTP = Descriptor{
 	EnabledByDefault: true,
 }
 
+// S3 describes the connector of S3 buckets and the services compatible with its API (ADR-0023). Folders are prefixes the
+// adapter emulates, objects are written whole and have no modes nor times that can be set, and renames copy on the server.
+// It is new, so an admin enables it.
+var S3 = Descriptor{
+	Type:     "s3",
+	Name:     "S3",
+	Icon:     "cloud",
+	Maturity: Beta,
+	Capabilities: Capabilities{
+		Rename: true,
+	},
+	Fields: append([]Field{
+		{Name: FieldHost, Kind: Host, Group: GroupConnection, Required: true, Default: "s3.amazonaws.com", Port: FieldPort},
+		{Name: "tls", Kind: Boolean, Group: GroupConnection, Required: true, Default: "true"},
+		{
+			Name: FieldPort, Kind: Number, Group: GroupConnection, Required: true, Default: "443", Min: 1, Max: maxPort,
+			Defaults: []Default{{When: Condition{Field: "tls", In: []string{"false"}}, Value: "80"}},
+		},
+		{Name: "region", Kind: Text, Group: GroupConnection, MaxLength: 64},
+		{Name: "bucket", Kind: Text, Group: GroupConnection, Required: true, MaxLength: 63},
+		{Name: FieldAuth, Kind: Choice, Group: GroupAccess, Required: true, Default: AuthAccessKey, Choices: []string{AuthAccessKey, AuthAnonymous}},
+		{Name: "access_key_id", Kind: Text, Group: GroupAccess, Required: true, MaxLength: 128, When: whenAuth(AuthAccessKey)},
+		{Name: "secret_access_key", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthAccessKey)},
+	}, proxyFields()...),
+}
+
 // Builtin returns a catalog with the connectors Transferly is built with.
 func Builtin() *Catalog {
 	c := NewCatalog()
-	for _, d := range []Descriptor{SFTP, FTP} {
+	for _, d := range []Descriptor{SFTP, FTP, S3} {
 		c.descriptors[d.Type] = d
 	}
 	return c

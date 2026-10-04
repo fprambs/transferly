@@ -5,6 +5,7 @@ package connect
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -46,6 +47,7 @@ type Connector struct {
 	prompts  *prompts.Broker
 	strict   *sftpfs.StrictServers
 	offering site.Offering
+	roots    *x509.CertPool
 }
 
 // Option adjusts a [Connector].
@@ -67,6 +69,12 @@ func Prompts(broker *prompts.Broker) Option {
 // [connectors.ErrDisabled] before anything is dialed. Without it every connector connects.
 func Offering(o site.Offering) Option {
 	return func(c *Connector) { c.offering = o }
+}
+
+// CertificateAuthorities sets the authorities that HTTPS connections, such as those of object stores, are verified against
+// instead of the system's, for services with certificates of a private authority. Without it the system's are used.
+func CertificateAuthorities(roots *x509.CertPool) Option {
+	return func(c *Connector) { c.roots = roots }
 }
 
 // errNoPrompts fails an interactive site when nobody can relay the server's questions.
@@ -128,7 +136,7 @@ func (t target) wipe() {
 type opener func(ctx context.Context, c *Connector, key connections.Key, t target) (remotefs.RemoteFS, error)
 
 // openers are the openers of the connectors Transferly is built with, by type.
-var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP}
+var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP, "s3": openS3}
 
 // Connect implements [connections.Connector].
 //

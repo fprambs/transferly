@@ -21,13 +21,17 @@ var full = connectors.Capabilities{Folders: true, Permissions: true, SetTimes: t
 //   - matching declarations pass, with every capability or without the optional ones
 //   - a capability declared but missing from the adapter fails, as FTP once declared permissions, and so does one the
 //     adapter has but the descriptor hides
-//   - a connector without real folders or renames, or with server-side copy, is refused until the suite can check it
+//   - a connector without real folders, which emulates them, passes
+//   - a connector without renames, or with server-side copy, is refused until the suite can check it
 func TestMismatches(t *testing.T) {
 	if got := connectortest.Mismatches(full, remotefs.Capabilities{Chmod: true, Chtimes: true, Resume: true}); got != nil {
 		t.Errorf("Mismatches(all) = %v, want none", got)
 	}
 	if got := connectortest.Mismatches(connectors.Capabilities{Folders: true, Rename: true}, remotefs.Capabilities{Rewrite: true}); got != nil {
 		t.Errorf("Mismatches(none) = %v, want none", got)
+	}
+	if got := connectortest.Mismatches(connectors.Capabilities{Rename: true}, remotefs.Capabilities{}); got != nil {
+		t.Errorf("Mismatches(prefixes) = %v, want none", got)
 	}
 	for name, tc := range map[string]struct {
 		declared connectors.Capabilities
@@ -37,7 +41,6 @@ func TestMismatches(t *testing.T) {
 		"declared permissions":    {full, remotefs.Capabilities{Chtimes: true, Resume: true}, "declares permissions, which the adapter does not offer"},
 		"hidden times":            {connectors.Capabilities{Folders: true, Rename: true, Resume: true}, remotefs.Capabilities{Resume: true, Chtimes: true}, "does not declare setting times, which the adapter offers"},
 		"declared resume":         {connectors.Capabilities{Folders: true, Rename: true, Resume: true}, remotefs.Capabilities{}, "declares resumable writes, which the adapter does not offer"},
-		"prefixes":                {connectors.Capabilities{Rename: true}, remotefs.Capabilities{}, "has no real folders, which the shared suite cannot check yet"},
 		"no rename":               {connectors.Capabilities{Folders: true}, remotefs.Capabilities{}, "cannot rename, which the shared suite cannot check yet"},
 		"declared server copying": {connectors.Capabilities{Folders: true, Rename: true, ServerCopy: true}, remotefs.Capabilities{}, "declares server-side copy, which no operation of the port performs yet"},
 	} {

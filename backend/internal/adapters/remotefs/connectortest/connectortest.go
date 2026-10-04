@@ -16,7 +16,8 @@ import (
 //
 //   - permissions, times that can be set and resumable writes must be declared exactly when the adapter has them, since
 //     the interface offers them by the declaration and the adapter is what performs them;
-//   - real folders and renames are exercised by the shared suite, which cannot check a connector without them yet;
+//   - renames are exercised by the shared suite, which cannot check a connector without them yet; folders are exercised
+//     too, emulated by connectors without real ones, so declaring none only tells the interface they are prefixes;
 //   - server-side copy has no operation in the port yet, so no connector can honor it.
 func Mismatches(declared connectors.Capabilities, has remotefs.Capabilities) []string {
 	var out []string
@@ -34,9 +35,6 @@ func Mismatches(declared connectors.Capabilities, has remotefs.Capabilities) []s
 		case !c.declared && c.has:
 			out = append(out, fmt.Sprintf("does not declare %s, which the adapter offers", c.name))
 		}
-	}
-	if !declared.Folders {
-		out = append(out, "has no real folders, which the shared suite cannot check yet")
 	}
 	if !declared.Rename {
 		out = append(out, "cannot rename, which the shared suite cannot check yet")

@@ -1,16 +1,20 @@
 package connect_test
 
 import (
+	"crypto/x509"
 	"net"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connectortest"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/s3fs/s3test"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/hostkey"
@@ -18,10 +22,12 @@ import (
 	"github.com/fprambs/transferly/internal/core/site"
 )
 
-// endpoint is a reference server of a connector: where it listens, the key it presents and the settings and secrets of a site
-// that signs in to it.
+// endpoint is a reference server of a connector: where it listens, the key it presents for the user to trust, if any, the
+// authorities its certificate is verified against, if they are not the system's, and the settings and secrets of a site that
+// signs in to it.
 type endpoint struct {
 	address, keyType, fingerprint string
+	roots                         *x509.CertPool
 	config                        map[string]string
 	secrets                       site.SecretChanges
 }
@@ -42,6 +48,14 @@ var references = map[string]func(t *testing.T) endpoint{
 			address: s.Addr, keyType: ftpfs.CertificateKeyType, fingerprint: s.Fingerprint,
 			config:  map[string]string{"username": ftpUser, "encryption": connectors.EncryptionExplicit},
 			secrets: site.SecretChanges{site.SecretPassword: ftpPassword},
+		}
+	},
+	"s3": func(t *testing.T) endpoint {
+		s := s3test.Start(t, s3test.Options{})
+		return endpoint{
+			address: s.Addr, roots: s.RootCAs,
+			config:  map[string]string{"bucket": s3test.Bucket, "access_key_id": "transferly"},
+			secrets: site.SecretChanges{site.SecretAccessKey: "a secret access key"},
 		}
 	},
 }
@@ -68,10 +82,13 @@ func (e *env) open(t *testing.T, d connectors.Descriptor, reference func(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, portNumber, server.keyType, server.fingerprint, hostkey.TrustNew); err != nil {
-		t.Fatalf("Trust() = %v", err)
+	if server.keyType != "" {
+		if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, portNumber, server.keyType, server.fingerprint, hostkey.TrustNew); err != nil {
+			t.Fatalf("Trust() = %v", err)
+		}
 	}
-	fsys, err := e.connector(e.allow).Connect(t.Context(), e.key(created), session)
+	c := connect.New(e.sites, e.quick, e.hostKeys, e.allow, 5*time.Second, connect.CertificateAuthorities(server.roots))
+	fsys, err := c.Connect(t.Context(), e.key(created), session)
 	if err != nil {
 		t.Fatalf("Connect() = %v", err)
 	}
