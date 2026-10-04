@@ -37,8 +37,8 @@ function ConnectorCard({ connector, busy, onChange }: ConnectorCardProps) {
   return (
     <li aria-labelledby={titleId} className="flex flex-col gap-3 rounded-lg border bg-background p-4">
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-accent-text">
-          <ConnectorIcon icon={connector.icon} className="size-4.5" />
+        <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+          <ConnectorIcon icon={connector.icon} className="size-6" />
         </span>
         <h3 id={titleId} className="min-w-0 flex-1 truncate text-sm font-semibold">
           {connector.name}

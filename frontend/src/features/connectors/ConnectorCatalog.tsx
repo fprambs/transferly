@@ -26,8 +26,8 @@ export function ConnectorCatalog({ connectors, onChoose }: ConnectorCatalogProps
             onClick={() => onChoose(connector.type)}
             className="group relative flex w-full flex-col items-start gap-3 rounded-xl border bg-background p-4 text-start transition-colors outline-none hover:border-primary/60 hover:bg-primary/5 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <span aria-hidden="true" className="flex size-11 items-center justify-center rounded-xl bg-primary/12 text-foreground transition-colors group-hover:bg-primary/20">
-              <ConnectorIcon icon={connector.icon} className="size-6" />
+            <span aria-hidden="true" className="flex size-11 items-center justify-center rounded-xl bg-muted text-foreground transition-colors group-hover:bg-accent">
+              <ConnectorIcon icon={connector.icon} className="size-7" />
             </span>
             <span className="flex flex-col gap-1">
               <span className="text-sm font-semibold">{connector.name}</span>

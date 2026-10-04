@@ -171,8 +171,8 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
       </DialogHeader>
       {chosen !== undefined && (
         <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-3 py-2.5">
-          <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/12">
-            <ConnectorIcon icon={chosen.icon} />
+          <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <ConnectorIcon icon={chosen.icon} className="size-6" />
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="text-sm font-semibold">{texts.connector(chosen)}</span>
