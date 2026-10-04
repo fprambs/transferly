@@ -9,7 +9,7 @@ rm -f coverage.out coverage.filtered.out test.log
 
 packages=$(
   go list ./... | grep -v -e '/cmd/' -e '/internal/testutil' -e '/internal/docscheck' -e '/store/postgres/db' \
-    -e '/remotefstest' -e '/connectortest' -e '/sftptest' -e '/ftptest' -e '/s3test' -e '/googletest' -e '/storetest' -e '/passkeytest' -e '/spikes' | paste -sd, -
+    -e '/remotefstest' -e '/connectortest' -e '/sftptest' -e '/ftptest' -e '/s3test' -e '/googletest' -e '/azuretest' -e '/storetest' -e '/passkeytest' -e '/spikes' | paste -sd, -
 )
 test_pkgs=$(
   go list ./... | grep -v -e '/cmd/' -e '/spikes'
