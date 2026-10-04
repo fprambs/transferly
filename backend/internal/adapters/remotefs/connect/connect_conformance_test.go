@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,6 +17,8 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/remotefs/azuretest"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connectortest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/davfs"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/davfs/davtest"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/gdrivefs/googletest"
@@ -72,6 +75,16 @@ var references = map[string]func(t *testing.T) endpoint{
 			address: strings.TrimPrefix(s.URL, "http://"),
 			config:  map[string]string{"account": azuretest.Account, "share": azuretest.Share, "tls": "false"},
 			secrets: site.SecretChanges{site.SecretAccountKey: azuretest.Key},
+		}
+	},
+	"webdav": func(t *testing.T) endpoint {
+		server := httptest.NewUnstartedServer(davtest.New(davtest.Options{}).Handler())
+		server.StartTLS()
+		t.Cleanup(server.Close)
+		return endpoint{
+			address: strings.TrimPrefix(server.URL, "https://"), keyType: davfs.CertificateKeyType, fingerprint: davfs.Fingerprint(server.Certificate().Raw),
+			config:  map[string]string{"path": davtest.Root, "username": davtest.Username},
+			secrets: site.SecretChanges{site.SecretPassword: davtest.Password},
 		}
 	},
 	"gdrive": func(t *testing.T) endpoint {

@@ -72,7 +72,7 @@ func TestCatalog(t *testing.T) {
 	for _, d := range catalog.All() {
 		names = append(names, d.Name)
 	}
-	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Azure Blob Storage", "Azure Files", "Google Cloud Storage", "Google Drive", "S3", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
+	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Azure Blob Storage", "Azure Files", "Google Cloud Storage", "Google Drive", "S3", "Sample", "WebDAV", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("all = %v; want %v", names, want)
 	}
 }
@@ -85,7 +85,7 @@ func TestCatalog(t *testing.T) {
 //     field, a private key without a secret passphrase field, and an OAuth field without a provider or with an account field that is not
 //     text are refused; an OAuth field may go without an account field
 func TestDescriptor_Check(t *testing.T) {
-	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, connectors.S3, connectors.GCS, connectors.GDrive, connectors.AzureBlob, connectors.AzureFiles, sample} {
+	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, connectors.S3, connectors.GCS, connectors.GDrive, connectors.AzureBlob, connectors.AzureFiles, connectors.WebDAV, sample} {
 		if err := d.Check(); err != nil {
 			t.Errorf("%s: %v", d.Type, err)
 		}
@@ -238,6 +238,33 @@ func TestBuiltin(t *testing.T) {
 	}
 	if _, err := connectors.SFTP.Validate(map[string]string{"host": "h", "username": "u", "auth": "account"}); !errors.Is(err, connectors.ErrInvalidConfig) {
 		t.Errorf("SFTP with an account = %v", err)
+	}
+}
+
+// TestWebDAV verifies the settings of WebDAV sites (ADR-0026).
+//
+// Use cases:
+//   - a site uses HTTPS on port 443 and the root path by default, and port 80 without HTTPS
+//   - a path without its leading slash gets it, and settings without a path are left as they are
+//   - a public share signs in anonymously; an account logon is refused
+func TestWebDAV(t *testing.T) {
+	dav, err := connectors.WebDAV.Validate(map[string]string{"host": "cloud.example.com", "username": "alice"})
+	if want := map[string]string{"host": "cloud.example.com", "tls": "true", "port": "443", "path": "/", "auth": "password", "username": "alice"}; err != nil || !maps.Equal(dav, want) {
+		t.Errorf("WebDAV defaults = %v, %v; want %v", dav, err, want)
+	}
+	plain, _ := connectors.WebDAV.Validate(map[string]string{"host": "nas", "username": "u", "tls": "false", "path": "remote.php/dav/files/u"})
+	if plain["port"] != "80" || plain["path"] != "/remote.php/dav/files/u" {
+		t.Errorf("WebDAV over HTTP = %v", plain)
+	}
+	if got := connectors.WebDAV.Normalize(map[string]string{"host": "h"}); len(got) != 1 {
+		t.Errorf("Normalize(no path) = %v", got)
+	}
+	public, err := connectors.WebDAV.Validate(map[string]string{"host": "h", "auth": "anonymous"})
+	if err != nil || public["username"] != connectors.AnonymousUser {
+		t.Errorf("public share = %v, %v", public, err)
+	}
+	if _, err := connectors.WebDAV.Validate(map[string]string{"host": "h", "username": "u", "auth": "account"}); !errors.Is(err, connectors.ErrInvalidConfig) {
+		t.Errorf("WebDAV with an account = %v", err)
 	}
 }
 

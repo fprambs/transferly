@@ -144,7 +144,7 @@ func (t target) wipe() {
 type opener func(ctx context.Context, c *Connector, key connections.Key, t target) (remotefs.RemoteFS, error)
 
 // openers are the openers of the connectors Transferly is built with, by type.
-var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP, "s3": openS3, "gcs": openS3, "gdrive": openGDrive, "azblob": openAzureBlob, "azfiles": openAzureFiles}
+var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP, "s3": openS3, "gcs": openS3, "gdrive": openGDrive, "azblob": openAzureBlob, "azfiles": openAzureFiles, "webdav": openWebDAV}
 
 // Connect implements [connections.Connector].
 //

@@ -274,10 +274,39 @@ var AzureFiles = Descriptor{
 	Fields:       azureFields("share", AuthAccountKey, AuthSAS),
 }
 
+// WebDAV describes the connector of WebDAV servers (ADR-0026), such as Nextcloud, ownCloud, NAS systems and Apache: a host, HTTPS
+// on or off, and the path of the root of the site. Folders are real and renames are native, but writes do not resume and times
+// cannot be set. It is new, so an admin enables it.
+var WebDAV = Descriptor{
+	Type:         "webdav",
+	Name:         "WebDAV",
+	Icon:         "webdav",
+	Maturity:     Beta,
+	Capabilities: Capabilities{Folders: true, Rename: true},
+	Fields: append([]Field{
+		{Name: FieldHost, Kind: Host, Group: GroupConnection, Required: true, Port: FieldPort},
+		{Name: "tls", Kind: Boolean, Group: GroupConnection, Required: true, Default: "true"},
+		{
+			Name: FieldPort, Kind: Number, Group: GroupConnection, Required: true, Default: "443", Min: 1, Max: maxPort,
+			Defaults: []Default{{When: Condition{Field: "tls", In: []string{"false"}}, Value: "80"}},
+		},
+		{Name: "path", Kind: Text, Group: GroupConnection, Required: true, Default: "/", MaxLength: 1024},
+		{Name: FieldAuth, Kind: Choice, Group: GroupAccess, Required: true, Default: AuthPassword, Choices: []string{AuthPassword, AuthAsk, AuthAnonymous}},
+		usernameField,
+		{Name: "password", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthPassword)},
+	}, proxyFields()...),
+	Normalize: func(config map[string]string) map[string]string {
+		if p, ok := config["path"]; ok && !strings.HasPrefix(p, "/") {
+			config["path"] = "/" + p
+		}
+		return config
+	},
+}
+
 // Builtin returns a catalog with the connectors Transferly is built with.
 func Builtin() *Catalog {
 	c := NewCatalog()
-	for _, d := range []Descriptor{SFTP, FTP, S3, GCS, GDrive, AzureBlob, AzureFiles} {
+	for _, d := range []Descriptor{SFTP, FTP, S3, GCS, GDrive, AzureBlob, AzureFiles, WebDAV} {
 		c.descriptors[d.Type] = d
 	}
 	return c
