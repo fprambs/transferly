@@ -102,6 +102,9 @@ type Field struct {
 	Default string
 	// Defaults are defaults that depend on other fields; the first whose condition holds wins over Default.
 	Defaults []Default
+	// Fixed are values the field takes while their condition holds, whatever is given, such as the anonymous user of anonymous sites; the
+	// form shows them read only.
+	Fixed []Default
 	// Choices are the values a choice allows.
 	Choices []string
 	// Min and Max bound a number, when Max is above zero.
@@ -267,11 +270,11 @@ func (d Descriptor) Check() error {
 		if _, twice := seen[f.Name]; twice || f.Name == "" {
 			return fmt.Errorf("%w: field %q is empty or declared twice", ErrInvalidDescriptor, f.Name)
 		}
-		looked := make([]string, 0, len(f.Defaults)+1)
+		looked := make([]string, 0, len(f.Defaults)+len(f.Fixed)+1)
 		if f.When != nil {
 			looked = append(looked, f.When.Field)
 		}
-		for _, def := range f.Defaults {
+		for _, def := range append(slices.Clone(f.Defaults), f.Fixed...) {
 			looked = append(looked, def.When.Field)
 		}
 		for _, name := range looked {
@@ -307,7 +310,7 @@ func (f Field) Applies(config map[string]string) bool {
 }
 
 // Validate checks a configuration against the fields of a connector and returns it settled: values trimmed, the rules of [Descriptor.Normalize]
-// applied, the defaults filled in, and the fields that do not apply dropped. Settings the connector does not have are refused, so a typo is not
+// applied, fixed values set, the defaults filled in, and the fields that do not apply dropped. Settings the connector does not have are refused, so a typo is not
 // silently ignored, and so are secrets, which are given apart and never stored in the configuration.
 func (d Descriptor) Validate(config map[string]string) (map[string]string, error) {
 	trimmed := make(map[string]string, len(config))
@@ -332,6 +335,9 @@ func (d Descriptor) Validate(config map[string]string) (map[string]string, error
 			continue
 		}
 		value := trimmed[f.Name]
+		if fixed, ok := f.fixedFor(out); ok {
+			value = fixed
+		}
 		if value == "" {
 			value = f.defaultFor(out)
 		}
@@ -357,6 +363,16 @@ func (f Field) defaultFor(values map[string]string) string {
 		}
 	}
 	return f.Default
+}
+
+// fixedFor returns the value a field is fixed to for the values settled so far, and whether it is.
+func (f Field) fixedFor(values map[string]string) (string, bool) {
+	for _, fixed := range f.Fixed {
+		if fixed.When.holds(values) {
+			return fixed.Value, true
+		}
+	}
+	return "", false
 }
 
 // check tells what is wrong with a value of a field, or nothing.

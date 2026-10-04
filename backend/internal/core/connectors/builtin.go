@@ -60,11 +60,15 @@ const (
 	maxPort          = 65535
 )
 
-// Shared settings of SFTP and FTP: where the server is and who logs in.
-var (
-	hostField     = Field{Name: FieldHost, Kind: Host, Group: GroupConnection, Required: true, Port: FieldPort}
-	usernameField = Field{Name: FieldUsername, Kind: Text, Group: GroupConnection, Required: true, MaxLength: maxUsernameRunes}
-)
+// hostField is where an SFTP or FTP server is.
+var hostField = Field{Name: FieldHost, Kind: Host, Group: GroupConnection, Required: true, Port: FieldPort}
+
+// usernameField is who logs in to an SFTP or FTP server, the anonymous user for anonymous sites. It is shown with the logon type, which is
+// declared before it.
+var usernameField = Field{
+	Name: FieldUsername, Kind: Text, Group: GroupAccess, Required: true, MaxLength: maxUsernameRunes,
+	Fixed: []Default{{When: Condition{Field: FieldAuth, In: []string{AuthAnonymous}}, Value: AnonymousUser}},
+}
 
 // whenAuth applies a field to the given logon types.
 func whenAuth(types ...string) *Condition { return &Condition{Field: FieldAuth, In: types} }
@@ -84,14 +88,6 @@ func proxyFields() []Field {
 	}
 }
 
-// anonymousUser gives anonymous sites the anonymous user, whatever was typed.
-func anonymousUser(config map[string]string) map[string]string {
-	if config[FieldAuth] == AuthAnonymous {
-		config[FieldUsername] = AnonymousUser
-	}
-	return config
-}
-
 // SFTP describes the SFTP connector, which Transferly has had from its start. A connection may tunnel through a jump host.
 var SFTP = Descriptor{
 	Type:     "sftp",
@@ -104,13 +100,12 @@ var SFTP = Descriptor{
 	Fields: append(append([]Field{
 		hostField,
 		{Name: FieldPort, Kind: Number, Group: GroupConnection, Required: true, Default: "22", Min: 1, Max: maxPort},
-		usernameField,
 		{Name: FieldAuth, Kind: Choice, Group: GroupAccess, Required: true, Default: AuthPassword, Choices: []string{AuthPassword, AuthAsk, AuthInteractive, AuthKey, AuthAnonymous}},
+		usernameField,
 		{Name: "password", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthPassword)},
 		{Name: "private_key", Kind: PrivateKey, Group: GroupAccess, Passphrase: "passphrase", When: whenAuth(AuthKey)},
 		{Name: "passphrase", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthKey)},
 	}, proxyFields()...), jumpFields()...),
-	Normalize:        anonymousUser,
 	EnabledByDefault: true,
 }
 
@@ -148,8 +143,8 @@ var FTP = Descriptor{
 			Name: FieldPort, Kind: Number, Group: GroupConnection, Required: true, Default: "21", Min: 1, Max: maxPort,
 			Defaults: []Default{{When: Condition{Field: "encryption", In: []string{EncryptionImplicit}}, Value: "990"}},
 		},
-		usernameField,
 		{Name: FieldAuth, Kind: Choice, Group: GroupAccess, Required: true, Default: AuthPassword, Choices: []string{AuthPassword, AuthAsk, AuthInteractive, AuthAccount, AuthAnonymous}},
+		usernameField,
 		{Name: "password", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthPassword, AuthAccount)},
 		{Name: "account", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthAccount)},
 		{Name: "list_timezone", Kind: TimeZone, Group: GroupAdvanced, Required: true, Default: "UTC"},
@@ -159,7 +154,7 @@ var FTP = Descriptor{
 		if charset, ok := config["charset"]; ok {
 			config["charset"] = strings.ToLower(charset)
 		}
-		return anonymousUser(config)
+		return config
 	},
 	EnabledByDefault: true,
 }

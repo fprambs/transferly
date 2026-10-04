@@ -23,7 +23,7 @@ var sample = connectors.Descriptor{
 		{Name: "secure", Kind: connectors.Boolean, Default: "true"},
 		{Name: "note", Kind: connectors.Text, MaxLength: 3},
 		{Name: "zone", Kind: connectors.TimeZone},
-		{Name: "region", Kind: connectors.Text, Required: true, Default: "us"},
+		{Name: "region", Kind: connectors.Text, Required: true, Default: "us", Fixed: []connectors.Default{{When: connectors.Condition{Field: "mode", In: []string{"a"}}, Value: "eu"}}},
 		{Name: "extra", Kind: connectors.Text, Required: true, When: &connectors.Condition{Field: "mode"}},
 		{Name: "key", Kind: connectors.PrivateKey, Passphrase: "phrase", When: &connectors.Condition{Field: "mode", In: []string{"a"}}},
 		{Name: "phrase", Kind: connectors.Secret},
@@ -81,7 +81,7 @@ func TestCatalog(t *testing.T) {
 //
 // Use cases:
 //   - the built-in descriptors and the sample are consistent
-//   - a field without a name or declared twice, a condition or a dependent default on a field declared after it, a host without a number port
+//   - a field without a name or declared twice, a condition, a dependent default or a fixed value on a field declared after it, a host without a number port
 //     field and a private key without a secret passphrase field are refused
 func TestDescriptor_Check(t *testing.T) {
 	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, sample} {
@@ -95,6 +95,7 @@ func TestDescriptor_Check(t *testing.T) {
 		"twice":              {text("a"), text("a")},
 		"condition later":    {{Name: "a", Kind: connectors.Text, When: &connectors.Condition{Field: "b"}}, text("b")},
 		"default later":      {{Name: "a", Kind: connectors.Text, Defaults: []connectors.Default{{When: connectors.Condition{Field: "b"}}}}, text("b")},
+		"fixed later":        {{Name: "a", Kind: connectors.Text, Fixed: []connectors.Default{{When: connectors.Condition{Field: "b"}}}}, text("b")},
 		"host without port":  {{Name: "h", Kind: connectors.Host, Port: "p"}},
 		"host text port":     {{Name: "h", Kind: connectors.Host, Port: "p"}, text("p")},
 		"key without phrase": {{Name: "k", Kind: connectors.PrivateKey, Passphrase: "p"}},
@@ -111,7 +112,7 @@ func TestDescriptor_Check(t *testing.T) {
 //
 // Use cases:
 //   - a valid configuration is trimmed, keeps its values, gets the defaults of what it left out, a dependent default once its condition holds,
-//     and drops the fields that do not apply and the empty optional ones
+//     a fixed value whatever was given while its condition holds, and drops the fields that do not apply and the empty optional ones
 //   - a field that applies only under a condition is required then
 //   - unknown settings, secrets, missing required ones, bad numbers, numbers out of range, bad booleans, choices not offered, texts too long,
 //     bad hosts and bad time zones are refused, naming the field and the reason
@@ -122,6 +123,9 @@ func TestValidate(t *testing.T) {
 	}
 	if want := map[string]string{"host": "a.b", "port": "22", "count": "-7", "secure": "true", "region": "us"}; !maps.Equal(got, want) {
 		t.Errorf("Validate() = %v; want %v", got, want)
+	}
+	if fixed, err := sample.Validate(map[string]string{"host": "a.b", "mode": "a", "extra": "x", "region": "us"}); err != nil || fixed["region"] != "eu" {
+		t.Errorf("Validate() with a fixed value = %v, %v; want region eu whatever was given", fixed, err)
 	}
 	got, err = sample.Validate(map[string]string{"host": "a.b", "mode": "b", "extra": "x", "zone": "America/Santiago"})
 	if err != nil || got["port"] != "99" || got["extra"] != "x" || got["zone"] != "America/Santiago" {

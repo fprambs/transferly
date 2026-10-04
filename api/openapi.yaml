@@ -5320,6 +5320,11 @@ components:
           description: Defaults that depend on other fields; the first whose condition holds wins over default.
           items:
             $ref: "#/components/schemas/ConnectorDefault"
+        fixed:
+          type: array
+          description: Values the field takes while their condition holds, whatever is sent, such as the anonymous user; the form shows them read only.
+          items:
+            $ref: "#/components/schemas/ConnectorDefault"
         when:
           $ref: "#/components/schemas/ConnectorCondition"
         choices:

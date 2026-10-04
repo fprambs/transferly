@@ -40,6 +40,9 @@ func TestListConnectors(t *testing.T) {
 	if *port.Default != "22" || *port.Min != 1 || *port.Max != 65535 {
 		t.Errorf("port = %+v", port)
 	}
+	if username := sftp.Fields[3]; username.Name != "username" || username.Fixed == nil || (*username.Fixed)[0].Value != "anonymous" {
+		t.Errorf("username = %+v", username)
+	}
 	key := sftp.Fields[5]
 	if key.Name != "private_key" || key.Kind != "private_key" || *key.Passphrase != "passphrase" || key.When == nil || key.When.Field != "auth" || (*key.When.In)[0] != "key" {
 		t.Errorf("private key = %+v", key)

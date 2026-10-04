@@ -41,14 +41,20 @@ func fieldDTO(f connectors.Field) ConnectorField {
 		choices := f.Choices
 		out.Choices = &choices
 	}
-	if len(f.Defaults) > 0 {
-		defaults := make([]ConnectorDefault, len(f.Defaults))
-		for i, d := range f.Defaults {
-			defaults[i] = ConnectorDefault{When: *conditionDTO(&d.When), Value: d.Value}
-		}
-		out.Defaults = &defaults
-	}
+	out.Defaults, out.Fixed = defaultsDTO(f.Defaults), defaultsDTO(f.Fixed)
 	return out
+}
+
+// defaultsDTO converts the dependent defaults or the fixed values of a field to their public form, or nil for none.
+func defaultsDTO(values []connectors.Default) *[]ConnectorDefault {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]ConnectorDefault, len(values))
+	for i, d := range values {
+		out[i] = ConnectorDefault{When: *conditionDTO(&d.When), Value: d.Value}
+	}
+	return &out
 }
 
 // connectorDTO converts a connector of the catalog, and whether the instance offers it, to its public form.
