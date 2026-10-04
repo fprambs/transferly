@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -33,7 +33,8 @@ function site(id: string, name: string, collectionId?: string): Site {
  * - a double click or Enter connects a site or a quick connection, Ctrl with the double click opens it in a new tab, and a click only selects (4.14f)
  * - the toolbar offers quick connect and the create actions
  * - the labels follow the interface language
- * - a site wears its color label and the icon of its protocol
+ * - a site wears its color label and the icon of its connector, with a badge when its connection may travel unencrypted; a connector
+ *   the catalog does not list gets the generic icon
  * - connected sites and quick connections carry a green dot named for screen readers, and connected sites offer to disconnect in their menu
  */
 describe('SitesSidebar', () => {
@@ -58,7 +59,7 @@ describe('SitesSidebar', () => {
     expect(screen.queryByRole('menuitem', { name: 'Disconnect' })).not.toBeInTheDocument()
   })
 
-  it('draws the color label of a site and the icon of its protocol', async () => {
+  it('draws the color label of a site and the icon of its connector, with the badge of its transport', async () => {
     mockWorkspaceData({ sites: [{ ...site('s1', 'Prod'), color: 'green' }, { ...site('s2', 'Legacy'), connector: 'ftp', config: { host: 'legacy.example.com', encryption: 'plain' } }] })
     await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
@@ -68,6 +69,16 @@ describe('SitesSidebar', () => {
     const legacy = screen.getByRole('treeitem', { name: /Legacy/ })
     expect(legacy.querySelector('[data-color]')).toBeNull()
     expect(legacy.querySelector('[data-transport]')).toHaveAttribute('data-transport', 'plain')
+    await waitFor(() => expect(legacy.querySelector('[data-icon]')).toHaveAttribute('data-icon', 'ftps'))
+    expect(prod.querySelector('[data-icon]')).toHaveAttribute('data-icon', 'sftp')
+  })
+
+  it('draws the generic connector icon for a site whose connector the catalog does not list', async () => {
+    mockWorkspaceData({ sites: [{ ...site('s1', 'Shares'), connector: 'webdav', config: { host: 'dav.example.com' } }] })
+    await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
+
+    const row = await screen.findByRole('treeitem', { name: /Shares/ })
+    expect(row.querySelector('[data-icon]')).toHaveAttribute('data-icon', 'connector')
   })
 
   it('offers no way to disconnect when none is given', async () => {

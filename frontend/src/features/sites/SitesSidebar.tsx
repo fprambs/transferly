@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { BrandIcon } from '@/components/brand/BrandIcon'
 import { Illustration } from '@/components/brand/Illustration'
-import { ProtocolIcon } from '@/components/brand/ProtocolIcon'
+import { SiteIcon } from '@/components/brand/SiteIcon'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -15,6 +15,7 @@ import { formatShortcut } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useDialogsStore } from '@/state/dialogs-store'
 
+import { useConnectors } from '../connectors/use-connectors'
 import { canManageSites } from '../teams/roles'
 import { useWorkspace } from '../workspace/use-workspace'
 
@@ -65,6 +66,8 @@ interface CollectionActions {
   connected: ReadonlySet<string>
   /** Called to close the connections to a site. */
   onDisconnect: (id: string) => void
+  /** Tells the icon of a connector from its descriptor, or the connector type while the catalog loads. */
+  iconOf: (connector: string) => string
   /** Whether saved sites and collections can be dragged to another collection (4.14h). */
   draggable: boolean
   /** Called when the user starts dragging a row. */
@@ -242,7 +245,7 @@ function Row({ node, actions }: RowProps) {
         <span data-color={node.color} className={cn('h-4 w-[3px] rounded-full', colorFill(node.color))} />
       </span>
       {actions.connected.has(node.id) ? <ConnectedDot /> : <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />}
-      <ProtocolIcon transport={node.transport} className="size-[15px]" />
+      <SiteIcon icon={actions.iconOf(node.connector)} transport={node.transport} className="size-[15px]" />
       <span className="min-w-0 flex-1 truncate">{node.name}</span>
       <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
       <DropdownMenu>
@@ -301,6 +304,8 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
   const setQuickConnectOpen = useDialogsStore((state) => state.setQuickConnectOpen)
   const { collections, sites, quick } = useSitesData(workspace?.id)
   const connected = useOpenConnections(workspace?.id)
+  const catalog = useConnectors().data
+  const icons = useMemo(() => new Map(catalog?.map((connector) => [connector.type, connector.icon])), [catalog])
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [target, setTarget] = useState<CollectionTarget | null>(null)
   const [deleting, setDeleting] = useState<Collection | null>(null)
@@ -373,6 +378,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
     onDeleteSite: (id) => setDeletingSite(sites.find((site) => site.id === id) as Site),
     connected,
     onDisconnect,
+    iconOf: (connector) => icons.get(connector) ?? connector,
     draggable: workspace !== undefined && canManageSites(workspace.role),
     onDragRow: (drag, data) => {
       data.setData(treeDragType, drag.id)

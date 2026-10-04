@@ -30,7 +30,9 @@ export interface SiteNode {
   depth: number
   /** Host shown next to the name. */
   host: string
-  /** How the site reaches its server, shown by its icon. */
+  /** The type of the site's connector, whose icon the row shows. */
+  connector: string
+  /** How the site reaches its server, shown by the badge of its icon. */
   transport: Transport
   /** The label color of the site, left out when it has none. */
   color?: SiteColor
@@ -109,7 +111,7 @@ function visit(
     }
   }
   for (const site of sites.get(parent) ?? []) {
-    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: hostOf(site), transport: transportOf(site), color: site.color, collectionId: site.collectionId })
+    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: hostOf(site), connector: site.connector, transport: transportOf(site), color: site.color, collectionId: site.collectionId })
   }
 }
 
