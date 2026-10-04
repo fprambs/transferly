@@ -17,6 +17,7 @@ import (
 	"github.com/fprambs/transferly/internal/core/auth"
 	"github.com/fprambs/transferly/internal/core/bookmark"
 	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/files"
 	"github.com/fprambs/transferly/internal/core/hostkey"
 	"github.com/fprambs/transferly/internal/core/invite"
@@ -310,7 +311,7 @@ func (brokenSites) DeleteSite(context.Context, uuid.UUID, uuid.UUID) error { ret
 func TestSiteFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
 		store := brokenSites{d.Readiness.(*postgres.Store)}
-		d.Sites = site.NewService(store, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
+		d.Sites = site.NewService(store, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), connectors.Builtin(), realClock{}, rand.Reader, nil)
 	})
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -538,7 +539,7 @@ func (brokenCollections) DeleteCollection(context.Context, uuid.UUID, uuid.UUID)
 //   - listing, creating, updating and deleting answer 500 when the store fails
 func TestCollectionFailures(t *testing.T) {
 	a := newAPI(t, func(d *httpapi.Deps) {
-		d.Sites = site.NewService(brokenCollections{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), realClock{}, rand.Reader, nil)
+		d.Sites = site.NewService(brokenCollections{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), connectors.Builtin(), realClock{}, rand.Reader, nil)
 	})
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

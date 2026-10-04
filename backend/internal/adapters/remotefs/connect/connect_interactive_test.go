@@ -54,7 +54,7 @@ func connectInBackground(t *testing.T, e *env, c *connect.Connector, target site
 	return done
 }
 
-// TestConnector_Interactive covers sites of the [site.AuthInteractive] logon type in [connect.Connector.Connect] (ADR-0016).
+// TestConnector_Interactive covers sites of the ["interactive"] logon type in [connect.Connector.Connect] (ADR-0016).
 //
 // Use cases:
 //   - an SFTP site relays the server's keyboard-interactive challenge, a password and a one-time code, to the user who
@@ -74,7 +74,7 @@ func TestConnector_Interactive(t *testing.T) {
 
 	otp := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}, KeyboardOnly: true, Code: "123456"})
 	e.trust(otp)
-	target := e.addSite(otp, site.Input{Name: "One-time codes", AuthMethod: site.AuthInteractive}, site.SecretChanges{})
+	target := e.addSite(otp, spec{Name: "One-time codes", AuthMethod: "interactive"}, changes{})
 	done := connectInBackground(t, e, c, target)
 	p := asked.next(t)
 	if p.SiteID != target.ID || p.WorkspaceID != e.workspace || p.Challenge.Name != "Two steps" || len(p.Challenge.Questions) != 2 {
@@ -104,7 +104,7 @@ func TestConnector_Interactive(t *testing.T) {
 	}
 
 	ftpServer := ftptest.Start(t, ftptest.Options{})
-	ftpSite := e.addSiteAt(ftpServer.Addr, site.Input{Name: "FTP asks", Protocol: site.FTP, Username: ftpUser, AuthMethod: site.AuthInteractive}, site.SecretChanges{})
+	ftpSite := e.addSiteAt(ftpServer.Addr, spec{Name: "FTP asks", Protocol: "ftp", Username: ftpUser, AuthMethod: "interactive"}, changes{})
 	done = connectInBackground(t, e, c, ftpSite)
 	p = asked.next(t)
 	if len(p.Challenge.Questions) != 1 || p.Challenge.Questions[0].Echo {

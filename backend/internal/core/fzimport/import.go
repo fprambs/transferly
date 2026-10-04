@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/netguard"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/core/workspace"
@@ -16,6 +17,8 @@ import (
 
 // Sites is what the import needs from the site service.
 type Sites interface {
+	// Settle validates the settings of a site and fills in the defaults, without saving it.
+	Settle(in site.Input) (site.Input, connectors.Descriptor, error)
 	// Create saves a site and its secrets.
 	Create(ctx context.Context, actor, workspaceID uuid.UUID, session string, in site.Input, changes site.SecretChanges) (site.Site, error)
 	// List returns the sites of a workspace.
@@ -71,27 +74,19 @@ type Entry struct {
 }
 
 // hasSecrets reports whether an entry carries any secret.
-func (e Entry) hasSecrets() bool {
-	c := e.Secrets
-	for _, value := range []*string{c.Password, c.PrivateKey, c.Passphrase, c.JumpPassword, c.JumpPrivateKey, c.JumpPassphrase, c.ProxyPassword, c.Account} {
-		if value != nil {
-			return true
-		}
-	}
-	return false
-}
+func (e Entry) hasSecrets() bool { return len(e.Secrets) > 0 }
 
 // entryOf turns a server of a FileZilla file into an entry.
 func entryOf(server Server) Entry {
 	e := Entry{
-		Path: server.Path, PasswordSkipped: server.PasswordSkipped,
-		Input: site.Input{Name: server.Name, Protocol: server.Protocol, FTPEncryption: server.FTPEncryption, Host: server.Host, Port: server.Port, Username: server.Username, AuthMethod: server.AuthMethod, RemoteDir: server.RemoteDir, Color: server.Color},
+		Path: server.Path, PasswordSkipped: server.PasswordSkipped, Secrets: site.SecretChanges{},
+		Input: site.Input{Name: server.Name, Connector: server.Connector, Config: server.Config, RemoteDir: server.RemoteDir, Color: server.Color},
 	}
 	if server.Password != "" {
-		e.Secrets.Password = &server.Password
+		e.Secrets[site.SecretPassword] = server.Password
 	}
 	if server.Account != "" {
-		e.Secrets.Account = &server.Account
+		e.Secrets[site.SecretAccount] = server.Account
 	}
 	return e
 }
@@ -158,11 +153,6 @@ var failures = []struct {
 	code string
 }{
 	{site.ErrInvalidName, "invalid_name"},
-	{site.ErrInvalidHost, "invalid_host"},
-	{site.ErrInvalidPort, "invalid_port"},
-	{site.ErrInvalidProtocol, "invalid_protocol"},
-	{site.ErrInvalidUsername, "invalid_username"},
-	{site.ErrInvalidAuthMethod, "invalid_auth_method"},
 	{site.ErrSecretTooLarge, "secret_too_large"},
 	{site.ErrNameTaken, "name_taken"},
 	{netguard.ErrBlocked, "destination_blocked"},
@@ -171,8 +161,13 @@ var failures = []struct {
 	{site.ErrCollectionNameTaken, "collection_name_taken"},
 }
 
-// reasonOf returns the code of a failure that belongs to one site, or "" for any other error.
+// reasonOf returns the code of a failure that belongs to one site, or "" for any other error. A setting that breaks the schema of the
+// connector is invalid_ followed by the name of the setting, such as invalid_host.
 func reasonOf(err error) string {
+	var field *connectors.FieldError
+	if errors.As(err, &field) {
+		return "invalid_" + field.Field
+	}
 	for _, f := range failures {
 		if errors.Is(err, f.err) {
 			return f.code
@@ -310,7 +305,7 @@ func (r *run) one(entry Entry) (Item, error) {
 	item.Name = name
 	input := entry.Input
 	input.Name = name
-	if _, err := site.Normalize(input); err != nil {
+	if _, _, err := r.s.sites.Settle(input); err != nil {
 		item.Status, item.Reason = StatusFailed, reasonOf(err)
 		return item, nil
 	}

@@ -16,7 +16,33 @@ import (
 
 // siteBody returns valid site settings with the given name.
 func siteBody(name string) map[string]any {
-	return map[string]any{"name": name, "protocol": "sftp", "host": "8.8.8.8", "username": "deploy"}
+	return map[string]any{"name": name, "connector": "sftp", "config": map[string]any{"host": "8.8.8.8", "username": "deploy"}}
+}
+
+// set changes settings of the configuration in the body of a site or a quick connection, given as name and value pairs.
+func set(body map[string]any, settings ...string) map[string]any {
+	config, ok := body["config"].(map[string]any)
+	if !ok {
+		config = map[string]any{}
+		body["config"] = config
+	}
+	for i := 0; i+1 < len(settings); i += 2 {
+		config[settings[i]] = settings[i+1]
+	}
+	return body
+}
+
+// secret sets secrets in the body of a site or a quick connection, given as kind and value pairs.
+func secret(body map[string]any, secrets ...string) map[string]any {
+	changes, ok := body["secrets"].(map[string]any)
+	if !ok {
+		changes = map[string]any{}
+		body["secrets"] = changes
+	}
+	for i := 0; i+1 < len(secrets); i += 2 {
+		changes[secrets[i]] = secrets[i+1]
+	}
+	return body
 }
 
 // sitesPath returns the sites collection path of a workspace, or one site when id is given.
@@ -54,7 +80,8 @@ func (a *api) personal(cookie *http.Cookie) uuid.UUID {
 //   - a site is created with defaults, listed and read back, and no response ever contains a secret
 //   - secrets are reported by kind; writing one while the vault is locked is 409 vault_locked
 //   - an update replaces the settings, keeps the secrets it does not mention and removes emptied ones
-//   - duplicate names are 409, invalid settings, private destinations and oversized secrets are 422 with stable codes
+//   - duplicate names are 409; invalid site settings, private destinations and oversized secrets are 422 with stable codes, and a
+//     configuration or a secret that breaks the connector's schema is 422 invalid_config naming the field
 //   - deleting removes the site; reading, updating or deleting it again is 404 site_not_found
 func TestSites_Lifecycle(t *testing.T) {
 	a := newAPI(t)
@@ -66,13 +93,12 @@ func TestSites_Lifecycle(t *testing.T) {
 		t.Fatalf("create = %d %s", created.Status, created.Body)
 	}
 	site := created.site(t)
-	if site.Port != 22 || site.AuthMethod != "password" || site.ListTimezone != "UTC" || len(site.Secrets) != 0 {
+	if site.Connector != "sftp" || site.Config["port"] != "22" || site.Config["auth"] != "password" || len(site.Secrets) != 0 {
 		t.Errorf("created site = %+v; want defaults", site)
 	}
 	id := site.Id.String()
 
-	locked := siteBody("With secret")
-	locked["password"] = "hunter2-hunter2"
+	locked := secret(siteBody("With secret"), "password", "hunter2-hunter2")
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), locked, cookie, csrf), 409, "vault_locked")
 	if r := a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, csrf); r.Status != http.StatusCreated {
 		t.Fatalf("vault setup = %d %s", r.Status, r.Body)
@@ -99,60 +125,54 @@ func TestSites_Lifecycle(t *testing.T) {
 		t.Errorf("list = %s", list.Body)
 	}
 
-	update := siteBody("With secret")
-	update["port"], update["protocol"], update["host"], update["authMethod"], update["listTimezone"] = 2222, "sftp", "example.com", "key", "America/Santiago"
-	update["privateKey"] = testutil.PrivateKey(t, "")
-	update["proxy"] = map[string]any{"kind": "socks5", "host": "8.8.4.4", "port": 1080, "username": "proxyuser"}
-	update["proxyPassword"] = "proxypass"
-	update["jump"] = map[string]any{"host": "1.1.1.1", "port": 22, "username": "bastion", "authMethod": "password"}
-	update["jumpPassword"] = "bastionpass"
+	update := set(siteBody("With secret"), "port", "2222", "host", "example.com",
+		"proxy_kind", "socks5", "proxy_host", "8.8.4.4", "proxy_port", "1080", "proxy_username", "proxyuser",
+		"jump_host", "1.1.1.1", "jump_username", "bastion")
+	secret(update, "proxy_password", "proxypass", "jump_password", "bastionpass")
 	updated := a.send(http.MethodPut, sitesPath(ws, secretID), update, cookie, csrf)
 	if updated.Status != http.StatusOK {
 		t.Fatalf("update = %d %s", updated.Status, updated.Body)
 	}
-	if got := updated.site(t); got.Port != 2222 || got.AuthMethod != "key" || got.ListTimezone != "America/Santiago" || len(got.Secrets) != 4 {
-		t.Errorf("updated = %+v; want the password kept, the key, the proxy password and the jump password added", got)
+	if got := updated.site(t); got.Config["port"] != "2222" || got.Config["proxy_username"] != "proxyuser" || got.Config["jump_port"] != "22" || len(got.Secrets) != 3 {
+		t.Errorf("updated = %+v; want the password kept, and the proxy password and the jump password added", got)
 	}
-	if got := updated.site(t); got.Proxy == nil || got.Proxy.Host != "8.8.4.4" || got.Proxy.Port != 1080 || got.Proxy.Username == nil || *got.Proxy.Username != "proxyuser" {
-		t.Errorf("updated proxy = %+v", got.Proxy)
-	}
-	if got := updated.site(t); got.Jump == nil || got.Jump.Host != "1.1.1.1" || got.Jump.Username != "bastion" || got.Jump.AuthMethod != "password" {
-		t.Errorf("updated jump = %+v", got.Jump)
-	}
-	update["password"], update["proxyPassword"], update["jumpPassword"] = "", "", ""
-	if got := a.send(http.MethodPut, sitesPath(ws, secretID), update, cookie, csrf).site(t); len(got.Secrets) != 1 || got.Secrets[0] != "private_key" {
-		t.Errorf("after emptying the password, proxy password and jump password = %+v", got.Secrets)
+	keyed := set(siteBody("With secret"), "host", "example.com", "auth", "key")
+	secret(keyed, "private_key", testutil.PrivateKey(t, ""))
+	if got := a.send(http.MethodPut, sitesPath(ws, secretID), keyed, cookie, csrf).site(t); len(got.Secrets) != 1 || got.Secrets[0] != "private_key" {
+		t.Errorf("after switching to a key, without a proxy or a jump host = %+v; want only the key", got.Secrets)
 	}
 
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), siteBody("production"), cookie, csrf), 409, "site_name_taken")
 	expectProblem(t, a.send(http.MethodPut, sitesPath(ws, secretID), siteBody("PRODUCTION"), cookie, csrf), 409, "site_name_taken")
 	invalid := map[string]func(map[string]any){
 		"invalid_name":        func(b map[string]any) { b["name"] = " " },
-		"invalid_protocol":    func(b map[string]any) { b["protocol"] = "gopher" },
-		"invalid_host":        func(b map[string]any) { b["host"] = "ftp://x" },
-		"invalid_port":        func(b map[string]any) { b["port"] = 70000 },
-		"invalid_username":    func(b map[string]any) { b["username"] = "" },
-		"invalid_auth_method": func(b map[string]any) { b["authMethod"], b["protocol"] = "key", "ftp" },
-		"invalid_timezone":    func(b map[string]any) { b["listTimezone"] = "Mars/Base" },
-		"invalid_charset":     func(b map[string]any) { b["charset"] = "klingon" },
-		"destination_blocked": func(b map[string]any) { b["host"] = "169.254.169.254" },
-		"secret_too_large":    func(b map[string]any) { b["password"] = strings.Repeat("p", 2000) },
+		"destination_blocked": func(b map[string]any) { set(b, "host", "169.254.169.254") },
+		"secret_too_large":    func(b map[string]any) { secret(b, "password", strings.Repeat("p", 2000)) },
 		"invalid_speed_limit": func(b map[string]any) { b["speedLimitBps"] = -1 },
-		"invalid_proxy": func(b map[string]any) {
-			b["proxy"] = map[string]any{"kind": "wireguard", "host": "p.example", "port": 1080}
-		},
-		"invalid_jump": func(b map[string]any) {
-			b["protocol"], b["jump"] = "ftp", map[string]any{"host": "b.example", "port": 22, "username": "u", "authMethod": "password"}
-		},
 	}
 	for code, mutate := range invalid {
 		body := siteBody("Invalid " + code)
 		mutate(body)
-		status := 422
-		expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), status, code)
+		expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, code)
 	}
-	unresolvable := siteBody("Nowhere")
-	unresolvable["host"] = "nowhere.invalid"
+	fields := map[string]func(map[string]any){
+		"connector": func(b map[string]any) { b["connector"] = "gopher" },
+		"host":      func(b map[string]any) { set(b, "host", "ftp://x") },
+		"port":      func(b map[string]any) { set(b, "port", "70000") },
+		"auth":      func(b map[string]any) { set(b, "auth", "account") },
+		"shade":     func(b map[string]any) { set(b, "shade", "blue") },
+		"token":     func(b map[string]any) { secret(b, "token", "x") },
+	}
+	for field, mutate := range fields {
+		body := siteBody("Invalid " + field)
+		mutate(body)
+		r := a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf)
+		expectProblem(t, r, 422, "invalid_config")
+		if !strings.Contains(string(r.Body), `"field":"`+field+`"`) {
+			t.Errorf("invalid %s does not name the field: %s", field, r.Body)
+		}
+	}
+	unresolvable := set(siteBody("Nowhere"), "host", "nowhere.invalid")
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), unresolvable, cookie, csrf), 422, "host_unresolvable")
 
 	if r := a.send(http.MethodDelete, sitesPath(ws, id), nil, cookie, csrf); r.Status != http.StatusNoContent {
@@ -249,23 +269,22 @@ func TestSites_Charset(t *testing.T) {
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
 
-	plain := a.send(http.MethodPost, sitesPath(ws), siteBody("Plain"), cookie, csrf)
-	if got := plain.site(t).Charset; plain.Status != http.StatusCreated || got != "utf-8" {
-		t.Errorf("default charset = %q (%d)", got, plain.Status)
+	plain := siteBody("Plain")
+	plain["connector"] = "ftp"
+	if r := a.send(http.MethodPost, sitesPath(ws), plain, cookie, csrf); r.Status != http.StatusCreated || r.site(t).Config["charset"] != "utf-8" {
+		t.Errorf("default charset = %d %s", r.Status, r.Body)
 	}
-	legacy := siteBody("Legacy")
-	legacy["protocol"], legacy["charset"] = "ftp", "Windows-1252"
+	legacy := set(siteBody("Legacy"), "charset", "Windows-1252")
+	legacy["connector"] = "ftp"
 	made := a.send(http.MethodPost, sitesPath(ws), legacy, cookie, csrf)
-	if made.Status != http.StatusCreated || made.site(t).Charset != "windows-1252" {
+	if made.Status != http.StatusCreated || made.site(t).Config["charset"] != "windows-1252" {
 		t.Fatalf("legacy site = %d %s", made.Status, made.Body)
 	}
-	legacy["charset"] = "koi8-r"
-	if r := a.send(http.MethodPut, sitesPath(ws, made.site(t).Id.String()), legacy, cookie, csrf); r.Status != http.StatusOK || r.site(t).Charset != "koi8-r" {
+	set(legacy, "charset", "koi8-r")
+	if r := a.send(http.MethodPut, sitesPath(ws, made.site(t).Id.String()), legacy, cookie, csrf); r.Status != http.StatusOK || r.site(t).Config["charset"] != "koi8-r" {
 		t.Errorf("update = %d %s", r.Status, r.Body)
 	}
-	sftp := siteBody("Secure")
-	sftp["charset"] = "iso-8859-1"
-	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), sftp, cookie, csrf), 422, "invalid_charset")
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), set(siteBody("Secure"), "charset", "iso-8859-1"), cookie, csrf), 422, "invalid_config")
 }
 
 // TestSites_RemoteDir verifies the folder a site opens in (4.14i).
@@ -338,14 +357,14 @@ func TestSites_Account(t *testing.T) {
 	if r := a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, csrf); r.Status != http.StatusCreated {
 		t.Fatalf("vault setup = %d %s", r.Status, r.Body)
 	}
-	body := siteBody("Billed")
-	body["protocol"], body["authMethod"], body["password"], body["account"] = "ftp", "account", "pw", "billing"
+	body := secret(set(siteBody("Billed"), "auth", "account"), "password", "pw", "account", "billing")
+	body["connector"] = "ftp"
 
 	made := a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf)
 	got := made.site(t)
-	if made.Status != http.StatusCreated || got.AuthMethod != "account" || !slices.Contains(got.Secrets, httpapi.SiteSecrets("account")) || strings.Contains(string(made.Body), "billing") {
+	if made.Status != http.StatusCreated || got.Config["auth"] != "account" || !slices.Contains(got.Secrets, "account") || strings.Contains(string(made.Body), "billing") {
 		t.Fatalf("created = %d %s", made.Status, made.Body)
 	}
-	body["protocol"] = "sftp"
-	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_auth_method")
+	body["connector"] = "sftp"
+	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf), 422, "invalid_config")
 }

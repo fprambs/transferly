@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"os"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/netguard"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/core/sshkey"
@@ -69,7 +71,7 @@ func (m *memStore) UpdateSite(_ context.Context, s site.Site, secrets []site.Sea
 	return nil
 }
 
-// Site returns one site.
+// Site returns one site with the kinds of its stored secrets, as the real store does.
 func (m *memStore) Site(_ context.Context, ws, id uuid.UUID) (site.Site, error) {
 	if m.failGet != nil {
 		return site.Site{}, m.failGet
@@ -77,6 +79,12 @@ func (m *memStore) Site(_ context.Context, ws, id uuid.UUID) (site.Site, error) 
 	s, ok := m.sites[id]
 	if !ok || s.WorkspaceID != ws {
 		return site.Site{}, site.ErrNotFound
+	}
+	s.Secrets = nil
+	for key, sealed := range m.secrets {
+		if strings.HasPrefix(key, id.String()) {
+			s.Secrets = append(s.Secrets, sealed.Kind)
+		}
 	}
 	return s, nil
 }
@@ -253,7 +261,7 @@ func newFixture(t *testing.T, random *switchable) *fixture {
 	f := &fixture{store: &memStore{sites: map[uuid.UUID]site.Site{}, secrets: map[string]site.Sealed{}, collections: map[uuid.UUID]site.Collection{}}, ws: uuid.New(), editor: uuid.New(), viewer: uuid.New(), guard: netguard.NewPolicy(nil, resolver{})}
 	authz := roles{f.editor: workspace.RoleEditor, f.viewer: workspace.RoleViewer}
 	clock := testutil.NewFakeClock(time.Date(2026, 5, 6, 7, 8, 9, 0, time.UTC))
-	f.svc = site.NewService(f.store, authz, keys{dek: dek, session: "open"}, f.guard, clock, random, nil)
+	f.svc = site.NewService(f.store, authz, keys{dek: dek, session: "open"}, f.guard, connectors.Builtin(), clock, random, nil)
 	return f
 }
 
@@ -282,156 +290,136 @@ func (s *switchable) Read(p []byte) (int, error) {
 	return rand.Read(p)
 }
 
-// valid returns input that passes validation.
+// valid returns input that passes validation: an SFTP site of a public host.
 func valid() site.Input {
-	return site.Input{Name: "Production", Protocol: site.SFTP, Host: "public.example", Username: "deploy"}
+	return site.Input{Name: "Production", Connector: "sftp", Config: map[string]string{"host": "public.example", "username": "deploy"}}
 }
 
-// text returns a pointer to a string, for secret changes.
-func text(s string) *string { return &s }
+// with returns a copy of input with its name and some settings changed, given as name and value pairs; an empty value removes the setting.
+func with(in site.Input, name string, settings ...string) site.Input {
+	config := make(map[string]string, len(in.Config))
+	for k, v := range in.Config {
+		config[k] = v
+	}
+	for i := 0; i+1 < len(settings); i += 2 {
+		if settings[i+1] == "" {
+			delete(config, settings[i])
+		} else {
+			config[settings[i]] = settings[i+1]
+		}
+	}
+	in.Name, in.Config = name, config
+	return in
+}
+
+// ftp returns input that passes validation for an FTP site.
+func ftp(name string) site.Input {
+	return site.Input{Name: name, Connector: "ftp", Config: map[string]string{"host": "public.example", "username": "deploy"}}
+}
 
 // TestService_CreateValidation verifies the rules on site settings.
 //
 // Scenarios:
-//   - valid input is stored with defaults: port by protocol, password authentication, UTC listings, trimmed fields
+//   - valid input is stored settled by the schema of its connector: trimmed, with the defaults filled in
 //   - the default remote folder is stored cleaned, the root is stored empty, and a relative, too long, control-character or invalid UTF-8
 //     one is refused with ErrInvalidRemoteDir
-//   - a known label color is stored and an unknown one is refused with ErrInvalidColor
-//   - empty or oversized names, unknown protocols, malformed hosts, ports out of range, empty user names,
-//     unknown or protocol-incompatible authentication methods and unknown time zones are each refused with their error
-//   - the character set defaults to UTF-8, is case insensitive, and only UTF-8 is accepted for SFTP
-//   - key authentication is accepted for SFTP only
-//   - hosts that resolve to private addresses are refused with ErrBlocked, unresolvable ones with ErrUnresolvable
-//   - a proxy and a jump host are trimmed and validated the same way, refused on an invalid kind, host, port or
-//     username, a jump host is refused outside SFTP, and both are checked against the network guard like any host
+//   - a known label color and a speed limit are stored, and an unknown color or a speed limit out of range are refused
+//   - empty or oversized names are refused with ErrInvalidName, an unknown connector and a configuration that breaks the schema with a
+//     field error
+//   - every host the configuration points to, the server's, the proxy's and the jump host's, is checked against the network guard
 func TestService_CreateValidation(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t, &switchable{})
 
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", site.Input{Name: "  Prod  ", Protocol: site.FTPS, Host: " public.example ", Username: " me "}, site.SecretChanges{})
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", site.Input{Name: "  Prod  ", Connector: "ftp", Config: map[string]string{"host": " public.example ", "username": " me "}}, site.SecretChanges{})
 	if err != nil {
 		t.Fatalf("Create() = %v", err)
 	}
-	if created.Name != "Prod" || created.Host != "public.example" || created.Username != "me" || created.Port != 21 ||
-		created.AuthMethod != site.AuthPassword || created.ListTimezone != "UTC" || created.CreatedAt.Location() != time.UTC || created.ID == uuid.Nil {
+	want := map[string]string{"host": "public.example", "encryption": "explicit", "port": "21", "username": "me", "auth": "password", "list_timezone": "UTC", "charset": "utf-8"}
+	if created.Name != "Prod" || created.Connector != "ftp" || !maps.Equal(created.Config, want) || created.Setting("port") != "21" ||
+		created.CreatedAt.Location() != time.UTC || created.ID == uuid.Nil {
 		t.Errorf("Create() = %+v", created)
 	}
-	if created.Charset != "utf-8" {
-		t.Errorf("default charset = %q", created.Charset)
-	}
-	if legacy, err := f.svc.Create(ctx, f.editor, f.ws, "open", site.Input{Name: "Legacy", Protocol: site.FTP, Host: "public.example", Username: "me", Charset: " ISO-8859-1 "}, site.SecretChanges{}); err != nil || legacy.Charset != "iso-8859-1" {
-		t.Errorf("legacy charset = %+v, %v", legacy, err)
-	}
-	if sftp, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Key"; in.AuthMethod = site.AuthKey; return in }(), site.SecretChanges{}); err != nil || sftp.Port != 22 {
-		t.Errorf("SFTP with key = %+v, %v", sftp, err)
-	}
-	if capped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Capped"; in.SpeedLimit = 65536; return in }(), site.SecretChanges{}); err != nil || capped.SpeedLimit != 65536 {
+	if capped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := with(valid(), "Capped"); in.SpeedLimit = 65536; return in }(), site.SecretChanges{}); err != nil || capped.SpeedLimit != 65536 {
 		t.Errorf("site with a speed limit = %+v, %v", capped, err)
 	}
-	if labeled, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := valid(); in.Name = "Labeled"; in.Color = "red"; return in }(), site.SecretChanges{}); err != nil || labeled.Color != "red" {
+	if labeled, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input { in := with(valid(), "Labeled"); in.Color = "red"; return in }(), site.SecretChanges{}); err != nil || labeled.Color != "red" {
 		t.Errorf("site with a color = %+v, %v", labeled, err)
 	}
 	for dir, want := range map[string]string{" /var/www/./html/ ": "/var/www/html", "/": "", "": ""} {
-		in := valid()
-		in.Name, in.RemoteDir = "Dir "+uuid.NewString(), dir
+		in := with(valid(), "Dir "+uuid.NewString())
+		in.RemoteDir = dir
 		if got, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{}); err != nil || got.RemoteDir != want {
 			t.Errorf("remote folder %q = %q, %v; want %q", dir, got.RemoteDir, err, want)
 		}
 	}
-	proxied, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input {
-		in := valid()
-		in.Name = "Proxied"
-		in.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: " public.example ", Port: 1080, Username: " proxyuser "}
-		return in
-	}(), site.SecretChanges{})
-	if err != nil || proxied.Proxy != (site.Proxy{Kind: site.ProxySOCKS5, Host: "public.example", Port: 1080, Username: "proxyuser"}) {
-		t.Errorf("site with a proxy = %+v, %v", proxied, err)
-	}
-	jumped, err := f.svc.Create(ctx, f.editor, f.ws, "open", func() site.Input {
-		in := valid()
-		in.Name = "Jumped"
-		in.Jump = site.Jump{Host: " public.example ", Username: " bastion "}
-		return in
-	}(), site.SecretChanges{})
-	if err != nil || jumped.Jump != (site.Jump{Host: "public.example", Port: 22, Username: "bastion", AuthMethod: site.AuthPassword}) {
-		t.Errorf("site with a jump host = %+v, %v", jumped, err)
+	routed, err := f.svc.Create(ctx, f.editor, f.ws, "open", with(valid(), "Routed", "proxy_kind", "socks5", "proxy_host", "public.example", "jump_host", "public.example", "jump_username", "bastion"), site.SecretChanges{})
+	if err != nil || routed.Setting("proxy_port") != "1080" || routed.Setting("jump_port") != "22" {
+		t.Errorf("site with a proxy and a jump host = %+v, %v", routed, err)
 	}
 
 	tests := []struct {
-		name   string
-		mutate func(*site.Input)
-		want   error
+		name  string
+		in    site.Input
+		want  error
+		field string
 	}{
-		{"empty name", func(in *site.Input) { in.Name = "  " }, site.ErrInvalidName},
-		{"long name", func(in *site.Input) { in.Name = strings.Repeat("n", 101) }, site.ErrInvalidName},
-		{"unknown protocol", func(in *site.Input) { in.Protocol = "gopher" }, site.ErrInvalidProtocol},
-		{"unknown charset", func(in *site.Input) { in.Protocol = site.FTP; in.Charset = "klingon" }, site.ErrInvalidCharset},
-		{"legacy charset on SFTP", func(in *site.Input) { in.Charset = "iso-8859-1" }, site.ErrInvalidCharset},
-		{"empty host", func(in *site.Input) { in.Host = "" }, site.ErrInvalidHost},
-		{"host with scheme", func(in *site.Input) { in.Host = "ftp://public.example" }, site.ErrInvalidHost},
-		{"host with port", func(in *site.Input) { in.Host = "public.example:22" }, site.ErrInvalidHost},
-		{"host with space", func(in *site.Input) { in.Host = "public example" }, site.ErrInvalidHost},
-		{"long host", func(in *site.Input) { in.Host = strings.Repeat("a", 254) }, site.ErrInvalidHost},
-		{"negative port", func(in *site.Input) { in.Port = -1 }, site.ErrInvalidPort},
-		{"huge port", func(in *site.Input) { in.Port = 70000 }, site.ErrInvalidPort},
-		{"empty user", func(in *site.Input) { in.Username = " " }, site.ErrInvalidUsername},
-		{"long user", func(in *site.Input) { in.Username = strings.Repeat("u", 256) }, site.ErrInvalidUsername},
-		{"unknown auth", func(in *site.Input) { in.AuthMethod = "token" }, site.ErrInvalidAuthMethod},
-		{"key over ftp", func(in *site.Input) { in.Protocol, in.AuthMethod = site.FTP, site.AuthKey }, site.ErrInvalidAuthMethod},
-		{"bad zone", func(in *site.Input) { in.ListTimezone = "Mars/Base" }, site.ErrInvalidTimezone},
-		{"local zone", func(in *site.Input) { in.ListTimezone = "Local" }, site.ErrInvalidTimezone},
-		{"negative speed limit", func(in *site.Input) { in.SpeedLimit = -1 }, site.ErrInvalidSpeedLimit},
-		{"speed limit below the smallest cap", func(in *site.Input) { in.SpeedLimit = 1023 }, site.ErrInvalidSpeedLimit},
-		{"speed limit above the largest cap", func(in *site.Input) { in.SpeedLimit = 1<<40 + 1 }, site.ErrInvalidSpeedLimit},
-		{"relative remote folder", func(in *site.Input) { in.RemoteDir = "var/www" }, site.ErrInvalidRemoteDir},
-		{"unknown color", func(in *site.Input) { in.Color = "purple" }, site.ErrInvalidColor},
-		{"remote folder with a control character", func(in *site.Input) { in.RemoteDir = "/var/\nwww" }, site.ErrInvalidRemoteDir},
-		{"remote folder too long", func(in *site.Input) { in.RemoteDir = "/" + strings.Repeat("d", 4096) }, site.ErrInvalidRemoteDir},
-		{"remote folder not UTF-8", func(in *site.Input) { in.RemoteDir = "/bad\xff" }, site.ErrInvalidRemoteDir},
-		{"private host", func(in *site.Input) { in.Host = "private.example" }, netguard.ErrBlocked},
-		{"private address", func(in *site.Input) { in.Host = "192.168.1.1" }, netguard.ErrBlocked},
-		{"unresolvable host", func(in *site.Input) { in.Host = "nowhere.example" }, netguard.ErrUnresolvable},
-		{"unknown proxy kind", func(in *site.Input) { in.Proxy = site.Proxy{Kind: "wireguard", Host: "public.example", Port: 1080} }, site.ErrInvalidProxy},
-		{"proxy with a bad host", func(in *site.Input) { in.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "proxy://x", Port: 8080} }, site.ErrInvalidProxy},
-		{"proxy with a bad port", func(in *site.Input) { in.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "public.example", Port: 0} }, site.ErrInvalidProxy},
-		{"proxy on a private host", func(in *site.Input) {
-			in.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: "private.example", Port: 1080}
-		}, netguard.ErrBlocked},
-		{"jump host over FTP", func(in *site.Input) {
-			in.Protocol, in.Jump = site.FTP, site.Jump{Host: "public.example", Username: "bastion"}
-		}, site.ErrInvalidJump},
-		{"jump host with a bad host", func(in *site.Input) { in.Jump = site.Jump{Host: "ssh://x", Username: "bastion"} }, site.ErrInvalidJump},
-		{"jump host with a bad port", func(in *site.Input) { in.Jump = site.Jump{Host: "public.example", Port: -1, Username: "bastion"} }, site.ErrInvalidJump},
-		{"jump host with no username", func(in *site.Input) { in.Jump = site.Jump{Host: "public.example"} }, site.ErrInvalidJump},
-		{"jump host with an unknown auth method", func(in *site.Input) {
-			in.Jump = site.Jump{Host: "public.example", Username: "bastion", AuthMethod: "token"}
-		}, site.ErrInvalidJump},
-		{"jump host on a private host", func(in *site.Input) { in.Jump = site.Jump{Host: "private.example", Username: "bastion"} }, netguard.ErrBlocked},
+		{"empty name", with(valid(), "  "), site.ErrInvalidName, ""},
+		{"long name", with(valid(), strings.Repeat("n", 101)), site.ErrInvalidName, ""},
+		{"unknown connector", func() site.Input { in := with(valid(), "Gopher"); in.Connector = "gopher"; return in }(), connectors.ErrInvalidConfig, "connector"},
+		{"bad host", with(valid(), "Bad host", "host", "ftp://public.example"), connectors.ErrInvalidConfig, "host"},
+		{"huge port", with(valid(), "Huge port", "port", "70000"), connectors.ErrInvalidConfig, "port"},
+		{"empty user", with(valid(), "No user", "username", ""), connectors.ErrInvalidConfig, "username"},
+		{"negative speed limit", func() site.Input { in := with(valid(), "Slow"); in.SpeedLimit = -1; return in }(), site.ErrInvalidSpeedLimit, ""},
+		{"speed limit below the smallest cap", func() site.Input { in := with(valid(), "Slow"); in.SpeedLimit = 1023; return in }(), site.ErrInvalidSpeedLimit, ""},
+		{"speed limit above the largest cap", func() site.Input { in := with(valid(), "Fast"); in.SpeedLimit = 1<<40 + 1; return in }(), site.ErrInvalidSpeedLimit, ""},
+		{"relative remote folder", func() site.Input { in := with(valid(), "Dir"); in.RemoteDir = "var/www"; return in }(), site.ErrInvalidRemoteDir, ""},
+		{"remote folder with a control character", func() site.Input { in := with(valid(), "Dir"); in.RemoteDir = "/var/\nwww"; return in }(), site.ErrInvalidRemoteDir, ""},
+		{"remote folder too long", func() site.Input {
+			in := with(valid(), "Dir")
+			in.RemoteDir = "/" + strings.Repeat("d", 4096)
+			return in
+		}(), site.ErrInvalidRemoteDir, ""},
+		{"remote folder not UTF-8", func() site.Input { in := with(valid(), "Dir"); in.RemoteDir = "/bad\xff"; return in }(), site.ErrInvalidRemoteDir, ""},
+		{"unknown color", func() site.Input { in := with(valid(), "Purple"); in.Color = "purple"; return in }(), site.ErrInvalidColor, ""},
+		{"private host", with(valid(), "Private", "host", "private.example"), netguard.ErrBlocked, ""},
+		{"private address", with(valid(), "Private", "host", "192.168.1.1"), netguard.ErrBlocked, ""},
+		{"unresolvable host", with(valid(), "Nowhere", "host", "nowhere.example"), netguard.ErrUnresolvable, ""},
+		{"proxy on a private host", with(valid(), "Proxy", "proxy_kind", "http", "proxy_host", "private.example"), netguard.ErrBlocked, ""},
+		{"jump host on a private host", with(valid(), "Jump", "jump_host", "private.example", "jump_username", "b"), netguard.ErrBlocked, ""},
 	}
 	for _, tt := range tests {
-		in := valid()
-		tt.mutate(&in)
-		if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{}); !errors.Is(err, tt.want) {
-			t.Errorf("%s = %v; want %v", tt.name, err, tt.want)
+		_, err := f.svc.Create(ctx, f.editor, f.ws, "open", tt.in, site.SecretChanges{})
+		var field *connectors.FieldError
+		if !errors.Is(err, tt.want) || (tt.field != "" && (!errors.As(err, &field) || field.Field != tt.field)) {
+			t.Errorf("%s = %v; want %v of field %q", tt.name, err, tt.want, tt.field)
 		}
 	}
-	invalid, blocked := valid(), valid()
-	invalid.Name, blocked.Host = "", "private.example"
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", invalid, site.SecretChanges{}); !errors.Is(err, site.ErrInvalidName) {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", with(valid(), ""), site.SecretChanges{}); !errors.Is(err, site.ErrInvalidName) {
 		t.Errorf("Update() with an invalid name = %v; want ErrInvalidName", err)
 	}
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", blocked, site.SecretChanges{}); !errors.Is(err, netguard.ErrBlocked) {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", with(valid(), "Prod", "host", "private.example"), site.SecretChanges{}); !errors.Is(err, netguard.ErrBlocked) {
 		t.Errorf("Update() to a private host = %v; want ErrBlocked", err)
 	}
-	for _, host := range []string{"8.8.8.8", "2606:4700::1111", "my_host.example.com.", "a-b.example"} {
-		in := valid()
-		in.Name, in.Host = "h-"+host, host
-		if err := f.guard.CheckHost(ctx, host); err != nil && !errors.Is(err, netguard.ErrUnresolvable) {
-			t.Fatalf("guard(%s) = %v", host, err)
-		}
-		if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{}); errors.Is(err, site.ErrInvalidHost) {
-			t.Errorf("host %q refused as malformed", host)
-		}
+}
+
+// failingSchemas is a catalog that cannot be read.
+type failingSchemas struct{}
+
+// Lookup always fails.
+func (failingSchemas) Lookup(string) (connectors.Descriptor, error) {
+	return connectors.Descriptor{}, errStore
+}
+
+// TestService_SchemaFailure verifies that a catalog that cannot be read is reported.
+//
+// Use cases:
+//   - creating a site with a catalog that fails returns its error
+func TestService_SchemaFailure(t *testing.T) {
+	f := newFixture(t, &switchable{})
+	broken := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{}, f.guard, failingSchemas{}, testutil.NewFakeClock(time.Now()), rand.Reader, nil)
+	if _, err := broken.Create(context.Background(), f.editor, f.ws, "open", valid(), site.SecretChanges{}); !errors.Is(err, errStore) {
+		t.Errorf("Create() with a failing catalog = %v; want its error", err)
 	}
 }
 
@@ -440,7 +428,6 @@ func TestService_CreateValidation(t *testing.T) {
 // Scenarios:
 //   - a viewer may list and get sites but not create, update or delete them (ErrForbidden)
 //   - a non member gets workspace.ErrNotFound for every operation
-//   - the editor may do all of them
 //   - a site is not found through a workspace that does not own it
 func TestService_Authorization(t *testing.T) {
 	ctx := context.Background()
@@ -466,7 +453,6 @@ func TestService_Authorization(t *testing.T) {
 	if err := f.svc.Delete(ctx, f.viewer, f.ws, created.ID); !errors.Is(err, workspace.ErrForbidden) {
 		t.Errorf("viewer Delete() = %v; want ErrForbidden", err)
 	}
-
 	if _, err := f.svc.List(ctx, stranger, f.ws); !errors.Is(err, workspace.ErrNotFound) {
 		t.Errorf("stranger List() = %v; want ErrNotFound", err)
 	}
@@ -476,7 +462,6 @@ func TestService_Authorization(t *testing.T) {
 	if _, err := f.svc.OpenSecret(ctx, stranger, f.ws, created.ID, "open", site.SecretPassword); !errors.Is(err, workspace.ErrNotFound) {
 		t.Errorf("stranger OpenSecret() = %v; want ErrNotFound", err)
 	}
-
 	if _, err := f.svc.Get(ctx, f.editor, uuid.New(), created.ID); !errors.Is(err, site.ErrNotFound) {
 		t.Errorf("Get through an unrelated workspace = %v; want site.ErrNotFound", err)
 	}
@@ -489,16 +474,17 @@ func TestService_Authorization(t *testing.T) {
 //   - OpenSecret returns what was saved and ErrNoSecret for kinds that are not stored
 //   - a secret sealed for one site cannot be opened as another site's (bound by site and kind)
 //   - a locked vault refuses writing secrets and opening them, but not changing settings or removing secrets
-//   - nil leaves a secret untouched, an empty string removes it, another value replaces it
-//   - oversized secrets are ErrSecretTooLarge
-//   - key provider and random source failures are returned
+//   - a secret left out stays, an empty value removes it, another value replaces it
+//   - a secret the connector does not have is refused naming it
+//   - oversized secrets are ErrSecretTooLarge, and the random source failing is returned
 func TestService_Secrets(t *testing.T) {
 	ctx := context.Background()
 	random := &switchable{}
 	f := newFixture(t, random)
 	password := "s3cret-passw0rd"
+	proxied := with(valid(), "Production", "proxy_kind", "http", "proxy_host", "public.example")
 
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text(password), PrivateKey: text("-----BEGIN KEY-----")})
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", proxied, site.SecretChanges{site.SecretPassword: password, site.SecretProxyPassword: "proxy"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,9 +507,7 @@ func TestService_Secrets(t *testing.T) {
 		t.Errorf("OpenSecret(locked) = %v; want ErrLocked", err)
 	}
 
-	other := valid()
-	other.Name = "Other"
-	twin, err := f.svc.Create(ctx, f.editor, f.ws, "open", other, site.SecretChanges{})
+	twin, err := f.svc.Create(ctx, f.editor, f.ws, "open", with(valid(), "Other"), site.SecretChanges{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,158 +516,107 @@ func TestService_Secrets(t *testing.T) {
 		t.Errorf("a secret moved to another site opened: %v", err)
 	}
 
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "closed", valid(), site.SecretChanges{Password: text("new")}); !errors.Is(err, site.ErrLocked) {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "closed", proxied, site.SecretChanges{site.SecretPassword: "new"}); !errors.Is(err, site.ErrLocked) {
 		t.Errorf("writing a secret while locked = %v; want ErrLocked", err)
 	}
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, "closed", func() site.Input { in := valid(); in.Name = "Locked"; return in }(), site.SecretChanges{Password: text("x")}); !errors.Is(err, site.ErrLocked) {
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "closed", with(valid(), "Locked"), site.SecretChanges{site.SecretPassword: "x"}); !errors.Is(err, site.ErrLocked) {
 		t.Errorf("creating with a secret while locked = %v; want ErrLocked", err)
 	}
-	renamed := valid()
-	renamed.Name = "Renamed"
-	updated, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "closed", renamed, site.SecretChanges{PrivateKey: text("")})
+	renamed := with(proxied, "Renamed")
+	updated, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "closed", renamed, site.SecretChanges{site.SecretProxyPassword: ""})
 	if err != nil || updated.Name != "Renamed" {
 		t.Fatalf("Update() while locked = %+v, %v", updated, err)
 	}
-	if _, ok := f.store.secrets[created.ID.String()+string(site.SecretPrivateKey)]; ok {
+	if _, ok := f.store.secrets[created.ID.String()+string(site.SecretProxyPassword)]; ok {
 		t.Error("an emptied secret was not removed")
 	}
 	if _, ok := f.store.secrets[created.ID.String()+string(site.SecretPassword)]; !ok {
 		t.Error("an untouched secret was removed")
 	}
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{Password: text("replaced")}); err != nil {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{site.SecretPassword: "replaced"}); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := f.svc.OpenSecret(ctx, f.editor, f.ws, created.ID, "open", site.SecretPassword); string(got) != "replaced" {
 		t.Errorf("replaced secret = %q", got)
 	}
 
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{Password: text(strings.Repeat("p", 1025))}); !errors.Is(err, site.ErrSecretTooLarge) {
+	var unknown *connectors.FieldError
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{"token": "x"}); !errors.As(err, &unknown) || unknown.Field != "token" {
+		t.Errorf("an unknown secret = %v; want a field error naming it", err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{"host": "x"}); !errors.Is(err, connectors.ErrInvalidConfig) {
+		t.Errorf("a setting given as a secret = %v; want ErrInvalidConfig", err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{site.SecretPassword: strings.Repeat("p", 1025)}); !errors.Is(err, site.ErrSecretTooLarge) {
 		t.Errorf("oversized password = %v; want ErrSecretTooLarge", err)
-	}
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{PrivateKey: text(strings.Repeat("k", 64*1024))}); err != nil {
-		t.Errorf("key at the limit = %v", err)
-	}
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{PrivateKey: text(strings.Repeat("k", 64*1024+1))}); !errors.Is(err, site.ErrSecretTooLarge) {
-		t.Errorf("oversized key = %v; want ErrSecretTooLarge", err)
 	}
 
 	random.broken = true
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{Password: text("x")}); !errors.Is(err, errStore) {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{site.SecretPassword: "x"}); !errors.Is(err, errStore) {
 		t.Errorf("random failure = %v; want the source error", err)
 	}
 	random.broken = false
 }
 
-// TestService_AskForPassword covers the [site.AuthAsk] logon type of [site.Service.Create] and [site.Service.Update].
+// TestService_LogonTypes covers how the logon type decides which secrets a site keeps (ADR-0010, ADR-0016, 4.8e).
 //
 // Use cases:
-//   - every protocol may ask for its password when connecting
-//   - a site that asks never stores a password, even when the request sends one, and needs no unlocked vault for it
-//   - switching a saved site to ask removes the password it had
-func TestService_AskForPassword(t *testing.T) {
+//   - sites that ask for their password, anonymous sites and interactive sites of either connector store no secret, even when the request
+//     sends one, and need no unlocked vault for it; anonymous ones log in as the anonymous user whatever name was sent
+//   - switching a saved site to one of those logon types removes the secrets it had
+//   - an FTP site of the account logon type keeps its password and its account, and switching it to a password drops the account only
+//   - a site moved to another connector drops the secrets the new one does not have
+func TestService_LogonTypes(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t, &switchable{})
-	for _, protocol := range []site.Protocol{site.SFTP, site.FTP, site.FTPS} {
-		in := valid()
-		in.Name, in.Protocol, in.AuthMethod = "Ask "+string(protocol), protocol, site.AuthAsk
-		created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{Password: text("typed")})
-		if err != nil {
-			t.Fatalf("Create(%s, ask) = %v", protocol, err)
-		}
-		if created.AuthMethod != site.AuthAsk || len(created.Secrets) != 0 {
-			t.Errorf("Create(%s, ask) = %s with secrets %v; want ask with none", protocol, created.AuthMethod, created.Secrets)
-		}
-	}
-
-	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("kept")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	switched := valid()
-	switched.AuthMethod = site.AuthAsk
-	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", switched, site.SecretChanges{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(updated.Secrets) != 0 {
-		t.Errorf("a site switched to ask kept %v", updated.Secrets)
-	}
-	if _, ok := f.store.secrets[stored.ID.String()+string(site.SecretPassword)]; ok {
-		t.Error("the password of a site switched to ask is still stored")
-	}
-}
-
-// TestService_Anonymous covers the [site.AuthAnonymous] logon type of [site.Service.Create] and [site.Service.Update].
-//
-// Use cases:
-//   - SFTP and FTP sites may log in anonymously, always as the anonymous user whatever name the request sends
-//   - an anonymous site stores no secret, even when the request sends some, and needs no unlocked vault for it
-//   - switching a site that logs in with a key to anonymous removes its private key and passphrase
-func TestService_Anonymous(t *testing.T) {
-	ctx := context.Background()
-	f := newFixture(t, &switchable{})
-	for _, protocol := range []site.Protocol{site.SFTP, site.FTP} {
-		in := valid()
-		in.Name, in.Protocol, in.Username, in.AuthMethod = "Anonymous "+string(protocol), protocol, "someone", site.AuthAnonymous
-		created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{Password: text("typed")})
-		if err != nil {
-			t.Fatalf("Create(%s, anonymous) = %v", protocol, err)
-		}
-		if created.AuthMethod != site.AuthAnonymous || created.Username != site.AnonymousUser || len(created.Secrets) != 0 {
-			t.Errorf("Create(%s, anonymous) = %s as %q with secrets %v; want anonymous as anonymous with none", protocol, created.AuthMethod, created.Username, created.Secrets)
+	for _, auth := range []string{"ask", "anonymous", "interactive"} {
+		for _, base := range []site.Input{valid(), ftp("")} {
+			in := with(base, auth+" "+base.Connector, "auth", auth, "username", "someone")
+			created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{site.SecretPassword: "typed"})
+			if err != nil {
+				t.Fatalf("Create(%s, %s) = %v", base.Connector, auth, err)
+			}
+			wantUser := "someone"
+			if auth == "anonymous" {
+				wantUser = connectors.AnonymousUser
+			}
+			if len(created.Secrets) != 0 || created.Setting("username") != wantUser {
+				t.Errorf("Create(%s, %s) = %v as %q; want no secrets as %q", base.Connector, auth, created.Secrets, created.Setting("username"), wantUser)
+			}
 		}
 	}
 
-	keyed := valid()
-	keyed.Name, keyed.AuthMethod = "Keyed", site.AuthKey
-	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: text(testutil.PrivateKey(t, "phrase")), Passphrase: text("phrase")})
-	if err != nil {
-		t.Fatal(err)
+	keyed := with(valid(), "Keyed", "auth", "key")
+	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{site.SecretPrivateKey: testutil.PrivateKey(t, "phrase"), site.SecretPassphrase: "phrase"})
+	if err != nil || len(stored.Secrets) != 2 {
+		t.Fatalf("Create(key) = %+v, %v", stored, err)
 	}
-	keyed.AuthMethod = site.AuthAnonymous
-	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", keyed, site.SecretChanges{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(updated.Secrets) != 0 {
-		t.Errorf("a site switched to anonymous kept %v", updated.Secrets)
-	}
-}
-
-// TestService_Interactive covers the [site.AuthInteractive] logon type of [site.Service.Create] and [site.Service.Update]
-// (ADR-0016).
-//
-// Use cases:
-//   - SFTP and FTP sites may ask whatever the server asks when connecting, keeping the username the request sends
-//   - an interactive site stores no secret, even when the request sends some, and needs no unlocked vault for it
-//   - switching a site with a stored password to interactive removes the password
-func TestService_Interactive(t *testing.T) {
-	ctx := context.Background()
-	f := newFixture(t, &switchable{})
-	for _, protocol := range []site.Protocol{site.SFTP, site.FTP} {
-		in := valid()
-		in.Name, in.Protocol, in.Username, in.AuthMethod = "Interactive "+string(protocol), protocol, "someone", site.AuthInteractive
-		created, err := f.svc.Create(ctx, f.editor, f.ws, "closed", in, site.SecretChanges{Password: text("typed")})
-		if err != nil {
-			t.Fatalf("Create(%s, interactive) = %v", protocol, err)
-		}
-		if created.AuthMethod != site.AuthInteractive || created.Username != "someone" || len(created.Secrets) != 0 {
-			t.Errorf("Create(%s, interactive) = %s as %q with secrets %v", protocol, created.AuthMethod, created.Username, created.Secrets)
-		}
+	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", with(keyed, "Keyed", "auth", "ask"), site.SecretChanges{})
+	if err != nil || len(updated.Secrets) != 0 {
+		t.Errorf("a site switched to ask = %v, %v; want no secrets", updated.Secrets, err)
 	}
 
-	stored, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("secret")})
+	billed := with(ftp("Billed"), "Billed", "auth", "account")
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", billed, site.SecretChanges{site.SecretPassword: "pw", site.SecretAccount: "billing"})
+	if err != nil || !slices.Contains(created.Secrets, site.SecretAccount) || !slices.Contains(created.Secrets, site.SecretPassword) {
+		t.Fatalf("Create(account) = %v, %v", created.Secrets, err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", with(billed, "Billed", "auth", "password"), site.SecretChanges{}); err != nil {
+		t.Fatal(err)
+	}
+	_, account := f.store.secrets[created.ID.String()+string(site.SecretAccount)]
+	_, password := f.store.secrets[created.ID.String()+string(site.SecretPassword)]
+	if account || !password {
+		t.Errorf("a site switched to the normal logon kept the account %v and the password %v; want only the password", account, password)
+	}
+
+	moved, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "open", with(valid(), "Keyed"), site.SecretChanges{site.SecretPassword: "pw"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	switched := valid()
-	switched.AuthMethod = site.AuthInteractive
-	updated, err := f.svc.Update(ctx, f.editor, f.ws, stored.ID, "closed", switched, site.SecretChanges{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(updated.Secrets) != 0 {
-		t.Errorf("a site switched to interactive kept %v", updated.Secrets)
+	f.store.secrets[stored.ID.String()+string(site.SecretAccount)] = site.Sealed{Kind: site.SecretAccount}
+	if moved, err = f.svc.Update(ctx, f.editor, f.ws, stored.ID, "open", with(valid(), "Keyed"), site.SecretChanges{}); err != nil || slices.Contains(moved.Secrets, site.SecretAccount) {
+		t.Errorf("a secret the connector does not have was kept: %v, %v", moved.Secrets, err)
 	}
 }
 
@@ -693,7 +626,7 @@ func TestService_Interactive(t *testing.T) {
 //   - a PuTTY key is stored converted to OpenSSH's format, which connecting reads with the same passphrase
 //   - a key that is not encrypted drops the passphrase sent with it
 //   - a public key, an encrypted key without its passphrase or with a wrong one, and text that is no key are refused
-//     with a [*site.KeyError] that says which key, the site's or the jump host's
+//     with a [*site.KeyError] that names the field of the key, the site's or the jump host's
 //   - a key larger than any key file is refused as too large before it is read
 //   - an update that leaves the key as it is does not read it, and one that replaces it reads the new one
 func TestService_PrivateKeys(t *testing.T) {
@@ -703,9 +636,8 @@ func TestService_PrivateKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	keyed := valid()
-	keyed.Name, keyed.AuthMethod = "PuTTY", site.AuthKey
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: text(string(ppk)), Passphrase: text("correct horse")})
+	keyed := with(valid(), "PuTTY", "auth", "key")
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{site.SecretPrivateKey: string(ppk), site.SecretPassphrase: "correct horse"})
 	if err != nil {
 		t.Fatalf("Create() with a PuTTY key = %v", err)
 	}
@@ -717,9 +649,7 @@ func TestService_PrivateKeys(t *testing.T) {
 		t.Errorf("the stored PuTTY key does not open in OpenSSH's format: %v", err)
 	}
 
-	plain := keyed
-	plain.Name = "Plain"
-	unencrypted, err := f.svc.Create(ctx, f.editor, f.ws, "open", plain, site.SecretChanges{PrivateKey: text(testutil.PrivateKey(t, "")), Passphrase: text("stale")})
+	unencrypted, err := f.svc.Create(ctx, f.editor, f.ws, "open", with(keyed, "Plain"), site.SecretChanges{site.SecretPrivateKey: testutil.PrivateKey(t, ""), site.SecretPassphrase: "stale"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -736,42 +666,38 @@ func TestService_PrivateKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	encrypted := testutil.PrivateKey(t, "phrase")
-	withJump := keyed
-	withJump.Name, withJump.Jump = "Jump", site.Jump{Host: "bastion.example", Port: 22, Username: "bastion", AuthMethod: site.AuthKey}
+	withJump := with(keyed, "Jump", "jump_host", "public.example", "jump_username", "bastion", "jump_auth", "key")
 	refusals := []struct {
 		name    string
 		in      site.Input
 		changes site.SecretChanges
-		jump    bool
+		field   string
 		want    error
 	}{
-		{"public key", keyed, site.SecretChanges{PrivateKey: text(string(ssh.MarshalAuthorizedKey(public)))}, false, sshkey.ErrPublicKey},
-		{"no passphrase", keyed, site.SecretChanges{PrivateKey: text(encrypted)}, false, sshkey.ErrPassphraseRequired},
-		{"not a key", keyed, site.SecretChanges{PrivateKey: text("hello")}, false, sshkey.ErrUnreadable},
-		{"jump wrong passphrase", withJump, site.SecretChanges{PrivateKey: text(encrypted), Passphrase: text("phrase"),
-			JumpPrivateKey: text(encrypted), JumpPassphrase: text("wrong")}, true, sshkey.ErrWrongPassphrase},
+		{"public key", keyed, site.SecretChanges{site.SecretPrivateKey: string(ssh.MarshalAuthorizedKey(public))}, "private_key", sshkey.ErrPublicKey},
+		{"no passphrase", keyed, site.SecretChanges{site.SecretPrivateKey: encrypted}, "private_key", sshkey.ErrPassphraseRequired},
+		{"not a key", keyed, site.SecretChanges{site.SecretPrivateKey: "hello"}, "private_key", sshkey.ErrUnreadable},
+		{"jump wrong passphrase", withJump, site.SecretChanges{site.SecretPrivateKey: encrypted, site.SecretPassphrase: "phrase",
+			site.SecretJumpPrivateKey: encrypted, site.SecretJumpPassphrase: "wrong"}, "jump_private_key", sshkey.ErrWrongPassphrase},
 	}
 	for _, r := range refusals {
-		r.in.Name = "Refused " + r.name
-		_, err := f.svc.Create(ctx, f.editor, f.ws, "open", r.in, r.changes)
+		_, err := f.svc.Create(ctx, f.editor, f.ws, "open", with(r.in, "Refused "+r.name), r.changes)
 		var keyErr *site.KeyError
-		prefix := "private key: "
-		if r.jump {
-			prefix = "jump host private key: "
-		}
-		if !errors.As(err, &keyErr) || keyErr.Jump != r.jump || !errors.Is(err, r.want) || !strings.HasPrefix(err.Error(), prefix) {
-			t.Errorf("Create(%s) = %v; want a key error of the jump host %v for %v", r.name, err, r.jump, r.want)
+		if !errors.As(err, &keyErr) || keyErr.Field != r.field || !errors.Is(err, r.want) || !strings.HasPrefix(err.Error(), r.field+": ") {
+			t.Errorf("Create(%s) = %v; want a key error of %s for %v", r.name, err, r.field, r.want)
 		}
 	}
-	huge := strings.Repeat("A", 64*1024+1)
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{PrivateKey: &huge}); !errors.Is(err, site.ErrSecretTooLarge) {
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", keyed, site.SecretChanges{site.SecretPrivateKey: strings.Repeat("A", 64*1024+1)}); !errors.Is(err, site.ErrSecretTooLarge) {
 		t.Errorf("Create() with a huge key = %v; want ErrSecretTooLarge", err)
 	}
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{Passphrase: text("changed")}); err != nil {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{site.SecretPassphrase: "changed"}); err != nil {
 		t.Errorf("Update() keeping the key = %v", err)
 	}
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{PrivateKey: text("hello")}); !errors.Is(err, sshkey.ErrUnreadable) {
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{site.SecretPrivateKey: "hello"}); !errors.Is(err, sshkey.ErrUnreadable) {
 		t.Errorf("Update() with text that is no key = %v; want ErrUnreadable", err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", keyed, site.SecretChanges{site.SecretPrivateKey: testutil.PrivateKey(t, "")}); err != nil {
+		t.Errorf("Update() with a new key = %v", err)
 	}
 }
 
@@ -784,20 +710,20 @@ func TestService_PrivateKeys(t *testing.T) {
 func TestService_KeyAndStoreFailures(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t, &switchable{})
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("x")})
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{site.SecretPassword: "x"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	broken := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{failure: errStore}, f.guard, testutil.NewFakeClock(time.Now()), rand.Reader, nil)
-	if _, err := broken.Update(ctx, f.editor, f.ws, created.ID, "open", valid(), site.SecretChanges{Password: text("y")}); !errors.Is(err, errStore) {
+	broken := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{failure: errStore}, f.guard, connectors.Builtin(), testutil.NewFakeClock(time.Now()), rand.Reader, nil)
+	if _, err := broken.Update(ctx, f.editor, f.ws, created.ID, "open", valid(), site.SecretChanges{site.SecretPassword: "y"}); !errors.Is(err, errStore) {
 		t.Errorf("key failure while writing = %v; want the provider error", err)
 	}
 	if _, err := broken.OpenSecret(ctx, f.editor, f.ws, created.ID, "open", site.SecretPassword); !errors.Is(err, errStore) {
 		t.Errorf("key failure while opening = %v; want the provider error", err)
 	}
 
-	noID := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{}, f.guard, testutil.NewFakeClock(time.Now()), rand.Reader, func() (uuid.UUID, error) { return uuid.Nil, errStore })
+	noID := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{}, f.guard, connectors.Builtin(), testutil.NewFakeClock(time.Now()), rand.Reader, func() (uuid.UUID, error) { return uuid.Nil, errStore })
 	if _, err := noID.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{}); !errors.Is(err, errStore) {
 		t.Errorf("id failure = %v; want the generator error", err)
 	}
@@ -826,6 +752,87 @@ func TestService_KeyAndStoreFailures(t *testing.T) {
 	}
 	if err := f.svc.Delete(ctx, f.editor, f.ws, created.ID); err != nil {
 		t.Errorf("Delete() = %v", err)
+	}
+}
+
+// offering refuses the connectors it holds, as an instance that disabled them.
+type offering map[string]bool
+
+// CheckConnector implements [site.Offering].
+func (o offering) CheckConnector(_ context.Context, kind string) error {
+	if o[kind] {
+		return connectors.ErrDisabled
+	}
+	return nil
+}
+
+// TestService_Offering verifies that sites follow the connectors the instance offers (ADR-0019).
+//
+// Use cases:
+//   - a site of a disabled connector is not created
+//   - an existing site of a disabled connector can still be edited, but no site moves to a disabled connector
+func TestService_Offering(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.svc.UseOffering(offering{"sftp": true, "ftp": true})
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", with(valid(), "Staging"), site.SecretChanges{}); !errors.Is(err, connectors.ErrDisabled) || len(f.store.sites) != 1 {
+		t.Errorf("Create() of a disabled connector = %v with %d sites; want ErrDisabled and no new site", err, len(f.store.sites))
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", with(valid(), "Renamed"), site.SecretChanges{}); err != nil {
+		t.Errorf("Update() of a site of a disabled connector = %v; want it edited", err)
+	}
+	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", ftp("Moved"), site.SecretChanges{}); !errors.Is(err, connectors.ErrDisabled) {
+		t.Errorf("Update() to a disabled connector = %v; want ErrDisabled", err)
+	}
+}
+
+// TestService_MoveSite verifies moving a saved site between collections (4.14h).
+//
+// Scenarios:
+//   - an editor moves a site into a collection and back to the top level; the other settings stay
+//   - a site whose host no longer resolves can still be moved, since the host is not checked again
+//   - a viewer is refused, and a missing collection or site is reported
+//   - failures of the store while reading or writing are reported
+func TestService_MoveSite(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	collection, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "Clients", uuid.Nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{site.SecretPassword: "pw"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	moved, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, collection.ID)
+	if err != nil || moved.CollectionID != collection.ID || moved.Setting("host") != created.Setting("host") {
+		t.Fatalf("MoveSite() into a collection = %+v, %v", moved, err)
+	}
+	stored := f.store.sites[created.ID]
+	stored.Config = map[string]string{"host": "gone.example", "username": "deploy"}
+	f.store.sites[created.ID] = stored
+	back, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil)
+	if err != nil || back.CollectionID != uuid.Nil || back.Setting("host") != "gone.example" {
+		t.Errorf("MoveSite() to the top level = %+v, %v", back, err)
+	}
+
+	if _, err := f.svc.MoveSite(ctx, f.viewer, f.ws, created.ID, uuid.Nil); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("viewer MoveSite() = %v", err)
+	}
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.New()); !errors.Is(err, site.ErrCollectionNotFound) {
+		t.Errorf("MoveSite() into a missing collection = %v", err)
+	}
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, uuid.New(), uuid.Nil); !errors.Is(err, site.ErrNotFound) {
+		t.Errorf("MoveSite() of a missing site = %v", err)
+	}
+	f.store.failUpdate = errStore
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil); !errors.Is(err, errStore) {
+		t.Errorf("MoveSite() with a failing store = %v", err)
 	}
 }
 
@@ -986,7 +993,7 @@ func TestService_Collections(t *testing.T) {
 	}
 	f.store.failGetC = nil
 
-	noID := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{}, f.guard, testutil.NewFakeClock(time.Now()), rand.Reader, func() (uuid.UUID, error) { return uuid.Nil, errStore })
+	noID := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{}, f.guard, connectors.Builtin(), testutil.NewFakeClock(time.Now()), rand.Reader, func() (uuid.UUID, error) { return uuid.Nil, errStore })
 	if _, err := noID.CreateCollection(ctx, f.editor, f.ws, "Y", uuid.Nil); !errors.Is(err, errStore) {
 		t.Errorf("CreateCollection() with a failing generator = %v", err)
 	}
@@ -1004,7 +1011,7 @@ func TestService_CanSeal(t *testing.T) {
 	if f.svc.CanSeal("locked") {
 		t.Error("CanSeal() of a locked session = true")
 	}
-	broken := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{failure: errStore}, f.guard, testutil.NewFakeClock(time.Now()), rand.Reader, nil)
+	broken := site.NewService(f.store, roles{f.editor: workspace.RoleEditor}, keys{failure: errStore}, f.guard, connectors.Builtin(), testutil.NewFakeClock(time.Now()), rand.Reader, nil)
 	if broken.CanSeal("open") {
 		t.Error("CanSeal() with a failing key provider = true")
 	}
@@ -1053,175 +1060,5 @@ func TestService_Quota(t *testing.T) {
 	f.svc.UseQuota(refusing)
 	if _, err := f.svc.Create(ctx, f.viewer, f.ws, "open", third, site.SecretChanges{}); !errors.Is(err, workspace.ErrForbidden) || len(refusing.asked) != 0 {
 		t.Errorf("a viewer creating = %v, quota asked %d times; want ErrForbidden and no question", err, len(refusing.asked))
-	}
-}
-
-// offering refuses the protocols it holds, as an instance that disabled their connectors.
-type offering map[site.Protocol]bool
-
-// CheckProtocol implements [site.Offering].
-func (o offering) CheckProtocol(_ context.Context, protocol site.Protocol) error {
-	if o[protocol] {
-		return site.ErrConnectorDisabled
-	}
-	return nil
-}
-
-// TestService_Offering verifies that sites follow the connectors the instance offers (ADR-0019).
-//
-// Use cases:
-//   - a site of a disabled connector is not created
-//   - an existing site of a disabled connector can still be edited, but no site moves to a disabled connector
-func TestService_Offering(t *testing.T) {
-	ctx := context.Background()
-	f := newFixture(t, &switchable{})
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.svc.UseOffering(offering{site.SFTP: true, site.FTP: true})
-	other := valid()
-	other.Name = "Staging"
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", other, site.SecretChanges{}); !errors.Is(err, site.ErrConnectorDisabled) || len(f.store.sites) != 1 {
-		t.Errorf("Create() of a disabled connector = %v with %d sites; want ErrConnectorDisabled and no new site", err, len(f.store.sites))
-	}
-	renamed := valid()
-	renamed.Name = "Renamed"
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", renamed, site.SecretChanges{}); err != nil {
-		t.Errorf("Update() of a site of a disabled connector = %v; want it edited", err)
-	}
-	moved := valid()
-	moved.Protocol = site.FTP
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", moved, site.SecretChanges{}); !errors.Is(err, site.ErrConnectorDisabled) {
-		t.Errorf("Update() to a disabled connector = %v; want ErrConnectorDisabled", err)
-	}
-}
-
-// TestNormalize_FTPEncryption covers how [site.Normalize] settles the FTP encryption of a site (ADR-0012).
-//
-// Use cases:
-//   - SFTP takes no encryption and refuses one
-//   - the legacy FTPS protocol becomes FTP that requires TLS: implicit on port 990, explicit on any other, and it refuses an
-//     encryption that does not require TLS
-//   - FTP without an encryption keeps clear text, takes any known one, and refuses an unknown one
-//   - an implicit site without a port gets port 990, any other FTP site port 21
-func TestNormalize_FTPEncryption(t *testing.T) {
-	tests := []struct {
-		name       string
-		protocol   site.Protocol
-		port       int
-		encryption site.FTPEncryption
-		want       site.FTPEncryption
-		wantPort   int
-		err        error
-	}{
-		{"sftp", site.SFTP, 0, "", "", 22, nil},
-		{"sftp with an encryption", site.SFTP, 0, site.EncryptionExplicit, "", 0, site.ErrInvalidEncryption},
-		{"legacy ftps on 990", site.FTPS, 990, "", site.EncryptionImplicit, 990, nil},
-		{"legacy ftps elsewhere", site.FTPS, 0, "", site.EncryptionExplicit, 21, nil},
-		{"legacy ftps asked for implicit", site.FTPS, 0, site.EncryptionImplicit, site.EncryptionImplicit, 990, nil},
-		{"legacy ftps asked for plain", site.FTPS, 0, site.EncryptionPlain, "", 0, site.ErrInvalidEncryption},
-		{"ftp without one", site.FTP, 0, "", site.EncryptionPlain, 21, nil},
-		{"ftp optional", site.FTP, 0, site.EncryptionOptional, site.EncryptionOptional, 21, nil},
-		{"ftp implicit on its own port", site.FTP, 2990, site.EncryptionImplicit, site.EncryptionImplicit, 2990, nil},
-		{"ftp unknown", site.FTP, 0, "tls", "", 0, site.ErrInvalidEncryption},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			in := valid()
-			in.Protocol, in.Port, in.FTPEncryption = tt.protocol, tt.port, tt.encryption
-			got, err := site.Normalize(in)
-			if !errors.Is(err, tt.err) {
-				t.Fatalf("Normalize() = %v; want %v", err, tt.err)
-			}
-			if err != nil {
-				return
-			}
-			if got.FTPEncryption != tt.want || got.Port != tt.wantPort || (tt.protocol != site.SFTP && got.Protocol != site.FTP) {
-				t.Errorf("Normalize() = %s %s port %d; want %s port %d", got.Protocol, got.FTPEncryption, got.Port, tt.want, tt.wantPort)
-			}
-		})
-	}
-}
-
-// TestService_MoveSite verifies moving a saved site between collections (4.14h).
-//
-// Scenarios:
-//   - an editor moves a site into a collection and back to the top level; the other settings stay
-//   - a site whose host no longer resolves can still be moved, since the host is not checked again
-//   - a viewer is refused, and a missing collection or site is reported
-//   - failures of the store while reading or writing are reported
-func TestService_MoveSite(t *testing.T) {
-	ctx := context.Background()
-	f := newFixture(t, &switchable{})
-	collection, err := f.svc.CreateCollection(ctx, f.editor, f.ws, "Clients", uuid.Nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{Password: text("pw")})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	moved, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, collection.ID)
-	if err != nil || moved.CollectionID != collection.ID || moved.Host != created.Host {
-		t.Fatalf("MoveSite() into a collection = %+v, %v", moved, err)
-	}
-	stored := f.store.sites[created.ID]
-	stored.Host = "gone.example"
-	f.store.sites[created.ID] = stored
-	back, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil)
-	if err != nil || back.CollectionID != uuid.Nil || back.Host != "gone.example" {
-		t.Errorf("MoveSite() to the top level = %+v, %v", back, err)
-	}
-
-	if _, err := f.svc.MoveSite(ctx, f.viewer, f.ws, created.ID, uuid.Nil); !errors.Is(err, workspace.ErrForbidden) {
-		t.Errorf("viewer MoveSite() = %v", err)
-	}
-	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.New()); !errors.Is(err, site.ErrCollectionNotFound) {
-		t.Errorf("MoveSite() into a missing collection = %v", err)
-	}
-	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, uuid.New(), uuid.Nil); !errors.Is(err, site.ErrNotFound) {
-		t.Errorf("MoveSite() of a missing site = %v", err)
-	}
-	f.store.failUpdate = errStore
-	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil); !errors.Is(err, errStore) {
-		t.Errorf("MoveSite() with a failing store = %v", err)
-	}
-}
-
-// TestService_Account verifies the account logon type of FTP sites (4.8e).
-//
-// Scenarios:
-//   - an FTP site keeps its password and its account, sealed like every secret
-//   - the account logon type is refused for SFTP
-//   - a site switched to another logon type drops its account
-func TestService_Account(t *testing.T) {
-	ctx := context.Background()
-	f := newFixture(t, &switchable{})
-	in := valid()
-	in.Name, in.Protocol, in.AuthMethod = "Billed", site.FTP, site.AuthAccount
-	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", in, site.SecretChanges{Password: text("pw"), Account: text("billing")})
-	if err != nil {
-		t.Fatalf("Create(account) = %v", err)
-	}
-	if created.AuthMethod != site.AuthAccount || !slices.Contains(created.Secrets, site.SecretAccount) || !slices.Contains(created.Secrets, site.SecretPassword) {
-		t.Errorf("Create(account) = %s with secrets %v", created.AuthMethod, created.Secrets)
-	}
-
-	sftp := valid()
-	sftp.Name, sftp.AuthMethod = "Secure", site.AuthAccount
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", sftp, site.SecretChanges{}); !errors.Is(err, site.ErrInvalidAuthMethod) {
-		t.Errorf("Create(SFTP, account) = %v; want ErrInvalidAuthMethod", err)
-	}
-
-	in.AuthMethod = site.AuthPassword
-	if _, err := f.svc.Update(ctx, f.editor, f.ws, created.ID, "open", in, site.SecretChanges{}); err != nil {
-		t.Fatal(err)
-	}
-	_, account := f.store.secrets[created.ID.String()+string(site.SecretAccount)]
-	_, password := f.store.secrets[created.ID.String()+string(site.SecretPassword)]
-	if account || !password {
-		t.Errorf("a site switched to the normal logon kept the account %v and the password %v; want only the password", account, password)
 	}
 }

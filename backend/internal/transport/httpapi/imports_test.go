@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/fzimport"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/transport/httpapi"
@@ -105,7 +106,7 @@ func TestImport_Filezilla(t *testing.T) {
 }
 
 // deadSites is a site service whose store is down.
-type deadSites struct{}
+type deadSites struct{ *site.Service }
 
 // Create always fails.
 func (deadSites) Create(context.Context, uuid.UUID, uuid.UUID, string, site.Input, site.SecretChanges) (site.Site, error) {
@@ -135,7 +136,9 @@ func (deadSites) CanSeal(string) bool { return true }
 // Scenarios:
 //   - an import that cannot read the existing sites answers internal_error without details
 func TestImport_Failure(t *testing.T) {
-	a := newAPI(t, func(d *httpapi.Deps) { d.Import = fzimport.NewService(d.Workspaces, deadSites{}) })
+	a := newAPI(t, func(d *httpapi.Deps) {
+		d.Import = fzimport.NewService(d.Workspaces, deadSites{site.NewService(nil, nil, nil, nil, connectors.Builtin(), nil, nil, nil)})
+	})
 	cookie, csrf := a.setup()
 	r := a.importCall(a.personal(cookie).String(), "", manager, cookie, csrf)
 	expectProblem(t, r, 500, "internal_error")

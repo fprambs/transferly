@@ -415,7 +415,7 @@ func (s *server) listOffset(ctx context.Context, t files.Target) (time.Duration,
 		}
 	}
 	location := time.UTC
-	if loaded, err := time.LoadLocation(found.ListTimezone); err == nil {
+	if loaded, err := time.LoadLocation(found.Setting("list_timezone")); err == nil {
 		location = loaded
 	}
 	_, seconds := time.Now().In(location).Zone()

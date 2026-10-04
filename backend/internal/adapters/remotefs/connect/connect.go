@@ -1,16 +1,9 @@
 // Package connect opens connections to the sites of a workspace: it reads the site, opens its credentials with
 // the vault key of the user's session, checks the server key against the keys the workspace trusts, and refuses
-// destinations the network guard forbids.
+// destinations the network guard forbids. Each connector has an opener that dials its sites (ADR-0022).
 package connect
 
 import (
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/encoding/charmap"
-	"golang.org/x/text/encoding/japanese"
-	"golang.org/x/text/encoding/korean"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/encoding/traditionalchinese"
-
 	"context"
 	"errors"
 	"fmt"
@@ -19,12 +12,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/ssh"
 
 	"github.com/fprambs/transferly/internal/adapters/proxydial"
-	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/connlog"
 	"github.com/fprambs/transferly/internal/core/credentials"
 	"github.com/fprambs/transferly/internal/core/hostkey"
@@ -41,7 +33,7 @@ type QuickConnections interface {
 	Lookup(userID, workspaceID, id uuid.UUID) (quick.Connection, bool)
 }
 
-// Connector implements [connections.Connector] for the protocols the server supports. The identifier of a site may
+// Connector implements [connections.Connector] for the connectors the server is built with. The identifier of a site may
 // also be that of a quick connection of the user.
 type Connector struct {
 	sites    *site.Service
@@ -72,7 +64,7 @@ func Prompts(broker *prompts.Broker) Option {
 }
 
 // Offering sets who tells whether the instance offers the connector of a site (ADR-0019): sites of a connector it does not offer fail with
-// [site.ErrConnectorDisabled] before anything is dialed. Without it every protocol connects.
+// [connectors.ErrDisabled] before anything is dialed. Without it every connector connects.
 func Offering(o site.Offering) Option {
 	return func(c *Connector) { c.offering = o }
 }
@@ -105,24 +97,71 @@ func New(sites *site.Service, quick QuickConnections, hostKeys *hostkey.Service,
 	return c
 }
 
+// target is what a connection opens: a site, or a quick connection, with its settled configuration and its decrypted secrets.
+type target struct {
+	site.Site
+	secrets map[site.SecretKind][]byte
+}
+
+// secret returns a decrypted secret of the target, or nil when it has none.
+func (t target) secret(kind site.SecretKind) []byte { return t.secrets[kind] }
+
+// number returns a numeric setting of the target, which its schema already checked; a setting that is missing reads as zero.
+func (t target) number(name string) int {
+	n, _ := strconv.Atoi(t.Setting(name))
+	return n
+}
+
+// address returns host:port from a host setting and its port setting.
+func (t target) address(host, port string) string {
+	return net.JoinHostPort(t.Setting(host), t.Setting(port))
+}
+
+// wipe overwrites the secrets in memory.
+func (t target) wipe() {
+	for _, value := range t.secrets {
+		clear(value)
+	}
+}
+
+// opener dials the sites of one connector.
+type opener func(ctx context.Context, c *Connector, key connections.Key, t target) (remotefs.RemoteFS, error)
+
+// openers are the openers of the connectors Transferly is built with, by type.
+var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP}
+
 // Connect implements [connections.Connector].
 //
 // A server key that is not trusted yet fails with a [remotefs.HostKeyError] that carries its fingerprint, for the
 // user to confirm; a changed key fails the same way and is never accepted. For FTPS the "key" is the certificate of the
 // server, under the key type [ftpfs.CertificateKeyType]. Secrets are wiped after use.
 func (c *Connector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
-	target, secrets, err := c.resolve(ctx, key, session)
+	t, err := c.resolve(ctx, key, session)
 	if err != nil {
 		return nil, err
 	}
-	defer secrets.wipe()
+	defer t.wipe()
 	if c.offering != nil {
-		if err := c.offering.CheckProtocol(ctx, target.Protocol); err != nil {
+		if err := c.offering.CheckConnector(ctx, t.Connector); err != nil {
 			return nil, err
 		}
 	}
-	fsys, err := c.dial(ctx, key, target, secrets)
-	if target.AuthMethod == site.AuthAsk && errors.Is(err, remotefs.ErrAuth) {
+	open, ok := openers[t.Connector]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s sites cannot be connected", remotefs.ErrInvalid, t.Connector)
+	}
+	switch t.Setting(connectors.FieldAuth) {
+	case connectors.AuthAnonymous:
+		t.secrets[site.SecretPassword] = []byte(anonymousPassword)
+	case connectors.AuthAsk:
+		password, err := c.askedPassword(key, session, t.Site)
+		if err != nil {
+			return nil, err
+		}
+		t.secrets[site.SecretPassword] = password
+	}
+	fsys, err := open(ctx, c, key, t)
+	if t.Setting(connectors.FieldAuth) == connectors.AuthAsk && errors.Is(err, remotefs.ErrAuth) {
 		c.asked.Forget(askedKey(key, session))
 	}
 	return fsys, err
@@ -142,227 +181,40 @@ func askedKey(key connections.Key, session string) credentials.Key {
 	return credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}
 }
 
-// dial connects with the protocol of the site.
-func (c *Connector) dial(ctx context.Context, key connections.Key, target site.Site, secrets secrets) (remotefs.RemoteFS, error) {
-	switch target.Protocol {
-	case site.SFTP:
-		return c.dialSFTP(ctx, key, target, secrets)
-	case site.FTP:
-		return c.dialFTP(ctx, key, target, secrets)
-	}
-	return nil, fmt.Errorf("%w: %s sites cannot be connected", remotefs.ErrInvalid, target.Protocol)
-}
-
-// baseDialer returns the DialContext that reaches a site: through its configured proxy, when it has one, otherwise
-// straight from the network guard's own dialer. Either way the proxy's own address, or the site's when there is
+// baseDialer returns the DialContext that reaches a target: through its configured proxy, when it has one, otherwise
+// straight from the network guard's own dialer. Either way the proxy's own address, or the target's when there is
 // none, is checked by the guard before anything connects to it.
-func (c *Connector) baseDialer(target site.Site, s secrets) func(ctx context.Context, network, address string) (net.Conn, error) {
+func (c *Connector) baseDialer(t target) func(ctx context.Context, network, address string) (net.Conn, error) {
 	guarded := c.policy.Dialer(c.timeout).DialContext
-	if !target.Proxy.Set() {
+	if t.Setting("proxy_kind") == "" {
 		return guarded
 	}
 	return proxydial.New(proxydial.Config{
-		Kind: proxydial.Kind(target.Proxy.Kind), Address: net.JoinHostPort(target.Proxy.Host, strconv.Itoa(target.Proxy.Port)),
-		Username: target.Proxy.Username, Password: string(s.proxyPassword),
+		Kind: proxydial.Kind(t.Setting("proxy_kind")), Address: t.address("proxy_host", "proxy_port"),
+		Username: t.Setting("proxy_username"), Password: string(t.secret(site.SecretProxyPassword)),
 	}, guarded).DialContext
 }
 
-// tlsModes is how each FTP encryption of a site protects the connection.
-var tlsModes = map[site.FTPEncryption]ftpfs.TLSMode{
-	site.EncryptionPlain:    ftpfs.TLSNone,
-	site.EncryptionOptional: ftpfs.TLSOptional,
-	site.EncryptionExplicit: ftpfs.TLSExplicit,
-	site.EncryptionImplicit: ftpfs.TLSImplicit,
-}
-
-// dialFTP connects to an FTP server, protected as the site's encryption says (ADR-0012). An FTP account may have an empty
-// password.
-func (c *Connector) dialFTP(ctx context.Context, key connections.Key, target site.Site, s secrets) (remotefs.RemoteFS, error) {
-	mode := tlsModes[target.FTPEncryption]
-	leg := hop{c: c, key: key}
-	leg.connecting(target, target.Host, target.Port, viaOf(target))
-	fsys, err := ftpfs.Dial(ctx, ftpfs.Config{
-		Address:       net.JoinHostPort(target.Host, strconv.Itoa(target.Port)),
-		Username:      target.Username,
-		Password:      string(s.password),
-		Account:       string(s.account),
-		TLS:           mode,
-		Location:      location(target.ListTimezone),
-		Charset:       charsetOf(target.Charset),
-		DialContext:   leg.dialer(c.baseDialer(target, s)),
-		Timeout:       c.timeout,
-		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
-		Prompt:        leg.ask(ctx, target.AuthMethod),
-		PromptWait:    c.promptWait(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	if !fsys.Secure() && mode == ftpfs.TLSOptional {
-		leg.record(connlog.Warn, connlog.PlainText, map[string]string{})
-	}
-	leg.authenticated(target.AuthMethod, target.Username)
-	return fsys, nil
-}
-
-// charsetOf returns the character set named by a site for its file names; UTF-8, and any name that is not known, need no conversion.
-func charsetOf(name string) encoding.Encoding {
-	switch name {
-	case "iso-8859-1":
-		return charmap.ISO8859_1
-	case "iso-8859-2":
-		return charmap.ISO8859_2
-	case "iso-8859-15":
-		return charmap.ISO8859_15
-	case "windows-1250":
-		return charmap.Windows1250
-	case "windows-1251":
-		return charmap.Windows1251
-	case "windows-1252":
-		return charmap.Windows1252
-	case "koi8-r":
-		return charmap.KOI8R
-	case "shift_jis":
-		return japanese.ShiftJIS
-	case "euc-jp":
-		return japanese.EUCJP
-	case "gbk":
-		return simplifiedchinese.GBK
-	case "big5":
-		return traditionalchinese.Big5
-	case "euc-kr":
-		return korean.EUCKR
-	}
-	return nil
-}
-
-// location returns the zone named by a site for the times of its listings; a name that cannot be loaded means UTC.
-func location(name string) *time.Location {
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		return time.UTC
-	}
-	return loc
-}
-
-// dialSFTP connects to an SFTP server with the password or the key of the site, through its jump host first when it
-// has one.
-func (c *Connector) dialSFTP(ctx context.Context, key connections.Key, target site.Site, s secrets) (remotefs.RemoteFS, error) {
-	address := net.JoinHostPort(target.Host, strconv.Itoa(target.Port))
-	types, err := c.hostKeys.Algorithms(ctx, key.WorkspaceID, target.Host, target.Port)
-	if err != nil {
-		return nil, err
-	}
-	leg := hop{c: c, key: key}
-	cfg := sftpfs.Config{
-		Address: address, Username: target.Username, Timeout: c.timeout, HostKeyAlgorithms: algorithmsFor(types),
-		Password: string(s.password), PrivateKey: s.privateKey, Passphrase: s.passphrase,
-		VerifyHostKey: leg.verify(ctx, target.Host, target.Port),
-		Prompt:        leg.ask(ctx, target.AuthMethod),
-		Strict:        c.strict,
-	}
-	if !target.Jump.Set() {
-		leg.connecting(target, target.Host, target.Port, viaOf(target))
-		cfg.DialContext = leg.dialer(c.baseDialer(target, s))
-		fsys, err := sftpfs.Dial(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
-		leg.authenticated(target.AuthMethod, target.Username)
-		return fsys, nil
-	}
-	jump, err := c.dialJump(ctx, key, target, s)
-	if err != nil {
-		return nil, err
-	}
-	leg.connecting(target, target.Host, target.Port, "jump")
-	tunnel, err := jump.DialContext(ctx, "tcp", address)
-	if err != nil {
-		_ = jump.Close()
-		return nil, fmt.Errorf("opening a channel to %s through the jump host: %w: %w", address, remotefs.ErrConnectionLost, err)
-	}
-	cfg.Conn = tunnel
-	fsys, err := sftpfs.Dial(ctx, cfg)
-	if err != nil {
-		_ = jump.Close()
-		return nil, err
-	}
-	leg.authenticated(target.AuthMethod, target.Username)
-	return &jumpedFS{FS: fsys, jump: jump}, nil
-}
-
-// dialJump connects to and authenticates against a site's jump host, through its proxy first when it also has one.
-func (c *Connector) dialJump(ctx context.Context, key connections.Key, target site.Site, s secrets) (*ssh.Client, error) {
-	address := net.JoinHostPort(target.Jump.Host, strconv.Itoa(target.Jump.Port))
-	types, err := c.hostKeys.Algorithms(ctx, key.WorkspaceID, target.Jump.Host, target.Jump.Port)
-	if err != nil {
-		return nil, err
-	}
-	leg := hop{c: c, key: key, jump: true}
-	leg.connecting(target, target.Jump.Host, target.Jump.Port, viaOf(target))
-	client, err := sftpfs.DialSSH(ctx, sftpfs.Config{
-		Address: address, Username: target.Jump.Username, Timeout: c.timeout, HostKeyAlgorithms: algorithmsFor(types),
-		DialContext: leg.dialer(c.baseDialer(target, s)),
-		Password:    string(s.jumpPassword), PrivateKey: s.jumpPrivateKey, Passphrase: s.jumpPassphrase,
-		VerifyHostKey: leg.verify(ctx, target.Jump.Host, target.Jump.Port),
-	})
-	if err != nil {
-		return nil, err
-	}
-	leg.authenticated(target.Jump.AuthMethod, target.Jump.Username)
-	return client, nil
-}
-
-// jumpedFS is the file system of a site reached through a jump host: closing it also closes the SSH client that
-// carries the tunnel, which otherwise nothing would ever close.
-type jumpedFS struct {
-	*sftpfs.FS
-	jump *ssh.Client
-}
-
-// Close closes the site's own connection and then the jump host's.
-func (f *jumpedFS) Close() error {
-	err := f.FS.Close()
-	if jumpErr := f.jump.Close(); err == nil {
-		err = jumpErr
-	}
-	return err
-}
-
 // resolve finds the settings and the credentials of what the key names: a quick connection of the user, or a saved
-// site whose secrets are opened with the vault key of the session.
-func (c *Connector) resolve(ctx context.Context, key connections.Key, session string) (site.Site, secrets, error) {
+// site whose stored secrets are opened with the vault key of the session.
+func (c *Connector) resolve(ctx context.Context, key connections.Key, session string) (target, error) {
 	if q, ok := c.quick.Lookup(key.UserID, key.WorkspaceID, key.SiteID); ok {
-		s := secrets{password: q.Secrets.Password, privateKey: q.Secrets.PrivateKey, passphrase: q.Secrets.Passphrase}
-		if err := s.require(q.Site); err != nil {
-			s.wipe()
-			return site.Site{}, secrets{}, err
-		}
-		return q.Site, s, nil
+		return target{Site: q.Site, secrets: q.Secrets}, nil
 	}
-	target, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
+	found, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
 	if err != nil {
-		return site.Site{}, secrets{}, err
+		return target{}, err
 	}
-	s, err := c.open(ctx, key, session, target)
-	return target, s, err
-}
-
-// require checks that the credentials a quick connection needs are there: a password unless the account is an FTP one
-// or logs in with a key, which the quick connection read when it was made; and, when it has a jump host, the
-// credentials that needs too.
-func (s secrets) require(target site.Site) error {
-	if target.AuthMethod != site.AuthKey && target.Protocol == site.SFTP && len(s.password) == 0 {
-		return fmt.Errorf("%w: no password was given", remotefs.ErrAuth)
+	t := target{Site: found, secrets: map[site.SecretKind][]byte{}}
+	for _, kind := range found.Secrets {
+		value, err := c.sites.OpenSecret(ctx, key.UserID, key.WorkspaceID, key.SiteID, session, kind)
+		if err != nil {
+			t.wipe()
+			return target{}, err
+		}
+		t.secrets[kind] = value
 	}
-	switch {
-	case !target.Jump.Set():
-	case target.Jump.AuthMethod == site.AuthKey && len(s.jumpPrivateKey) == 0:
-		return fmt.Errorf("%w: no jump host private key was given", remotefs.ErrAuth)
-	case target.Jump.AuthMethod != site.AuthKey && len(s.jumpPassword) == 0:
-		return fmt.Errorf("%w: no jump host password was given", remotefs.ErrAuth)
-	}
-	return nil
+	return t, nil
 }
 
 // verifyHost compares the key a server presents with the ones the workspace trusts for host:port, whether that is a
@@ -378,101 +230,13 @@ func (c *Connector) verifyHost(ctx context.Context, workspaceID uuid.UUID, host 
 	return &remotefs.HostKeyError{Type: keyType, Fingerprint: fingerprint, Changed: verdict == hostkey.Changed, Trusted: trusted}
 }
 
-// secrets are the decrypted credentials of a site, its jump host and its proxy.
-type secrets struct {
-	password, privateKey, passphrase             []byte
-	jumpPassword, jumpPrivateKey, jumpPassphrase []byte
-	proxyPassword                                []byte
-	account                                      []byte
-}
-
-// wipe overwrites the secrets in memory.
-func (s secrets) wipe() {
-	for _, b := range [][]byte{s.password, s.privateKey, s.passphrase, s.jumpPassword, s.jumpPrivateKey, s.jumpPassphrase, s.proxyPassword, s.account} {
-		clear(b)
-	}
-}
-
-// open decrypts the credentials the site's authentication method needs, and its jump host's and proxy's when it has
-// them. A missing one the site needs is an authentication error; a proxy needs one only when it has a username.
-func (c *Connector) open(ctx context.Context, key connections.Key, session string, target site.Site) (secrets, error) {
-	var s secrets
-	read := func(kind site.SecretKind) ([]byte, error) {
-		return c.sites.OpenSecret(ctx, key.UserID, key.WorkspaceID, key.SiteID, session, kind)
-	}
-	var err error
-	switch target.AuthMethod {
-	case site.AuthInteractive:
-	case site.AuthAnonymous:
-		s.password = []byte(anonymousPassword)
-	case site.AuthAsk:
-		if s.password, err = c.askedPassword(key, session, target); err != nil {
-			return secrets{}, err
-		}
-	case site.AuthKey:
-		if s.privateKey, err = read(site.SecretPrivateKey); err != nil {
-			return secrets{}, missing(err, "private key")
-		}
-		if s.passphrase, err = read(site.SecretPassphrase); err != nil && !errors.Is(err, site.ErrNoSecret) {
-			s.wipe()
-			return secrets{}, err
-		}
-	default:
-		s.password, err = read(site.SecretPassword)
-		if errors.Is(err, site.ErrNoSecret) && target.Protocol != site.SFTP {
-			err = nil
-		}
-		if err != nil {
-			return secrets{}, missing(err, "password")
-		}
-		if target.AuthMethod == site.AuthAccount {
-			if s.account, err = read(site.SecretAccount); err != nil && !errors.Is(err, site.ErrNoSecret) {
-				s.wipe()
-				return secrets{}, err
-			}
-		}
-	}
-	if err := openJump(read, target, &s); err != nil {
-		s.wipe()
-		return secrets{}, err
-	}
-	if target.Proxy.Set() && target.Proxy.Username != "" {
-		if s.proxyPassword, err = read(site.SecretProxyPassword); err != nil && !errors.Is(err, site.ErrNoSecret) {
-			s.wipe()
-			return secrets{}, err
-		}
-	}
-	return s, nil
-}
-
-// openJump decrypts the credentials a site's jump host needs, when it has one.
-func openJump(read func(site.SecretKind) ([]byte, error), target site.Site, s *secrets) error {
-	if !target.Jump.Set() {
-		return nil
-	}
-	var err error
-	if target.Jump.AuthMethod == site.AuthKey {
-		if s.jumpPrivateKey, err = read(site.SecretJumpPrivateKey); err != nil {
-			return missing(err, "jump host private key")
-		}
-		if s.jumpPassphrase, err = read(site.SecretJumpPassphrase); err != nil && !errors.Is(err, site.ErrNoSecret) {
-			return err
-		}
-		return nil
-	}
-	if s.jumpPassword, err = read(site.SecretJumpPassword); err != nil {
-		return missing(err, "jump host password")
-	}
-	return nil
-}
-
 // askedPassword returns the password the session typed for a site that asks for one when connecting, and records that
 // the site asks, so another session cannot use its open connections; without one it fails with [credentials.ErrRequired].
-func (c *Connector) askedPassword(key connections.Key, session string, target site.Site) ([]byte, error) {
+func (c *Connector) askedPassword(key connections.Key, session string, s site.Site) ([]byte, error) {
 	if c.asked == nil {
 		return nil, credentials.ErrRequired
 	}
-	c.asked.MarkAsk(target.ID)
+	c.asked.MarkAsk(s.ID)
 	password, ok := c.asked.Password(askedKey(key, session))
 	if !ok {
 		return nil, credentials.ErrRequired
@@ -480,12 +244,12 @@ func (c *Connector) askedPassword(key connections.Key, session string, target si
 	return password, nil
 }
 
-// missing turns "no such secret" into an authentication error and keeps other errors.
-func missing(err error, what string) error {
-	if errors.Is(err, site.ErrNoSecret) {
-		return fmt.Errorf("%w: the site has no %s stored", remotefs.ErrAuth, what)
+// require refuses a target that lacks a secret it needs, as an authentication error that names what is missing.
+func (t target) require(kind site.SecretKind, what string) error {
+	if len(t.secret(kind)) == 0 {
+		return fmt.Errorf("%w: the site has no %s", remotefs.ErrAuth, what)
 	}
-	return err
+	return nil
 }
 
 // algorithmsFor lists the SSH signature algorithms that a server may use to prove one of the trusted key types.

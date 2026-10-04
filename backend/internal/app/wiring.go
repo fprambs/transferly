@@ -94,7 +94,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	hostKeys := hostkey.NewService(store, workspaces, system)
 	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)
 	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
-	sites := site.NewService(store, workspaces, keys, policy, system, rand.Reader, nil)
+	catalog := connectors.Builtin()
+	sites := site.NewService(store, workspaces, keys, policy, catalog, system, rand.Reader, nil)
 	hub := events.New(eventBuffer)
 	activityLog := activity.NewService(store, system, cfg.ActivityRetention, nil)
 	transfers := transfer.NewService(store, hub, system, transfer.Config{OnFinish: transferLogger(activityLog, logger), Limits: scheduler.Limits{
@@ -104,7 +105,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	invites := invite.NewService(store, workspaces, store, authService, system, rand.Reader, 0, nil)
 	quotas := limits.NewService(store, transfers, startingLimits(cfg), system)
 	sites.UseQuota(quotas)
-	offered := connectors.NewService(connectors.Builtin(), store, system)
+	offered := connectors.NewService(catalog, store, system)
 	sites.UseOffering(offered)
 	invites.UseQuota(quotas)
 	transfers.UseQuota(quotas)
@@ -116,7 +117,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	}
 	auditTrail := audit.NewService(store, workspaces, system)
 	keys.OnRotate(rotationLogger(auditTrail, logger))
-	quickConnections := quick.NewService(workspaces, policy, sites, system, nil)
+	quickConnections := quick.NewService(workspaces, sites, system, nil)
 	askedPasswords := credentials.New(system, cfg.SessionMax)
 	connectionLog := connlog.New(hub, system)
 	importer := fzimport.NewService(workspaces, sites)

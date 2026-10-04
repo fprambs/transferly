@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/connlog"
 	"github.com/fprambs/transferly/internal/core/prompts"
 	"github.com/fprambs/transferly/internal/core/remotefs"
-	"github.com/fprambs/transferly/internal/core/site"
 )
 
 // ConnectionLog sets where the steps of each connection are told to the user (ADR-0011). Without it, nothing is told.
@@ -40,8 +40,8 @@ func (h hop) record(level connlog.Level, step connlog.Step, params map[string]st
 
 // ask returns the prompt of an interactive site, which records that the server asked and relays the challenge to the
 // user who connects; nil for the other logon types, which never ask.
-func (h hop) ask(ctx context.Context, method site.AuthMethod) func(prompts.Challenge) ([]string, error) {
-	if method != site.AuthInteractive {
+func (h hop) ask(ctx context.Context, method string) func(prompts.Challenge) ([]string, error) {
+	if method != connectors.AuthInteractive {
 		return nil
 	}
 	return func(challenge prompts.Challenge) ([]string, error) {
@@ -55,17 +55,17 @@ func (h hop) ask(ctx context.Context, method site.AuthMethod) func(prompts.Chall
 
 // connecting records the start of a connection to host:port, and how it is reached: directly, through the site's
 // proxy (named), or through its jump host.
-func (h hop) connecting(target site.Site, host string, port int, via string) {
+func (h hop) connecting(t target, host string, port int, via string) {
 	params := map[string]string{"host": host, "port": strconv.Itoa(port), "via": via}
 	if via == "proxy" {
-		params["proxy"] = net.JoinHostPort(target.Proxy.Host, strconv.Itoa(target.Proxy.Port))
+		params["proxy"] = t.address("proxy_host", "proxy_port")
 	}
 	h.record(connlog.Info, connlog.Connecting, params)
 }
 
 // viaOf is how a site, or its jump host, is reached from Transferly: through its proxy or directly.
-func viaOf(target site.Site) string {
-	if target.Proxy.Set() {
+func viaOf(t target) string {
+	if t.Setting("proxy_kind") != "" {
 		return "proxy"
 	}
 	return "direct"
@@ -106,6 +106,6 @@ func (h hop) verify(ctx context.Context, host string, port int) func(keyType, fi
 }
 
 // authenticated records that the account signed in, with the logon type it used; never its secret.
-func (h hop) authenticated(method site.AuthMethod, username string) {
-	h.record(connlog.Info, connlog.Authenticated, map[string]string{"method": string(method), "username": username})
+func (h hop) authenticated(method, username string) {
+	h.record(connlog.Info, connlog.Authenticated, map[string]string{"method": method, "username": username})
 }

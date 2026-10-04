@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/netguard"
 	"github.com/fprambs/transferly/internal/core/quick"
 	"github.com/fprambs/transferly/internal/core/site"
@@ -36,8 +37,9 @@ func (r roles) Authorize(_ context.Context, user, _ uuid.UUID, action workspace.
 	return role, nil
 }
 
-// saver records what it was asked to save.
+// saver settles connections with the real site rules and records what it was asked to save.
 type saver struct {
+	*site.Service
 	input   site.Input
 	changes site.SecretChanges
 	calls   int
@@ -51,7 +53,17 @@ func (s *saver) Create(_ context.Context, actor, ws uuid.UUID, _ string, in site
 	if s.err != nil {
 		return site.Site{}, s.err
 	}
-	return site.Site{ID: uuid.New(), WorkspaceID: ws, Name: in.Name, Host: in.Host, CollectionID: in.CollectionID}, nil
+	return site.Site{ID: uuid.New(), WorkspaceID: ws, Name: in.Name, Connector: in.Connector, Config: in.Config, CollectionID: in.CollectionID}, nil
+}
+
+// newSaver returns a saver whose network guard allows the given public range only.
+func newSaver(allowed ...string) *saver {
+	prefixes := make([]netip.Prefix, len(allowed))
+	for i, p := range allowed {
+		prefixes[i] = netip.MustParsePrefix(p)
+	}
+	guard := netguard.NewPolicy(prefixes, nil)
+	return &saver{Service: site.NewService(nil, nil, nil, guard, connectors.Builtin(), testutil.NewFakeClock(time.Now()), nil, nil)}
 }
 
 // fixture bundles a service with its fakes.
@@ -66,20 +78,23 @@ type fixture struct {
 
 // newFixture returns a service where the editor may create quick connections and the viewer may only list them.
 func newFixture() *fixture {
-	f := &fixture{saver: &saver{}, clock: testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), ws: uuid.New(), editor: uuid.New(), viewer: uuid.New()}
-	guard := netguard.NewPolicy([]netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}, nil)
-	f.svc = quick.NewService(roles{f.editor: workspace.RoleEditor, f.viewer: workspace.RoleViewer}, guard, f.saver, f.clock, nil)
+	f := &fixture{saver: newSaver("203.0.113.0/24"), clock: testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), ws: uuid.New(), editor: uuid.New(), viewer: uuid.New()}
+	f.svc = quick.NewService(roles{f.editor: workspace.RoleEditor, f.viewer: workspace.RoleViewer}, f.saver, f.clock, nil)
 	return f
 }
 
-// input returns valid settings for a server.
-func input(host string) site.Input {
-	return site.Input{Protocol: site.SFTP, Host: host, Username: "deploy"}
+// input returns valid SFTP settings for a server, with some settings changed, given as name and value pairs.
+func input(host string, settings ...string) site.Input {
+	config := map[string]string{"host": host, "username": "deploy"}
+	for i := 0; i+1 < len(settings); i += 2 {
+		config[settings[i]] = settings[i+1]
+	}
+	return site.Input{Connector: "sftp", Config: config}
 }
 
-// secrets returns fresh credentials, so tests can watch what happens to the memory behind them.
+// secrets returns a fresh password, so tests can watch what happens to the memory behind it.
 func secrets() quick.Secrets {
-	return quick.Secrets{Password: []byte("hunter2-hunter2"), PrivateKey: []byte("KEY"), Passphrase: []byte("phrase")}
+	return quick.Secrets{site.SecretPassword: []byte("hunter2-hunter2")}
 }
 
 // allZero reports whether every byte of a slice is zero.
@@ -106,7 +121,7 @@ func TestService_Create(t *testing.T) {
 	f := newFixture()
 
 	c, err := f.svc.Create(ctx, f.editor, f.ws, input("203.0.113.5"), secrets())
-	if err != nil || c.Site.Name != "203.0.113.5" || c.Site.Port != 22 || c.Site.AuthMethod != site.AuthPassword || c.Site.ListTimezone != "UTC" ||
+	if err != nil || c.Site.Name != "203.0.113.5" || c.Site.Setting("port") != "22" || c.Site.Setting("auth") != "password" || c.Site.Connector != "sftp" ||
 		c.Site.ID == uuid.Nil || c.UserID != f.editor || c.Site.WorkspaceID != f.ws {
 		t.Fatalf("Create() = %+v, %v", c, err)
 	}
@@ -118,30 +133,26 @@ func TestService_Create(t *testing.T) {
 	}
 
 	bad := input("203.0.113.5")
-	bad.Protocol = "gopher"
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, bad, secrets()); !errors.Is(err, site.ErrInvalidProtocol) {
-		t.Errorf("bad protocol = %v", err)
+	bad.Connector = "gopher"
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, bad, secrets()); !errors.Is(err, connectors.ErrInvalidConfig) {
+		t.Errorf("unknown connector = %v; want ErrInvalidConfig", err)
 	}
 	if _, err := f.svc.Create(ctx, f.editor, f.ws, input("10.0.0.1"), secrets()); !errors.Is(err, netguard.ErrBlocked) {
 		t.Errorf("private host = %v; want ErrBlocked", err)
 	}
-	keyOverFTP := input("203.0.113.5")
-	keyOverFTP.Protocol, keyOverFTP.AuthMethod = site.FTP, site.AuthKey
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, keyOverFTP, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
+	keyOverFTP := input("203.0.113.5", "auth", "key")
+	keyOverFTP.Connector = "ftp"
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, keyOverFTP, secrets()); !errors.Is(err, connectors.ErrInvalidConfig) {
 		t.Errorf("key over FTP = %v", err)
 	}
-	asking := input("203.0.113.5")
-	asking.AuthMethod = site.AuthAsk
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
-		t.Errorf("ask for password on a quick connection = %v; want ErrInvalidAuthMethod", err)
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, input("203.0.113.5"), quick.Secrets{"token": []byte("x")}); !errors.Is(err, connectors.ErrInvalidConfig) {
+		t.Errorf("unknown secret = %v; want ErrInvalidConfig", err)
 	}
-	asking.AuthMethod = site.AuthAnonymous
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
-		t.Errorf("anonymous quick connection = %v; want ErrInvalidAuthMethod", err)
-	}
-	asking.AuthMethod = site.AuthInteractive
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, asking, secrets()); !errors.Is(err, site.ErrInvalidAuthMethod) {
-		t.Errorf("interactive quick connection = %v; want ErrInvalidAuthMethod", err)
+	for _, auth := range []string{"ask", "anonymous", "interactive"} {
+		var field *connectors.FieldError
+		if _, err := f.svc.Create(ctx, f.editor, f.ws, input("203.0.113.5", "auth", auth), secrets()); !errors.As(err, &field) || field.Field != "auth" {
+			t.Errorf("%s quick connection = %v; want a field error of auth", auth, err)
+		}
 	}
 	if list, _ := f.svc.List(ctx, f.editor, f.ws); len(list) != 1 {
 		t.Errorf("%d connections kept after refusals; want 1", len(list))
@@ -162,7 +173,7 @@ func TestService_Create(t *testing.T) {
 		t.Errorf("after closing one = %v", err)
 	}
 
-	broken := quick.NewService(roles{f.editor: workspace.RoleEditor}, netguard.NewPolicy(nil, nil), f.saver, f.clock, func() (uuid.UUID, error) { return uuid.Nil, errBoom })
+	broken := quick.NewService(roles{f.editor: workspace.RoleEditor}, newSaver(), f.clock, func() (uuid.UUID, error) { return uuid.Nil, errBoom })
 	if _, err := broken.Create(ctx, f.editor, f.ws, input("8.8.8.8"), secrets()); !errors.Is(err, errBoom) {
 		t.Errorf("failing generator = %v", err)
 	}
@@ -178,23 +189,19 @@ func TestService_CreateProxyAndJump(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture()
 
-	proxied := input("203.0.113.10")
-	proxied.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: "203.0.113.11", Port: 1080}
-	if c, err := f.svc.Create(ctx, f.editor, f.ws, proxied, secrets()); err != nil || c.Site.Proxy != proxied.Proxy {
+	proxied := input("203.0.113.10", "proxy_kind", "socks5", "proxy_host", "203.0.113.11")
+	if c, err := f.svc.Create(ctx, f.editor, f.ws, proxied, secrets()); err != nil || c.Site.Setting("proxy_host") != "203.0.113.11" || c.Site.Setting("proxy_port") != "1080" {
 		t.Errorf("Create() with a proxy = %+v, %v", c, err)
 	}
-	blockedProxy := input("203.0.113.10")
-	blockedProxy.Proxy = site.Proxy{Kind: site.ProxySOCKS5, Host: "10.0.0.2", Port: 1080}
+	blockedProxy := input("203.0.113.10", "proxy_kind", "socks5", "proxy_host", "10.0.0.2")
 	if _, err := f.svc.Create(ctx, f.editor, f.ws, blockedProxy, secrets()); !errors.Is(err, netguard.ErrBlocked) {
 		t.Errorf("Create() with a proxy on a private host = %v; want ErrBlocked", err)
 	}
-	jumped := input("203.0.113.10")
-	jumped.Jump = site.Jump{Host: "203.0.113.12", Username: "bastion"}
-	if c, err := f.svc.Create(ctx, f.editor, f.ws, jumped, secrets()); err != nil || c.Site.Jump.Host != "203.0.113.12" {
+	jumped := input("203.0.113.10", "jump_host", "203.0.113.12", "jump_username", "bastion")
+	if c, err := f.svc.Create(ctx, f.editor, f.ws, jumped, secrets()); err != nil || c.Site.Setting("jump_host") != "203.0.113.12" {
 		t.Errorf("Create() with a jump host = %+v, %v", c, err)
 	}
-	blockedJump := input("203.0.113.10")
-	blockedJump.Jump = site.Jump{Host: "10.0.0.3", Username: "bastion"}
+	blockedJump := input("203.0.113.10", "jump_host", "10.0.0.3", "jump_username", "bastion")
 	if _, err := f.svc.Create(ctx, f.editor, f.ws, blockedJump, secrets()); !errors.Is(err, netguard.ErrBlocked) {
 		t.Errorf("Create() with a jump host on a private host = %v; want ErrBlocked", err)
 	}
@@ -224,25 +231,25 @@ func TestService_LookupListClose(t *testing.T) {
 	}
 	otherWS := uuid.New()
 	otherUser := uuid.New()
-	other := quick.NewService(roles{otherUser: workspace.RoleEditor}, netguard.NewPolicy(nil, nil), f.saver, f.clock, nil)
+	other := quick.NewService(roles{otherUser: workspace.RoleEditor}, newSaver("8.8.8.0/24"), f.clock, nil)
 	theirs, err := other.Create(ctx, otherUser, otherWS, input("8.8.8.8"), secrets())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	got, ok := f.svc.Lookup(f.editor, f.ws, first.Site.ID)
-	if !ok || string(got.Secrets.Password) != "hunter2-hunter2" || got.Site.Host != "203.0.113.5" {
+	if !ok || string(got.Secrets[site.SecretPassword]) != "hunter2-hunter2" || got.Site.Setting("host") != "203.0.113.5" {
 		t.Fatalf("Lookup() = %+v, %v", got, ok)
 	}
 	described, ok := f.svc.Describe(f.editor, f.ws, first.Site.ID)
-	if !ok || described.Host != "203.0.113.5" {
+	if !ok || described.Setting("host") != "203.0.113.5" {
 		t.Errorf("Describe() = %+v, %v", described, ok)
 	}
 	if _, ok := f.svc.Describe(uuid.New(), f.ws, first.Site.ID); ok {
 		t.Error("another user described the connection")
 	}
-	got.Secrets.Password[0] = 'X'
-	if again, _ := f.svc.Lookup(f.editor, f.ws, first.Site.ID); string(again.Secrets.Password) != "hunter2-hunter2" {
+	got.Secrets[site.SecretPassword][0] = 'X'
+	if again, _ := f.svc.Lookup(f.editor, f.ws, first.Site.ID); string(again.Secrets[site.SecretPassword]) != "hunter2-hunter2" {
 		t.Error("changing a looked up secret changed the stored one")
 	}
 	if _, ok := f.svc.Lookup(uuid.New(), f.ws, first.Site.ID); ok {
@@ -262,7 +269,7 @@ func TestService_LookupListClose(t *testing.T) {
 	if err != nil || len(list) != 2 || list[0].Site.ID != first.Site.ID || list[1].Site.ID != second.Site.ID {
 		t.Fatalf("List() = %+v, %v; want the two connections, oldest first", list, err)
 	}
-	if len(list[0].Secrets.Password) != 0 || len(list[0].Secrets.PrivateKey) != 0 {
+	if len(list[0].Secrets) != 0 {
 		t.Error("List() exposes secrets")
 	}
 	if none, _ := f.svc.List(ctx, f.viewer, f.ws); len(none) != 0 {
@@ -278,7 +285,7 @@ func TestService_LookupListClose(t *testing.T) {
 	if err := f.svc.Close(f.editor, f.ws, first.Site.ID); err != nil {
 		t.Fatalf("Close() = %v", err)
 	}
-	if !allZero(kept.Password) || !allZero(kept.PrivateKey) || !allZero(kept.Passphrase) {
+	if !allZero(kept[site.SecretPassword]) {
 		t.Error("closing left the secrets in memory")
 	}
 	if err := f.svc.Close(f.editor, f.ws, first.Site.ID); !errors.Is(err, quick.ErrNotFound) {
@@ -317,10 +324,10 @@ func TestService_Sweep(t *testing.T) {
 	if ended := f.svc.Sweep(30 * time.Minute); ended != 1 {
 		t.Fatalf("Sweep() ended %d; want 1", ended)
 	}
-	if _, ok := f.svc.Lookup(f.editor, f.ws, old.Site.ID); ok || !allZero(stale.Password) {
+	if _, ok := f.svc.Lookup(f.editor, f.ws, old.Site.ID); ok || !allZero(stale[site.SecretPassword]) {
 		t.Error("the unused connection survived or was not wiped")
 	}
-	if _, ok := f.svc.Lookup(f.editor, f.ws, busy.Site.ID); !ok || allZero(used.Password) {
+	if _, ok := f.svc.Lookup(f.editor, f.ws, busy.Site.ID); !ok || allZero(used[site.SecretPassword]) {
 		t.Error("the used connection was ended")
 	}
 }
@@ -329,23 +336,26 @@ func TestService_Sweep(t *testing.T) {
 //
 // Scenarios:
 //   - saving passes the settings, the name, the collection and only the secrets that exist, then ends the quick connection
-//   - a private key is read when the connection is made: one that is not encrypted drops its passphrase, and text that
-//     is no key is refused with a key error
+//   - a private key is read when the connection is made: one that is not encrypted drops its passphrase, whose bytes are wiped at once, and
+//     text that is no key is refused with a key error
 //   - a failure such as a locked vault keeps the quick connection for another try
 //   - unknown and foreign connections are ErrNotFound
 func TestService_Save(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture()
-	in := input("203.0.113.5")
-	in.Port, in.AuthMethod = 2222, site.AuthKey
+	in := input("203.0.113.5", "port", "2222", "auth", "key")
 	key := testutil.PrivateKey(t, "")
-	c, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{PrivateKey: []byte(key), Passphrase: []byte("stale")})
+	stale := []byte("stale")
+	c, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{site.SecretPrivateKey: []byte(key), site.SecretPassphrase: stale, site.SecretPassword: []byte{}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !allZero(stale) {
+		t.Error("the passphrase the key does not need was not wiped")
+	}
 	collection := uuid.New()
 	var keyErr *site.KeyError
-	if _, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{PrivateKey: []byte("KEY")}); !errors.As(err, &keyErr) || !errors.Is(err, sshkey.ErrUnreadable) {
+	if _, err := f.svc.Create(ctx, f.editor, f.ws, in, quick.Secrets{site.SecretPrivateKey: []byte("KEY")}); !errors.As(err, &keyErr) || !errors.Is(err, sshkey.ErrUnreadable) {
 		t.Errorf("Create() with text that is no key = %v; want a key error", err)
 	}
 
@@ -362,11 +372,11 @@ func TestService_Save(t *testing.T) {
 	if err != nil || saved.Name != "Production" || saved.CollectionID != collection {
 		t.Fatalf("Save() = %+v, %v", saved, err)
 	}
-	if f.saver.input.Host != "203.0.113.5" || f.saver.input.Port != 2222 || f.saver.input.AuthMethod != site.AuthKey || f.saver.input.Username != "deploy" || f.saver.input.Name != "Production" {
+	if f.saver.input.Config["host"] != "203.0.113.5" || f.saver.input.Config["port"] != "2222" || f.saver.input.Config["auth"] != "key" || f.saver.input.Name != "Production" {
 		t.Errorf("saved input = %+v", f.saver.input)
 	}
 	ch := f.saver.changes
-	if ch.PrivateKey == nil || *ch.PrivateKey != strings.TrimSpace(key) || ch.Password != nil || ch.Passphrase != nil {
+	if len(ch) != 1 || ch[site.SecretPrivateKey] != strings.TrimSpace(key) {
 		t.Errorf("secret changes = %+v; want only the private key, without the passphrase it does not need", ch)
 	}
 	if _, ok := f.svc.Lookup(f.editor, f.ws, c.Site.ID); ok {

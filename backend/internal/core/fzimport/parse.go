@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/site"
 )
 
@@ -41,19 +42,12 @@ type Server struct {
 	Path []string
 	// Name is the display name of the site.
 	Name string
-	// Protocol is the transfer protocol.
-	Protocol site.Protocol
-	// FTPEncryption is how an FTP site protects the connection, as FileZilla's protocol number says; empty for SFTP.
-	FTPEncryption site.FTPEncryption
-	// Host is the server name or address.
-	Host string
-	// Port is the server port; zero selects the default of the protocol.
-	Port int
-	// Username is the account name.
-	Username string
-	// AuthMethod is how the site logs in, as FileZilla's logon type says: anonymous, asking for the password, asking
-	// whatever the server asks (interactive), or with a password.
-	AuthMethod site.AuthMethod
+	// Connector is the connector of the site: sftp, or ftp for every FTP protocol number.
+	Connector string
+	// Config is the configuration of the connector (ADR-0022): the host, the port when the file gives one, the username, the FTP
+	// encryption FileZilla's protocol number says, and the logon type FileZilla's logon type says: anonymous, asking for the password,
+	// asking whatever the server asks (interactive), the account logon type, or a password.
+	Config map[string]string
 	// Password is the account password when the file holds one that could be read.
 	Password string
 	// PasswordSkipped says the file has a password that was not read, because it cannot be decoded.
@@ -277,15 +271,15 @@ func (p *parser) server(start xml.StartElement, path []string) error {
 // fileZillaProtocols maps the protocol numbers of FileZilla to a protocol and, for FTP, its encryption: 0 is FileZilla's
 // default "explicit TLS if available", 3 implicit TLS, 4 required explicit TLS and 6 plain FTP.
 var fileZillaProtocols = map[string]struct {
-	protocol   site.Protocol
-	encryption site.FTPEncryption
+	connector  string
+	encryption string
 }{
-	"":  {site.FTP, site.EncryptionOptional},
-	"0": {site.FTP, site.EncryptionOptional},
-	"1": {site.SFTP, ""},
-	"3": {site.FTP, site.EncryptionImplicit},
-	"4": {site.FTP, site.EncryptionExplicit},
-	"6": {site.FTP, site.EncryptionPlain},
+	"":  {"ftp", connectors.EncryptionOptional},
+	"0": {"ftp", connectors.EncryptionOptional},
+	"1": {"sftp", ""},
+	"3": {"ftp", connectors.EncryptionImplicit},
+	"4": {"ftp", connectors.EncryptionExplicit},
+	"6": {"ftp", connectors.EncryptionPlain},
 }
 
 // fileZillaColours maps the background colors of FileZilla's site manager, by number, to the labels of a site; cyan and magenta
@@ -294,39 +288,42 @@ var fileZillaColours = map[string]site.Color{"1": "red", "2": "green", "3": "blu
 
 // convert maps the settings of FileZilla to the ones of a site, or gives the reason why that cannot be done.
 func (p *parser) convert(raw rawServer, name string, path []string) (Server, string) {
+	host := strings.TrimSpace(raw.Host)
 	server := Server{
-		Path: path, Name: name, Host: strings.TrimSpace(raw.Host), Username: strings.TrimSpace(raw.User), RemoteDir: remoteDir(raw.RemoteDir),
-		Color: fileZillaColours[strings.TrimSpace(raw.Colour)],
+		Path: path, Name: name, Config: map[string]string{connectors.FieldHost: host, connectors.FieldUsername: strings.TrimSpace(raw.User)},
+		RemoteDir: remoteDir(raw.RemoteDir), Color: fileZillaColours[strings.TrimSpace(raw.Colour)],
 	}
-	if server.Host == "" {
+	if host == "" {
 		return Server{}, "missing_host"
 	}
-	if port := strings.TrimSpace(raw.Port); port != "" {
-		if n, err := strconv.Atoi(port); err == nil {
-			server.Port = n
-		}
+	if n, err := strconv.Atoi(strings.TrimSpace(raw.Port)); err == nil && n > 0 {
+		server.Config[connectors.FieldPort] = strconv.Itoa(n)
 	}
 	known, ok := fileZillaProtocols[strings.TrimSpace(raw.Protocol)]
 	if !ok {
 		return Server{}, "unsupported_protocol"
 	}
-	server.Protocol, server.FTPEncryption = known.protocol, known.encryption
+	server.Connector = known.connector
+	if known.encryption != "" {
+		server.Config["encryption"] = known.encryption
+	}
+	auth := connectors.AuthPassword
 	switch strings.TrimSpace(raw.Logontype) {
 	case "0":
-		server.Username, server.AuthMethod = site.AnonymousUser, site.AuthAnonymous
+		auth = connectors.AuthAnonymous
 	case "5":
 		return Server{}, "key_file_login"
 	case "2":
-		server.AuthMethod = site.AuthAsk
+		auth = connectors.AuthAsk
 	case "3":
-		server.AuthMethod = site.AuthInteractive
+		auth = connectors.AuthInteractive
 	case "4":
-		server.AuthMethod, server.Account = site.AuthAccount, strings.TrimSpace(raw.Account)
+		auth, server.Account = connectors.AuthAccount, strings.TrimSpace(raw.Account)
 		p.readPassword(&server, raw)
 	default:
-		server.AuthMethod = site.AuthPassword
 		p.readPassword(&server, raw)
 	}
+	server.Config[connectors.FieldAuth] = auth
 	return server, ""
 }
 

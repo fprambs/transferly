@@ -4979,53 +4979,13 @@ components:
         recoveryKit:
           type: string
           description: Key that recovers the vault when the master password is lost. Shown once.
-    FtpEncryption:
-      type: string
-      enum: [optional, explicit, implicit, plain]
-      description: >-
-        How an FTP site protects the connection (ADR-0012): optional upgrades with AUTH TLS when offered and carries on in clear text
-        otherwise, explicit requires AUTH TLS, implicit expects TLS from the first byte, plain is clear text. Left out for SFTP; on
-        input, left out means plain for ftp and the encryption the port implies for ftps.
     SiteColor:
       type: string
       enum: [red, orange, yellow, green, teal, blue, violet, pink]
       description: Label the site wears in the interface, so servers tell apart at a glance (ADR-0021); each theme draws it in its own tones.
-    Charset:
-      type: string
-      enum: [utf-8, iso-8859-1, iso-8859-2, iso-8859-15, windows-1250, windows-1251, windows-1252, koi8-r, shift_jis, euc-jp, gbk, big5, euc-kr]
-      description: Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
-    SiteProxy:
-      type: object
-      required: [kind, host, port]
-      description: A SOCKS5 or HTTP CONNECT proxy the connection goes through, in place of a direct TCP connection.
-      properties:
-        kind:
-          type: string
-          enum: [socks5, http]
-        host:
-          type: string
-        port:
-          type: integer
-        username:
-          type: string
-          description: Left out when the proxy needs no authentication.
-    SiteJump:
-      type: object
-      required: [host, port, username, authMethod]
-      description: The SSH server the connection tunnels through before reaching an SFTP site.
-      properties:
-        host:
-          type: string
-        port:
-          type: integer
-        username:
-          type: string
-        authMethod:
-          type: string
-          enum: [password, key]
     Site:
       type: object
-      required: [id, name, protocol, host, port, username, authMethod, listTimezone, charset, speedLimitBps, secrets, createdAt, updatedAt]
+      required: [id, name, connector, config, speedLimitBps, secrets, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -5036,25 +4996,11 @@ components:
           description: Left out for sites at the top level.
         name:
           type: string
-        protocol:
+        connector:
           type: string
-          enum: [sftp, ftp, ftps]
-        ftpEncryption:
-          $ref: "#/components/schemas/FtpEncryption"
-        host:
-          type: string
-        port:
-          type: integer
-        username:
-          type: string
-        authMethod:
-          type: string
-          enum: [password, key, ask, anonymous, account, interactive]
-        listTimezone:
-          type: string
-          description: IANA zone in which the server prints listing times.
-        charset:
-          $ref: "#/components/schemas/Charset"
+          description: Type of the connector the site uses, such as sftp or ftp (ADR-0022).
+        config:
+          $ref: "#/components/schemas/SiteConfig"
         speedLimitBps:
           type: integer
           format: int64
@@ -5065,27 +5011,34 @@ components:
         color:
           allOf: [$ref: "#/components/schemas/SiteColor"]
           description: Left out when the site wears no label.
-        proxy:
-          allOf: [$ref: "#/components/schemas/SiteProxy"]
-          description: Left out when the connection is made directly.
-        jump:
-          allOf: [$ref: "#/components/schemas/SiteJump"]
-          description: Left out when the connection is made directly, without a jump host.
         secrets:
           type: array
-          description: Kinds of secret stored for the site. The secrets themselves are never returned.
+          description: Kinds of secret stored for the site, the names of the secret fields of its connector. The secrets themselves are never returned.
           items:
             type: string
-            enum: [password, private_key, passphrase, jump_password, jump_private_key, jump_passphrase, proxy_password, account]
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+    SiteConfig:
+      type: object
+      description: >-
+        Configuration of the site's connector, by setting name, as the connector's schema settles it (ADR-0022): values trimmed, defaults
+        filled in, and the settings that do not apply left out. Secrets are never part of it.
+      additionalProperties:
+        type: string
+    SiteSecretChanges:
+      type: object
+      description: >-
+        Write only. Secrets to store, by the name of their field in the connector's schema. A secret left out keeps the stored one, an empty
+        string removes it, and secrets whose field does not apply to the configuration are removed whatever is sent.
+      additionalProperties:
+        type: string
     SiteInput:
       type: object
-      required: [name, protocol, host, username]
+      required: [name, connector, config]
       properties:
         collectionId:
           type: string
@@ -5093,28 +5046,12 @@ components:
           description: Collection to keep the site in; left out keeps it at the top level.
         name:
           type: string
-        protocol:
+        connector:
           type: string
-          enum: [sftp, ftp, ftps]
-          description: ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
-        ftpEncryption:
-          $ref: "#/components/schemas/FtpEncryption"
-        host:
-          type: string
-        port:
-          type: integer
-          description: Defaults to the protocol's port.
-        username:
-          type: string
-        authMethod:
-          type: string
-          enum: [password, key, ask, anonymous, account, interactive]
-          description: Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e); interactive stores no secret and asks whatever the server asks when connecting (ADR-0016).
-        listTimezone:
-          type: string
-          description: IANA zone of the server's listing times; defaults to UTC.
-        charset:
-          $ref: "#/components/schemas/Charset"
+          description: Type of the connector; one the instance does not offer is connector_disabled.
+        config:
+          allOf: [$ref: "#/components/schemas/SiteConfig"]
+          description: Settings of the connector; one that breaks its schema is invalid_config with the field and the reason.
         speedLimitBps:
           type: integer
           format: int64
@@ -5126,36 +5063,8 @@ components:
         color:
           type: string
           description: Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise.
-        proxy:
-          allOf: [$ref: "#/components/schemas/SiteProxy"]
-          description: Left out to connect directly, without a proxy.
-        jump:
-          allOf: [$ref: "#/components/schemas/SiteJump"]
-          description: Left out to connect directly, without a jump host; only valid for SFTP.
-        password:
-          type: string
-          description: Write only. Left out keeps the stored one; an empty string removes it.
-        privateKey:
-          type: string
-          description: Write only. Same rules as the password.
-        passphrase:
-          type: string
-          description: Write only. Same rules as the password.
-        jumpPassword:
-          type: string
-          description: Write only. Same rules as the password, for the jump host's account.
-        jumpPrivateKey:
-          type: string
-          description: Write only. Same rules as the password, for the jump host's account.
-        jumpPassphrase:
-          type: string
-          description: Write only. Same rules as the password, for the jump host's private key.
-        proxyPassword:
-          type: string
-          description: Write only. Same rules as the password, for the proxy's account.
-        account:
-          type: string
-          description: Write only. Same rules as the password, for the account the account logon type sends with ACCT; only kept for that logon type.
+        secrets:
+          $ref: "#/components/schemas/SiteSecretChanges"
     KnownHost:
       type: object
       required: [host, port, keyType, fingerprint, firstSeen]
@@ -5339,7 +5248,7 @@ components:
           description: The archive holds more entries than the listing.
     Connector:
       type: object
-      required: [type, name, icon, maturity, capabilities, fields, auth, enabledByDefault, enabled]
+      required: [type, name, icon, maturity, capabilities, fields, enabledByDefault, enabled]
       properties:
         type:
           type: string
@@ -5357,11 +5266,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ConnectorField"
-        auth:
-          type: array
-          items:
-            type: string
-            enum: [password, key, ask, anonymous, interactive, account, access-keys, oauth]
         enabledByDefault:
           type: boolean
         enabled:
@@ -5392,17 +5296,32 @@ components:
           type: boolean
     ConnectorField:
       type: object
-      required: [name, kind, required]
+      required: [name, kind, group, required]
       properties:
         name:
           type: string
+          description: Name of the setting, in snake case; for secrets, also the kind of the secret.
         kind:
           type: string
-          enum: [text, number, boolean, choice]
+          enum: [text, number, boolean, choice, host, timezone, secret, private_key]
+          description: >-
+            host is a server name or address the network policy must allow, with the field port names; secret and private_key are sealed in
+            the vault, given in secrets and never returned; private_key is read with the field passphrase names.
+        group:
+          type: string
+          enum: [connection, access, advanced, charset, proxy, jump]
+          description: Tab of the site form the field is shown on.
         required:
           type: boolean
         default:
           type: string
+        defaults:
+          type: array
+          description: Defaults that depend on other fields; the first whose condition holds wins over default.
+          items:
+            $ref: "#/components/schemas/ConnectorDefault"
+        when:
+          $ref: "#/components/schemas/ConnectorCondition"
         choices:
           type: array
           items:
@@ -5413,6 +5332,32 @@ components:
           type: integer
         maxLength:
           type: integer
+        port:
+          type: string
+          description: The port field of a host.
+        passphrase:
+          type: string
+          description: The passphrase field of a private key.
+    ConnectorCondition:
+      type: object
+      required: [field]
+      description: When a field applies, from the value of a field declared before it; a field that does not apply is left out and its secret removed.
+      properties:
+        field:
+          type: string
+        in:
+          type: array
+          description: Values for which the condition holds; left out, it holds whenever the other field has a value.
+          items:
+            type: string
+    ConnectorDefault:
+      type: object
+      required: [when, value]
+      properties:
+        when:
+          $ref: "#/components/schemas/ConnectorCondition"
+        value:
+          type: string
     Checksum:
       type: object
       required: [algorithm, checksum, size]
@@ -5600,40 +5545,18 @@ components:
           description: Move to the top level; wins over parentId.
     QuickConnectInput:
       type: object
-      required: [protocol, host, username]
+      required: [connector, config]
       properties:
-        protocol:
+        connector:
           type: string
-          enum: [sftp, ftp, ftps]
-          description: ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
-        ftpEncryption:
-          $ref: "#/components/schemas/FtpEncryption"
-        host:
-          type: string
-        port:
-          type: integer
-          description: Defaults to the protocol's port.
-        username:
-          type: string
-        authMethod:
-          type: string
-          enum: [password, key]
-        listTimezone:
-          type: string
-        charset:
-          $ref: "#/components/schemas/Charset"
-        password:
-          type: string
-          description: Write only; kept in memory until the connection ends.
-        privateKey:
-          type: string
-          description: Write only; kept in memory until the connection ends.
-        passphrase:
-          type: string
+        config:
+          $ref: "#/components/schemas/SiteConfig"
+        secrets:
+          allOf: [$ref: "#/components/schemas/SiteSecretChanges"]
           description: Write only; kept in memory until the connection ends.
     QuickConnection:
       type: object
-      required: [id, name, protocol, host, port, username, authMethod, listTimezone, charset, createdAt]
+      required: [id, name, connector, config, createdAt]
       properties:
         id:
           type: string
@@ -5641,24 +5564,10 @@ components:
         name:
           type: string
           description: The host.
-        protocol:
+        connector:
           type: string
-          enum: [sftp, ftp, ftps]
-        ftpEncryption:
-          $ref: "#/components/schemas/FtpEncryption"
-        host:
-          type: string
-        port:
-          type: integer
-        username:
-          type: string
-        authMethod:
-          type: string
-          enum: [password, key]
-        listTimezone:
-          type: string
-        charset:
-          $ref: "#/components/schemas/Charset"
+        config:
+          $ref: "#/components/schemas/SiteConfig"
         createdAt:
           type: string
           format: date-time

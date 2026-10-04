@@ -527,7 +527,7 @@ func TestSiteReads_ReportSecretKindFailures(t *testing.T) {
 	if err := store.CreateWorkspace(t.Context(), ws); err != nil {
 		t.Fatal(err)
 	}
-	created := site.Site{ID: uuid.New(), WorkspaceID: ws.ID, Name: "S", Protocol: site.SFTP, Host: "h", Port: 22, Username: "u", AuthMethod: site.AuthPassword, ListTimezone: "UTC", CreatedAt: at, UpdatedAt: at}
+	created := site.Site{ID: uuid.New(), WorkspaceID: ws.ID, Name: "S", Connector: "sftp", Config: map[string]string{"host": "h", "port": "22", "username": "u", "auth": "password"}, CreatedAt: at, UpdatedAt: at}
 	if err := store.CreateSite(t.Context(), created, nil); err != nil {
 		t.Fatal(err)
 	}

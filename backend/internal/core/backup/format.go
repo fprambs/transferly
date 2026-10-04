@@ -16,8 +16,9 @@ import (
 const (
 	// Format names the files of this package.
 	Format = "transferly-export"
-	// Version is the version of the format this package writes and reads.
-	Version = 1
+	// Version is the version of the format this package writes and reads. Version 2 keeps every site as its connector and configuration
+	// (ADR-0022); files of version 1 are refused.
+	Version = 2
 	// MaxBytes is the largest file that is opened.
 	MaxBytes = 4 << 20
 	// kdfName is the only key derivation the format uses.

@@ -532,6 +532,10 @@
     "connector_not_found": {
       "cause": "Este conector no es parte de esta versión de Transferly.",
       "next": "Recarga la página para ver los conectores de esta versión."
+    },
+    "invalid_config": {
+      "cause": "Un ajuste del sitio no sigue lo que espera su tipo de servidor, como un puerto fuera de rango o una opción que no ofrece.",
+      "next": "Corrige el campo que marca el formulario y vuelve a guardar."
     }
   }
 }

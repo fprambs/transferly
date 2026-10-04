@@ -195,7 +195,7 @@ var domainProblems = []struct {
 	{admin.ErrForbidden, http.StatusForbidden, "forbidden"},
 	{connectors.ErrForbidden, http.StatusForbidden, "forbidden"},
 	{connectors.ErrUnknown, http.StatusNotFound, "connector_not_found"},
-	{site.ErrConnectorDisabled, http.StatusConflict, "connector_disabled"},
+	{connectors.ErrDisabled, http.StatusConflict, "connector_disabled"},
 	{admin.ErrNotFound, http.StatusNotFound, "account_not_found"},
 	{admin.ErrSelf, http.StatusConflict, "own_account"},
 	{admin.ErrLastAdmin, http.StatusConflict, "last_admin"},
@@ -228,19 +228,9 @@ var domainProblems = []struct {
 	{site.ErrLocked, http.StatusConflict, "vault_locked"},
 	{site.ErrSecretTooLarge, http.StatusUnprocessableEntity, "secret_too_large"},
 	{site.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_name"},
-	{site.ErrInvalidProtocol, http.StatusUnprocessableEntity, "invalid_protocol"},
-	{site.ErrInvalidHost, http.StatusUnprocessableEntity, "invalid_host"},
-	{site.ErrInvalidPort, http.StatusUnprocessableEntity, "invalid_port"},
-	{site.ErrInvalidUsername, http.StatusUnprocessableEntity, "invalid_username"},
-	{site.ErrInvalidAuthMethod, http.StatusUnprocessableEntity, "invalid_auth_method"},
-	{site.ErrInvalidEncryption, http.StatusUnprocessableEntity, "invalid_ftp_encryption"},
-	{site.ErrInvalidCharset, http.StatusUnprocessableEntity, "invalid_charset"},
-	{site.ErrInvalidTimezone, http.StatusUnprocessableEntity, "invalid_timezone"},
 	{site.ErrInvalidRemoteDir, http.StatusUnprocessableEntity, "invalid_remote_dir"},
 	{site.ErrInvalidColor, http.StatusUnprocessableEntity, "invalid_color"},
 	{site.ErrInvalidSpeedLimit, http.StatusUnprocessableEntity, "invalid_speed_limit"},
-	{site.ErrInvalidProxy, http.StatusUnprocessableEntity, "invalid_proxy"},
-	{site.ErrInvalidJump, http.StatusUnprocessableEntity, "invalid_jump"},
 	{hostkey.ErrNotFound, http.StatusNotFound, "host_key_not_found"},
 	{hostkey.ErrChanged, http.StatusConflict, "host_key_changed"},
 	{hostkey.ErrInvalid, http.StatusUnprocessableEntity, "invalid_host_key"},
@@ -281,13 +271,10 @@ var domainProblems = []struct {
 	{netguard.ErrUnresolvable, http.StatusUnprocessableEntity, "host_unresolvable"},
 }
 
-// keyProblem is the problem for a private key a site cannot use: which key (params.key "site" or "jump") and why, with
-// the reason of an unsupported one (params.reason).
+// keyProblem is the problem for a private key a site cannot use: the field that holds it (params.field, such as private_key or
+// jump_private_key) and why, with the reason of an unsupported one (params.reason).
 func keyProblem(err *site.KeyError) domainProblem {
-	params := map[string]any{"key": "site"}
-	if err.Jump {
-		params["key"] = "jump"
-	}
+	params := map[string]any{"field": err.Field}
 	p := domainProblem{status: http.StatusUnprocessableEntity, code: "private_key_unreadable", params: params}
 	var unsupported *sshkey.UnsupportedError
 	switch {
@@ -308,9 +295,12 @@ func asProblem(err error) (domainProblem, bool) {
 	var hostKey *remotefs.HostKeyError
 	var badRange *files.RangeError
 	var badKey *site.KeyError
+	var badField *connectors.FieldError
 	switch {
 	case errors.As(err, &badKey):
 		return keyProblem(badKey), true
+	case errors.As(err, &badField):
+		return domainProblem{status: http.StatusUnprocessableEntity, code: "invalid_config", params: map[string]any{"field": badField.Field, "reason": badField.Reason}}, true
 	case errors.As(err, &hostKey):
 		code := "host_key_unknown"
 		if hostKey.Changed {

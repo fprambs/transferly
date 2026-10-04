@@ -224,8 +224,7 @@ func TestTeams_SharedKeys(t *testing.T) {
 	e := newTeamEnv(t)
 	expectProblem(t, e.a.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "No vault"}, e.cookie["stranger"], e.csrf["stranger"]), 409, "vault_locked")
 
-	body := siteBody("Production")
-	body["password"] = "hunter2-hunter2"
+	body := secret(siteBody("Production"), "password", "hunter2-hunter2")
 	created := e.call("owner", http.MethodPost, "/sites", body)
 	if created.Status != http.StatusCreated {
 		t.Fatalf("create site = %d %s", created.Status, created.Body)
@@ -322,8 +321,7 @@ func (e *teamEnv) keyState() (int, bool) {
 //   - a member who leaves also makes the next member with the key rotate it
 func TestTeams_KeyRotation(t *testing.T) {
 	e := newTeamEnv(t)
-	body := siteBody("Production")
-	body["password"] = "hunter2-hunter2"
+	body := secret(siteBody("Production"), "password", "hunter2-hunter2")
 	created := e.call("owner", http.MethodPost, "/sites", body)
 	if created.Status != http.StatusCreated {
 		t.Fatalf("create site = %d %s", created.Status, created.Body)

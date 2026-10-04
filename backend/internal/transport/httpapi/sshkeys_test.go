@@ -92,25 +92,21 @@ func TestSites_KeyRefusals(t *testing.T) {
 	ws := a.personal(cookie)
 	encrypted := testutil.PrivateKey(t, "phrase")
 
-	public := siteBody("Public key")
-	public["authMethod"], public["privateKey"] = "key", keyFixture(t, "openssh-ed25519.pub")
+	public := secret(set(siteBody("Public key"), "auth", "key"), "private_key", keyFixture(t, "openssh-ed25519.pub"))
 	refused := a.send(http.MethodPost, sitesPath(ws), public, cookie, csrf)
 	expectProblem(t, refused, http.StatusUnprocessableEntity, "private_key_is_public")
-	if params := refused.problem(t).Params; params == nil || (*params)["key"] != "site" {
+	if params := refused.problem(t).Params; params == nil || (*params)["field"] != "private_key" {
 		t.Errorf("params = %v; want the site's key", params)
 	}
 
-	locked := siteBody("No passphrase")
-	locked["authMethod"], locked["privateKey"] = "key", encrypted
+	locked := secret(set(siteBody("No passphrase"), "auth", "key"), "private_key", encrypted)
 	expectProblem(t, a.send(http.MethodPost, sitesPath(ws), locked, cookie, csrf), http.StatusUnprocessableEntity, "passphrase_required")
 
-	jump := siteBody("Jump")
-	jump["authMethod"], jump["privateKey"], jump["passphrase"] = "key", encrypted, "phrase"
-	jump["jump"] = map[string]any{"host": "1.1.1.1", "port": 22, "username": "bastion", "authMethod": "key"}
-	jump["jumpPrivateKey"], jump["jumpPassphrase"] = encrypted, "wrong"
+	jump := set(siteBody("Jump"), "auth", "key", "jump_host", "1.1.1.1", "jump_username", "bastion", "jump_auth", "key")
+	secret(jump, "private_key", encrypted, "passphrase", "phrase", "jump_private_key", encrypted, "jump_passphrase", "wrong")
 	wrong := a.send(http.MethodPost, sitesPath(ws), jump, cookie, csrf)
 	expectProblem(t, wrong, http.StatusUnprocessableEntity, "wrong_passphrase")
-	if params := wrong.problem(t).Params; params == nil || (*params)["key"] != "jump" {
+	if params := wrong.problem(t).Params; params == nil || (*params)["field"] != "jump_private_key" {
 		t.Errorf("params = %v; want the jump host's key", params)
 	}
 }

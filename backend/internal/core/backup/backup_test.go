@@ -86,13 +86,17 @@ func newFixture(authz allow) fixture {
 		},
 		sites: []site.Site{
 			{
-				ID: uuid.New(), CollectionID: deep, Name: "Keyed", Protocol: site.SFTP, Host: "k.example.com", Port: 22, Username: "deploy",
-				AuthMethod: site.AuthKey, ListTimezone: "UTC", Charset: "utf-8", SpeedLimit: 1024, RemoteDir: "/srv", Color: "violet",
-				Proxy:   site.Proxy{Kind: site.ProxySOCKS5, Host: "p", Port: 1080, Username: "pu"},
-				Jump:    site.Jump{Host: "j", Port: 22, Username: "ju", AuthMethod: site.AuthPassword},
+				ID: uuid.New(), CollectionID: deep, Name: "Keyed", Connector: "sftp", SpeedLimit: 1024, RemoteDir: "/srv", Color: "violet",
+				Config: map[string]string{
+					"host": "k.example.com", "port": "22", "username": "deploy", "auth": "key",
+					"proxy_kind": "socks5", "proxy_host": "p", "proxy_port": "1080", "proxy_username": "pu",
+					"jump_host": "j", "jump_port": "22", "jump_username": "ju", "jump_auth": "password",
+				},
 				Secrets: []site.SecretKind{site.SecretPrivateKey, site.SecretPassphrase, site.SecretJumpPassword, site.SecretProxyPassword},
 			},
-			{ID: uuid.New(), Name: "Asks", Protocol: site.FTP, FTPEncryption: site.EncryptionExplicit, Host: "f.example.com", Port: 21, Username: "u", AuthMethod: site.AuthInteractive, ListTimezone: "UTC", Charset: "utf-8"},
+			{ID: uuid.New(), Name: "Asks", Connector: "ftp", Config: map[string]string{
+				"host": "f.example.com", "port": "21", "username": "u", "auth": "interactive", "encryption": "explicit", "list_timezone": "UTC", "charset": "utf-8",
+			}},
 		},
 		secrets: map[site.SecretKind]string{site.SecretPrivateKey: "KEY", site.SecretPassphrase: "phrase", site.SecretJumpPassword: "jump-pw", site.SecretProxyPassword: "proxy-pw"},
 	}
@@ -127,10 +131,10 @@ func TestService_Export(t *testing.T) {
 	}
 	keyed := content.Sites[0]
 	if !slices.Equal(keyed.Path, []string{"Work", "Deep"}) || keyed.Secrets["private_key"] != "KEY" || keyed.Secrets["proxy_password"] != "proxy-pw" ||
-		keyed.Proxy == nil || keyed.Proxy.Username != "pu" || keyed.Jump == nil || keyed.Jump.AuthMethod != "password" || keyed.SpeedLimit != 1024 || keyed.RemoteDir != "/srv" || keyed.Color != "violet" {
+		keyed.Connector != "sftp" || keyed.Config["proxy_username"] != "pu" || keyed.Config["jump_auth"] != "password" || keyed.SpeedLimit != 1024 || keyed.RemoteDir != "/srv" || keyed.Color != "violet" {
 		t.Errorf("keyed = %+v", keyed)
 	}
-	if asks := content.Sites[1]; len(asks.Path) != 0 || len(asks.Secrets) != 0 || asks.Proxy != nil || asks.Jump != nil || asks.FTPEncryption != "explicit" {
+	if asks := content.Sites[1]; len(asks.Path) != 0 || len(asks.Secrets) != 0 || asks.Connector != "ftp" || asks.Config["encryption"] != "explicit" {
 		t.Errorf("interactive = %+v", asks)
 	}
 }
@@ -179,7 +183,8 @@ func TestService_Export_Refusals(t *testing.T) {
 // Use cases:
 //   - an exported file imports every collection and every site with its settings and secrets, with the options given
 //   - the actor must manage the sites, which is checked before anything is derived
-//   - a wrong password is refused, and a file with a secret this version does not know is ErrInvalidFile
+//   - a wrong password is refused, and the secrets of a file are handed to the import as they are, which checks them against the connector of
+//     each site
 func TestService_Import(t *testing.T) {
 	ctx := t.Context()
 	f := newFixture(allow{})
@@ -194,11 +199,11 @@ func TestService_Import(t *testing.T) {
 	}
 	keyed := f.importer.entries[0]
 	in := keyed.Input
-	if in.Name != "Keyed" || in.AuthMethod != site.AuthKey || in.Proxy.Kind != site.ProxySOCKS5 || in.Jump.Username != "ju" || in.SpeedLimit != 1024 ||
-		*keyed.Secrets.PrivateKey != "KEY" || *keyed.Secrets.JumpPassword != "jump-pw" || keyed.Secrets.Password != nil || !slices.Equal(keyed.Path, []string{"Work", "Deep"}) {
+	if in.Name != "Keyed" || in.Connector != "sftp" || in.Config["auth"] != "key" || in.Config["proxy_kind"] != "socks5" || in.Config["jump_username"] != "ju" || in.SpeedLimit != 1024 ||
+		keyed.Secrets[site.SecretPrivateKey] != "KEY" || keyed.Secrets[site.SecretJumpPassword] != "jump-pw" || keyed.Secrets[site.SecretPassword] != "" || !slices.Equal(keyed.Path, []string{"Work", "Deep"}) {
 		t.Errorf("keyed entry = %+v", keyed)
 	}
-	if asks := f.importer.entries[1]; asks.Input.Proxy.Set() || asks.Input.Jump.Set() || asks.Input.FTPEncryption != site.EncryptionExplicit {
+	if asks := f.importer.entries[1]; asks.Input.Connector != "ftp" || asks.Input.Config["encryption"] != "explicit" || len(asks.Secrets) != 0 {
 		t.Errorf("interactive entry = %+v", asks)
 	}
 
@@ -209,11 +214,11 @@ func TestService_Import(t *testing.T) {
 	if _, err := f.svc.Import(ctx, uuid.New(), uuid.New(), "s", "not the password at all", file, opts); !errors.Is(err, backup.ErrWrongPassword) {
 		t.Errorf("wrong password = %v", err)
 	}
-	unknown, err := f.sealer.Seal(ctx, password, backup.Content{Sites: []backup.Site{{Name: "Odd", Secrets: map[string]string{"token": "x"}}}})
+	odd, err := f.sealer.Seal(ctx, password, backup.Content{Sites: []backup.Site{{Name: "Odd", Connector: "sftp", Secrets: map[string]string{"token": "x"}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.svc.Import(ctx, uuid.New(), uuid.New(), "s", password, unknown, opts); !errors.Is(err, backup.ErrInvalidFile) {
-		t.Errorf("unknown secret = %v", err)
+	if _, err := f.svc.Import(ctx, uuid.New(), uuid.New(), "s", password, odd, opts); err != nil || f.importer.entries[0].Secrets["token"] != "x" {
+		t.Errorf("a secret of the file = %v, %+v; want it handed to the import, which checks it against the connector", err, f.importer.entries)
 	}
 }

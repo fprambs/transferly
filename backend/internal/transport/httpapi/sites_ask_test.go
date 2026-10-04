@@ -22,14 +22,13 @@ func TestSites_AskForPassword(t *testing.T) {
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
 
-	body := siteBody("Asks")
-	body["authMethod"], body["password"] = "ask", "ignored"
+	body := secret(set(siteBody("Asks"), "auth", "ask"), "password", "ignored")
 	created := a.send(http.MethodPost, sitesPath(ws), body, cookie, csrf)
 	if created.Status != http.StatusCreated {
 		t.Fatalf("create = %d %s", created.Status, created.Body)
 	}
 	asking := created.site(t)
-	if asking.AuthMethod != "ask" || len(asking.Secrets) != 0 {
+	if asking.Config["auth"] != "ask" || len(asking.Secrets) != 0 {
 		t.Fatalf("created = %+v; want ask with no secret", asking)
 	}
 	list := func() reply {
@@ -59,8 +58,7 @@ func TestSites_AskForPassword(t *testing.T) {
 	expectProblem(t, list(), http.StatusConflict, "credentials_required")
 
 	credential(asking.Id.String(), "typed-password")
-	renamed := siteBody("Asks again")
-	renamed["authMethod"] = "ask"
+	renamed := set(siteBody("Asks again"), "auth", "ask")
 	if r := a.send(http.MethodPut, sitesPath(ws, asking.Id.String()), renamed, cookie, csrf); r.Status != http.StatusOK {
 		t.Fatalf("update = %d %s", r.Status, r.Body)
 	}

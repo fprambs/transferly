@@ -3,6 +3,7 @@ package storetest
 import (
 	"bytes"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -27,10 +28,12 @@ type SiteFactory func(t *testing.T) SiteStore
 // newSite returns a valid site of a workspace.
 func newSite(workspaceID uuid.UUID, name string) site.Site {
 	return site.Site{
-		ID: uuid.New(), WorkspaceID: workspaceID, Name: name, Protocol: site.SFTP, Host: "files.example.com", Port: 2222,
-		Username: "deploy", AuthMethod: site.AuthKey, ListTimezone: "America/Santiago", Charset: "koi8-r", SpeedLimit: 65536, RemoteDir: "/srv/www", Color: "red",
-		Proxy:     site.Proxy{Kind: site.ProxySOCKS5, Host: "proxy.example.com", Port: 1080, Username: "proxyuser"},
-		Jump:      site.Jump{Host: "bastion.example.com", Port: 2222, Username: "bastion", AuthMethod: site.AuthKey},
+		ID: uuid.New(), WorkspaceID: workspaceID, Name: name, Connector: "sftp", SpeedLimit: 65536, RemoteDir: "/srv/www", Color: "red",
+		Config: map[string]string{
+			"host": "files.example.com", "port": "2222", "username": "deploy", "auth": "key",
+			"proxy_kind": "socks5", "proxy_host": "proxy.example.com", "proxy_port": "1080", "proxy_username": "proxyuser",
+			"jump_host": "bastion.example.com", "jump_port": "2222", "jump_username": "bastion", "jump_auth": "key",
+		},
 		CreatedAt: now, UpdatedAt: now,
 	}
 }
@@ -82,9 +85,8 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 			t.Fatalf("Site() = %v", err)
 		}
 		want.Secrets = []site.SecretKind{site.SecretPassphrase, site.SecretPrivateKey}
-		if got.ID != want.ID || got.Name != want.Name || got.Protocol != want.Protocol || got.Host != want.Host || got.Port != want.Port ||
-			got.Username != want.Username || got.AuthMethod != want.AuthMethod || got.ListTimezone != want.ListTimezone ||
-			got.SpeedLimit != want.SpeedLimit || got.Proxy != want.Proxy || got.Jump != want.Jump ||
+		if got.ID != want.ID || got.Name != want.Name || got.Connector != want.Connector || !maps.Equal(got.Config, want.Config) ||
+			got.SpeedLimit != want.SpeedLimit || got.RemoteDir != want.RemoteDir || got.Color != want.Color ||
 			!got.CreatedAt.Equal(now) || got.CreatedAt.Location().String() != "UTC" || len(got.Secrets) != 2 ||
 			got.Secrets[0] != want.Secrets[0] || got.Secrets[1] != want.Secrets[1] {
 			t.Fatalf("Site() = %+v; want %+v", got, want)
@@ -133,19 +135,15 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 			t.Fatal(err)
 		}
 		changed := s
-		changed.Name, changed.Host, changed.Port, changed.Protocol, changed.AuthMethod = "Prod", "other.example.com", 22, site.FTP, site.AuthAnonymous
-		changed.FTPEncryption = site.EncryptionImplicit
-		changed.SpeedLimit = 4096
-		changed.Proxy = site.Proxy{Kind: site.ProxyHTTP, Host: "other-proxy.example.com", Port: 8080, Username: "other"}
-		changed.Jump = site.Jump{Host: "other-bastion.example.com", Port: 22, Username: "other", AuthMethod: site.AuthPassword}
+		changed.Name, changed.Connector, changed.SpeedLimit = "Prod", "ftp", 4096
+		changed.Config = map[string]string{"host": "other.example.com", "port": "990", "username": "anonymous", "auth": "anonymous", "encryption": "implicit"}
 		changed.UpdatedAt = now.Add(time.Second)
 		changed.CreatedAt = now.Add(time.Hour)
 		if err := store.UpdateSite(ctx, changed, []site.Sealed{secret(site.SecretPassword, 7)}, []site.SecretKind{site.SecretPassphrase}); err != nil {
 			t.Fatalf("UpdateSite() = %v", err)
 		}
 		got, err := store.Site(ctx, ws, s.ID)
-		if err != nil || got.Name != "Prod" || got.Host != "other.example.com" || got.Port != 22 || got.Protocol != site.FTP || got.AuthMethod != site.AuthAnonymous || got.FTPEncryption != site.EncryptionImplicit ||
-			got.SpeedLimit != 4096 || got.Proxy != changed.Proxy || got.Jump != changed.Jump ||
+		if err != nil || got.Name != "Prod" || got.Connector != "ftp" || !maps.Equal(got.Config, changed.Config) || got.SpeedLimit != 4096 ||
 			!got.CreatedAt.Equal(now) || !got.UpdatedAt.Equal(now.Add(time.Second)) || len(got.Secrets) != 1 || got.Secrets[0] != site.SecretPassword {
 			t.Fatalf("Site() after update = %+v, %v", got, err)
 		}

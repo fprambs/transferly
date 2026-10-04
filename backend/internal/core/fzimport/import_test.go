@@ -9,14 +9,16 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/fzimport"
 	"github.com/fprambs/transferly/internal/core/netguard"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
-// fakeSites keeps sites and collections in memory and can be told to fail.
+// fakeSites keeps sites and collections in memory, settles them with the real rules, and can be told to fail.
 type fakeSites struct {
+	*site.Service
 	sites       []site.Site
 	collections []site.Collection
 	passwords   map[string]string
@@ -33,13 +35,13 @@ func (f *fakeSites) Create(_ context.Context, _, ws uuid.UUID, _ string, in site
 	if err := f.createErr[in.Name]; err != nil {
 		return site.Site{}, err
 	}
-	created := site.Site{ID: uuid.New(), WorkspaceID: ws, Name: in.Name, Host: in.Host, Port: in.Port, Protocol: in.Protocol, Username: in.Username, CollectionID: in.CollectionID}
+	created := site.Site{ID: uuid.New(), WorkspaceID: ws, Name: in.Name, Connector: in.Connector, Config: in.Config, CollectionID: in.CollectionID}
 	f.sites = append(f.sites, created)
-	if changes.Password != nil {
-		f.passwords[in.Name] = *changes.Password
+	if password, ok := changes[site.SecretPassword]; ok {
+		f.passwords[in.Name] = password
 	}
-	if changes.Account != nil {
-		f.accounts[in.Name] = *changes.Account
+	if account, ok := changes[site.SecretAccount]; ok {
+		f.accounts[in.Name] = account
 	}
 	return created, nil
 }
@@ -77,17 +79,33 @@ func (a allow) Authorize(context.Context, uuid.UUID, uuid.UUID, workspace.Action
 
 // newImport returns a service over fake sites.
 func newImport() (*fzimport.Service, *fakeSites) {
-	f := &fakeSites{passwords: map[string]string{}, accounts: map[string]string{}, unlocked: true, createErr: map[string]error{}}
+	f := &fakeSites{Service: settler(), passwords: map[string]string{}, accounts: map[string]string{}, unlocked: true, createErr: map[string]error{}}
 	return fzimport.NewService(allow{}, f), f
+}
+
+// settler returns a site service that only settles sites, by the schemas of the built-in connectors.
+func settler() *site.Service {
+	return site.NewService(nil, nil, nil, nil, connectors.Builtin(), nil, nil, nil)
+}
+
+// server builds a server of a test with a connector and settings, given as name and value pairs.
+func server(path []string, name, connector string, settings ...string) fzimport.Server {
+	config := map[string]string{}
+	for i := 0; i+1 < len(settings); i += 2 {
+		config[settings[i]] = settings[i+1]
+	}
+	return fzimport.Server{Path: path, Name: name, Connector: connector, Config: config}
 }
 
 // servers builds the servers of the tests.
 func servers() []fzimport.Server {
-	return []fzimport.Server{
-		{Path: []string{"Work", "Deep"}, Name: "One", Protocol: site.SFTP, Host: "one.example.com", Username: "u", Password: "pw1"},
-		{Path: []string{"Work"}, Name: "Two", Protocol: site.FTP, Host: "two.example.com", Username: "u", PasswordSkipped: true},
-		{Name: "Three", Protocol: site.FTPS, Host: "three.example.com", Username: "u", AuthMethod: site.AuthAccount, Account: "billing"},
-	}
+	one := server([]string{"Work", "Deep"}, "One", "sftp", "host", "one.example.com", "username", "u")
+	one.Password = "pw1"
+	two := server([]string{"Work"}, "Two", "ftp", "host", "two.example.com", "username", "u")
+	two.PasswordSkipped = true
+	three := server(nil, "Three", "ftp", "host", "three.example.com", "username", "u", "encryption", "explicit", "auth", "account")
+	three.Account = "billing"
+	return []fzimport.Server{one, two, three}
 }
 
 // byName indexes the items of a result.
@@ -153,14 +171,14 @@ func TestService_Import(t *testing.T) {
 
 	taken, takenFake := newImport()
 	takenFake.sites = []site.Site{{Name: "one"}, {Name: "Three"}, {Name: "Three (2)"}}
-	first, _ := taken.Import(ctx, actor, ws, "s", append(servers(), fzimport.Server{Name: "Two", Protocol: site.FTP, Host: "dup.example.com", Username: "u"}), nil, fzimport.Options{})
+	first, _ := taken.Import(ctx, actor, ws, "s", append(servers(), server(nil, "Two", "ftp", "host", "dup.example.com", "username", "u")), nil, fzimport.Options{})
 	items = byName(first)
 	if items["One"].Status != fzimport.StatusSkipped || items["One"].Reason != "name_taken" {
 		t.Errorf("taken name = %+v", items["One"])
 	}
 	renamed, renamedFake := newImport()
 	renamedFake.sites = []site.Site{{Name: "one"}, {Name: "Three"}, {Name: "Three (2)"}}
-	second, _ := renamed.Import(ctx, actor, ws, "s", append(servers(), fzimport.Server{Name: "Two", Protocol: site.FTP, Host: "dup.example.com", Username: "u"}), nil, fzimport.Options{OnConflict: fzimport.RenameSite})
+	second, _ := renamed.Import(ctx, actor, ws, "s", append(servers(), server(nil, "Two", "ftp", "host", "dup.example.com", "username", "u")), nil, fzimport.Options{OnConflict: fzimport.RenameSite})
 	names := []string{}
 	for _, item := range second.Items {
 		names = append(names, item.Name)
@@ -193,7 +211,7 @@ func TestService_Import(t *testing.T) {
 
 	failing, failingFake := newImport()
 	failingFake.createErr["Two"] = netguard.ErrBlocked
-	bad := append(servers(), fzimport.Server{Name: "Bad host", Protocol: site.FTP, Host: "not a host", Username: "u"})
+	bad := append(servers(), server(nil, "Bad host", "ftp", "host", "not a host", "username", "u"))
 	out, err := failing.Import(ctx, actor, ws, "s", bad, nil, fzimport.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +242,7 @@ func TestService_Import(t *testing.T) {
 		}
 	}
 
-	forbidden := fzimport.NewService(allow{err: workspace.ErrForbidden}, &fakeSites{})
+	forbidden := fzimport.NewService(allow{err: workspace.ErrForbidden}, &fakeSites{Service: settler()})
 	if _, err := forbidden.Import(ctx, actor, ws, "s", servers(), nil, fzimport.Options{}); !errors.Is(err, workspace.ErrForbidden) {
 		t.Errorf("Import() by a viewer = %v; want ErrForbidden", err)
 	}
@@ -255,7 +273,10 @@ func TestService_ImportEntries(t *testing.T) {
 	ctx := context.Background()
 	ws, actor := uuid.New(), uuid.New()
 	key, phrase := "KEY", "phrase"
-	entries := []fzimport.Entry{{Path: []string{"Work"}, Input: site.Input{Name: "Keyed", Protocol: site.SFTP, Host: "k.example.com", Username: "u", AuthMethod: site.AuthKey}, Secrets: site.SecretChanges{PrivateKey: &key, Passphrase: &phrase}}}
+	entries := []fzimport.Entry{{
+		Path: []string{"Work"}, Input: site.Input{Name: "Keyed", Connector: "sftp", Config: map[string]string{"host": "k.example.com", "username": "u", "auth": "key"}},
+		Secrets: site.SecretChanges{site.SecretPrivateKey: key, site.SecretPassphrase: phrase},
+	}}
 	folders := [][]string{{"Work"}, {"Empty", "Inner"}}
 
 	svc, fake := newImport()

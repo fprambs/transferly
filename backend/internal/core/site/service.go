@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/netip"
 	"path"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/ports"
 	"github.com/fprambs/transferly/internal/core/sshkey"
 	"github.com/fprambs/transferly/internal/core/vault"
@@ -26,8 +25,6 @@ const (
 	// maxRemoteDirBytes is the longest default remote folder.
 	maxRemoteDirBytes = 4096
 	maxNameRunes      = 100
-	maxUsernameRunes  = 255
-	maxHostLength     = 253
 	maxSecretBytes    = 1024
 	maxKeyBytes       = 64 * 1024
 	// minSpeedLimit is the smallest speed limit a site may have, in bytes per second (1 KiB): below it a single chunk of
@@ -36,12 +33,6 @@ const (
 	// maxSpeedLimit is the largest speed limit a site may have, in bytes per second (1 TiB).
 	maxSpeedLimit = 1 << 40
 )
-
-// labelPattern matches one label of a host name.
-var labelPattern = regexp.MustCompile(`^[A-Za-z0-9_]([A-Za-z0-9_-]{0,61}[A-Za-z0-9_])?$`)
-
-// defaultPorts are the ports used when a site does not name one.
-var defaultPorts = map[Protocol]int{SFTP: 22, FTP: 21, FTPS: 21}
 
 // Authorizer checks that a user may perform an action in a workspace.
 type Authorizer interface {
@@ -66,62 +57,33 @@ type Guard interface {
 	CheckHost(ctx context.Context, host string) error
 }
 
+// Schemas finds the descriptors of the connectors, whose schemas sites follow (ADR-0022).
+type Schemas interface {
+	// Lookup returns the descriptor of a connector, or [connectors.ErrUnknown].
+	Lookup(kind string) (connectors.Descriptor, error)
+}
+
 // Input holds the settings of a site as given by the user.
 type Input struct {
 	// Name is the display name.
 	Name string
-	// Protocol is the transfer protocol; FTPS is read as FTP that requires TLS.
-	Protocol Protocol
-	// FTPEncryption is how an FTP site protects the connection; empty selects clear text for FTP, the encryption the port
-	// implies for FTPS, and nothing for SFTP.
-	FTPEncryption FTPEncryption
-	// Host is the server name or address.
-	Host string
-	// Port is the server port; zero selects the protocol's default.
-	Port int
-	// Username is the account name.
-	Username string
 	// CollectionID is the collection to keep the site in; the nil identifier keeps it at the top level.
 	CollectionID uuid.UUID
-	// AuthMethod is how the account authenticates; empty selects password.
-	AuthMethod AuthMethod
-	// ListTimezone is the IANA zone of listing times; empty selects UTC.
-	ListTimezone string
-	// Charset is the character set of file names; empty selects UTF-8. Only FTP and FTPS accept another one.
-	Charset string
+	// Connector is the type of the connector the site uses.
+	Connector string
+	// Config is the configuration of the connector, without its secrets.
+	Config map[string]string
 	// SpeedLimit caps the bytes per second the site's transfers move together; zero means no cap of its own.
 	SpeedLimit int64
 	// RemoteDir is the folder the site opens in; empty, or the root, opens the root. It is stored cleaned.
 	RemoteDir string
 	// Color is the label the site wears in the interface; empty for none.
 	Color Color
-	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
-	Proxy Proxy
-	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects
-	// directly. Only valid for SFTP.
-	Jump Jump
 }
 
-// SecretChanges tells which secrets to write. A nil field leaves the secret as it is, an empty string
+// SecretChanges tells which secrets to write, by the name of their field. A secret left out stays as it is, an empty value
 // removes it and any other value replaces it.
-type SecretChanges struct {
-	// Password is the account password.
-	Password *string
-	// PrivateKey is the SSH private key.
-	PrivateKey *string
-	// Passphrase is the passphrase of the private key.
-	Passphrase *string
-	// JumpPassword is the password of the jump host.
-	JumpPassword *string
-	// JumpPrivateKey is the SSH private key of the jump host.
-	JumpPrivateKey *string
-	// JumpPassphrase is the passphrase of the jump host's private key.
-	JumpPassphrase *string
-	// ProxyPassword is the password of the SOCKS5 or HTTP proxy.
-	ProxyPassword *string
-	// Account is the account an FTP site of the account logon type sends with ACCT.
-	Account *string
-}
+type SecretChanges map[SecretKind]string
 
 // Service implements the site use cases. Secrets are sealed with the key of their workspace: the DEK of the owner for a personal
 // workspace and the shared workspace key for a team.
@@ -133,6 +95,7 @@ type Service struct {
 	authz    Authorizer
 	keys     Keys
 	guard    Guard
+	schemas  Schemas
 	clock    ports.Clock
 	random   io.Reader
 	newID    func() (uuid.UUID, error)
@@ -149,196 +112,138 @@ type Quota interface {
 // UseQuota makes the service ask a quota before it creates a site. Without one nothing is refused. Call it before the service is used.
 func (s *Service) UseQuota(q Quota) { s.quota = q }
 
-// Offering tells whether the instance offers the connector of a protocol (ADR-0019).
+// Offering tells whether the instance offers a connector (ADR-0019).
 type Offering interface {
-	// CheckProtocol returns [ErrConnectorDisabled] when the instance does not offer the connector of protocol.
-	CheckProtocol(ctx context.Context, protocol Protocol) error
+	// CheckConnector returns [connectors.ErrDisabled] when the instance does not offer the connector.
+	CheckConnector(ctx context.Context, kind string) error
 }
 
 // UseOffering makes the service refuse sites of a connector the instance does not offer: new ones, and existing ones moved to it. Without
-// it every protocol is offered. Call it before the service is used.
+// it every connector of the catalog is offered. Call it before the service is used.
 func (s *Service) UseOffering(o Offering) { s.offering = o }
 
-// checkOffered refuses a protocol whose connector the instance does not offer.
-func (s *Service) checkOffered(ctx context.Context, protocol Protocol) error {
+// checkOffered refuses a connector the instance does not offer.
+func (s *Service) checkOffered(ctx context.Context, kind string) error {
 	if s.offering == nil {
 		return nil
 	}
-	return s.offering.CheckProtocol(ctx, protocol)
+	return s.offering.CheckConnector(ctx, kind)
 }
 
 // NewService returns a service. newID may be nil to use UUIDv7.
 func NewService(store interface {
 	Store
 	CollectionStore
-}, authz Authorizer, keys Keys, guard Guard, clock ports.Clock, random io.Reader, newID func() (uuid.UUID, error)) *Service {
+}, authz Authorizer, keys Keys, guard Guard, schemas Schemas, clock ports.Clock, random io.Reader, newID func() (uuid.UUID, error)) *Service {
 	if newID == nil {
 		newID = uuid.NewV7
 	}
-	return &Service{store: store, authz: authz, keys: keys, guard: guard, clock: clock, random: random, newID: newID}
+	return &Service{store: store, authz: authz, keys: keys, guard: guard, schemas: schemas, clock: clock, random: random, newID: newID}
 }
 
-// Normalize validates the settings and fills in the defaults: the port of the protocol, password authentication and
-// UTC listing times. Text fields are trimmed.
-func Normalize(in Input) (Input, error) {
+// Settle validates the settings of a site and fills in the defaults: the name is trimmed, and the configuration is settled by the schema of
+// its connector (see [connectors.Descriptor.Validate]). An unknown connector is a [*connectors.FieldError] of the connector field. It
+// returns the settled input and the descriptor of its connector.
+func (s *Service) Settle(in Input) (Input, connectors.Descriptor, error) {
 	in.Name = strings.TrimSpace(in.Name)
-	in.Host = strings.TrimSpace(in.Host)
-	in.Username = strings.TrimSpace(in.Username)
-	if in.AuthMethod == AuthAnonymous {
-		in.Username = AnonymousUser
-	}
 	if n := utf8.RuneCountInString(in.Name); n == 0 || n > maxNameRunes {
-		return in, ErrInvalidName
-	}
-	if _, ok := defaultPorts[in.Protocol]; !ok {
-		return in, ErrInvalidProtocol
-	}
-	if !ValidHost(in.Host) {
-		return in, ErrInvalidHost
-	}
-	var err error
-	if in.Protocol, in.FTPEncryption, err = normalizeEncryption(in.Protocol, in.Port, in.FTPEncryption); err != nil {
-		return in, err
-	}
-	if in.Port == 0 {
-		in.Port = defaultPorts[in.Protocol]
-		if in.FTPEncryption == EncryptionImplicit {
-			in.Port = implicitPort
-		}
-	}
-	if in.Port < 1 || in.Port > 65535 {
-		return in, ErrInvalidPort
-	}
-	if n := utf8.RuneCountInString(in.Username); n == 0 || n > maxUsernameRunes {
-		return in, ErrInvalidUsername
-	}
-	if in.AuthMethod == "" {
-		in.AuthMethod = AuthPassword
-	}
-	if !slices.Contains([]AuthMethod{AuthPassword, AuthAsk, AuthAnonymous, AuthInteractive}, in.AuthMethod) && (in.AuthMethod != AuthKey || in.Protocol != SFTP) && (in.AuthMethod != AuthAccount || in.Protocol == SFTP) {
-		return in, ErrInvalidAuthMethod
-	}
-	if in.Charset == "" {
-		in.Charset = "utf-8"
-	}
-	in.Charset = strings.ToLower(strings.TrimSpace(in.Charset))
-	if !slices.Contains(Charsets, in.Charset) || (in.Protocol == SFTP && in.Charset != "utf-8") {
-		return in, ErrInvalidCharset
-	}
-	if in.ListTimezone == "" {
-		in.ListTimezone = "UTC"
-	}
-	if _, err := time.LoadLocation(in.ListTimezone); err != nil || in.ListTimezone == "Local" {
-		return in, ErrInvalidTimezone
+		return in, connectors.Descriptor{}, ErrInvalidName
 	}
 	if in.SpeedLimit != 0 && (in.SpeedLimit < minSpeedLimit || in.SpeedLimit > maxSpeedLimit) {
-		return in, ErrInvalidSpeedLimit
+		return in, connectors.Descriptor{}, ErrInvalidSpeedLimit
 	}
 	remoteDir, err := normalizeRemoteDir(in.RemoteDir)
 	if err != nil {
-		return in, err
+		return in, connectors.Descriptor{}, err
 	}
 	in.RemoteDir = remoteDir
 	if in.Color != "" && !slices.Contains(Colors, in.Color) {
-		return in, ErrInvalidColor
+		return in, connectors.Descriptor{}, ErrInvalidColor
 	}
-	proxy, err := normalizeProxy(in.Proxy)
+	d, err := s.schemas.Lookup(in.Connector)
+	if errors.Is(err, connectors.ErrUnknown) {
+		return in, connectors.Descriptor{}, &connectors.FieldError{Field: "connector", Reason: connectors.ReasonUnknown}
+	}
 	if err != nil {
-		return in, err
+		return in, connectors.Descriptor{}, err
 	}
-	in.Proxy = proxy
-	jump, err := normalizeJump(in.Jump, in.Protocol)
-	if err != nil {
-		return in, err
+	if in.Config, err = d.Validate(in.Config); err != nil {
+		return in, connectors.Descriptor{}, err
 	}
-	in.Jump = jump
-	return in, nil
+	return in, d, nil
 }
 
-// normalizeProxy trims and validates a proxy; the zero value, meaning no proxy, is always valid.
-func normalizeProxy(p Proxy) (Proxy, error) {
-	p.Host = strings.TrimSpace(p.Host)
-	p.Username = strings.TrimSpace(p.Username)
-	if !p.Set() {
-		return Proxy{}, nil
-	}
-	if p.Kind != ProxySOCKS5 && p.Kind != ProxyHTTP {
-		return p, ErrInvalidProxy
-	}
-	if !ValidHost(p.Host) || p.Port < 1 || p.Port > 65535 {
-		return p, ErrInvalidProxy
-	}
-	return p, nil
-}
-
-// normalizeEncryption settles how an FTP site protects the connection. SFTP takes none. The legacy FTPS protocol becomes FTP
-// that requires TLS: implicit on port 990, explicit on any other, as before encryptions could be chosen. FTP without one keeps
-// clear text, as it always meant.
-func normalizeEncryption(protocol Protocol, port int, encryption FTPEncryption) (Protocol, FTPEncryption, error) {
-	switch {
-	case protocol == SFTP && encryption == "":
-		return SFTP, "", nil
-	case protocol == SFTP:
-		return protocol, encryption, ErrInvalidEncryption
-	case protocol == FTPS && encryption == "" && port == implicitPort:
-		return FTP, EncryptionImplicit, nil
-	case protocol == FTPS && encryption == "":
-		return FTP, EncryptionExplicit, nil
-	case protocol == FTPS && encryption != EncryptionExplicit && encryption != EncryptionImplicit:
-		return protocol, encryption, ErrInvalidEncryption
-	case encryption == "":
-		return FTP, EncryptionPlain, nil
-	}
-	switch encryption {
-	case EncryptionOptional, EncryptionExplicit, EncryptionImplicit, EncryptionPlain:
-		return FTP, encryption, nil
-	}
-	return protocol, encryption, ErrInvalidEncryption
-}
-
-// normalizeJump trims and validates a jump host; the zero value, meaning no jump host, is always valid. A jump host
-// is only valid for SFTP, since FTP and FTPS have no equivalent of an SSH tunnel to send it through.
-func normalizeJump(j Jump, protocol Protocol) (Jump, error) {
-	j.Host = strings.TrimSpace(j.Host)
-	j.Username = strings.TrimSpace(j.Username)
-	if !j.Set() {
-		return Jump{}, nil
-	}
-	if protocol != SFTP || !ValidHost(j.Host) {
-		return j, ErrInvalidJump
-	}
-	if j.Port == 0 {
-		j.Port = defaultPorts[SFTP]
-	}
-	if j.Port < 1 || j.Port > 65535 {
-		return j, ErrInvalidJump
-	}
-	if n := utf8.RuneCountInString(j.Username); n == 0 || n > maxUsernameRunes {
-		return j, ErrInvalidJump
-	}
-	if j.AuthMethod == "" {
-		j.AuthMethod = AuthPassword
-	}
-	if j.AuthMethod != AuthPassword && j.AuthMethod != AuthKey {
-		return j, ErrInvalidJump
-	}
-	return j, nil
-}
-
-// ValidHost reports whether host is an IP address or a dotted host name, without scheme, port, path or spaces.
-func ValidHost(host string) bool {
-	if host == "" || len(host) > maxHostLength {
-		return false
-	}
-	if _, err := netip.ParseAddr(host); err == nil {
-		return true
-	}
-	for _, label := range strings.Split(strings.TrimSuffix(host, "."), ".") {
-		if !labelPattern.MatchString(label) {
-			return false
+// CheckHosts asks the guard about every host a settled configuration points to: the server's, and those of its proxy and jump host when
+// they apply.
+func (s *Service) CheckHosts(ctx context.Context, d connectors.Descriptor, config map[string]string) error {
+	for _, f := range d.Fields {
+		if f.Kind != connectors.Host || config[f.Name] == "" {
+			continue
+		}
+		if err := s.guard.CheckHost(ctx, config[f.Name]); err != nil {
+			return err
 		}
 	}
-	return true
+	return nil
+}
+
+// PlanSecrets settles the secret changes of a site against the schema of its connector: a secret the connector does not have is refused, a
+// private key is read with its passphrase (see [checkKey]), and every secret whose field does not apply to the configuration is removed,
+// stored or given, so a site that asks for its password when connecting (ADR-0010), an anonymous one and an interactive one (ADR-0016) keep
+// none. stored lists the kinds the site already has, which are removed too when they are not secrets of its connector.
+func PlanSecrets(d connectors.Descriptor, config map[string]string, changes SecretChanges, stored []SecretKind) (SecretChanges, error) {
+	out := SecretChanges{}
+	for kind, value := range changes {
+		f, ok := d.Field(string(kind))
+		if !ok || !f.IsSecret() {
+			return nil, &connectors.FieldError{Field: string(kind), Reason: connectors.ReasonUnknown}
+		}
+		if f.Applies(config) {
+			out[kind] = value
+		}
+	}
+	for _, kind := range stored {
+		if f, ok := d.Field(string(kind)); !ok || !f.Applies(config) {
+			out[kind] = ""
+		}
+	}
+	for _, f := range d.Fields {
+		kind := SecretKind(f.Name)
+		if !f.IsSecret() || f.Applies(config) {
+			continue
+		}
+		if _, given := changes[kind]; given {
+			out[kind] = ""
+		}
+	}
+	for _, f := range d.Fields {
+		if f.Kind != connectors.PrivateKey || out[SecretKind(f.Name)] == "" {
+			continue
+		}
+		if err := checkKey(f, out); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// checkKey reads a private key being saved with the passphrase given with it (4.8g): a key that cannot be used is refused with a [*KeyError],
+// and a usable one is stored in the form connecting reads, PuTTY and encrypted PKCS#8 keys converted to OpenSSH's. A key that is not
+// encrypted drops any passphrase, which would only stop it from opening. A key larger than any key file is refused as any secret is.
+func checkKey(f connectors.Field, changes SecretChanges) error {
+	key := changes[SecretKind(f.Name)]
+	if len(key) > maxKeyBytes {
+		return ErrSecretTooLarge
+	}
+	read, err := sshkey.Read([]byte(key), []byte(changes[SecretKind(f.Passphrase)]))
+	if err != nil {
+		return &KeyError{Field: f.Name, Err: err}
+	}
+	changes[SecretKind(f.Name)] = string(read.PEM)
+	if !read.Encrypted {
+		changes[SecretKind(f.Passphrase)] = ""
+	}
+	return nil
 }
 
 // plan is the set of secret writes derived from the changes.
@@ -348,31 +253,26 @@ type plan struct {
 }
 
 // sealChanges turns secret changes into writes for a site. Unlocking is needed only to write values.
-func (s *Service) sealChanges(ctx context.Context, actor, workspaceID uuid.UUID, session string, siteID uuid.UUID, changes SecretChanges) (plan, error) {
+func (s *Service) sealChanges(ctx context.Context, actor, workspaceID uuid.UUID, session string, siteID uuid.UUID, d connectors.Descriptor, changes SecretChanges) (plan, error) {
 	var p plan
-	entries := []struct {
-		kind  SecretKind
-		value *string
-		limit int
-	}{
-		{SecretPassword, changes.Password, maxSecretBytes},
-		{SecretAccount, changes.Account, maxSecretBytes},
-		{SecretPrivateKey, changes.PrivateKey, maxKeyBytes},
-		{SecretPassphrase, changes.Passphrase, maxSecretBytes},
-		{SecretJumpPassword, changes.JumpPassword, maxSecretBytes},
-		{SecretJumpPrivateKey, changes.JumpPrivateKey, maxKeyBytes},
-		{SecretJumpPassphrase, changes.JumpPassphrase, maxSecretBytes},
-		{SecretProxyPassword, changes.ProxyPassword, maxSecretBytes},
-	}
 	var dek []byte
 	var version int
 	defer func() { vault.Wipe(dek) }()
-	for _, e := range entries {
+	ordered := make([]SecretKind, 0, len(changes))
+	for kind := range changes {
+		ordered = append(ordered, kind)
+	}
+	slices.Sort(ordered)
+	for _, kind := range ordered {
+		value := changes[kind]
+		limit := maxSecretBytes
+		if f, _ := d.Field(string(kind)); f.Kind == connectors.PrivateKey {
+			limit = maxKeyBytes
+		}
 		switch {
-		case e.value == nil:
-		case *e.value == "":
-			p.remove = append(p.remove, e.kind)
-		case len(*e.value) > e.limit:
+		case value == "":
+			p.remove = append(p.remove, kind)
+		case len(value) > limit:
 			return plan{}, ErrSecretTooLarge
 		default:
 			if dek == nil {
@@ -385,11 +285,11 @@ func (s *Service) sealChanges(ctx context.Context, actor, workspaceID uuid.UUID,
 				}
 				dek, version = key, current
 			}
-			sealed, err := vault.SealSecret(s.random, dek, vault.SecretRef{Site: siteID.String(), Kind: string(e.kind), DEKVersion: version}, []byte(*e.value))
+			sealed, err := vault.SealSecret(s.random, dek, vault.SecretRef{Site: siteID.String(), Kind: string(kind), DEKVersion: version}, []byte(value))
 			if err != nil {
-				return plan{}, fmt.Errorf("sealing %s: %w", e.kind, err)
+				return plan{}, fmt.Errorf("sealing %s: %w", kind, err)
 			}
-			p.set = append(p.set, Sealed{Kind: e.kind, DEKVersion: version, Data: sealed})
+			p.set = append(p.set, Sealed{Kind: kind, DEKVersion: version, Data: sealed})
 		}
 	}
 	return p, nil
@@ -410,18 +310,17 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 			return Site{}, err
 		}
 	}
-	in, err := Normalize(in)
+	in, d, err := s.Settle(in)
 	if err != nil {
 		return Site{}, err
 	}
-	if err := s.checkOffered(ctx, in.Protocol); err != nil {
+	if err := s.checkOffered(ctx, in.Connector); err != nil {
 		return Site{}, err
 	}
-	changes = withoutStoredPassword(in, changes)
-	if changes, err = checkKeys(in, changes); err != nil {
+	if changes, err = PlanSecrets(d, in.Config, changes, nil); err != nil {
 		return Site{}, err
 	}
-	if err := s.checkHosts(ctx, in); err != nil {
+	if err := s.CheckHosts(ctx, d, in.Config); err != nil {
 		return Site{}, err
 	}
 	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {
@@ -431,7 +330,7 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err != nil {
 		return Site{}, fmt.Errorf("generating site id: %w", err)
 	}
-	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, changes)
+	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, d, changes)
 	if err != nil {
 		return Site{}, err
 	}
@@ -460,32 +359,12 @@ func normalizeRemoteDir(dir string) (string, error) {
 	return dir, nil
 }
 
-// build assembles a site from validated input.
+// build assembles a site from settled input.
 func build(in Input, id, workspaceID uuid.UUID, createdAt, updatedAt time.Time) Site {
 	return Site{
-		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Protocol: in.Protocol, FTPEncryption: in.FTPEncryption, Host: in.Host,
-		Port: in.Port, Username: in.Username, AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
-		RemoteDir: in.RemoteDir, Color: in.Color, Proxy: in.Proxy, Jump: in.Jump, CreatedAt: createdAt, UpdatedAt: updatedAt,
+		ID: id, WorkspaceID: workspaceID, CollectionID: in.CollectionID, Name: in.Name, Connector: in.Connector, Config: in.Config,
+		SpeedLimit: in.SpeedLimit, RemoteDir: in.RemoteDir, Color: in.Color, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
-}
-
-// checkHosts asks the guard about every literal address the input configures: the site's own host, and its proxy's
-// and jump host's, when set.
-func (s *Service) checkHosts(ctx context.Context, in Input) error {
-	if err := s.guard.CheckHost(ctx, in.Host); err != nil {
-		return err
-	}
-	if in.Proxy.Set() {
-		if err := s.guard.CheckHost(ctx, in.Proxy.Host); err != nil {
-			return err
-		}
-	}
-	if in.Jump.Set() {
-		if err := s.guard.CheckHost(ctx, in.Jump.Host); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // kinds lists the kinds of a set of sealed secrets.
@@ -497,35 +376,34 @@ func kinds(sealed []Sealed) []SecretKind {
 	return out
 }
 
-// Update replaces the settings of a site and applies the secret changes.
+// Update replaces the settings of a site and applies the secret changes. Secrets of fields that no longer apply are removed.
 func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, session string, in Input, changes SecretChanges) (Site, error) {
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Site{}, err
 	}
-	in, err := Normalize(in)
+	in, d, err := s.Settle(in)
 	if err != nil {
-		return Site{}, err
-	}
-	changes = withoutStoredPassword(in, changes)
-	if changes, err = checkKeys(in, changes); err != nil {
-		return Site{}, err
-	}
-	if err := s.checkHosts(ctx, in); err != nil {
-		return Site{}, err
-	}
-	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {
 		return Site{}, err
 	}
 	existing, err := s.store.Site(ctx, workspaceID, id)
 	if err != nil {
 		return Site{}, err
 	}
-	if existing.Protocol != in.Protocol {
-		if err := s.checkOffered(ctx, in.Protocol); err != nil {
+	if existing.Connector != in.Connector {
+		if err := s.checkOffered(ctx, in.Connector); err != nil {
 			return Site{}, err
 		}
 	}
-	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, changes)
+	if changes, err = PlanSecrets(d, in.Config, changes, existing.Secrets); err != nil {
+		return Site{}, err
+	}
+	if err := s.CheckHosts(ctx, d, in.Config); err != nil {
+		return Site{}, err
+	}
+	if err := s.checkCollection(ctx, workspaceID, in.CollectionID); err != nil {
+		return Site{}, err
+	}
+	p, err := s.sealChanges(ctx, actor, workspaceID, session, id, d, changes)
 	if err != nil {
 		return Site{}, err
 	}
@@ -534,76 +412,6 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 		return Site{}, err
 	}
 	return s.store.Site(ctx, workspaceID, id)
-}
-
-// checkKeys reads the private keys a request saves, the site's and its jump host's, with their passphrases (4.8g): a key
-// that cannot be used is refused with a [*KeyError], and a usable one is stored in the form connecting reads, PuTTY
-// and encrypted PKCS#8 keys converted to OpenSSH's. A key that is not encrypted drops any passphrase, which would only
-// stop it from opening.
-func checkKeys(in Input, changes SecretChanges) (SecretChanges, error) {
-	var err error
-	if in.AuthMethod == AuthKey {
-		if changes.PrivateKey, changes.Passphrase, err = checkKey(changes.PrivateKey, changes.Passphrase); err != nil {
-			return changes, keyError(false, err)
-		}
-	}
-	if in.Jump.Set() && in.Jump.AuthMethod == AuthKey {
-		if changes.JumpPrivateKey, changes.JumpPassphrase, err = checkKey(changes.JumpPrivateKey, changes.JumpPassphrase); err != nil {
-			return changes, keyError(true, err)
-		}
-	}
-	return changes, nil
-}
-
-// keyError wraps the reason a key cannot be used, except a key too large to read, which is refused as any secret is.
-func keyError(jump bool, err error) error {
-	if errors.Is(err, ErrSecretTooLarge) {
-		return err
-	}
-	return &KeyError{Jump: jump, Err: err}
-}
-
-// checkKey reads one private key being saved. A key left as it is (nil) or removed (empty) is not read, and neither is
-// one larger than any key file, which the store would refuse anyway.
-func checkKey(key, passphrase *string) (*string, *string, error) {
-	switch {
-	case key == nil || *key == "":
-		return key, passphrase, nil
-	case len(*key) > maxKeyBytes:
-		return key, passphrase, ErrSecretTooLarge
-	}
-	var phrase []byte
-	if passphrase != nil {
-		phrase = []byte(*passphrase)
-	}
-	read, err := sshkey.Read([]byte(*key), phrase)
-	if err != nil {
-		return key, passphrase, err
-	}
-	stored := string(read.PEM)
-	if !read.Encrypted {
-		none := ""
-		return &stored, &none, nil
-	}
-	return &stored, passphrase, nil
-}
-
-// withoutStoredPassword makes a site that asks for its password when connecting drop any stored one, whatever the
-// request said: its password must never be written anywhere (ADR-0010). An anonymous site drops its password, private
-// key and passphrase alike, since it has no secret to use them for, and so does an interactive one, whose answers are
-// never kept (ADR-0016). Only the account logon type keeps an account.
-func withoutStoredPassword(in Input, changes SecretChanges) SecretChanges {
-	none := ""
-	if in.AuthMethod != AuthAccount {
-		changes.Account = &none
-	}
-	switch in.AuthMethod {
-	case AuthAsk:
-		changes.Password = &none
-	case AuthAnonymous, AuthInteractive:
-		changes.Password, changes.PrivateKey, changes.Passphrase = &none, &none, &none
-	}
-	return changes
 }
 
 // Delete removes a site and its secrets.

@@ -15,7 +15,6 @@ import (
 	"github.com/fprambs/transferly/internal/core/connlog"
 	"github.com/fprambs/transferly/internal/core/hostkey"
 	"github.com/fprambs/transferly/internal/core/ports"
-	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/testutil"
 )
 
@@ -81,7 +80,7 @@ func TestConnector_ConnectionLog(t *testing.T) {
 	c := e.logged(sink)
 
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
-	target := e.addSite(server, site.Input{Name: "Logged"}, site.SecretChanges{Password: text(sshPassword)})
+	target := e.addSite(server, spec{Name: "Logged"}, changes{Password: text(sshPassword)})
 	if _, err := c.Connect(t.Context(), e.key(target), session); err == nil {
 		t.Fatal("Connect() to an unknown server key succeeded")
 	}
@@ -114,7 +113,7 @@ func TestConnector_ConnectionLog(t *testing.T) {
 	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, port, changed.HostKey.Type(), "SHA256:"+strings.Repeat("A", 43), hostkey.TrustNew); err != nil {
 		t.Fatal(err)
 	}
-	moved := e.addSite(changed, site.Input{Name: "Changed"}, site.SecretChanges{Password: text(sshPassword)})
+	moved := e.addSite(changed, spec{Name: "Changed"}, changes{Password: text(sshPassword)})
 	_, _ = c.Connect(t.Context(), e.key(moved), session)
 	if entries := sink.take(); steps(entries) != "connecting connected host_key_changed" || entries[2].Level != connlog.Error {
 		t.Errorf("steps to a changed key = %q", steps(entries))
@@ -127,10 +126,10 @@ func TestConnector_ConnectionLog(t *testing.T) {
 	}
 	proxy := socks5TestProxy(t, nil)
 	proxyHost, proxyPort, _ := splitAddr(proxy)
-	jumped := e.addSite(server, site.Input{
-		Name: "Jumped", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-		Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: proxyHost, Port: proxyPort},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("let-me-through")})
+	jumped := e.addSite(server, spec{
+		Name: "Jumped", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+		Proxy: proxySpec{Kind: "socks5", Host: proxyHost, Port: proxyPort},
+	}, changes{Password: text(sshPassword), JumpPassword: text("let-me-through")})
 	fsys, err = c.Connect(t.Context(), e.key(jumped), session)
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +146,7 @@ func TestConnector_ConnectionLog(t *testing.T) {
 	const ftpLogger, ftpSecret = "logger", "ftp secret LOGCHECK"
 	accounts := map[string]string{ftpLogger: ftpSecret}
 	plain := ftptest.Start(t, ftptest.Options{Users: accounts})
-	optional := e.addSiteAt(plain.Addr, site.Input{Name: "Optional", Protocol: site.FTP, FTPEncryption: site.EncryptionOptional, Username: ftpLogger}, site.SecretChanges{Password: text(ftpSecret)})
+	optional := e.addSiteAt(plain.Addr, spec{Name: "Optional", Protocol: "ftp", FTPEncryption: "optional", Username: ftpLogger}, changes{Password: text(ftpSecret)})
 	if fsys, err := c.Connect(t.Context(), e.key(optional), session); err != nil {
 		t.Fatalf("Connect() with optional encryption = %v", err)
 	} else {
@@ -158,7 +157,7 @@ func TestConnector_ConnectionLog(t *testing.T) {
 	}
 	explicit := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Explicit, Users: accounts})
 	e.trustCertificate(explicit.Addr, explicit.Fingerprint)
-	secure := e.addSiteAt(explicit.Addr, site.Input{Name: "Explicit", Protocol: site.FTP, FTPEncryption: site.EncryptionExplicit, Username: ftpLogger}, site.SecretChanges{Password: text(ftpSecret)})
+	secure := e.addSiteAt(explicit.Addr, spec{Name: "Explicit", Protocol: "ftp", FTPEncryption: "explicit", Username: ftpLogger}, changes{Password: text(ftpSecret)})
 	if fsys, err := c.Connect(t.Context(), e.key(secure), session); err != nil {
 		t.Fatalf("Connect() with TLS = %v", err)
 	} else {

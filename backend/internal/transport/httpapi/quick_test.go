@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/transferly/internal/core/netguard"
 	"github.com/fprambs/transferly/internal/core/quick"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/core/workspace"
@@ -23,7 +22,7 @@ func quickPath(ws uuid.UUID, rest ...string) string {
 
 // quickBody returns the settings of a server to try.
 func quickBody(host string) map[string]any {
-	return map[string]any{"protocol": "sftp", "host": host, "username": "deploy", "password": "hunter2-hunter2"}
+	return map[string]any{"connector": "sftp", "config": map[string]any{"host": host, "username": "deploy"}, "secrets": map[string]any{"password": "hunter2-hunter2"}}
 }
 
 // quickConnection decodes the reply as a quick connection.
@@ -54,7 +53,7 @@ func TestQuickConnections_Lifecycle(t *testing.T) {
 		t.Fatalf("create = %d %s", created.Status, created.Body)
 	}
 	q := created.quickConnection(t)
-	if q.Name != "8.8.8.8" || q.Port != 22 || q.AuthMethod != "password" || q.Username != "deploy" {
+	if q.Name != "8.8.8.8" || q.Connector != "sftp" || q.Config["port"] != "22" || q.Config["auth"] != "password" || q.Config["username"] != "deploy" {
 		t.Errorf("quick connection = %+v", q)
 	}
 	if strings.Contains(string(created.Body), "hunter2") || strings.Contains(string(a.do(request{method: http.MethodGet, path: quickPath(ws), cookie: cookie}).Body), "hunter2") {
@@ -106,7 +105,7 @@ func TestQuickConnections_Lifecycle(t *testing.T) {
 		t.Fatalf("save = %d %s", saved.Status, saved.Body)
 	}
 	site := saved.site(t)
-	if site.Name != "Try 1" || site.Host != "8.8.8.8" || site.CollectionId == nil || *site.CollectionId != collection || len(site.Secrets) != 1 || site.Secrets[0] != "password" {
+	if site.Name != "Try 1" || site.Config["host"] != "8.8.8.8" || site.CollectionId == nil || *site.CollectionId != collection || len(site.Secrets) != 1 || site.Secrets[0] != "password" {
 		t.Errorf("saved site = %+v", site)
 	}
 	if strings.Contains(string(saved.Body), "hunter2") {
@@ -148,14 +147,8 @@ func TestQuickConnections_Rules(t *testing.T) {
 	ws := a.personal(cookie)
 
 	bad := map[string]func(map[string]any){
-		"invalid_protocol":    func(b map[string]any) { b["protocol"] = "gopher" },
-		"invalid_host":        func(b map[string]any) { b["host"] = "ftp://x" },
-		"invalid_port":        func(b map[string]any) { b["port"] = 70000 },
-		"invalid_username":    func(b map[string]any) { b["username"] = "" },
-		"invalid_auth_method": func(b map[string]any) { b["authMethod"], b["protocol"] = "key", "ftp" },
-		"invalid_timezone":    func(b map[string]any) { b["listTimezone"] = "Mars/Base" },
-		"invalid_charset":     func(b map[string]any) { b["charset"] = "klingon" },
-		"destination_blocked": func(b map[string]any) { b["host"] = "169.254.169.254" },
+		"invalid_config":      func(b map[string]any) { set(b, "port", "70000") },
+		"destination_blocked": func(b map[string]any) { set(b, "host", "169.254.169.254") },
 	}
 	for code, mutate := range bad {
 		a.clock.Advance(time.Minute)
@@ -267,8 +260,8 @@ func (f *flakyAuthz) Authorize(context.Context, uuid.UUID, uuid.UUID, workspace.
 	return workspace.RoleOwner, nil
 }
 
-// failingSaver cannot save sites.
-type failingSaver struct{}
+// failingSaver settles quick connections with the real rules but cannot save sites.
+type failingSaver struct{ *site.Service }
 
 // Create always fails.
 func (failingSaver) Create(context.Context, uuid.UUID, uuid.UUID, string, site.Input, site.SecretChanges) (site.Site, error) {
@@ -282,7 +275,7 @@ func (failingSaver) Create(context.Context, uuid.UUID, uuid.UUID, string, site.I
 func TestQuickConnectionFailures(t *testing.T) {
 	authz := &flakyAuthz{}
 	a := newAPI(t, func(d *httpapi.Deps) {
-		d.Quick = quick.NewService(authz, netguard.NewPolicy(nil, nil), failingSaver{}, realClock{}, nil)
+		d.Quick = quick.NewService(authz, failingSaver{d.Sites}, realClock{}, nil)
 	})
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

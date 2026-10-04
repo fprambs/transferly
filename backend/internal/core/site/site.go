@@ -10,34 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Protocol is the file transfer protocol of a site.
-type Protocol string
-
-const (
-	// SFTP is SSH file transfer.
-	SFTP Protocol = "sftp"
-	// FTP is FTP, protected as its [FTPEncryption] says.
-	FTP Protocol = "ftp"
-	// FTPS is FTP over TLS. It is only accepted as input, for clients written before [FTPEncryption]: sites store FTP
-	// with an encryption that requires TLS instead.
-	FTPS Protocol = "ftps"
-)
-
-// FTPEncryption is how an FTP site protects the connection, as FileZilla offers it (ADR-0012).
-type FTPEncryption string
-
-const (
-	// EncryptionOptional upgrades with AUTH TLS when the server offers it and carries on in clear text when it does not.
-	// Anyone on the network can make it fall back, so it is not the default of new sites.
-	EncryptionOptional FTPEncryption = "optional"
-	// EncryptionExplicit requires the upgrade with AUTH TLS and refuses a server that does not offer it.
-	EncryptionExplicit FTPEncryption = "explicit"
-	// EncryptionImplicit expects TLS from the first byte, as on port 990.
-	EncryptionImplicit FTPEncryption = "implicit"
-	// EncryptionPlain sends everything, credentials included, in clear text.
-	EncryptionPlain FTPEncryption = "plain"
-)
-
 // Color is the label a site wears in the interface, so production and test servers tell apart at a glance (ADR-0021).
 // The empty color means no label.
 type Color string
@@ -45,43 +17,10 @@ type Color string
 // Colors lists the labels a site may wear, in the order the interface offers them; each theme draws them in its own tones.
 var Colors = []Color{"red", "orange", "yellow", "green", "teal", "blue", "violet", "pink"}
 
-// implicitPort is the port of implicit FTPS, and the default of sites that use it.
-const implicitPort = 990
-
-// Charsets lists the character sets a site may use for file names, by their lower case IANA names; UTF-8 is the default.
-var Charsets = []string{
-	"utf-8", "iso-8859-1", "iso-8859-2", "iso-8859-15", "windows-1250", "windows-1251", "windows-1252", "koi8-r", "shift_jis", "euc-jp", "gbk", "big5", "euc-kr",
-}
-
-// AuthMethod is how the user proves their identity to the remote server.
-type AuthMethod string
-
-const (
-	// AuthPassword logs in with a password.
-	AuthPassword AuthMethod = "password"
-	// AuthKey logs in with an SSH private key, only for SFTP.
-	AuthKey AuthMethod = "key"
-	// AuthAsk logs in with a password that is never stored: it is asked for when connecting and kept in memory for the
-	// session (ADR-0010).
-	AuthAsk AuthMethod = "ask"
-	// AuthAnonymous logs in to a public server as the anonymous user, with no stored secret: SFTP servers are offered the
-	// SSH "none" method and then FileZilla's anonymous password, FTP servers that password.
-	AuthAnonymous AuthMethod = "anonymous"
-	// AuthAccount logs in to an FTP server with a password and an account, which some older servers ask for after the
-	// password (ACCT, reply 332), as FileZilla's account logon type (4.8e). The account is sealed like the password.
-	AuthAccount AuthMethod = "account"
-	// AuthInteractive stores no secret: whatever the server asks while signing in, the password, a one-time code or a
-	// custom challenge, is asked to the person who is connecting and never kept, as FileZilla's interactive logon type
-	// (ADR-0016).
-	AuthInteractive AuthMethod = "interactive"
-)
-
-// AnonymousUser is the account name of every anonymous site.
-const AnonymousUser = "anonymous"
-
-// SecretKind is the type of a stored secret.
+// SecretKind is the type of a stored secret: the name of the secret field of the site's connector that holds it (ADR-0022).
 type SecretKind string
 
+// The secrets of the built-in connectors that connecting reads by name.
 const (
 	// SecretPassword is the account password.
 	SecretPassword SecretKind = "password"
@@ -101,50 +40,6 @@ const (
 	SecretAccount SecretKind = "account"
 )
 
-// ProxyKind is a proxy protocol a site's connection can go through.
-type ProxyKind string
-
-const (
-	// ProxyNone means the connection is made directly.
-	ProxyNone ProxyKind = ""
-	// ProxySOCKS5 tunnels the connection through a SOCKS5 proxy.
-	ProxySOCKS5 ProxyKind = "socks5"
-	// ProxyHTTP tunnels the connection through an HTTP CONNECT proxy.
-	ProxyHTTP ProxyKind = "http"
-)
-
-// Proxy is the SOCKS5 or HTTP proxy a site's connection goes through, in place of a direct TCP connection. The zero
-// value connects directly.
-type Proxy struct {
-	// Kind selects the proxy protocol; the empty value means no proxy.
-	Kind ProxyKind
-	// Host is the proxy's server name or address.
-	Host string
-	// Port is the proxy's server port.
-	Port int
-	// Username authenticates to the proxy; empty means no authentication.
-	Username string
-}
-
-// Jump is the SSH server a site's connection tunnels through before reaching the site itself. Only SFTP sites may
-// have one. The zero value connects directly.
-type Jump struct {
-	// Host is the jump host's server name or address; empty means no jump host.
-	Host string
-	// Port is the jump host's server port.
-	Port int
-	// Username is the account name on the jump host.
-	Username string
-	// AuthMethod is how the jump host account authenticates.
-	AuthMethod AuthMethod
-}
-
-// Set reports whether a jump host is configured.
-func (j Jump) Set() bool { return j.Host != "" }
-
-// Set reports whether a proxy is configured.
-func (p Proxy) Set() bool { return p.Kind != ProxyNone }
-
 // Errors returned by the package.
 var (
 	// ErrNotFound means the site does not exist in the workspace.
@@ -159,35 +54,12 @@ var (
 	ErrNoSecret = errors.New("secret not stored")
 	// ErrInvalidName means the site name is empty or too long.
 	ErrInvalidName = errors.New("invalid site name")
-	// ErrInvalidHost means the host is not a valid host name or address.
-	ErrInvalidHost = errors.New("invalid host")
-	// ErrInvalidPort means the port is outside 1 to 65535.
-	ErrInvalidPort = errors.New("invalid port")
-	// ErrInvalidProtocol means the protocol is not supported.
-	ErrInvalidProtocol = errors.New("invalid protocol")
-	// ErrConnectorDisabled means the instance does not offer the connector of the protocol (ADR-0019).
-	ErrConnectorDisabled = errors.New("connector disabled")
-	// ErrInvalidEncryption means the FTP encryption is unknown, was given for SFTP, or contradicts the legacy FTPS protocol.
-	ErrInvalidEncryption = errors.New("invalid FTP encryption")
-	// ErrInvalidAuthMethod means the authentication method is unknown or not available for the protocol.
-	ErrInvalidAuthMethod = errors.New("invalid authentication method")
-	// ErrInvalidUsername means the user name is empty or too long.
-	ErrInvalidUsername = errors.New("invalid username")
-	// ErrInvalidCharset means the character set is not one of the supported ones, or is not UTF-8 for a protocol that only uses UTF-8.
-	ErrInvalidCharset = errors.New("invalid character set")
-	// ErrInvalidTimezone means the listing time zone is not an IANA name.
-	ErrInvalidTimezone = errors.New("invalid time zone")
 	// ErrInvalidSpeedLimit means the speed limit is negative, below the smallest cap or above the largest one.
 	ErrInvalidSpeedLimit = errors.New("invalid speed limit")
 	// ErrInvalidRemoteDir means the default remote folder is not absolute, is too long or holds control characters.
 	ErrInvalidRemoteDir = errors.New("invalid default remote folder")
 	// ErrInvalidColor means the label color is not one of [Colors].
 	ErrInvalidColor = errors.New("invalid color")
-	// ErrInvalidProxy means the proxy's kind, host or port is invalid.
-	ErrInvalidProxy = errors.New("invalid proxy")
-	// ErrInvalidJump means the jump host's host, port or authentication method is invalid, or one was given for a
-	// protocol other than SFTP.
-	ErrInvalidJump = errors.New("invalid jump host")
 	// ErrCollectionNotFound means the collection does not exist in the workspace.
 	ErrCollectionNotFound = errors.New("collection not found")
 	// ErrCollectionNameTaken means the parent already has a collection with that name.
@@ -200,7 +72,8 @@ var (
 	ErrCollectionTooDeep = errors.New("collections are nested too deeply")
 )
 
-// Site is a saved connection. It never holds secrets, only which kinds are stored.
+// Site is a saved connection: what every site has, plus its connector and a configuration that follows the connector's schema
+// (ADR-0022). It never holds secrets, only which kinds are stored.
 type Site struct {
 	// ID identifies the site.
 	ID uuid.UUID
@@ -210,22 +83,10 @@ type Site struct {
 	CollectionID uuid.UUID
 	// Name is the display name, unique in the workspace regardless of case.
 	Name string
-	// Protocol is the transfer protocol.
-	Protocol Protocol
-	// FTPEncryption is how an FTP site protects the connection; empty for SFTP.
-	FTPEncryption FTPEncryption
-	// Host is the server name or address.
-	Host string
-	// Port is the server port.
-	Port int
-	// Username is the account name on the server.
-	Username string
-	// AuthMethod is how the account authenticates.
-	AuthMethod AuthMethod
-	// ListTimezone is the IANA zone in which the server prints listing times, for FTP servers without MLSD.
-	ListTimezone string
-	// Charset is the character set the server uses for file names; FTP servers that do not speak UTF-8 need another one.
-	Charset string
+	// Connector is the type of the connector the site uses, such as sftp or ftp.
+	Connector string
+	// Config is the configuration of the connector, settled by its schema: defaults filled in, fields that do not apply dropped.
+	Config map[string]string
 	// SpeedLimit caps the bytes per second the site's transfers move together, on top of the global and per-user caps of the
 	// instance; zero means the site has no cap of its own.
 	SpeedLimit int64
@@ -233,11 +94,6 @@ type Site struct {
 	RemoteDir string
 	// Color is the label the site wears in the interface; empty for none.
 	Color Color
-	// Proxy is the SOCKS5 or HTTP proxy the connection goes through; the zero value connects directly.
-	Proxy Proxy
-	// Jump is the SSH server the connection tunnels through before reaching the site; the zero value connects directly.
-	// Only SFTP sites may have one.
-	Jump Jump
 	// Secrets lists the kinds of secret stored for the site.
 	Secrets []SecretKind
 	// CreatedAt is when the site was created, in UTC.
@@ -245,6 +101,9 @@ type Site struct {
 	// UpdatedAt is when the site was last changed, in UTC.
 	UpdatedAt time.Time
 }
+
+// Setting returns a setting of the site's configuration, or empty when it has none.
+func (s Site) Setting(name string) string { return s.Config[name] }
 
 // Sealed is an encrypted secret as stored.
 type Sealed struct {
@@ -300,23 +159,18 @@ type CollectionStore interface {
 	DeleteCollection(ctx context.Context, workspaceID, id uuid.UUID) error
 }
 
-// KeyError is a private key given for a site that cannot be used, and which of the site's keys it is. It unwraps to
+// KeyError is a private key given for a site that cannot be used, and the field of the connector that holds it. It unwraps to
 // the [sshkey] error that says why.
 type KeyError struct {
-	// Jump says the key is the jump host's; false means the site's own.
-	Jump bool
+	// Field is the name of the private key field, such as private_key or jump_private_key.
+	Field string
 	// Err is why the key cannot be used: [sshkey.ErrUnreadable], [sshkey.ErrPublicKey], [sshkey.ErrPassphraseRequired],
 	// [sshkey.ErrWrongPassphrase] or an [*sshkey.UnsupportedError].
 	Err error
 }
 
 // Error implements [error].
-func (e *KeyError) Error() string {
-	if e.Jump {
-		return "jump host private key: " + e.Err.Error()
-	}
-	return "private key: " + e.Err.Error()
-}
+func (e *KeyError) Error() string { return e.Field + ": " + e.Err.Error() }
 
 // Unwrap returns the reason.
 func (e *KeyError) Unwrap() error { return e.Err }

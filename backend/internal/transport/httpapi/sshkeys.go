@@ -46,7 +46,7 @@ func (s *server) InspectSshKey(_ context.Context, request InspectSshKeyRequestOb
 		}
 	}
 	if err != nil {
-		return keyProblem(&site.KeyError{Err: err}), nil
+		return keyProblem(&site.KeyError{Field: string(site.SecretPrivateKey), Err: err}), nil
 	}
 	info := SshKeyInfo{Private: key.Private, Format: SshKeyInfoFormat(key.Format), Encrypted: key.Encrypted, Status: status}
 	if key.Algorithm != "" {

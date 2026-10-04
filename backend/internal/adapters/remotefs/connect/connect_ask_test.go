@@ -9,11 +9,10 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/core/credentials"
 	"github.com/fprambs/transferly/internal/core/remotefs"
-	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/testutil"
 )
 
-// TestConnector_AskForPassword covers sites of the [site.AuthAsk] logon type in [connect.Connector.Connect] and
+// TestConnector_AskForPassword covers sites of the ["ask"] logon type in [connect.Connector.Connect] and
 // [connect.Connector.Admit].
 //
 // Use cases:
@@ -27,8 +26,8 @@ func TestConnector_AskForPassword(t *testing.T) {
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	e.trust(server)
-	target := e.addSite(server, site.Input{Name: "Asks", AuthMethod: site.AuthAsk}, site.SecretChanges{})
-	plain := e.addSite(server, site.Input{Name: "Stored"}, site.SecretChanges{Password: text(sshPassword)})
+	target := e.addSite(server, spec{Name: "Asks", AuthMethod: "ask"}, changes{})
+	plain := e.addSite(server, spec{Name: "Stored"}, changes{Password: text(sshPassword)})
 
 	if _, err := e.connector(e.allow).Connect(t.Context(), e.key(target), session); !errors.Is(err, credentials.ErrRequired) {
 		t.Fatalf("Connect() with no store = %v; want ErrRequired", err)
@@ -70,7 +69,7 @@ func TestConnector_AskForPassword(t *testing.T) {
 	}
 }
 
-// TestConnector_Anonymous covers sites of the [site.AuthAnonymous] logon type in [connect.Connector.Connect].
+// TestConnector_Anonymous covers sites of the ["anonymous"] logon type in [connect.Connector.Connect].
 //
 // Use cases:
 //   - an anonymous SFTP site logs in with the SSH "none" method, with no secret stored and the vault locked
@@ -83,7 +82,7 @@ func TestConnector_Anonymous(t *testing.T) {
 
 	open := sftptest.Start(t, sftptest.Options{Anonymous: true})
 	e.trust(open)
-	public := e.addSite(open, site.Input{Name: "Public", AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	public := e.addSite(open, spec{Name: "Public", AuthMethod: "anonymous"}, changes{})
 	fsys, err := c.Connect(t.Context(), e.key(public), session)
 	if err != nil {
 		t.Fatalf("Connect() with the none method = %v", err)
@@ -92,7 +91,7 @@ func TestConnector_Anonymous(t *testing.T) {
 
 	byPassword := sftptest.Start(t, sftptest.Options{Users: map[string]string{"anonymous": "anonymous@example.com"}})
 	e.trust(byPassword)
-	fallback := e.addSite(byPassword, site.Input{Name: "Password", AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	fallback := e.addSite(byPassword, spec{Name: "Password", AuthMethod: "anonymous"}, changes{})
 	fsys, err = c.Connect(t.Context(), e.key(fallback), session)
 	if err != nil {
 		t.Fatalf("Connect() with the anonymous password = %v", err)
@@ -101,7 +100,7 @@ func TestConnector_Anonymous(t *testing.T) {
 
 	closed := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	e.trust(closed)
-	refused := e.addSite(closed, site.Input{Name: "Closed", AuthMethod: site.AuthAnonymous}, site.SecretChanges{})
+	refused := e.addSite(closed, spec{Name: "Closed", AuthMethod: "anonymous"}, changes{})
 	if _, err := c.Connect(t.Context(), e.key(refused), session); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("Connect() to a server with no anonymous access = %v; want ErrAuth", err)
 	}

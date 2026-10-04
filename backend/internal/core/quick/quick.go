@@ -5,15 +5,16 @@ package quick
 import (
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/ports"
 	"github.com/fprambs/transferly/internal/core/site"
-	"github.com/fprambs/transferly/internal/core/sshkey"
 	"github.com/fprambs/transferly/internal/core/vault"
 	"github.com/fprambs/transferly/internal/core/workspace"
 )
@@ -28,26 +29,28 @@ var (
 	ErrTooMany = errors.New("too many quick connections")
 )
 
-// Secrets are the credentials of a quick connection.
-type Secrets struct {
-	// Password is the account password.
-	Password []byte
-	// PrivateKey is the SSH private key.
-	PrivateKey []byte
-	// Passphrase is the passphrase of the private key.
-	Passphrase []byte
-}
+// Secrets are the credentials of a quick connection, by the name of their field.
+type Secrets map[site.SecretKind][]byte
 
 // wipe overwrites the secrets in memory.
 func (s Secrets) wipe() {
-	vault.Wipe(s.Password)
-	vault.Wipe(s.PrivateKey)
-	vault.Wipe(s.Passphrase)
+	for _, value := range s {
+		vault.Wipe(value)
+	}
+}
+
+// clone copies the secrets, so the caller can wipe its copy.
+func (s Secrets) clone() Secrets {
+	out := make(Secrets, len(s))
+	for kind, value := range s {
+		out[kind] = append([]byte(nil), value...)
+	}
+	return out
 }
 
 // Connection is a quick connection. Its Site is never stored; its ID stands in for a site identifier.
 type Connection struct {
-	// Site holds the validated settings; Site.ID is the identifier clients use where a site identifier is expected.
+	// Site holds the settled settings; Site.ID is the identifier clients use where a site identifier is expected.
 	Site site.Site
 	// Secrets are the credentials, in memory only.
 	Secrets Secrets
@@ -57,20 +60,18 @@ type Connection struct {
 	lastUsed time.Time
 }
 
-// Guard vets the hosts a connection may point to.
-type Guard interface {
-	// CheckHost returns an error when the host resolves to a destination the server must not reach.
-	CheckHost(ctx context.Context, host string) error
-}
-
 // Authorizer checks that a user may perform an action in a workspace.
 type Authorizer interface {
 	// Authorize returns the role of the user or an error that says why the action is refused.
 	Authorize(ctx context.Context, userID, workspaceID uuid.UUID, action workspace.Action) (workspace.Role, error)
 }
 
-// SiteSaver stores a quick connection as a site.
-type SiteSaver interface {
+// Sites settles quick connections the way sites are settled and stores one as a site.
+type Sites interface {
+	// Settle validates the settings and fills in the defaults of the connector's schema.
+	Settle(in site.Input) (site.Input, connectors.Descriptor, error)
+	// CheckHosts asks the network guard about every host a settled configuration points to.
+	CheckHosts(ctx context.Context, d connectors.Descriptor, config map[string]string) error
 	// Create saves a site with its secrets, opened with the vault key of the session.
 	Create(ctx context.Context, actor, workspaceID uuid.UUID, session string, in site.Input, changes site.SecretChanges) (site.Site, error)
 }
@@ -78,8 +79,7 @@ type SiteSaver interface {
 // Service manages quick connections. It is safe for concurrent use.
 type Service struct {
 	authz Authorizer
-	guard Guard
-	saver SiteSaver
+	sites Sites
 	clock ports.Clock
 	newID func() (uuid.UUID, error)
 
@@ -89,87 +89,50 @@ type Service struct {
 }
 
 // NewService returns a service. newID may be nil to use UUIDv7.
-func NewService(authz Authorizer, guard Guard, saver SiteSaver, clock ports.Clock, newID func() (uuid.UUID, error)) *Service {
+func NewService(authz Authorizer, sites Sites, clock ports.Clock, newID func() (uuid.UUID, error)) *Service {
 	if newID == nil {
 		newID = uuid.NewV7
 	}
-	return &Service{authz: authz, guard: guard, saver: saver, clock: clock, newID: newID, byID: map[uuid.UUID]*Connection{}, byKey: map[uuid.UUID][]uuid.UUID{}}
+	return &Service{authz: authz, sites: sites, clock: clock, newID: newID, byID: map[uuid.UUID]*Connection{}, byKey: map[uuid.UUID][]uuid.UUID{}}
 }
 
-// checkHosts asks the guard about every literal address the input configures: the site's own host, and its proxy's
-// and jump host's, when set.
-func checkHosts(ctx context.Context, guard Guard, in site.Input) error {
-	if err := guard.CheckHost(ctx, in.Host); err != nil {
-		return err
-	}
-	if in.Proxy.Set() {
-		if err := guard.CheckHost(ctx, in.Proxy.Host); err != nil {
-			return err
-		}
-	}
-	if in.Jump.Set() {
-		if err := guard.CheckHost(ctx, in.Jump.Host); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+// unattended are the logon types a quick connection cannot use: they ask the person connecting or store nothing, which only a saved site
+// can do.
+var unattended = []string{connectors.AuthAsk, connectors.AuthAnonymous, connectors.AuthInteractive}
 
-// readKey reads the private key of a connection that logs in with one, as saved sites do (4.8g): a key that cannot be
-// used is a [*site.KeyError], a PuTTY or encrypted PKCS#8 key is kept in OpenSSH's format, and a key that is not
-// encrypted drops its passphrase.
-func readKey(in site.Input, secrets Secrets) (Secrets, error) {
-	if in.AuthMethod != site.AuthKey {
-		return secrets, nil
-	}
-	key, err := sshkey.Read(secrets.PrivateKey, secrets.Passphrase)
-	if err != nil {
-		return secrets, &site.KeyError{Err: err}
-	}
-	secrets.PrivateKey = key.PEM
-	if !key.Encrypted {
-		secrets.Passphrase = nil
-	}
-	return secrets, nil
-}
-
-// Create validates the settings, vets the host and starts keeping a quick connection. The site name is the host.
-// It needs the permission to manage sites, since connecting to a server is what a saved site would allow too.
+// Create validates the settings by the schema of their connector, reads the private keys and vets the hosts as for a saved site, and starts
+// keeping a quick connection named after its host. It needs the permission to manage sites, since connecting to a server is what a saved
+// site would allow too. Logon types that ask when connecting or store nothing are a field error of the auth field.
 func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, in site.Input, secrets Secrets) (Connection, error) {
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Connection{}, err
 	}
-	in.Name = in.Host
-	if in.AuthMethod == "" {
-		in.AuthMethod = site.AuthPassword
-	}
-	in, err := site.Normalize(in)
+	in.Name = in.Config[connectors.FieldHost]
+	in, d, err := s.sites.Settle(in)
 	if err != nil {
 		return Connection{}, err
 	}
-	if in.AuthMethod == site.AuthAsk || in.AuthMethod == site.AuthAnonymous || in.AuthMethod == site.AuthInteractive {
-		return Connection{}, site.ErrInvalidAuthMethod
+	if slices.Contains(unattended, in.Config[connectors.FieldAuth]) {
+		return Connection{}, &connectors.FieldError{Field: connectors.FieldAuth, Reason: connectors.ReasonChoice}
 	}
-	if secrets, err = readKey(in, secrets); err != nil {
+	changes, err := site.PlanSecrets(d, in.Config, changesFor(secrets), nil)
+	if err != nil {
 		return Connection{}, err
 	}
-	if err := checkHosts(ctx, s.guard, in); err != nil {
+	if err := s.sites.CheckHosts(ctx, d, in.Config); err != nil {
 		return Connection{}, err
 	}
 	id, err := s.newID()
 	if err != nil {
 		return Connection{}, err
 	}
+	kept := keep(secrets, changes)
 	now := s.clock.Now().UTC()
 	c := &Connection{
 		UserID:   actor,
-		Secrets:  secrets,
+		Secrets:  kept,
 		lastUsed: now,
-		Site: site.Site{
-			ID: id, WorkspaceID: workspaceID, Name: in.Name, Protocol: in.Protocol, FTPEncryption: in.FTPEncryption, Host: in.Host, Port: in.Port, Username: in.Username,
-			AuthMethod: in.AuthMethod, ListTimezone: in.ListTimezone, Charset: in.Charset, SpeedLimit: in.SpeedLimit,
-			Proxy: in.Proxy, Jump: in.Jump, CreatedAt: now, UpdatedAt: now,
-		},
+		Site:     site.Site{ID: id, WorkspaceID: workspaceID, Name: in.Name, Connector: in.Connector, Config: in.Config, SpeedLimit: in.SpeedLimit, CreatedAt: now, UpdatedAt: now},
 	}
 
 	s.mu.Lock()
@@ -194,7 +157,7 @@ func (s *Service) Lookup(userID, workspaceID, id uuid.UUID) (Connection, bool) {
 	}
 	c.lastUsed = s.clock.Now().UTC()
 	out := *c
-	out.Secrets = Secrets{Password: append([]byte(nil), c.Secrets.Password...), PrivateKey: append([]byte(nil), c.Secrets.PrivateKey...), Passphrase: append([]byte(nil), c.Secrets.Passphrase...)}
+	out.Secrets = c.Secrets.clone()
 	return out, true
 }
 
@@ -289,11 +252,8 @@ func (s *Service) Save(ctx context.Context, userID, workspaceID, id uuid.UUID, s
 		return site.Site{}, ErrNotFound
 	}
 	defer c.Secrets.wipe()
-	in := site.Input{
-		Name: name, CollectionID: collectionID, Protocol: c.Site.Protocol, Host: c.Site.Host, Port: c.Site.Port, Username: c.Site.Username,
-		AuthMethod: c.Site.AuthMethod, ListTimezone: c.Site.ListTimezone, Charset: c.Site.Charset,
-	}
-	saved, err := s.saver.Create(ctx, userID, workspaceID, session, in, changesFor(c.Secrets))
+	in := site.Input{Name: name, CollectionID: collectionID, Connector: c.Site.Connector, Config: c.Site.Config}
+	saved, err := s.sites.Create(ctx, userID, workspaceID, session, in, changesFor(c.Secrets))
 	if err != nil {
 		return site.Site{}, err
 	}
@@ -301,17 +261,34 @@ func (s *Service) Save(ctx context.Context, userID, workspaceID, id uuid.UUID, s
 	return saved, nil
 }
 
-// changesFor turns the secrets that exist into secret changes.
-func changesFor(secrets Secrets) site.SecretChanges {
-	var changes site.SecretChanges
-	for _, entry := range []struct {
-		value []byte
-		into  **string
-	}{{secrets.Password, &changes.Password}, {secrets.PrivateKey, &changes.PrivateKey}, {secrets.Passphrase, &changes.Passphrase}} {
-		if len(entry.value) > 0 {
-			text := string(entry.value)
-			*entry.into = &text
+// keep returns the secrets a quick connection holds after its changes were settled. A secret that came through unchanged keeps the bytes it
+// was given, which the service now owns and wipes when the connection ends; one that was rewritten, such as a key converted to OpenSSH's
+// format, is a new copy, and the bytes it replaces are wiped at once, like those of secrets that were dropped.
+func keep(given Secrets, changes site.SecretChanges) Secrets {
+	kept := Secrets{}
+	for kind, value := range changes {
+		if value == "" {
+			continue
 		}
+		if original, ok := given[kind]; ok && string(original) == value {
+			kept[kind] = original
+			continue
+		}
+		kept[kind] = []byte(value)
+	}
+	for kind, original := range given {
+		if held, ok := kept[kind]; len(original) > 0 && (!ok || &held[0] != &original[0]) {
+			vault.Wipe(original)
+		}
+	}
+	return kept
+}
+
+// changesFor turns the secrets into secret changes.
+func changesFor(secrets Secrets) site.SecretChanges {
+	changes := site.SecretChanges{}
+	for kind, value := range secrets {
+		changes[kind] = string(value)
 	}
 	return changes
 }

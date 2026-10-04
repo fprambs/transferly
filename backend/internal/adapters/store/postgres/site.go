@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -49,12 +50,8 @@ func (s *Store) CreateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	q := s.queries.WithTx(tx)
 
 	err = q.InsertSite(ctx, db.InsertSiteParams{
-		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Protocol: string(st.Protocol), Host: st.Host, Port: int32(st.Port),
-		Username: st.Username, AuthMethod: string(st.AuthMethod), ListTimezone: st.ListTimezone, Charset: st.Charset, CreatedAt: st.CreatedAt,
-		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit,
-		ProxyKind: string(st.Proxy.Kind), ProxyHost: st.Proxy.Host, ProxyPort: int32(st.Proxy.Port), ProxyUsername: st.Proxy.Username,
-		JumpHost: st.Jump.Host, JumpPort: int32(st.Jump.Port), JumpUsername: st.Jump.Username, JumpAuthMethod: string(st.Jump.AuthMethod),
-		FtpEncryption: string(st.FTPEncryption), RemoteDir: st.RemoteDir, Color: string(st.Color),
+		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Connector: st.Connector, Config: configJSON(st.Config), CreatedAt: st.CreatedAt,
+		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit, RemoteDir: st.RemoteDir, Color: string(st.Color),
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -75,12 +72,8 @@ func (s *Store) UpdateSite(ctx context.Context, st site.Site, secrets []site.Sea
 	q := s.queries.WithTx(tx)
 
 	rows, err := q.UpdateSite(ctx, db.UpdateSiteParams{
-		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Protocol: string(st.Protocol), Host: st.Host, Port: int32(st.Port),
-		Username: st.Username, AuthMethod: string(st.AuthMethod), ListTimezone: st.ListTimezone, Charset: st.Charset, UpdatedAt: st.UpdatedAt,
-		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit,
-		ProxyKind: string(st.Proxy.Kind), ProxyHost: st.Proxy.Host, ProxyPort: int32(st.Proxy.Port), ProxyUsername: st.Proxy.Username,
-		JumpHost: st.Jump.Host, JumpPort: int32(st.Jump.Port), JumpUsername: st.Jump.Username, JumpAuthMethod: string(st.Jump.AuthMethod),
-		FtpEncryption: string(st.FTPEncryption), RemoteDir: st.RemoteDir, Color: string(st.Color),
+		ID: st.ID, WorkspaceID: st.WorkspaceID, Name: st.Name, Connector: st.Connector, Config: configJSON(st.Config), UpdatedAt: st.UpdatedAt,
+		FolderID: folderID(st.CollectionID), SpeedLimit: st.SpeedLimit, RemoteDir: st.RemoteDir, Color: string(st.Color),
 	})
 	if err != nil {
 		return siteWrite(err)
@@ -99,14 +92,22 @@ func folderID(id uuid.UUID) uuid.NullUUID {
 	return uuid.NullUUID{UUID: id, Valid: id != uuid.Nil}
 }
 
-// siteFrom converts a stored row and its secret kinds to a site.
+// configJSON encodes the configuration of a site for its jsonb column; a map of strings always encodes.
+func configJSON(config map[string]string) []byte {
+	if config == nil {
+		config = map[string]string{}
+	}
+	data, _ := json.Marshal(config)
+	return data
+}
+
+// siteFrom converts a stored row and its secret kinds to a site. The configuration column only ever holds what [configJSON] wrote.
 func siteFrom(r db.SiteByIDRow, secrets []site.SecretKind) site.Site {
+	config := map[string]string{}
+	_ = json.Unmarshal(r.Config, &config)
 	return site.Site{
-		ID: r.ID, WorkspaceID: r.WorkspaceID, CollectionID: r.FolderID.UUID, Name: r.Name, Protocol: site.Protocol(r.Protocol),
-		FTPEncryption: site.FTPEncryption(r.FtpEncryption), Host: r.Host, Port: int(r.Port),
-		Username: r.Username, AuthMethod: site.AuthMethod(r.AuthMethod), ListTimezone: r.ListTimezone, Charset: r.Charset, SpeedLimit: r.SpeedLimit, RemoteDir: r.RemoteDir, Color: site.Color(r.Color), Secrets: secrets,
-		Proxy:     site.Proxy{Kind: site.ProxyKind(r.ProxyKind), Host: r.ProxyHost, Port: int(r.ProxyPort), Username: r.ProxyUsername},
-		Jump:      site.Jump{Host: r.JumpHost, Port: int(r.JumpPort), Username: r.JumpUsername, AuthMethod: site.AuthMethod(r.JumpAuthMethod)},
+		ID: r.ID, WorkspaceID: r.WorkspaceID, CollectionID: r.FolderID.UUID, Name: r.Name, Connector: r.Connector, Config: config,
+		SpeedLimit: r.SpeedLimit, RemoteDir: r.RemoteDir, Color: site.Color(r.Color), Secrets: secrets,
 		CreatedAt: r.CreatedAt.UTC(), UpdatedAt: r.UpdatedAt.UTC(),
 	}
 }

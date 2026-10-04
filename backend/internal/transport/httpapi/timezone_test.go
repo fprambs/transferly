@@ -42,7 +42,7 @@ func TestRemoteFiles_ProbeTimeZone(t *testing.T) {
 	}
 
 	quick := a.do(request{method: http.MethodPost, path: "/api/v1/workspaces/" + e.ws.String() + "/quick-connections", cookie: e.cookie,
-		headers: map[string]string{"X-CSRF-Token": e.csrf}, body: map[string]any{"protocol": "sftp", "host": "8.8.8.8", "username": "u", "authMethod": "password", "password": "p"}})
+		headers: map[string]string{"X-CSRF-Token": e.csrf}, body: quickBody("8.8.8.8")})
 	var made struct {
 		ID uuid.UUID `json:"id"`
 	}

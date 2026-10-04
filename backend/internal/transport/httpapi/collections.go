@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/site"
 )
 
@@ -105,7 +106,7 @@ func (s *server) MoveSite(ctx context.Context, request MoveSiteRequestObject) (M
 	if err != nil {
 		return nil, err
 	}
-	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, moved.Name, map[string]string{"host": moved.Host})
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, moved.Name, map[string]string{"host": moved.Setting(connectors.FieldHost)})
 	return MoveSite200JSONResponse(siteDTO(moved)), nil
 }
 

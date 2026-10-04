@@ -10,7 +10,6 @@ import (
 
 	"github.com/fprambs/transferly/internal/core/auth"
 	"github.com/fprambs/transferly/internal/core/connectors"
-	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/testutil"
 )
 
@@ -47,8 +46,8 @@ func (m *memorySettings) SetConnector(_ context.Context, kind string, enabled bo
 // Use cases:
 //   - without settings, a connector is offered as its descriptor says: SFTP and FTP yes, a beta connector no
 //   - an administrator disables SFTP and enables the beta connector, recorded with who and when, and the list follows
-//   - asking for a connector by type finds an offered one and refuses a disabled or unknown one, and a site protocol is checked against
-//     its connector, FTPS against FTP
+//   - asking for a connector by type finds an offered one and refuses a disabled or unknown one, and checking one for a site refuses both
+//     as disabled
 //   - a member, a disabled administrator, an unknown type and a failing store are refused
 func TestService(t *testing.T) {
 	ctx := context.Background()
@@ -100,13 +99,13 @@ func TestService(t *testing.T) {
 		}
 	}
 
-	if err := svc.CheckProtocol(ctx, site.SFTP); !errors.Is(err, site.ErrConnectorDisabled) {
-		t.Errorf("CheckProtocol(sftp) = %v; want ErrConnectorDisabled", err)
-	}
-	for _, protocol := range []site.Protocol{site.FTP, site.FTPS} {
-		if err := svc.CheckProtocol(ctx, protocol); err != nil {
-			t.Errorf("CheckProtocol(%s) = %v; want it offered", protocol, err)
+	for _, kind := range []string{"sftp", "nope"} {
+		if err := svc.CheckConnector(ctx, kind); !errors.Is(err, connectors.ErrDisabled) {
+			t.Errorf("CheckConnector(%s) = %v; want ErrDisabled", kind, err)
 		}
+	}
+	if err := svc.CheckConnector(ctx, "ftp"); err != nil {
+		t.Errorf("CheckConnector(ftp) = %v; want it offered", err)
 	}
 
 	for name, actor := range map[string]auth.User{"member": {ID: uuid.New(), Role: auth.RoleUser}, "disabled admin": {ID: uuid.New(), Role: auth.RoleAdmin, Disabled: true}} {
@@ -121,8 +120,8 @@ func TestService(t *testing.T) {
 	if _, err := svc.List(ctx); !errors.Is(err, errStore) {
 		t.Errorf("List() with a failing store = %v", err)
 	}
-	if err := svc.CheckProtocol(ctx, site.FTP); !errors.Is(err, errStore) {
-		t.Errorf("CheckProtocol() with a failing store = %v", err)
+	if err := svc.CheckConnector(ctx, "ftp"); !errors.Is(err, errStore) {
+		t.Errorf("CheckConnector() with a failing store = %v", err)
 	}
 	if _, err := svc.Enabled(ctx, "ftp"); !errors.Is(err, errStore) {
 		t.Errorf("Enabled() with a failing store = %v", err)

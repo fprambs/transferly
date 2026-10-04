@@ -6,7 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/connectors"
+	"github.com/fprambs/transferly/internal/core/quick"
 	"github.com/fprambs/transferly/internal/core/remotefs"
 	"github.com/fprambs/transferly/internal/core/site"
 )
@@ -28,14 +32,20 @@ func TestAlgorithmsFor(t *testing.T) {
 	}
 }
 
-// TestDial_UnknownProtocol verifies that a protocol nobody handles is refused without touching the network.
-func TestDial_UnknownProtocol(t *testing.T) {
-	c := New(nil, nil, nil, nil, time.Second)
+// oneQuick is a store of quick connections that knows one.
+type oneQuick struct{ c quick.Connection }
 
-	_, err := c.dial(t.Context(), connections.Key{}, site.Site{Protocol: "gopher"}, secrets{})
+// Lookup returns the connection.
+func (o oneQuick) Lookup(uuid.UUID, uuid.UUID, uuid.UUID) (quick.Connection, bool) { return o.c, true }
+
+// TestConnect_UnknownConnector verifies that a connector without an opener is refused without touching the network.
+func TestConnect_UnknownConnector(t *testing.T) {
+	c := New(nil, oneQuick{quick.Connection{Site: site.Site{Connector: "gopher"}, Secrets: quick.Secrets{}}}, nil, nil, time.Second)
+
+	_, err := c.Connect(t.Context(), connections.Key{}, "session")
 
 	if !errors.Is(err, remotefs.ErrInvalid) {
-		t.Errorf("dial() = %v; want ErrInvalid", err)
+		t.Errorf("Connect() = %v; want ErrInvalid", err)
 	}
 }
 
@@ -58,7 +68,7 @@ func TestLocation(t *testing.T) {
 //   - every character set of the site settings maps to an encoding that turns an accent into what that set writes
 //   - UTF-8, an empty name and an unknown one need no conversion
 func TestCharsetOf(t *testing.T) {
-	for _, name := range site.Charsets {
+	for _, name := range connectors.Charsets {
 		enc := charsetOf(name)
 		if name == "utf-8" {
 			if enc != nil {

@@ -69,11 +69,7 @@ func TestSecrets_NeverLeave(t *testing.T) {
 	}
 	responses = responses[:0]
 
-	site := siteBody("Leaks")
-	site["password"] = sitePassword
-	site["authMethod"] = "key"
-	site["privateKey"] = siteKey
-	site["passphrase"] = sitePhrase
+	site := secret(set(siteBody("Leaks"), "auth", "key"), "password", sitePassword, "private_key", siteKey, "passphrase", sitePhrase)
 	created := record(a.send(http.MethodPost, sitesPath(ws), site, cookie, csrf))
 	if created.Status != http.StatusCreated {
 		t.Fatalf("create site = %d %s", created.Status, created.Body)
@@ -87,20 +83,15 @@ func TestSecrets_NeverLeave(t *testing.T) {
 		t.Errorf("a site should report the kinds of secret it holds: %s", list.Body)
 	}
 
-	rejected := siteBody("Rejected")
-	rejected["password"] = sitePassword
-	rejected["port"] = "not a number"
+	rejected := secret(set(siteBody("Rejected"), "port", "not a number"), "password", sitePassword)
 	record(a.send(http.MethodPost, sitesPath(ws), rejected, cookie, csrf))
-	rejected = siteBody("Rejected")
-	rejected["password"] = sitePassword
-	rejected["host"] = "127.0.0.1"
+	rejected = secret(set(siteBody("Rejected"), "host", "127.0.0.1"), "password", sitePassword)
 	record(a.send(http.MethodPost, sitesPath(ws), rejected, cookie, csrf))
 	record(a.send(http.MethodPost, sitesPath(ws), "{not json "+sitePassword, cookie, csrf))
 
-	quickIn := quickBody("8.8.8.8")
-	quickIn["password"] = quickPass
+	quickIn := secret(quickBody("8.8.8.8"), "password", quickPass)
 	record(a.send(http.MethodPost, quickPath(ws), quickIn, cookie, csrf))
-	quickIn["host"] = "127.0.0.1"
+	set(quickIn, "host", "127.0.0.1")
 	record(a.send(http.MethodPost, quickPath(ws), quickIn, cookie, csrf))
 	record(a.do(request{method: http.MethodGet, path: quickPath(ws), cookie: cookie}))
 

@@ -3,6 +3,7 @@ package fzimport_test
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -73,33 +74,33 @@ func TestParse(t *testing.T) {
 		t.Fatalf("read %d servers and %d skipped; want 10 and 3: %+v %+v", len(servers), len(skipped), servers, skipped)
 	}
 	top := byName["Top level"]
-	if top.Host != "top.example.com" || top.Port != 2121 || top.Protocol != site.FTP || top.FTPEncryption != site.EncryptionOptional || top.Username != "alice" || top.Password != "secret" || top.AuthMethod != site.AuthPassword || len(top.Path) != 0 {
+	if want := map[string]string{"host": "top.example.com", "port": "2121", "encryption": "optional", "username": "alice", "auth": "password"}; top.Connector != "ftp" || !maps.Equal(top.Config, want) || top.Password != "secret" || len(top.Path) != 0 {
 		t.Errorf("top level = %+v", top)
 	}
-	if box := byName["SFTP box"]; box.Protocol != site.SFTP || box.Password != "páss" || len(box.Path) != 1 || box.Path[0] != "Work" {
+	if box := byName["SFTP box"]; box.Connector != "sftp" || box.Password != "páss" || len(box.Path) != 1 || box.Path[0] != "Work" {
 		t.Errorf("sftp box = %+v", box)
 	}
 	nested := byName["ftps.example.com"]
-	if nested.Protocol != site.FTP || nested.FTPEncryption != site.EncryptionExplicit || nested.Password != "plain-pass" || len(nested.Path) != 2 || nested.Path[1] != "Nested Deep" {
+	if nested.Connector != "ftp" || nested.Config["encryption"] != "explicit" || nested.Password != "plain-pass" || len(nested.Path) != 2 || nested.Path[1] != "Nested Deep" {
 		t.Errorf("nested = %+v", nested)
 	}
-	if implicit := byName["implicit.example.com"]; implicit.FTPEncryption != site.EncryptionImplicit || implicit.Port != 990 {
+	if implicit := byName["implicit.example.com"]; implicit.Config["encryption"] != "implicit" || implicit.Config["port"] != "990" {
 		t.Errorf("implicit = %+v", implicit)
 	}
-	if anon := byName["Anonymous"]; anon.Username != "anonymous" || anon.AuthMethod != site.AuthAnonymous || anon.FTPEncryption != site.EncryptionPlain || anon.Password != "" {
+	if anon := byName["Anonymous"]; anon.Config["auth"] != "anonymous" || anon.Config["encryption"] != "plain" || anon.Password != "" {
 		t.Errorf("anonymous = %+v", anon)
 	}
-	if asks := byName["Asks"]; asks.Password != "" || asks.Username != "eve" || asks.AuthMethod != site.AuthAsk {
+	if asks := byName["Asks"]; asks.Password != "" || asks.Config["username"] != "eve" || asks.Config["auth"] != "ask" {
 		t.Errorf("asks = %+v", asks)
 	}
-	if bad := byName["Bad password"]; !bad.PasswordSkipped || bad.Password != "" || bad.Port != 0 {
+	if bad := byName["Bad password"]; !bad.PasswordSkipped || bad.Password != "" || bad.Config["port"] != "" {
 		t.Errorf("bad password = %+v", bad)
 	}
-	if odd := byName["Odd implicit"]; odd.FTPEncryption != site.EncryptionImplicit || odd.Port != 9990 {
+	if odd := byName["Odd implicit"]; odd.Config["encryption"] != "implicit" || odd.Config["port"] != "9990" {
 		t.Errorf("implicit off port 990 = %+v", odd)
 	}
-	if box := byName["SFTP box"]; box.FTPEncryption != "" {
-		t.Errorf("an SFTP site got the encryption %q", box.FTPEncryption)
+	if box := byName["SFTP box"]; box.Config["encryption"] != "" {
+		t.Errorf("an SFTP site got the encryption %q", box.Config["encryption"])
 	}
 	for name, want := range map[string]string{"Top level": "/var/www", "SFTP box": "/my docs", "Anonymous": "", "Asks": "", "Bad password": "", "Odd implicit": "", "ftps.example.com": ""} {
 		if got := byName[name].RemoteDir; got != want {
@@ -111,10 +112,10 @@ func TestParse(t *testing.T) {
 			t.Errorf("color of %q = %q; want %q", name, got, want)
 		}
 	}
-	if account := byName["Account"]; account.AuthMethod != site.AuthAccount || account.Account != "billing" || account.Password != "secret" {
+	if account := byName["Account"]; account.Config["auth"] != "account" || account.Account != "billing" || account.Password != "secret" {
 		t.Errorf("account logon = %+v", account)
 	}
-	if otp := byName["Interactive"]; otp.AuthMethod != site.AuthInteractive || otp.Password != "" || otp.Username != "kim" {
+	if otp := byName["Interactive"]; otp.Config["auth"] != "interactive" || otp.Password != "" || otp.Config["username"] != "kim" {
 		t.Errorf("interactive logon = %+v", otp)
 	}
 	reasons := map[string]string{}
@@ -217,7 +218,7 @@ func FuzzParse(f *testing.F) {
 			t.Fatalf("%d sites read; want at most 2000", len(servers)+len(skipped))
 		}
 		for _, server := range servers {
-			if server.Host == "" || len([]rune(server.Name)) > 200 {
+			if server.Config["host"] == "" || len([]rune(server.Name)) > 200 {
 				t.Fatalf("server %+v breaks the invariants", server)
 			}
 		}

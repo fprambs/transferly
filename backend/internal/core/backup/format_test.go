@@ -26,7 +26,7 @@ func newSealer(random io.Reader) *backup.Sealer {
 
 // sample is a content with one secret.
 func sample() backup.Content {
-	return backup.Content{Sites: []backup.Site{{Name: "Prod", Host: "h", Secrets: map[string]string{"password": "s3cret-value"}}}}
+	return backup.Content{Sites: []backup.Site{{Name: "Prod", Connector: "sftp", Config: map[string]string{"host": "h"}, Secrets: map[string]string{"password": "s3cret-value"}}}}
 }
 
 // rawFile is a file as its JSON reads, to change a part of it.
@@ -126,7 +126,7 @@ func TestSealer_InvalidFiles(t *testing.T) {
 	s := newSealer(rand.Reader)
 	changes := map[string]func(*rawFile){
 		"format":     func(r *rawFile) { r.Format = "other" },
-		"version":    func(r *rawFile) { r.Version = 2 },
+		"version":    func(r *rawFile) { r.Version = 1 },
 		"kdf":        func(r *rawFile) { r.KDF.Name = "scrypt" },
 		"memory":     func(r *rawFile) { r.KDF.MemoryKiB = 256*1024 + 1 },
 		"passes":     func(r *rawFile) { r.KDF.Time = 11 },

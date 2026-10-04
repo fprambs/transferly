@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
@@ -111,7 +111,7 @@ func NewService(store Store, authz Authorizer, clock Clock) *Service {
 
 // validate checks the identity of a key.
 func validate(host string, port int, keyType, fingerprint string) error {
-	if !site.ValidHost(host) || port < 1 || port > 65535 || !keyTypePattern.MatchString(keyType) {
+	if !connectors.ValidHost(host) || port < 1 || port > 65535 || !keyTypePattern.MatchString(keyType) {
 		return ErrInvalid
 	}
 	if !fingerprintPattern.MatchString(fingerprint) {

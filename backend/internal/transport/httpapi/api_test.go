@@ -119,8 +119,8 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		_ = auditTrail.Record(ctx, audit.Event{WorkspaceID: workspaceID, ActorID: actor, Action: audit.KeyRotated, Meta: map[string]string{"version": strconv.Itoa(version)}})
 	})
 	policy := netguard.NewPolicy(nil, nil)
-	sites := site.NewService(store, workspaces, keys, policy, clock, rand.Reader, nil)
-	quickConnections := quick.NewService(workspaces, policy, sites, clock, nil)
+	sites := site.NewService(store, workspaces, keys, policy, connectors.Builtin(), clock, rand.Reader, nil)
+	quickConnections := quick.NewService(workspaces, sites, clock, nil)
 	asked := credentials.New(clock, 8*time.Hour)
 	hub := events.New(64)
 	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1, OnChange: connections.PublishTo(hub)})
@@ -744,7 +744,7 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, session 
 		if err != nil {
 			return nil, err
 		}
-		if _, typed := c.asked.Password(credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}); found.AuthMethod == site.AuthAsk && !typed {
+		if _, typed := c.asked.Password(credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}); found.Setting(connectors.FieldAuth) == connectors.AuthAsk && !typed {
 			return nil, credentials.ErrRequired
 		}
 		if found.Name == slowSite {

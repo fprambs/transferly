@@ -15,9 +15,9 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/core/connections"
 	"github.com/fprambs/transferly/internal/core/hostkey"
-	"github.com/fprambs/transferly/internal/core/quick"
 	"github.com/fprambs/transferly/internal/core/remotefs"
 	"github.com/fprambs/transferly/internal/core/site"
+	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // socks5TestProxy starts a minimal SOCKS5 proxy, independent of the client under test, that relays one connection to
@@ -244,7 +244,7 @@ func TestConnector_Proxy(t *testing.T) {
 	e.trust(server)
 	proxy := socks5TestProxy(t, nil)
 	proxyHost, proxyPort, _ := splitAddr(proxy)
-	direct := e.addSite(server, site.Input{Name: "Direct", Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: proxyHost, Port: proxyPort}}, site.SecretChanges{Password: text(sshPassword)})
+	direct := e.addSite(server, spec{Name: "Direct", Proxy: proxySpec{Kind: "socks5", Host: proxyHost, Port: proxyPort}}, changes{Password: text(sshPassword)})
 	fsys, err := c.Connect(t.Context(), e.key(direct), session)
 	if err != nil {
 		t.Fatalf("Connect() through a SOCKS5 proxy = %v", err)
@@ -256,18 +256,18 @@ func TestConnector_Proxy(t *testing.T) {
 
 	authProxy := socks5TestProxy(t, &[2]string{"proxyuser", "proxypass"})
 	authHost, authPort, _ := splitAddr(authProxy)
-	authenticated := e.addSite(server, site.Input{
-		Name: "Authenticated", Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: authHost, Port: authPort, Username: "proxyuser"},
-	}, site.SecretChanges{Password: text(sshPassword), ProxyPassword: text("proxypass")})
+	authenticated := e.addSite(server, spec{
+		Name: "Authenticated", Proxy: proxySpec{Kind: "socks5", Host: authHost, Port: authPort, Username: "proxyuser"},
+	}, changes{Password: text(sshPassword), ProxyPassword: text("proxypass")})
 	if fsys, err := c.Connect(t.Context(), e.key(authenticated), session); err != nil {
 		t.Errorf("Connect() through an authenticated proxy = %v", err)
 	} else {
 		_ = fsys.Close()
 	}
 
-	wrongProxy := e.addSite(server, site.Input{
-		Name: "Wrong proxy password", Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: authHost, Port: authPort, Username: "proxyuser"},
-	}, site.SecretChanges{Password: text(sshPassword), ProxyPassword: text("not it")})
+	wrongProxy := e.addSite(server, spec{
+		Name: "Wrong proxy password", Proxy: proxySpec{Kind: "socks5", Host: authHost, Port: authPort, Username: "proxyuser"},
+	}, changes{Password: text(sshPassword), ProxyPassword: text("not it")})
 	if _, err := c.Connect(t.Context(), e.key(wrongProxy), session); !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("Connect() with a wrong proxy password = %v; want ErrConnectionLost", err)
 	}
@@ -275,9 +275,9 @@ func TestConnector_Proxy(t *testing.T) {
 	plain := ftptest.Start(t, ftptest.Options{})
 	ftpProxy := socks5TestProxy(t, nil)
 	ftpProxyHost, ftpProxyPort, _ := splitAddr(ftpProxy)
-	ftpSite := e.addSiteAt(plain.Addr, site.Input{
-		Name: "FTP via proxy", Protocol: site.FTP, Username: ftpUser, Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: ftpProxyHost, Port: ftpProxyPort},
-	}, site.SecretChanges{Password: text(ftpPassword)})
+	ftpSite := e.addSiteAt(plain.Addr, spec{
+		Name: "FTP via proxy", Protocol: "ftp", Username: ftpUser, Proxy: proxySpec{Kind: "socks5", Host: ftpProxyHost, Port: ftpProxyPort},
+	}, changes{Password: text(ftpPassword)})
 	if fsys, err := c.Connect(t.Context(), e.key(ftpSite), session); err != nil {
 		t.Errorf("Connect() to an FTP site through a proxy = %v", err)
 	} else {
@@ -305,9 +305,9 @@ func TestConnector_Jump(t *testing.T) {
 	if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, jumpHost, jumpPort, jumpKey.Type(), ssh.FingerprintSHA256(jumpKey), hostkey.TrustNew); err != nil {
 		t.Fatalf("Trust() of the jump host = %v", err)
 	}
-	viaJump := e.addSite(server, site.Input{
-		Name: "Via jump", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("let-me-through")})
+	viaJump := e.addSite(server, spec{
+		Name: "Via jump", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}, changes{Password: text(sshPassword), JumpPassword: text("let-me-through")})
 	fsys, err := c.Connect(t.Context(), e.key(viaJump), session)
 	if err != nil {
 		t.Fatalf("Connect() through a jump host = %v", err)
@@ -329,41 +329,41 @@ func TestConnector_Jump(t *testing.T) {
 		t.Fatalf("Trust() of the key jump host = %v", err)
 	}
 	pemKey, passphrase := marshalKey(t, private, "open sesame")
-	viaKeyJump := e.addSite(server, site.Input{
-		Name: "Via key jump", Jump: site.Jump{Host: keyJumpHost, Port: keyJumpPort, Username: "bastion", AuthMethod: site.AuthKey},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPrivateKey: text(pemKey), JumpPassphrase: text(passphrase)})
+	viaKeyJump := e.addSite(server, spec{
+		Name: "Via key jump", Jump: jumpSpec{Host: keyJumpHost, Port: keyJumpPort, Username: "bastion", AuthMethod: "key"},
+	}, changes{Password: text(sshPassword), JumpPrivateKey: text(pemKey), JumpPassphrase: text(passphrase)})
 	if fsys, err := c.Connect(t.Context(), e.key(viaKeyJump), session); err != nil {
 		t.Errorf("Connect() through a key jump host = %v", err)
 	} else {
 		_ = fsys.Close()
 	}
 
-	noJumpSecret := e.addSite(server, site.Input{
-		Name: "No jump secret", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, site.SecretChanges{Password: text(sshPassword)})
+	noJumpSecret := e.addSite(server, spec{
+		Name: "No jump secret", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}, changes{Password: text(sshPassword)})
 	if _, err := c.Connect(t.Context(), e.key(noJumpSecret), session); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("Connect() with no jump password stored = %v; want ErrAuth", err)
 	}
-	noJumpKey := e.addSite(server, site.Input{
-		Name: "No jump key", Jump: site.Jump{Host: keyJumpHost, Port: keyJumpPort, Username: "bastion", AuthMethod: site.AuthKey},
-	}, site.SecretChanges{Password: text(sshPassword)})
+	noJumpKey := e.addSite(server, spec{
+		Name: "No jump key", Jump: jumpSpec{Host: keyJumpHost, Port: keyJumpPort, Username: "bastion", AuthMethod: "key"},
+	}, changes{Password: text(sshPassword)})
 	if _, err := c.Connect(t.Context(), e.key(noJumpKey), session); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("Connect() with no jump key stored = %v; want ErrAuth", err)
 	}
 
-	wrongJumpPassword := e.addSite(server, site.Input{
-		Name: "Wrong jump password", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("nope")})
+	wrongJumpPassword := e.addSite(server, spec{
+		Name: "Wrong jump password", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}, changes{Password: text(sshPassword), JumpPassword: text("nope")})
 	if _, err := c.Connect(t.Context(), e.key(wrongJumpPassword), session); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("Connect() with a wrong jump password = %v; want ErrAuth", err)
 	}
 
 	proxy := socks5TestProxy(t, nil)
 	proxyHost, proxyPort, _ := splitAddr(proxy)
-	viaProxiedJump := e.addSite(server, site.Input{
-		Name: "Via proxied jump", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-		Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: proxyHost, Port: proxyPort},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("let-me-through")})
+	viaProxiedJump := e.addSite(server, spec{
+		Name: "Via proxied jump", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+		Proxy: proxySpec{Kind: "socks5", Host: proxyHost, Port: proxyPort},
+	}, changes{Password: text(sshPassword), JumpPassword: text("let-me-through")})
 	if fsys, err := c.Connect(t.Context(), e.key(viaProxiedJump), session); err != nil {
 		t.Errorf("Connect() through a jump host reached via a proxy = %v", err)
 	} else {
@@ -450,27 +450,27 @@ func TestConnector_JumpEdgeCases(t *testing.T) {
 	}
 	unreachable := closed.Addr().String()
 	_ = closed.Close()
-	unreachableSite := e.addSiteAt(unreachable, site.Input{
-		Name: "Unreachable via jump", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("let-me-through")})
+	unreachableSite := e.addSiteAt(unreachable, spec{
+		Name: "Unreachable via jump", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}, changes{Password: text(sshPassword), JumpPassword: text("let-me-through")})
 	if _, err := c.Connect(t.Context(), e.key(unreachableSite), session); !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("Connect() to a site the jump host cannot reach = %v; want ErrConnectionLost", err)
 	}
 
 	noAuthProxy := socks5TestProxy(t, nil)
 	noAuthHost, noAuthPort, _ := splitAddr(noAuthProxy)
-	unstoredProxyPassword := e.addSite(server, site.Input{
-		Name: "Proxy needs no real auth", Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: noAuthHost, Port: noAuthPort, Username: "someone"},
-	}, site.SecretChanges{Password: text(sshPassword)})
+	unstoredProxyPassword := e.addSite(server, spec{
+		Name: "Proxy needs no real auth", Proxy: proxySpec{Kind: "socks5", Host: noAuthHost, Port: noAuthPort, Username: "someone"},
+	}, changes{Password: text(sshPassword)})
 	if fsys, err := c.Connect(t.Context(), e.key(unstoredProxyPassword), session); err != nil {
 		t.Errorf("Connect() through a proxy with a username but no stored password = %v", err)
 	} else {
 		_ = fsys.Close()
 	}
 
-	flakyJumpSite := e.addSite(server, site.Input{
-		Name: "Flaky jump lookup", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("let-me-through")})
+	flakyJumpSite := e.addSite(server, spec{
+		Name: "Flaky jump lookup", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}, changes{Password: text(sshPassword), JumpPassword: text("let-me-through")})
 	e.flaky.failTrustedAt, e.flaky.trusted = 2, 0
 	if _, err := c.Connect(t.Context(), e.key(flakyJumpSite), session); !errors.Is(err, errFlaky) {
 		t.Errorf("Connect() with a failing lookup of the jump host's trusted keys = %v; want the store error", err)
@@ -478,20 +478,20 @@ func TestConnector_JumpEdgeCases(t *testing.T) {
 	e.flaky.failTrustedAt = 0
 
 	host, port, _ := splitAddr(server.Addr)
-	quickPassword, err := e.quick.Create(t.Context(), e.user, e.workspace, site.Input{
-		Host: host, Port: port, Username: sshUser, Protocol: site.SFTP,
-		Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, quick.Secrets{Password: []byte(sshPassword)})
+	quickPassword, err := e.quick.Create(t.Context(), e.user, e.workspace, spec{
+		Host: host, Port: port, Username: sshUser, Protocol: "sftp",
+		Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}.input(), qsecrets{Password: []byte(sshPassword)}.secrets())
 	if err != nil {
 		t.Fatalf("quick.Create() = %v", err)
 	}
 	if _, err := c.Connect(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: quickPassword.Site.ID}, "s"); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("Connect() to a quick connection with a password jump host and no jump password = %v; want ErrAuth", err)
 	}
-	quickKey, err := e.quick.Create(t.Context(), e.user, e.workspace, site.Input{
-		Host: host, Port: port, Username: sshUser, Protocol: site.SFTP,
-		Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthKey},
-	}, quick.Secrets{Password: []byte(sshPassword)})
+	quickKey, err := e.quick.Create(t.Context(), e.user, e.workspace, spec{
+		Host: host, Port: port, Username: sshUser, Protocol: "sftp",
+		Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "key"},
+	}.input(), qsecrets{Password: []byte(sshPassword)}.secrets())
 	if err != nil {
 		t.Fatalf("quick.Create() = %v", err)
 	}
@@ -512,9 +512,9 @@ func TestConnector_JumpEdgeCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	viaPlainKeyJump := e.addSite(server, site.Input{
-		Name: "Via unencrypted key jump", Jump: site.Jump{Host: plainKeyJumpHost, Port: plainKeyJumpPort, Username: "bastion", AuthMethod: site.AuthKey},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPrivateKey: text(string(pem.EncodeToMemory(plainBlock)))})
+	viaPlainKeyJump := e.addSite(server, spec{
+		Name: "Via unencrypted key jump", Jump: jumpSpec{Host: plainKeyJumpHost, Port: plainKeyJumpPort, Username: "bastion", AuthMethod: "key"},
+	}, changes{Password: text(sshPassword), JumpPrivateKey: text(string(pem.EncodeToMemory(plainBlock)))})
 	if fsys, err := c.Connect(t.Context(), e.key(viaPlainKeyJump), session); err != nil {
 		t.Errorf("Connect() through a jump host with an unencrypted key and no stored passphrase = %v", err)
 	} else {
@@ -524,27 +524,27 @@ func TestConnector_JumpEdgeCases(t *testing.T) {
 	e.flaky.failKind = site.SecretProxyPassword
 	proxy := socks5TestProxy(t, &[2]string{"proxyuser", "proxypass"})
 	proxyHost, proxyPort, _ := splitAddr(proxy)
-	flakyProxySite := e.addSite(server, site.Input{
-		Name: "Flaky proxy secret", Proxy: site.Proxy{Kind: site.ProxySOCKS5, Host: proxyHost, Port: proxyPort, Username: "proxyuser"},
-	}, site.SecretChanges{Password: text(sshPassword), ProxyPassword: text("proxypass")})
+	flakyProxySite := e.addSite(server, spec{
+		Name: "Flaky proxy secret", Proxy: proxySpec{Kind: "socks5", Host: proxyHost, Port: proxyPort, Username: "proxyuser"},
+	}, changes{Password: text(sshPassword), ProxyPassword: text("proxypass")})
 	if _, err := c.Connect(t.Context(), e.key(flakyProxySite), session); !errors.Is(err, errFlaky) {
 		t.Errorf("Connect() with a failing read of the proxy password = %v; want the store error", err)
 	}
 	e.flaky.failKind = ""
 
 	e.flaky.failKind = site.SecretJumpPassphrase
-	flakyJumpPassphraseSite := e.addSite(server, site.Input{
-		Name: "Flaky jump passphrase", Jump: site.Jump{Host: plainKeyJumpHost, Port: plainKeyJumpPort, Username: "bastion", AuthMethod: site.AuthKey},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPrivateKey: text(string(pem.EncodeToMemory(plainBlock)))})
+	flakyJumpPassphraseSite := e.addSite(server, spec{
+		Name: "Flaky jump passphrase", Jump: jumpSpec{Host: plainKeyJumpHost, Port: plainKeyJumpPort, Username: "bastion", AuthMethod: "key"},
+	}, changes{Password: text(sshPassword), JumpPrivateKey: text(testutil.PrivateKey(t, "phrase")), JumpPassphrase: text("phrase")})
 	if _, err := c.Connect(t.Context(), e.key(flakyJumpPassphraseSite), session); !errors.Is(err, errFlaky) {
 		t.Errorf("Connect() with a failing read of the jump host's passphrase = %v; want the store error", err)
 	}
 	e.flaky.failKind = ""
 
 	impostor := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
-	untrustedViaJump := e.addSite(impostor, site.Input{
-		Name: "Untrusted via jump", Jump: site.Jump{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: site.AuthPassword},
-	}, site.SecretChanges{Password: text(sshPassword), JumpPassword: text("let-me-through")})
+	untrustedViaJump := e.addSite(impostor, spec{
+		Name: "Untrusted via jump", Jump: jumpSpec{Host: jumpHost, Port: jumpPort, Username: "bastion", AuthMethod: "password"},
+	}, changes{Password: text(sshPassword), JumpPassword: text("let-me-through")})
 	if _, err := c.Connect(t.Context(), e.key(untrustedViaJump), session); !errors.Is(err, remotefs.ErrHostKeyUnknown) {
 		t.Errorf("Connect() through a jump host to an untrusted site = %v; want ErrHostKeyUnknown", err)
 	}

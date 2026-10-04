@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/transferly/internal/core/audit"
+	"github.com/fprambs/transferly/internal/core/connectors"
 	"github.com/fprambs/transferly/internal/core/credentials"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/core/vault"
@@ -14,16 +15,14 @@ import (
 
 // siteDTO converts a site to its public representation.
 func siteDTO(s site.Site) Site {
-	secrets := make([]SiteSecrets, 0, len(s.Secrets))
+	secrets := make([]string, 0, len(s.Secrets))
 	for _, kind := range s.Secrets {
-		secrets = append(secrets, SiteSecrets(kind))
+		secrets = append(secrets, string(kind))
 	}
 	out := Site{
-		Id: s.ID, Name: s.Name, Protocol: SiteProtocol(s.Protocol), Host: s.Host, Port: s.Port, Username: s.Username,
-		AuthMethod: SiteAuthMethod(s.AuthMethod), ListTimezone: s.ListTimezone, Charset: Charset(s.Charset), SpeedLimitBps: s.SpeedLimit,
+		Id: s.ID, Name: s.Name, Connector: s.Connector, Config: SiteConfig(s.Config), SpeedLimitBps: s.SpeedLimit,
 		Secrets: secrets, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
-	out.FtpEncryption = encryptionDTO(s.FTPEncryption)
 	if s.RemoteDir != "" {
 		out.RemoteDir = &s.RemoteDir
 	}
@@ -34,45 +33,24 @@ func siteDTO(s site.Site) Site {
 	if s.CollectionID != uuid.Nil {
 		out.CollectionId = &s.CollectionID
 	}
-	if s.Proxy.Set() {
-		out.Proxy = &SiteProxy{Kind: SiteProxyKind(s.Proxy.Kind), Host: s.Proxy.Host, Port: s.Proxy.Port}
-		if s.Proxy.Username != "" {
-			out.Proxy.Username = &s.Proxy.Username
-		}
-	}
-	if s.Jump.Set() {
-		out.Jump = &SiteJump{Host: s.Jump.Host, Port: s.Jump.Port, Username: s.Jump.Username, AuthMethod: SiteJumpAuthMethod(s.Jump.AuthMethod)}
-	}
 	return out
 }
 
-// encryptionDTO is the FTP encryption of a site or a quick connection as the API shows it: left out for SFTP.
-func encryptionDTO(encryption site.FTPEncryption) *FtpEncryption {
-	if encryption == "" {
-		return nil
+// secretChanges converts the secrets of a request body to secret changes.
+func secretChanges(in *SiteSecretChanges) site.SecretChanges {
+	changes := site.SecretChanges{}
+	if in == nil {
+		return changes
 	}
-	out := FtpEncryption(encryption)
-	return &out
+	for kind, value := range *in {
+		changes[site.SecretKind(kind)] = value
+	}
+	return changes
 }
 
 // siteInput converts the request body to the settings and secret changes of a site.
 func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
-	settings := site.Input{CollectionID: optionalID(in.CollectionId), Name: in.Name, Protocol: site.Protocol(in.Protocol), Host: in.Host, Username: in.Username}
-	if in.Port != nil {
-		settings.Port = *in.Port
-	}
-	if in.FtpEncryption != nil {
-		settings.FTPEncryption = site.FTPEncryption(*in.FtpEncryption)
-	}
-	if in.AuthMethod != nil {
-		settings.AuthMethod = site.AuthMethod(*in.AuthMethod)
-	}
-	if in.ListTimezone != nil {
-		settings.ListTimezone = *in.ListTimezone
-	}
-	if in.Charset != nil {
-		settings.Charset = string(*in.Charset)
-	}
+	settings := site.Input{CollectionID: optionalID(in.CollectionId), Name: in.Name, Connector: in.Connector, Config: in.Config}
 	if in.SpeedLimitBps != nil {
 		settings.SpeedLimit = *in.SpeedLimitBps
 	}
@@ -82,19 +60,7 @@ func siteInput(in SiteInput) (site.Input, site.SecretChanges) {
 	if in.Color != nil {
 		settings.Color = site.Color(*in.Color)
 	}
-	if in.Proxy != nil {
-		settings.Proxy = site.Proxy{Kind: site.ProxyKind(in.Proxy.Kind), Host: in.Proxy.Host, Port: in.Proxy.Port}
-		if in.Proxy.Username != nil {
-			settings.Proxy.Username = *in.Proxy.Username
-		}
-	}
-	if in.Jump != nil {
-		settings.Jump = site.Jump{Host: in.Jump.Host, Port: in.Jump.Port, Username: in.Jump.Username, AuthMethod: site.AuthMethod(in.Jump.AuthMethod)}
-	}
-	return settings, site.SecretChanges{
-		Password: in.Password, PrivateKey: in.PrivateKey, Passphrase: in.Passphrase,
-		JumpPassword: in.JumpPassword, JumpPrivateKey: in.JumpPrivateKey, JumpPassphrase: in.JumpPassphrase, ProxyPassword: in.ProxyPassword, Account: in.Account,
-	}
+	return settings, secretChanges(in.Secrets)
 }
 
 // ListSites lists the sites of a workspace.
@@ -125,7 +91,7 @@ func (s *server) CreateSite(ctx context.Context, request CreateSiteRequestObject
 	if err != nil {
 		return nil, err
 	}
-	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteCreated, created.Name, map[string]string{"host": created.Host})
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteCreated, created.Name, map[string]string{"host": created.Setting(connectors.FieldHost)})
 	return CreateSite201JSONResponse(siteDTO(created)), nil
 }
 
@@ -154,7 +120,7 @@ func (s *server) UpdateSite(ctx context.Context, request UpdateSiteRequestObject
 		return nil, err
 	}
 	s.siteChanged(request.SiteId)
-	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, updated.Name, map[string]string{"host": updated.Host})
+	s.record(ctx, p.User.ID, request.WorkspaceId, audit.SiteUpdated, updated.Name, map[string]string{"host": updated.Setting(connectors.FieldHost)})
 	return UpdateSite200JSONResponse(siteDTO(updated)), nil
 }
 
@@ -175,7 +141,7 @@ func (s *server) SetSiteCredential(ctx context.Context, request SetSiteCredentia
 	if err != nil {
 		return nil, err
 	}
-	if found.AuthMethod != site.AuthAsk {
+	if found.Setting(connectors.FieldAuth) != connectors.AuthAsk {
 		return domainProblem{status: http.StatusConflict, code: "credentials_not_asked"}, nil
 	}
 	if request.Body.Password == "" {

@@ -17,24 +17,50 @@ func optional[T comparable](value T) *T {
 	return &value
 }
 
+// conditionDTO converts a condition of a field to its public form, or nil for none.
+func conditionDTO(c *connectors.Condition) *ConnectorCondition {
+	if c == nil {
+		return nil
+	}
+	out := ConnectorCondition{Field: c.Field}
+	if len(c.In) > 0 {
+		values := c.In
+		out.In = &values
+	}
+	return &out
+}
+
+// fieldDTO converts a field of a connector's schema to its public form.
+func fieldDTO(f connectors.Field) ConnectorField {
+	out := ConnectorField{
+		Name: f.Name, Kind: ConnectorFieldKind(f.Kind), Group: ConnectorFieldGroup(f.Group), Required: f.Required, Default: optional(f.Default),
+		Min: optional(f.Min), Max: optional(f.Max), MaxLength: optional(f.MaxLength), When: conditionDTO(f.When), Port: optional(f.Port),
+		Passphrase: optional(f.Passphrase),
+	}
+	if len(f.Choices) > 0 {
+		choices := f.Choices
+		out.Choices = &choices
+	}
+	if len(f.Defaults) > 0 {
+		defaults := make([]ConnectorDefault, len(f.Defaults))
+		for i, d := range f.Defaults {
+			defaults[i] = ConnectorDefault{When: *conditionDTO(&d.When), Value: d.Value}
+		}
+		out.Defaults = &defaults
+	}
+	return out
+}
+
 // connectorDTO converts a connector of the catalog, and whether the instance offers it, to its public form.
 func connectorDTO(e connectors.Entry) Connector {
 	d := e.Descriptor
 	fields := make([]ConnectorField, len(d.Fields))
 	for i, f := range d.Fields {
-		fields[i] = ConnectorField{Name: f.Name, Kind: ConnectorFieldKind(f.Kind), Required: f.Required, Default: optional(f.Default), Min: optional(f.Min), Max: optional(f.Max), MaxLength: optional(f.MaxLength)}
-		if len(f.Choices) > 0 {
-			choices := f.Choices
-			fields[i].Choices = &choices
-		}
-	}
-	auth := make([]ConnectorAuth, len(d.Auth))
-	for i, a := range d.Auth {
-		auth[i] = ConnectorAuth(a)
+		fields[i] = fieldDTO(f)
 	}
 	c := d.Capabilities
 	return Connector{
-		Type: d.Type, Name: d.Name, Icon: d.Icon, Maturity: ConnectorMaturity(d.Maturity), Fields: fields, Auth: auth, EnabledByDefault: d.EnabledByDefault, Enabled: e.Enabled,
+		Type: d.Type, Name: d.Name, Icon: d.Icon, Maturity: ConnectorMaturity(d.Maturity), Fields: fields, EnabledByDefault: d.EnabledByDefault, Enabled: e.Enabled,
 		Capabilities: ConnectorCapabilities{Folders: c.Folders, Permissions: c.Permissions, SetTimes: c.SetTimes, Resume: c.Resume, Rename: c.Rename, ServerCopy: c.ServerCopy},
 	}
 }

@@ -3,17 +3,21 @@ package connectors
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/fprambs/transferly/internal/core/auth"
 	"github.com/fprambs/transferly/internal/core/ports"
-	"github.com/fprambs/transferly/internal/core/site"
 )
 
-// ErrForbidden means the acting account is not an administrator of the instance.
-var ErrForbidden = errors.New("administrator required")
+var (
+	// ErrForbidden means the acting account is not an administrator of the instance.
+	ErrForbidden = errors.New("administrator required")
+	// ErrDisabled means the instance does not offer the connector, so its sites cannot be created or connected.
+	ErrDisabled = errors.New("connector disabled")
+)
 
 // Store keeps which connectors administrators enabled or disabled; a connector without a setting follows its descriptor.
 type Store interface {
@@ -71,16 +75,11 @@ func (s *Service) Enabled(ctx context.Context, kind string) (Descriptor, error) 
 	return Descriptor{}, ErrUnknown
 }
 
-// CheckProtocol implements [site.Offering]: it refuses a protocol whose connector the instance does not offer with
-// [site.ErrConnectorDisabled]. FTP and FTPS sites both use the FTP connector.
-func (s *Service) CheckProtocol(ctx context.Context, protocol site.Protocol) error {
-	kind := string(protocol)
-	if protocol == site.FTPS {
-		kind = string(site.FTP)
-	}
+// CheckConnector refuses a connector the instance does not offer with [ErrDisabled], and an unknown one too: a site cannot use either.
+func (s *Service) CheckConnector(ctx context.Context, kind string) error {
 	_, err := s.Enabled(ctx, kind)
 	if errors.Is(err, ErrUnknown) {
-		return site.ErrConnectorDisabled
+		return fmt.Errorf("%w: %s", ErrDisabled, kind)
 	}
 	return err
 }

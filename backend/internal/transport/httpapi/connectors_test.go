@@ -30,18 +30,26 @@ func TestListConnectors(t *testing.T) {
 		t.Fatalf("connectors = %d %+v", r.Status, list)
 	}
 	sftp := list[1]
-	if !sftp.EnabledByDefault || !sftp.Enabled || !list[0].Enabled || sftp.Maturity != "stable" || !sftp.Capabilities.Resume || sftp.Capabilities.ServerCopy || len(sftp.Auth) != 4 {
+	if !sftp.EnabledByDefault || !sftp.Enabled || !list[0].Enabled || sftp.Maturity != "stable" || !sftp.Capabilities.Resume || sftp.Capabilities.ServerCopy {
 		t.Errorf("sftp = %+v", sftp)
 	}
 	host, port := sftp.Fields[0], sftp.Fields[1]
-	if host.Name != "host" || !host.Required || host.Default != nil || *host.MaxLength != 255 || host.Choices != nil {
+	if host.Name != "host" || host.Kind != "host" || host.Group != "connection" || !host.Required || host.Default != nil || *host.Port != "port" || host.Choices != nil {
 		t.Errorf("host = %+v", host)
 	}
 	if *port.Default != "22" || *port.Min != 1 || *port.Max != 65535 {
 		t.Errorf("port = %+v", port)
 	}
-	if encryption := list[0].Fields[3]; len(*encryption.Choices) != 4 {
-		t.Errorf("encryption = %+v", encryption)
+	key := sftp.Fields[5]
+	if key.Name != "private_key" || key.Kind != "private_key" || *key.Passphrase != "passphrase" || key.When == nil || key.When.Field != "auth" || (*key.When.In)[0] != "key" {
+		t.Errorf("private key = %+v", key)
+	}
+	if proxyHost := sftp.Fields[8]; proxyHost.Name != "proxy_host" || proxyHost.When == nil || proxyHost.When.In != nil {
+		t.Errorf("proxy host = %+v", proxyHost)
+	}
+	ftpPort := list[0].Fields[2]
+	if encryption := list[0].Fields[1]; len(*encryption.Choices) != 4 || ftpPort.Defaults == nil || (*ftpPort.Defaults)[0].Value != "990" {
+		t.Errorf("encryption = %+v, port = %+v", encryption, ftpPort)
 	}
 	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/connectors"}), http.StatusUnauthorized, "unauthenticated")
 }
@@ -83,7 +91,8 @@ func TestSetConnectorEnabled(t *testing.T) {
 		t.Errorf("audit = %+v; want one connector change of ftp", actions(events))
 	}
 	ws := e.a.personal(e.other.cookie)
-	ftpSite := map[string]any{"name": "Old FTP", "protocol": "ftp", "host": "files.example.com", "username": "deploy"}
+	ftpSite := siteBody("Old FTP")
+	ftpSite["connector"] = "ftp"
 	expectProblem(t, e.other.call(http.MethodPost, sitesPath(ws), ftpSite), http.StatusConflict, "connector_disabled")
 	if r := e.root.call(http.MethodPut, "/api/v1/admin/connectors/ftp", map[string]bool{"enabled": true}); r.Status != http.StatusOK {
 		t.Fatalf("enable ftp = %d %s", r.Status, r.Body)

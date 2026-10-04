@@ -83,32 +83,17 @@ type NetworkAllowance struct {
 }
 
 type Site struct {
-	ID             uuid.UUID
-	WorkspaceID    uuid.UUID
-	FolderID       uuid.NullUUID
-	Name           string
-	Protocol       string
-	Host           string
-	Port           int32
-	Username       string
-	AuthMethod     string
-	ListTimezone   string
-	Options        []byte
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Charset        string
-	SpeedLimit     int64
-	ProxyKind      string
-	ProxyHost      string
-	ProxyPort      int32
-	ProxyUsername  string
-	JumpHost       string
-	JumpPort       int32
-	JumpUsername   string
-	JumpAuthMethod string
-	FtpEncryption  string
-	RemoteDir      string
-	Color          string
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	FolderID    uuid.NullUUID
+	Name        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	SpeedLimit  int64
+	RemoteDir   string
+	Color       string
+	Connector   string
+	Config      []byte
 }
 
 type SiteBookmark struct {
