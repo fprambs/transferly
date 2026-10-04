@@ -39,6 +39,12 @@ services:
       TRANSFERLY_DATA_DIR: /cache/transferly
       TRANSFERLY_ALLOWED_ORIGINS: http://localhost:${TRANSFERLY_WEB_PORT:-5173}
       TRANSFERLY_ALLOWED_NETWORKS: ${TRANSFERLY_ALLOWED_NETWORKS:-172.16.0.0/12}
+      # Google Drive signs in with the fake of the testenv profile unless a real OAuth client is given (docs/guides/google.md).
+      TRANSFERLY_GOOGLE_CLIENT_ID: ${TRANSFERLY_GOOGLE_CLIENT_ID:-transferly-test.apps.googleusercontent.com}
+      TRANSFERLY_GOOGLE_CLIENT_SECRET: ${TRANSFERLY_GOOGLE_CLIENT_SECRET:-transferly-test-secret}
+      TRANSFERLY_GOOGLE_AUTH_URL: ${TRANSFERLY_GOOGLE_AUTH_URL:-http://localhost:8090/o/oauth2/auth}
+      TRANSFERLY_GOOGLE_TOKEN_URL: ${TRANSFERLY_GOOGLE_TOKEN_URL:-http://fakegoogle:8090/token}
+      TRANSFERLY_GOOGLE_API_URL: ${TRANSFERLY_GOOGLE_API_URL:-http://fakegoogle:8090}
     ports:
       - "127.0.0.1:${TRANSFERLY_HTTP_PORT:-8080}:8080"
     depends_on:
