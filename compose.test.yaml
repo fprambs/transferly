@@ -118,6 +118,20 @@ services:
       dockerfile: testenv/azure/Dockerfile
     image: transferly-testenv-azure
 
+  # Apache httpd with mod_dav for the WebDAV connector (ADR-0026): /webdav/ with transferly / transferly, /public/ read-only.
+  webdav:
+    profiles: ["webdav"]
+    build:
+      context: testenv/webdav
+    image: transferly-testenv-webdav
+    tmpfs:
+      - /var/dav
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/80'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   sftp:
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
     command: transferly:transferly:1001:100:upload anonymous::1002:100
