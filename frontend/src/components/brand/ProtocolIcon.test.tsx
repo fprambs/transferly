@@ -10,7 +10,7 @@ import { transportOf, type Transport } from './transport'
  * Scenarios:
  * - SFTP and FTP with explicit or implicit TLS are encrypted; FTP that only uses TLS when offered is optional, plain FTP is not
  * - FTP without a stated encryption uses TLS when offered, as the server default
- * - S3 over HTTPS is encrypted and over plain HTTP it is not
+ * - S3 over HTTPS is encrypted, and S3 or Azure over plain HTTP is not
  * - each transport draws its own accent with its color, and the icon is decorative
  */
 describe('ProtocolIcon', () => {
@@ -23,6 +23,7 @@ describe('ProtocolIcon', () => {
     expect(transportOf({ connector: 'ftp', config: { encryption: 'plain' } })).toBe('plain')
     expect(transportOf({ connector: 's3', config: { tls: 'true' } })).toBe('sftp')
     expect(transportOf({ connector: 's3', config: { tls: 'false' } })).toBe('plain')
+    expect(transportOf({ connector: 'azfiles', config: { tls: 'false' } })).toBe('plain')
   })
 
   it.each<[Transport, string, string]>([

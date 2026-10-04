@@ -5,14 +5,18 @@
     "ftp": "FTP - File Transfer Protocol",
     "s3": "S3 - Amazon S3 and compatible services",
     "gcs": "Google Cloud Storage",
-    "gdrive": "Google Drive"
+    "gdrive": "Google Drive",
+    "azblob": "Azure Blob Storage",
+    "azfiles": "Azure Files"
   },
   "descriptions": {
     "sftp": "Files over SSH, with keys, jump hosts and proxies.",
     "ftp": "FTP servers, with explicit or implicit TLS.",
     "s3": "Buckets of Amazon S3, MinIO, Cloudflare R2, Wasabi and more.",
     "gcs": "Buckets of Google Cloud, with an HMAC key.",
-    "gdrive": "My Drive or a shared drive of a Google account."
+    "gdrive": "My Drive or a shared drive of a Google account.",
+    "azblob": "Containers of an Azure storage account, with its key, a SAS token or public access.",
+    "azfiles": "Shares of Azure Files, with real folders and resumable uploads."
   },
   "catalog": {
     "title": "What do you want to connect to?",
@@ -71,7 +75,9 @@
         "key": "Key file",
         "anonymous": "Anonymous",
         "account": "Account",
-        "access_key": "Access key"
+        "access_key": "Access key",
+        "account_key": "Account key",
+        "sas": "SAS token"
       },
       "notes": {
         "anonymous": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
@@ -200,6 +206,23 @@
     },
     "account_email": {
       "label": "Account"
+    },
+    "container": {
+      "label": "Container",
+      "hint": "The container the site opens; its folders are the prefixes of its blob names."
+    },
+    "share": {
+      "label": "Share",
+      "hint": "The file share the site opens."
+    },
+    "account_key": {
+      "label": "Account key",
+      "keep": "Leave blank to keep the stored account key."
+    },
+    "sas_token": {
+      "label": "SAS token",
+      "hint": "The query string of a shared access signature, with or without the leading question mark.",
+      "keep": "Leave blank to keep the stored SAS token."
     }
   },
   "overrides": {
@@ -239,6 +262,40 @@
           "access_key": "Signs every request with the HMAC key. The secret is sealed in the vault.",
           "anonymous": "Reads a public bucket without signing the requests; nothing is saved."
         }
+      }
+    },
+    "azblob": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "Leave it blank for Azure. Give the host of a sovereign cloud, such as account.blob.core.chinacloudapi.cn, or of an emulator such as Azurite."
+      },
+      "auth": {
+        "notes": {
+          "account_key": "Signs every request with the key of the whole storage account, sealed in the vault. A SAS token with only the permissions the site needs is safer.",
+          "sas": "Authorizes the requests with a shared access signature, limited to what it grants and until it expires. Sealed in the vault.",
+          "anonymous": "Reads a container of public access without signing the requests; nothing is saved."
+        }
+      },
+      "account": {
+        "label": "Storage account",
+        "hint": "The name of the storage account, as in account.blob.core.windows.net."
+      }
+    },
+    "azfiles": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "Leave it blank for Azure. Give the host of a sovereign cloud, such as account.blob.core.chinacloudapi.cn, or of an emulator such as Azurite."
+      },
+      "auth": {
+        "notes": {
+          "account_key": "Signs every request with the key of the whole storage account, sealed in the vault. A SAS token with only the permissions the site needs is safer.",
+          "sas": "Authorizes the requests with a shared access signature, limited to what it grants and until it expires. Sealed in the vault.",
+          "anonymous": "Reads a container of public access without signing the requests; nothing is saved."
+        }
+      },
+      "account": {
+        "label": "Storage account",
+        "hint": "The name of the storage account, as in account.blob.core.windows.net."
       }
     }
   },

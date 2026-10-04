@@ -14,6 +14,14 @@ const shapes: Readonly<Record<string, { base: string; accent: string }>> = {
     base: 'M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9H14',
     accent: 'M10 21v-7M7.5 16.5 10 14l2.5 2.5',
   },
+  azblob: {
+    base: 'M4 6.5C4 5.1 7.6 4 12 4s8 1.1 8 2.5v11c0 1.4-3.6 2.5-8 2.5s-8-1.1-8-2.5z',
+    accent: 'M4 6.5C4 7.9 7.6 9 12 9s8-1.1 8-2.5M8 13h8',
+  },
+  azfiles: {
+    base: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+    accent: 'M8 12.5h8M8 15.5h5',
+  },
   gdrive: {
     base: 'M8.5 3h7l6.5 11.3-3.5 6.2h-13L2 14.3z',
     accent: 'M2 14.3h13.5M8.5 3l6.7 11.3',

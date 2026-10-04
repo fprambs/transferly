@@ -11,7 +11,7 @@ import { ConnectorIcon } from './ConnectorIcon'
  * - an icon the interface does not know gets the generic connector icon
  */
 describe('ConnectorIcon', () => {
-  it.each(['sftp', 'ftps', 'cloud', 'gcs'])('draws the %s icon', (icon) => {
+  it.each(['sftp', 'ftps', 'cloud', 'gcs', 'gdrive', 'azblob', 'azfiles'])('draws the %s icon', (icon) => {
     const { container } = render(<ConnectorIcon icon={icon} className="size-6" />)
     const svg = container.querySelector('svg')
     expect(svg).toHaveAttribute('data-icon', icon)

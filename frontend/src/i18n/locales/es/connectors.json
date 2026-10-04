@@ -5,14 +5,18 @@
     "ftp": "FTP - Protocolo de Transferencia de Archivos",
     "s3": "S3 - Amazon S3 y servicios compatibles",
     "gcs": "Google Cloud Storage",
-    "gdrive": "Google Drive"
+    "gdrive": "Google Drive",
+    "azblob": "Azure Blob Storage",
+    "azfiles": "Azure Files"
   },
   "descriptions": {
     "sftp": "Archivos por SSH, con claves, hosts de salto y proxies.",
     "ftp": "Servidores FTP, con TLS explícito o implícito.",
     "s3": "Buckets de Amazon S3, MinIO, Cloudflare R2, Wasabi y más.",
     "gcs": "Buckets de Google Cloud, con una clave HMAC.",
-    "gdrive": "Mi unidad o una unidad compartida de una cuenta de Google."
+    "gdrive": "Mi unidad o una unidad compartida de una cuenta de Google.",
+    "azblob": "Contenedores de una cuenta de almacenamiento de Azure, con su clave, un token SAS o acceso público.",
+    "azfiles": "Recursos compartidos de Azure Files, con carpetas reales y subidas reanudables."
   },
   "catalog": {
     "title": "¿A qué quieres conectarte?",
@@ -71,7 +75,9 @@
         "key": "Archivo de clave",
         "anonymous": "Anónimo",
         "account": "Cuenta",
-        "access_key": "Clave de acceso"
+        "access_key": "Clave de acceso",
+        "account_key": "Clave de la cuenta",
+        "sas": "Token SAS"
       },
       "notes": {
         "anonymous": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
@@ -200,6 +206,23 @@
     },
     "account_email": {
       "label": "Cuenta"
+    },
+    "container": {
+      "label": "Contenedor",
+      "hint": "El contenedor que abre el sitio; sus carpetas son los prefijos de los nombres de sus blobs."
+    },
+    "share": {
+      "label": "Recurso compartido",
+      "hint": "El recurso compartido de archivos que abre el sitio."
+    },
+    "account_key": {
+      "label": "Clave de la cuenta",
+      "keep": "Déjala en blanco para conservar la clave de la cuenta guardada."
+    },
+    "sas_token": {
+      "label": "Token SAS",
+      "hint": "La cadena de consulta de una firma de acceso compartido, con o sin el signo de interrogación inicial.",
+      "keep": "Déjalo en blanco para conservar el token SAS guardado."
     }
   },
   "overrides": {
@@ -239,6 +262,40 @@
           "access_key": "Firma cada petición con la clave HMAC. El secreto se sella en el vault.",
           "anonymous": "Lee un bucket público sin firmar las peticiones; no se guarda nada."
         }
+      }
+    },
+    "azblob": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "Déjalo en blanco para Azure. Escribe el servidor de una nube soberana, como cuenta.blob.core.chinacloudapi.cn, o de un emulador como Azurite."
+      },
+      "auth": {
+        "notes": {
+          "account_key": "Firma cada petición con la clave de toda la cuenta de almacenamiento, sellada en el vault. Un token SAS con solo los permisos que necesita el sitio es más seguro.",
+          "sas": "Autoriza las peticiones con una firma de acceso compartido, limitada a lo que concede y hasta que vence. Sellada en el vault.",
+          "anonymous": "Lee un contenedor de acceso público sin firmar las peticiones; no se guarda nada."
+        }
+      },
+      "account": {
+        "label": "Cuenta de almacenamiento",
+        "hint": "El nombre de la cuenta de almacenamiento, como en cuenta.blob.core.windows.net."
+      }
+    },
+    "azfiles": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "Déjalo en blanco para Azure. Escribe el servidor de una nube soberana, como cuenta.blob.core.chinacloudapi.cn, o de un emulador como Azurite."
+      },
+      "auth": {
+        "notes": {
+          "account_key": "Firma cada petición con la clave de toda la cuenta de almacenamiento, sellada en el vault. Un token SAS con solo los permisos que necesita el sitio es más seguro.",
+          "sas": "Autoriza las peticiones con una firma de acceso compartido, limitada a lo que concede y hasta que vence. Sellada en el vault.",
+          "anonymous": "Lee un contenedor de acceso público sin firmar las peticiones; no se guarda nada."
+        }
+      },
+      "account": {
+        "label": "Cuenta de almacenamiento",
+        "hint": "El nombre de la cuenta de almacenamiento, como en cuenta.blob.core.windows.net."
       }
     }
   },

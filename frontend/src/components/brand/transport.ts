@@ -4,10 +4,11 @@ import { settingOf, type Configured } from '@/features/connectors/settings'
 export type Transport = 'sftp' | 'ftps' | 'optional' | 'plain'
 
 /** Tells the transport of a site: FTP over TLS, FTP that uses TLS only when the server offers it, or FTP without encryption, from its
- * encryption setting; an object store reached over plain HTTP is not encrypted either; every other connector is, as SFTP is. */
+ * encryption setting; a connector whose HTTPS is turned off, such as an object store on a local network, is not encrypted either;
+ * every other connector is, as SFTP is. */
 export function transportOf(site: Configured): Transport {
-  if (site.connector === 's3') {
-    return settingOf(site, 'tls') === 'false' ? 'plain' : 'sftp'
+  if (settingOf(site, 'tls') === 'false') {
+    return 'plain'
   }
   if (site.connector !== 'ftp') {
     return 'sftp'
