@@ -86,7 +86,7 @@ backend/
   cmd/transferly-desktop/         futuro binario Wails
   internal/
     core/{ports,auth,workspace,authz,vault,site,remotefs,session,transfer,netguard,audit}
-    adapters/{remotefs/{sftpfs,ftpfs,localfs,remotefstest},store/{postgres,sqlite,storetest},clock,eventbus}
+    adapters/{remotefs/{sftpfs,ftpfs,s3fs,gdrivefs,azure,azblobfs,azfilefs,memfs,connect,remotefstest,connectortest},googleauth,store/{postgres,sqlite,storetest},clock,events}
     transport/{httpapi,wails}
     app/  config/  testutil/  docscheck/
   migrations/postgres/  queries/postgres/
@@ -186,7 +186,7 @@ type RemoteFS interface {
 - Una suite de conformidad (`remotefstest`) corre contra cada adaptador con servidores reales.
 - Errores normalizados: `ErrNotFound`, `ErrExists`, `ErrPermission`, `ErrNotDirectory`, `ErrNotEmpty`, `ErrInvalid`, `ErrAuth`, `ErrHostKeyMismatch`, `ErrConnectionLost`, `ErrQuota`; `Retryable(err)` indica si conviene reintentar tras reconectar.
 - El adaptador `memfs` (en memoria) es la implementación de referencia de la suite y un doble de test para la cola de transferencias.
-- Un protocolo nuevo (S3, WebDAV, SMB, nubes) es un adaptador que pasa la suite.
+- Un protocolo nuevo es un adaptador que pasa la suite y un conector del catálogo (ADR-0019, ADR-0022): un descriptor con su esquema de campos y sus capacidades, y un opener en `remotefs/connect` que arma el adaptador desde la configuración del sitio. `connectortest` verifica, para cada conector incorporado, que el descriptor sea válido, que las capacidades declaradas sean las del adaptador y que la suite pase a través de un sitio guardado.
 
 SFTP:
 
@@ -203,6 +203,24 @@ FTP y FTPS:
 - FTPS explícito (AUTH TLS) e implícito (990), con reutilización de sesión TLS en el canal de datos: `tls.Config` con `ClientSessionCache` compartida y `ServerName` siempre no vacío (con IP como host la reutilización falla). Ver [spikes](spikes/ftps-session-reuse.md).
 - `MLSD` con fallback a `LIST`, `MDTM`, `SIZE`, `REST`, `UTF8`, charset configurable.
 - El certificado del servidor no se valida contra autoridades: su huella SHA-256 se fija como una host key (tipo `tls-certificate`) y el usuario decide si confiar. La IP anunciada en PASV se ignora siempre. Sin `Rewrite` (FTP), una escritura reanudada solo puede empezar al final del archivo. El conector elige FTPS implícito solo en el puerto 990 (configurable en el conector) y explícito en los demás; FTP no informa permisos y la interfaz muestra un guion. Estado actual y reglas en [guides/ftp.md](guides/ftp.md).
+
+S3 y Google Cloud Storage (ADR-0023, ADR-0024):
+
+- `s3fs` sobre minio-go. Las carpetas se emulan con prefijos y objetos marcador; los renombres son copias en el servidor seguidas de un borrado.
+- Las subidas son atómicas (multipart) y no se reanudan: sin `Resume`, la cola escribe directo y cancela la subida si el origen falla, sin pisar el original.
+- Cloud Storage usa el mismo adaptador con claves HMAC sobre su API compatible con S3. Guía: [guides/minio-go.md](guides/minio-go.md).
+
+Google Drive (ADR-0024):
+
+- `gdrivefs` es un cliente REST propio de Drive v3: Mi unidad o una unidad compartida, rutas resueltas a IDs con caché y, si hay nombres duplicados, se muestra el más antiguo.
+- Los documentos de Google se exportan al leerlos; las subidas son reanudables en trozos de 8 MiB y el borrado va a la papelera.
+- `googleauth` hace el flujo de código con PKCE en una ventana emergente; el resultado vuelve por un `BroadcastChannel` validado por `state` y el token de renovación se sella en el vault. Guía: [guides/google.md](guides/google.md).
+
+Azure Storage (ADR-0025):
+
+- `remotefs/azure` es un cliente REST propio (el SDK suma 13 MB): firma Shared Key, tokens SAS o acceso anónimo, y endpoints propios para nubes soberanas y emuladores.
+- `azblobfs` (Blob Storage) emula carpetas como S3, sube en bloques de 8 MiB confirmados al final y renombra con copias en el servidor.
+- `azfilefs` (Azure Files) tiene carpetas reales, escribe en rangos de 4 MiB con reanudación, renombra de forma nativa y fija fechas. Guía: [guides/azure.md](guides/azure.md).
 
 ## 10. Sesiones y conexiones
 
