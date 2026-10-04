@@ -8,7 +8,9 @@ services:
     build:
       context: .
       dockerfile: docker/app.Dockerfile
-    image: transferly:local
+      args:
+        VERSION: ${TRANSFERLY_VERSION:-dev}
+    image: transferly:${TRANSFERLY_VERSION:-local}
     restart: unless-stopped
     environment:
       TRANSFERLY_DATABASE_URL: postgres://transferly:${TRANSFERLY_DB_PASSWORD:-transferly}@postgres:5432/transferly?sslmode=disable
