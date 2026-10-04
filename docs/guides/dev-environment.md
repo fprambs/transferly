@@ -5,7 +5,7 @@ Sources: [Compose services](https://docs.docker.com/reference/compose-file/servi
 ## Layout
 
 - `compose.dev.yaml`: `tools`, `backend` (air), `frontend` (Vite), `postgres`; includes `compose.testenv.yaml`.
-- `compose.testenv.yaml`: `sftp`, `ftp`, `ftps`, `ftps-implicit`, `toxiproxy`, behind the `testenv` profile.
+- `compose.testenv.yaml`: `sftp`, `ftp`, `ftps`, `ftps-implicit`, `s3` (Versity Gateway), `toxiproxy`, behind the `testenv` profile.
 - Published ports bind to `127.0.0.1` only: backend `8080`, frontend `5173`, Postgres `5432` (override with `TRANSFERLY_HTTP_PORT`, `TRANSFERLY_WEB_PORT`).
 
 ## Dev Container
@@ -34,4 +34,6 @@ With the dev stack running (`make up`), start only SFTP and print connection ste
 make preview-sftp
 ```
 
-In Transferly (http://localhost:5173 by default), use **Quick connect** (Ctrl+Shift+K) or a new saved site with host **`sftp`**, not `localhost`, because the backend dials the server from the Docker network. Open `/preview-samples` after connecting. See [testenv/README.md](../../testenv/README.md) and [testenv/preview-samples/README.md](../../testenv/preview-samples/README.md).
+In Transferly (http://localhost:5173 by default), use **Quick connect** (Ctrl+Shift+K) or a new saved site with host **`sftp`**, not `localhost`, because the backend dials the server from the Docker network. Open `/preview-samples` after connecting.
+
+The `s3` service is an S3 server with the bucket `transferly`, holding the same samples under `preview-samples/`. Offer the S3 connector in Administration → Connectors first, then create a site with endpoint **`s3`**, port **7070**, HTTPS off, bucket `transferly`, access key ID `transferly` and secret access key `transferly-secret`. See [testenv/README.md](../../testenv/README.md) and [testenv/preview-samples/README.md](../../testenv/preview-samples/README.md).

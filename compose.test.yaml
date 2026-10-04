@@ -80,6 +80,19 @@ services:
       timeout: 3s
       retries: 20
 
+  # An S3 server (Versity Gateway) for the S3 connector (ADR-0023): plain HTTP, the bucket transferly and its root access key.
+  s3:
+    profiles: ["s3"]
+    image: versity/versitygw@sha256:30292fc2eeacc67a36993b01f7a7a5e3361a19cced0e80c1d71cfa2a4b0a2499
+    entrypoint: ["sh", "-c", "mkdir -p /data/transferly && exec versitygw --access transferly --secret transferly-secret posix /data"]
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 7070"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   sftp:
     image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
     command: transferly:transferly:1001:100:upload anonymous::1002:100
