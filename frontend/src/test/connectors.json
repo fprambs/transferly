@@ -208,7 +208,7 @@
         }
       }
     ],
-    "icon": "server",
+    "icon": "ftps",
     "maturity": "stable",
     "name": "FTP / FTPS",
     "type": "ftp"
@@ -461,7 +461,7 @@
         }
       }
     ],
-    "icon": "server",
+    "icon": "sftp",
     "maturity": "stable",
     "name": "SFTP",
     "type": "sftp"

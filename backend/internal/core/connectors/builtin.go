@@ -94,7 +94,7 @@ func proxyFields() []Field {
 var SFTP = Descriptor{
 	Type:     "sftp",
 	Name:     "SFTP",
-	Icon:     "server",
+	Icon:     "sftp",
 	Maturity: Stable,
 	Capabilities: Capabilities{
 		Folders: true, Permissions: true, SetTimes: true, Resume: true, Rename: true,
@@ -131,7 +131,7 @@ func jumpFields() []Field {
 var FTP = Descriptor{
 	Type:     "ftp",
 	Name:     "FTP / FTPS",
-	Icon:     "server",
+	Icon:     "ftps",
 	Maturity: Stable,
 	Capabilities: Capabilities{
 		Folders: true, SetTimes: true, Resume: true, Rename: true,
