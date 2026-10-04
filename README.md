@@ -5,12 +5,12 @@
   </picture>
 </p>
 
-<h3 align="center">Tus servidores SFTP, FTP y FTPS en el navegador, con un equipo, un vault cifrado y transferencias que no se pierden.</h3>
+<h3 align="center">Tus servidores SFTP, FTP y FTPS, y tu almacenamiento en S3, Google y Azure, en el navegador, con un equipo, un vault cifrado y transferencias que no se pierden.</h3>
 
 <p align="center">
   <a href="LICENSE"><img alt="Licencia Apache 2.0" src="https://img.shields.io/badge/licencia-Apache%202.0-0d47a1"></a>
   <img alt="Autoalojado" src="https://img.shields.io/badge/autoalojado-Docker-ff9800">
-  <img alt="SFTP, FTP y FTPS" src="https://img.shields.io/badge/protocolos-SFTP%20%C2%B7%20FTP%20%C2%B7%20FTPS-4caf50">
+  <img alt="SFTP, FTP, FTPS, S3, Google y Azure" src="https://img.shields.io/badge/conectores-SFTP%20%C2%B7%20FTP%20%C2%B7%20S3%20%C2%B7%20Google%20%C2%B7%20Azure-4caf50">
   <img alt="Go y React" src="https://img.shields.io/badge/hecho%20con-Go%20%C2%B7%20React-64a0f0">
   <img alt="Español e inglés" src="https://img.shields.io/badge/idiomas-espa%C3%B1ol%20%C2%B7%20ingl%C3%A9s-7e57c2">
 </p>
@@ -29,7 +29,7 @@
 
 ---
 
-**Transferly** es un cliente de transferencia de archivos que vive en tu propio servidor. Todo lo que hacías con FileZilla o WinSCP (sitios guardados, doble panel, cola de transferencias, reanudación, registro de la conexión) ahora funciona desde cualquier navegador. Sin instalar nada en cada equipo y sin que las contraseñas de tus servidores salgan del vault.
+**Transferly** es un cliente de transferencia de archivos que vive en tu propio servidor. Todo lo que hacías con FileZilla o WinSCP (sitios guardados, doble panel, cola de transferencias, reanudación, registro de la conexión) ahora funciona desde cualquier navegador, y no solo con servidores: también con buckets de S3, Google Cloud Storage, Google Drive y Azure Storage. Sin instalar nada en cada equipo y sin que las contraseñas de tus servidores salgan del vault.
 
 Está pensado para equipos: cada persona tiene su cuenta y su espacio personal, y los workspaces de equipo comparten sitios con roles, invitaciones y auditoría. Las credenciales se cifran con una contraseña maestra que el servidor nunca guarda.
 
@@ -39,7 +39,7 @@ Está pensado para equipos: cada persona tiene su cuenta y su espacio personal, 
 - [Inicio rápido](#inicio-rápido)
 - [Características](#características)
   - [Explorador y transferencias](#explorador-y-transferencias)
-  - [Protocolos y formas de conectarse](#protocolos-y-formas-de-conectarse)
+  - [Servidores, nubes y formas de conectarse](#servidores-nubes-y-formas-de-conectarse)
   - [Visor de archivos sin descargar](#visor-de-archivos-sin-descargar)
   - [Seguridad](#seguridad)
   - [Equipos y administración](#equipos-y-administración)
@@ -90,7 +90,7 @@ La imagen corre sin privilegios, con el sistema de archivos de solo lectura y si
 - **Pestañas de conexión**: varias conexiones abiertas a la vez. Cada una recuerda su carpeta, su selección y su vista dividida.
 - **Doble panel** con arrastrar y soltar: copia archivos y carpetas entre dos servidores, o entre un servidor y una carpeta de tu equipo.
 - **Cola de transferencias** con prioridades, pausa, reanudación y cancelación. Hay límites globales, por workspace, por persona y por sitio.
-- **Transferencias que se reanudan** tras un corte, en SFTP y en FTP. Las subidas son atómicas: se escriben como `.part` y se renombran al terminar.
+- **Transferencias que se reanudan** tras un corte, en SFTP, FTP, Google Drive y Azure Files. Las subidas son atómicas: en los servidores se escriben como `.part` y se renombran al terminar, y en S3, Cloud Storage y Azure Blob el objeto aparece entero o no aparece.
 - **Carpetas completas**: súbelas desde el navegador, descárgalas como ZIP en streaming o archivo por archivo, y cópialas entre sitios con una política para los archivos que ya existen.
 - **Comparar y sincronizar carpetas** (local con remota o remota con remota), con una simulación antes de tocar nada.
 - **Búsqueda recursiva** en el servidor y un **filtro instantáneo** sobre la carpeta en vista: comodines, tipos, fechas y tamaños.
@@ -98,12 +98,19 @@ La imagen corre sin privilegios, con el sistema de archivos de solo lectura y si
 - **Marcadores** por sitio, **checksums** (MD5, SHA-1, SHA-256, SHA-512) y un **registro de la conexión en vivo**, paso a paso y sin secretos.
 - **Importación desde FileZilla**: trae tu `sitemanager.xml` con sus carpetas y, si quieres, sus contraseñas, que van directo al vault.
 
-### Protocolos y formas de conectarse
+### Servidores, nubes y formas de conectarse
+
+Cada tipo de sitio es un **conector** del catálogo. Un sitio nuevo empieza eligiendo su servicio en un catálogo con el ícono de cada uno, y el formulario se arma a partir del esquema del conector. Un administrador decide qué conectores ofrece la instancia; los nuevos llegan en beta y apagados.
 
 - **SFTP**: contraseña, archivo de clave (OpenSSH, PEM y PuTTY `.ppk`), anónimo, interactivo (por ejemplo un código de un solo uso) o contraseña pedida al conectar.
 - **FTP y FTPS**: TLS explícito o implícito, o solo FTP plano. Admite el comando ACCT, el juego de caracteres configurable por sitio y la zona horaria de `LIST` detectada automáticamente.
 - **Saltos y proxies**: ProxyJump por SSH y proxies SOCKS5 o HTTP. Cada salto pasa por la política de red.
 - **Claves de servidor**: confianza en el primer uso, aviso si la clave cambia y soporte para servidores con varias claves detrás de un balanceador.
+- **S3 y compatibles** (beta): Amazon S3, MinIO, Cloudflare R2, Wasabi y otros, con claves de acceso, endpoint propio y carpetas emuladas con prefijos.
+- **Google Cloud Storage** (beta): buckets con una clave HMAC.
+- **Google Drive** (beta): Mi unidad o una unidad compartida, con inicio de sesión con Google en una ventana emergente. Los documentos de Google se descargan como Word, Excel, PowerPoint o PDF, y lo borrado va a la papelera.
+- **Azure Blob Storage** (beta): contenedores con la clave de la cuenta, un token SAS o acceso público, también en nubes soberanas.
+- **Azure Files** (beta): recursos compartidos con carpetas reales, renombres nativos y subidas reanudables.
 - **Conexión rápida** para probar un servidor sin guardarlo. Si funciona, se guarda como sitio con un clic.
 
 ### Visor de archivos sin descargar
@@ -134,7 +141,7 @@ Todo lo que puede ser peligroso se dibuja en una página aislada: origen opaco, 
 
 - **Workspaces de equipo** con roles (propietario, administrador, editor, lector), invitaciones de un solo uso y transferencia de propiedad.
 - **Registro de auditoría** del equipo y de la instancia: miembros, invitaciones, sitios, claves y servidores de confianza.
-- **Panel de administración**: cuentas, roles, deshabilitar accesos, quitar un segundo factor perdido, redes permitidas y límites. Todo se edita en caliente.
+- **Panel de administración**: cuentas, roles, deshabilitar accesos, quitar un segundo factor perdido, redes permitidas, límites y los conectores que ofrece la instancia. Todo se edita en caliente.
 - **Cuotas y límites**: ancho de banda global y por persona, transferencias simultáneas, sitios, equipos, miembros y volumen diario.
 - **Registro de actividad** privado por persona, con retención configurable.
 
@@ -181,12 +188,11 @@ Todo lo que puede ser peligroso se dibuja en una página aislada: origen opaco, 
 
 ## Lo que viene
 
-Ya están terminadas las fases 0 a 4 del [roadmap](docs/ROADMAP.md): MVP, el núcleo tipo FileZilla, equipos multiusuario, funciones avanzadas y el visor de archivos. Esto es lo próximo:
+Ya están terminadas las fases 0 a 4 del [roadmap](docs/ROADMAP.md): MVP, el núcleo tipo FileZilla, equipos multiusuario, funciones avanzadas y el visor de archivos. De la fase 5 ya están el catálogo de conectores y los conectores de S3, Google (Cloud Storage y Drive) y Azure (Blob Storage y Files). Esto es lo próximo:
 
 **Fase 5: escala e integraciones**
 
-- 🧩 **Catálogo de conectores** ("Transferly Store"): conectores que se habilitan por instalación o por workspace, con formularios generados a partir de su esquema. Ya está en marcha.
-- ☁️ **Nuevos destinos**: S3 y compatibles (MinIO, Cloudflare R2, Wasabi), WebDAV y Google Drive. Después, SMB y Azure Blob.
+- ☁️ **Más destinos**: WebDAV y SMB. Después, OneDrive y SharePoint con inicio de sesión de Microsoft.
 - 🔑 **Inicio de sesión único** con OIDC.
 - 🗓️ **Transferencias programadas** con cron consciente de las zonas horarias, y webhooks.
 - 🔌 **Tokens de API** y documentación pública del contrato.
@@ -227,7 +233,7 @@ Cada versión es un tag `vX.Y.Z` en `main`, con sus cambios en el [CHANGELOG](CH
 - **Backend** en Go con arquitectura hexagonal, PostgreSQL, migraciones versionadas y un contrato OpenAPI del que se genera el código del servidor y del cliente.
 - **Frontend** en React con TanStack Router y Query, Tailwind y componentes accesibles sobre Base UI.
 - **Una sola imagen** sin distribución (distroless) que lleva la interfaz embebida en el binario.
-- **Calidad**: 100 % de cobertura en el código de producción, pruebas de conformidad contra servidores reales (OpenSSH y vsftpd), pruebas de extremo a extremo con Playwright, revisiones de accesibilidad con axe en todos los temas y una revisión de seguridad al cerrar cada fase.
+- **Calidad**: 100 % de cobertura en el código de producción, una suite de conformidad que pasa cada conector contra servidores reales (OpenSSH, vsftpd, Versity S3 Gateway y Azurite) o dobles fieles de cada API, pruebas de extremo a extremo con Playwright, revisiones de accesibilidad con axe en todos los temas y una revisión de seguridad al cerrar cada fase.
 
 Más detalles en la [arquitectura](docs/ARCHITECTURE.md) y en las [decisiones de diseño](docs/adr).
 
@@ -242,7 +248,7 @@ make lint        # linters y chequeo de tipos
 make e2e         # pruebas de extremo a extremo contra la imagen de producción
 ```
 
-Con `make testenv` se levantan servidores SFTP, FTP y FTPS de prueba; ver [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
+Con `make testenv` se levantan servidores SFTP, FTP, FTPS y S3 de prueba; ver [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentación
 
