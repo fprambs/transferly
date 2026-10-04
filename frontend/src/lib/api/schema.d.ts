@@ -839,6 +839,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The version of this instance
+         * @description Signed-in people only, so the version is not told to anyone who asks.
+         */
+        get: operations["getVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/google/authorizations": {
         parameters: {
             query?: never;
@@ -1979,6 +1999,9 @@ export interface components {
             provider?: string;
             /** @description The text field of an oauth field that keeps the account that signed in. */
             account?: string;
+        };
+        Version: {
+            version: string;
         };
         GoogleAuthorization: {
             /** @description The consent page of Google, to open in a popup. */
@@ -5007,6 +5030,35 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
+        };
+    };
+    getVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The version, such as v0.5.0, or dev for builds that are not releases. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Version"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     authorizeGoogle: {

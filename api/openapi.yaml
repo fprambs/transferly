@@ -1843,6 +1843,26 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /api/v1/version:
+    get:
+      operationId: getVersion
+      summary: The version of this instance
+      description: Signed-in people only, so the version is not told to anyone who asks.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The version, such as v0.5.0, or dev for builds that are not releases.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Version"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/oauth/google/authorizations:
     post:
       operationId: authorizeGoogle
@@ -5388,6 +5408,12 @@ components:
         account:
           type: string
           description: The text field of an oauth field that keeps the account that signed in.
+    Version:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: string
     GoogleAuthorization:
       type: object
       required: [url, state]

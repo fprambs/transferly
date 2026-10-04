@@ -14,6 +14,7 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
 	"github.com/fprambs/transferly/internal/config"
 	"github.com/fprambs/transferly/internal/transport/httpapi"
+	"github.com/fprambs/transferly/internal/version"
 )
 
 const (
@@ -73,7 +74,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
-	logger.InfoContext(ctx, "server listening", "addr", ln.Addr().String())
+	logger.InfoContext(ctx, "server listening", "addr", ln.Addr().String(), "version", version.Version)
 
 	select {
 	case err := <-errc:

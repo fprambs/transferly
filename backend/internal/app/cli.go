@@ -11,18 +11,23 @@ import (
 
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
 	"github.com/fprambs/transferly/internal/config"
+	"github.com/fprambs/transferly/internal/version"
 )
 
 const healthcheckTimeout = 3 * time.Second
 
 // Run executes the transferly command line.
 //
-// Commands are serve (the default), migrate [up|status] and healthcheck. Configuration comes
-// from getenv; logs and command output are written to stdout.
+// Commands are serve (the default), migrate [up|status], healthcheck and version, which needs no configuration. Configuration
+// comes from getenv; logs and command output are written to stdout.
 func Run(ctx context.Context, args []string, getenv func(string) string, stdout io.Writer) error {
 	command := "serve"
 	if len(args) > 0 {
 		command = args[0]
+	}
+	if command == "version" {
+		_, err := fmt.Fprintln(stdout, "transferly", version.Version)
+		return err
 	}
 
 	cfg, err := config.Load(getenv)
@@ -42,7 +47,7 @@ func Run(ctx context.Context, args []string, getenv func(string) string, stdout 
 	case "healthcheck":
 		return healthcheck(ctx, cfg.HTTPAddr)
 	default:
-		return fmt.Errorf("unknown command %q (want serve | migrate | healthcheck)", command)
+		return fmt.Errorf("unknown command %q (want serve | migrate | healthcheck | version)", command)
 	}
 }
 

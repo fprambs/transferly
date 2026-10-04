@@ -191,3 +191,14 @@ func waitForAddress(t *testing.T, logs *syncBuffer) string {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// TestRun_Version verifies the version command.
+//
+// Scenarios:
+//   - it prints the version of the build, dev for builds that do not set it, without any configuration
+func TestRun_Version(t *testing.T) {
+	var out bytes.Buffer
+	if err := app.Run(t.Context(), []string{"version"}, envOf(map[string]string{}), &out); err != nil || out.String() != "transferly dev\n" {
+		t.Errorf("Run(version) = %v, %q; want transferly dev", err, out.String())
+	}
+}
