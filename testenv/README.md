@@ -1,6 +1,6 @@
 # Test Environment
 
-Remote servers for integration and end-to-end tests. Nothing is published to the host.
+Remote servers for integration and end-to-end tests. Nothing is published to the host. The isolated test stack (`compose.test.yaml`) also runs Azurite and fakes of Google and Azure Files for the end-to-end tests of those connectors.
 
 Start: `docker compose -f compose.dev.yaml --profile testenv up -d`
 
@@ -10,9 +10,10 @@ Start: `docker compose -f compose.dev.yaml --profile testenv up -d`
 | `ftp` | `ftp:21` | plain FTP; `TZ=America/Santiago` so `LIST` shows local time without a zone |
 | `ftps` | `ftps:21` | explicit FTPS (AUTH TLS), TLS session reuse required |
 | `ftps-implicit` | `ftps-implicit:990` | implicit FTPS, TLS session reuse required |
+| `s3` | `s3:7070` | Versity S3 Gateway over plain HTTP; access key `transferly`, secret `transferly-secret`, bucket `transferly` with a copy of `preview-samples` |
 | `toxiproxy` | `toxiproxy:2222` (sftp), `2121` (ftp), `2122` (ftps), `2990` (ftps-implicit); API on `8474` | fault injection |
 
-Credentials for every server: `transferly` / `transferly`. The FTPS certificate is self-signed.
+Credentials for the SFTP and FTP servers: `transferly` / `transferly`. The FTPS certificate is self-signed.
 
 ## Test Data
 
