@@ -1,45 +1,55 @@
 import { describe, expect, it } from 'vitest'
 
-import { quickSchema, toQuickInput } from './schema'
+import { builtinConnectors } from '@/test/handlers'
 
-/** A valid set of form values. */
-const values = { host: ' example.com ', port: '', username: ' deploy ', password: 'secret' }
+import { quickDefaults, quickResolver, toQuickInput, unattended, type QuickValues } from './schema'
+
+/** The FTP and SFTP connectors with their real schemas. */
+const [ftp, sftp] = builtinConnectors
+
+/** Resolves values with the resolver of the quick connect form. */
+function resolve(values: QuickValues) {
+  return quickResolver(builtinConnectors)(values, undefined, { fields: {}, shouldUseNativeValidation: false })
+}
 
 /**
- * Covers {@link quickSchema} and {@link toQuickInput}.
+ * Covers the quick connect form helpers (ADR-0022).
  *
  * Scenarios:
- * - an empty or in-range port is valid, anything else is not
- * - the request trims text, uses the protocol default port when empty and keeps the password as typed
- * - a typed port is sent as a number
- * - FTP uses TLS when the server offers it, as FileZilla's quick connect does, and SFTP takes no encryption
+ * - a new form starts empty on the given connector
+ * - the request sends the settings given that apply and the secrets typed for fields that apply
+ * - asking for the password, anonymous and interactive logons are left out, since a quick connection cannot use them
+ * - the form checks the settings with the schema and asks for the secrets the logon needs, as nothing is stored; an unknown connector is
+ *   left to the server
  */
 describe('quick connect form', () => {
-  it.each(['', '1', '22', '65535'])('accepts port %j', (port) => {
-    expect(quickSchema.safeParse({ ...values, port }).success).toBe(true)
+  it('starts empty on a connector', () => {
+    expect(quickDefaults('ftp')).toEqual({ connector: 'ftp', config: {}, secrets: {} })
   })
 
-  it.each(['0', '65536', 'ssh', '-1', '123456'])('rejects port %j', (port) => {
-    expect(quickSchema.safeParse({ ...values, port }).success).toBe(false)
-  })
-
-  it('builds the request with the default port', () => {
-    expect(toQuickInput('sftp', values)).toEqual({
-      protocol: 'sftp',
-      host: 'example.com',
-      port: 22,
-      username: 'deploy',
-      authMethod: 'password',
-      password: 'secret',
+  it('builds the request from the settings and secrets that apply', () => {
+    expect(toQuickInput({ connector: 'sftp', config: { host: ' example.com ', port: '', username: ' deploy ' }, secrets: { password: 'secret', private_key: 'K' } }, sftp)).toEqual({
+      connector: 'sftp',
+      config: { host: 'example.com', username: 'deploy' },
+      secrets: { password: 'secret' },
     })
+    expect(toQuickInput({ connector: 'ftp', config: { host: 'h', encryption: 'optional' }, secrets: {} }, ftp).config).toEqual({ host: 'h', encryption: 'optional' })
   })
 
-  it('builds the request with the typed port', () => {
-    expect(toQuickInput('ftp', { ...values, port: '2121' }).port).toBe(2121)
+  it('leaves out the logon types a quick connection cannot use', () => {
+    expect(unattended.auth).toEqual(['ask', 'anonymous', 'interactive'])
   })
 
-  it('asks FTP to use TLS when the server offers it, and leaves SFTP without an encryption', () => {
-    expect(toQuickInput('ftp', values)).toMatchObject({ protocol: 'ftp', ftpEncryption: 'optional', port: 21 })
-    expect(toQuickInput('sftp', values).ftpEncryption).toBeUndefined()
+  it('checks the settings and asks for the secrets the logon needs', async () => {
+    expect(await resolve({ connector: 'sftp', config: { port: '0' }, secrets: {} })).toEqual({
+      values: {},
+      errors: {
+        config: { host: { type: 'schema', message: 'required' }, port: { type: 'schema', message: 'range' }, username: { type: 'schema', message: 'required' } },
+        secrets: { password: { type: 'schema', message: 'required' } },
+      },
+    })
+    const valid = { connector: 'sftp', config: { host: 'h', username: 'u' }, secrets: { password: 'pw' } }
+    expect(await resolve(valid)).toEqual({ values: valid, errors: {} })
+    expect(await resolve({ connector: 'gone', config: {}, secrets: {} })).toEqual({ values: { connector: 'gone', config: {}, secrets: {} }, errors: {} })
   })
 })

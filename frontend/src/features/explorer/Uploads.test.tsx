@@ -20,15 +20,9 @@ const workspaceId = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
 
 /** A saved site the explorer browses. */
 const prod: Site = {
+  connector: 'sftp', config: { host: 'prod.example.com', port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
   id: 's1',
   name: 'Prod',
-  protocol: 'sftp',
-  host: 'prod.example.com',
-  port: 22,
-  username: 'deploy',
-  authMethod: 'password',
-  listTimezone: 'UTC',
-  charset: 'utf-8',
   speedLimitBps: 0,
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',

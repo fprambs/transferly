@@ -1722,37 +1722,10 @@ export interface components {
             recoveryKit: string;
         };
         /**
-         * @description How an FTP site protects the connection (ADR-0012): optional upgrades with AUTH TLS when offered and carries on in clear text otherwise, explicit requires AUTH TLS, implicit expects TLS from the first byte, plain is clear text. Left out for SFTP; on input, left out means plain for ftp and the encryption the port implies for ftps.
-         * @enum {string}
-         */
-        FtpEncryption: "optional" | "explicit" | "implicit" | "plain";
-        /**
          * @description Label the site wears in the interface, so servers tell apart at a glance (ADR-0021); each theme draws it in its own tones.
          * @enum {string}
          */
         SiteColor: "red" | "orange" | "yellow" | "green" | "teal" | "blue" | "violet" | "pink";
-        /**
-         * @description Character set of the file names of the server. Only FTP and FTPS accept another one than UTF-8.
-         * @enum {string}
-         */
-        Charset: "utf-8" | "iso-8859-1" | "iso-8859-2" | "iso-8859-15" | "windows-1250" | "windows-1251" | "windows-1252" | "koi8-r" | "shift_jis" | "euc-jp" | "gbk" | "big5" | "euc-kr";
-        /** @description A SOCKS5 or HTTP CONNECT proxy the connection goes through, in place of a direct TCP connection. */
-        SiteProxy: {
-            /** @enum {string} */
-            kind: "socks5" | "http";
-            host: string;
-            port: number;
-            /** @description Left out when the proxy needs no authentication. */
-            username?: string;
-        };
-        /** @description The SSH server the connection tunnels through before reaching an SFTP site. */
-        SiteJump: {
-            host: string;
-            port: number;
-            username: string;
-            /** @enum {string} */
-            authMethod: "password" | "key";
-        };
         Site: {
             /** Format: uuid */
             id: string;
@@ -1762,17 +1735,9 @@ export interface components {
              */
             collectionId?: string;
             name: string;
-            /** @enum {string} */
-            protocol: "sftp" | "ftp" | "ftps";
-            ftpEncryption?: components["schemas"]["FtpEncryption"];
-            host: string;
-            port: number;
-            username: string;
-            /** @enum {string} */
-            authMethod: "password" | "key" | "ask" | "anonymous" | "account" | "interactive";
-            /** @description IANA zone in which the server prints listing times. */
-            listTimezone: string;
-            charset: components["schemas"]["Charset"];
+            /** @description Type of the connector the site uses, such as sftp or ftp (ADR-0022). */
+            connector: string;
+            config: components["schemas"]["SiteConfig"];
             /**
              * Format: int64
              * @description Bytes per second the site's transfers move together, on top of the global and per-user caps of the instance; 0 means the site has no cap of its own.
@@ -1782,16 +1747,20 @@ export interface components {
             remoteDir?: string;
             /** @description Left out when the site wears no label. */
             color?: components["schemas"]["SiteColor"];
-            /** @description Left out when the connection is made directly. */
-            proxy?: components["schemas"]["SiteProxy"];
-            /** @description Left out when the connection is made directly, without a jump host. */
-            jump?: components["schemas"]["SiteJump"];
-            /** @description Kinds of secret stored for the site. The secrets themselves are never returned. */
-            secrets: ("password" | "private_key" | "passphrase" | "jump_password" | "jump_private_key" | "jump_passphrase" | "proxy_password" | "account")[];
+            /** @description Kinds of secret stored for the site, the names of the secret fields of its connector. The secrets themselves are never returned. */
+            secrets: string[];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @description Configuration of the site's connector, by setting name, as the connector's schema settles it (ADR-0022): values trimmed, defaults filled in, and the settings that do not apply left out. Secrets are never part of it. */
+        SiteConfig: {
+            [key: string]: string;
+        };
+        /** @description Write only. Secrets to store, by the name of their field in the connector's schema. A secret left out keeps the stored one, an empty string removes it, and secrets whose field does not apply to the configuration are removed whatever is sent. */
+        SiteSecretChanges: {
+            [key: string]: string;
         };
         SiteInput: {
             /**
@@ -1800,24 +1769,10 @@ export interface components {
              */
             collectionId?: string;
             name: string;
-            /**
-             * @description ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
-             * @enum {string}
-             */
-            protocol: "sftp" | "ftp" | "ftps";
-            ftpEncryption?: components["schemas"]["FtpEncryption"];
-            host: string;
-            /** @description Defaults to the protocol's port. */
-            port?: number;
-            username: string;
-            /**
-             * @description Defaults to password; key is for SFTP only; ask stores no password and asks for it when connecting (ADR-0010); anonymous logs in as the anonymous user with no secret (SSH "none" method first for SFTP); account is for FTP only and answers servers that ask for an account after the password (ACCT, 4.8e); interactive stores no secret and asks whatever the server asks when connecting (ADR-0016).
-             * @enum {string}
-             */
-            authMethod?: "password" | "key" | "ask" | "anonymous" | "account" | "interactive";
-            /** @description IANA zone of the server's listing times; defaults to UTC. */
-            listTimezone?: string;
-            charset?: components["schemas"]["Charset"];
+            /** @description Type of the connector; one the instance does not offer is connector_disabled. */
+            connector: string;
+            /** @description Settings of the connector; one that breaks its schema is invalid_config with the field and the reason. */
+            config: components["schemas"]["SiteConfig"];
             /**
              * Format: int64
              * @description Bytes per second the site's transfers move together; left out or 0 means no cap of its own.
@@ -1827,26 +1782,7 @@ export interface components {
             remoteDir?: string;
             /** @description Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise. */
             color?: string;
-            /** @description Left out to connect directly, without a proxy. */
-            proxy?: components["schemas"]["SiteProxy"];
-            /** @description Left out to connect directly, without a jump host; only valid for SFTP. */
-            jump?: components["schemas"]["SiteJump"];
-            /** @description Write only. Left out keeps the stored one; an empty string removes it. */
-            password?: string;
-            /** @description Write only. Same rules as the password. */
-            privateKey?: string;
-            /** @description Write only. Same rules as the password. */
-            passphrase?: string;
-            /** @description Write only. Same rules as the password, for the jump host's account. */
-            jumpPassword?: string;
-            /** @description Write only. Same rules as the password, for the jump host's account. */
-            jumpPrivateKey?: string;
-            /** @description Write only. Same rules as the password, for the jump host's private key. */
-            jumpPassphrase?: string;
-            /** @description Write only. Same rules as the password, for the proxy's account. */
-            proxyPassword?: string;
-            /** @description Write only. Same rules as the password, for the account the account logon type sends with ACCT; only kept for that logon type. */
-            account?: string;
+            secrets?: components["schemas"]["SiteSecretChanges"];
         };
         KnownHost: {
             host: string;
@@ -1976,7 +1912,6 @@ export interface components {
             maturity: "stable" | "beta";
             capabilities: components["schemas"]["ConnectorCapabilities"];
             fields: components["schemas"]["ConnectorField"][];
-            auth: ("password" | "key" | "ask" | "anonymous" | "interactive" | "account" | "access-keys" | "oauth")[];
             enabledByDefault: boolean;
             /** @description Whether the instance offers it, as an administrator set it or, without a setting, as enabledByDefault says. */
             enabled: boolean;
@@ -1993,15 +1928,43 @@ export interface components {
             serverCopy: boolean;
         };
         ConnectorField: {
+            /** @description Name of the setting, in snake case; for secrets, also the kind of the secret. */
             name: string;
-            /** @enum {string} */
-            kind: "text" | "number" | "boolean" | "choice";
+            /**
+             * @description host is a server name or address the network policy must allow, with the field port names; secret and private_key are sealed in the vault, given in secrets and never returned; private_key is read with the field passphrase names.
+             * @enum {string}
+             */
+            kind: "text" | "number" | "boolean" | "choice" | "host" | "timezone" | "secret" | "private_key";
+            /**
+             * @description Tab of the site form the field is shown on.
+             * @enum {string}
+             */
+            group: "connection" | "access" | "advanced" | "charset" | "proxy" | "jump";
             required: boolean;
             default?: string;
+            /** @description Defaults that depend on other fields; the first whose condition holds wins over default. */
+            defaults?: components["schemas"]["ConnectorDefault"][];
+            /** @description Values the field takes while their condition holds, whatever is sent, such as the anonymous user; the form shows them read only. */
+            fixed?: components["schemas"]["ConnectorDefault"][];
+            when?: components["schemas"]["ConnectorCondition"];
             choices?: string[];
             min?: number;
             max?: number;
             maxLength?: number;
+            /** @description The port field of a host. */
+            port?: string;
+            /** @description The passphrase field of a private key. */
+            passphrase?: string;
+        };
+        /** @description When a field applies, from the value of a field declared before it; a field that does not apply is left out and its secret removed. */
+        ConnectorCondition: {
+            field: string;
+            /** @description Values for which the condition holds; left out, it holds whenever the other field has a value. */
+            in?: string[];
+        };
+        ConnectorDefault: {
+            when: components["schemas"]["ConnectorCondition"];
+            value: string;
         };
         Checksum: {
             /** @enum {string} */
@@ -2145,42 +2108,18 @@ export interface components {
             moveToTop?: boolean;
         };
         QuickConnectInput: {
-            /**
-             * @description ftps is read as ftp that requires TLS; sites and quick connections answer ftp with their ftpEncryption.
-             * @enum {string}
-             */
-            protocol: "sftp" | "ftp" | "ftps";
-            ftpEncryption?: components["schemas"]["FtpEncryption"];
-            host: string;
-            /** @description Defaults to the protocol's port. */
-            port?: number;
-            username: string;
-            /** @enum {string} */
-            authMethod?: "password" | "key";
-            listTimezone?: string;
-            charset?: components["schemas"]["Charset"];
+            connector: string;
+            config: components["schemas"]["SiteConfig"];
             /** @description Write only; kept in memory until the connection ends. */
-            password?: string;
-            /** @description Write only; kept in memory until the connection ends. */
-            privateKey?: string;
-            /** @description Write only; kept in memory until the connection ends. */
-            passphrase?: string;
+            secrets?: components["schemas"]["SiteSecretChanges"];
         };
         QuickConnection: {
             /** Format: uuid */
             id: string;
             /** @description The host. */
             name: string;
-            /** @enum {string} */
-            protocol: "sftp" | "ftp" | "ftps";
-            ftpEncryption?: components["schemas"]["FtpEncryption"];
-            host: string;
-            port: number;
-            username: string;
-            /** @enum {string} */
-            authMethod: "password" | "key";
-            listTimezone: string;
-            charset: components["schemas"]["Charset"];
+            connector: string;
+            config: components["schemas"]["SiteConfig"];
             /** Format: date-time */
             createdAt: string;
         };

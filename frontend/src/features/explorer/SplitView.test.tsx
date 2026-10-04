@@ -15,15 +15,9 @@ import { entryDragType } from './entry-drag'
 /** Builds a saved site. */
 function site(id: string, name: string): Site {
   return {
+    connector: 'sftp', config: { host: `${id}.example.com`, port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
     id,
     name,
-    protocol: 'sftp',
-    host: `${id}.example.com`,
-    port: 22,
-    username: 'deploy',
-    authMethod: 'password',
-    listTimezone: 'UTC',
-    charset: 'utf-8',
     speedLimitBps: 0,
     secrets: [],
     createdAt: '2026-01-01T00:00:00Z',

@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { Site } from '@/lib/api'
-import { connector, mockConnectors, mockUnlocking, mockVault, mockWorkspaceData, problem } from '@/test/handlers'
+import { builtinConnectors, mockConnectors, mockUnlocking, mockVault, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { choose, optionsOf } from '@/test/select'
 import { renderWithProviders } from '@/test/render'
@@ -24,15 +24,9 @@ function mockKeyInspection(): void {
 }
 
 const prod: Site = {
+  connector: 'sftp', config: { host: 'prod.example.com', port: '2222', username: 'deploy', auth: 'password', list_timezone: 'Europe/Madrid', charset: 'utf-8' },
   id: 's1',
   name: 'Prod',
-  protocol: 'sftp',
-  host: 'prod.example.com',
-  port: 2222,
-  username: 'deploy',
-  authMethod: 'password',
-  listTimezone: 'Europe/Madrid',
-  charset: 'utf-8',
   speedLimitBps: 0,
   secrets: ['password'],
   createdAt: '2026-01-01T00:00:00Z',
@@ -72,9 +66,9 @@ async function pick(user: ReturnType<typeof userEvent.setup>, item: string, acti
  * - the default remote folder, on Advanced, must be absolute and is sent as typed (4.14i)
  * - an FTP site of the account logon type sends its password and account, and an edited one keeps its stored account (4.8e)
  * - what is needed to connect is on the first tab, the rest on Advanced, Transfer, Character set and Proxy and jump host, and a wrong field opens
- *   its tab and marks it
- * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with the
- *   anonymous user and no password
+ *   its tab and marks it, as does a setting the server refuses; choosing a protocol without the open tab goes back to the first one
+ * - the protocols are listed by their full names, SFTP offers a key file and FTP and FTPS the anonymous user; an anonymous site is saved with no user, which
+ *   the server fixes, and no password
  * - the character set of file names is offered for FTP and FTPS only, is UTF-8 by default and is sent with the site
  * - FTP is offered next to SFTP with the four encryptions of FileZilla, requiring explicit TLS by default; each encryption explains itself, clear
  *   text and the optional fall back warn, implicit TLS defaults to port 990, and FTP offers no key
@@ -96,7 +90,7 @@ describe('site management', () => {
   })
 
   it('offers only the protocols of the connectors the instance offers', async () => {
-    mockConnectors([connector('ftp', 'FTP / FTPS'), connector('sftp', 'SFTP', false)])
+    mockConnectors(builtinConnectors.map((offered) => ({ ...offered, enabled: offered.type === 'ftp' })))
     server.use(http.put('/api/v1/workspaces/:id/sites/:siteId', () => problem(409, 'connector_disabled')))
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
@@ -110,7 +104,7 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for Prod' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
     const edited = await screen.findByRole('dialog', { name: 'Edit site' })
-    expect(await optionsOf(user, within(edited).getByLabelText('Protocol'))).toEqual(['SFTP - SSH File Transfer Protocol', 'FTP - File Transfer Protocol'])
+    expect(await optionsOf(user, within(edited).getByLabelText('Protocol'))).toEqual(['FTP - File Transfer Protocol', 'SFTP - SSH File Transfer Protocol'])
     await user.click(within(edited).getByRole('button', { name: 'Save changes' }))
     expect(await within(edited).findByRole('alert')).toHaveTextContent('The administrators of this instance do not offer this kind of site.')
   })
@@ -129,8 +123,7 @@ describe('site management', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
     expect(await within(dialog).findByText('Enter a name.')).toBeInTheDocument()
-    expect(within(dialog).getByText('Enter the host.')).toBeInTheDocument()
-    expect(within(dialog).getByText('Enter the username.')).toBeInTheDocument()
+    expect(within(dialog).getAllByText('Fill in this field.')).toHaveLength(2)
 
     await user.type(within(dialog).getByLabelText('Name'), 'Staging')
     await user.type(within(dialog).getByLabelText('Host'), 'staging.example.com')
@@ -138,7 +131,7 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Username'), 'deploy')
     await user.type(within(dialog).getByLabelText('Password'), 'secret')
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
-    expect(await within(dialog).findByText('Enter a port between 1 and 65535.')).toBeInTheDocument()
+    expect(await within(dialog).findByText('Enter a number between 1 and 65535.')).toBeInTheDocument()
 
     await user.clear(within(dialog).getByLabelText('Port'))
     expect(within(dialog).getByRole('radio', { name: 'No color' })).toBeChecked()
@@ -149,17 +142,12 @@ describe('site management', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(body).toEqual({
       name: 'Staging',
-      protocol: 'sftp',
-      host: 'staging.example.com',
-      port: 22,
-      username: 'deploy',
-      authMethod: 'password',
-      listTimezone: 'UTC',
+      connector: 'sftp',
+      config: { host: 'staging.example.com', username: 'deploy' },
+      secrets: { password: 'secret' },
       remoteDir: '',
       color: 'red',
-      charset: 'utf-8',
       speedLimitBps: 0,
-      password: 'secret',
     })
   })
 
@@ -194,6 +182,25 @@ describe('site management', () => {
     await waitFor(() => expect(within(dialog).getByRole('tab', { name: /Proxy and jump host/ })).toHaveAttribute('aria-selected', 'false'))
   })
 
+  it('marks a setting the server refuses and opens its tab, and leaves a tab the protocol chosen does not have', async () => {
+    server.use(http.post('/api/v1/workspaces/:id/sites', () => problem(422, 'invalid_config', { field: 'jump_host', reason: 'host' })))
+    const user = await renderSidebar()
+    await user.click(screen.getByRole('button', { name: 'New site' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await choose(user, within(dialog).getByLabelText('Protocol'), 'FTP - File Transfer Protocol')
+    await user.click(within(dialog).getByRole('tab', { name: 'Character set' }))
+    await choose(user, within(dialog).getByLabelText('Protocol'), 'SFTP - SSH File Transfer Protocol')
+    expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(dialog).queryByRole('tab', { name: 'Character set' })).not.toBeInTheDocument()
+
+    await user.type(within(dialog).getByLabelText('Name'), 'Proxied')
+    await user.type(within(dialog).getByLabelText('Host'), 'h.example.com')
+    await user.type(within(dialog).getByLabelText('Username'), 'u')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    await waitFor(() => expect(within(dialog).getByRole('tab', { name: /Proxy and jump host/ })).toHaveAttribute('aria-selected', 'true'))
+    expect(within(dialog).getByText('Enter a host name or address, without scheme, port or path.')).toBeVisible()
+  })
+
   it('saves an FTP site of the account logon type with its password and account', async () => {
     const bodies: Array<Record<string, unknown>> = []
     server.use(
@@ -215,11 +222,11 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Account'), 'billing')
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
-    await waitFor(() => expect(bodies[0]).toMatchObject({ authMethod: 'account', password: 'pw', account: 'billing' }))
+    await waitFor(() => expect(bodies[0]).toMatchObject({ connector: 'ftp', config: { auth: 'account' }, secrets: { password: 'pw', account: 'billing' } }))
   })
 
   it('keeps the stored account of a site unless another is typed', async () => {
-    mockWorkspaceData({ sites: [{ ...prod, protocol: 'ftp', authMethod: 'account', secrets: ['password', 'account'] }], collections: [] })
+    mockWorkspaceData({ sites: [{ ...prod, connector: 'ftp', config: { ...prod.config, auth: 'account' }, secrets: ['password', 'account'] }], collections: [] })
     const user = await renderSidebar()
     await user.click(within(await screen.findByRole('treeitem', { name: /Prod/ })).getByRole('button', { name: 'Actions for Prod' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
@@ -268,8 +275,8 @@ describe('site management', () => {
     expect(within(dialog).queryByLabelText('Character set of file names')).not.toBeInTheDocument()
     expect(within(dialog).queryByLabelText('Encryption')).not.toBeInTheDocument()
     expect(await optionsOf(user, within(dialog).getByLabelText('Protocol'))).toEqual([
-      'SFTP - SSH File Transfer Protocol',
       'FTP - File Transfer Protocol',
+      'SFTP - SSH File Transfer Protocol',
     ])
     expect(await optionsOf(user, within(dialog).getByLabelText('Logon type'))).toEqual(['Normal', 'Ask for password', 'Interactive', 'Key file', 'Anonymous'])
     expect(within(dialog).getByLabelText('Port')).toHaveAttribute('placeholder', '22')
@@ -305,10 +312,10 @@ describe('site management', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
     await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(bodies[0]).toMatchObject({ protocol: 'ftp', ftpEncryption: 'implicit', port: 990, authMethod: 'password', password: 'pw', charset: 'windows-1252' })
+    expect(bodies[0]).toMatchObject({ connector: 'ftp', config: { encryption: 'implicit', charset: 'windows-1252' }, secrets: { password: 'pw' } })
   })
 
-  it('saves an anonymous SFTP site with the anonymous user and no secret', async () => {
+  it('saves an anonymous SFTP site with no user, which the server fixes, and no secret', async () => {
     let body: Record<string, unknown> = {}
     server.use(
       http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
@@ -329,10 +336,9 @@ describe('site management', () => {
     expect(within(dialog).getByText(/Signs in as anonymous/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
-    await waitFor(() => expect(body.username).toBe('anonymous'))
-    expect(body).toMatchObject({ protocol: 'sftp', authMethod: 'anonymous' })
-    expect(body).not.toHaveProperty('password')
-    expect(body).not.toHaveProperty('privateKey')
+    await waitFor(() => expect(body).toMatchObject({ connector: 'sftp', config: { host: 'sftp.example.com', auth: 'anonymous' } }))
+    expect(body.config).not.toHaveProperty('username')
+    expect(body.secrets).toEqual({})
   })
 
   it('saves an interactive site with its user and no secret', async () => {
@@ -355,13 +361,12 @@ describe('site management', () => {
     expect(within(dialog).getByText(/a one-time code, is asked to you then/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
-    await waitFor(() => expect(body.authMethod).toBe('interactive'))
-    expect(body).toMatchObject({ protocol: 'sftp', username: 'deploy' })
-    expect(body).not.toHaveProperty('password')
+    await waitFor(() => expect(body).toMatchObject({ connector: 'sftp', config: { auth: 'interactive', username: 'deploy' } }))
+    expect(body.secrets).toEqual({})
   })
 
   it('says a stored key is kept unless another file is chosen', async () => {
-    mockWorkspaceData({ sites: [{ ...prod, authMethod: 'key', secrets: ['private_key', 'passphrase'] }], collections: [] })
+    mockWorkspaceData({ sites: [{ ...prod, config: { ...prod.config, auth: 'key' }, secrets: ['private_key', 'passphrase'] }], collections: [] })
     const user = await renderSidebar()
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
@@ -396,9 +401,8 @@ describe('site management', () => {
     await within(dialog).findByText('Ready to use.')
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
-    await waitFor(() => expect(body.privateKey).toBe('KEY'))
-    expect(body).toMatchObject({ authMethod: 'key', passphrase: 'phrase' })
-    expect(body.password).toBeUndefined()
+    await waitFor(() => expect(body).toMatchObject({ config: { auth: 'key' }, secrets: { private_key: 'KEY', passphrase: 'phrase' } }))
+    expect(body.secrets).not.toHaveProperty('password')
   })
 
   it('configures a proxy and a jump host, in both authentication methods', async () => {
@@ -435,10 +439,8 @@ describe('site management', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
     expect(body).toMatchObject({
-      proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080, username: 'proxyuser' },
-      proxyPassword: 'proxypass',
-      jump: { host: 'bastion.example.com', port: 22, username: 'bastion', authMethod: 'password' },
-      jumpPassword: 'bastionpass',
+      config: { proxy_kind: 'socks5', proxy_host: 'proxy.example.com', proxy_port: '1080', proxy_username: 'proxyuser', jump_host: 'bastion.example.com', jump_username: 'bastion' },
+      secrets: { password: 'pw', proxy_password: 'proxypass', jump_password: 'bastionpass' },
     })
 
     await user.click(screen.getByRole('button', { name: 'New site' }))
@@ -456,9 +458,8 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Password'), 'pw')
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
 
-    await waitFor(() => expect(body.jump).toMatchObject({ authMethod: 'key' }))
-    expect(body).toMatchObject({ jumpPrivateKey: 'KEY', jumpPassphrase: 'phrase' })
-    expect(body.jumpPassword).toBeUndefined()
+    await waitFor(() => expect(body).toMatchObject({ config: { jump_auth: 'key' }, secrets: { jump_private_key: 'KEY', jump_passphrase: 'phrase' } }))
+    expect(body.secrets).not.toHaveProperty('jump_password')
 
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
@@ -493,7 +494,7 @@ describe('site management', () => {
   })
 
   it('explains a private key the server refuses and opens the tab of that key', async () => {
-    let answer = problem(422, 'wrong_passphrase', { key: 'jump' })
+    let answer = problem(422, 'wrong_passphrase', { field: 'jump_private_key' })
     server.use(http.post('/api/v1/workspaces/:id/sites', () => answer))
     const user = await renderSidebar()
     await user.click(screen.getByRole('button', { name: 'New site' }))
@@ -506,7 +507,7 @@ describe('site management', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('The passphrase does not open the jump host key.')
     expect(within(dialog).getByRole('tab', { name: 'Proxy and jump host' })).toHaveAttribute('aria-selected', 'true')
 
-    answer = problem(422, 'private_key_is_public', { key: 'site' })
+    answer = problem(422, 'private_key_is_public', { field: 'private_key' })
     await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
     expect(await within(dialog).findByText('The private key is a public key. Choose the private key file.')).toBeInTheDocument()
     expect(within(dialog).getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
@@ -545,8 +546,8 @@ describe('site management', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(body).toMatchObject({ name: 'Production', port: 2222, listTimezone: 'Europe/Madrid' })
-    expect(body.password).toBeUndefined()
+    expect(body).toMatchObject({ name: 'Production', config: { host: 'prod.example.com', port: '2222', username: 'deploy' } })
+    expect(body.secrets).toEqual({})
   })
 
   it('tests the connection and reports success', async () => {
@@ -580,7 +581,7 @@ describe('site management', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
     const unlock = await screen.findByRole('dialog', { name: 'Unlock the vault' })
-    expect(unlock).toHaveTextContent(prod.host)
+    expect(unlock).toHaveTextContent(prod.config.host)
     await user.click(within(unlock).getByRole('button', { name: 'Cancel' }))
     expect(await within(dialog).findByText('Unlock the vault to save credentials.')).toBeInTheDocument()
 
@@ -592,7 +593,7 @@ describe('site management', () => {
   })
 
   it('asks for the password of a site that asks for it when testing, and tests again once it is given', async () => {
-    mockWorkspaceData({ sites: [{ ...prod, authMethod: 'ask', secrets: [] }], collections: [] })
+    mockWorkspaceData({ sites: [{ ...prod, config: { ...prod.config, auth: 'ask' }, secrets: [] }], collections: [] })
     let given = false
     server.use(
       http.get('/api/v1/workspaces/:id/sites/s1/files', () => (given ? HttpResponse.json([]) : problem(409, 'credentials_required'))),

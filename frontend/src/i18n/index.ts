@@ -5,6 +5,7 @@ import { initReactI18next } from 'react-i18next'
 import enAdmin from './locales/en/admin.json'
 import enAuth from './locales/en/auth.json'
 import enCommon from './locales/en/common.json'
+import enConnectors from './locales/en/connectors.json'
 import enEditor from './locales/en/editor.json'
 import enErrors from './locales/en/errors.json'
 import enExplorer from './locales/en/explorer.json'
@@ -34,7 +35,7 @@ export const defaultNS = 'common'
 
 /** The English messages by namespace, the source every other language translates; they type the keys of `t`. */
 const english = {
-  admin: enAdmin, auth: enAuth, common: enCommon, editor: enEditor, errors: enErrors, explorer: enExplorer, preview: enPreview, quick: enQuick, security: enSecurity,
+  admin: enAdmin, auth: enAuth, common: enCommon, connectors: enConnectors, editor: enEditor, errors: enErrors, explorer: enExplorer, preview: enPreview, quick: enQuick, security: enSecurity,
   settings: enSettings, shell: enShell, sites: enSites, sync: enSync, teams: enTeams, transfers: enTransfers, vault: enVault,
 } as const
 

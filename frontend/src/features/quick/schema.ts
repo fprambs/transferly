@@ -1,39 +1,46 @@
-import { z } from 'zod'
+import type { FieldErrors, Resolver } from 'react-hook-form'
 
-import type { QuickConnectInput } from '@/lib/api'
+import type { Connector, QuickConnectInput } from '@/lib/api'
 
-/** The protocols a quick connection offers: FTP upgrades to TLS when the server offers it, as FileZilla's quick connect does. */
-export type QuickProtocol = 'sftp' | 'ftp'
+import { neededSecrets, toConfig, toSecrets, validate } from '../connectors/schema'
 
-/** Default port of each protocol. */
-export const defaultPorts = { sftp: 22, ftp: 21 } as const
+/** The logon types a quick connection cannot use: they ask when connecting or store nothing, which only a saved site can do. */
+export const unattended: Readonly<Record<string, readonly string[]>> = { auth: ['ask', 'anonymous', 'interactive'] }
 
-/** Highest valid TCP port. */
-const maxPort = 65535
+/** Values of the quick connect form: the connector, its settings and the secrets typed, by field name. */
+export interface QuickValues {
+  /** The type of the connector. */
+  connector: string
+  /** The settings of the connector. */
+  config: Record<string, string>
+  /** The secrets typed, kept in memory only until the connection ends. */
+  secrets: Record<string, string>
+}
 
-/** Validation of the quick connect form; messages are translation keys. */
-export const quickSchema = z.object({
-  host: z.string().trim().min(1, 'hostRequired'),
-  port: z.string().trim().refine((value) => value === '' || (/^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= maxPort), 'portInvalid'),
-  username: z.string().trim().min(1, 'usernameRequired'),
-  password: z.string().min(1, 'passwordRequired'),
-})
+/** The values of an empty quick connect form for a connector. */
+export function quickDefaults(connector: string): QuickValues {
+  return { connector, config: {}, secrets: {} }
+}
 
-/** Values of the quick connect form. */
-export type QuickValues = z.infer<typeof quickSchema>
+/** Builds the request body of a quick connection: the settings that apply and were given, and the secrets typed for fields that apply. */
+export function toQuickInput(values: QuickValues, connector: Connector): QuickConnectInput {
+  return { connector: values.connector, config: toConfig(connector, values.config), secrets: toSecrets(connector, values.config, values.secrets) }
+}
 
 /**
- * Builds the request body of a quick connection; an empty port means the protocol default. FTP uses TLS when the server offers it and clear
- * text otherwise (ADR-0012), since a quick connection has no encryption to choose; a saved site can require TLS.
+ * A resolver that checks the settings of the chosen connector with its schema, and that the secrets its logon needs are typed, as nothing is
+ * stored to fall back on; a connector missing from the catalog is left to the server.
  */
-export function toQuickInput(protocol: QuickProtocol, values: QuickValues): QuickConnectInput {
-  return {
-    protocol,
-    ftpEncryption: protocol === 'ftp' ? 'optional' : undefined,
-    host: values.host.trim(),
-    port: values.port.trim() === '' ? defaultPorts[protocol] : Number(values.port),
-    username: values.username.trim(),
-    authMethod: 'password',
-    password: values.password,
+export function quickResolver(connectors: readonly Connector[]): Resolver<QuickValues> {
+  return (values) => {
+    const connector = connectors.find((candidate) => candidate.type === values.connector)
+    const failures = connector === undefined ? {} : validate(connector, values.config)
+    const missing = connector === undefined ? [] : neededSecrets(connector, values.config).filter((name) => (values.secrets[name] ?? '') === '')
+    if (Object.keys(failures).length === 0 && missing.length === 0) {
+      return { values, errors: {} }
+    }
+    const config = Object.fromEntries(Object.entries(failures).map(([name, reason]) => [name, { type: 'schema', message: reason }]))
+    const secrets = Object.fromEntries(missing.map((name) => [name, { type: 'schema', message: 'required' }]))
+    return { values: {}, errors: { config, secrets } as FieldErrors<QuickValues> }
   }
 }

@@ -1,35 +1,34 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { LoaderCircle, Lock, Zap } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
-import { useForm } from 'react-hook-form'
+import { useMemo, useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { QuickConnectInput, QuickConnection } from '@/lib/api'
+import type { Connector, QuickConnectInput, QuickConnection } from '@/lib/api'
 import { useApi, type Api } from '@/lib/api/use-api'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
+import { SchemaFields } from '../connectors/SchemaFields'
+import { settle, startingConnector } from '../connectors/schema'
+import { endpointOf } from '../connectors/settings'
+import { useConnectors } from '../connectors/use-connectors'
+
 import { quickErrorKeyOf, unknownHostKeyOf, type QuickErrorKey, type UnknownHostKey } from './errors'
-import { defaultPorts, quickSchema, toQuickInput, type QuickValues, type QuickProtocol } from './schema'
+import { quickDefaults, quickResolver, toQuickInput, unattended, type QuickValues } from './schema'
 import { TrustPanel } from './TrustPanel'
 
 /** A connection attempt waiting for the user to trust the server key. */
 interface PendingTrust {
   /** What was asked to connect to. */
   input: QuickConnectInput
+  /** Where the server is, as its key is trusted. */
+  endpoint: { host: string; port: number }
   /** The key the server presented. */
   hostKey: UnknownHostKey
   /** Workspace the connection belongs to. */
   workspaceId: string
-}
-
-/** Reads the protocol of a tab, which is one of the two the tabs offer. */
-function toProtocol(value: unknown): QuickProtocol {
-  return value === 'ftp' ? 'ftp' : 'sftp'
 }
 
 /** Runs a call and reports how long it took, in milliseconds. */
@@ -63,21 +62,32 @@ export interface QuickConnectDialogProps {
   onConnected: (connection: QuickConnection, elapsedMs: number, workspaceId: string) => void
 }
 
-/** Form to try a server without saving it; it asks to trust unknown server keys on the way. */
-export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnected }: QuickConnectDialogProps) {
+/** Props of {@link QuickConnectForm}. */
+interface QuickConnectFormProps extends Omit<QuickConnectDialogProps, 'open'> {
+  /** The connectors the instance offers. */
+  offered: readonly Connector[]
+}
+
+/** The form of a quick connection, drawn from the schema of the chosen connector, and the trust of an unknown server key on the way. */
+function QuickConnectForm({ workspaceId, offered, onOpenChange, onConnected }: QuickConnectFormProps) {
   const { t } = useTranslation('quick')
   const api = useApi()
   const [pending, setPending] = useState<PendingTrust | null>(null)
   const [failure, setFailure] = useState<QuickErrorKey | null>(null)
-  const [protocol, setProtocol] = useState<QuickProtocol>('sftp')
+  const resolver = useMemo(() => quickResolver(offered), [offered])
+  const starting = startingConnector(offered)
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<QuickValues>({ resolver: zodResolver(quickSchema), defaultValues: { host: '', port: '', username: '', password: '' } })
+  } = useForm<QuickValues>({ resolver, defaultValues: quickDefaults(starting) })
+  const type = useWatch({ control, name: 'connector' })
+  const connector = offered.find((candidate) => candidate.type === type) as Connector
 
-  const attempt = async (input: QuickConnectInput): Promise<void> => {
+  const attempt = async (input: QuickConnectInput, endpoint: PendingTrust['endpoint']): Promise<void> => {
     if (workspaceId === undefined) {
       return
     }
@@ -89,22 +99,24 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
       onConnected(value, elapsedMs, workspaceId)
     } catch (error) {
       const hostKey = unknownHostKeyOf(error)
-      setPending(hostKey === undefined ? null : { input, hostKey, workspaceId })
+      setPending(hostKey === undefined ? null : { input, endpoint, hostKey, workspaceId })
       setFailure(hostKey === undefined ? quickErrorKeyOf(error) : null)
     }
   }
 
-  const submit = handleSubmit((values) => attempt(toQuickInput(protocol, values)))
+  const submit = handleSubmit((values) => {
+    return attempt(toQuickInput(values, connector), endpointOf({ connector: connector.type, config: settle(connector, values.config) }))
+  })
 
-  const trust = async ({ input, hostKey, workspaceId: owner }: PendingTrust): Promise<void> => {
+  const trust = async ({ input, endpoint, hostKey, workspaceId: owner }: PendingTrust): Promise<void> => {
     try {
-      await api.hostKeys.trust(owner, { host: input.host, port: input.port as number, ...hostKey })
+      await api.hostKeys.trust(owner, { ...endpoint, ...hostKey })
     } catch (error) {
       setPending(null)
       setFailure(quickErrorKeyOf(error))
       return
     }
-    await attempt(input)
+    await attempt(input, endpoint)
   }
 
   const close = (): void => {
@@ -114,104 +126,65 @@ export function QuickConnectDialog({ open, workspaceId, onOpenChange, onConnecte
     onOpenChange(false)
   }
 
+  if (pending !== null) {
+    return <TrustPanel host={pending.endpoint.host} hostKey={pending.hostKey} busy={isSubmitting} onBack={() => setPending(null)} onTrust={() => trust(pending)} />
+  }
   return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-[520px]">
-        {pending === null ? (
-          <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Zap className="size-5 text-warn" />
-                {t(($) => $.title)}
-              </DialogTitle>
-              <DialogDescription>{t(($) => $.description)}</DialogDescription>
-            </DialogHeader>
-            <Tabs value={protocol} onValueChange={(value) => setProtocol(toProtocol(value))} aria-label={t(($) => $.protocol.label)}>
-              <TabsList className="w-full">
-                <TabsTrigger value="sftp">{t(($) => $.protocol.sftp)}</TabsTrigger>
-                <TabsTrigger value="ftp">{t(($) => $.protocol.ftp)}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {protocol === 'ftp' ? (
-              <p role="note" className="rounded-md bg-warn/10 px-3 py-2 text-xs">
-                {t(($) => $.ftpWarning)}
-              </p>
-            ) : null}
-            <div className="flex gap-3">
-              <Field id="quick-host" label={t(($) => $.fields.host)} error={errors.host?.message} className="flex-1">
-                <Input id="quick-host" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.host !== undefined} {...register('host')} />
-              </Field>
-              <Field id="quick-port" label={t(($) => $.fields.port)} error={errors.port?.message} className="w-24">
-                <Input id="quick-port" className="font-mono" inputMode="numeric" placeholder={String(defaultPorts[protocol])} aria-invalid={errors.port !== undefined} {...register('port')} />
-              </Field>
-            </div>
-            <div className="flex gap-3">
-              <Field id="quick-username" label={t(($) => $.fields.username)} error={errors.username?.message} className="flex-1">
-                <Input id="quick-username" className="font-mono" autoComplete="off" spellCheck={false} aria-invalid={errors.username !== undefined} {...register('username')} />
-              </Field>
-              <Field id="quick-password" label={t(($) => $.fields.password)} error={errors.password?.message} className="flex-1">
-                <Input id="quick-password" type="password" autoComplete="off" aria-invalid={errors.password !== undefined} {...register('password')} />
-              </Field>
-            </div>
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Lock className="size-3.5" />
-              {t(($) => $.memoryNote)}
-            </p>
-            {failure !== null && (
-              <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
-                <p>{t(($) => $.errors[failure])}</p>
-                <ErrorGuide failure={failure} className="mt-2" />
-              </div>
-            )}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={close}>
-                {t(($) => $.cancel)}
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-                    {t(($) => $.connecting)}
-                  </>
-                ) : (
-                  t(($) => $.connect)
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        ) : (
-          <TrustPanel host={pending.input.host} hostKey={pending.hostKey} busy={isSubmitting} onBack={() => setPending(null)} onTrust={() => trust(pending)} />
-        )}
-      </DialogContent>
-    </Dialog>
+    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Zap className="size-5 text-warn" />
+          {t(($) => $.title)}
+        </DialogTitle>
+        <DialogDescription>{t(($) => $.description)}</DialogDescription>
+      </DialogHeader>
+      <Tabs value={type} onValueChange={(value) => setValue('connector', String(value))} aria-label={t(($) => $.protocol.label)}>
+        <TabsList className="w-full">
+          {offered.map((candidate) => (
+            <TabsTrigger key={candidate.type} value={candidate.type}>
+              {candidate.name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      <div className="flex flex-col gap-4">
+        <SchemaFields connector={connector} groups={['connection', 'access']} control={control} register={register} errors={errors} exclude={unattended} idPrefix="quick" />
+      </div>
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Lock className="size-3.5" />
+        {t(($) => $.memoryNote)}
+      </p>
+      {failure !== null && (
+        <div role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-danger-text">
+          <p>{t(($) => $.errors[failure])}</p>
+          <ErrorGuide failure={failure} className="mt-2" />
+        </div>
+      )}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={close}>
+          {t(($) => $.cancel)}
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+              {t(($) => $.connecting)}
+            </>
+          ) : (
+            t(($) => $.connect)
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
   )
 }
 
-/** Props of {@link Field}. */
-interface FieldProps {
-  /** Identifier of the input the label points at. */
-  id: string
-  /** Visible label. */
-  label: string
-  /** Translation key of the validation message, if any. */
-  error: string | undefined
-  /** Extra classes of the wrapper. */
-  className: string
-  /** The input. */
-  children: ReactNode
-}
-
-/** Label, input and validation message of one form field. */
-function Field({ id, label, error, className, children }: FieldProps) {
-  const { t } = useTranslation('quick')
-
+/** Dialog to try a server without saving it, with any connector the instance offers; it waits for the catalog of connectors. */
+export function QuickConnectDialog({ open, ...form }: QuickConnectDialogProps) {
+  const offered = useConnectors().data?.filter((connector) => connector.enabled) ?? []
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-      {error !== undefined && (
-        <p className="text-xs text-destructive">{t(($) => $.errors[error as 'hostRequired' | 'portInvalid' | 'usernameRequired' | 'passwordRequired'])}</p>
-      )}
-    </div>
+    <Dialog open={open} onOpenChange={() => form.onOpenChange(false)}>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-[600px]">{open && offered.length > 0 && <QuickConnectForm offered={offered} {...form} />}</DialogContent>
+    </Dialog>
   )
 }

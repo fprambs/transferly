@@ -64,6 +64,8 @@ import { emptyFilter, filterEntries, isActive, type EntryFilter } from './entry-
 import { FilterBox } from './FilterBox'
 import { FilterMenu } from './FilterMenu'
 import { FilterSummary } from './FilterSummary'
+import { authOf, endpointOf, labelsOf, settingOf } from '../connectors/settings'
+import { useConnectors } from '../connectors/use-connectors'
 
 /** The dialog that is open over the explorer. */
 type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry } | { kind: 'edit'; entry: RemoteEntry }
@@ -171,14 +173,15 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   }, [pane])
   const target = [...sites, ...quick].find((connection) => connection.id === siteId)
   const savedSite = sites.find((saved) => saved.id === siteId)
-  const showPermissions = target === undefined || target.protocol === 'sftp'
+  const descriptor = useConnectors().data?.find((connector) => connector.type === target?.connector)
+  const showPermissions = target === undefined || descriptor?.capabilities.permissions !== false
   const hostKey = unknownHostKeyOf(listing.error)
   const changedKey = changedHostKeyOf(listing.error)
   const timeZone = useTimeZone()
   const visible = useMemo(() => filterEntries(entries, filter, new Date(), timeZone), [entries, filter, timeZone])
   const filtering = isActive(filter)
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
-  const asksPassword = target !== undefined && (failure === 'credentials_required' || (failure === 'remote_auth_failed' && target.authMethod === 'ask'))
+  const asksPassword = target !== undefined && (failure === 'credentials_required' || (failure === 'remote_auth_failed' && authOf(target) === 'ask'))
 
   const trust = async (key: UnknownHostKey, connection: { host: string; port: number }, mode?: HostKeyTrustMode): Promise<void> => {
     try {
@@ -440,7 +443,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
           <Search />
           <span className="@max-3xl:sr-only">{t(($) => $.search.title)}</span>
         </Button>
-        {target !== undefined && target.protocol !== 'sftp' ? (
+        {target !== undefined && settingOf(target, 'list_timezone') !== '' ? (
           <TimeZoneProbe workspaceId={workspaceId} siteId={siteId} path={path} site={sites.find((saved) => saved.id === siteId)} onApplied={() => void reload()} />
         ) : null}
         {actions}
@@ -518,7 +521,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             <dd className="font-mono break-all">{hostKey.fingerprint}</dd>
           </dl>
           {trustFailure !== null && <p className="text-sm text-destructive">{t(($) => $.errors[trustFailure])}</p>}
-          <Button size="lg" className="min-w-52" onClick={() => trust(hostKey, target)}>
+          <Button size="lg" className="min-w-52" onClick={() => trust(hostKey, endpointOf(target))}>
             {t(($) => $.trust.confirm)}
           </Button>
         </PanelState>
@@ -527,7 +530,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         <ChangedHostKeyNotice
           hostKey={changedKey}
           failure={trustFailure}
-          onTrust={(mode) => trust(changedKey, target, mode)}
+          onTrust={(mode) => trust(changedKey, endpointOf(target), mode)}
           onCancel={onDisconnect}
         />
       )}
@@ -535,13 +538,13 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         <CredentialNotice
           key={listing.errorUpdateCount}
           workspaceId={workspaceId}
-          target={target}
+          target={labelsOf(target)}
           refused={failure === 'remote_auth_failed'}
           onGiven={() => void listing.refetch()}
         />
       )}
       {failure === 'vault_locked' && (
-        <VaultLockedNotice need="connect" layout="page" autoOpen target={target} onUnlocked={() => void listing.refetch()} />
+        <VaultLockedNotice need="connect" layout="page" autoOpen target={target === undefined ? undefined : labelsOf(target)} onUnlocked={() => void listing.refetch()} />
       )}
       {failure !== null && failure !== 'vault_locked' && !asksPassword && ((hostKey === undefined && changedKey === undefined) || target === undefined) && (
         <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failedTitle)}

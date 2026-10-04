@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { QuickConnection, Site } from '@/lib/api'
 import { useDialogsStore } from '@/state/dialogs-store'
 import { adminSession, mockSession, mockVault, mockWorkspaceData, personalWorkspace } from '@/test/handlers'
+import { server } from '@/test/msw'
 import { renderApp } from '@/test/render-app'
 import { teamWorkspace } from '@/test/teams'
 
@@ -13,15 +15,9 @@ import { recentLimit, useRecentSites } from '../sites/recent-sites'
 /** Builds a saved site. */
 function site(id: string, name: string, color?: Site['color']): Site {
   return {
+    connector: 'sftp', config: { host: `${id}.example.com`, port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
     id,
     name,
-    protocol: 'sftp',
-    host: `${id}.example.com`,
-    port: 22,
-    username: 'deploy',
-    authMethod: 'password',
-    listTimezone: 'UTC',
-    charset: 'utf-8',
     speedLimitBps: 0,
     secrets: [],
     color,
@@ -32,7 +28,7 @@ function site(id: string, name: string, color?: Site['color']): Site {
 }
 
 /** A quick connection. */
-const quick: QuickConnection = { id: 'q1', name: 'ftp.example.com', protocol: 'ftp', host: 'ftp.example.com', port: 21, username: 'anonymous', authMethod: 'password', createdAt: '2026-01-01T00:00:00Z' } as QuickConnection
+const quick: QuickConnection = { connector: 'ftp', config: { host: 'ftp.example.com', port: '21', username: 'anonymous', auth: 'password' }, id: 'q1', name: 'ftp.example.com', createdAt: '2026-01-01T00:00:00Z' } as QuickConnection
 
 /** The section of the first steps. */
 function steps(): HTMLElement {
@@ -80,6 +76,7 @@ describe('EmptyExplorer', () => {
 
   it('offers the recent sites, newest first, and opens one at its folder', async () => {
     mockWorkspaceData({ sites: [site('s1', 'Prod', 'green'), site('s2', 'Backup')], quick: [quick] })
+    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files', () => HttpResponse.json([])))
     useRecentSites.setState({ recent: { [personalWorkspace.id]: ['q1', 'gone', 's1'], other: ['s2'] } })
     const user = userEvent.setup()
     const { history } = await renderApp({ path: '/' })

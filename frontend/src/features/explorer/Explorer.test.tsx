@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RemoteEntry, Site } from '@/lib/api'
-import { adminSession, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
+import { adminSession, builtinConnectors, mockSession, mockWorkspaceData, problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 import { renderWithProviders } from '@/test/render'
 import { useUiStore } from '@/state/ui-store'
@@ -16,15 +16,9 @@ const workspaceId = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
 
 /** A saved site the explorer browses. */
 const prod: Site = {
+  connector: 'sftp', config: { host: 'prod.example.com', port: '2222', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
   id: 's1',
   name: 'Prod',
-  protocol: 'sftp',
-  host: 'prod.example.com',
-  port: 2222,
-  username: 'deploy',
-  authMethod: 'password',
-  listTimezone: 'UTC',
-  charset: 'utf-8',
   speedLimitBps: 0,
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',
@@ -394,7 +388,7 @@ describe('explorer', () => {
   })
 
   it('shows a dash instead of permissions on an FTP site', async () => {
-    mockWorkspaceData({ sites: [{ ...prod, protocol: 'ftp' }] })
+    mockWorkspaceData({ sites: [{ ...prod, connector: 'ftp', config: { ...prod.config, encryption: 'plain' } }], connectors: [{ ...builtinConnectors[0], capabilities: { ...builtinConnectors[0].capabilities, permissions: false } }, builtinConnectors[1]] })
     mockListing([entry('a.txt')])
 
     await renderExplorer()

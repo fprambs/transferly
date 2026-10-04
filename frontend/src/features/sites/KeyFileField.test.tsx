@@ -12,12 +12,12 @@ import { siteDefaults, type SiteValues } from './site-form'
 
 /** A form holding only the key field, which shows the key and passphrase it holds. */
 function Harness({ saved = false }: { saved?: boolean }) {
-  const { control } = useForm<SiteValues>({ defaultValues: siteDefaults(undefined, undefined) })
-  const [key, passphrase] = useWatch({ control, name: ['privateKey', 'passphrase'] })
+  const { control } = useForm<SiteValues>({ defaultValues: siteDefaults(undefined, undefined, 'sftp') })
+  const [key, passphrase] = useWatch({ control, name: ['secrets.private_key', 'secrets.passphrase'] })
   return (
     <>
-      <KeyFileField control={control} name="privateKey" passphraseName="passphrase" id="site-key" passphraseLabel="Key passphrase" saved={saved} />
-      <output data-testid="values">{`${key}|${passphrase}`}</output>
+      <KeyFileField control={control} name="secrets.private_key" passphraseName="secrets.passphrase" id="site-key" passphraseLabel="Key passphrase" saved={saved} />
+      <output data-testid="values">{`${key ?? ""}|${passphrase ?? ""}`}</output>
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 
 import type { Bookmark, Connector, VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
+import catalog from './connectors.json'
 import { server } from './msw'
 
 /** A signed-in administrator with an anti-CSRF token. */
@@ -71,14 +72,13 @@ export function connector(type: string, name: string, enabled = true, maturity: 
     maturity,
     capabilities: { folders: true, permissions: true, setTimes: true, resume: true, rename: true, serverCopy: false },
     fields: [],
-    auth: ['password'],
     enabledByDefault: true,
     enabled,
   }
 }
 
-/** The connectors Transferly is built with, both offered. */
-export const builtinConnectors: Connector[] = [connector('ftp', 'FTP / FTPS'), connector('sftp', 'SFTP')]
+/** The connectors Transferly is built with, both offered, with the schemas the server answers. */
+export const builtinConnectors: Connector[] = catalog as Connector[]
 
 /** Answers the catalog of connectors. */
 export function mockConnectors(connectors: Connector[] = builtinConnectors): void {

@@ -31,10 +31,10 @@ type Inspection =
 interface KeyFileFieldProps {
   /** The form the key belongs to. */
   control: Control<SiteValues>
-  /** The field of the key, the site's or the jump host's. */
-  name: 'privateKey' | 'jumpPrivateKey'
-  /** The field of its passphrase. */
-  passphraseName: 'passphrase' | 'jumpPassphrase'
+  /** The secret of the key in the form, such as the site's or the jump host's. */
+  name: `secrets.${string}`
+  /** The secret of its passphrase. */
+  passphraseName: `secrets.${string}`
   /** Identifier of the file button, which the row's label points at. */
   id: string
   /** Label of the passphrase input. */
@@ -67,8 +67,8 @@ export function KeyFileField({ control, name, passphraseName, id, passphraseLabe
   const [dragging, setDragging] = useState(false)
   const [tooLarge, setTooLarge] = useState(false)
   const [inspection, setInspection] = useState<Inspection>({ state: 'checking' })
-  const keyText = key.field.value
-  const phrase = passphrase.field.value
+  const keyText = (key.field.value as string | undefined) ?? ''
+  const phrase = (passphrase.field.value as string | undefined) ?? ''
 
   useEffect(() => {
     if (keyText === '') {

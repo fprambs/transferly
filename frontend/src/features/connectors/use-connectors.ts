@@ -25,11 +25,3 @@ export function useConnectors(): ConnectorsQuery {
   return { data, loading: isPending, error, refetch: () => void refetch() }
 }
 
-/**
- * Returns the types of the connectors the instance offers, or `undefined` while they are not known, so callers offer every protocol then
- * and let the server decide.
- */
-export function useOfferedConnectors(): ReadonlySet<string> | undefined {
-  const { data } = useConnectors()
-  return data === undefined ? undefined : new Set(data.filter((connector) => connector.enabled).map((connector) => connector.type))
-}

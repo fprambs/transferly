@@ -1,0 +1,154 @@
+{
+  "connector": "Protocolo",
+  "connectors": {
+    "sftp": "SFTP - SSH File Transfer Protocol",
+    "ftp": "FTP - Protocolo de Transferencia de Archivos"
+  },
+  "keep": "Déjalo en blanco para conservar el guardado.",
+  "groups": {
+    "proxy": "Proxy",
+    "jump": "Salto SSH (jump host)"
+  },
+  "reasons": {
+    "required": "Completa este campo.",
+    "number": "Escribe un número entero.",
+    "range": "Escribe un número entre {{min}} y {{max}}.",
+    "boolean": "Elige sí o no.",
+    "choice": "Elige una de las opciones.",
+    "length": "Usa como máximo {{max}} caracteres.",
+    "host": "Escribe un nombre de host o una dirección, sin esquema, puerto ni ruta.",
+    "timezone": "Elige una zona horaria de la lista.",
+    "unknown": "Este ajuste no es parte de este tipo de servidor.",
+    "secret": "Este ajuste es un secreto y se envía aparte."
+  },
+  "fields": {
+    "host": {
+      "label": "Servidor"
+    },
+    "port": {
+      "label": "Puerto"
+    },
+    "encryption": {
+      "label": "Cifrado",
+      "choices": {
+        "optional": "Usar FTP explícito sobre TLS si está disponible",
+        "explicit": "Requiere FTP explícito sobre TLS",
+        "implicit": "Requiere FTP implícito sobre TLS",
+        "plain": "Usar sólo FTP plano (inseguro)"
+      },
+      "notes": {
+        "explicit": "Empieza sin cifrar y se actualiza con AUTH TLS antes de iniciar sesión; si el servidor no ofrece TLS, se rechaza. La primera vez se muestra su certificado para que lo confirmes.",
+        "implicit": "Usa TLS desde el primer byte, normalmente en el puerto 990. La primera vez se muestra el certificado del servidor para que lo confirmes."
+      },
+      "warnings": {
+        "optional": "Si el servidor no ofrece TLS, o alguien en la red borra esa oferta, la contraseña y los archivos viajan sin cifrar y sin aviso. Mejor requerir TLS.",
+        "plain": "FTP envía la contraseña y los archivos sin cifrar. Usa TLS si el servidor lo ofrece."
+      }
+    },
+    "auth": {
+      "label": "Modo de acceso",
+      "choices": {
+        "password": "Normal",
+        "ask": "Preguntar la contraseña",
+        "interactive": "Interactivo",
+        "key": "Archivo de clave",
+        "anonymous": "Anónimo",
+        "account": "Cuenta"
+      },
+      "notes": {
+        "anonymous": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
+        "ask": "No se guarda ninguna contraseña. Se pide al conectar y vive solo en la memoria del servidor durante tu sesión.",
+        "interactive": "No se guarda ningún secreto. Lo que el servidor pregunte al conectar, la contraseña o un código de un solo uso, se te pide en ese momento y nunca se guarda.",
+        "account": "Algunos servidores FTP antiguos piden una cuenta después de la contraseña (ACCT). Se guarda en el vault como la contraseña."
+      }
+    },
+    "username": {
+      "label": "Usuario"
+    },
+    "password": {
+      "label": "Contraseña",
+      "keep": "Dejar en blanco para mantener la contraseña existente."
+    },
+    "private_key": {
+      "label": "Clave privada"
+    },
+    "passphrase": {
+      "label": "Frase de la clave"
+    },
+    "account": {
+      "label": "Cuenta",
+      "keep": "Déjala vacía para conservar la cuenta guardada."
+    },
+    "list_timezone": {
+      "label": "Zona horaria del servidor",
+      "hint": "La zona horaria en la que el servidor muestra las horas. La mayoría usa UTC."
+    },
+    "charset": {
+      "label": "Juego de caracteres de los nombres",
+      "hint": "Cámbialo solo con servidores antiguos que muestran mal las tildes; la mayoría usa UTF-8.",
+      "choices": {
+        "utf-8": "UTF-8",
+        "iso-8859-1": "ISO-8859-1 (Europa occidental)",
+        "iso-8859-15": "ISO-8859-15 (Europa occidental con euro)",
+        "iso-8859-2": "ISO-8859-2 (Europa central)",
+        "windows-1252": "Windows-1252 (Europa occidental)",
+        "windows-1250": "Windows-1250 (Europa central)",
+        "windows-1251": "Windows-1251 (cirílico)",
+        "koi8-r": "KOI8-R (cirílico)",
+        "shift_jis": "Shift_JIS (japonés)",
+        "euc-jp": "EUC-JP (japonés)",
+        "gbk": "GBK (chino simplificado)",
+        "big5": "Big5 (chino tradicional)",
+        "euc-kr": "EUC-KR (coreano)"
+      }
+    },
+    "proxy_kind": {
+      "label": "Proxy",
+      "hint": "Envía la conexión a través de un proxy SOCKS5 o HTTP en vez de conectar directamente.",
+      "empty": "Sin proxy",
+      "choices": {
+        "socks5": "SOCKS5",
+        "http": "HTTP"
+      }
+    },
+    "proxy_host": {
+      "label": "Host del proxy"
+    },
+    "proxy_port": {
+      "label": "Puerto del proxy"
+    },
+    "proxy_username": {
+      "label": "Usuario del proxy"
+    },
+    "proxy_password": {
+      "label": "Contraseña del proxy"
+    },
+    "jump_host": {
+      "label": "Host del salto",
+      "hint": "Hace pasar la conexión SSH primero por este servidor, como ssh -J. Deja el host en blanco para conectar directamente.",
+      "empty": "Sin salto"
+    },
+    "jump_port": {
+      "label": "Puerto del salto"
+    },
+    "jump_username": {
+      "label": "Usuario del salto"
+    },
+    "jump_auth": {
+      "label": "Modo de acceso del salto",
+      "choices": {
+        "password": "Normal",
+        "key": "Archivo de clave"
+      }
+    },
+    "jump_password": {
+      "label": "Contraseña del salto"
+    },
+    "jump_private_key": {
+      "label": "Clave privada del salto"
+    },
+    "jump_passphrase": {
+      "label": "Frase de la clave del salto"
+    }
+  }
+}

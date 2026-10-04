@@ -41,6 +41,7 @@ import { panelSwitches, useCommandTarget, useConnectionCommands } from '../toolb
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { focusFilterEvent } from './focus-filter'
+import { hostOf, usernameOf } from '../connectors/settings'
 
 /** Props of {@link Item}. */
 interface ItemProps {
@@ -162,10 +163,10 @@ export function CommandPalette({ onOpenSite }: CommandPaletteProps) {
     <Item
       key={value}
       value={value}
-      keywords={[connection.name, connection.host, connection.username]}
+      keywords={[connection.name, hostOf(connection), usernameOf(connection)]}
       icon={'secrets' in connection ? Server : Zap}
       label={connection.name}
-      detail={`${connection.username}@${connection.host}`}
+      detail={`${usernameOf(connection)}@${hostOf(connection)}`}
       end={connected.has(connection.id) ? <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-ok" />{t(($) => $.sidebar.connected)}</span> : undefined}
       onSelect={run(() => onOpenSite(connection.id))}
     />

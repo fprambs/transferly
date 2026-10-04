@@ -1,0 +1,154 @@
+{
+  "connector": "Protocol",
+  "connectors": {
+    "sftp": "SFTP - SSH File Transfer Protocol",
+    "ftp": "FTP - File Transfer Protocol"
+  },
+  "keep": "Leave blank to keep the stored one.",
+  "groups": {
+    "proxy": "Proxy",
+    "jump": "SSH jump host"
+  },
+  "reasons": {
+    "required": "Fill in this field.",
+    "number": "Enter a whole number.",
+    "range": "Enter a number between {{min}} and {{max}}.",
+    "boolean": "Choose yes or no.",
+    "choice": "Choose one of the options.",
+    "length": "Use at most {{max}} characters.",
+    "host": "Enter a host name or address, without scheme, port or path.",
+    "timezone": "Choose a time zone of the list.",
+    "unknown": "This setting is not part of this kind of server.",
+    "secret": "This setting is a secret and is sent apart."
+  },
+  "fields": {
+    "host": {
+      "label": "Host"
+    },
+    "port": {
+      "label": "Port"
+    },
+    "encryption": {
+      "label": "Encryption",
+      "choices": {
+        "optional": "Use explicit FTP over TLS if available",
+        "explicit": "Require explicit FTP over TLS",
+        "implicit": "Require implicit FTP over TLS",
+        "plain": "Only use plain FTP (insecure)"
+      },
+      "notes": {
+        "explicit": "Starts in clear text and upgrades with AUTH TLS before signing in; a server that does not offer TLS is refused. The first time, its certificate is shown for you to confirm.",
+        "implicit": "Speaks TLS from the first byte, usually on port 990. The first time, the server's certificate is shown for you to confirm."
+      },
+      "warnings": {
+        "optional": "If the server does not offer TLS, or someone on the network removes the offer, the password and the files go in clear text without a warning. Prefer requiring TLS.",
+        "plain": "FTP sends the password and the files without encryption. Use TLS if the server offers it."
+      }
+    },
+    "auth": {
+      "label": "Logon type",
+      "choices": {
+        "password": "Normal",
+        "ask": "Ask for password",
+        "interactive": "Interactive",
+        "key": "Key file",
+        "anonymous": "Anonymous",
+        "account": "Account"
+      },
+      "notes": {
+        "anonymous": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
+        "ask": "No password is saved. It is asked for when connecting and kept only in the server's memory for your session.",
+        "interactive": "No secret is saved. Whatever the server asks when connecting, the password or a one-time code, is asked to you then and never kept.",
+        "account": "Some older FTP servers ask for an account after the password (ACCT). It is kept in the vault like the password."
+      }
+    },
+    "username": {
+      "label": "Username"
+    },
+    "password": {
+      "label": "Password",
+      "keep": "Leave blank to keep the existing password."
+    },
+    "private_key": {
+      "label": "Private key"
+    },
+    "passphrase": {
+      "label": "Key passphrase"
+    },
+    "account": {
+      "label": "Account",
+      "keep": "Leave blank to keep the existing account."
+    },
+    "list_timezone": {
+      "label": "Server time zone",
+      "hint": "The time zone the server lists times in. Most servers use UTC."
+    },
+    "charset": {
+      "label": "Character set of file names",
+      "hint": "Change it only for old servers that show accents wrong; most servers use UTF-8.",
+      "choices": {
+        "utf-8": "UTF-8",
+        "iso-8859-1": "ISO-8859-1 (Western European)",
+        "iso-8859-15": "ISO-8859-15 (Western European with euro)",
+        "iso-8859-2": "ISO-8859-2 (Central European)",
+        "windows-1252": "Windows-1252 (Western European)",
+        "windows-1250": "Windows-1250 (Central European)",
+        "windows-1251": "Windows-1251 (Cyrillic)",
+        "koi8-r": "KOI8-R (Cyrillic)",
+        "shift_jis": "Shift_JIS (Japanese)",
+        "euc-jp": "EUC-JP (Japanese)",
+        "gbk": "GBK (Simplified Chinese)",
+        "big5": "Big5 (Traditional Chinese)",
+        "euc-kr": "EUC-KR (Korean)"
+      }
+    },
+    "proxy_kind": {
+      "label": "Proxy",
+      "hint": "Tunnels the connection through a SOCKS5 or HTTP proxy instead of connecting directly.",
+      "empty": "No proxy",
+      "choices": {
+        "socks5": "SOCKS5",
+        "http": "HTTP"
+      }
+    },
+    "proxy_host": {
+      "label": "Proxy host"
+    },
+    "proxy_port": {
+      "label": "Proxy port"
+    },
+    "proxy_username": {
+      "label": "Proxy username"
+    },
+    "proxy_password": {
+      "label": "Proxy password"
+    },
+    "jump_host": {
+      "label": "Jump host",
+      "hint": "Tunnels the SSH connection through this server first, as ssh -J does. Leave the host blank to connect directly.",
+      "empty": "No jump host"
+    },
+    "jump_port": {
+      "label": "Jump port"
+    },
+    "jump_username": {
+      "label": "Jump username"
+    },
+    "jump_auth": {
+      "label": "Jump host logon type",
+      "choices": {
+        "password": "Normal",
+        "key": "Key file"
+      }
+    },
+    "jump_password": {
+      "label": "Jump host password"
+    },
+    "jump_private_key": {
+      "label": "Jump host private key"
+    },
+    "jump_passphrase": {
+      "label": "Jump host key passphrase"
+    }
+  }
+}

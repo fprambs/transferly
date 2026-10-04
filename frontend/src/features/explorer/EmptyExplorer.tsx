@@ -1,3 +1,4 @@
+import type { QuickConnection, Site } from '@/lib/api'
 import { useNavigate } from '@tanstack/react-router'
 import { Check, Command, KeyRound, Plus, Server, Users, Zap, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -20,6 +21,7 @@ import { useConnectionState } from '../toolbar/connection-store'
 import { useVaultStatus } from '../vault/use-vault'
 import { VaultDialog } from '../vault/VaultDialog'
 import { useWorkspace, useWorkspaces } from '../workspace/use-workspace'
+import { hostOf } from '../connectors/settings'
 
 /** No recent sites; stable, so the store selector does not rerender for nothing. */
 const none: string[] = []
@@ -68,7 +70,7 @@ export function EmptyExplorer() {
   const [settingUpVault, setSettingUpVault] = useState(false)
   const [creatingTeam, setCreatingTeam] = useState(false)
 
-  const connections = [...sites, ...quick]
+  const connections: Array<Site | QuickConnection> = [...sites, ...quick]
   const recent = recentIds.flatMap((id) => connections.filter((connection) => connection.id === id))
   const steps = {
     vault: vault?.initialized === true,
@@ -108,7 +110,7 @@ export function EmptyExplorer() {
             </h3>
             <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {recent.map((connection) => {
-                const color = 'color' in connection ? connection.color : undefined
+                const color = 'updatedAt' in connection ? connection.color : undefined
                 return (
                   <li key={connection.id}>
                     <button
@@ -123,7 +125,7 @@ export function EmptyExplorer() {
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate text-sm font-medium">{connection.name}</span>
                         <span className="truncate font-mono text-xs text-muted-foreground">
-                          {connection.protocol.toUpperCase()} · {connection.host}
+                          {connection.connector.toUpperCase()} · {hostOf(connection)}
                         </span>
                       </span>
                     </button>

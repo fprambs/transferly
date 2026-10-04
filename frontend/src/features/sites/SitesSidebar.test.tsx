@@ -11,16 +11,10 @@ import { SitesSidebar } from './SitesSidebar'
 /** Builds a saved site. */
 function site(id: string, name: string, collectionId?: string): Site {
   return {
+    connector: 'sftp', config: { host: `${id}.example.com`, port: '22', username: 'u', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
     id,
     name,
     collectionId,
-    protocol: 'sftp',
-    host: `${id}.example.com`,
-    port: 22,
-    username: 'u',
-    authMethod: 'password',
-    listTimezone: 'UTC',
-    charset: 'utf-8',
     speedLimitBps: 0,
     secrets: [],
     createdAt: '2026-01-01T00:00:00Z',
@@ -44,7 +38,7 @@ function site(id: string, name: string, collectionId?: string): Site {
  */
 describe('SitesSidebar', () => {
   it('marks the connected sites in green and offers to disconnect them', async () => {
-    const quick: QuickConnection = { id: 'q1', name: 'q.example.com', protocol: 'sftp', host: 'q.example.com', port: 22, username: 'u', authMethod: 'password', listTimezone: 'UTC', charset: 'utf-8', createdAt: '2026-01-01T00:00:00Z' }
+    const quick: QuickConnection = { connector: 'sftp', config: { host: 'q.example.com', port: '22', username: 'u', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' }, id: 'q1', name: 'q.example.com', createdAt: '2026-01-01T00:00:00Z' }
     mockWorkspaceData({ sites: [site('s1', 'Prod'), site('s2', 'Stage')], quick: [quick], connected: ['s1', 'q1'] })
     const disconnected: string[] = []
     const user = userEvent.setup()
@@ -65,7 +59,7 @@ describe('SitesSidebar', () => {
   })
 
   it('draws the color label of a site and the icon of its protocol', async () => {
-    mockWorkspaceData({ sites: [{ ...site('s1', 'Prod'), color: 'green' }, { ...site('s2', 'Legacy'), protocol: 'ftp', ftpEncryption: 'plain' }] })
+    mockWorkspaceData({ sites: [{ ...site('s1', 'Prod'), color: 'green' }, { ...site('s2', 'Legacy'), connector: 'ftp', config: { host: 'legacy.example.com', encryption: 'plain' } }] })
     await renderWithProviders(<SitesSidebar onOpen={() => undefined} />)
 
     const prod = await screen.findByRole('treeitem', { name: /Prod/ })
@@ -116,15 +110,9 @@ describe('SitesSidebar', () => {
       sites: [site('s1', 'Staging', 'c1'), site('s2', 'Home')],
       quick: [
         {
+          connector: 'sftp', config: { host: '198.51.100.7', port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
           id: 'q1',
           name: '198.51.100.7',
-          protocol: 'sftp',
-          host: '198.51.100.7',
-          port: 22,
-          username: 'deploy',
-          authMethod: 'password',
-          listTimezone: 'UTC',
-          charset: 'utf-8',
           createdAt: '2026-01-01T00:00:00Z',
         },
       ],
@@ -158,15 +146,9 @@ describe('SitesSidebar', () => {
       sites: [site('s2', 'Home')],
       quick: [
         {
+          connector: 'sftp', config: { host: '198.51.100.7', port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
           id: 'q1',
           name: '198.51.100.7',
-          protocol: 'sftp',
-          host: '198.51.100.7',
-          port: 22,
-          username: 'deploy',
-          authMethod: 'password',
-          listTimezone: 'UTC',
-          charset: 'utf-8',
           createdAt: '2026-01-01T00:00:00Z',
         },
       ],

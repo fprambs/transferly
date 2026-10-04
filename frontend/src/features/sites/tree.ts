@@ -1,5 +1,6 @@
 import { transportOf, type Transport } from '@/components/brand/transport'
 import type { Collection, QuickConnection, Site, SiteColor } from '@/lib/api'
+import { hostOf } from '@/features/connectors/settings'
 
 /** A collection row of the sites tree. */
 export interface CollectionNode {
@@ -108,7 +109,7 @@ function visit(
     }
   }
   for (const site of sites.get(parent) ?? []) {
-    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: site.host, transport: transportOf(site), color: site.color, collectionId: site.collectionId })
+    rows.push({ kind: 'site', id: site.id, name: site.name, depth, host: hostOf(site), transport: transportOf(site), color: site.color, collectionId: site.collectionId })
   }
 }
 

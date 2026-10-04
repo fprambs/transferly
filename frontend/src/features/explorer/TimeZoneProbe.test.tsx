@@ -16,19 +16,11 @@ const workspaceId = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
 
 /** A saved FTP site, with settings that saving its time zone must keep. */
 const ftp: Site = {
+  connector: 'ftp', config: { encryption: 'plain', host: 'legacy.example.com', port: '21', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'windows-1252', proxy_kind: 'socks5', proxy_host: 'proxy.example.com', proxy_port: '1080' },
   id: 's1',
   name: 'Legacy',
-  protocol: 'ftp',
-  ftpEncryption: 'plain',
-  host: 'legacy.example.com',
-  port: 21,
-  username: 'deploy',
-  authMethod: 'password',
-  listTimezone: 'UTC',
-  charset: 'windows-1252',
   speedLimitBps: 1048576,
   color: 'orange',
-  proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080 },
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
@@ -73,7 +65,7 @@ async function renderProbe(site: Site | null = ftp, onApplied = vi.fn()) {
 describe('time zone probe', () => {
   beforeEach(() => {
     mockSession(adminSession)
-    mockWorkspaceData({ sites: [ftp, { ...ftp, id: 's2', name: 'Secure', protocol: 'sftp' }] })
+    mockWorkspaceData({ sites: [ftp, { ...ftp, connector: 'sftp', config: { host: 'secure.example.com', port: '22', username: 'deploy', auth: 'password' }, id: 's2', name: 'Secure' }] })
   })
 
   it('says no zone is needed for exact times, and can be dismissed', async () => {
@@ -105,19 +97,12 @@ describe('time zone probe', () => {
     expect(await screen.findByText('Saved. The listing now uses Etc/GMT+3.')).toBeInTheDocument()
     expect(bodies).toEqual([
       {
+        connector: 'ftp',
+        config: { encryption: 'plain', host: 'legacy.example.com', port: '21', username: 'deploy', auth: 'password', list_timezone: 'Etc/GMT+3', charset: 'windows-1252', proxy_kind: 'socks5', proxy_host: 'proxy.example.com', proxy_port: '1080' },
         name: 'Legacy',
-        protocol: 'ftp',
-        ftpEncryption: 'plain',
-        host: 'legacy.example.com',
-        port: 21,
-        username: 'deploy',
-        authMethod: 'password',
-        listTimezone: 'Etc/GMT+3',
         remoteDir: '',
         color: 'orange',
-        charset: 'windows-1252',
         speedLimitBps: 1048576,
-        proxy: { kind: 'socks5', host: 'proxy.example.com', port: 1080 },
       },
     ])
     expect(onApplied).toHaveBeenCalledTimes(1)

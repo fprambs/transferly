@@ -16,15 +16,9 @@ import { useTabs } from '../tabs/tabs-store'
 /** Builds a saved site. */
 function site(id: string, name: string): Site {
   return {
+    connector: 'sftp', config: { host: `${id}.example.com`, port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
     id,
     name,
-    protocol: 'sftp',
-    host: `${id}.example.com`,
-    port: 22,
-    username: 'deploy',
-    authMethod: 'password',
-    listTimezone: 'UTC',
-    charset: 'utf-8',
     speedLimitBps: 0,
     secrets: [],
     createdAt: '2026-01-01T00:00:00Z',
@@ -187,7 +181,7 @@ describe('command palette', () => {
     mockWorkspaceData({
       sites: [site('s1', 'Prod'), site('s2', 'Backup')],
       connected: ['s2'],
-      quick: [{ id: 'q1', name: '198.51.100.7', protocol: 'sftp', host: '198.51.100.7', port: 22, username: 'deploy', authMethod: 'password', listTimezone: 'UTC', charset: 'utf-8', createdAt: '2026-01-01T00:00:00Z' }],
+      quick: [{ connector: 'sftp', config: { host: '198.51.100.7', port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' }, id: 'q1', name: '198.51.100.7', createdAt: '2026-01-01T00:00:00Z' }],
     })
     const user = userEvent.setup()
     const { history } = await renderApp({ path: '/' })

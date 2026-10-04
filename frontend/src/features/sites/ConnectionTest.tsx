@@ -13,6 +13,7 @@ import { VaultDialog } from '../vault/VaultDialog'
 import { CredentialDialog } from './CredentialDialog'
 
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
+import { endpointOf, labelsOf } from '../connectors/settings'
 
 /** Where a connection test stands. */
 type TestState =
@@ -53,7 +54,7 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
 
   const trust = async (hostKey: UnknownHostKey): Promise<void> => {
     try {
-      await api.hostKeys.trust(workspaceId, { host: site.host, port: site.port, ...hostKey })
+      await api.hostKeys.trust(workspaceId, { ...endpointOf(site), ...hostKey })
     } catch (error) {
       setState({ step: 'failed', key: siteErrorKeyOf(error) })
       return
@@ -97,13 +98,13 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
       )}
       <VaultDialog
         mode={state.step === 'unlock' ? 'unlock' : null}
-        target={site}
+        target={labelsOf(site)}
         onClose={() => setState({ step: 'failed', key: 'vault_locked' })}
         onUnlocked={() => void run()}
       />
       <CredentialDialog
         workspaceId={workspaceId}
-        target={state.step === 'credential' ? site : null}
+        target={state.step === 'credential' ? labelsOf(site) : null}
         onClose={() => setState({ step: 'failed', key: 'credentials_required' })}
         onGiven={() => void run()}
       />

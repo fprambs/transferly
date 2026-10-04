@@ -12,16 +12,10 @@ function collection(id: string, name: string, parentId?: string): Collection {
 /** Builds a site. */
 function site(id: string, name: string, collectionId?: string): Site {
   return {
+    connector: 'sftp', config: { host: `${id}.example.com`, port: '22', username: 'u', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
     id,
     name,
     collectionId,
-    protocol: 'sftp',
-    host: `${id}.example.com`,
-    port: 22,
-    username: 'u',
-    authMethod: 'password',
-    listTimezone: 'UTC',
-    charset: 'utf-8',
     speedLimitBps: 0,
     secrets: [],
     createdAt: '2026-01-01T00:00:00Z',
@@ -32,15 +26,9 @@ function site(id: string, name: string, collectionId?: string): Site {
 /** Builds a quick connection. */
 function quick(id: string, name: string): QuickConnection {
   return {
+    connector: 'sftp', config: { host: name, port: '22', username: 'u', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
     id,
     name,
-    protocol: 'sftp',
-    host: name,
-    port: 22,
-    username: 'u',
-    authMethod: 'password',
-    listTimezone: 'UTC',
-    charset: 'utf-8',
     createdAt: '2026-01-01T00:00:00Z',
   }
 }

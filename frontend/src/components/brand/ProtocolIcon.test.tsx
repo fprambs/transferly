@@ -8,19 +8,18 @@ import { transportOf, type Transport } from './transport'
  * Covers {@link transportOf} and {@link ProtocolIcon}.
  *
  * Scenarios:
- * - SFTP, FTPS and FTP with explicit or implicit TLS are encrypted; FTP that only uses TLS when offered is optional, plain FTP is not
+ * - SFTP and FTP with explicit or implicit TLS are encrypted; FTP that only uses TLS when offered is optional, plain FTP is not
  * - FTP without a stated encryption uses TLS when offered, as the server default
  * - each transport draws its own accent with its color, and the icon is decorative
  */
 describe('ProtocolIcon', () => {
   it('tells the transport of a site', () => {
-    expect(transportOf({ protocol: 'sftp' })).toBe('sftp')
-    expect(transportOf({ protocol: 'ftps' })).toBe('ftps')
-    expect(transportOf({ protocol: 'ftp', ftpEncryption: 'explicit' })).toBe('ftps')
-    expect(transportOf({ protocol: 'ftp', ftpEncryption: 'implicit' })).toBe('ftps')
-    expect(transportOf({ protocol: 'ftp', ftpEncryption: 'optional' })).toBe('optional')
-    expect(transportOf({ protocol: 'ftp' })).toBe('optional')
-    expect(transportOf({ protocol: 'ftp', ftpEncryption: 'plain' })).toBe('plain')
+    expect(transportOf({ connector: 'sftp', config: {} })).toBe('sftp')
+    expect(transportOf({ connector: 'ftp', config: { encryption: 'explicit' } })).toBe('ftps')
+    expect(transportOf({ connector: 'ftp', config: { encryption: 'implicit' } })).toBe('ftps')
+    expect(transportOf({ connector: 'ftp', config: { encryption: 'optional' } })).toBe('optional')
+    expect(transportOf({ connector: 'ftp', config: {} })).toBe('optional')
+    expect(transportOf({ connector: 'ftp', config: { encryption: 'plain' } })).toBe('plain')
   })
 
   it.each<[Transport, string, string]>([

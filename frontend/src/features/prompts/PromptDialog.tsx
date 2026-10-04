@@ -12,6 +12,7 @@ import { useApi } from '@/lib/api/use-api'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { usePrompts } from './prompts-store'
+import { labelsOf } from '../connectors/settings'
 
 /** What the dialog shows of the site that asks: its name, host and account. */
 interface Asker {
@@ -26,7 +27,8 @@ interface Asker {
 /** Finds the saved site that asks, the only kind with the interactive logon type; `undefined` until the sites of its workspace load, or
  * when it is not among them. */
 function useAsker(prompt: ConnectionPrompt): Asker | undefined {
-  return useSitesData(prompt.workspaceId).sites.find((candidate) => candidate.id === prompt.siteId)
+  const found = useSitesData(prompt.workspaceId).sites.find((candidate) => candidate.id === prompt.siteId)
+  return found === undefined ? undefined : labelsOf(found)
 }
 
 /** Why an answer could not be sent. */

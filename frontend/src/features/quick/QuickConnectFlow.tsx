@@ -10,6 +10,7 @@ import { useWorkspace } from '../workspace/use-workspace'
 import { KeepPrompt } from './KeepPrompt'
 import { QuickConnectDialog } from './QuickConnectDialog'
 import { SaveSiteDialog } from './SaveSiteDialog'
+import { hostOf } from '../connectors/settings'
 
 /** A quick connection that worked, waiting for the user to keep it or not. */
 interface Offer {
@@ -60,7 +61,7 @@ export function QuickConnectFlow() {
       />
       {offer !== null && saving === null && (
         <KeepPrompt
-          host={offer.connection.host}
+          host={hostOf(offer.connection)}
           elapsedMs={offer.elapsedMs}
           onSave={() => setSaving(offer)}
           onDismiss={() => setOffer(null)}

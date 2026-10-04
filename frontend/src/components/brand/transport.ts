@@ -1,15 +1,17 @@
-import type { Site } from '@/lib/api'
+import { settingOf, type Configured } from '@/features/connectors/settings'
 
 /** How a site reaches its server, as far as the user can tell from its icon. */
 export type Transport = 'sftp' | 'ftps' | 'optional' | 'plain'
 
-/** Tells the transport of a site: SFTP, FTP over TLS, FTP that uses TLS only when the server offers it, or FTP without encryption. */
-export function transportOf(site: Pick<Site, 'protocol' | 'ftpEncryption'>): Transport {
-  if (site.protocol === 'sftp') {
+/** Tells the transport of a site: FTP over TLS, FTP that uses TLS only when the server offers it, or FTP without encryption, from its
+ * encryption setting; every other connector is encrypted, as SFTP is. */
+export function transportOf(site: Configured): Transport {
+  if (site.connector !== 'ftp') {
     return 'sftp'
   }
-  if (site.protocol === 'ftps' || site.ftpEncryption === 'explicit' || site.ftpEncryption === 'implicit') {
+  const encryption = settingOf(site, 'encryption')
+  if (encryption === 'explicit' || encryption === 'implicit') {
     return 'ftps'
   }
-  return site.ftpEncryption === 'plain' ? 'plain' : 'optional'
+  return encryption === 'plain' ? 'plain' : 'optional'
 }

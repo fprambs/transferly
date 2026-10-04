@@ -15,15 +15,9 @@ import { QuickConnectFlow } from './QuickConnectFlow'
 
 /** The connection the mock server opens. */
 const opened: QuickConnection = {
+  connector: 'sftp', config: { host: '198.51.100.7', port: '22', username: 'deploy', auth: 'password', list_timezone: 'UTC', charset: 'utf-8' },
   id: 'q1',
   name: '198.51.100.7',
-  protocol: 'sftp',
-  host: '198.51.100.7',
-  port: 22,
-  username: 'deploy',
-  authMethod: 'password',
-  listTimezone: 'UTC',
-  charset: 'utf-8',
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -71,7 +65,7 @@ async function fillAndConnect(user: ReturnType<typeof userEvent.setup>, port = '
  * Scenarios:
  * - the sidebar button and the Ctrl+Shift+K shortcut open the dialog; other keys do not
  * - the form validates before calling the server and Cancel closes it
- * - only SFTP and FTP are offered; FTP uses TLS when the server offers it and says so, and the port hint follows the tab
+ * - only SFTP and FTP are offered, SFTP first; FTP asks for its encryption, explaining the risky ones, and the port hint follows the tab
  * - connecting sends the values with the default or the typed port, closes the dialog and offers to keep the server
  * - a quick connection opens with the vault locked, and only saving it as a site asks to unlock, in place
  * - "Not now" dismisses the offer
@@ -113,13 +107,11 @@ describe('quick connect', () => {
     await openDialog(user)
 
     await user.click(screen.getByRole('button', { name: 'Connect' }))
-    expect(await screen.findByText('Enter the host.')).toBeInTheDocument()
-    expect(screen.getByText('Enter the username.')).toBeInTheDocument()
-    expect(screen.getByText('Enter the password.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText('Fill in this field.')).toHaveLength(3))
 
     await user.type(screen.getByLabelText('Port'), '70000')
     await user.click(screen.getByRole('button', { name: 'Connect' }))
-    expect(await screen.findByText('Enter a port between 1 and 65535.')).toBeInTheDocument()
+    expect(await screen.findByText('Enter a number between 1 and 65535.')).toBeInTheDocument()
     expect(calls).toBe(0)
   })
 
@@ -139,12 +131,9 @@ describe('quick connect', () => {
     expect(await screen.findByText('It works. Keep this server?')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Connected to 198.51.100.7 · not saved')
     expect(body).toEqual({
-      protocol: 'sftp',
-      host: '198.51.100.7',
-      port: 22,
-      username: 'deploy',
-      authMethod: 'password',
-      password: 'hunter2hunter2',
+      connector: 'sftp',
+      config: { host: '198.51.100.7', username: 'deploy' },
+      secrets: { password: 'hunter2hunter2' },
     })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
@@ -152,7 +141,7 @@ describe('quick connect', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('offers SFTP and FTP only, and connects with FTP using TLS when the server offers it', async () => {
+  it('offers SFTP and FTP only, and connects with FTP with the encryption chosen', async () => {
     const bodies: Array<Record<string, unknown>> = []
     server.use(
       http.post('/api/v1/workspaces/:id/quick-connections', async ({ request }) => {
@@ -162,28 +151,33 @@ describe('quick connect', () => {
     )
     const user = await renderFlow()
     await openDialog(user)
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['SFTP', 'FTP'])
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['FTP / FTPS', 'SFTP'])
+    expect(screen.getByRole('tab', { name: 'SFTP' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByLabelText('Port')).toHaveAttribute('placeholder', '22')
-    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Encryption')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: 'FTP' }))
+    await user.click(screen.getByRole('tab', { name: 'FTP / FTPS' }))
     expect(screen.getByLabelText('Port')).toHaveAttribute('placeholder', '21')
-    expect(screen.getByRole('note')).toHaveTextContent('Uses TLS when the server offers it')
+    expect(screen.getByLabelText('Encryption')).toHaveTextContent('Require explicit FTP over TLS')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    await choose(user, screen.getByLabelText('Encryption'), 'Use explicit FTP over TLS if available')
+    expect(screen.getByRole('note')).toHaveTextContent('someone on the network removes the offer')
     await user.click(screen.getByRole('tab', { name: 'SFTP' }))
     expect(screen.getByLabelText('Port')).toHaveAttribute('placeholder', '22')
-    await user.click(screen.getByRole('tab', { name: 'FTP' }))
+    await user.click(screen.getByRole('tab', { name: 'FTP / FTPS' }))
+    await choose(user, screen.getByLabelText('Encryption'), 'Use explicit FTP over TLS if available')
 
     await fillAndConnect(user)
 
     await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(bodies[0]).toMatchObject({ protocol: 'ftp', ftpEncryption: 'optional', port: 21 })
+    expect(bodies[0]).toMatchObject({ connector: 'ftp', config: { encryption: 'optional' } })
   })
 
   it('sends the port that was typed', async () => {
-    let body: { port?: number } = {}
+    let body: { config?: Record<string, string> } = {}
     server.use(
       http.post('/api/v1/workspaces/:id/quick-connections', async ({ request }) => {
-        body = (await request.json()) as { port?: number }
+        body = (await request.json()) as { config?: Record<string, string> }
         return HttpResponse.json(opened, { status: 201 })
       }),
     )
@@ -193,7 +187,7 @@ describe('quick connect', () => {
     await fillAndConnect(user, '2222')
 
     await screen.findByRole('status')
-    expect(body.port).toBe(2222)
+    expect(body.config?.port).toBe('2222')
   })
 
   it('asks to trust an unknown server key, and connects after trusting it', async () => {

@@ -16,6 +16,7 @@ import { collectionOptions } from '../sites/collection-paths'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 
 import { quickErrorKeyOf, type QuickErrorKey } from './errors'
+import { hostOf } from '../connectors/settings'
 
 /** Validation of the save form; the message is a translation key. */
 const saveSchema = z.object({ name: z.string().trim().min(1, 'nameRequired'), collectionId: z.string() })
@@ -47,7 +48,7 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<SaveValues>({ resolver: zodResolver(saveSchema), defaultValues: { name: connection.host, collectionId: '' } })
+  } = useForm<SaveValues>({ resolver: zodResolver(saveSchema), defaultValues: { name: hostOf(connection), collectionId: '' } })
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -65,7 +66,7 @@ function SaveForm({ connection, workspaceId, collections, onClose, onSaved }: Sa
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>{t(($) => $.save.title)}</DialogTitle>
-        <DialogDescription>{t(($) => $.save.description, { host: connection.host })}</DialogDescription>
+        <DialogDescription>{t(($) => $.save.description, { host: hostOf(connection) })}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="save-name">{t(($) => $.save.name)}</Label>

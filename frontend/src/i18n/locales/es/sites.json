@@ -95,15 +95,9 @@
       "pink": "Rosa"
     },
     "noCollection": "Sin colección",
-    "protocol": "Protocolo",
     "host": "Servidor",
-    "port": "Puerto",
     "username": "Usuario",
     "password": "Contraseña",
-    "key": "Clave privada",
-    "privateKey": "Clave privada",
-    "passphrase": "Frase de la clave",
-    "timezone": "Zona horaria del servidor",
     "create": "Crear sitio",
     "save": "Guardar cambios",
     "cancel": "Cancelar",
@@ -114,35 +108,14 @@
       "trust": "La clave de este servidor es nueva. Comprueba la huella antes de confiar en ella.",
       "keyType": "Tipo de clave",
       "fingerprint": "Huella",
-      "confirm": "Confiar y probar de nuevo",
-      "saveFirst": "Guarda el sitio para probarlo."
+      "confirm": "Confiar y probar de nuevo"
     },
     "deleteTitle": "¿Eliminar este sitio?",
     "deleteBody": "Se eliminarán {{name}} y sus credenciales guardadas.",
     "deleteConfirm": "Eliminar",
-    "charset": "Juego de caracteres de los nombres",
-    "charsetHint": "Cámbialo solo con servidores antiguos que muestran mal las tildes; la mayoría usa UTF-8.",
     "speedLimit": "Límite de velocidad (MiB/s)",
     "speedLimitUnlimited": "Sin límite",
     "speedLimitHint": "Limita las transferencias de este sitio, sumándose a los límites globales y por persona del servidor. Déjalo en blanco para no limitarlo.",
-    "proxyKind": "Proxy",
-    "proxyNone": "Sin proxy",
-    "proxyHttp": "HTTP",
-    "proxyHost": "Host del proxy",
-    "proxyPort": "Puerto del proxy",
-    "proxyUsername": "Usuario del proxy",
-    "proxyPassword": "Contraseña del proxy",
-    "proxyHint": "Envía la conexión a través de un proxy SOCKS5 o HTTP en vez de conectar directamente.",
-    "jumpTitle": "Salto SSH (jump host)",
-    "jumpHost": "Host del salto",
-    "jumpPort": "Puerto del salto",
-    "jumpUsername": "Usuario del salto",
-    "jumpAuthMethod": "Modo de acceso del salto",
-    "jumpPassword": "Contraseña del salto",
-    "jumpPrivateKey": "Clave privada del salto",
-    "jumpPassphrase": "Frase de la clave del salto",
-    "jumpNone": "Sin salto",
-    "jumpHint": "Hace pasar la conexión SSH primero por este servidor, como ssh -J. Deja el host en blanco para conectar directamente.",
     "tabs": {
       "general": "General",
       "advanced": "Avanzado",
@@ -150,37 +123,6 @@
       "hasErrors": "(tiene errores)",
       "transfer": "Transferencia",
       "charset": "Juego de caracteres"
-    },
-    "protocols": {
-      "sftp": "SFTP - SSH File Transfer Protocol",
-      "ftp": "FTP - Protocolo de Transferencia de Archivos"
-    },
-    "accessMode": "Modo de acceso",
-    "accessModes": {
-      "normal": "Normal",
-      "key": "Archivo de clave",
-      "anonymous": "Anónimo",
-      "ask": "Preguntar la contraseña",
-      "account": "Cuenta",
-      "interactive": "Interactivo"
-    },
-    "anonymousHint": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
-    "keepPassword": "Dejar en blanco para mantener la contraseña existente.",
-    "timezoneHint": "La zona horaria en la que el servidor muestra las horas. La mayoría usa UTC.",
-    "proxyTitle": "Proxy",
-    "askHint": "No se guarda ninguna contraseña. Se pide al conectar y vive solo en la memoria del servidor durante tu sesión.",
-    "encryption": "Cifrado",
-    "encryptions": {
-      "optional": "Usar FTP explícito sobre TLS si está disponible",
-      "explicit": "Requiere FTP explícito sobre TLS",
-      "implicit": "Requiere FTP implícito sobre TLS",
-      "plain": "Usar sólo FTP plano (inseguro)"
-    },
-    "encryptionHints": {
-      "optional": "Si el servidor no ofrece TLS, o alguien en la red borra esa oferta, la contraseña y los archivos viajan sin cifrar y sin aviso. Mejor requerir TLS.",
-      "explicit": "Empieza sin cifrar y se actualiza con AUTH TLS antes de iniciar sesión; si el servidor no ofrece TLS, se rechaza. La primera vez se muestra su certificado para que lo confirmes.",
-      "implicit": "Usa TLS desde el primer byte, normalmente en el puerto 990. La primera vez se muestra el certificado del servidor para que lo confirmes.",
-      "plain": "FTP envía la contraseña y los archivos sin cifrar. Usa TLS si el servidor lo ofrece."
     },
     "keyFile": {
       "input": "Archivo de clave",
@@ -224,11 +166,7 @@
     "disconnect": "Desconectar",
     "openInNewTab": "Abrir en una pestaña nueva",
     "remoteDir": "Carpeta remota inicial",
-    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz.",
-    "account": "Cuenta",
-    "accountHint": "Algunos servidores FTP antiguos piden una cuenta después de la contraseña (ACCT). Se guarda en el vault como la contraseña.",
-    "keepAccount": "Déjala vacía para conservar la cuenta guardada.",
-    "interactiveHint": "No se guarda ningún secreto. Lo que el servidor pregunte al conectar, la contraseña o un código de un solo uso, se te pide en ese momento y nunca se guarda."
+    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz."
   },
   "import": {
     "open": "Importar de FileZilla",

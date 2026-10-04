@@ -95,15 +95,9 @@
       "pink": "Pink"
     },
     "noCollection": "No collection",
-    "protocol": "Protocol",
     "host": "Host",
-    "port": "Port",
     "username": "Username",
     "password": "Password",
-    "key": "Private key",
-    "privateKey": "Private key",
-    "passphrase": "Key passphrase",
-    "timezone": "Server time zone",
     "create": "Create site",
     "save": "Save changes",
     "cancel": "Cancel",
@@ -114,35 +108,14 @@
       "trust": "This server key is new. Check the fingerprint before trusting it.",
       "keyType": "Key type",
       "fingerprint": "Fingerprint",
-      "confirm": "Trust and test again",
-      "saveFirst": "Save the site to test it."
+      "confirm": "Trust and test again"
     },
     "deleteTitle": "Delete this site?",
     "deleteBody": "{{name}} and its stored credentials will be removed.",
     "deleteConfirm": "Delete",
-    "charset": "Character set of file names",
-    "charsetHint": "Change it only for old servers that show accents wrong; most servers use UTF-8.",
     "speedLimit": "Speed limit (MiB/s)",
     "speedLimitUnlimited": "No limit",
     "speedLimitHint": "Caps the transfers of this site, on top of the server's own global and per-person limits. Leave blank for none.",
-    "proxyKind": "Proxy",
-    "proxyNone": "No proxy",
-    "proxyHttp": "HTTP",
-    "proxyHost": "Proxy host",
-    "proxyPort": "Proxy port",
-    "proxyUsername": "Proxy username",
-    "proxyPassword": "Proxy password",
-    "proxyHint": "Tunnels the connection through a SOCKS5 or HTTP proxy instead of connecting directly.",
-    "jumpTitle": "SSH jump host",
-    "jumpHost": "Jump host",
-    "jumpPort": "Jump port",
-    "jumpUsername": "Jump username",
-    "jumpAuthMethod": "Jump host logon type",
-    "jumpPassword": "Jump host password",
-    "jumpPrivateKey": "Jump host private key",
-    "jumpPassphrase": "Jump host key passphrase",
-    "jumpNone": "No jump host",
-    "jumpHint": "Tunnels the SSH connection through this server first, as ssh -J does. Leave the host blank to connect directly.",
     "tabs": {
       "general": "General",
       "advanced": "Advanced",
@@ -150,37 +123,6 @@
       "hasErrors": "(has errors)",
       "transfer": "Transfer",
       "charset": "Character set"
-    },
-    "protocols": {
-      "sftp": "SFTP - SSH File Transfer Protocol",
-      "ftp": "FTP - File Transfer Protocol"
-    },
-    "accessMode": "Logon type",
-    "accessModes": {
-      "normal": "Normal",
-      "key": "Key file",
-      "anonymous": "Anonymous",
-      "ask": "Ask for password",
-      "account": "Account",
-      "interactive": "Interactive"
-    },
-    "anonymousHint": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
-    "keepPassword": "Leave blank to keep the existing password.",
-    "timezoneHint": "The time zone the server lists times in. Most servers use UTC.",
-    "proxyTitle": "Proxy",
-    "askHint": "No password is saved. It is asked for when connecting and kept only in the server's memory for your session.",
-    "encryption": "Encryption",
-    "encryptions": {
-      "optional": "Use explicit FTP over TLS if available",
-      "explicit": "Require explicit FTP over TLS",
-      "implicit": "Require implicit FTP over TLS",
-      "plain": "Only use plain FTP (insecure)"
-    },
-    "encryptionHints": {
-      "optional": "If the server does not offer TLS, or someone on the network removes the offer, the password and the files go in clear text without a warning. Prefer requiring TLS.",
-      "explicit": "Starts in clear text and upgrades with AUTH TLS before signing in; a server that does not offer TLS is refused. The first time, its certificate is shown for you to confirm.",
-      "implicit": "Speaks TLS from the first byte, usually on port 990. The first time, the server's certificate is shown for you to confirm.",
-      "plain": "FTP sends the password and the files without encryption. Use TLS if the server offers it."
     },
     "keyFile": {
       "input": "Key file",
@@ -224,11 +166,7 @@
     "disconnect": "Disconnect",
     "openInNewTab": "Open in a new tab",
     "remoteDir": "Default remote folder",
-    "remoteDirHint": "The folder the site opens in each time it connects. Leave it blank to start at the root.",
-    "account": "Account",
-    "accountHint": "Some older FTP servers ask for an account after the password (ACCT). It is kept in the vault like the password.",
-    "keepAccount": "Leave blank to keep the existing account.",
-    "interactiveHint": "No secret is saved. Whatever the server asks when connecting, the password or a one-time code, is asked to you then and never kept."
+    "remoteDirHint": "The folder the site opens in each time it connects. Leave it blank to start at the root."
   },
   "import": {
     "open": "Import from FileZilla",

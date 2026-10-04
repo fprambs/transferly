@@ -14,15 +14,9 @@ import { usePrompts } from './prompts-store'
 
 /** An interactive site that asks for a password and a code. */
 const otp: Site = {
+  connector: 'sftp', config: { host: 'bastion.example.com', port: '22', username: 'deploy', auth: 'interactive', list_timezone: 'UTC', charset: 'utf-8' },
   id: 's1',
   name: 'Bastion',
-  protocol: 'sftp',
-  host: 'bastion.example.com',
-  port: 22,
-  username: 'deploy',
-  authMethod: 'interactive',
-  listTimezone: 'UTC',
-  charset: 'utf-8',
   speedLimitBps: 0,
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',

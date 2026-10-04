@@ -83,8 +83,6 @@ export type RemoteEntry = Schemas['RemoteEntry']
 /** A recorded upload or download. */
 export type Transfer = Schemas['Transfer']
 
-/** A character set of file names. */
-export type Charset = Schemas['Charset']
 /** A label color a site may wear in the interface. */
 export type SiteColor = Schemas['SiteColor']
 

@@ -15,15 +15,9 @@ const workspaceId = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
 
 /** A saved site that asks for its password when connecting. */
 const asking: Site = {
+  connector: 'sftp', config: { host: 'bastion.example.com', port: '22', username: 'deploy', auth: 'ask', list_timezone: 'UTC', charset: 'utf-8' },
   id: 's1',
   name: 'Bastion',
-  protocol: 'sftp',
-  host: 'bastion.example.com',
-  port: 22,
-  username: 'deploy',
-  authMethod: 'ask',
-  listTimezone: 'UTC',
-  charset: 'utf-8',
   speedLimitBps: 0,
   secrets: [],
   createdAt: '2026-01-01T00:00:00Z',
