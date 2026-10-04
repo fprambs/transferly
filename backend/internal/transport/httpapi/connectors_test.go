@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,13 +30,20 @@ func TestListConnectors(t *testing.T) {
 	r := a.do(request{method: http.MethodGet, path: "/api/v1/connectors", cookie: cookie})
 	var list []httpapi.Connector
 	mustDecode(t, r.Body, &list)
-	if r.Status != http.StatusOK || len(list) != 5 || list[0].Type != "ftp" || list[1].Type != "sftp" || list[2].Type != "gcs" || list[3].Type != "gdrive" || list[4].Type != "s3" {
-		t.Fatalf("connectors = %d %+v", r.Status, list)
+	types := make([]string, len(list))
+	for i, c := range list {
+		types[i] = c.Type
 	}
-	if token := list[3].Fields[2]; token.Kind != "oauth" || *token.Provider != "google" || *token.Account != "account_email" {
+	if r.Status != http.StatusOK || strings.Join(types, ",") != "ftp,sftp,azblob,azfiles,gcs,gdrive,s3" {
+		t.Fatalf("connectors = %d %v", r.Status, types)
+	}
+	if token := list[5].Fields[2]; token.Kind != "oauth" || *token.Provider != "google" || *token.Account != "account_email" {
 		t.Errorf("token of Google Drive = %+v; want an oauth field of Google that keeps the account", token)
 	}
-	if s3 := list[4]; s3.Enabled || s3.EnabledByDefault || s3.Maturity != "beta" || s3.Capabilities.Folders || !s3.Capabilities.Rename || s3.Capabilities.Resume {
+	if files := list[3]; !files.Capabilities.Folders || !files.Capabilities.Resume || files.Enabled {
+		t.Errorf("azure files = %+v; want real folders and resumable writes, off until an admin enables it", files)
+	}
+	if s3 := list[6]; s3.Enabled || s3.EnabledByDefault || s3.Maturity != "beta" || s3.Capabilities.Folders || !s3.Capabilities.Rename || s3.Capabilities.Resume {
 		t.Errorf("s3 = %+v; want a beta connector, off until an admin enables it, with prefixes and renames but no resume", s3)
 	}
 	sftp := list[1]

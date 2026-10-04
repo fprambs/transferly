@@ -42,6 +42,10 @@ const (
 	SecretAccessKey SecretKind = "secret_access_key"
 	// SecretRefreshToken is the refresh token of an account signed in with OAuth, such as a Google account (ADR-0024).
 	SecretRefreshToken SecretKind = "refresh_token"
+	// SecretAccountKey is the key of an Azure storage account (ADR-0025).
+	SecretAccountKey SecretKind = "account_key"
+	// SecretSASToken is a shared access signature of Azure Storage (ADR-0025).
+	SecretSASToken SecretKind = "sas_token"
 )
 
 // Errors returned by the package.

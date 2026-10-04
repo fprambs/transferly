@@ -481,6 +481,349 @@
       {
         "group": "connection",
         "kind": "text",
+        "maxLength": 24,
+        "name": "account",
+        "required": true
+      },
+      {
+        "group": "connection",
+        "kind": "text",
+        "maxLength": 63,
+        "name": "container",
+        "required": true
+      },
+      {
+        "choices": [
+          "account_key",
+          "sas",
+          "anonymous"
+        ],
+        "default": "account_key",
+        "group": "access",
+        "kind": "choice",
+        "name": "auth",
+        "required": true
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "account_key",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "account_key"
+          ]
+        }
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "sas_token",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "sas"
+          ]
+        }
+      },
+      {
+        "default": "true",
+        "group": "advanced",
+        "kind": "boolean",
+        "name": "tls",
+        "required": true
+      },
+      {
+        "group": "advanced",
+        "kind": "host",
+        "name": "host",
+        "port": "port",
+        "required": false
+      },
+      {
+        "default": "443",
+        "defaults": [
+          {
+            "value": "80",
+            "when": {
+              "field": "tls",
+              "in": [
+                "false"
+              ]
+            }
+          }
+        ],
+        "group": "advanced",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "port",
+        "required": true
+      },
+      {
+        "choices": [
+          "socks5",
+          "http"
+        ],
+        "group": "proxy",
+        "kind": "choice",
+        "name": "proxy_kind",
+        "required": false
+      },
+      {
+        "group": "proxy",
+        "kind": "host",
+        "name": "proxy_host",
+        "port": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "defaults": [
+          {
+            "value": "1080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "socks5"
+              ]
+            }
+          },
+          {
+            "value": "8080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "http"
+              ]
+            }
+          }
+        ],
+        "group": "proxy",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "proxy_username",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "secret",
+        "name": "proxy_password",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      }
+    ],
+    "icon": "azblob",
+    "maturity": "beta",
+    "name": "Azure Blob Storage",
+    "type": "azblob"
+  },
+  {
+    "capabilities": {
+      "folders": true,
+      "permissions": false,
+      "rename": true,
+      "resume": true,
+      "serverCopy": false,
+      "setTimes": true
+    },
+    "enabled": false,
+    "enabledByDefault": false,
+    "fields": [
+      {
+        "group": "connection",
+        "kind": "text",
+        "maxLength": 24,
+        "name": "account",
+        "required": true
+      },
+      {
+        "group": "connection",
+        "kind": "text",
+        "maxLength": 63,
+        "name": "share",
+        "required": true
+      },
+      {
+        "choices": [
+          "account_key",
+          "sas"
+        ],
+        "default": "account_key",
+        "group": "access",
+        "kind": "choice",
+        "name": "auth",
+        "required": true
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "account_key",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "account_key"
+          ]
+        }
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "sas_token",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "sas"
+          ]
+        }
+      },
+      {
+        "default": "true",
+        "group": "advanced",
+        "kind": "boolean",
+        "name": "tls",
+        "required": true
+      },
+      {
+        "group": "advanced",
+        "kind": "host",
+        "name": "host",
+        "port": "port",
+        "required": false
+      },
+      {
+        "default": "443",
+        "defaults": [
+          {
+            "value": "80",
+            "when": {
+              "field": "tls",
+              "in": [
+                "false"
+              ]
+            }
+          }
+        ],
+        "group": "advanced",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "port",
+        "required": true
+      },
+      {
+        "choices": [
+          "socks5",
+          "http"
+        ],
+        "group": "proxy",
+        "kind": "choice",
+        "name": "proxy_kind",
+        "required": false
+      },
+      {
+        "group": "proxy",
+        "kind": "host",
+        "name": "proxy_host",
+        "port": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "defaults": [
+          {
+            "value": "1080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "socks5"
+              ]
+            }
+          },
+          {
+            "value": "8080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "http"
+              ]
+            }
+          }
+        ],
+        "group": "proxy",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "proxy_username",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "secret",
+        "name": "proxy_password",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      }
+    ],
+    "icon": "azfiles",
+    "maturity": "beta",
+    "name": "Azure Files",
+    "type": "azfiles"
+  },
+  {
+    "capabilities": {
+      "folders": false,
+      "permissions": false,
+      "rename": true,
+      "resume": false,
+      "serverCopy": false,
+      "setTimes": false
+    },
+    "enabled": false,
+    "enabledByDefault": false,
+    "fields": [
+      {
+        "group": "connection",
+        "kind": "text",
         "maxLength": 222,
         "name": "bucket",
         "required": true

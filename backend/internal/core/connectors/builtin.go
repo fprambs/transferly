@@ -23,6 +23,10 @@ const (
 	AuthInteractive = "interactive"
 	// AuthAccessKey signs the requests to an object store with an access key ID and its secret access key (ADR-0023).
 	AuthAccessKey = "access_key"
+	// AuthAccountKey signs the requests to Azure Storage with the key of the storage account (ADR-0025).
+	AuthAccountKey = "account_key"
+	// AuthSAS authorizes the requests to Azure Storage with a shared access signature (ADR-0025).
+	AuthSAS = "sas"
 )
 
 // The FTP encryptions, as FileZilla offers them (ADR-0012).
@@ -229,10 +233,51 @@ var GDrive = Descriptor{
 	}, proxyFields()...),
 }
 
+// azureFields are the settings of a connector of Azure Storage (ADR-0025): the account, its container or share, how requests are
+// authorized, and an endpoint that replaces the one of Azure, for sovereign clouds and emulators.
+func azureFields(resource string, logons ...string) []Field {
+	return append([]Field{
+		{Name: "account", Kind: Text, Group: GroupConnection, Required: true, MaxLength: 24},
+		{Name: resource, Kind: Text, Group: GroupConnection, Required: true, MaxLength: 63},
+		{Name: FieldAuth, Kind: Choice, Group: GroupAccess, Required: true, Default: AuthAccountKey, Choices: logons},
+		{Name: "account_key", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthAccountKey)},
+		{Name: "sas_token", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthSAS)},
+		{Name: "tls", Kind: Boolean, Group: GroupAdvanced, Required: true, Default: "true"},
+		{Name: FieldHost, Kind: Host, Group: GroupAdvanced, Port: FieldPort},
+		{
+			Name: FieldPort, Kind: Number, Group: GroupAdvanced, Required: true, Default: "443", Min: 1, Max: maxPort,
+			Defaults: []Default{{When: Condition{Field: "tls", In: []string{"false"}}, Value: "80"}},
+		},
+	}, proxyFields()...)
+}
+
+// AzureBlob describes the connector of containers of Azure Blob Storage (ADR-0025). It behaves as S3 does: folders are prefixes
+// the adapter emulates, blobs are written whole and have no modes nor times that can be set, and renames copy on the server. It
+// is new, so an admin enables it.
+var AzureBlob = Descriptor{
+	Type:         "azblob",
+	Name:         "Azure Blob Storage",
+	Icon:         "azblob",
+	Maturity:     Beta,
+	Capabilities: Capabilities{Rename: true},
+	Fields:       azureFields("container", AuthAccountKey, AuthSAS, AuthAnonymous),
+}
+
+// AzureFiles describes the connector of shares of Azure Files (ADR-0025): real directories, writes that resume, native renames and
+// times that can be set. It is new, so an admin enables it.
+var AzureFiles = Descriptor{
+	Type:         "azfiles",
+	Name:         "Azure Files",
+	Icon:         "azfiles",
+	Maturity:     Beta,
+	Capabilities: Capabilities{Folders: true, SetTimes: true, Resume: true, Rename: true},
+	Fields:       azureFields("share", AuthAccountKey, AuthSAS),
+}
+
 // Builtin returns a catalog with the connectors Transferly is built with.
 func Builtin() *Catalog {
 	c := NewCatalog()
-	for _, d := range []Descriptor{SFTP, FTP, S3, GCS, GDrive} {
+	for _, d := range []Descriptor{SFTP, FTP, S3, GCS, GDrive, AzureBlob, AzureFiles} {
 		c.descriptors[d.Type] = d
 	}
 	return c

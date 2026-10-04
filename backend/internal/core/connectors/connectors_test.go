@@ -72,7 +72,7 @@ func TestCatalog(t *testing.T) {
 	for _, d := range catalog.All() {
 		names = append(names, d.Name)
 	}
-	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Google Cloud Storage", "Google Drive", "S3", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
+	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Azure Blob Storage", "Azure Files", "Google Cloud Storage", "Google Drive", "S3", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("all = %v; want %v", names, want)
 	}
 }
@@ -85,7 +85,7 @@ func TestCatalog(t *testing.T) {
 //     field, a private key without a secret passphrase field, and an OAuth field without a provider or with an account field that is not
 //     text are refused; an OAuth field may go without an account field
 func TestDescriptor_Check(t *testing.T) {
-	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, connectors.S3, connectors.GCS, connectors.GDrive, sample} {
+	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, connectors.S3, connectors.GCS, connectors.GDrive, connectors.AzureBlob, connectors.AzureFiles, sample} {
 		if err := d.Check(); err != nil {
 			t.Errorf("%s: %v", d.Type, err)
 		}

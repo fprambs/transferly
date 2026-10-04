@@ -88,3 +88,17 @@ func TestCharsetOf(t *testing.T) {
 		t.Error("an empty or unknown name must need no conversion")
 	}
 }
+
+// TestAzureHost verifies where a service of Azure Storage is reached.
+//
+// Use cases:
+//   - without a host, the endpoint of Azure for the service and the account, on port 443
+//   - with a host, that host and its port
+func TestAzureHost(t *testing.T) {
+	if host, port := azureHost("blob", "acct", "", 80); host != "acct.blob.core.windows.net" || port != 443 {
+		t.Errorf("azureHost(default) = %s:%d", host, port)
+	}
+	if host, port := azureHost("file", "acct", "azurite", 10000); host != "azurite" || port != 10000 {
+		t.Errorf("azureHost(emulator) = %s:%d", host, port)
+	}
+}
