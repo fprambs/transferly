@@ -14,6 +14,10 @@ const shapes: Readonly<Record<string, { base: string; accent: string }>> = {
     base: 'M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9H14',
     accent: 'M10 21v-7M7.5 16.5 10 14l2.5 2.5',
   },
+  gcs: {
+    base: 'M7 16a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 7a4.5 4.5 0 0 1-.5 9',
+    accent: 'M8 13h8M8 16.5h8M8 20h8',
+  },
 }
 
 /** The icon of a connector whose descriptor names an icon the interface does not know: a server, with the accent of a plug. */

@@ -3,12 +3,14 @@
   "connectors": {
     "sftp": "SFTP - SSH File Transfer Protocol",
     "ftp": "FTP - File Transfer Protocol",
-    "s3": "S3 - Amazon S3 and compatible services"
+    "s3": "S3 - Amazon S3 and compatible services",
+    "gcs": "Google Cloud Storage"
   },
   "descriptions": {
     "sftp": "Files over SSH, with keys, jump hosts and proxies.",
     "ftp": "FTP servers, with explicit or implicit TLS.",
-    "s3": "Buckets of Amazon S3, MinIO, Cloudflare R2, Wasabi and more."
+    "s3": "Buckets of Amazon S3, MinIO, Cloudflare R2, Wasabi and more.",
+    "gcs": "Buckets of Google Cloud, with an HMAC key."
   },
   "catalog": {
     "title": "What do you want to connect to?",
@@ -195,6 +197,32 @@
       "auth": {
         "notes": {
           "access_key": "Signs every request with the access key. The secret access key is sealed in the vault.",
+          "anonymous": "Reads a public bucket without signing the requests; nothing is saved."
+        }
+      }
+    },
+    "gcs": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "storage.googleapis.com. Change it only for a private gateway."
+      },
+      "bucket": {
+        "hint": "The Cloud Storage bucket the site opens; its folders are the prefixes of its object names."
+      },
+      "access_key_id": {
+        "label": "HMAC access ID",
+        "hint": "Create an HMAC key in Cloud Storage → Settings → Interoperability."
+      },
+      "secret_access_key": {
+        "label": "HMAC secret",
+        "keep": "Leave blank to keep the stored HMAC secret."
+      },
+      "auth": {
+        "choices": {
+          "access_key": "HMAC key"
+        },
+        "notes": {
+          "access_key": "Signs every request with the HMAC key. The secret is sealed in the vault.",
           "anonymous": "Reads a public bucket without signing the requests; nothing is saved."
         }
       }
