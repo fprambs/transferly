@@ -26,7 +26,7 @@ import { collectionOptions } from './collection-paths'
 import { ColorPicker } from './ColorPicker'
 import { ConnectionTest } from './ConnectionTest'
 import { configFailureOf, fieldOf, siteErrorKeyOf, type SiteErrorKey } from './errors'
-import { connectorChoices, siteDefaults, siteResolver, tabOfField, tabsOf, tabsWithErrors, toSiteInput, type SiteTab, type SiteValues } from './site-form'
+import { connectorChoices, siteDefaults, siteResolver, tabLabelOf, tabOfField, tabsOf, tabsWithErrors, toSiteInput, type SiteTab, type SiteValues } from './site-form'
 import { sitesKeys } from './use-sites-data'
 
 /** What the site dialog does. */
@@ -167,7 +167,7 @@ function SiteForm({ target, workspaceId, collections, connectors, onClose }: Sit
         <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b pb-1">
           {shownTabs.map((candidate) => (
             <TabsTrigger key={candidate} value={candidate} className="flex-none px-3">
-              {t(($) => $.site.tabs[candidate])}
+              {t(($) => $.site.tabs[tabLabelOf(candidate, connector)])}
               {errorTabs.has(candidate) && (
                 <>
                   <span aria-hidden="true" className="size-1.5 rounded-full bg-destructive" />

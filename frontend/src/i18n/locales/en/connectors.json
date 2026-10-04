@@ -2,7 +2,8 @@
   "connector": "Protocol",
   "connectors": {
     "sftp": "SFTP - SSH File Transfer Protocol",
-    "ftp": "FTP - File Transfer Protocol"
+    "ftp": "FTP - File Transfer Protocol",
+    "s3": "S3 - Amazon S3 and compatible services"
   },
   "keep": "Leave blank to keep the stored one.",
   "groups": {
@@ -53,7 +54,8 @@
         "interactive": "Interactive",
         "key": "Key file",
         "anonymous": "Anonymous",
-        "account": "Account"
+        "account": "Account",
+        "access_key": "Access key"
       },
       "notes": {
         "anonymous": "Signs in as anonymous with no secret saved, as public servers expect. An SFTP server is first asked to let it in without authentication.",
@@ -149,6 +151,42 @@
     },
     "jump_passphrase": {
       "label": "Jump host key passphrase"
+    },
+    "tls": {
+      "label": "Use HTTPS",
+      "hint": "Encrypts the keys and the files on their way to the service.",
+      "warnings": {
+        "false": "Without HTTPS the access key signature and the files travel in clear text. Turn it off only for a service on your own network."
+      }
+    },
+    "region": {
+      "label": "Region",
+      "hint": "Leave it blank and AWS finds the region of the bucket; other services may need one, such as auto for Cloudflare R2."
+    },
+    "bucket": {
+      "label": "Bucket",
+      "hint": "The bucket the site opens; its folders are the prefixes of its keys."
+    },
+    "access_key_id": {
+      "label": "Access key ID"
+    },
+    "secret_access_key": {
+      "label": "Secret access key",
+      "keep": "Leave blank to keep the stored secret access key."
+    }
+  },
+  "overrides": {
+    "s3": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "s3.amazonaws.com for AWS, or the host of the service: MinIO, Cloudflare R2, Wasabi, Backblaze B2 and the like."
+      },
+      "auth": {
+        "notes": {
+          "access_key": "Signs every request with the access key. The secret access key is sealed in the vault.",
+          "anonymous": "Reads a public bucket without signing the requests; nothing is saved."
+        }
+      }
     }
   }
 }

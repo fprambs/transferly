@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
 import { Tip } from '@/components/ui/tip'
 import type { Checksum, ChecksumAlgorithm, RemoteEntry } from '@/lib/api'
-import { formatInstant } from '@/lib/datetime'
+import { formatInstant, isUnknownInstant } from '@/lib/datetime'
 
 import { formatSize } from './entries'
 import { fileTypeOf } from './file-types'
@@ -113,7 +113,7 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
         <dt className="text-muted-foreground">{t(($) => $.inspector.path)}</dt>
         <dd className="font-mono break-all">{entry.path}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.modified)}</dt>
-        <dd>{formatInstant(entry.modifiedAt, { locale, timeZone, dateStyle: 'medium', timeStyle: 'medium' })}</dd>
+        <dd>{isUnknownInstant(entry.modifiedAt) ? '—' : formatInstant(entry.modifiedAt, { locale, timeZone, dateStyle: 'medium', timeStyle: 'medium' })}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.mode)}</dt>
         <dd className="font-mono">{showPermissions ? entry.mode : '—'}</dd>
       </dl>

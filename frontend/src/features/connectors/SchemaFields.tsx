@@ -105,7 +105,7 @@ function SchemaField<T extends SchemaValues>({ connector, field, settled, texts,
               className="min-w-0 flex-1 font-mono"
               autoComplete="off"
               spellCheck={false}
-              placeholder={texts.field(field.name).empty}
+              placeholder={defaultOf(field, settled) || texts.field(field.name).empty}
               aria-invalid={error !== undefined}
               {...register(config(field.name))}
             />
@@ -138,7 +138,7 @@ function SchemaField<T extends SchemaValues>({ connector, field, settled, texts,
     }
     case 'boolean':
       return (
-        <Row id={id} label={label} errors={[error]} hint={texts.field(field.name).hint}>
+        <Row id={id} label={label} errors={[error]} hint={hintOf(texts, field, value)}>
           <Controller
             control={control}
             name={config(field.name)}
@@ -202,7 +202,7 @@ function SchemaField<T extends SchemaValues>({ connector, field, settled, texts,
  * private key with its passphrase, a fixed value read only, and the defaults as placeholders.
  */
 export function SchemaFields<T extends SchemaValues>({ groups, ...props }: SchemaFieldsProps<T>) {
-  const texts = useConnectorTexts()
+  const texts = useConnectorTexts(props.connector.type)
   const values = useWatch({ control: props.control, name: 'config' as Path<T> }) as ConfigValues
   const settled = settle(props.connector, values)
   const inside = drawnInside(props.connector)

@@ -64,6 +64,15 @@ export function resolveTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
+/** The time the server sends for an entry it knows no time of, the zero time of Go, such as a folder of an object store that is only a
+ * prefix of keys. */
+const unknownInstant = '0001-01-01T00:00:00Z'
+
+/** Whether a timestamp of the server means it knows no time, which is shown as a dash. */
+export function isUnknownInstant(value: string): boolean {
+  return value === unknownInstant
+}
+
 /**
  * Formats an instant for display in a given locale and time zone.
  *

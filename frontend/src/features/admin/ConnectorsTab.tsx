@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Plug, Server, type LucideIcon } from 'lucide-react'
+import { Cloud, Plug, Server, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -17,7 +17,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { adminErrorKeyOf, type AdminErrorKey } from './errors'
 
 /** Icons of the connectors by the name their descriptor gives; an unknown name gets a plug. */
-const icons: Readonly<Record<string, LucideIcon>> = { server: Server }
+const icons: Readonly<Record<string, LucideIcon>> = { server: Server, cloud: Cloud }
 
 /** The capabilities a card lists, in this order, when the connector has them. */
 const capabilityKeys = ['folders', 'permissions', 'setTimes', 'resume', 'rename', 'serverCopy'] as const

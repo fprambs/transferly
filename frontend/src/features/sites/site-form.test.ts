@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Site } from '@/lib/api'
 import { builtinConnectors, connector } from '@/test/handlers'
 
-import { connectorChoices, inputOf, siteDefaults, siteResolver, siteSchema, tabOfField, tabsOf, tabsWithErrors, toSiteInput, type SiteValues } from './site-form'
+import { connectorChoices, inputOf, siteDefaults, siteResolver, siteSchema, tabLabelOf, tabOfField, tabsOf, tabsWithErrors, toSiteInput, type SiteValues } from './site-form'
 
 /** The SFTP and FTP connectors with their real schemas. */
 const [ftp, sftp] = builtinConnectors
@@ -38,7 +38,8 @@ function values(config: Record<string, string>, secrets: Record<string, string> 
  * - the request sends the settings that apply and were given, and only the secrets typed for fields that apply
  * - the form checks the settings every site has and those of the connector together; an unknown connector is left to the server
  * - an unchanged site is sent back as it is stored, without secrets
- * - the tabs follow the groups of the connector, and the tabs of the fields that are wrong are found
+ * - the tabs follow the groups of the connector, and the tabs of the fields that are wrong are found; the network tab of a connector
+ *   without a jump host is named after the proxy only
  */
 describe('site form', () => {
   it('offers the connectors the instance offers and keeps the one of an edited site', () => {
@@ -108,5 +109,12 @@ describe('site form', () => {
     const wrong = tabsWithErrors({ name: { type: 'x' }, speedLimit: { type: 'x' }, unknown: { type: 'x' }, config: { proxy_host: { type: 'x' } }, secrets: { password: { type: 'x' } } } as never, sftp)
     expect([...wrong].sort()).toEqual(['general', 'network', 'transfer'])
     expect([...tabsWithErrors({ config: undefined } as never, sftp)]).toEqual([])
+  })
+
+  it('names the network tab after what the connector routes through', () => {
+    expect(tabLabelOf('network', sftp)).toBe('network')
+    expect(tabLabelOf('network', ftp)).toBe('proxy')
+    expect(tabLabelOf('network', undefined)).toBe('network')
+    expect(tabLabelOf('general', ftp)).toBe('general')
   })
 })

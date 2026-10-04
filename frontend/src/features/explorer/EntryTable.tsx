@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { ContextMenu, ContextMenuContent, ContextMenuGroup, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { RemoteEntry } from '@/lib/api'
-import { formatInstant } from '@/lib/datetime'
+import { formatInstant, isUnknownInstant } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
 import { formatSize, resolveSelection } from './entries'
@@ -103,8 +103,11 @@ function HighlightedName({ name, query }: { name: string; query: string }) {
   return <span className="truncate">{parts}</span>
 }
 
-/** Formats the modification time of an entry, leaving out the time when the server only gave the day. */
+/** Formats the modification time of an entry, leaving out the time when the server only gave the day, and a dash when it gave none. */
 function modified(entry: RemoteEntry, locale: string, timeZone: string): string {
+  if (isUnknownInstant(entry.modifiedAt)) {
+    return '—'
+  }
   return formatInstant(entry.modifiedAt, {
     locale,
     timeZone,

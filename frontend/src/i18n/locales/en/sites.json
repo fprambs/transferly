@@ -120,6 +120,7 @@
       "general": "General",
       "advanced": "Advanced",
       "network": "Proxy and jump host",
+      "proxy": "Proxy",
       "hasErrors": "(has errors)",
       "transfer": "Transfer",
       "charset": "Character set"

@@ -43,16 +43,33 @@ export interface ConnectorTexts {
   group: (group: string) => string | undefined
 }
 
+/** Merges the texts a connector gives a field over the texts every connector shares: its own label, hint and placeholders
+ * win, and its choices, notes and warnings are added to the shared ones. */
+function merge(shared: FieldTexts | undefined, own: FieldTexts | undefined): FieldTexts {
+  return {
+    ...shared,
+    ...own,
+    choices: { ...shared?.choices, ...own?.choices },
+    notes: { ...shared?.notes, ...own?.notes },
+    warnings: { ...shared?.warnings, ...own?.warnings },
+  }
+}
+
 /** The reasons the interface words; any other reads as the generic one. */
 const reasons: readonly FieldReason[] = ['required', 'number', 'range', 'boolean', 'choice', 'length', 'host', 'timezone']
 
-/** Returns the texts of the fields of connectors in the language of the interface. */
-export function useConnectorTexts(): ConnectorTexts {
+/**
+ * Returns the texts of the fields of connectors in the language of the interface; given the type of a connector, the texts it gives
+ * its own fields, such as the endpoint of an object store, override the shared ones.
+ */
+export function useConnectorTexts(type?: string): ConnectorTexts {
   const { t } = useTranslation('connectors')
   const fields = t(($) => $.fields, { returnObjects: true }) as unknown as Record<string, FieldTexts | undefined>
+  const overrides = t(($) => $.overrides, { returnObjects: true }) as unknown as Record<string, Record<string, FieldTexts | undefined> | undefined>
   const names = t(($) => $.connectors, { returnObjects: true }) as unknown as Record<string, string | undefined>
   const groups = t(($) => $.groups, { returnObjects: true }) as unknown as Record<string, string | undefined>
-  const field = (name: string): FieldTexts => fields[name] ?? {}
+  const own = overrides[type ?? ''] ?? {}
+  const field = (name: string): FieldTexts => merge(fields[name], own[name])
   return {
     connectorLabel: t(($) => $.connector),
     connector: (connector) => names[connector.type] ?? connector.name,

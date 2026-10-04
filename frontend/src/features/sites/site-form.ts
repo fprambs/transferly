@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import type { Connector, Site, SiteInput } from '@/lib/api'
 
-import { toConfig, toSecrets, validate, type FieldGroup } from '../connectors/schema'
+import { hasGroup, toConfig, toSecrets, validate, type FieldGroup } from '../connectors/schema'
 
 /** Bytes in a mebibyte, the unit the site's speed limit is shown in. */
 const mebibyte = 1024 * 1024
@@ -112,6 +112,11 @@ export const groupTabs: Record<FieldGroup, SiteTab> = {
 export function tabsOf(connector: Connector | undefined): readonly SiteTab[] {
   const used = new Set((connector?.fields ?? []).map((field) => groupTabs[field.group]))
   return siteTabs.filter((tab) => tab === 'general' || tab === 'advanced' || tab === 'transfer' || used.has(tab))
+}
+
+/** The label of a tab, by its key among the tab labels: the network tab of a connector without a jump host is only about the proxy. */
+export function tabLabelOf(tab: SiteTab, connector: Connector | undefined): SiteTab | 'proxy' {
+  return tab === 'network' && connector !== undefined && !hasGroup(connector, 'jump') ? 'proxy' : tab
 }
 
 /** The tab each setting every site has is on. */

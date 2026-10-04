@@ -14,10 +14,11 @@ import { SchemaFields, type SchemaValues } from './SchemaFields'
 const sample = {
   ...connector('sample', 'Sample'),
   fields: [
-    { name: 'endpoint', kind: 'host', group: 'connection', required: true },
+    { name: 'endpoint', kind: 'host', group: 'connection', required: true, default: 'storage.example.com' },
     { name: 'mode', kind: 'choice', group: 'connection', required: false, choices: ['fast', 'safe'] },
     { name: 'flavor', kind: 'choice', group: 'connection', required: true },
     { name: 'secure', kind: 'boolean', group: 'connection', required: false, default: 'false' },
+    { name: 'tls', kind: 'boolean', group: 'connection', required: true, default: 'true' },
     { name: 'zone', kind: 'timezone', group: 'advanced', required: false, default: 'UTC' },
     { name: 'retries', kind: 'number', group: 'advanced', required: false, default: '3' },
     { name: 'token', kind: 'secret', group: 'advanced', required: false },
@@ -49,8 +50,8 @@ function Harness({ errors = {} }: { errors?: Record<string, { type: string; mess
  * Covers {@link SchemaFields}: the fields of any connector drawn from its schema (ADR-0022).
  *
  * Scenarios:
- * - a field without translations is labelled by its name, a host without a port stands alone, and the groups without fields are left out
- * - an optional choice offers an empty choice and leaves out the excluded ones, a required one without choices offers none; a boolean is a checkbox sending true or false
+ * - a field without translations is labelled by its name, a host shows its default and without a port stands alone, and the groups without fields are left out
+ * - an optional choice offers an empty choice and leaves out the excluded ones, a required one without choices offers none; a boolean is a checkbox sending true or false, warning about a risky value
  * - a time zone suggests the zones the browser knows, a number shows its default, a stored secret says it is kept
  * - a validation error is worded by its reason under its field
  */
@@ -59,7 +60,7 @@ describe('SchemaFields', () => {
     const user = userEvent.setup()
     await renderWithProviders(<Harness />)
 
-    expect(screen.getByLabelText('endpoint')).toBeInTheDocument()
+    expect(screen.getByLabelText('endpoint')).toHaveAttribute('placeholder', 'storage.example.com')
     expect(screen.queryByText('Port')).not.toBeInTheDocument()
     expect(screen.queryAllByRole('heading')).toHaveLength(0)
     expect(await optionsOf(user, screen.getByLabelText('flavor'))).toEqual([])
@@ -74,6 +75,11 @@ describe('SchemaFields', () => {
     await user.click(screen.getByRole('checkbox', { name: 'secure' }))
     expect(screen.getByLabelText('values')).toHaveTextContent('"secure":"false"')
     expect(screen.getByLabelText('values')).toHaveTextContent('"mode":"fast"')
+
+    expect(screen.getByRole('checkbox', { name: 'Use HTTPS' })).toBeChecked()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Use HTTPS' }))
+    expect(screen.getByRole('note')).toHaveTextContent('travel in clear text')
 
     expect(screen.getByLabelText('zone')).toHaveAttribute('list', 'sample-zone-zones')
     expect(screen.getByLabelText('zone')).toHaveAttribute('placeholder', 'UTC')

@@ -2,7 +2,8 @@
   "connector": "Protocolo",
   "connectors": {
     "sftp": "SFTP - SSH File Transfer Protocol",
-    "ftp": "FTP - Protocolo de Transferencia de Archivos"
+    "ftp": "FTP - Protocolo de Transferencia de Archivos",
+    "s3": "S3 - Amazon S3 y servicios compatibles"
   },
   "keep": "Déjalo en blanco para conservar el guardado.",
   "groups": {
@@ -53,7 +54,8 @@
         "interactive": "Interactivo",
         "key": "Archivo de clave",
         "anonymous": "Anónimo",
-        "account": "Cuenta"
+        "account": "Cuenta",
+        "access_key": "Clave de acceso"
       },
       "notes": {
         "anonymous": "Entra como anonymous sin guardar ningún secreto, como esperan los servidores públicos. A un servidor SFTP primero se le pide entrar sin autenticación.",
@@ -149,6 +151,42 @@
     },
     "jump_passphrase": {
       "label": "Frase de la clave del salto"
+    },
+    "tls": {
+      "label": "Usar HTTPS",
+      "hint": "Cifra las claves y los archivos en su camino al servicio.",
+      "warnings": {
+        "false": "Sin HTTPS, la firma de la clave de acceso y los archivos viajan en texto plano. Desactívalo solo para un servicio de tu propia red."
+      }
+    },
+    "region": {
+      "label": "Región",
+      "hint": "Déjala en blanco y AWS encuentra la región del bucket; otros servicios pueden pedir una, como auto en Cloudflare R2."
+    },
+    "bucket": {
+      "label": "Bucket",
+      "hint": "El bucket que abre el sitio; sus carpetas son los prefijos de sus claves."
+    },
+    "access_key_id": {
+      "label": "ID de clave de acceso"
+    },
+    "secret_access_key": {
+      "label": "Clave de acceso secreta",
+      "keep": "Déjala en blanco para conservar la clave de acceso secreta guardada."
+    }
+  },
+  "overrides": {
+    "s3": {
+      "host": {
+        "label": "Endpoint",
+        "hint": "s3.amazonaws.com para AWS, o el servidor del servicio: MinIO, Cloudflare R2, Wasabi, Backblaze B2 y similares."
+      },
+      "auth": {
+        "notes": {
+          "access_key": "Firma cada petición con la clave de acceso. La clave secreta se sella en el vault.",
+          "anonymous": "Lee un bucket público sin firmar las peticiones; no se guarda nada."
+        }
+      }
     }
   }
 }
