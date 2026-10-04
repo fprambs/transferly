@@ -268,7 +268,8 @@ test.describe('explorer', () => {
 
     await (await download).path()
     await dock.getByRole('tab', { name: /Finished/ }).click()
-    await expect(dock.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByRole('img', { name: 'Download' }) })).toContainText('Done', { timeout: 30_000 })
+    const finished = dock.getByRole('tabpanel', { name: /Finished/ })
+    await expect(finished.getByRole('listitem').filter({ hasText: name }).filter({ has: page.getByRole('img', { name: 'Download' }) })).toContainText('Done', { timeout: 30_000 })
     await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${slow.id}`, { headers })
   })
 
