@@ -1,0 +1,469 @@
+[
+  {
+    "capabilities": {
+      "folders": true,
+      "permissions": false,
+      "rename": true,
+      "resume": true,
+      "serverCopy": false,
+      "setTimes": true
+    },
+    "enabled": true,
+    "enabledByDefault": true,
+    "fields": [
+      {
+        "group": "connection",
+        "kind": "host",
+        "name": "host",
+        "port": "port",
+        "required": true
+      },
+      {
+        "choices": [
+          "optional",
+          "explicit",
+          "implicit",
+          "plain"
+        ],
+        "default": "explicit",
+        "group": "connection",
+        "kind": "choice",
+        "name": "encryption",
+        "required": true
+      },
+      {
+        "default": "21",
+        "defaults": [
+          {
+            "value": "990",
+            "when": {
+              "field": "encryption",
+              "in": [
+                "implicit"
+              ]
+            }
+          }
+        ],
+        "group": "connection",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "port",
+        "required": true
+      },
+      {
+        "choices": [
+          "password",
+          "ask",
+          "interactive",
+          "account",
+          "anonymous"
+        ],
+        "default": "password",
+        "group": "access",
+        "kind": "choice",
+        "name": "auth",
+        "required": true
+      },
+      {
+        "fixed": [
+          {
+            "value": "anonymous",
+            "when": {
+              "field": "auth",
+              "in": [
+                "anonymous"
+              ]
+            }
+          }
+        ],
+        "group": "access",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "username",
+        "required": true
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "password",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "password",
+            "account"
+          ]
+        }
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "account",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "account"
+          ]
+        }
+      },
+      {
+        "default": "UTC",
+        "group": "advanced",
+        "kind": "timezone",
+        "name": "list_timezone",
+        "required": true
+      },
+      {
+        "choices": [
+          "utf-8",
+          "iso-8859-1",
+          "iso-8859-2",
+          "iso-8859-15",
+          "windows-1250",
+          "windows-1251",
+          "windows-1252",
+          "koi8-r",
+          "shift_jis",
+          "euc-jp",
+          "gbk",
+          "big5",
+          "euc-kr"
+        ],
+        "default": "utf-8",
+        "group": "charset",
+        "kind": "choice",
+        "name": "charset",
+        "required": true
+      },
+      {
+        "choices": [
+          "socks5",
+          "http"
+        ],
+        "group": "proxy",
+        "kind": "choice",
+        "name": "proxy_kind",
+        "required": false
+      },
+      {
+        "group": "proxy",
+        "kind": "host",
+        "name": "proxy_host",
+        "port": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "defaults": [
+          {
+            "value": "1080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "socks5"
+              ]
+            }
+          },
+          {
+            "value": "8080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "http"
+              ]
+            }
+          }
+        ],
+        "group": "proxy",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "proxy_username",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "secret",
+        "name": "proxy_password",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      }
+    ],
+    "icon": "server",
+    "maturity": "stable",
+    "name": "FTP / FTPS",
+    "type": "ftp"
+  },
+  {
+    "capabilities": {
+      "folders": true,
+      "permissions": true,
+      "rename": true,
+      "resume": true,
+      "serverCopy": false,
+      "setTimes": true
+    },
+    "enabled": true,
+    "enabledByDefault": true,
+    "fields": [
+      {
+        "group": "connection",
+        "kind": "host",
+        "name": "host",
+        "port": "port",
+        "required": true
+      },
+      {
+        "default": "22",
+        "group": "connection",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "port",
+        "required": true
+      },
+      {
+        "choices": [
+          "password",
+          "ask",
+          "interactive",
+          "key",
+          "anonymous"
+        ],
+        "default": "password",
+        "group": "access",
+        "kind": "choice",
+        "name": "auth",
+        "required": true
+      },
+      {
+        "fixed": [
+          {
+            "value": "anonymous",
+            "when": {
+              "field": "auth",
+              "in": [
+                "anonymous"
+              ]
+            }
+          }
+        ],
+        "group": "access",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "username",
+        "required": true
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "password",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "password"
+          ]
+        }
+      },
+      {
+        "group": "access",
+        "kind": "private_key",
+        "name": "private_key",
+        "passphrase": "passphrase",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "key"
+          ]
+        }
+      },
+      {
+        "group": "access",
+        "kind": "secret",
+        "name": "passphrase",
+        "required": false,
+        "when": {
+          "field": "auth",
+          "in": [
+            "key"
+          ]
+        }
+      },
+      {
+        "choices": [
+          "socks5",
+          "http"
+        ],
+        "group": "proxy",
+        "kind": "choice",
+        "name": "proxy_kind",
+        "required": false
+      },
+      {
+        "group": "proxy",
+        "kind": "host",
+        "name": "proxy_host",
+        "port": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "defaults": [
+          {
+            "value": "1080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "socks5"
+              ]
+            }
+          },
+          {
+            "value": "8080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "http"
+              ]
+            }
+          }
+        ],
+        "group": "proxy",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "proxy_username",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "secret",
+        "name": "proxy_password",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "jump",
+        "kind": "host",
+        "name": "jump_host",
+        "port": "jump_port",
+        "required": false
+      },
+      {
+        "default": "22",
+        "group": "jump",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "jump_port",
+        "required": true,
+        "when": {
+          "field": "jump_host"
+        }
+      },
+      {
+        "group": "jump",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "jump_username",
+        "required": true,
+        "when": {
+          "field": "jump_host"
+        }
+      },
+      {
+        "choices": [
+          "password",
+          "key"
+        ],
+        "default": "password",
+        "group": "jump",
+        "kind": "choice",
+        "name": "jump_auth",
+        "required": true,
+        "when": {
+          "field": "jump_host"
+        }
+      },
+      {
+        "group": "jump",
+        "kind": "secret",
+        "name": "jump_password",
+        "required": false,
+        "when": {
+          "field": "jump_auth",
+          "in": [
+            "password"
+          ]
+        }
+      },
+      {
+        "group": "jump",
+        "kind": "private_key",
+        "name": "jump_private_key",
+        "passphrase": "jump_passphrase",
+        "required": false,
+        "when": {
+          "field": "jump_auth",
+          "in": [
+            "key"
+          ]
+        }
+      },
+      {
+        "group": "jump",
+        "kind": "secret",
+        "name": "jump_passphrase",
+        "required": false,
+        "when": {
+          "field": "jump_auth",
+          "in": [
+            "key"
+          ]
+        }
+      }
+    ],
+    "icon": "server",
+    "maturity": "stable",
+    "name": "SFTP",
+    "type": "sftp"
+  }
+]

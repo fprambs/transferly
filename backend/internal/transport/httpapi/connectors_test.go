@@ -1,8 +1,11 @@
 package httpapi_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -137,4 +140,33 @@ func TestConnectorFailures(t *testing.T) {
 	})
 	expectProblem(t, e.root.call(http.MethodGet, "/api/v1/connectors", nil), http.StatusInternalServerError, "internal_error")
 	expectProblem(t, e.root.call(http.MethodPut, "/api/v1/admin/connectors/ftp", map[string]bool{"enabled": false}), http.StatusInternalServerError, "internal_error")
+}
+
+// connectorsFixture is where the interface's tests keep the catalog the server answers, so they draw real schemas.
+const connectorsFixture = "../../../../frontend/src/test/connectors.json"
+
+// TestConnectors_FrontendFixture verifies that the catalog the interface's tests use is the one the server answers (ADR-0022).
+//
+// Use cases:
+//   - the fixture equals the answer of GET /api/v1/connectors; with TRANSFERLY_UPDATE_FIXTURES set it is written again instead
+func TestConnectors_FrontendFixture(t *testing.T) {
+	a := newAPI(t)
+	cookie, _ := a.setup()
+	r := a.do(request{method: http.MethodGet, path: "/api/v1/connectors", cookie: cookie})
+	var catalog any
+	mustDecode(t, r.Body, &catalog)
+	want, err := json.MarshalIndent(catalog, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = append(want, '\n')
+	if os.Getenv("TRANSFERLY_UPDATE_FIXTURES") != "" {
+		if err := os.WriteFile(connectorsFixture, want, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := os.ReadFile(connectorsFixture)
+	if err != nil || !bytes.Equal(got, want) {
+		t.Errorf("%s is out of date (%v); run the test with TRANSFERLY_UPDATE_FIXTURES=1", connectorsFixture, err)
+	}
 }
