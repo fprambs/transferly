@@ -616,6 +616,116 @@
   },
   {
     "capabilities": {
+      "folders": true,
+      "permissions": false,
+      "rename": true,
+      "resume": false,
+      "serverCopy": false,
+      "setTimes": true
+    },
+    "enabled": false,
+    "enabledByDefault": false,
+    "fields": [
+      {
+        "group": "connection",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "shared_drive",
+        "required": false
+      },
+      {
+        "group": "access",
+        "kind": "text",
+        "maxLength": 320,
+        "name": "account_email",
+        "required": false
+      },
+      {
+        "account": "account_email",
+        "group": "access",
+        "kind": "oauth",
+        "name": "refresh_token",
+        "provider": "google",
+        "required": false
+      },
+      {
+        "choices": [
+          "socks5",
+          "http"
+        ],
+        "group": "proxy",
+        "kind": "choice",
+        "name": "proxy_kind",
+        "required": false
+      },
+      {
+        "group": "proxy",
+        "kind": "host",
+        "name": "proxy_host",
+        "port": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "defaults": [
+          {
+            "value": "1080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "socks5"
+              ]
+            }
+          },
+          {
+            "value": "8080",
+            "when": {
+              "field": "proxy_kind",
+              "in": [
+                "http"
+              ]
+            }
+          }
+        ],
+        "group": "proxy",
+        "kind": "number",
+        "max": 65535,
+        "min": 1,
+        "name": "proxy_port",
+        "required": true,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "text",
+        "maxLength": 255,
+        "name": "proxy_username",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      },
+      {
+        "group": "proxy",
+        "kind": "secret",
+        "name": "proxy_password",
+        "required": false,
+        "when": {
+          "field": "proxy_kind"
+        }
+      }
+    ],
+    "icon": "gdrive",
+    "maturity": "beta",
+    "name": "Google Drive",
+    "type": "gdrive"
+  },
+  {
+    "capabilities": {
       "folders": false,
       "permissions": false,
       "rename": true,

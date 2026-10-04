@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/fprambs/transferly/internal/adapters/events"
+	"github.com/fprambs/transferly/internal/adapters/googleauth"
 	"github.com/fprambs/transferly/internal/core/activity"
 	"github.com/fprambs/transferly/internal/core/admin"
 	"github.com/fprambs/transferly/internal/core/audit"
@@ -106,6 +107,8 @@ type Deps struct {
 	Activity *activity.Service
 	// Connectors tells which connectors of the catalog Transferly is built with the instance offers (ADR-0019).
 	Connectors *connectors.Service
+	// Google signs Google accounts in for the Google Drive connector (ADR-0024).
+	Google *googleauth.Service
 	// Files performs operations on the files of remote sites.
 	Files *files.Service
 	// Connections pools the connections to remote servers; the vault lock and sign-out close a user's connections.
@@ -159,6 +162,7 @@ func NewRouter(d Deps) http.Handler {
 	})
 
 	r.Get(EventsPath, eventsHandler(d))
+	r.Get(googleauth.CallbackPath, googleCallback(d.Google))
 
 	spec, _ := GetSpec()
 	strict := NewStrictHandlerWithOptions(newServer(d), []StrictMiddlewareFunc{requireSession(d.InstanceKey, protectedOperations(spec))}, StrictHTTPServerOptions{

@@ -209,10 +209,30 @@ var GCS = Descriptor{
 	}, proxyFields()...),
 }
 
+// ProviderGoogle names the sign-in with Google of OAuth fields (ADR-0024).
+const ProviderGoogle = "google"
+
+// GDrive describes the connector of Google Drive (ADR-0024): My Drive of the Google account that signed in, or one of its shared
+// drives by name. Its folders are real, renames are native and times can be set. It is new, so an admin enables it.
+var GDrive = Descriptor{
+	Type:     "gdrive",
+	Name:     "Google Drive",
+	Icon:     "gdrive",
+	Maturity: Beta,
+	Capabilities: Capabilities{
+		Folders: true, SetTimes: true, Rename: true,
+	},
+	Fields: append([]Field{
+		{Name: "shared_drive", Kind: Text, Group: GroupConnection, MaxLength: 255},
+		{Name: "account_email", Kind: Text, Group: GroupAccess, MaxLength: 320},
+		{Name: "refresh_token", Kind: OAuth, Group: GroupAccess, Provider: ProviderGoogle, Account: "account_email"},
+	}, proxyFields()...),
+}
+
 // Builtin returns a catalog with the connectors Transferly is built with.
 func Builtin() *Catalog {
 	c := NewCatalog()
-	for _, d := range []Descriptor{SFTP, FTP, S3, GCS} {
+	for _, d := range []Descriptor{SFTP, FTP, S3, GCS, GDrive} {
 		c.descriptors[d.Type] = d
 	}
 	return c

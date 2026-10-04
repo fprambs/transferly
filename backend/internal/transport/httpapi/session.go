@@ -127,10 +127,27 @@ func originGuard(allowed []string) func(http.Handler) http.Handler {
 					writeProblem(w, http.StatusForbidden, "cross_site_request", nil)
 					return
 				}
+				if origin != "" {
+					r = r.WithContext(context.WithValue(r.Context(), originKey, origin))
+				}
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// originKeyType is the type of the key of the allowed origin a state-changing request came from, in its context.
+type originKeyType struct{}
+
+// originKey keys the origin of a state-changing request in its context.
+var originKey originKeyType
+
+// originFrom returns the allowed origin a state-changing request came from, or fallback when it sent none.
+func originFrom(ctx context.Context, fallback string) string {
+	if origin, ok := ctx.Value(originKey).(string); ok {
+		return origin
+	}
+	return fallback
 }
 
 // contains reports whether list has an entry equal to s, ignoring case.

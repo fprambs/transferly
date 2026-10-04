@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/fprambs/transferly/internal/adapters/googleauth"
 	"github.com/fprambs/transferly/internal/adapters/proxydial"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/transferly/internal/core/connections"
@@ -48,6 +49,7 @@ type Connector struct {
 	strict   *sftpfs.StrictServers
 	offering site.Offering
 	roots    *x509.CertPool
+	google   *googleauth.Service
 }
 
 // Option adjusts a [Connector].
@@ -75,6 +77,12 @@ func Offering(o site.Offering) Option {
 // instead of the system's, for services with certificates of a private authority. Without it the system's are used.
 func CertificateAuthorities(roots *x509.CertPool) Option {
 	return func(c *Connector) { c.roots = roots }
+}
+
+// Google sets the sign-in with Google whose OAuth client authorizes Google Drive sites with their refresh tokens (ADR-0024). Without
+// it, or without a client configured, those sites cannot connect.
+func Google(service *googleauth.Service) Option {
+	return func(c *Connector) { c.google = service }
 }
 
 // errNoPrompts fails an interactive site when nobody can relay the server's questions.
@@ -136,7 +144,7 @@ func (t target) wipe() {
 type opener func(ctx context.Context, c *Connector, key connections.Key, t target) (remotefs.RemoteFS, error)
 
 // openers are the openers of the connectors Transferly is built with, by type.
-var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP, "s3": openS3, "gcs": openS3}
+var openers = map[string]opener{"sftp": openSFTP, "ftp": openFTP, "s3": openS3, "gcs": openS3, "gdrive": openGDrive}
 
 // Connect implements [connections.Connector].
 //

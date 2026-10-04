@@ -1843,6 +1843,44 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /api/v1/oauth/google/authorizations:
+    post:
+      operationId: authorizeGoogle
+      summary: Start signing a Google account in
+      description: >-
+        Starts the authorization code flow with PKCE of the OAuth client the installation registered (ADR-0024). The browser opens url
+        in a popup; Google sends it back to /api/v1/oauth/google/callback under the origin of this request, whose page publishes the
+        outcome on the BroadcastChannel transferly-oauth with state, which the page must match. The outcome holds the refresh token and
+        the email of the account, or an error: denied, expired, no_refresh_token, not_configured or failed.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "201":
+          description: Sign-in started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleAuthorization"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: oauth_not_configured, when the installation registered no OAuth client with Google.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/vault/lock:
     post:
       operationId: lockVault
@@ -5303,10 +5341,11 @@ components:
           description: Name of the setting, in snake case; for secrets, also the kind of the secret.
         kind:
           type: string
-          enum: [text, number, boolean, choice, host, timezone, secret, private_key]
+          enum: [text, number, boolean, choice, host, timezone, secret, private_key, oauth]
           description: >-
-            host is a server name or address the network policy must allow, with the field port names; secret and private_key are sealed in
-            the vault, given in secrets and never returned; private_key is read with the field passphrase names.
+            host is a server name or address the network policy must allow, with the field port names; secret, private_key and oauth are
+            sealed in the vault, given in secrets and never returned; private_key is read with the field passphrase names; oauth is filled
+            by signing in with the provider it names, and the field account keeps which account signed in.
         group:
           type: string
           enum: [connection, access, advanced, charset, proxy, jump]
@@ -5343,6 +5382,22 @@ components:
         passphrase:
           type: string
           description: The passphrase field of a private key.
+        provider:
+          type: string
+          description: Who an oauth field signs in with, such as google.
+        account:
+          type: string
+          description: The text field of an oauth field that keeps the account that signed in.
+    GoogleAuthorization:
+      type: object
+      required: [url, state]
+      properties:
+        url:
+          type: string
+          description: The consent page of Google, to open in a popup.
+        state:
+          type: string
+          description: Ties the outcome published by the callback page to this sign-in.
     ConnectorCondition:
       type: object
       required: [field]

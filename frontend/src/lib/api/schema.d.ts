@@ -839,6 +839,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/oauth/google/authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start signing a Google account in
+         * @description Starts the authorization code flow with PKCE of the OAuth client the installation registered (ADR-0024). The browser opens url in a popup; Google sends it back to /api/v1/oauth/google/callback under the origin of this request, whose page publishes the outcome on the BroadcastChannel transferly-oauth with state, which the page must match. The outcome holds the refresh token and the email of the account, or an error: denied, expired, no_refresh_token, not_configured or failed.
+         */
+        post: operations["authorizeGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vault/lock": {
         parameters: {
             query?: never;
@@ -1931,10 +1951,10 @@ export interface components {
             /** @description Name of the setting, in snake case; for secrets, also the kind of the secret. */
             name: string;
             /**
-             * @description host is a server name or address the network policy must allow, with the field port names; secret and private_key are sealed in the vault, given in secrets and never returned; private_key is read with the field passphrase names.
+             * @description host is a server name or address the network policy must allow, with the field port names; secret, private_key and oauth are sealed in the vault, given in secrets and never returned; private_key is read with the field passphrase names; oauth is filled by signing in with the provider it names, and the field account keeps which account signed in.
              * @enum {string}
              */
-            kind: "text" | "number" | "boolean" | "choice" | "host" | "timezone" | "secret" | "private_key";
+            kind: "text" | "number" | "boolean" | "choice" | "host" | "timezone" | "secret" | "private_key" | "oauth";
             /**
              * @description Tab of the site form the field is shown on.
              * @enum {string}
@@ -1955,6 +1975,16 @@ export interface components {
             port?: string;
             /** @description The passphrase field of a private key. */
             passphrase?: string;
+            /** @description Who an oauth field signs in with, such as google. */
+            provider?: string;
+            /** @description The text field of an oauth field that keeps the account that signed in. */
+            account?: string;
+        };
+        GoogleAuthorization: {
+            /** @description The consent page of Google, to open in a popup. */
+            url: string;
+            /** @description Ties the outcome published by the callback page to this sign-in. */
+            state: string;
         };
         /** @description When a field applies, from the value of a field declared before it; a field that does not apply is left out and its secret removed. */
         ConnectorCondition: {
@@ -4977,6 +5007,56 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
+        };
+    };
+    authorizeGoogle: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sign-in started. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleAuthorization"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description oauth_not_configured, when the installation registered no OAuth client with Google. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     lockVault: {

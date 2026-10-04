@@ -35,7 +35,7 @@ func fieldDTO(f connectors.Field) ConnectorField {
 	out := ConnectorField{
 		Name: f.Name, Kind: ConnectorFieldKind(f.Kind), Group: ConnectorFieldGroup(f.Group), Required: f.Required, Default: optional(f.Default),
 		Min: optional(f.Min), Max: optional(f.Max), MaxLength: optional(f.MaxLength), When: conditionDTO(f.When), Port: optional(f.Port),
-		Passphrase: optional(f.Passphrase),
+		Passphrase: optional(f.Passphrase), Provider: optional(f.Provider), Account: optional(f.Account),
 	}
 	if len(f.Choices) > 0 {
 		choices := f.Choices

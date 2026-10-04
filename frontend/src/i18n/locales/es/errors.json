@@ -536,6 +536,10 @@
     "invalid_config": {
       "cause": "Un ajuste del sitio no sigue lo que espera su tipo de servidor, como un puerto fuera de rango o una opción que no ofrece.",
       "next": "Corrige el campo que marca el formulario y vuelve a guardar."
+    },
+    "oauth_not_configured": {
+      "cause": "Esta instancia no tiene un cliente OAuth registrado en Google, que hace falta para iniciar sesión con Google.",
+      "next": "Pide a un administrador que registre uno en Google Cloud y configure TRANSFERLY_GOOGLE_CLIENT_ID y TRANSFERLY_GOOGLE_CLIENT_SECRET."
     }
   }
 }

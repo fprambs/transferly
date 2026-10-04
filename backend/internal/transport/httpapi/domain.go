@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fprambs/transferly/internal/adapters/googleauth"
 	"github.com/fprambs/transferly/internal/core/admin"
 	"github.com/fprambs/transferly/internal/core/archives"
 	"github.com/fprambs/transferly/internal/core/audit"
@@ -196,6 +197,7 @@ var domainProblems = []struct {
 	{connectors.ErrForbidden, http.StatusForbidden, "forbidden"},
 	{connectors.ErrUnknown, http.StatusNotFound, "connector_not_found"},
 	{connectors.ErrDisabled, http.StatusConflict, "connector_disabled"},
+	{googleauth.ErrNotConfigured, http.StatusConflict, "oauth_not_configured"},
 	{admin.ErrNotFound, http.StatusNotFound, "account_not_found"},
 	{admin.ErrSelf, http.StatusConflict, "own_account"},
 	{admin.ErrLastAdmin, http.StatusConflict, "last_admin"},
@@ -419,3 +421,6 @@ func (p domainProblem) VisitSetLimitsResponse(w http.ResponseWriter) error { ret
 func (p domainProblem) VisitSetConnectorEnabledResponse(w http.ResponseWriter) error {
 	return p.write(w)
 }
+
+// VisitAuthorizeGoogleResponse implements [AuthorizeGoogleResponseObject].
+func (p domainProblem) VisitAuthorizeGoogleResponse(w http.ResponseWriter) error { return p.write(w) }

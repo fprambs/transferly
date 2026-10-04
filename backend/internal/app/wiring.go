@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"runtime"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/fprambs/transferly/internal/adapters/clock"
 	"github.com/fprambs/transferly/internal/adapters/events"
+	"github.com/fprambs/transferly/internal/adapters/googleauth"
 	"github.com/fprambs/transferly/internal/adapters/ratelimit"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
@@ -122,9 +124,13 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	connectionLog := connlog.New(hub, system)
 	importer := fzimport.NewService(workspaces, sites)
 	broker := prompts.New(hub, prompts.DefaultWait)
+	google := googleauth.New(googleauth.Config{
+		ClientID: cfg.Google.ClientID, ClientSecret: cfg.Google.ClientSecret,
+		AuthURL: cfg.Google.AuthURL, TokenURL: cfg.Google.TokenURL, APIURL: cfg.Google.APIURL,
+	}, &http.Client{Timeout: connectTimeout, Transport: &http.Transport{DialContext: policy.Dialer(connectTimeout).DialContext}}, system.Now)
 	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout,
 		connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog), connect.Prompts(broker),
-		connect.Offering(offered))
+		connect.Offering(offered), connect.Google(google))
 	pool := connections.New(connector, system, connections.Config{OnChange: connections.PublishTo(hub)})
 
 	return wiring{
@@ -145,6 +151,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Connections:   pool,
 			Credentials:   askedPasswords,
 			Connectors:    offered,
+			Google:        google,
 			Files:         files.NewService(workspaces, pool),
 			Transfers:     transfers,
 			Activity:      activityLog,

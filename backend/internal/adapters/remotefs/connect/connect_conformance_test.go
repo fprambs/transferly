@@ -3,17 +3,21 @@ package connect_test
 import (
 	"crypto/x509"
 	"net"
+	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/fprambs/transferly/internal/adapters/googleauth"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connectortest"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/ftpfs/ftptest"
+	"github.com/fprambs/transferly/internal/adapters/remotefs/gdrivefs/googletest"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/s3fs/s3test"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/core/connectors"
@@ -28,6 +32,7 @@ import (
 type endpoint struct {
 	address, keyType, fingerprint string
 	roots                         *x509.CertPool
+	google                        *googleauth.Service
 	config                        map[string]string
 	secrets                       site.SecretChanges
 }
@@ -52,6 +57,17 @@ var references = map[string]func(t *testing.T) endpoint{
 	},
 	"s3":  bucket,
 	"gcs": bucket,
+	"gdrive": func(t *testing.T) endpoint {
+		s := googletest.Start(t, googletest.Options{})
+		google := googleauth.New(googleauth.Config{
+			ClientID: googletest.ClientID, ClientSecret: googletest.ClientSecret, AuthURL: s.URL + "/o/oauth2/auth", TokenURL: s.URL + "/token", APIURL: s.URL,
+		}, http.DefaultClient, time.Now)
+		return endpoint{
+			address: strings.TrimPrefix(s.URL, "http://"), google: google,
+			config:  map[string]string{"account_email": googletest.Email},
+			secrets: site.SecretChanges{site.SecretRefreshToken: s.RefreshToken()},
+		}
+	},
 }
 
 // bucket starts the reference server of the connectors of object stores that speak S3: an S3 server in memory with one bucket.
@@ -73,7 +89,10 @@ func (e *env) open(t *testing.T, d connectors.Descriptor, reference func(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := map[string]string{connectors.FieldHost: host, connectors.FieldPort: port}
+	config := map[string]string{}
+	if _, ok := d.Field(connectors.FieldHost); ok {
+		config[connectors.FieldHost], config[connectors.FieldPort] = host, port
+	}
 	for name, value := range server.config {
 		config[name] = value
 	}
@@ -91,7 +110,7 @@ func (e *env) open(t *testing.T, d connectors.Descriptor, reference func(t *test
 			t.Fatalf("Trust() = %v", err)
 		}
 	}
-	c := connect.New(e.sites, e.quick, e.hostKeys, e.allow, 5*time.Second, connect.CertificateAuthorities(server.roots))
+	c := connect.New(e.sites, e.quick, e.hostKeys, e.allow, 5*time.Second, connect.CertificateAuthorities(server.roots), connect.Google(server.google))
 	fsys, err := c.Connect(t.Context(), e.key(created), session)
 	if err != nil {
 		t.Fatalf("Connect() = %v", err)

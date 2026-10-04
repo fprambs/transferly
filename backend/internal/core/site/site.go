@@ -40,6 +40,8 @@ const (
 	SecretAccount SecretKind = "account"
 	// SecretAccessKey is the secret access key of an object store, the pair of its access key ID (ADR-0023).
 	SecretAccessKey SecretKind = "secret_access_key"
+	// SecretRefreshToken is the refresh token of an account signed in with OAuth, such as a Google account (ADR-0024).
+	SecretRefreshToken SecretKind = "refresh_token"
 )
 
 // Errors returned by the package.

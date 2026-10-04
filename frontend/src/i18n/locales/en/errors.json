@@ -536,6 +536,10 @@
     "invalid_config": {
       "cause": "A setting of the site does not follow what its kind of server expects, such as a port out of range or an option it does not offer.",
       "next": "Correct the field the form marks and save again."
+    },
+    "oauth_not_configured": {
+      "cause": "This instance has no OAuth client registered with Google, which signing in with Google needs.",
+      "next": "Ask an administrator to register one in Google Cloud and set TRANSFERLY_GOOGLE_CLIENT_ID and TRANSFERLY_GOOGLE_CLIENT_SECRET."
     }
   }
 }

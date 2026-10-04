@@ -48,6 +48,9 @@ const (
 	Secret FieldKind = "secret"
 	// PrivateKey is a secret that must be a usable private key, decrypted with the passphrase field Passphrase names.
 	PrivateKey FieldKind = "private_key"
+	// OAuth is a secret the form fills by signing in with the provider Provider names, such as the refresh token of a Google
+	// account, instead of having it typed; the text field Account names keeps which account signed in (ADR-0024).
+	OAuth FieldKind = "oauth"
 )
 
 // Group is the tab of the site form a field is shown on.
@@ -117,10 +120,14 @@ type Field struct {
 	Port string
 	// Passphrase names the passphrase field of a private key.
 	Passphrase string
+	// Provider names who an OAuth field signs in with, such as google.
+	Provider string
+	// Account names the text field of an OAuth field that keeps the account that signed in, if it has one.
+	Account string
 }
 
 // IsSecret reports whether the field is sealed in the vault instead of being part of the configuration.
-func (f Field) IsSecret() bool { return f.Kind == Secret || f.Kind == PrivateKey }
+func (f Field) IsSecret() bool { return f.Kind == Secret || f.Kind == PrivateKey || f.Kind == OAuth }
 
 // Capabilities are what the storage of a connector can do, which features adapt to.
 type Capabilities struct {
@@ -259,8 +266,8 @@ func rank(m Maturity) int {
 }
 
 // Check reports a descriptor that contradicts itself: no type or name, two fields of one name, a condition or a dependent default that
-// looks at a field not declared before, a host whose port field is missing, or a private key whose passphrase field is missing or not a
-// secret.
+// looks at a field not declared before, a host whose port field is missing, a private key whose passphrase field is missing or not a
+// secret, or an OAuth field without a provider or whose account field is not text.
 func (d Descriptor) Check() error {
 	if d.Type == "" || d.Name == "" {
 		return fmt.Errorf("%w: a connector needs a type and a name", ErrInvalidDescriptor)
@@ -290,6 +297,9 @@ func (d Descriptor) Check() error {
 		}
 		if phrase, ok := seen[f.Passphrase]; f.Kind == PrivateKey && (!ok || phrase.Kind != Secret) {
 			return fmt.Errorf("%w: private key %q has no passphrase field", ErrInvalidDescriptor, f.Name)
+		}
+		if account, ok := seen[f.Account]; f.Kind == OAuth && (f.Provider == "" || (f.Account != "" && (!ok || account.Kind != Text))) {
+			return fmt.Errorf("%w: OAuth field %q has no provider, or its account field is not text", ErrInvalidDescriptor, f.Name)
 		}
 	}
 	return nil

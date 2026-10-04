@@ -72,7 +72,7 @@ func TestCatalog(t *testing.T) {
 	for _, d := range catalog.All() {
 		names = append(names, d.Name)
 	}
-	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Google Cloud Storage", "S3", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
+	if want := []string{"FTP / FTPS", "SFTP", "z-stable", "Google Cloud Storage", "Google Drive", "S3", "Sample", "a-beta"}; strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("all = %v; want %v", names, want)
 	}
 }
@@ -82,24 +82,31 @@ func TestCatalog(t *testing.T) {
 // Use cases:
 //   - the built-in descriptors and the sample are consistent
 //   - a field without a name or declared twice, a condition, a dependent default or a fixed value on a field declared after it, a host without a number port
-//     field and a private key without a secret passphrase field are refused
+//     field, a private key without a secret passphrase field, and an OAuth field without a provider or with an account field that is not
+//     text are refused; an OAuth field may go without an account field
 func TestDescriptor_Check(t *testing.T) {
-	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, sample} {
+	for _, d := range []connectors.Descriptor{connectors.SFTP, connectors.FTP, connectors.S3, connectors.GCS, connectors.GDrive, sample} {
 		if err := d.Check(); err != nil {
 			t.Errorf("%s: %v", d.Type, err)
 		}
 	}
 	text := func(name string) connectors.Field { return connectors.Field{Name: name, Kind: connectors.Text} }
 	bad := map[string][]connectors.Field{
-		"nameless":           {{Kind: connectors.Text}},
-		"twice":              {text("a"), text("a")},
-		"condition later":    {{Name: "a", Kind: connectors.Text, When: &connectors.Condition{Field: "b"}}, text("b")},
-		"default later":      {{Name: "a", Kind: connectors.Text, Defaults: []connectors.Default{{When: connectors.Condition{Field: "b"}}}}, text("b")},
-		"fixed later":        {{Name: "a", Kind: connectors.Text, Fixed: []connectors.Default{{When: connectors.Condition{Field: "b"}}}}, text("b")},
-		"host without port":  {{Name: "h", Kind: connectors.Host, Port: "p"}},
-		"host text port":     {{Name: "h", Kind: connectors.Host, Port: "p"}, text("p")},
-		"key without phrase": {{Name: "k", Kind: connectors.PrivateKey, Passphrase: "p"}},
-		"key text phrase":    {{Name: "k", Kind: connectors.PrivateKey, Passphrase: "p"}, text("p")},
+		"nameless":               {{Kind: connectors.Text}},
+		"twice":                  {text("a"), text("a")},
+		"condition later":        {{Name: "a", Kind: connectors.Text, When: &connectors.Condition{Field: "b"}}, text("b")},
+		"default later":          {{Name: "a", Kind: connectors.Text, Defaults: []connectors.Default{{When: connectors.Condition{Field: "b"}}}}, text("b")},
+		"fixed later":            {{Name: "a", Kind: connectors.Text, Fixed: []connectors.Default{{When: connectors.Condition{Field: "b"}}}}, text("b")},
+		"host without port":      {{Name: "h", Kind: connectors.Host, Port: "p"}},
+		"host text port":         {{Name: "h", Kind: connectors.Host, Port: "p"}, text("p")},
+		"key without phrase":     {{Name: "k", Kind: connectors.PrivateKey, Passphrase: "p"}},
+		"key text phrase":        {{Name: "k", Kind: connectors.PrivateKey, Passphrase: "p"}, text("p")},
+		"oauth without provider": {{Name: "t", Kind: connectors.OAuth}},
+		"oauth missing account":  {{Name: "t", Kind: connectors.OAuth, Provider: "google", Account: "a"}},
+		"oauth secret account":   {{Name: "a", Kind: connectors.Secret}, {Name: "t", Kind: connectors.OAuth, Provider: "google", Account: "a"}},
+	}
+	if err := (connectors.Descriptor{Type: "x", Name: "X", Fields: []connectors.Field{{Name: "t", Kind: connectors.OAuth, Provider: "google"}}}).Check(); err != nil {
+		t.Errorf("an OAuth field without an account field = %v; want it accepted", err)
 	}
 	for name, fields := range bad {
 		if err := (connectors.Descriptor{Type: "x", Name: "X", Fields: fields}).Check(); !errors.Is(err, connectors.ErrInvalidDescriptor) {
