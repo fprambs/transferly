@@ -50,14 +50,18 @@ var references = map[string]func(t *testing.T) endpoint{
 			secrets: site.SecretChanges{site.SecretPassword: ftpPassword},
 		}
 	},
-	"s3": func(t *testing.T) endpoint {
-		s := s3test.Start(t, s3test.Options{})
-		return endpoint{
-			address: s.Addr, roots: s.RootCAs,
-			config:  map[string]string{"bucket": s3test.Bucket, "access_key_id": "transferly"},
-			secrets: site.SecretChanges{site.SecretAccessKey: "a secret access key"},
-		}
-	},
+	"s3":  bucket,
+	"gcs": bucket,
+}
+
+// bucket starts the reference server of the connectors of object stores that speak S3: an S3 server in memory with one bucket.
+func bucket(t *testing.T) endpoint {
+	s := s3test.Start(t, s3test.Options{})
+	return endpoint{
+		address: s.Addr, roots: s.RootCAs,
+		config:  map[string]string{"bucket": s3test.Bucket, "access_key_id": "transferly"},
+		secrets: site.SecretChanges{site.SecretAccessKey: "a secret access key"},
+	}
 }
 
 // open saves a site of a connector that reaches a new reference server, trusts the server's key and connects to it the way

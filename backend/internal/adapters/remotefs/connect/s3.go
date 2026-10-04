@@ -11,8 +11,9 @@ import (
 	"github.com/fprambs/transferly/internal/core/site"
 )
 
-// openS3 connects to a bucket of S3 or a compatible service (ADR-0023). HTTPS is verified against the authorities of the
-// system, or those the connector was given, so no server key is trusted by the user; plain HTTP is marked in the log.
+// openS3 connects to a bucket of S3 or a compatible service (ADR-0023), Google Cloud Storage among them (ADR-0024). HTTPS is
+// verified against the authorities of the system, or those the connector was given, so no server key is trusted by the user;
+// plain HTTP, which only connectors with a tls setting allow, is marked in the log.
 func openS3(ctx context.Context, c *Connector, key connections.Key, t target) (remotefs.RemoteFS, error) {
 	host, port := t.Setting(connectors.FieldHost), t.number(connectors.FieldPort)
 	auth, secure := t.Setting(connectors.FieldAuth), t.Setting("tls") != "false"

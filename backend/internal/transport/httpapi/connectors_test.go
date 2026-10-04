@@ -29,10 +29,10 @@ func TestListConnectors(t *testing.T) {
 	r := a.do(request{method: http.MethodGet, path: "/api/v1/connectors", cookie: cookie})
 	var list []httpapi.Connector
 	mustDecode(t, r.Body, &list)
-	if r.Status != http.StatusOK || len(list) != 3 || list[0].Type != "ftp" || list[1].Type != "sftp" || list[2].Type != "s3" {
+	if r.Status != http.StatusOK || len(list) != 4 || list[0].Type != "ftp" || list[1].Type != "sftp" || list[2].Type != "gcs" || list[3].Type != "s3" {
 		t.Fatalf("connectors = %d %+v", r.Status, list)
 	}
-	if s3 := list[2]; s3.Enabled || s3.EnabledByDefault || s3.Maturity != "beta" || s3.Capabilities.Folders || !s3.Capabilities.Rename || s3.Capabilities.Resume {
+	if s3 := list[3]; s3.Enabled || s3.EnabledByDefault || s3.Maturity != "beta" || s3.Capabilities.Folders || !s3.Capabilities.Rename || s3.Capabilities.Resume {
 		t.Errorf("s3 = %+v; want a beta connector, off until an admin enables it, with prefixes and renames but no resume", s3)
 	}
 	sftp := list[1]

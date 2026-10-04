@@ -188,10 +188,31 @@ var S3 = Descriptor{
 	}, proxyFields()...),
 }
 
+// GCS describes the connector of Google Cloud Storage buckets, reached through the S3 compatible XML API with an HMAC key
+// (ADR-0024). It behaves as S3 does, always over HTTPS; the endpoint only changes for tests and private gateways. It is new, so an
+// admin enables it.
+var GCS = Descriptor{
+	Type:     "gcs",
+	Name:     "Google Cloud Storage",
+	Icon:     "gcs",
+	Maturity: Beta,
+	Capabilities: Capabilities{
+		Rename: true,
+	},
+	Fields: append([]Field{
+		{Name: "bucket", Kind: Text, Group: GroupConnection, Required: true, MaxLength: 222},
+		{Name: FieldAuth, Kind: Choice, Group: GroupAccess, Required: true, Default: AuthAccessKey, Choices: []string{AuthAccessKey, AuthAnonymous}},
+		{Name: "access_key_id", Kind: Text, Group: GroupAccess, Required: true, MaxLength: 128, When: whenAuth(AuthAccessKey)},
+		{Name: "secret_access_key", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthAccessKey)},
+		{Name: FieldHost, Kind: Host, Group: GroupAdvanced, Required: true, Default: "storage.googleapis.com", Port: FieldPort},
+		{Name: FieldPort, Kind: Number, Group: GroupAdvanced, Required: true, Default: "443", Min: 1, Max: maxPort},
+	}, proxyFields()...),
+}
+
 // Builtin returns a catalog with the connectors Transferly is built with.
 func Builtin() *Catalog {
 	c := NewCatalog()
-	for _, d := range []Descriptor{SFTP, FTP, S3} {
+	for _, d := range []Descriptor{SFTP, FTP, S3, GCS} {
 		c.descriptors[d.Type] = d
 	}
 	return c
