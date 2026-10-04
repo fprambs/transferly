@@ -4,6 +4,32 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [0.6.0] - 2026-10-04
+
+Azure Storage joins the cloud connectors, and every connector now wears the official icon of its service.
+
+### Sites and connections
+
+- Azure Blob Storage, in beta (ADR-0025): containers reached with the account key, a SAS token or public access, also in sovereign
+  clouds and emulators. Folders are emulated with prefixes, uploads are committed whole in blocks of 8 MiB and renames copy on the
+  server.
+- Azure Files, in beta (ADR-0025): shares with real folders, native renames, modification times that can be set and resumable
+  uploads in ranges of 4 MiB.
+- Both connectors speak the REST APIs of Azure Storage with a client of their own, signed with Shared Key, without the Azure SDK.
+
+### Interface
+
+- The catalog of a new site, its form and the connector store show the official icons of Amazon S3, Google Cloud Storage, Google
+  Drive, Azure Blob Storage and Azure Files, and tiles of their own for SFTP and FTP.
+- The sites sidebar shows the icon of each site's connector, with an amber badge when FTP only uses TLS if the server offers it and a
+  red one when the connection is not encrypted.
+
+### Operations
+
+- The isolated test stack runs Azurite and a fake of Azure Files, and the end-to-end tests create Azure sites and work with their
+  files.
+- The README, the architecture and the guides describe the connector catalog and the S3, Google and Azure connectors.
+
 ## [0.5.0] - 2026-10-04
 
 The first release. It sums up what Transferly does at the end of the work on the connector catalog and the cloud connectors of phase 5.
