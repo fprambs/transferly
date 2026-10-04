@@ -272,3 +272,35 @@ func TestLoad_Quotas(t *testing.T) {
 		}
 	}
 }
+
+// TestLoad_Google verifies the OAuth client of Google (ADR-0024).
+//
+// Scenarios:
+//   - by default no client is configured and the endpoints are Google's
+//   - a client ID and secret, and endpoints of a fake, are read, the API without its trailing slash
+//   - a client ID without its secret, or the reverse, is refused, and so are endpoints that are not http or https URLs
+func TestLoad_Google(t *testing.T) {
+	cfg, err := config.Load(env(map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x"}))
+	want := config.Google{AuthURL: "https://accounts.google.com/o/oauth2/auth", TokenURL: "https://oauth2.googleapis.com/token", APIURL: "https://www.googleapis.com"}
+	if err != nil || cfg.Google != want {
+		t.Fatalf("defaults = %+v, %v", cfg.Google, err)
+	}
+	set := map[string]string{
+		"TRANSFERLY_DATABASE_URL": "postgres://x", "TRANSFERLY_GOOGLE_CLIENT_ID": "id", "TRANSFERLY_GOOGLE_CLIENT_SECRET": "secret",
+		"TRANSFERLY_GOOGLE_AUTH_URL": "http://google:8090/o/oauth2/auth", "TRANSFERLY_GOOGLE_TOKEN_URL": "http://google:8090/token", "TRANSFERLY_GOOGLE_API_URL": "http://google:8090/",
+	}
+	cfg, err = config.Load(env(set))
+	if err != nil || cfg.Google != (config.Google{ClientID: "id", ClientSecret: "secret", AuthURL: "http://google:8090/o/oauth2/auth", TokenURL: "http://google:8090/token", APIURL: "http://google:8090"}) {
+		t.Errorf("configured = %+v, %v", cfg.Google, err)
+	}
+	for name, value := range map[string]string{"TRANSFERLY_GOOGLE_CLIENT_SECRET": "", "TRANSFERLY_GOOGLE_TOKEN_URL": "ftp://google/token", "TRANSFERLY_GOOGLE_API_URL": "not a url"} {
+		bad := map[string]string{}
+		for k, v := range set {
+			bad[k] = v
+		}
+		bad[name] = value
+		if _, err := config.Load(env(bad)); err == nil || !strings.Contains(err.Error(), "TRANSFERLY_GOOGLE_") {
+			t.Errorf("Load() with %s=%q = %v; want an error naming the Google variables", name, value, err)
+		}
+	}
+}

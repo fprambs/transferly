@@ -64,6 +64,16 @@ type Config struct {
 	ActivityRetention time.Duration
 	// QuickConnectBurst is how many quick connections one client may open in a burst; afterwards one more every 12 seconds.
 	QuickConnectBurst int
+	// Google is the OAuth client the installation registered with Google, for the Google Drive connector (ADR-0024).
+	Google Google
+}
+
+// Google is the OAuth client of the installation and the endpoints of Google; the endpoints only change for tests.
+type Google struct {
+	// ClientID and ClientSecret identify the OAuth client; both empty disable signing in with Google.
+	ClientID, ClientSecret string
+	// AuthURL, TokenURL and APIURL are the consent page, the token endpoint and the origin of the APIs of Google.
+	AuthURL, TokenURL, APIURL string
 }
 
 // TransferLimits are the caps of concurrent transfers; zero means no cap.
@@ -117,6 +127,13 @@ func Load(getenv func(string) string) (Config, error) {
 		ActivityRetention: defaultActivityRetention,
 		TransferLimits:    TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4},
 		QuickConnectBurst: defaultQuickBurst,
+		Google: Google{
+			ClientID:     getenv("TRANSFERLY_GOOGLE_CLIENT_ID"),
+			ClientSecret: getenv("TRANSFERLY_GOOGLE_CLIENT_SECRET"),
+			AuthURL:      valueOr(getenv("TRANSFERLY_GOOGLE_AUTH_URL"), "https://accounts.google.com/o/oauth2/auth"),
+			TokenURL:     valueOr(getenv("TRANSFERLY_GOOGLE_TOKEN_URL"), "https://oauth2.googleapis.com/token"),
+			APIURL:       strings.TrimSuffix(valueOr(getenv("TRANSFERLY_GOOGLE_API_URL"), "https://www.googleapis.com"), "/"),
+		},
 	}
 
 	var errs []error
@@ -168,6 +185,16 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, err)
 	} else if cfg.QuickConnectBurst < 1 {
 		errs = append(errs, errors.New("TRANSFERLY_QUICK_CONNECT_BURST must be at least 1"))
+	}
+	if (cfg.Google.ClientID == "") != (cfg.Google.ClientSecret == "") {
+		errs = append(errs, errors.New("TRANSFERLY_GOOGLE_CLIENT_ID and TRANSFERLY_GOOGLE_CLIENT_SECRET must be set together"))
+	}
+	for name, raw := range map[string]string{
+		"TRANSFERLY_GOOGLE_AUTH_URL": cfg.Google.AuthURL, "TRANSFERLY_GOOGLE_TOKEN_URL": cfg.Google.TokenURL, "TRANSFERLY_GOOGLE_API_URL": cfg.Google.APIURL,
+	} {
+		if u, err := url.Parse(raw); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			errs = append(errs, fmt.Errorf("invalid %s %q (want an http or https URL)", name, raw))
+		}
 	}
 	if cfg.SessionIdle > cfg.SessionMax {
 		errs = append(errs, errors.New("TRANSFERLY_SESSION_IDLE must not exceed TRANSFERLY_SESSION_MAX"))
