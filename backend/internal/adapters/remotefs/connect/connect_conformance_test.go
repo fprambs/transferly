@@ -81,7 +81,7 @@ func bucket(t *testing.T) endpoint {
 }
 
 // open saves a site of a connector that reaches a new reference server, trusts the server's key and connects to it the way
-// the explorer does.
+// the explorer does. A new server may listen on the port of one the suite already closed, so its key replaces the one trusted there.
 func (e *env) open(t *testing.T, d connectors.Descriptor, reference func(t *testing.T) endpoint) remotefs.RemoteFS {
 	t.Helper()
 	server := reference(t)
@@ -106,7 +106,7 @@ func (e *env) open(t *testing.T, d connectors.Descriptor, reference func(t *test
 		t.Fatal(err)
 	}
 	if server.keyType != "" {
-		if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, portNumber, server.keyType, server.fingerprint, hostkey.TrustNew); err != nil {
+		if _, err := e.hostKeys.Trust(t.Context(), e.user, e.workspace, host, portNumber, server.keyType, server.fingerprint, hostkey.TrustReplace); err != nil {
 			t.Fatalf("Trust() = %v", err)
 		}
 	}
