@@ -107,6 +107,7 @@ export function mockWorkspaceData({
     http.get('/api/v1/workspaces/:id/quick-connections', () => HttpResponse.json(quick)),
     http.get('/api/v1/workspaces/:id/connections', () => HttpResponse.json({ siteIds: connected })),
     http.get('/api/v1/workspaces/:id/sites/:siteId/bookmarks', () => HttpResponse.json(bookmarks)),
+    http.get('/api/v1/version', () => HttpResponse.json({ version: 'v0.5.0' })),
   )
 }
 

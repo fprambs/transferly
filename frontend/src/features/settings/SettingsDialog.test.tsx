@@ -15,7 +15,7 @@ function sections(): HTMLElement {
  *
  * Scenarios:
  * - the address opens the dialog on its section, marked as the current one, over the start page
- * - the side bar moves to another section and keeps it in the address
+ * - the side bar moves to another section and keeps it in the address, and shows the version of the instance
  * - an administrator sees the administration; a personal workspace has no audit trail, and a user who is not an administrator has no
  *   administration
  * - Escape closes the dialog and leaves the page under it as it was
@@ -39,6 +39,7 @@ describe('settings dialog', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Security' })).toBeInTheDocument()
     expect(within(sections()).getByRole('button', { name: 'Security' })).toHaveAttribute('aria-current', 'page')
     expect(history.location.search).toContain('settings=security')
+    expect(within(sections()).getByText('Transferly v0.5.0')).toBeInTheDocument()
   })
 
   it('lists the sections the account may see', async () => {

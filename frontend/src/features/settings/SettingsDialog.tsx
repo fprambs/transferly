@@ -16,6 +16,7 @@ import { useWorkspace } from '../workspace/use-workspace'
 
 import { useSettingsDialog, type SettingsSection } from './sections'
 import { SettingsPage } from './SettingsPage'
+import { useVersion } from './use-version'
 
 /** The groups of the side bar, each with its sections and their icons. */
 const groups: ReadonlyArray<{ key: 'account' | 'workspace' | 'instance'; items: ReadonlyArray<{ section: SettingsSection; icon: LucideIcon }> }> = [
@@ -58,6 +59,7 @@ export function SettingsDialog() {
   const session = useSession()
   const workspace = useWorkspace()
 
+  const version = useVersion()
   const shows = (item: SettingsSection): boolean => {
     if (item === 'admin') {
       return session?.user.role === 'admin'
@@ -101,6 +103,7 @@ export function SettingsDialog() {
               )
             })}
           </div>
+          {version !== undefined && <p className="mt-auto hidden px-2 text-[11px] text-muted-foreground md:block">{t(($) => $.dialog.version, { version })}</p>}
         </nav>
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-background">
           <button

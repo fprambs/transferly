@@ -123,6 +123,9 @@ export type Checksum = Schemas['Checksum']
 /** A connector of the catalog Transferly is built with (ADR-0019). */
 export type Connector = Schemas['Connector']
 
+/** The version of the instance. */
+export type InstanceVersion = Schemas['Version']
+
 /** A sign-in with Google that was started: the consent page to open and the state its outcome carries (ADR-0024). */
 export type GoogleAuthorization = Schemas['GoogleAuthorization']
 
@@ -226,6 +229,7 @@ export function createApi(transport: Transport) {
       list: (workspaceId: string, query: { action?: string; before?: number; limit?: number } = {}) =>
         transport.request<AuditEvent[]>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/audit`, query }),
     },
+    version: () => transport.request<InstanceVersion>({ method: 'GET', path: `${root}/version` }),
     admin: {
       users: () => transport.request<AdminUser[]>({ method: 'GET', path: `${root}/admin/users` }),
       updateUser: (userId: string, changes: AdminUserPatch) => transport.request<void>({ method: 'PATCH', path: `${root}/admin/users/${userId}`, body: changes }),
