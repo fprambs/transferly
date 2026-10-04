@@ -4,6 +4,31 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [0.7.0] - 2026-10-04
+
+WebDAV joins the connectors, and the development environment gets a test server for every connector.
+
+### Sites and connections
+
+- WebDAV, in beta (ADR-0026): Nextcloud, ownCloud, NAS systems, Apache and any WebDAV server, with the path of the root of each
+  site. Folders are real, renames never replace what is there, and reads go by ranges. Sign-in uses a password, kept in the
+  vault or asked for when connecting, or no sign-in for public shares.
+- HTTPS is trusted when a public authority signed the certificate. A self-signed certificate is offered by its fingerprint to
+  trust, as for FTPS, and plain HTTP is marked in the connection log.
+- Uploads to WebDAV do not resume, and times cannot be set: the protocol has no standard way to do either.
+
+### Interface
+
+- WebDAV has a tile of its own in the catalog, the store and the sites sidebar.
+
+### Operations
+
+- `make testenv` runs a test server for every connector, each holding the preview samples: SFTP, FTP and FTPS, S3, WebDAV
+  (Apache with `mod_dav`, with a private and a public share), Azurite and a fake of Azure Files, and a fake of Google that the
+  development backend signs in with. `testenv/README.md` lists the settings of a site for each.
+- The isolated test stack runs Apache with `mod_dav`, and the end-to-end tests create WebDAV sites and work with their files.
+- The roadmap plans SSH tools on the SFTP connector: operations on the server, a sudo mode and a terminal.
+
 ## [0.6.0] - 2026-10-04
 
 Azure Storage joins the cloud connectors, and every connector now wears the official icon of its service.
