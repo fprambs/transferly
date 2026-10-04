@@ -165,7 +165,7 @@ test.describe('sites sidebar', () => {
     const made = (await (await request.post(`/api/v1/workspaces/${workspace}/collections`, { headers, data: { name: collection } })).json()) as { id: string }
     const created = (await (await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })).json()) as { id: string }
     await page.reload()
     const siteRow = page.getByRole('treeitem', { name: new RegExp(name) })

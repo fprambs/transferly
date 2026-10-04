@@ -24,9 +24,9 @@ test.describe('ask for password', () => {
     await expect(dialog).toBeHidden()
 
     const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; authMethod: string; secrets: string[] }>
+    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; config: Record<string, string>; secrets: string[] }>
     const saved = sites.find((site) => site.name === name)
-    expect(saved).toMatchObject({ authMethod: 'ask', secrets: [] })
+    expect(saved).toMatchObject({ config: { auth: 'ask' }, secrets: [] })
 
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const ask = page.getByRole('dialog', { name: 'Enter the password' })

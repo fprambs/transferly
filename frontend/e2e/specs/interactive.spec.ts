@@ -31,8 +31,8 @@ test.describe('interactive logon', () => {
     const { page } = shell
     const name = await saveInteractiveSite(page, 'Interactive')
     const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; authMethod: string; secrets: string[] }>
-    expect(sites.find((site) => site.name === name)).toMatchObject({ authMethod: 'interactive', secrets: [] })
+    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; config: Record<string, string>; secrets: string[] }>
+    expect(sites.find((site) => site.name === name)).toMatchObject({ config: { auth: 'interactive' }, secrets: [] })
 
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const prompt = page.getByRole('dialog', { name: `${name} asks` })

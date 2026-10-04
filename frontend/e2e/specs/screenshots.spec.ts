@@ -126,7 +126,7 @@ test.describe('screenshots', () => {
     const personal = workspaces.find((workspace) => workspace.kind === 'personal')?.id as string
     const saved = await page.request.post(`/api/v1/workspaces/${personal}/sites`, {
       headers: { 'X-CSRF-Token': csrf },
-      data: { name: `Saved ${stamp % 1000}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name: `Saved ${stamp % 1000}`, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(saved.status()).toBe(201)
     const siteId = ((await saved.json()) as { id: string }).id
@@ -317,7 +317,7 @@ test.describe('screenshots', () => {
     const stamp = Date.now()
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name: `Backup ${stamp}`, protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name: `Backup ${stamp}`, connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     const { id: siteId } = (await created.json()) as { id: string }
     const leftFiles = `/api/v1/workspaces/${workspace}/sites/${quickId}/files`
@@ -394,7 +394,7 @@ test.describe('screenshots', () => {
     const name = `Backup ${stamp}`
     const created = await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
       headers,
-      data: { name, protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly', speedLimitBps: 4 * 1024 * 1024 },
+      data: { name, connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' }, speedLimitBps: 4 * 1024 * 1024 },
     })
     expect(created.ok()).toBe(true)
     const siteId = ((await created.json()) as { id: string }).id
@@ -422,9 +422,14 @@ test.describe('screenshots', () => {
     const created = await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
       headers,
       data: {
-        name, protocol: 'sftp', host: 'sftp', username: 'transferly', password: 'transferly',
-        proxy: { kind: 'socks5', host: '9.9.9.9', port: 1080, username: 'proxyuser' }, proxyPassword: 'proxypass',
-        jump: { host: '1.1.1.1', port: 22, username: 'bastion', authMethod: 'password' }, jumpPassword: 'bastionpass',
+        name,
+        connector: 'sftp',
+        config: {
+          host: 'sftp', username: 'transferly',
+          proxy_kind: 'socks5', proxy_host: '9.9.9.9', proxy_port: '1080', proxy_username: 'proxyuser',
+          jump_host: '1.1.1.1', jump_port: '22', jump_username: 'bastion', jump_auth: 'password',
+        },
+        secrets: { password: 'transferly', proxy_password: 'proxypass', jump_password: 'bastionpass' },
       },
     })
     expect(created.ok()).toBe(true)
@@ -601,7 +606,7 @@ test.describe('screenshots', () => {
     const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers: { 'X-CSRF-Token': csrf },
-      data: { name: `Production ${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name: `Production ${Date.now()}`, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     const { id: siteId } = (await created.json()) as { id: string }
     for (const [name, path] of [['Uploads', '/upload'], ['Web root', '/var/www/html'], ['Nginx logs', '/var/log/nginx']]) {

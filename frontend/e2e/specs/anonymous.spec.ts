@@ -23,8 +23,8 @@ test.describe('anonymous sftp', () => {
     await expect(dialog).toBeHidden()
 
     const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; authMethod: string; username: string; secrets: string[] }>
-    expect(sites.find((site) => site.name === name)).toMatchObject({ authMethod: 'anonymous', username: 'anonymous', secrets: [] })
+    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; config: Record<string, string>; secrets: string[] }>
+    expect(sites.find((site) => site.name === name)).toMatchObject({ config: { auth: 'anonymous', username: 'anonymous' }, secrets: [] })
 
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const grid = page.getByRole('grid', { name: 'Files' })

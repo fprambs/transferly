@@ -43,7 +43,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   }
   const { id: workspaceId } = ((await (await context.get('/api/v1/workspaces', { headers })).json()) as Array<{ id: string }>)[0]
   const quick = await context.post(`/api/v1/workspaces/${workspaceId}/quick-connections`, {
-    data: { protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+    data: { connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     headers,
   })
   if (!quick.ok()) {

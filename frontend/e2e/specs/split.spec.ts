@@ -22,7 +22,7 @@ test.describe('split view', () => {
     const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name: `split-${stamp}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name: `split-${stamp}`, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(created.ok()).toBe(true)
     const { id: siteId } = (await created.json()) as { id: string }

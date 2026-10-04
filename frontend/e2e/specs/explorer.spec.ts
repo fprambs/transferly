@@ -241,7 +241,7 @@ test.describe('explorer', () => {
     })
     const slow = (await (
       await request.post(`/api/v1/workspaces/${workspaces[0].id}/sites`, {
-        data: { name: `Slow ${name}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', password: 'transferly', speedLimitBps: 512 * 1024 },
+        data: { name: `Slow ${name}`, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly' }, secrets: { password: 'transferly' }, speedLimitBps: 512 * 1024 },
         headers,
       })
     ).json()) as { id: string }

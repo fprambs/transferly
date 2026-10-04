@@ -25,7 +25,7 @@ test.describe('vault', () => {
     const name = `Locked ${stamp}`
     const created = await guest.post(`/api/v1/workspaces/${personal.id}/sites`, {
       headers,
-      data: { name, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(created.status()).toBe(201)
     const siteId = ((await created.json()) as { id: string }).id

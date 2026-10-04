@@ -65,7 +65,7 @@ test.describe('transfer queue', () => {
     const headers = { 'X-CSRF-Token': me.csrfToken }
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name: `queue-${Date.now()}`, protocol: 'sftp', host: 'sftp', port: 22, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name: `queue-${Date.now()}`, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(created.ok()).toBe(true)
     const { id: siteId } = (await created.json()) as { id: string }

@@ -65,7 +65,7 @@ test.describe('compare and sync', () => {
     const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
     const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
       headers,
-      data: { name: `sync-${stamp}`, protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { name: `sync-${stamp}`, connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(created.ok()).toBe(true)
     const { id: siteId } = (await created.json()) as { id: string }

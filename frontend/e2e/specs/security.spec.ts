@@ -118,7 +118,7 @@ test.describe('security', () => {
 
     for (const host of hosts) {
       const response = await request.post(`/api/v1/workspaces/${workspaceId}/sites`, {
-        data: { name: 'ssrf', protocol: 'sftp', host, username: 'u' },
+        data: { name: 'ssrf', connector: 'sftp', config: { host, username: 'u' } },
         headers: { 'X-CSRF-Token': csrf },
       })
       const code = ((await response.json()) as { code: string }).code

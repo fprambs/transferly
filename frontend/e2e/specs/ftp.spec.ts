@@ -6,11 +6,14 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures.ts'
 import { choose } from '../select.ts'
 
-/** Fills the quick connect dialog for a server of the test stack and presses Connect. */
-async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string): Promise<void> {
+/** Fills the quick connect dialog for an FTP server of the test stack, with an encryption when given, and presses Connect. */
+async function quickConnect(page: Page, host: string, encryption?: string): Promise<void> {
   await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
   const dialog = page.getByRole('dialog', { name: 'Quick connect' })
-  await dialog.getByRole('tab', { name: protocol, exact: true }).click()
+  await dialog.getByRole('tab', { name: 'FTP / FTPS', exact: true }).click()
+  if (encryption !== undefined) {
+    await choose(dialog.getByLabel('Encryption'), encryption)
+  }
   await dialog.getByLabel('Host').fill(host)
   await dialog.getByLabel('Username').fill('transferly')
   await dialog.getByLabel('Password').fill('transferly')
@@ -21,7 +24,7 @@ async function quickConnect(page: Page, protocol: 'SFTP' | 'FTP', host: string):
  * FTP and FTPS against real vsftpd servers.
  *
  * Scenarios:
- * - a plain FTP server is reached from quick connect, which says FTP uses TLS only when the server offers it; its folders are listed and
+ * - a plain FTP server is reached from quick connect, which requires TLS by default and warns when it is only used if offered; its folders are listed and
  *   show a dash where permissions would be, since FTP reports none
  * - an upload to a plain FTP server that is canceled half way leaves a partial file, resuming it from the dock sends only the rest with the
  *   resume mode, and the file that arrives is byte for byte the one that was chosen
@@ -41,11 +44,14 @@ test.describe('ftp and ftps', () => {
   test('lists a plain FTP server and shows no permissions', async ({ shell }) => {
     const { page } = shell
     await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
-    await page.getByRole('dialog').getByRole('tab', { name: 'FTP', exact: true }).click()
-    await expect(page.getByRole('dialog').getByRole('note')).toContainText('Uses TLS when the server offers it')
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('tab', { name: 'FTP / FTPS', exact: true }).click()
+    await expect(dialog.getByLabel('Encryption')).toContainText('Require explicit FTP over TLS')
+    await choose(dialog.getByLabel('Encryption'), 'Use explicit FTP over TLS if available')
+    await expect(dialog.getByRole('note')).toContainText('someone on the network removes the offer')
     await page.keyboard.press('Escape')
 
-    await quickConnect(page, 'FTP', 'ftp')
+    await quickConnect(page, 'ftp', 'Use explicit FTP over TLS if available')
 
     await expect(page.getByRole('status')).toContainText('It works. Keep this server?')
     await page.getByRole('button', { name: 'Not now' }).click()
@@ -144,7 +150,7 @@ test.describe('ftp and ftps', () => {
   test('asks to trust an FTPS certificate and transfers a file over TLS', async ({ shell }) => {
     test.setTimeout(120_000)
     const { page } = shell
-    await quickConnect(page, 'FTP', 'ftps')
+    await quickConnect(page, 'ftps')
 
     await expect(page.getByText('Trust this server?')).toBeVisible()
     await expect(page.getByText('tls-certificate')).toBeVisible()
@@ -185,7 +191,7 @@ test.describe('ftp and ftps', () => {
     const headers = { 'X-CSRF-Token': me.csrfToken }
     const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
       headers,
-      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(quick.ok()).toBe(true)
     const { id: quickId } = (await quick.json()) as { id: string }
@@ -239,7 +245,7 @@ test.describe('ftp and ftps', () => {
     const headers = { 'X-CSRF-Token': me.csrfToken }
     const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
       headers,
-      data: { protocol: 'ftp', host: 'ftp', port: 21, username: 'transferly', authMethod: 'password', password: 'transferly' },
+      data: { connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
     })
     expect(quick.ok()).toBe(true)
     const { id: quickId } = (await quick.json()) as { id: string }
