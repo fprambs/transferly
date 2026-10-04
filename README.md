@@ -5,12 +5,12 @@
   </picture>
 </p>
 
-<h3 align="center">Tus servidores SFTP, FTP y FTPS, y tu almacenamiento en S3, Google y Azure, en el navegador, con un equipo, un vault cifrado y transferencias que no se pierden.</h3>
+<h3 align="center">Tus servidores SFTP, FTP, FTPS y WebDAV, y tu almacenamiento en S3, Google y Azure, en el navegador, con un equipo, un vault cifrado y transferencias que no se pierden.</h3>
 
 <p align="center">
   <a href="LICENSE"><img alt="Licencia Apache 2.0" src="https://img.shields.io/badge/licencia-Apache%202.0-0d47a1"></a>
   <img alt="Autoalojado" src="https://img.shields.io/badge/autoalojado-Docker-ff9800">
-  <img alt="SFTP, FTP, FTPS, S3, Google y Azure" src="https://img.shields.io/badge/conectores-SFTP%20%C2%B7%20FTP%20%C2%B7%20S3%20%C2%B7%20Google%20%C2%B7%20Azure-4caf50">
+  <img alt="SFTP, FTP, FTPS, WebDAV, S3, Google y Azure" src="https://img.shields.io/badge/conectores-SFTP%20%C2%B7%20FTP%20%C2%B7%20WebDAV%20%C2%B7%20S3%20%C2%B7%20Google%20%C2%B7%20Azure-4caf50">
   <img alt="Go y React" src="https://img.shields.io/badge/hecho%20con-Go%20%C2%B7%20React-64a0f0">
   <img alt="Español e inglés" src="https://img.shields.io/badge/idiomas-espa%C3%B1ol%20%C2%B7%20ingl%C3%A9s-7e57c2">
 </p>
@@ -29,7 +29,7 @@
 
 ---
 
-**Transferly** es un cliente de transferencia de archivos que vive en tu propio servidor. Todo lo que hacías con FileZilla o WinSCP (sitios guardados, doble panel, cola de transferencias, reanudación, registro de la conexión) ahora funciona desde cualquier navegador, y no solo con servidores: también con buckets de S3, Google Cloud Storage, Google Drive y Azure Storage. Sin instalar nada en cada equipo y sin que las contraseñas de tus servidores salgan del vault.
+**Transferly** es un cliente de transferencia de archivos que vive en tu propio servidor. Todo lo que hacías con FileZilla o WinSCP (sitios guardados, doble panel, cola de transferencias, reanudación, registro de la conexión) ahora funciona desde cualquier navegador, y no solo con servidores SFTP, FTP o WebDAV: también con buckets de S3, Google Cloud Storage, Google Drive y Azure Storage. Sin instalar nada en cada equipo y sin que las contraseñas de tus servidores salgan del vault.
 
 Está pensado para equipos: cada persona tiene su cuenta y su espacio personal, y los workspaces de equipo comparten sitios con roles, invitaciones y auditoría. Las credenciales se cifran con una contraseña maestra que el servidor nunca guarda.
 
@@ -106,6 +106,7 @@ Cada tipo de sitio es un **conector** del catálogo. Un sitio nuevo empieza elig
 - **FTP y FTPS**: TLS explícito o implícito, o solo FTP plano. Admite el comando ACCT, el juego de caracteres configurable por sitio y la zona horaria de `LIST` detectada automáticamente.
 - **Saltos y proxies**: ProxyJump por SSH y proxies SOCKS5 o HTTP. Cada salto pasa por la política de red.
 - **Claves de servidor**: confianza en el primer uso, aviso si la clave cambia y soporte para servidores con varias claves detrás de un balanceador.
+- **WebDAV** (beta): Nextcloud, ownCloud, NAS y cualquier servidor WebDAV, con carpetas reales y la ruta raíz de cada sitio. Un certificado autofirmado se acepta confirmando su huella, como en FTPS.
 - **S3 y compatibles** (beta): Amazon S3, MinIO, Cloudflare R2, Wasabi y otros, con claves de acceso, endpoint propio y carpetas emuladas con prefijos.
 - **Google Cloud Storage** (beta): buckets con una clave HMAC.
 - **Google Drive** (beta): Mi unidad o una unidad compartida, con inicio de sesión con Google en una ventana emergente. Los documentos de Google se descargan como Word, Excel, PowerPoint o PDF, y lo borrado va a la papelera.
@@ -188,11 +189,12 @@ Todo lo que puede ser peligroso se dibuja en una página aislada: origen opaco, 
 
 ## Lo que viene
 
-Ya están terminadas las fases 0 a 4 del [roadmap](docs/ROADMAP.md): MVP, el núcleo tipo FileZilla, equipos multiusuario, funciones avanzadas y el visor de archivos. De la fase 5 ya están el catálogo de conectores y los conectores de S3, Google (Cloud Storage y Drive) y Azure (Blob Storage y Files). Esto es lo próximo:
+Ya están terminadas las fases 0 a 4 del [roadmap](docs/ROADMAP.md): MVP, el núcleo tipo FileZilla, equipos multiusuario, funciones avanzadas y el visor de archivos. De la fase 5 ya están el catálogo de conectores y los conectores de S3, Google (Cloud Storage y Drive), Azure (Blob Storage y Files) y WebDAV. Esto es lo próximo:
 
 **Fase 5: escala e integraciones**
 
-- ☁️ **Más destinos**: WebDAV y SMB. Después, OneDrive y SharePoint con inicio de sesión de Microsoft.
+- ☁️ **Más destinos**: SMB, y OneDrive y SharePoint con inicio de sesión de Microsoft.
+- 🖥️ **Herramientas SSH** sobre SFTP: copiar, mover y comprimir en el propio servidor, modo sudo y una terminal integrada.
 - 🔑 **Inicio de sesión único** con OIDC.
 - 🗓️ **Transferencias programadas** con cron consciente de las zonas horarias, y webhooks.
 - 🔌 **Tokens de API** y documentación pública del contrato.
@@ -233,7 +235,7 @@ Cada versión es un tag `vX.Y.Z` en `main`, con sus cambios en el [CHANGELOG](CH
 - **Backend** en Go con arquitectura hexagonal, PostgreSQL, migraciones versionadas y un contrato OpenAPI del que se genera el código del servidor y del cliente.
 - **Frontend** en React con TanStack Router y Query, Tailwind y componentes accesibles sobre Base UI.
 - **Una sola imagen** sin distribución (distroless) que lleva la interfaz embebida en el binario.
-- **Calidad**: 100 % de cobertura en el código de producción, una suite de conformidad que pasa cada conector contra servidores reales (OpenSSH, vsftpd, Versity S3 Gateway y Azurite) o dobles fieles de cada API, pruebas de extremo a extremo con Playwright, revisiones de accesibilidad con axe en todos los temas y una revisión de seguridad al cerrar cada fase.
+- **Calidad**: 100 % de cobertura en el código de producción, una suite de conformidad que pasa cada conector contra servidores reales (OpenSSH, vsftpd, Versity S3 Gateway, Azurite y Apache con mod_dav) o dobles fieles de cada API, pruebas de extremo a extremo con Playwright, revisiones de accesibilidad con axe en todos los temas y una revisión de seguridad al cerrar cada fase.
 
 Más detalles en la [arquitectura](docs/ARCHITECTURE.md) y en las [decisiones de diseño](docs/adr).
 
@@ -248,7 +250,7 @@ make lint        # linters y chequeo de tipos
 make e2e         # pruebas de extremo a extremo contra la imagen de producción
 ```
 
-Con `make testenv` se levantan servidores SFTP, FTP, FTPS y S3 de prueba; ver [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
+Con `make testenv` se levanta un servidor de prueba para cada conector (SFTP, FTP, FTPS, S3, WebDAV, Azure y un Google falso), con los datos para crear cada sitio en [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentación
 

@@ -86,7 +86,7 @@ backend/
   cmd/transferly-desktop/         futuro binario Wails
   internal/
     core/{ports,auth,workspace,authz,vault,site,remotefs,session,transfer,netguard,audit}
-    adapters/{remotefs/{sftpfs,ftpfs,s3fs,gdrivefs,azure,azblobfs,azfilefs,memfs,connect,remotefstest,connectortest},googleauth,store/{postgres,sqlite,storetest},clock,events}
+    adapters/{remotefs/{sftpfs,ftpfs,s3fs,gdrivefs,azure,azblobfs,azfilefs,davfs,memfs,connect,remotefstest,connectortest},googleauth,store/{postgres,sqlite,storetest},clock,events}
     transport/{httpapi,wails}
     app/  config/  testutil/  docscheck/
   migrations/postgres/  queries/postgres/
@@ -221,6 +221,11 @@ Azure Storage (ADR-0025):
 - `remotefs/azure` es un cliente REST propio (el SDK suma 13 MB): firma Shared Key, tokens SAS o acceso anónimo, y endpoints propios para nubes soberanas y emuladores.
 - `azblobfs` (Blob Storage) emula carpetas como S3, sube en bloques de 8 MiB confirmados al final y renombra con copias en el servidor.
 - `azfilefs` (Azure Files) tiene carpetas reales, escribe en rangos de 4 MiB con reanudación, renombra de forma nativa y fija fechas. Guía: [guides/azure.md](guides/azure.md).
+
+WebDAV (ADR-0026):
+
+- `davfs` es un cliente propio de RFC 4918: PROPFIND de profundidad 0 y 1, GET por rango, PUT en streaming con `If-None-Match: *` al crear, MKCOL, DELETE y MOVE con `Overwrite: F`. Carpetas reales; sin reanudar subidas ni fijar fechas.
+- HTTPS se verifica contra las autoridades; si no las pasa, la huella del certificado se fija como la de un certificado FTPS (`tls-certificate`), y un certificado que las autoridades aceptan nunca se fija. Guía: [guides/webdav.md](guides/webdav.md).
 
 ## 10. Sesiones y conexiones
 
