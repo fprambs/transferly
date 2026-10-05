@@ -52,6 +52,7 @@ func openSFTP(ctx context.Context, c *Connector, key connections.Key, t target) 
 		VerifyHostKey: leg.verify(ctx, host, port),
 		Prompt:        leg.ask(ctx, auth),
 		Strict:        c.strict,
+		InexactSizes:  t.Setting(connectors.FieldInexactSizes) == "true",
 	}
 	sudo, err := c.sudoOf(t)
 	if err != nil {

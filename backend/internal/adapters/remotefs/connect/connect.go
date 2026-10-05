@@ -92,6 +92,12 @@ func ServerCommands(allowed func() bool) Option {
 	return func(c *Connector) { c.commands = allowed }
 }
 
+// StrictServers sets where the SFTP servers that proved strict are kept, so what is learned about them outlives restarts of
+// Transferly. Without it they are remembered in memory only.
+func StrictServers(store sftpfs.StrictStore) Option {
+	return func(c *Connector) { c.strict.Store = store }
+}
+
 // errNoPrompts fails an interactive site when nobody can relay the server's questions.
 var errNoPrompts = fmt.Errorf("%w: nobody can answer what the server asks", remotefs.ErrAuth)
 

@@ -64,6 +64,8 @@ type Config struct {
 	Prompt func(prompts.Challenge) ([]string, error)
 	// Strict remembers the servers that proved strict across connections; nil remembers nothing.
 	Strict *StrictServers
+	// InexactSizes treats the server as strict from the start, as the site asks when its sizes are known not to hold.
+	InexactSizes bool
 	// Sudo, when set, runs the SFTP server of the host through sudo as another user (ADR-0027) instead of the sftp subsystem.
 	Sudo *Sudo
 }
@@ -71,13 +73,46 @@ type Config struct {
 // maxStrictServers bounds how many servers a [StrictServers] remembers; once full it forgets them all and learns again.
 const maxStrictServers = 1024
 
+// StrictStore keeps the servers that proved strict across restarts of Transferly.
+type StrictStore interface {
+	// StrictServers lists the addresses of the servers that proved strict.
+	StrictServers(ctx context.Context) ([]string, error)
+	// RememberStrictServer records that the server at address proved strict.
+	RememberStrictServer(ctx context.Context, address string) error
+}
+
 // StrictServers remembers, by address, the SFTP servers that proved strict: a whole file did not have the size they reported,
 // or they dropped the session at once under pipelined reads. Connections to them read one request at a time and do not trust
-// reported sizes. It outlives connections, since a dropped session is discarded with what it learned. The zero value is ready
-// and it is safe for concurrent use.
+// reported sizes. It outlives connections, since a dropped session is discarded with what it learned, and with a [StrictStore]
+// it outlives Transferly too: it reads the store once, on first use, and writes each server it learns. The zero value is ready,
+// remembers in memory only, and it is safe for concurrent use.
 type StrictServers struct {
+	// Store keeps what is learned across restarts; nil keeps it in memory only.
+	Store StrictStore
+
 	mu      sync.Mutex
+	loaded  bool
 	servers map[string]struct{}
+}
+
+// load reads the store the first time it is needed; the caller holds the lock. A store that cannot be read is tried again later.
+func (s *StrictServers) load() {
+	if s.loaded || s.Store == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), strictStoreTimeout)
+	defer cancel()
+	addresses, err := s.Store.StrictServers(ctx)
+	if err != nil {
+		return
+	}
+	s.loaded = true
+	if s.servers == nil {
+		s.servers = map[string]struct{}{}
+	}
+	for _, address := range addresses {
+		s.servers[address] = struct{}{}
+	}
 }
 
 // Has reports whether the server at address proved strict.
@@ -87,22 +122,35 @@ func (s *StrictServers) Has(address string) bool {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.load()
 	_, ok := s.servers[address]
 	return ok
 }
 
-// add remembers that the server at address proved strict.
+// add remembers that the server at address proved strict, and tells the store when it is new.
 func (s *StrictServers) add(address string) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.load()
 	if s.servers == nil || len(s.servers) >= maxStrictServers {
 		s.servers = map[string]struct{}{}
 	}
+	_, known := s.servers[address]
 	s.servers[address] = struct{}{}
+	store := s.Store
+	s.mu.Unlock()
+	if known || store == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), strictStoreTimeout)
+	defer cancel()
+	_ = store.RememberStrictServer(ctx, address)
 }
+
+// strictStoreTimeout bounds each read and write of the [StrictStore].
+const strictStoreTimeout = 5 * time.Second
 
 // FS is a connection to an SFTP server. It is safe for concurrent use.
 type FS struct {
@@ -244,7 +292,7 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 	if err != nil {
 		return nil, err
 	}
-	strict := cfg.Strict.Has(cfg.Address)
+	strict := cfg.InexactSizes || cfg.Strict.Has(cfg.Address)
 	opts := []sftp.ClientOption{
 		sftp.UseConcurrentReads(!strict), sftp.UseConcurrentWrites(true),
 		sftp.MaxConcurrentRequestsPerFile(maxConcurrentRequests), sftp.MaxPacketChecked(maxPacket),

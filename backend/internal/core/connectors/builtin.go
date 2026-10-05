@@ -60,6 +60,8 @@ const (
 	FieldAuth     = "auth"
 	// FieldConnections caps the connections a user keeps open to the site.
 	FieldConnections = "connections"
+	// FieldInexactSizes says the SFTP server reports sizes other than the bytes it sends.
+	FieldInexactSizes = "inexact_sizes"
 )
 
 // The bounds of the settings SFTP and FTP share.
@@ -113,7 +115,7 @@ var SFTP = Descriptor{
 		{Name: "password", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthPassword)},
 		{Name: "private_key", Kind: PrivateKey, Group: GroupAccess, Passphrase: "passphrase", When: whenAuth(AuthKey)},
 		{Name: "passphrase", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthKey)},
-	}, append(append(proxyFields(), sudoFields()...), connectionsField)...), jumpFields()...),
+	}, append(append(proxyFields(), sudoFields()...), connectionsField, inexactSizesField)...), jumpFields()...),
 	EnabledByDefault: true,
 }
 
@@ -121,6 +123,11 @@ var SFTP = Descriptor{
 // sit behind a balancer whose servers each have their own key: with one, browsing, previews and transfers share a single
 // connection.
 var connectionsField = Field{Name: FieldConnections, Kind: Number, Group: GroupAdvanced, Required: true, Default: "4", Min: 1, Max: 4}
+
+// inexactSizesField marks an SFTP server that reports sizes other than the bytes it sends, as some enterprise gateways do: its
+// files are read one request at a time and downloaded to their real end, with no size announced. Transferly also learns it by
+// itself the first time a file does not end where the server said.
+var inexactSizesField = Field{Name: FieldInexactSizes, Kind: Boolean, Group: GroupAdvanced, Required: true, Default: "false"}
 
 // sudoFields are the settings of the sudo mode of SFTP sites (ADR-0027): once on, the session runs the SFTP server of the host
 // through sudo, as another user, root by default, with a password of its own or the one the account signs in with. The terminal

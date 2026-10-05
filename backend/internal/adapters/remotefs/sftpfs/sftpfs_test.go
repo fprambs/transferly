@@ -922,6 +922,7 @@ func (d *dropAfter) Write(p []byte) (int, error) {
 //   - a strict server is read one request at a time and still sends the whole file
 //   - a pipelined read that loses the connection at once marks the server strict, and one that fails later does not
 //   - nobody remembers anything without a memory of strict servers
+//   - a site marked with inexact sizes treats its server as strict from the start
 func TestFS_StrictServers(t *testing.T) {
 	server := startServer(t, sftptest.Options{})
 	known := &sftpfs.StrictServers{}
@@ -982,5 +983,13 @@ func TestFS_StrictServers(t *testing.T) {
 	}
 	if (*sftpfs.StrictServers)(nil).Has(server.Addr) {
 		t.Error("a missing memory remembered a server")
+	}
+
+	marked, err := connect(t, late, func(c *sftpfs.Config) { c.Password, c.InexactSizes = testPassword, true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if marked.SizesTrusted() {
+		t.Error("a site marked with inexact sizes trusted its server")
 	}
 }

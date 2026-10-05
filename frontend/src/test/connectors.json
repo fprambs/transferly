@@ -439,6 +439,13 @@
         "required": true
       },
       {
+        "default": "false",
+        "group": "advanced",
+        "kind": "boolean",
+        "name": "inexact_sizes",
+        "required": true
+      },
+      {
         "group": "jump",
         "kind": "host",
         "name": "jump_host",

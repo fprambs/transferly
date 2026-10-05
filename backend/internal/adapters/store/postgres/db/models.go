@@ -120,6 +120,11 @@ type SiteSecret struct {
 	Sealed     []byte
 }
 
+type StrictServer struct {
+	Address   string
+	LearnedAt time.Time
+}
+
 type Transfer struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID

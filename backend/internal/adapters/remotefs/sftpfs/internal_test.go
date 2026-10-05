@@ -204,3 +204,56 @@ func TestStrictServers_Bound(t *testing.T) {
 		t.Errorf("full memory = %d servers; want only the last one", len(known.servers))
 	}
 }
+
+// memoryStore is a [StrictStore] in memory that can fail its reads, and counts them and its writes.
+type memoryStore struct {
+	addresses []string
+	failList  int
+	lists     int
+	written   []string
+}
+
+// StrictServers lists the stored addresses, failing as many times as told first.
+func (m *memoryStore) StrictServers(context.Context) ([]string, error) {
+	m.lists++
+	if m.failList > 0 {
+		m.failList--
+		return nil, errors.New("database down")
+	}
+	return m.addresses, nil
+}
+
+// RememberStrictServer stores an address.
+func (m *memoryStore) RememberStrictServer(_ context.Context, address string) error {
+	m.written = append(m.written, address)
+	return nil
+}
+
+// TestStrictServers_Store verifies that strict servers outlive Transferly through a store.
+//
+// Use cases:
+//   - the servers in the store are known on first use, and the store is read once
+//   - a store that cannot be read is read again on the next use
+//   - a server learned is written once, and one already known is not written again
+func TestStrictServers_Store(t *testing.T) {
+	store := &memoryStore{addresses: []string{"gateway:22"}, failList: 1}
+	known := &StrictServers{Store: store}
+	if known.Has("gateway:22") {
+		t.Fatal("a store that failed was taken as read")
+	}
+	if !known.Has("gateway:22") || known.Has("other:22") || store.lists != 2 {
+		t.Errorf("stored server known = %v after %d reads; want known after reading again", known.Has("gateway:22"), store.lists)
+	}
+	known.add("new:22")
+	known.add("new:22")
+	known.add("gateway:22")
+	if !known.Has("new:22") || len(store.written) != 1 || store.written[0] != "new:22" {
+		t.Errorf("written %v; want only the new server, once", store.written)
+	}
+
+	fresh := &StrictServers{Store: &memoryStore{}}
+	fresh.add("first:22")
+	if !fresh.Has("first:22") {
+		t.Error("a server learned before the store was read was forgotten")
+	}
+}

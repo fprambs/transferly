@@ -247,6 +247,10 @@
       "label": "Simultaneous connections",
       "hint": "How many connections Transferly may keep open to this server at once, from 1 to 4. Use 1 for servers that allow a single session, or that sit behind a balancer whose servers each have their own key, so browsing, previews and transfers share one connection."
     },
+    "inexact_sizes": {
+      "label": "Sizes do not match the bytes",
+      "hint": "The server reports file sizes other than the bytes it sends, as some enterprise gateways do. Files are then read one request at a time and downloaded to their real end, with no size announced. Transferly also learns it by itself the first time a file does not end where the server said."
+    },
     "terminal": {
       "label": "Allow the terminal",
       "hint": "Lets admins open a terminal on the server from the explorer. Only admins may turn it on, and commands on servers must be allowed."

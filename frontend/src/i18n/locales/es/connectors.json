@@ -247,6 +247,10 @@
       "label": "Conexiones simultáneas",
       "hint": "Cuántas conexiones puede mantener abiertas Transferly con este servidor a la vez, de 1 a 4. Usa 1 en servidores que permiten una sola sesión, o que están detrás de un balanceador cuyos servidores tienen cada uno su propia clave: así la navegación, las vistas previas y las transferencias comparten una conexión."
     },
+    "inexact_sizes": {
+      "label": "Los tamaños no coinciden con los bytes",
+      "hint": "El servidor informa tamaños de archivo distintos de los bytes que envía, como algunos gateways empresariales. Los archivos se leen entonces de a una petición y se descargan hasta su fin real, sin anunciar el tamaño. Transferly también lo aprende solo la primera vez que un archivo no termina donde el servidor dijo."
+    },
     "terminal": {
       "label": "Permitir la terminal",
       "hint": "Permite a los administradores abrir una terminal en el servidor desde el explorador. Solo los administradores pueden activarla, y los comandos en servidores deben estar permitidos."
