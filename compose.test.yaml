@@ -118,6 +118,18 @@ services:
       dockerfile: testenv/azure/Dockerfile
     image: transferly-testenv-azure
 
+  # An OpenSSH server with a shell, zip and unzip, for the SSH tools of SFTP sites (ADR-0027): transferly / transferly.
+  ssh:
+    profiles: ["ssh"]
+    build:
+      context: testenv/ssh
+    image: transferly-testenv-ssh
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/22'"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   # Apache httpd with mod_dav for the WebDAV connector (ADR-0026): /webdav/ with transferly / transferly, /public/ read-only.
   webdav:
     profiles: ["webdav"]

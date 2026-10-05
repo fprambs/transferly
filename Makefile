@@ -32,11 +32,11 @@ unit:
 	$(TEST) run --rm unit
 
 e2e:
-	$(TEST) --profile ftp --profile s3 --profile google --profile azure --profile webdav up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle azurite fakeazure webdav
+	$(TEST) --profile ftp --profile s3 --profile google --profile azure --profile webdav --profile ssh up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle azurite fakeazure webdav ssh
 	$(TEST) run --rm e2e
 
 e2e-update:
-	$(TEST) --profile ftp --profile s3 --profile google --profile azure --profile webdav up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle azurite fakeazure webdav
+	$(TEST) --profile ftp --profile s3 --profile google --profile azure --profile webdav --profile ssh up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle azurite fakeazure webdav ssh
 	$(TEST) run --rm e2e node_modules/.bin/playwright test --update-snapshots
 
 lint:
