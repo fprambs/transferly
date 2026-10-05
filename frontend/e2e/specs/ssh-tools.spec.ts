@@ -31,6 +31,8 @@ async function openSite(page: Page, name: string, host: string): Promise<void> {
  * - on the server with a shell, a folder with a file is compressed into a ZIP next to it, the ZIP is extracted into a new folder named
  *   after it, which holds the folder with the same file, and the size of the folder is measured
  * - on the server restricted to SFTP the explorer offers none of these
+ * - a site in sudo mode, answering sudo with the password of the account, lists a folder only root may read, and the connection log
+ *   says it runs as root
  */
 test.describe('ssh tools', () => {
   test('compresses, extracts and measures on a server that runs commands', async ({ shell }) => {
@@ -84,5 +86,33 @@ test.describe('ssh tools', () => {
     await grid.getByRole('row', { name: /upload/ }).click({ button: 'right' })
     await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'Compress…' })).toHaveCount(0)
+  })
+
+  test('reads what only root may read in sudo mode', async ({ shell }) => {
+    test.setTimeout(60_000)
+    const { page } = shell
+    const name = `Root ${Date.now()}`
+    await page.getByRole('button', { name: 'New site' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await dialog.getByLabel('Host', { exact: true }).fill('ssh')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+    await dialog.getByLabel('Password', { exact: true }).fill('transferly')
+    await dialog.getByRole('tab', { name: 'Advanced' }).click()
+    await dialog.getByLabel('Default remote folder').fill('/root')
+    await dialog.getByRole('checkbox', { name: 'Use sudo' }).click()
+    await expect(dialog.getByLabel('Run as')).toHaveAttribute('placeholder', 'root')
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await expect(dialog).toBeHidden()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
+    const trust = page.getByRole('button', { name: 'Trust and connect' })
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await expect(trust.or(grid)).toBeVisible()
+    if (await trust.isVisible()) {
+      await trust.click()
+    }
+    await expect(grid.getByRole('row', { name: /only-root\.txt/ })).toBeVisible()
+    await expect(page.getByText('Running as root through sudo.')).toBeVisible()
   })
 })
