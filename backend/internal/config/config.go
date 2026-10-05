@@ -38,6 +38,9 @@ type Config struct {
 	ShutdownTimeout time.Duration
 	// AutoMigrate applies pending migrations on startup.
 	AutoMigrate bool
+	// VaultRememberSessions keeps the vault of each session unlocked across restarts (ADR-0028); development turns it on, since
+	// its server restarts with every change. Off by default.
+	VaultRememberSessions bool
 	// DataDir is the directory holding instance state such as the instance key.
 	DataDir string
 	// InstanceKey is an optional 32-byte instance key; when nil one is stored in DataDir.
@@ -237,14 +240,22 @@ func Load(getenv func(string) string) (Config, error) {
 		cfg.AllowedNetworks = append(cfg.AllowedNetworks, prefix.Masked())
 	}
 
-	if v := getenv("TRANSFERLY_AUTO_MIGRATE"); v != "" {
+	for _, b := range []struct {
+		name string
+		into *bool
+	}{
+		{"TRANSFERLY_AUTO_MIGRATE", &cfg.AutoMigrate},
+		{"TRANSFERLY_VAULT_REMEMBER_SESSIONS", &cfg.VaultRememberSessions},
+	} {
+		v := getenv(b.name)
 		switch strings.ToLower(v) {
+		case "":
 		case "true", "1":
-			cfg.AutoMigrate = true
+			*b.into = true
 		case "false", "0":
-			cfg.AutoMigrate = false
+			*b.into = false
 		default:
-			errs = append(errs, fmt.Errorf("invalid TRANSFERLY_AUTO_MIGRATE %q (want true|false)", v))
+			errs = append(errs, fmt.Errorf("invalid %s %q (want true|false)", b.name, v))
 		}
 	}
 

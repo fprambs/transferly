@@ -400,6 +400,19 @@ func TestKeyRing(t *testing.T) {
 	if _, ok := ring.Get("missing"); ok {
 		t.Error("Get() of an unknown session = true")
 	}
+	ring.Put("b", original)
+	clock.Advance(9 * time.Minute)
+	if !ring.Touch("b") {
+		t.Error("Touch() of a live key = false")
+	}
+	clock.Advance(9 * time.Minute)
+	if _, ok := ring.Get("b"); !ok {
+		t.Error("Touch() did not extend the idle time")
+	}
+	clock.Advance(11 * time.Minute)
+	if ring.Touch("b") || ring.Touch("missing") {
+		t.Error("Touch() of an expired or unknown key = true")
+	}
 
 	ring.Put("b", []byte{1})
 	ring.Put("b", []byte{2})

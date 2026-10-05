@@ -54,6 +54,25 @@ func (r *KeyRing) Get(session string) ([]byte, bool) {
 	return append([]byte(nil), e.dek...), true
 }
 
+// Touch extends the idle time of the session's DEK, when it holds one that has not expired, and reports whether it does: the
+// vault stays unlocked while its session is in use, not only while its key is.
+func (r *KeyRing) Touch(session string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.entries[session]
+	if !ok {
+		return false
+	}
+	now := r.clock.Now()
+	if !now.Before(e.expires) {
+		r.remove(session)
+		return false
+	}
+	e.expires = now.Add(r.ttl)
+	r.entries[session] = e
+	return true
+}
+
 // Lock removes and wipes the session's DEK.
 func (r *KeyRing) Lock(session string) {
 	r.mu.Lock()

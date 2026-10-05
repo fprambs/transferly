@@ -49,9 +49,10 @@ type Status struct {
 // Service implements the vault use cases of a user: creation, unlocking, locking, password changes and recovery.
 // Unlocked keys live in the key ring, per session.
 type Service struct {
-	vault *Vault
-	store Store
-	ring  *KeyRing
+	vault  *Vault
+	store  Store
+	ring   *KeyRing
+	memory *sessionMemory
 }
 
 // NewService returns a service over the given vault, store and key ring.
@@ -132,9 +133,11 @@ func (s *Service) Unlock(ctx context.Context, userID uuid.UUID, session, passwor
 	return nil
 }
 
-// Lock removes the session's key. It is safe to call on a session that is not unlocked.
+// Lock removes the session's key, and the one kept for it when the service remembers sessions. It is safe to call on a session that
+// is not unlocked.
 func (s *Service) Lock(session string) {
 	s.ring.Lock(session)
+	s.forget(session)
 }
 
 // Key returns a copy of the session's key, or [ErrLocked]. The caller wipes it after use.

@@ -92,6 +92,9 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	workspaces := workspace.NewService(store, system, nil)
 	keyRing := vault.NewKeyRing(system, cfg.SessionIdle)
 	vaults := vault.NewService(vault.NewDefault(kdf, rand.Reader), store, keyRing)
+	if cfg.VaultRememberSessions {
+		vaults.RememberSessions(store, rand.Reader)
+	}
 
 	hostKeys := hostkey.NewService(store, workspaces, system)
 	policy := netguard.NewPolicy(cfg.AllowedNetworks, nil)

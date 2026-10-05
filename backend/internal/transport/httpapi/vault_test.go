@@ -260,3 +260,62 @@ func TestConnections_ClosedWhenTheSiteChanges(t *testing.T) {
 		t.Error("deleting the site left its connections open")
 	}
 }
+
+// TestVault_Sessions verifies that the vault of a session stays unlocked while the session is in use, and, when the server
+// remembers sessions, that the key of the session is kept for restarts and forgotten with the session (ADR-0028).
+//
+// Scenarios:
+//   - requests that never open the vault keep it unlocked past the idle time of its key, as long as the session is in use
+//   - remembering sessions, the request that unlocks the vault keeps its key, sealed; locking the vault forgets it, unlocking keeps
+//     it again, and signing out forgets it with the session
+func TestVault_Sessions(t *testing.T) {
+	var vaults *vault.Service
+	a := newAPI(t, func(d *httpapi.Deps) { vaults = d.Vault })
+	cookie, csrf := a.setup()
+	if r := a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, csrf); r.Status != http.StatusCreated {
+		t.Fatalf("setup = %d %s", r.Status, r.Body)
+	}
+	for range 3 {
+		a.clock.Advance(25 * time.Minute)
+		if r := a.do(request{method: http.MethodGet, path: "/api/v1/me", cookie: cookie}); r.Status != http.StatusOK {
+			t.Fatalf("GET me = %d", r.Status)
+		}
+	}
+	if _, unlocked := a.vaultState(cookie); !unlocked {
+		t.Error("the vault locked although the session was in use")
+	}
+
+	vaults.RememberSessions(a.store, rand.Reader)
+	principal, err := a.auth.Authenticate(t.Context(), cookie.Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := principal.Session.ID.String()
+	kept := func() bool {
+		t.Helper()
+		_, err := a.store.VaultSession(t.Context(), session)
+		return err == nil
+	}
+	a.vaultState(cookie)
+	if !kept() {
+		t.Fatal("the key of an unlocked session was not kept")
+	}
+	if r := a.vaultCall("/lock", nil, cookie, csrf); r.Status != http.StatusNoContent {
+		t.Fatalf("lock = %d", r.Status)
+	}
+	if kept() {
+		t.Error("locking the vault did not forget the key kept for it")
+	}
+	if r := a.vaultCall("/unlock", map[string]string{"masterPassword": masterPassword}, cookie, csrf); r.Status != http.StatusNoContent {
+		t.Fatalf("unlock = %d", r.Status)
+	}
+	if !kept() {
+		t.Error("unlocking again did not keep the key")
+	}
+	if r := a.do(request{method: http.MethodPost, path: "/api/v1/auth/logout", cookie: cookie, headers: map[string]string{"X-CSRF-Token": csrf}}); r.Status != http.StatusNoContent {
+		t.Fatalf("logout = %d %s", r.Status, r.Body)
+	}
+	if kept() {
+		t.Error("signing out did not forget the key of the session")
+	}
+}

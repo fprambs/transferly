@@ -154,7 +154,7 @@ func NewRouter(d Deps) http.Handler {
 	r.Use(originGuard(d.AllowedOrigins))
 	r.Use(clientInfo)
 	r.Use(limitBodies)
-	r.Use(authenticate(d.Auth, d.Logger))
+	r.Use(authenticate(d.Auth, d.Vault, d.Logger))
 
 	r.NotFound(notFoundHandler(d.Web))
 	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) {

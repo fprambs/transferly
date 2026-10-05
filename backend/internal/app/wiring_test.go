@@ -232,3 +232,14 @@ func TestOpenConnections(t *testing.T) {
 		t.Error("a site nobody connected to reports an open connection")
 	}
 }
+
+// TestNewWiring_VaultRememberSessions verifies that the wiring builds the vault, also when it keeps the keys of sessions across
+// restarts, as development asks (ADR-0028).
+func TestNewWiring_VaultRememberSessions(t *testing.T) {
+	for _, remember := range []bool{false, true} {
+		w, err := newWiring(config.Config{SessionIdle: time.Minute, SessionMax: time.Hour, VaultRememberSessions: remember}, slog.New(slog.DiscardHandler), nil, []byte("0123456789abcdef0123456789abcdef"))
+		if err != nil || w.deps.Vault == nil {
+			t.Errorf("remember %v: newWiring() = %v with vault %v", remember, err, w.deps.Vault)
+		}
+	}
+}

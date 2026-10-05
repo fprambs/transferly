@@ -34,6 +34,9 @@ func TestLoad_Defaults(t *testing.T) {
 	if !cfg.AutoMigrate {
 		t.Error("AutoMigrate = false, want true by default")
 	}
+	if cfg.VaultRememberSessions {
+		t.Error("VaultRememberSessions = true, want off by default outside development")
+	}
 }
 
 // TestLoad_Overrides verifies that every environment variable overrides its default,
@@ -67,6 +70,16 @@ func TestLoad_AutoMigrateFlag(t *testing.T) {
 		}
 		if cfg.AutoMigrate != want {
 			t.Errorf("AutoMigrate with %q = %v, want %v", value, cfg.AutoMigrate, want)
+		}
+	}
+}
+
+// TestLoad_VaultRememberSessions verifies that the vault of sessions is remembered across restarts only when asked (ADR-0028).
+func TestLoad_VaultRememberSessions(t *testing.T) {
+	for value, want := range map[string]bool{"true": true, "1": true, "false": false, "": false} {
+		cfg, err := config.Load(env(map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x", "TRANSFERLY_VAULT_REMEMBER_SESSIONS": value}))
+		if err != nil || cfg.VaultRememberSessions != want {
+			t.Errorf("VaultRememberSessions with %q = %v, %v; want %v", value, cfg.VaultRememberSessions, err, want)
 		}
 	}
 }
@@ -120,6 +133,7 @@ func TestLoad_Errors(t *testing.T) {
 		{"unparsable shutdown timeout", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_SHUTDOWN_TIMEOUT": "abc"}, []string{"TRANSFERLY_SHUTDOWN_TIMEOUT"}},
 		{"non-positive shutdown timeout", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_SHUTDOWN_TIMEOUT": "0s"}, []string{"TRANSFERLY_SHUTDOWN_TIMEOUT"}},
 		{"invalid auto migrate", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_AUTO_MIGRATE": "maybe"}, []string{"TRANSFERLY_AUTO_MIGRATE"}},
+		{"invalid vault sessions", map[string]string{"TRANSFERLY_DATABASE_URL": "x", "TRANSFERLY_VAULT_REMEMBER_SESSIONS": "yes"}, []string{"TRANSFERLY_VAULT_REMEMBER_SESSIONS"}},
 		{"multiple errors joined", map[string]string{"TRANSFERLY_LOG_LEVEL": "loud"}, []string{"TRANSFERLY_DATABASE_URL", "TRANSFERLY_LOG_LEVEL"}},
 	}
 	for _, tt := range tests {

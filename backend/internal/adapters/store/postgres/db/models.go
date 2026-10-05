@@ -209,6 +209,11 @@ type UserVault struct {
 	SealedPrivateKey   []byte
 }
 
+type VaultSession struct {
+	SessionID uuid.UUID
+	Sealed    []byte
+}
+
 type Workspace struct {
 	ID           uuid.UUID
 	Name         string

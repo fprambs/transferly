@@ -39,6 +39,8 @@ services:
       TRANSFERLY_DATA_DIR: /cache/transferly
       TRANSFERLY_ALLOWED_ORIGINS: http://localhost:${TRANSFERLY_WEB_PORT:-5173}
       TRANSFERLY_ALLOWED_NETWORKS: ${TRANSFERLY_ALLOWED_NETWORKS:-172.16.0.0/12}
+      # Keeps the vault of each session unlocked across the restarts of air (ADR-0028); never on outside development.
+      TRANSFERLY_VAULT_REMEMBER_SESSIONS: "true"
       # Google Drive signs in with the fake of the testenv profile unless a real OAuth client is given (docs/guides/google.md).
       TRANSFERLY_GOOGLE_CLIENT_ID: ${TRANSFERLY_GOOGLE_CLIENT_ID:-transferly-test.apps.googleusercontent.com}
       TRANSFERLY_GOOGLE_CLIENT_SECRET: ${TRANSFERLY_GOOGLE_CLIENT_SECRET:-transferly-test-secret}

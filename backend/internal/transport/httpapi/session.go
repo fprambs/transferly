@@ -72,9 +72,18 @@ func clientInfo(next http.Handler) http.Handler {
 	})
 }
 
+// vaultSessions keeps the vault of a session unlocked while the session is in use (ADR-0028).
+type vaultSessions interface {
+	// Resume runs before a request of the session, with its token.
+	Resume(ctx context.Context, session, secret string)
+	// Remember runs after a request of the session, with its token.
+	Remember(ctx context.Context, session, secret string)
+}
+
 // authenticate resolves the session cookie to a signed-in user. Missing, unknown and expired sessions
-// leave the request anonymous; only infrastructure failures stop it.
-func authenticate(service *auth.Service, logger *slog.Logger) func(http.Handler) http.Handler {
+// leave the request anonymous; only infrastructure failures stop it. Every request of a signed-in session keeps its vault
+// unlocked, as long as it was.
+func authenticate(service *auth.Service, vaults vaultSessions, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(sessionCookieName)
@@ -86,7 +95,10 @@ func authenticate(service *auth.Service, logger *slog.Logger) func(http.Handler)
 			switch {
 			case err == nil:
 				ctx := context.WithValue(r.Context(), principalKey, authenticated{Principal: principal, token: cookie.Value})
+				session := principal.Session.ID.String()
+				vaults.Resume(ctx, session, cookie.Value)
 				next.ServeHTTP(w, r.WithContext(ctx))
+				vaults.Remember(context.WithoutCancel(ctx), session, cookie.Value)
 			case isAnonymous(err):
 				next.ServeHTTP(w, r)
 			default:
