@@ -111,6 +111,7 @@ type FS struct {
 	strict  atomic.Bool
 	closed  atomic.Bool
 	once    sync.Once
+	cmds    commands
 }
 
 var (

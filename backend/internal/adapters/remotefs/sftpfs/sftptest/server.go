@@ -42,6 +42,9 @@ type Options struct {
 	Ciphers []string
 	// KeyExchanges restricts the key exchange algorithms the server offers; nil keeps the library defaults.
 	KeyExchanges []string
+	// Exec runs the commands of exec requests: it gets the command line and writes what the command outputs, and returns its
+	// exit status. Nil refuses exec requests, as servers restricted to SFTP do.
+	Exec func(command string, stdout, stderr io.Writer) int
 	// Fault returns an error to answer an operation with instead of performing it; nil performs it.
 	// The method is the SFTP request method, such as Get, Put, List, Mkdir or Rename.
 	Fault func(method, path string) error
@@ -197,10 +200,17 @@ func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 	}
 }
 
-// session answers subsystem requests of a channel and runs the SFTP server on sftp ones.
+// session answers subsystem requests of a channel and runs the SFTP server on sftp ones, and runs exec requests with the Exec
+// option when it is set.
 func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt Options) {
 	defer func() { _ = channel.Close() }()
 	for req := range requests {
+		if req.Type == "exec" && opt.Exec != nil && len(req.Payload) >= 4 {
+			_ = req.Reply(true, nil)
+			status := opt.Exec(string(req.Payload[4:]), channel, channel.Stderr())
+			_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(status)}))
+			return
+		}
 		if opt.NoSFTP || req.Type != "subsystem" || len(req.Payload) < 4 || string(req.Payload[4:]) != "sftp" {
 			_ = req.Reply(false, nil)
 			continue
