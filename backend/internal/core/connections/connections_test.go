@@ -880,3 +880,173 @@ func TestPublishTo(t *testing.T) {
 		t.Errorf("events = %+v", events.events)
 	}
 }
+
+// limited is a connector that caps the connections of every site at max.
+type limited struct {
+	*connector
+	max int
+}
+
+// MaxConnections returns the cap of the connector.
+func (l *limited) MaxConnections(context.Context, connections.Key) int { return l.max }
+
+// acquireAsync starts an acquisition and returns where its outcome arrives.
+func (f *fixture) acquireAsync(ctx context.Context) <-chan acquired {
+	out := make(chan acquired, 1)
+	go func() {
+		lease, err := f.m.Acquire(ctx, f.key, "s")
+		out <- acquired{lease, err}
+	}()
+	return out
+}
+
+// acquired is the outcome of an acquisition.
+type acquired struct {
+	lease *connections.Lease
+	err   error
+}
+
+// callCount returns how many times the connector was asked to connect.
+func (c *connector) callCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.calls
+}
+
+// TestManager_OneDialAtATime verifies that a pool opens one connection at a time, and waits before opening more.
+//
+// Scenarios:
+//   - acquisitions that come while the first connection opens wait for it instead of opening their own, and get the
+//     connection once it is released, so the server sees one sign-in and the log one connection
+//   - when that connection fails, as with a changed host key, every waiter gets the same failure without connecting; a waiter
+//     whose context ends stops waiting
+//   - when the acquisition that opened it gives up, a waiter opens its own
+//   - with every connection busy, another one opens only after the grace period, and a release within it is reused
+func TestManager_OneDialAtATime(t *testing.T) {
+	f := newFixture(t, connections.Config{Grace: time.Hour})
+	f.conn.block = make(chan struct{})
+	first := f.acquireAsync(t.Context())
+	waitUntil(t, func() bool { return f.conn.callCount() == 1 })
+	second := f.acquireAsync(t.Context())
+	time.Sleep(20 * time.Millisecond)
+	close(f.conn.block)
+	a := <-first
+	if a.err != nil {
+		t.Fatalf("first = %v", a.err)
+	}
+	select {
+	case <-second:
+		t.Fatal("the waiter opened its own connection")
+	case <-time.After(20 * time.Millisecond):
+	}
+	a.lease.Release(nil)
+	b := <-second
+	if b.err != nil || b.lease.FS() != a.lease.FS() || f.conn.callCount() != 1 {
+		t.Fatalf("waiter = %v, calls %d; want the same connection", b.err, f.conn.callCount())
+	}
+	b.lease.Release(nil)
+
+	failing := newFixture(t, connections.Config{Attempts: 1})
+	failing.conn.block = make(chan struct{})
+	failing.conn.failures = []error{errRefused}
+	leader := failing.acquireAsync(t.Context())
+	waitUntil(t, func() bool { return failing.conn.callCount() == 1 })
+	waiter := failing.acquireAsync(t.Context())
+	short, stop := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer stop()
+	if got := <-failing.acquireAsync(short); !errors.Is(got.err, context.DeadlineExceeded) {
+		t.Errorf("waiter out of time = %v", got.err)
+	}
+	close(failing.conn.block)
+	if got := <-leader; !errors.Is(got.err, errRefused) {
+		t.Errorf("leader = %v", got.err)
+	}
+	if got := <-waiter; !errors.Is(got.err, errRefused) || failing.conn.callCount() != 1 {
+		t.Errorf("waiter = %v after %d calls; want the failure of the dial it waited for", got.err, failing.conn.callCount())
+	}
+
+	quitter := newFixture(t, connections.Config{})
+	quitter.conn.block = make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+	gone := quitter.acquireAsync(ctx)
+	waitUntil(t, func() bool { return quitter.conn.callCount() == 1 })
+	staying := quitter.acquireAsync(t.Context())
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	if got := <-gone; !errors.Is(got.err, context.Canceled) {
+		t.Errorf("canceled = %v", got.err)
+	}
+	waitUntil(t, func() bool { return quitter.conn.callCount() == 2 })
+	close(quitter.conn.block)
+	if got := <-staying; got.err != nil {
+		t.Errorf("waiter after the opener gave up = %v", got.err)
+	} else {
+		got.lease.Release(nil)
+	}
+
+	busy := newFixture(t, connections.Config{Grace: 30 * time.Millisecond})
+	held := busy.acquire(t)
+	reused := busy.acquireAsync(t.Context())
+	time.Sleep(5 * time.Millisecond)
+	held.Release(nil)
+	if got := <-reused; got.err != nil || got.lease.FS() != held.FS() {
+		t.Errorf("a release within the grace was not reused: %v", got.err)
+	} else {
+		held = got.lease
+	}
+	started := time.Now()
+	more := <-busy.acquireAsync(t.Context())
+	if more.err != nil || more.lease.FS() == held.FS() || time.Since(started) < 30*time.Millisecond || busy.conn.count() != 2 {
+		t.Errorf("another connection = %v after %v, opened %d; want a new one after the grace", more.err, time.Since(started), busy.conn.count())
+	}
+}
+
+// TestManager_Limiter verifies the cap a connector gives the connections of a site.
+//
+// Scenarios:
+//   - a site capped at one connection makes acquisitions wait for it, past the grace period
+//   - no cap, or a cap above MaxPerSite, keeps MaxPerSite
+func TestManager_Limiter(t *testing.T) {
+	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	one := &limited{connector: &connector{}, max: 1}
+	m := connections.New(one, clock, connections.Config{Grace: time.Millisecond})
+	t.Cleanup(m.Close)
+	key := connections.Key{UserID: uuid.New(), WorkspaceID: uuid.New(), SiteID: uuid.New()}
+	lease, err := m.Acquire(t.Context(), key, "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
+	defer cancel()
+	if _, err := m.Acquire(ctx, key, "s"); !errors.Is(err, context.DeadlineExceeded) || one.count() != 1 {
+		t.Errorf("second acquisition = %v with %d opened; want a wait on the only connection", err, one.count())
+	}
+	lease.Release(nil)
+
+	for _, max := range []int{0, 9} {
+		capped := &limited{connector: &connector{}, max: max}
+		m := connections.New(capped, clock, connections.Config{MaxPerSite: 2, Grace: time.Millisecond})
+		t.Cleanup(m.Close)
+		a, _ := m.Acquire(t.Context(), key, "s")
+		b, _ := m.Acquire(t.Context(), key, "s")
+		ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+		if _, err := m.Acquire(ctx, key, "s"); !errors.Is(err, context.DeadlineExceeded) || capped.count() != 2 {
+			t.Errorf("cap %d: opened %d; want MaxPerSite", max, capped.count())
+		}
+		cancel()
+		a.Release(nil)
+		b.Release(nil)
+	}
+}
+
+// waitUntil fails the test when cond does not hold within a second.
+func waitUntil(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatal("condition not met in time")
+		}
+		time.Sleep(time.Millisecond)
+	}
+}

@@ -42,6 +42,13 @@ type Admitter interface {
 	Admit(ctx context.Context, key Key, session string) error
 }
 
+// Limiter is a [Connector] that also caps the connections of each site, for servers that allow few sessions or that sit
+// behind a balancer whose servers have keys of their own.
+type Limiter interface {
+	// MaxConnections returns the most connections a user may keep open to the site of the key, or 0 for the default.
+	MaxConnections(ctx context.Context, key Key) int
+}
+
 // Config tunes the manager. Zero values select the defaults.
 type Config struct {
 	// MaxPerSite is the most connections one user keeps open to one site; 4 by default, which the throughput
@@ -56,6 +63,10 @@ type Config struct {
 	ValidateAfter time.Duration
 	// PingTimeout bounds each ping; 10 seconds by default.
 	PingTimeout time.Duration
+	// Grace is how long an acquisition that finds every connection of the pool busy waits for one to be released before it
+	// opens another; 250 milliseconds by default. Short operations then share one connection, and servers behind a balancer,
+	// each with its own key, are not reached through a new connection for every request.
+	Grace time.Duration
 	// Attempts is the number of tries to connect, the first included; 4 by default.
 	Attempts int
 	// InitialBackoff is the wait after the first failed attempt, doubled after each one; 200 milliseconds by default.
@@ -98,6 +109,7 @@ func (c Config) withDefaults() Config {
 	}{
 		{&c.IdleTimeout, 5 * time.Minute}, {&c.KeepAlive, 30 * time.Second}, {&c.ValidateAfter, 10 * time.Second},
 		{&c.PingTimeout, 10 * time.Second}, {&c.InitialBackoff, 200 * time.Millisecond}, {&c.MaxBackoff, 5 * time.Second},
+		{&c.Grace, 250 * time.Millisecond},
 	}
 	for _, d := range defaults {
 		if *d.field <= 0 {
@@ -138,6 +150,12 @@ type conn struct {
 	lastPing time.Time
 }
 
+// dial is a connection being opened for a pool, which other acquisitions wait for instead of opening their own.
+type dial struct {
+	done chan struct{}
+	err  error
+}
+
 // pool holds the connections of one key. Every field but users is guarded by mu; users is guarded by the
 // mutex of the manager and counts the acquisitions in progress, which keep the pool from being forgotten.
 type pool struct {
@@ -145,6 +163,7 @@ type pool struct {
 	mu      sync.Mutex
 	idle    []*conn
 	total   int
+	dialing *dial
 	changed chan struct{}
 	closed  bool
 	users   int
@@ -299,9 +318,12 @@ func (m *Manager) ping(ctx context.Context, c *conn) error {
 	return c.fs.Ping(ctx)
 }
 
-// Acquire borrows a connection for the site of key, reusing an idle one, opening a new one while the pool has
-// room, or waiting for one to be released. session identifies the user's session for opening credentials; a connector
-// that is an [Admitter] may refuse the session before any connection is handed out.
+// Acquire borrows a connection for the site of key, reusing an idle one, or waiting for one to be released. A new
+// connection is opened when the pool has room and has none, or when every connection stayed busy for [Config.Grace].
+// Only one connection of a pool is opened at a time: acquisitions that come meanwhile wait for it and share its failure,
+// so a server is not asked to sign in several times at once and its log shows one connection. session identifies the
+// user's session for opening credentials; a connector that is an [Admitter] may refuse the session before any
+// connection is handed out.
 func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease, error) {
 	if admitter, ok := m.connector.(Admitter); ok {
 		if err := admitter.Admit(ctx, key, session); err != nil {
@@ -313,6 +335,15 @@ func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease,
 		return nil, ErrClosed
 	}
 	defer m.unuse(p)
+	var grace <-chan time.Time
+	var timer *time.Timer
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
+	graceOver := false
+	limit := 0
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -331,28 +362,74 @@ func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease,
 				continue
 			}
 			return &Lease{m: m, p: p, c: c}, nil
-		case p.total < m.cfg.MaxPerSite:
+		case p.dialing != nil:
+			d := p.dialing
+			p.mu.Unlock()
+			select {
+			case <-d.done:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			if d.err != nil && !errors.Is(d.err, context.Canceled) && !errors.Is(d.err, context.DeadlineExceeded) {
+				return nil, d.err
+			}
+			continue
+		case p.total == 0 || (graceOver && p.total < limit):
+			d := &dial{done: make(chan struct{})}
+			p.dialing = d
 			p.total++
 			p.mu.Unlock()
-			fsys, err := m.connect(ctx, key, session)
-			if err != nil {
-				p.mu.Lock()
-				p.total--
-				p.notify()
-				p.mu.Unlock()
-				return nil, err
-			}
-			m.announce(p)
-			return &Lease{m: m, p: p, c: &conn{fs: fsys, lastUsed: m.clock.Now()}}, nil
+			return m.open(ctx, p, d, session)
 		}
 		changed := p.changed
+		total := p.total
 		p.mu.Unlock()
+		if limit == 0 {
+			limit = m.maxOf(ctx, key)
+		}
+		room := total < limit
+		if room && grace == nil {
+			timer = time.NewTimer(m.cfg.Grace)
+			grace = timer.C
+		}
 		select {
 		case <-changed:
+		case <-grace:
+			graceOver = true
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
 	}
+}
+
+// open opens the connection of a dial that the caller registered in its pool, and tells the acquisitions waiting for it.
+func (m *Manager) open(ctx context.Context, p *pool, d *dial, session string) (*Lease, error) {
+	fsys, err := m.connect(ctx, p.key, session)
+	p.mu.Lock()
+	p.dialing = nil
+	d.err = err
+	close(d.done)
+	if err != nil {
+		p.total--
+	}
+	p.notify()
+	p.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	m.announce(p)
+	return &Lease{m: m, p: p, c: &conn{fs: fsys, lastUsed: m.clock.Now()}}, nil
+}
+
+// maxOf is the most connections the pool of a key may hold: the limit of its site when the connector is a [Limiter]
+// that gives one, or [Config.MaxPerSite].
+func (m *Manager) maxOf(ctx context.Context, key Key) int {
+	if limiter, ok := m.connector.(Limiter); ok {
+		if n := limiter.MaxConnections(ctx, key); n > 0 {
+			return min(n, m.cfg.MaxPerSite)
+		}
+	}
+	return m.cfg.MaxPerSite
 }
 
 // connect opens a connection, retrying network failures with exponential backoff and jitter.
