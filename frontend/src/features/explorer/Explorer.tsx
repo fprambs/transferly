@@ -56,6 +56,7 @@ import { ErrorGuide } from '@/features/errors/ErrorGuide'
 import { SearchDialog } from '../search/SearchDialog'
 import { RemoteEditor } from '../editor/RemoteEditor'
 import { QuickLook } from '../preview/QuickLook'
+import type { TrustKey } from '../preview/HostKeyPrompt'
 import { remoteSource, type PreviewSource } from '../preview/source'
 
 import { EntryTable } from './EntryTable'
@@ -255,7 +256,13 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
 
   const [previewing, setPreviewing] = useState<number | null>(null)
   const files = useMemo(() => visible.filter((entry) => entry.type === 'file'), [visible])
-  const sources = useMemo(() => files.map((entry) => remoteSource(api, workspaceId, siteId, entry)), [files, api, workspaceId, siteId])
+  const trustKey: TrustKey | undefined =
+    target === undefined
+      ? undefined
+      : async (key, mode) => {
+          await api.hostKeys.trust(workspaceId, { ...endpointOf(target), keyType: key.keyType, fingerprint: key.fingerprint, mode })
+        }
+  const sources = files.map((entry) => remoteSource(api, workspaceId, siteId, entry, trustKey))
   const preview = (entry: RemoteEntry): void => setPreviewing(files.findIndex((file) => file.path === entry.path))
   const entryOf = (source: PreviewSource): RemoteEntry => files[sources.indexOf(source)]
 

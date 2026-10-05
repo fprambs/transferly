@@ -1,5 +1,7 @@
 import type { Api, ArchiveEntry, ArchiveListing, RemoteEntry } from '@/lib/api'
 
+import type { TrustKey } from './HostKeyPrompt'
+
 /**
  * A file a viewer reads (ADR-0018): its name and size, and reads of a range of its bytes, so a viewer never needs the whole file when a
  * part is enough. Remote files, local files and the entries of an archive are all sources.
@@ -22,6 +24,11 @@ export interface PreviewSource {
   mediaUrl?: () => Promise<MediaAddress>
   /** The entries of the file when it is an archive, and how to open them; left out, an archive shows as bytes. */
   archive?: ArchiveAccess
+  /**
+   * Trusts a key the server presented on the connection a read opened, so the viewer can ask about it and read again; left out, such a
+   * failure is shown like any other.
+   */
+  trust?: TrustKey
 }
 
 /** The entries of an archive and how to open each one (D2.5): read by the server for a remote archive. */
@@ -59,8 +66,9 @@ function clamp(size: number, start: number, end: number): [number, number] {
 
 /** A file of a remote site, read with ranged requests to its content, which the media player also streams from, and whose entries the
  * server lists when it is an archive. */
-export function remoteSource(api: Api, workspaceId: string, siteId: string, entry: RemoteEntry): PreviewSource {
+export function remoteSource(api: Api, workspaceId: string, siteId: string, entry: RemoteEntry, trust?: TrustKey): PreviewSource {
   return {
+    trust,
     key: `remote:${workspaceId}:${siteId}:${entry.path}`,
     name: entry.name,
     size: entry.size,

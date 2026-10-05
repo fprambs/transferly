@@ -8,8 +8,10 @@ import { Loading } from '@/components/ui/loading'
 import { PanelState } from '@/components/ui/panel-state'
 
 import { ErrorGuide } from '../errors/ErrorGuide'
+import { changedHostKeyOf, unknownHostKeyOf } from '../quick/errors'
 
 import { detectKind, headLength, type PreviewKind } from './detect'
+import { HostKeyPrompt } from './HostKeyPrompt'
 import type { PreviewSource } from './source'
 import { HexViewer } from './viewers/HexViewer'
 import { viewerOf } from './viewers/registry'
@@ -52,6 +54,10 @@ export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?
     return <Loading label={t(($) => $.loading)} className="m-auto" />
   }
   if (head.isError) {
+    const hostKey = changedHostKeyOf(head.error) ?? unknownHostKeyOf(head.error)
+    if (source.trust !== undefined && hostKey !== undefined) {
+      return <HostKeyPrompt hostKey={hostKey} trust={source.trust} onTrusted={() => void head.refetch()} />
+    }
     return (
       <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failed)}>
         <ErrorGuide failure={head.error} />
