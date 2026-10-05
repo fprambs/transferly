@@ -152,7 +152,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Credentials:   askedPasswords,
 			Connectors:    offered,
 			Google:        google,
-			Files:         files.NewService(workspaces, pool),
+			Files:         files.NewService(workspaces, pool).WithCommands(quotas.ServerCommandsAllowed),
 			Transfers:     transfers,
 			Activity:      activityLog,
 			Import:        importer,

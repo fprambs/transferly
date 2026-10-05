@@ -43,8 +43,9 @@ type Checksum struct {
 	Size int64
 }
 
-// Checksum reads a remote file through the server and returns its digest. Nothing is stored; the file is streamed through the
-// hash, so the cost is reading the whole file, and canceling the context stops it.
+// Checksum returns the digest of a remote file. When the server of the connection computes it itself (ADR-0027), it does;
+// otherwise the file is streamed through the hash, so the cost is reading the whole file, and canceling the context stops it.
+// Nothing is stored.
 func (s *Service) Checksum(ctx context.Context, t Target, p, algorithm string) (Checksum, error) {
 	newHash, ok := algorithms[algorithm]
 	if !ok {
@@ -53,6 +54,13 @@ func (s *Service) Checksum(ctx context.Context, t Target, p, algorithm string) (
 	lease, err := s.begin(ctx, t, workspace.ActionDownload, p)
 	if err != nil {
 		return Checksum{}, err
+	}
+	if entry, err := lease.FS().Stat(ctx, p); err == nil && !entry.IsDir() {
+		sum, done, err := s.serverChecksum(ctx, lease.FS(), p, algorithm)
+		if done {
+			lease.Release(err)
+			return Checksum{Algorithm: algorithm, Sum: sum, Size: entry.Size}, err
+		}
 	}
 	sum, err := digest(ctx, lease.FS(), p, newHash())
 	lease.Release(err)

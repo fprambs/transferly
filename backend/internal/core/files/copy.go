@@ -175,7 +175,8 @@ func (s *Service) freeName(ctx context.Context, t Target, p string) (string, err
 func isNotFound(err error) bool { return errors.Is(err, remotefs.ErrNotFound) }
 
 // copyFile copies one file according to the policy; a skipped file answers with the file that stayed. whole says the copy
-// is only this file, whose start then reports its size.
+// is only this file, whose start then reports its size. Within one site, the server copies the file itself when it can
+// (ADR-0027), unless the copy is verified, which needs the bytes.
 func (s *Service) copyFile(ctx context.Context, l CopyLocation, source remotefs.Entry, policy Policy, obs Observer, whole bool) (remotefs.Entry, error) {
 	mode := remotefs.WriteCreate
 	destination := l.DestinationPath
@@ -194,6 +195,19 @@ func (s *Service) copyFile(ctx context.Context, l CopyLocation, source remotefs.
 			}
 		} else if !isNotFound(err) {
 			return remotefs.Entry{}, err
+		}
+	}
+	if l.Source.Site == l.Destination.Site && !l.Verify {
+		done, err := s.serverCopy(ctx, l.Destination, l.SourcePath, destination, mode == remotefs.WriteOverwrite)
+		if err != nil {
+			return remotefs.Entry{}, err
+		}
+		if done {
+			if whole {
+				started(obs, source.Size)
+			}
+			progress(obs, source.Size)
+			return s.Stat(ctx, l.Destination, destination)
 		}
 	}
 	from := l.Source

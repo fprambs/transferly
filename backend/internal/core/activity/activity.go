@@ -26,6 +26,10 @@ const (
 	Checksum Kind = "checksum"
 	// Transfer is a transfer that ended; the detail holds its direction and final state.
 	Transfer Kind = "transfer"
+	// Compress packed entries into an archive on the server (ADR-0027); the detail holds the archive.
+	Compress Kind = "compress"
+	// Extract unpacked an archive on the server (ADR-0027); the detail holds the folder it went into.
+	Extract Kind = "extract"
 )
 
 const (

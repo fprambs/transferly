@@ -105,6 +105,7 @@ type Service struct {
 	nested   int64
 	buffered int64
 	now      func() time.Time
+	commands func() bool
 }
 
 // NewService returns a service that checks permissions with authz and borrows connections from pool.

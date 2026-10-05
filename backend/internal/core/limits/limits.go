@@ -70,6 +70,9 @@ type Limits struct {
 	MaxMembersPerTeam int `json:"maxMembersPerTeam"`
 	// DailyBytesPerUser caps the bytes a person moves in a day.
 	DailyBytesPerUser int64 `json:"dailyBytesPerUser"`
+	// ServerCommandsOff keeps connections from working on their servers by running commands there (ADR-0027); false, the
+	// default, allows it.
+	ServerCommandsOff bool `json:"serverCommandsOff,omitempty"`
 }
 
 // Scheduler returns the caps of concurrent transfers in the form the scheduler takes.
@@ -173,6 +176,10 @@ func (s *Service) Current() Limits {
 	defer s.mu.RUnlock()
 	return s.current
 }
+
+// ServerCommandsAllowed reports whether connections may work on their servers by running commands there (ADR-0027), as the
+// limits in force say.
+func (s *Service) ServerCommandsAllowed() bool { return !s.Current().ServerCommandsOff }
 
 // Defaults returns the limits the server started with.
 func (s *Service) Defaults() Limits { return s.defaults }

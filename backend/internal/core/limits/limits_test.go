@@ -129,7 +129,8 @@ func TestService_Load(t *testing.T) {
 // TestService_Set verifies changing the limits.
 //
 // Scenarios:
-//   - valid limits are stored with the actor and the time, put in force and returned
+//   - valid limits are stored with the actor and the time, put in force and returned; server commands are allowed until an
+//     administrator turns them off
 //   - negative values, values above the ceilings and bandwidth caps below 1 KiB/s are refused, name every wrong field and change nothing
 //   - a failing store leaves the limits as they were
 func TestService_Set(t *testing.T) {
@@ -144,6 +145,17 @@ func TestService_Set(t *testing.T) {
 	}
 	if applier.global != 2_000_000 || applier.perUser != 1_000_000 || applier.transfers.Global != 4 {
 		t.Errorf("applied = %+v %d %d", applier.transfers, applier.global, applier.perUser)
+	}
+	if !svc.ServerCommandsAllowed() {
+		t.Error("ServerCommandsAllowed() = false by default")
+	}
+	off := want
+	off.ServerCommandsOff = true
+	if _, err := svc.Set(ctx, admin, off); err != nil || svc.ServerCommandsAllowed() {
+		t.Errorf("ServerCommandsAllowed() after turning commands off = true, %v", err)
+	}
+	if _, err := svc.Set(ctx, admin, want); err != nil {
+		t.Fatal(err)
 	}
 
 	bad := limits.Limits{BandwidthGlobal: -1, BandwidthPerUser: 1 << 41, TransfersGlobal: 10_001, TransfersPerWorkspace: -1, TransfersPerUser: -1, TransfersPerSite: -1,
