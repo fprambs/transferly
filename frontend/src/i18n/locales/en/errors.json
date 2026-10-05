@@ -113,6 +113,10 @@
       "cause": "The folder still has files, and the server only removes empty folders this way.",
       "next": "Delete its contents first, or delete it with everything inside."
     },
+    "elevation_forbidden": {
+      "cause": "Turning on sudo, or changing a site that has it on, is kept for the admins of the workspace.",
+      "next": "Ask an admin of the workspace to do it."
+    },
     "empty_patch": {
       "cause": "The change had nothing to change.",
       "next": "Choose at least one setting to change."
@@ -436,6 +440,10 @@
     "site_quota_reached": {
       "cause": "The workspace has all the sites the administrator allows.",
       "next": "Delete sites you no longer use, or ask an administrator to raise the limit."
+    },
+    "sudo_refused": {
+      "cause": "sudo refused to run the session as the chosen user: the password is wrong or missing, the account may not use sudo, or the server runs no commands.",
+      "next": "Check the sudo password of the site and that the account is in the sudoers of the server."
     },
     "team_quota_reached": {
       "cause": "You own all the teams the administrator allows.",

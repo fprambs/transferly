@@ -113,6 +113,10 @@
       "cause": "La carpeta todavía tiene archivos, y el servidor solo elimina carpetas vacías de esta forma.",
       "next": "Elimina primero su contenido, o elimínala con todo lo que tiene."
     },
+    "elevation_forbidden": {
+      "cause": "Activar sudo, o cambiar un sitio que lo tiene activado, queda para los administradores del workspace.",
+      "next": "Pide a un administrador del workspace que lo haga."
+    },
     "empty_patch": {
       "cause": "El cambio no tenía nada que cambiar.",
       "next": "Elige al menos un ajuste para cambiar."
@@ -436,6 +440,10 @@
     "site_quota_reached": {
       "cause": "El espacio de trabajo tiene todos los sitios que el administrador permite.",
       "next": "Elimina sitios que ya no uses o pide a un administrador que suba el límite."
+    },
+    "sudo_refused": {
+      "cause": "sudo se negó a ejecutar la sesión como el usuario elegido: la contraseña es incorrecta o falta, la cuenta no puede usar sudo, o el servidor no ejecuta comandos.",
+      "next": "Revisa la contraseña de sudo del sitio y que la cuenta esté en los sudoers del servidor."
     },
     "team_quota_reached": {
       "cause": "Eres dueño de todos los equipos que el administrador permite.",

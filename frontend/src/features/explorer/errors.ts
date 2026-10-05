@@ -20,6 +20,7 @@ const explorerErrorKeys = [
   'tree_too_large',
   'time_zone_inconclusive',
   'server_commands_unsupported',
+  'sudo_refused',
   'remote_quota_exceeded',
   'network_error',
 ] as const

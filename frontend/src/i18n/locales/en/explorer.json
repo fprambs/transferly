@@ -79,7 +79,8 @@
     "credentials_required": "This site asks for its password when connecting.",
     "connector_disabled": "The administrators of this instance do not offer this kind of site any more. Ask them to offer its connector again.",
     "server_commands_unsupported": "This server does not let Transferly run commands, or an administrator turned them off.",
-    "remote_quota_exceeded": "The server has no space left."
+    "remote_quota_exceeded": "The server has no space left.",
+    "sudo_refused": "sudo refused the account or its password, or the server cannot run it."
   },
   "toolbar": {
     "newFolder": "New folder",
@@ -286,7 +287,8 @@
       "listed": "Listed {{path}}: {{count}} entries.",
       "failed": "Failed: {{reason}} ({{code}})",
       "canceled": "Canceled: {{path}}.",
-      "disconnected": "Disconnected."
+      "disconnected": "Disconnected.",
+      "elevated": "Running as {{user}} through sudo."
     },
     "expand": "Show the whole log"
   },

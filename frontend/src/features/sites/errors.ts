@@ -8,6 +8,7 @@ const siteErrorKeys = [
   'collection_not_empty',
   'collection_not_found',
   'forbidden',
+  'elevation_forbidden',
   'site_name_taken',
   'invalid_name',
   'invalid_host',

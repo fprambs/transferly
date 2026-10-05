@@ -19,7 +19,7 @@ function clockOf(time: string, language: string): string {
 }
 
 /** Steps that tell something went right: connected, a trusted key, signed in, listed. */
-const successSteps: readonly string[] = ['connected', 'host_key_verified', 'authenticated', 'listed']
+const successSteps: readonly string[] = ['connected', 'host_key_verified', 'authenticated', 'elevated', 'listed']
 
 /** Steps that close the session or stop an attempt without an error. */
 const quietSteps: readonly string[] = ['disconnected', 'canceled']

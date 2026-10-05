@@ -229,6 +229,19 @@
     "path": {
       "label": "Path",
       "hint": "The folder on the server the site opens, such as /remote.php/dav/files/alice/ on Nextcloud."
+    },
+    "sudo": {
+      "label": "Use sudo",
+      "hint": "Runs the SFTP server of the host through sudo, so the site reads and writes as another user, root by default. Only admins may turn it on, and commands on servers must be allowed."
+    },
+    "sudo_user": {
+      "label": "Run as",
+      "hint": "The user sudo runs as."
+    },
+    "sudo_password": {
+      "label": "Sudo password",
+      "hint": "What sudo asks for. Leave it empty to answer with the password of the account, or when sudo asks for none.",
+      "keep": "Leave blank to keep the saved sudo password."
     }
   },
   "overrides": {

@@ -229,6 +229,19 @@
     "path": {
       "label": "Ruta",
       "hint": "La carpeta del servidor que abre el sitio, como /remote.php/dav/files/alicia/ en Nextcloud."
+    },
+    "sudo": {
+      "label": "Usar sudo",
+      "hint": "Ejecuta el servidor SFTP del host con sudo, así el sitio lee y escribe como otro usuario, root por defecto. Solo los administradores pueden activarlo, y los comandos en servidores deben estar permitidos."
+    },
+    "sudo_user": {
+      "label": "Ejecutar como",
+      "hint": "El usuario con el que corre sudo."
+    },
+    "sudo_password": {
+      "label": "Contraseña de sudo",
+      "hint": "La que pide sudo. Déjala vacía para responder con la contraseña de la cuenta, o si sudo no pide ninguna.",
+      "keep": "Déjala en blanco para conservar la contraseña de sudo guardada."
     }
   },
   "overrides": {

@@ -53,7 +53,8 @@
     "invalid_export": "Este archivo no es una exportación de Transferly.",
     "wrong_export_password": "Esa contraseña no abre el archivo, o el archivo fue modificado.",
     "weak_export_password": "La contraseña necesita al menos 12 caracteres.",
-    "connector_disabled": "Los administradores de esta instancia no ofrecen este tipo de sitio."
+    "connector_disabled": "Los administradores de esta instancia no ofrecen este tipo de sitio.",
+    "elevation_forbidden": "Solo los administradores pueden activar sudo, o cambiar un sitio que lo tiene activado."
   },
   "collection": {
     "actions": "Acciones de {{name}}",
@@ -167,7 +168,7 @@
     "disconnect": "Desconectar",
     "openInNewTab": "Abrir en una pestaña nueva",
     "remoteDir": "Carpeta remota inicial",
-    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar en la raíz."
+    "remoteDirHint": "La carpeta donde se abre el sitio cada vez que se conecta. Déjala vacía para empezar donde el servidor abre la sesión, como lo dice pwd, por ejemplo /home/deploy."
   },
   "import": {
     "open": "Importar de FileZilla",
