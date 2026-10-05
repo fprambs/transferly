@@ -67,6 +67,8 @@ type Options struct {
 	// LyingReads makes every reply to a read claim more data than it carries, as a malicious server can, to check that clients do
 	// not trust the length a server gives.
 	LyingReads bool
+	// DropOnBadPassword closes the connection when a password is wrong, instead of answering with a failure, as some gateways do.
+	DropOnBadPassword bool
 	// OneSFTPSession refuses a second sftp subsystem on the same connection, as servers that allow one session per connection do.
 	OneSFTPSession bool
 	// Fault returns an error to answer an operation with instead of performing it; nil performs it.
@@ -259,6 +261,18 @@ func (s *Server) accept(config *ssh.ServerConfig, opt Options) {
 // serve performs the SSH handshake and serves the sftp subsystem of every session channel.
 func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 	defer func() { _ = conn.Close() }()
+	if opt.DropOnBadPassword {
+		dropping, check := *config, config.PasswordCallback
+		dropping.PasswordCallback = func(c ssh.ConnMetadata, pw []byte) (*ssh.Permissions, error) {
+			permissions, err := check(c, pw)
+			if err != nil {
+				_ = conn.Close()
+			}
+			return permissions, err
+		}
+		dropping.KeyboardInteractiveCallback = nil
+		config = &dropping
+	}
 	_, channels, requests, err := ssh.NewServerConn(conn, config)
 	if err != nil {
 		return

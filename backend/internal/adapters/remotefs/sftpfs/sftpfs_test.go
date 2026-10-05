@@ -1079,3 +1079,38 @@ func TestFS_LyingServer(t *testing.T) {
 		_ = fsys.Close()
 	}
 }
+
+// TestDial_ServerDropsOnBadPassword verifies servers that close the connection on a wrong password instead of answering with a
+// failure, as some gateways do.
+//
+// Use cases:
+//   - a wrong password is refused credentials, which are not tried again, and not a lost connection
+//   - the right password signs in
+//   - a server that closes the connection before its key was checked is still a lost connection
+func TestDial_ServerDropsOnBadPassword(t *testing.T) {
+	server := startServer(t, sftptest.Options{DropOnBadPassword: true})
+	_, err := connect(t, server, func(c *sftpfs.Config) { c.Password = "wrong password" })
+	if !errors.Is(err, remotefs.ErrAuth) || remotefs.Retryable(err) {
+		t.Errorf("wrong password = %v; want refused credentials that are not retried", err)
+	}
+	fsys, err := connect(t, server, func(c *sftpfs.Config) { c.Password = testPassword })
+	if err != nil {
+		t.Fatalf("right password = %v", err)
+	}
+	_ = fsys.Close()
+
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = listener.Close() }()
+	go func() {
+		if conn, err := listener.Accept(); err == nil {
+			_ = conn.Close()
+		}
+	}()
+	_, err = sftpfs.Dial(t.Context(), sftpfs.Config{Address: listener.Addr().String(), Username: "u", Password: "p", VerifyHostKey: func(string, string) error { return nil }})
+	if !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("closed before the key = %v; want ErrConnectionLost", err)
+	}
+}

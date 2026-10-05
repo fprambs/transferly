@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -338,12 +339,14 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 	}
 
 	var rejected error
+	verified := false
 	clientConfig := &ssh.ClientConfig{
 		Config: ssh.Config{KeyExchanges: keyExchanges, Ciphers: ciphers},
 		User:   cfg.Username,
 		Auth:   methods,
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 			rejected = cfg.VerifyHostKey(key.Type(), ssh.FingerprintSHA256(key))
+			verified = rejected == nil
 			return rejected
 		},
 		HostKeyAlgorithms: cfg.HostKeyAlgorithms,
@@ -377,7 +380,7 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 	}
 	if err != nil {
 		_ = conn.Close()
-		return nil, handshakeError(cfg.Address, rejected, err)
+		return nil, handshakeError(cfg.Address, rejected, verified, err)
 	}
 	return ssh.NewClient(sshConn, channels, requests), nil
 }
@@ -394,13 +397,22 @@ func refusedCredentials(err error) bool {
 		strings.Contains(message, "Too many authentication failures")
 }
 
-// handshakeError explains why the SSH handshake failed.
-func handshakeError(address string, rejected, err error) error {
+// closedBy tells whether a handshake failed because the server closed the connection.
+func closedBy(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) || errors.Is(err, net.ErrClosed)
+}
+
+// handshakeError explains why the SSH handshake failed. A server that closes the connection once its key was verified, while the
+// client signs in, refused the credentials: some gateways answer wrong passwords that way instead of with a failure, and taking it
+// for a lost connection would try the same credentials again and again, which can lock the account.
+func handshakeError(address string, rejected error, verified bool, err error) error {
 	switch {
 	case rejected != nil:
 		return fmt.Errorf("verifying the host key of %s: %w", address, rejected)
 	case refusedCredentials(err):
 		return fmt.Errorf("%w: %s refused the credentials", remotefs.ErrAuth, address)
+	case verified && closedBy(err):
+		return fmt.Errorf("%w: %s closed the connection while signing in, as some servers do with wrong credentials", remotefs.ErrAuth, address)
 	}
 	return fmt.Errorf("handshake with %s: %w: %w", address, remotefs.ErrConnectionLost, err)
 }

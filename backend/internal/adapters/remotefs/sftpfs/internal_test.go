@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
+	"syscall"
 	"testing"
 
 	"github.com/pkg/sftp"
@@ -155,15 +157,23 @@ func TestHandshakeError(t *testing.T) {
 		fmt.Errorf("ssh: handshake failed: %w", remotefs.ErrAuth),
 	}
 	for _, err := range refused {
-		if got := handshakeError("h:22", nil, err); !errors.Is(got, remotefs.ErrAuth) {
+		if got := handshakeError("h:22", nil, false, err); !errors.Is(got, remotefs.ErrAuth) {
 			t.Errorf("handshakeError(%q) = %v; want ErrAuth", err, got)
 		}
 	}
-	if got := handshakeError("h:22", remotefs.ErrHostKeyUnknown, errors.New("x")); !errors.Is(got, remotefs.ErrHostKeyUnknown) {
+	if got := handshakeError("h:22", remotefs.ErrHostKeyUnknown, false, errors.New("x")); !errors.Is(got, remotefs.ErrHostKeyUnknown) {
 		t.Errorf("rejected host key = %v; want ErrHostKeyUnknown", got)
 	}
-	if got := handshakeError("h:22", nil, io.EOF); !errors.Is(got, remotefs.ErrConnectionLost) {
-		t.Errorf("EOF = %v; want ErrConnectionLost", got)
+	if got := handshakeError("h:22", nil, false, io.EOF); !errors.Is(got, remotefs.ErrConnectionLost) {
+		t.Errorf("EOF before the key = %v; want ErrConnectionLost", got)
+	}
+	for _, closed := range []error{io.EOF, syscall.ECONNRESET, net.ErrClosed} {
+		if got := handshakeError("h:22", nil, true, fmt.Errorf("ssh: handshake failed: %w", closed)); !errors.Is(got, remotefs.ErrAuth) {
+			t.Errorf("%v after the key = %v; want ErrAuth", closed, got)
+		}
+	}
+	if got := handshakeError("h:22", nil, true, errors.New("ssh: no common algorithm")); !errors.Is(got, remotefs.ErrConnectionLost) {
+		t.Errorf("other failure after the key = %v; want ErrConnectionLost", got)
 	}
 }
 
