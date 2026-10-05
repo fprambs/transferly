@@ -592,14 +592,28 @@ func (w *writer) Close() error {
 	return w.err
 }
 
-// discard removes, as well as it can, the file a failed write was creating, which some servers keep with what arrived.
+// discardTries and discardPause bound how a failed write removes its file: a server may still be writing an aborted upload when
+// the first removal arrives, so the file is looked for again a few times.
+var (
+	discardTries = 4
+	discardPause = 250 * time.Millisecond
+)
+
+// discard removes, as well as it can, the file a failed write was creating, which some servers keep with what arrived. A server
+// that was still writing the aborted upload may create the file after the first removal, so it is removed again while it shows.
 func (w *writer) discard() {
 	if !w.fresh || w.fs.closed.Load() {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(w.ctx), 10*time.Second)
 	defer cancel()
-	_ = w.fs.do(ctx, http.MethodDelete, w.target, nil, nil)
+	for try := 0; try < discardTries; try++ {
+		_ = w.fs.do(ctx, http.MethodDelete, w.target, nil, nil)
+		time.Sleep(discardPause)
+		if _, err := w.fs.find(ctx, w.target, "0"); statusOf(err) == http.StatusNotFound {
+			return
+		}
+	}
 }
 
 // Mkdir implements remotefs.RemoteFS.
