@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ArrowLeft, ChevronRight, CircleAlert, Download, FileArchive, Search, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Download, FileArchive, Search, TriangleAlert } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -13,7 +13,6 @@ import type { ArchiveEntry } from '@/lib/api'
 import { formatInstant, resolveTimeZone } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
-import { ErrorGuide } from '../../errors/ErrorGuide'
 import { formatSize } from '../../explorer/entries'
 import { FileTypeIcon } from '../../explorer/FileTypeIcon'
 import { fileTypeOf } from '../../explorer/file-types'
@@ -22,6 +21,7 @@ import { PreviewBody } from '../PreviewBody'
 import { EntryTooLarge, maxEntryBytes, type ArchiveAccess, type PreviewSource } from '../source'
 
 import { buildTree, initiallyOpen, looksLikeBomb, totals, visibleRows, type ArchiveNode } from './archive-tree'
+import { ReadFailure } from '../ReadFailure'
 import { HexViewer } from './HexViewer'
 import type { ViewerProps } from './types'
 
@@ -30,21 +30,6 @@ const rowHeight = 28
 
 /** The columns of the tree: name, size, compression and time. */
 const columns = 'grid grid-cols-[minmax(0,1fr)_6rem_7rem_10rem] items-center gap-3 px-3'
-
-/** Shows the failure of a request: the guidance of its code, when it has one. */
-function Failure({ error, title, onRetry }: { error: unknown; title: string; onRetry?: () => void }) {
-  const { t } = useTranslation('preview')
-  return (
-    <PanelState icon={CircleAlert} tone="danger" role="alert" title={title}>
-      <ErrorGuide failure={error} />
-      {onRetry !== undefined && (
-        <Button variant="outline" onClick={onRetry}>
-          {t(($) => $.retry)}
-        </Button>
-      )}
-    </PanelState>
-  )
-}
 
 /** Props of {@link EntryView}. */
 interface EntryViewProps {
@@ -86,7 +71,7 @@ function EntryView({ archive, archiveKey, archiveName, entry, onBack }: EntryVie
       <PanelState icon={FileArchive} tone="warn" title={t(($) => $.tooLarge.title)} description={t(($) => $.archive.entryTooLarge, { limit: formatSize(maxEntryBytes) })} />
     )
   } else if (opened.isError) {
-    body = <Failure error={opened.error} title={t(($) => $.archive.entryFailed)} onRetry={() => void opened.refetch()} />
+    body = <ReadFailure error={opened.error} title={t(($) => $.archive.entryFailed)} onRetry={() => void opened.refetch()} />
   } else {
     body = <PreviewBody key={opened.data.key} source={opened.data} />
   }
@@ -303,7 +288,7 @@ function ArchiveBrowser({ source, archive }: { source: PreviewSource; archive: A
     return <PanelState icon={FileArchive} tone="warn" title={t(($) => $.archive.localUnsupported)} description={t(($) => $.archive.localUnsupportedBody)} />
   }
   if (listing.isError) {
-    return <Failure error={listing.error} title={t(($) => $.archive.failed)} onRetry={() => void listing.refetch()} />
+    return <ReadFailure error={listing.error} title={t(($) => $.archive.failed)} onRetry={() => void listing.refetch()} />
   }
   return (
     <>

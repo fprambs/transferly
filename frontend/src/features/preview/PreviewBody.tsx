@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { CircleAlert, FileQuestion, PencilLine } from 'lucide-react'
+import { FileQuestion, PencilLine } from 'lucide-react'
 import { createElement, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Loading } from '@/components/ui/loading'
 import { PanelState } from '@/components/ui/panel-state'
 
-import { ErrorGuide } from '../errors/ErrorGuide'
 import { changedHostKeyOf, unknownHostKeyOf } from '../quick/errors'
 
 import { detectKind, headLength, type PreviewKind } from './detect'
 import { HostKeyPrompt } from './HostKeyPrompt'
+import { ReadFailure } from './ReadFailure'
 import type { PreviewSource } from './source'
 import { HexViewer } from './viewers/HexViewer'
 import { viewerOf } from './viewers/registry'
@@ -58,14 +58,7 @@ export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?
     if (source.trust !== undefined && hostKey !== undefined) {
       return <HostKeyPrompt hostKey={hostKey} trust={source.trust} onTrusted={() => void head.refetch()} />
     }
-    return (
-      <PanelState icon={CircleAlert} tone="danger" role="alert" title={t(($) => $.failed)}>
-        <ErrorGuide failure={head.error} />
-        <Button variant="outline" onClick={() => void head.refetch()}>
-          {t(($) => $.retry)}
-        </Button>
-      </PanelState>
-    )
+    return <ReadFailure error={head.error} title={t(($) => $.failed)} onRetry={() => void head.refetch()} />
   }
   const kind = detectKind(source.name, head.data)
   const View = viewerOf(kind)
