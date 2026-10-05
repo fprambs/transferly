@@ -157,7 +157,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Credentials:   asked,
 		Sites:         sites,
 		Connectors:    offered,
-		Files:         files.NewService(workspaces, pool),
+		Files:         files.NewService(workspaces, pool).WithCommands(func() bool { return !quotas.Current().ServerCommandsOff }),
 		Transfers:     transferService,
 		Activity:      activityLog,
 		Import:        importer,
@@ -736,9 +736,9 @@ func (strictFS) SizesTrusted() bool { return false }
 func (strictFS) NoteWholeRead(int64, int64) {}
 
 // Connect returns a connection to the file system of the site; one to the site named [slowSite] waits for the request
-// to end, and one to the site named [strictSite] does not trust its sizes.
+// to end, one to the site named [strictSite] does not trust its sizes, and one to the site named [shellSite] runs commands.
 func (c memConnector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
-	strict := false
+	strict, shell := false, false
 	if _, ok := c.quick.Describe(key.UserID, key.WorkspaceID, key.SiteID); !ok {
 		found, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
 		if err != nil {
@@ -752,6 +752,7 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, session 
 			return nil, ctx.Err()
 		}
 		strict = found.Name == strictSite
+		shell = found.Name == shellSite
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -762,6 +763,9 @@ func (c memConnector) Connect(ctx context.Context, key connections.Key, session 
 	}
 	if strict {
 		return strictFS{fsys}, nil
+	}
+	if shell {
+		return shellFS{fsys}, nil
 	}
 	return fsys, nil
 }

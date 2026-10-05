@@ -151,7 +151,7 @@ func limitsDTO(l limits.Limits) InstanceLimits {
 		BandwidthGlobal: l.BandwidthGlobal, BandwidthPerUser: l.BandwidthPerUser, DailyBytesPerUser: l.DailyBytesPerUser,
 		MaxMembersPerTeam: int64(l.MaxMembersPerTeam), MaxSitesPerWorkspace: int64(l.MaxSitesPerWorkspace), MaxTeamsPerUser: int64(l.MaxTeamsPerUser),
 		TransfersGlobal: int64(l.TransfersGlobal), TransfersPerSite: int64(l.TransfersPerSite), TransfersPerUser: int64(l.TransfersPerUser),
-		TransfersPerWorkspace: int64(l.TransfersPerWorkspace),
+		TransfersPerWorkspace: int64(l.TransfersPerWorkspace), ServerCommands: new(!l.ServerCommandsOff),
 	}
 }
 
@@ -163,7 +163,7 @@ func limitsFrom(l InstanceLimits) limits.Limits {
 		BandwidthGlobal: l.BandwidthGlobal, BandwidthPerUser: l.BandwidthPerUser, DailyBytesPerUser: l.DailyBytesPerUser,
 		MaxMembersPerTeam: count(l.MaxMembersPerTeam), MaxSitesPerWorkspace: count(l.MaxSitesPerWorkspace), MaxTeamsPerUser: count(l.MaxTeamsPerUser),
 		TransfersGlobal: count(l.TransfersGlobal), TransfersPerSite: count(l.TransfersPerSite), TransfersPerUser: count(l.TransfersPerUser),
-		TransfersPerWorkspace: count(l.TransfersPerWorkspace),
+		TransfersPerWorkspace: count(l.TransfersPerWorkspace), ServerCommandsOff: l.ServerCommands != nil && !*l.ServerCommands,
 	}
 }
 

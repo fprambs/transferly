@@ -36,11 +36,17 @@ func (e *fileEnv) setLimits(body any) reply {
 	return e.a.send(http.MethodPut, "/api/v1/admin/limits", body, e.cookie, e.csrf)
 }
 
+// counts returns the limits without the switch of server commands, whose pointer cannot be compared.
+func counts(l httpapi.InstanceLimits) httpapi.InstanceLimits {
+	l.ServerCommands = nil
+	return l
+}
+
 // TestLimits_Endpoints verifies reading and replacing the caps and quotas.
 //
 // Scenarios:
 //   - anonymous callers get 401 and regular accounts 403 on both endpoints
-//   - the limits start at what the server started with, all zero here, next to the same defaults
+//   - the limits start at what the server started with, all zero here and with server commands allowed, next to the same defaults
 //   - replacing them is answered with the new limits, kept for the next read and left next to the unchanged defaults
 //   - negative values, values above the ceilings and values that do not fit a count are 422 invalid_limits and change nothing
 //   - a replacement is written to the audit trail of the instance
@@ -60,7 +66,8 @@ func TestLimits_Endpoints(t *testing.T) {
 		}
 	}
 
-	if view := e.readLimits(); view.Current != (httpapi.InstanceLimits{}) || view.Defaults != (httpapi.InstanceLimits{}) {
+	if view := e.readLimits(); counts(view.Current) != (httpapi.InstanceLimits{}) || counts(view.Defaults) != (httpapi.InstanceLimits{}) ||
+		view.Current.ServerCommands == nil || !*view.Current.ServerCommands {
 		t.Fatalf("limits at first = %+v", view)
 	}
 	want := httpapi.InstanceLimits{BandwidthGlobal: 5_000_000, BandwidthPerUser: 1_000_000, TransfersGlobal: 10, TransfersPerWorkspace: 5, TransfersPerUser: 3, TransfersPerSite: 2,
@@ -68,10 +75,10 @@ func TestLimits_Endpoints(t *testing.T) {
 	r := e.setLimits(want)
 	var got httpapi.InstanceLimitsView
 	mustDecode(t, r.Body, &got)
-	if r.Status != http.StatusOK || got.Current != want || got.Defaults != (httpapi.InstanceLimits{}) {
+	if r.Status != http.StatusOK || counts(got.Current) != want || counts(got.Defaults) != (httpapi.InstanceLimits{}) {
 		t.Fatalf("replace = %d %+v", r.Status, got)
 	}
-	if view := e.readLimits(); view.Current != want {
+	if view := e.readLimits(); counts(view.Current) != want {
 		t.Errorf("limits after replacing = %+v; want %+v", view.Current, want)
 	}
 
@@ -89,7 +96,7 @@ func TestLimits_Endpoints(t *testing.T) {
 		}
 		expectProblem(t, e.setLimits(full), 422, "invalid_limits")
 	}
-	if view := e.readLimits(); view.Current != want {
+	if view := e.readLimits(); counts(view.Current) != want {
 		t.Errorf("limits after refusals = %+v; want them unchanged", view.Current)
 	}
 

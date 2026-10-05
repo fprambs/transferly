@@ -423,6 +423,10 @@ func fileCalls(ws, siteID uuid.UUID) []request {
 		{method: http.MethodPost, path: filesPath(ws, siteID, "/directories", nil), body: map[string]string{"path": "/d"}},
 		{method: http.MethodPost, path: filesPath(ws, siteID, "/rename", nil), body: map[string]string{"from": "/a", "to": "/b"}},
 		{method: http.MethodDelete, path: filesPath(ws, siteID, "", q("path", "/f"))},
+		{method: http.MethodGet, path: "/api/v1/workspaces/" + ws.String() + "/sites/" + siteID.String() + "/tools"},
+		{method: http.MethodGet, path: filesPath(ws, siteID, "/usage", q("path", "/d"))},
+		{method: http.MethodPost, path: filesPath(ws, siteID, "/compress", nil), body: map[string]any{"dir": "/", "names": []string{"d"}, "name": "d.zip", "format": "zip"}},
+		{method: http.MethodPost, path: filesPath(ws, siteID, "/extract", nil), body: map[string]string{"path": "/d.zip"}},
 	}
 }
 

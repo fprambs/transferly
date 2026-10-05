@@ -3432,6 +3432,251 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/tools:
+    get:
+      operationId: getServerTools
+      security:
+        - sessionCookie: []
+      summary: Tell what the server of a connection can do on its own
+      description: >-
+        What an SFTP server lets the account run (ADR-0027): copies, checksums, archives and disk usage computed on the server
+        instead of moving the data. Empty for servers that cannot run commands and when the instance does not allow them.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+      responses:
+        "200":
+          description: What the server can do.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerTools"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/usage:
+    get:
+      operationId: getDiskUsage
+      security:
+        - sessionCookie: []
+      summary: Measure the space a file or folder takes on the server
+      description: The server measures it, as du does (ADR-0027). Fails with server_commands_unsupported when it cannot.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/RemotePath"
+      responses:
+        "200":
+          description: The bytes it takes on the disk.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiskUsage"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/compress:
+    post:
+      operationId: compressFiles
+      security:
+        - sessionCookie: []
+      summary: Pack entries of a folder into a new archive on the server
+      description: >-
+        The server packs them, without moving the data (ADR-0027). The archive is created next to them and never replaces a
+        file. Fails with server_commands_unsupported when the server cannot.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompressInput"
+      responses:
+        "201":
+          description: The new archive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteEntry"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "507":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/extract:
+    post:
+      operationId: extractArchive
+      security:
+        - sessionCookie: []
+      summary: Unpack an archive into a new folder next to it, on the server
+      description: >-
+        The server unpacks a ZIP or tar.gz archive into a new folder named after it, keeping members that would climb out of it
+        out (ADR-0027). Fails with server_commands_unsupported when the server cannot.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PathInput"
+      responses:
+        "201":
+          description: The new folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteEntry"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "507":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/rename:
     post:
       operationId: renameFile
@@ -5256,12 +5501,12 @@ components:
           description: Name of the connection when it happened.
         kind:
           type: string
-          enum: [mkdir, rename, delete, checksum, transfer]
+          enum: [mkdir, rename, delete, checksum, transfer, compress, extract]
         path:
           type: string
         detail:
           type: string
-          description: The new path of a rename, the algorithm of a checksum, or the direction and final state of a transfer.
+          description: The new path of a rename, the algorithm of a checksum, the archive of a compression, the folder of an extraction, or the direction and final state of a transfer.
         errorCode:
           type: string
           description: Stable code of the failure; left out when the action worked.
@@ -5884,6 +6129,67 @@ components:
           format: int64
           minimum: 0
           description: Bytes a person moves in a day.
+        serverCommands:
+          type: boolean
+          description: >-
+            Whether connections may work on their servers by running commands there (ADR-0027). Defaults to true; false makes
+            SFTP sites behave as plain SFTP.
+    ServerTools:
+      type: object
+      required: [copy, checksums, archive, extract, usage]
+      properties:
+        copy:
+          type: boolean
+          description: Copies within the site run on the server.
+        checksums:
+          type: array
+          items:
+            type: string
+            enum: [md5, sha1, sha256, sha512]
+          description: Algorithms the server computes.
+        archive:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArchiveFormat"
+          description: Formats the server packs.
+        extract:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArchiveFormat"
+          description: Formats the server unpacks.
+        usage:
+          type: boolean
+          description: The server measures the space folders take.
+    ArchiveFormat:
+      type: string
+      enum: [zip, tar.gz]
+    DiskUsage:
+      type: object
+      required: [bytes]
+      properties:
+        bytes:
+          type: integer
+          format: int64
+          description: Bytes the file or folder takes on the disk of the server.
+    CompressInput:
+      type: object
+      required: [dir, names, name, format]
+      properties:
+        dir:
+          type: string
+          description: Absolute path of the folder that holds the entries.
+        names:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: string
+          description: Names of the entries of the folder to pack.
+        name:
+          type: string
+          description: Name of the new archive in the same folder, with the extension of its format.
+        format:
+          $ref: "#/components/schemas/ArchiveFormat"
     InstanceLimitsView:
       type: object
       required: [current, defaults]
