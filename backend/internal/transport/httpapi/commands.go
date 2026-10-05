@@ -11,7 +11,7 @@ import (
 
 // serverToolsDTO converts what a server can do to its public representation.
 func serverToolsDTO(t remotefs.Tools) ServerTools {
-	out := ServerTools{Copy: t.Copy, Usage: t.Usage, Checksums: []ServerToolsChecksums{}, Archive: []ArchiveFormat{}, Extract: []ArchiveFormat{}}
+	out := ServerTools{Shell: t.Shell, Copy: t.Copy, Usage: t.Usage, Checksums: []ServerToolsChecksums{}, Archive: []ArchiveFormat{}, Extract: []ArchiveFormat{}}
 	for _, c := range t.Checksums {
 		out.Checksums = append(out.Checksums, ServerToolsChecksums(c))
 	}

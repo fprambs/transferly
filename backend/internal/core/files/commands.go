@@ -172,3 +172,24 @@ func (s *Service) serverCopy(ctx context.Context, t Target, from, to string, ove
 		return true, err
 	})
 }
+
+// Terminal opens an interactive shell on the server of a connection, in the folder dir (ADR-0027), and returns it with what gives
+// the connection back once the shell is over. Only admins may, the instance must allow commands on servers, and the server must
+// run them; otherwise it fails with [workspace.ErrForbidden] or [remotefs.ErrUnsupported].
+func (s *Service) Terminal(ctx context.Context, t Target, dir string, cols, rows int) (remotefs.Terminal, func(), error) {
+	lease, err := s.begin(ctx, t, workspace.ActionElevate)
+	if err != nil {
+		return nil, nil, err
+	}
+	sheller, ok := lease.FS().(remotefs.Sheller)
+	if _, allowed := s.commandsOf(lease.FS()); !ok || !allowed {
+		lease.Release(nil)
+		return nil, nil, fmt.Errorf("%w: this connection opens no terminal", remotefs.ErrUnsupported)
+	}
+	term, err := sheller.Shell(ctx, dir, cols, rows)
+	if err != nil {
+		lease.Release(err)
+		return nil, nil, err
+	}
+	return term, func() { lease.Release(nil) }, nil
+}

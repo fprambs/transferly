@@ -163,13 +163,10 @@ func commandError(op, p string, err error) error {
 
 // Tools implements [remotefs.Commands]: one probe per connection lists the programs the server has. A server that does not run
 // commands, or runs something else in their place as servers restricted to SFTP do, offers nothing, and so does a session in sudo
-// mode, whose commands would not run as the user it acts as.
+// mode, whose commands would not run as the user it acts as; it still tells whether the account runs commands, for the terminal.
 func (f *FS) Tools(ctx context.Context) (remotefs.Tools, error) {
 	if err := f.guard(ctx); err != nil {
 		return remotefs.Tools{}, err
-	}
-	if f.elevated {
-		return remotefs.Tools{}, nil
 	}
 	f.cmds.once.Do(func() {
 		probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), probeTimeout)
@@ -181,6 +178,9 @@ func (f *FS) Tools(ctx context.Context) (remotefs.Tools, error) {
 		}
 		f.cmds.tools = toolsOf(string(out))
 	})
+	if f.elevated && f.cmds.err == nil {
+		return remotefs.Tools{Shell: f.cmds.tools.Shell}, nil
+	}
 	return f.cmds.tools, f.cmds.err
 }
 
@@ -197,7 +197,7 @@ func toolsOf(out string) remotefs.Tools {
 		return remotefs.Tools{}
 	}
 	has := func(name string) bool { return slices.Contains(lines, name) }
-	tools := remotefs.Tools{Copy: has("cp"), Usage: has("du")}
+	tools := remotefs.Tools{Shell: true, Copy: has("cp"), Usage: has("du")}
 	for _, algorithm := range []string{"md5", "sha1", "sha256", "sha512"} {
 		if has(sums[algorithm]) {
 			tools.Checksums = append(tools.Checksums, algorithm)

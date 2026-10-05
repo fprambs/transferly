@@ -5556,7 +5556,7 @@ components:
           description: Name of the connection when it happened.
         kind:
           type: string
-          enum: [mkdir, rename, delete, checksum, transfer, compress, extract]
+          enum: [mkdir, rename, delete, checksum, transfer, compress, extract, terminal]
         path:
           type: string
         detail:
@@ -6191,8 +6191,11 @@ components:
             SFTP sites behave as plain SFTP.
     ServerTools:
       type: object
-      required: [copy, checksums, archive, extract, usage]
+      required: [shell, copy, checksums, archive, extract, usage]
       properties:
+        shell:
+          type: boolean
+          description: The server runs commands for the account, so a terminal can open on it.
         copy:
           type: boolean
           description: Copies within the site run on the server.

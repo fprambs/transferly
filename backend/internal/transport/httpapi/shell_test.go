@@ -2,9 +2,11 @@ package httpapi_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"path"
 	"strings"
+	"sync/atomic"
 
 	"github.com/fprambs/transferly/internal/core/remotefs"
 )
@@ -56,3 +58,53 @@ func (f shellFS) ServerExtract(ctx context.Context, archive, _, dir string) erro
 	}
 	return f.write(ctx, path.Join(dir, "inside.txt"), "x")
 }
+
+// Shell implements [remotefs.Sheller]: a shell that says where it started and on what screen, answers each line typed with
+// "echo: " and the line, tells each resize, ends with status 5 at the line "exit", and refuses the line "fail".
+func (shellFS) Shell(_ context.Context, dir string, cols, rows int) (remotefs.Terminal, error) {
+	out, in := io.Pipe()
+	term := &echoTerminal{out: out, in: in}
+	go func() { _, _ = fmt.Fprintf(in, "ready in %s %dx%d\n", dir, cols, rows) }()
+	return term, nil
+}
+
+// echoTerminal is the shell of [shellFS].
+type echoTerminal struct {
+	out    *io.PipeReader
+	in     *io.PipeWriter
+	exited atomic.Bool
+}
+
+// Read implements io.Reader.
+func (e *echoTerminal) Read(p []byte) (int, error) { return e.out.Read(p) }
+
+// Write implements io.Writer.
+func (e *echoTerminal) Write(p []byte) (int, error) {
+	if string(p) == "fail\n" {
+		return 0, io.ErrClosedPipe
+	}
+	if string(p) == "exit\n" {
+		e.exited.Store(true)
+		_ = e.in.Close()
+		return len(p), nil
+	}
+	_, _ = io.WriteString(e.in, "echo: "+string(p))
+	return len(p), nil
+}
+
+// Resize implements [remotefs.Terminal].
+func (e *echoTerminal) Resize(cols, rows int) error {
+	_, err := fmt.Fprintf(e.in, "resized %dx%d\n", cols, rows)
+	return err
+}
+
+// Wait implements [remotefs.Terminal].
+func (e *echoTerminal) Wait() (int, error) {
+	if e.exited.Load() {
+		return 5, nil
+	}
+	return -1, io.ErrClosedPipe
+}
+
+// Close implements io.Closer.
+func (e *echoTerminal) Close() error { return e.in.CloseWithError(io.EOF) }

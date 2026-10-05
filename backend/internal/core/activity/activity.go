@@ -30,6 +30,9 @@ const (
 	Compress Kind = "compress"
 	// Extract unpacked an archive on the server (ADR-0027); the detail holds the folder it went into.
 	Extract Kind = "extract"
+	// Terminal is a shell that was open on the server (ADR-0027); the path is its folder and the detail how long it was open. What was
+	// typed is never kept.
+	Terminal Kind = "terminal"
 )
 
 const (

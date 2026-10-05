@@ -18,6 +18,8 @@ const (
 
 // Tools tells what a server can do on its own (ADR-0027).
 type Tools struct {
+	// Shell is true when the server runs commands for the account, so a terminal can open on it.
+	Shell bool
 	// Copy is true when files can be copied on the server.
 	Copy bool
 	// Checksums lists the algorithms the server computes, among md5, sha1, sha256 and sha512.

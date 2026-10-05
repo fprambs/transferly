@@ -6,11 +6,13 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -49,6 +51,11 @@ type Options struct {
 	Sudo *Sudo
 	// NoSessions refuses every session channel, as a server that only forwards ports does.
 	NoSessions bool
+	// Shell runs the command of an exec request on a session that asked for a pseudo terminal: it reads what is typed and writes
+	// what the shell prints on term, and returns the exit status. Nil refuses pseudo terminals.
+	Shell func(command string, term io.ReadWriter) int
+	// NoShellCommand gives pseudo terminals but refuses the command that would start the shell.
+	NoShellCommand bool
 	// Exec runs the commands of exec requests: it gets the command line and writes what the command outputs, and returns its
 	// exit status. Nil refuses exec requests, as servers restricted to SFTP do.
 	Exec func(command string, stdout, stderr io.Writer) int
@@ -70,6 +77,34 @@ type Server struct {
 	mu       sync.Mutex
 	conns    []net.Conn
 	closed   bool
+	windows  []string
+}
+
+// Windows returns the sizes terminals asked for, in order, as "cols x rows": first with their pseudo terminal, then with each
+// resize.
+func (s *Server) Windows() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.windows)
+}
+
+// window records a size a terminal asked for, from the payload of a pty-req or window-change request.
+func (s *Server) window(payload []byte, pty bool) {
+	var size struct {
+		Term             string
+		Cols, Rows, W, H uint32
+		Modes            string
+	}
+	var change struct{ Cols, Rows, W, H uint32 }
+	cols, rows := uint32(0), uint32(0)
+	if pty && ssh.Unmarshal(payload, &size) == nil {
+		cols, rows = size.Cols, size.Rows
+	} else if !pty && ssh.Unmarshal(payload, &change) == nil {
+		cols, rows = change.Cols, change.Rows
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.windows = append(s.windows, fmt.Sprintf("%dx%d", cols, rows))
 }
 
 // NewSigner returns a new ed25519 signer.
@@ -207,11 +242,35 @@ func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 	}
 }
 
-// session answers subsystem requests of a channel and runs the SFTP server on sftp ones, and runs exec requests with the Exec
-// option when it is set.
+// session answers subsystem requests of a channel and runs the SFTP server on sftp ones, runs exec requests with the Exec
+// option when it is set, and with the Shell option on sessions that asked for a pseudo terminal, while it keeps reading their
+// resizes.
 func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt Options) {
 	defer func() { _ = channel.Close() }()
+	pty := false
 	for req := range requests {
+		switch {
+		case req.Type == "pty-req" && opt.Shell != nil:
+			pty = true
+			s.window(req.Payload, true)
+			_ = req.Reply(true, nil)
+			continue
+		case req.Type == "window-change":
+			s.window(req.Payload, false)
+			continue
+		case req.Type == "exec" && pty && opt.NoShellCommand:
+			_ = req.Reply(false, nil)
+			continue
+		case req.Type == "exec" && pty && len(req.Payload) >= 4:
+			_ = req.Reply(true, nil)
+			command := string(req.Payload[4:])
+			go func() {
+				status := opt.Shell(command, channel)
+				_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(status)}))
+				_ = channel.Close()
+			}()
+			continue
+		}
 		if req.Type == "exec" && opt.Sudo != nil && len(req.Payload) >= 4 && strings.HasPrefix(string(req.Payload[4:]), "sudo ") {
 			_ = req.Reply(true, nil)
 			s.sudo(channel, opt)

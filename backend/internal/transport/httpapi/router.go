@@ -162,6 +162,7 @@ func NewRouter(d Deps) http.Handler {
 	})
 
 	r.Get(EventsPath, eventsHandler(d))
+	r.Get(TerminalPath, terminalHandler(d))
 	r.Get(googleauth.CallbackPath, googleCallback(d.Google))
 
 	spec, _ := GetSpec()

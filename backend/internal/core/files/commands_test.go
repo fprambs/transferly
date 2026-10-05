@@ -414,3 +414,66 @@ func TestService_Home(t *testing.T) {
 		t.Errorf("Home(storage) = %q, %v; want the root", home, err)
 	}
 }
+
+// fakeTerminal is a shell that ends at once with status 0.
+type fakeTerminal struct{ io.Reader }
+
+// Write implements io.Writer.
+func (fakeTerminal) Write(p []byte) (int, error) { return len(p), nil }
+
+// Resize implements [remotefs.Terminal].
+func (fakeTerminal) Resize(int, int) error { return nil }
+
+// Wait implements [remotefs.Terminal].
+func (fakeTerminal) Wait() (int, error) { return 0, nil }
+
+// Close implements io.Closer.
+func (fakeTerminal) Close() error { return nil }
+
+// Shell implements [remotefs.Sheller].
+func (c *commanding) Shell(_ context.Context, dir string, _, _ int) (remotefs.Terminal, error) {
+	if err := c.failure("shell"); err != nil {
+		return nil, err
+	}
+	return fakeTerminal{strings.NewReader("in " + dir)}, nil
+}
+
+// TestService_Terminal verifies terminals on the server of a connection (ADR-0027).
+//
+// Use cases:
+//   - an admin opens a shell in a folder, and closing it gives the connection back
+//   - an editor may not; a connection that opens no shell, an instance that does not allow commands and a server that refuses fail
+func TestService_Terminal(t *testing.T) {
+	f := newCommandFixture(t)
+	admin := uuid.New()
+	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	pool := connections.New(connector{f.fs}, clock, connections.Config{Attempts: 1})
+	t.Cleanup(pool.Close)
+	allowed := true
+	svc := files.NewService(roles{admin: workspace.RoleAdmin, f.editor.Actor: workspace.RoleEditor}, pool).WithCommands(func() bool { return allowed })
+	as := f.editor
+	as.Actor = admin
+	term, release, err := svc.Terminal(t.Context(), as, "/srv", 80, 24)
+	if err != nil {
+		t.Fatalf("Terminal() = %v", err)
+	}
+	if out, _ := io.ReadAll(term); string(out) != "in /srv" {
+		t.Errorf("the shell printed %q", out)
+	}
+	release()
+	if _, _, err := svc.Terminal(t.Context(), f.editor, "/", 80, 24); !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("Terminal(editor) = %v, want ErrForbidden", err)
+	}
+	f.fs.fail["shell"] = remotefs.ErrUnsupported
+	if _, _, err := svc.Terminal(t.Context(), as, "/", 80, 24); !errors.Is(err, remotefs.ErrUnsupported) {
+		t.Errorf("Terminal(refused) = %v", err)
+	}
+	allowed = false
+	if _, _, err := svc.Terminal(t.Context(), as, "/", 80, 24); !errors.Is(err, remotefs.ErrUnsupported) {
+		t.Errorf("Terminal(commands off) = %v", err)
+	}
+	plain := newFixture(t)
+	if _, _, err := files.NewService(roles{admin: workspace.RoleAdmin}, plain.pool).Terminal(t.Context(), files.Target{Actor: admin, Workspace: plain.editor.Workspace, Site: plain.editor.Site, Session: "s"}, "/", 80, 24); !errors.Is(err, remotefs.ErrUnsupported) {
+		t.Errorf("Terminal(no shells) = %v", err)
+	}
+}

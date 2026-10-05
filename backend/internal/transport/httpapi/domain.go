@@ -261,6 +261,7 @@ var domainProblems = []struct {
 	{archives.ErrTooLarge, http.StatusUnprocessableEntity, "archive_too_large"},
 	{archives.ErrBomb, http.StatusUnprocessableEntity, "archive_bomb"},
 	{archives.ErrEncrypted, http.StatusUnprocessableEntity, "archive_encrypted"},
+	{errTerminalOff, http.StatusForbidden, "terminal_off"},
 	{remotefs.ErrUnsupported, http.StatusUnprocessableEntity, "server_commands_unsupported"},
 	{remotefs.ErrElevationRefused, http.StatusForbidden, "sudo_refused"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},

@@ -241,3 +241,27 @@ func TestSudo_OpenSSH(t *testing.T) {
 		}
 	}
 }
+
+// TestShell_OpenSSH opens a terminal on OpenSSH with bash (ADR-0027).
+//
+// Scenarios:
+//   - the shell starts in the folder asked for, runs what is typed and ends with the status of exit
+//   - a resize is accepted while it runs
+func TestShell_OpenSSH(t *testing.T) {
+	fsys, root := shell(t)
+	term, err := fsys.Shell(t.Context(), root, 100, 30)
+	if err != nil {
+		t.Fatalf("Shell() = %v", err)
+	}
+	if err := term.Resize(120, 40); err != nil {
+		t.Errorf("Resize() = %v", err)
+	}
+	_, _ = io.WriteString(term, "echo \"in $(pwd) $((20+22))\"; exit 3\n")
+	out, _ := io.ReadAll(term)
+	if !strings.Contains(string(out), "in "+root+" 42") {
+		t.Errorf("the shell printed %q", out)
+	}
+	if code, err := term.Wait(); code != 3 || err != nil {
+		t.Errorf("Wait() = %d, %v; want 3", code, err)
+	}
+}
