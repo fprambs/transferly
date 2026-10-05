@@ -1042,3 +1042,40 @@ func TestFS_StrictBulkReads(t *testing.T) {
 		t.Errorf("Close() before any read = %v", err)
 	}
 }
+
+// TestFS_LyingServer verifies that a malicious server that claims more data in its replies to reads than it carries makes reads
+// fail instead of bringing the process down, whichever way the file is read.
+//
+// Use cases:
+//   - a pipelined download, a strict one read one request at a time, a small read at an offset and a large one read in parallel all
+//     fail with an error
+func TestFS_LyingServer(t *testing.T) {
+	server := startServer(t, sftptest.Options{LyingReads: true})
+	for _, strict := range []bool{false, true} {
+		fsys, err := connect(t, server, func(c *sftpfs.Config) { c.Password, c.InexactSizes = testPassword, strict })
+		if err != nil {
+			t.Fatal(err)
+		}
+		put(t, fsys, "/big", strings.Repeat("x", 1<<20))
+		r, err := fsys.OpenRead(t.Context(), "/big", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.Copy(io.Discard, r); err == nil {
+			t.Errorf("strict %v: a download from a lying server succeeded", strict)
+		}
+		_ = r.Close()
+		r, err = fsys.OpenRead(t.Context(), "/big", 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := r.Read(make([]byte, 100)); err == nil {
+			t.Errorf("strict %v: a read at an offset from a lying server succeeded", strict)
+		}
+		if _, err := r.Read(make([]byte, 200_000)); err == nil {
+			t.Errorf("strict %v: a large read from a lying server succeeded", strict)
+		}
+		_ = r.Close()
+		_ = fsys.Close()
+	}
+}

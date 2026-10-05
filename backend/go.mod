@@ -76,3 +76,5 @@ require (
 
 // The FTP client carries a patch that answers servers asking for an account (ACCT); see third_party/ftp/PATCHES.md.
 replace github.com/jlaffaye/ftp => ./third_party/ftp
+
+replace github.com/pkg/sftp => ./third_party/sftp

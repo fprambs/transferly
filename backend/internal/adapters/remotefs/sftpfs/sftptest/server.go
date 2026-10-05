@@ -5,6 +5,7 @@ package sftptest
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -63,6 +64,9 @@ type Options struct {
 	// SizeOff is added to the size the server reports for every file, while reads still give its real bytes, as enterprise SFTP
 	// gateways that report sizes other than the bytes they send do.
 	SizeOff int64
+	// LyingReads makes every reply to a read claim more data than it carries, as a malicious server can, to check that clients do
+	// not trust the length a server gives.
+	LyingReads bool
 	// OneSFTPSession refuses a second sftp subsystem on the same connection, as servers that allow one session per connection do.
 	OneSFTPSession bool
 	// Fault returns an error to answer an operation with instead of performing it; nil performs it.
@@ -325,10 +329,44 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 		s.sessions.Add(1)
 		_ = req.Reply(true, nil)
 		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff}
-		server := sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h})
+		var stream io.ReadWriteCloser = channel
+		if opt.LyingReads {
+			stream = &lyingStream{ReadWriteCloser: channel}
+		}
+		server := sftp.NewRequestServer(stream, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h})
 		_ = server.Serve()
 		return
 	}
+}
+
+// fxpData is the type of the SFTP packet that carries the bytes of a read.
+const fxpData = 103
+
+// lyingStream is the stream of an SFTP session whose replies to reads claim far more data than they carry: the length inside every
+// data packet is rewritten, while the packet keeps its real size.
+type lyingStream struct {
+	io.ReadWriteCloser
+	pending []byte
+}
+
+// Write rewrites the data packets among what the server writes and writes whole packets.
+func (l *lyingStream) Write(p []byte) (int, error) {
+	l.pending = append(l.pending, p...)
+	for len(l.pending) >= 4 {
+		size := int(binary.BigEndian.Uint32(l.pending)) + 4
+		if len(l.pending) < size {
+			break
+		}
+		packet := l.pending[:size]
+		if size >= 13 && packet[4] == fxpData {
+			binary.BigEndian.PutUint32(packet[9:13], 1<<30)
+		}
+		if _, err := l.ReadWriteCloser.Write(packet); err != nil {
+			return 0, err
+		}
+		l.pending = l.pending[size:]
+	}
+	return len(p), nil
 }
 
 // Sudo is how a test server answers the sudo mode of sftpfs.

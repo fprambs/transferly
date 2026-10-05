@@ -1,5 +1,7 @@
 # pkg/sftp v1.13.11
 
+Transferly builds a patched copy in `backend/third_party/sftp` (see its PATCHES.md): upstream trusts the length a server gives in its replies to reads, so a malicious server could make it panic inside its own goroutines and bring the process down.
+
 Source: [pkg.go.dev/github.com/pkg/sftp](https://pkg.go.dev/github.com/pkg/sftp).
 
 Create clients with `sftp.NewClient(sshConn, opts...)`.
