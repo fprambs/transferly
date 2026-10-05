@@ -88,6 +88,8 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  * - a new server key asks to be trusted and then lists the folder; a failure to trust is shown
  * - a changed server key shows the trusted and the new fingerprints and lets the user add the key, replace the trusted ones or cancel and
  *   disconnect (only when the view can disconnect), with no way to connect without deciding (4.13b); a failure to trust is shown
+ * - a site without a default folder opens where its server opens sessions, as pwd tells it, also once its key is trusted, and the
+ *   address then names that folder
  * - FTP and FTPS report no permissions, so their entries and details show a dash instead of nominal ones
  * - the dates follow the interface language
  * - the search button opens a search of the folder in view, and a chosen match navigates there
@@ -304,6 +306,26 @@ describe('explorer', () => {
 
     expect(await screen.findByRole('grid')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled()
+  })
+
+  it('opens a site without a default folder where its server opens sessions, even after trusting its key', async () => {
+    let homes = 0
+    const listed: string[] = []
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files/home', () => (++homes === 1 ? unknownKey() : HttpResponse.json({ path: '/home/deploy' }))),
+      http.get('/api/v1/workspaces/:id/sites/s1/files', ({ request }) => {
+        listed.push(new URL(request.url).searchParams.get('path') as string)
+        return HttpResponse.json([entry('a')])
+      }),
+      http.post('/api/v1/workspaces/:id/known-hosts', () => HttpResponse.json({}, { status: 201 })),
+    )
+    const { user, onNavigate } = await renderExplorer('~')
+
+    expect(screen.getByRole('button', { name: 'Up one level' })).toBeDisabled()
+    await user.click(await screen.findByRole('button', { name: 'Trust and connect' }))
+    expect(await screen.findByRole('grid')).toBeInTheDocument()
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/home/deploy', { replace: true }))
+    expect(listed).toEqual(['/home/deploy'])
   })
 
   it('asks to trust a new server key and then lists the folder', async () => {

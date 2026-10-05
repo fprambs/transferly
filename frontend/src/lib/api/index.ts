@@ -141,6 +141,9 @@ export type ServerTools = Schemas['ServerTools']
 /** A format of archive a server packs and unpacks. */
 export type ArchiveFormat = Schemas['ArchiveFormat']
 
+/** The folder a connection starts in when its site names none. */
+export type HomeFolder = Schemas['HomeFolder']
+
 /** The space a file or folder takes on the disk of its server. */
 export type DiskUsage = Schemas['DiskUsage']
 
@@ -349,6 +352,8 @@ export function createApi(transport: Transport) {
         transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
       tools: (workspaceId: string, siteId: string) =>
         transport.request<ServerTools>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/tools` }),
+      home: (workspaceId: string, siteId: string) =>
+        transport.request<HomeFolder>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/home` }),
       usage: (workspaceId: string, siteId: string, path: string) =>
         transport.request<DiskUsage>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/usage`, query: { path } }),
       compress: (workspaceId: string, siteId: string, dir: string, names: string[], name: string, format: ArchiveFormat) =>

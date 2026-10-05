@@ -21,6 +21,7 @@ import { useTimeZone } from '../auth/use-time-zone'
 import { changedHostKeyOf, unknownHostKeyOf, type UnknownHostKey } from '../quick/errors'
 import { colorFill } from '../sites/site-colors'
 import { useOpenConnections } from '../sites/use-open-connections'
+import { homePath } from '../sites/start-path'
 import { useSitesData } from '../sites/use-sites-data'
 
 import { BookmarksBar } from '../bookmarks/BookmarksBar'
@@ -85,8 +86,9 @@ export interface ExplorerProps {
   siteId: string
   /** Absolute path of the folder in view. */
   path: string
-  /** Called with the folder the user moves to. */
-  onNavigate: (path: string) => void
+  /** Called with the folder the user moves to, or the one the server opened the session in, which replaces the entry of `~` in the
+   * history. */
+  onNavigate: (path: string, options?: { replace?: boolean }) => void
   /** Extra controls shown at the end of the toolbar. */
   actions?: ReactNode
   /** Which pane of the view this is; each pane remembers the width of its details panel on its own. */
@@ -133,9 +135,20 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
   const beside = useDefaultLayout({ id: `transferly-details-v2-${pane}`, storage: layoutStorage })
   const reconnect = useConnectionState((state) => state.reconnect)
   const focus = useConnectionState((state) => state.focus)
+  const atHome = path === homePath
+  const [home, setHome] = useState<string | null>(null)
   const listing = useQuery({
     queryKey: filesKey(workspaceId, siteId, path),
-    queryFn: ({ signal }) => api.files.list(workspaceId, siteId, path, signal),
+    queryFn: async ({ signal }) => {
+      if (!atHome) {
+        return api.files.list(workspaceId, siteId, path, signal)
+      }
+      const found = (await api.files.home(workspaceId, siteId)).path
+      const entries = await api.files.list(workspaceId, siteId, found, signal)
+      queryClient.setQueryData(filesKey(workspaceId, siteId, found), entries)
+      setHome(found)
+      return entries
+    },
     enabled: !disconnected,
     staleTime: listingFreshMs,
     gcTime: listingKeepMs,
@@ -159,6 +172,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       notify(t(($) => $.notices.extractFailed, { name: entry.name, reason: t(($) => $.errors[explorerErrorKeyOf(error)]) }))
     }
   }
+  useEffect(() => {
+    if (atHome && home !== null) {
+      onNavigate(home, { replace: true })
+    }
+  }, [atHome, home, onNavigate])
   const opening = listing.isFetching && listing.isPlaceholderData
   const canceled = !listing.isFetching && (listing.isPending || listing.isPlaceholderData)
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
@@ -376,7 +394,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
       ) : null}
       {savedSite?.color !== undefined && <div aria-hidden="true" data-color={savedSite.color} className={cn('h-0.5 shrink-0', colorFill(savedSite.color))} />}
       <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b px-3">
-        <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={path === '/'} onClick={() => onNavigate(parentPath(path))}>
+        <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={path === '/' || atHome} onClick={() => onNavigate(parentPath(path))}>
           <ArrowUp />
         </Button>
         <Breadcrumbs path={path} onNavigate={onNavigate} />

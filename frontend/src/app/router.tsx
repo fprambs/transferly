@@ -15,6 +15,7 @@ import { NotFound } from '@/features/shell/NotFound'
 import { RouteFault } from '@/features/shell/RouteFault'
 import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
 import { SiteExplorer } from '@/features/explorer/SiteExplorer'
+import { homePath } from '@/features/sites/start-path'
 import { AppShell } from '@/features/shell/AppShell'
 import { AuthScreen } from '@/features/auth/AuthScreen'
 import type { Api } from '@/lib/api/use-api'
@@ -94,7 +95,7 @@ const serversRoute = legacySection('/servers', 'servers')
 const siteRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/sites/$siteId',
-  validateSearch: z.object({ path: z.string().catch('/'), split: z.string().optional().catch(undefined), splitPath: z.string().optional().catch(undefined) }),
+  validateSearch: z.object({ path: z.string().catch(homePath), split: z.string().optional().catch(undefined), splitPath: z.string().optional().catch(undefined) }),
   component: SiteExplorer,
 })
 

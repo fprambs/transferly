@@ -110,6 +110,12 @@ export function mockWorkspaceData({
     http.get('/api/v1/version', () => HttpResponse.json({ version: 'v0.5.0' })),
   )
   mockServerTools(noTools)
+  mockHome('/')
+}
+
+/** Answers the folder every connection starts in when its site names none. */
+export function mockHome(path: string): void {
+  server.use(http.get('/api/v1/workspaces/:id/sites/:siteId/files/home', () => HttpResponse.json({ path })))
 }
 
 /** What a server that cannot run commands offers (ADR-0027). */

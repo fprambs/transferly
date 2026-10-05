@@ -13,6 +13,7 @@ import { LocalExplorer } from '../local/LocalExplorer'
 import { localSiteId, localSupported } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
 import { useRecentSites } from '../sites/recent-sites'
+import { homePath } from '../sites/start-path'
 import { useSitesData } from '../sites/use-sites-data'
 import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
@@ -121,7 +122,7 @@ export function SiteExplorer() {
                 siteId={siteId}
                 path={path}
                 onDisconnect={() => void disconnect({ workspaceId: workspace.id, siteId })}
-                onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, path: next }) })}
+                onNavigate={(next, options) => void navigate({ search: (previous) => ({ ...previous, path: next }), replace: options?.replace })}
                 actions={
                   <Button
                     variant="ghost"
@@ -147,9 +148,9 @@ export function SiteExplorer() {
                       pane="second"
                       workspaceId={workspace.id}
                       siteId={split}
-                      path={splitPath ?? '/'}
+                      path={splitPath ?? homePath}
                       onDisconnect={() => void disconnect({ workspaceId: workspace.id, siteId: split })}
-                      onNavigate={(next) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }) })}
+                      onNavigate={(next, options) => void navigate({ search: (previous) => ({ ...previous, splitPath: next }), replace: options?.replace })}
                       actions={paneActions}
                     />
                   )}

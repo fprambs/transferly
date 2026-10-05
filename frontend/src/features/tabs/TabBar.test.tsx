@@ -51,9 +51,9 @@ function tabs(): string[] {
         .map((button) => `${(button.textContent ?? '').trim()}${button.getAttribute('aria-current') === 'page' ? '*' : ''}`)
 }
 
-/** Waits until the file of a site is in view. */
+/** Waits until the file of a site is in view, in either pane. */
 async function showing(siteId: string): Promise<void> {
-  await within(await screen.findByRole('grid')).findByText(`${siteId}.txt`)
+  await waitFor(() => expect(screen.getAllByRole('grid').some((grid) => within(grid).queryByText(`${siteId}.txt`) !== null)).toBe(true))
 }
 
 /**
