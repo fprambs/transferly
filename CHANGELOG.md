@@ -4,6 +4,45 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [0.8.0] - 2026-10-05
+
+SFTP sites gain SSH tools: the server does the work itself, sudo opens what only root may read, and a terminal opens in the folder
+in view (ADR-0027).
+
+### Sites and connections
+
+- Operations on the server: on SFTP servers that run commands, copies within a site, checksums, compressing into ZIP or tar.gz,
+  extracting and measuring folders run on the server, without moving the data through Transferly. Servers that refuse commands,
+  such as accounts forced to `internal-sftp`, keep working as before. Paths are always quoted, and tested with hostile names
+  against OpenSSH.
+- Sudo mode: an SFTP site can run its session as root, or another user, through `sudo` and the SFTP server of OpenSSH, answering
+  sudo with its own password or the password of the account. Only admins and the owner turn it on, and a refusal of sudo fails
+  the connection before any SFTP is sent.
+- Integrated terminal: an SFTP site can allow a terminal, which opens a shell with a PTY in the folder in view, over the same SSH
+  connection. Only admins turn it on and open it, and the activity records each terminal with its folder and duration, never what
+  was typed.
+- SFTP and FTP sites without a default remote folder open where the server starts the session, instead of assuming `/`.
+
+### Interface
+
+- The explorer offers Compress… and Extract here in the context menu and the details panel, and Measure for folders, when the
+  server can.
+- Terminal in the explorer toolbar opens a panel below the files, with one tab per shell.
+
+### Fixed
+
+- Tabs of workspaces that no longer exist, kept by the browser, are closed for good instead of coming back as "Site not found".
+- WebDAV: a canceled upload is removed again while the server still shows it, and the reason of a refused upload is kept.
+
+### Administration
+
+- An administrator can turn commands on servers off for the whole instance in Administration → Limits; sites then behave as
+  plain SFTP, with no sudo mode or terminal.
+
+### Operations
+
+- The isolated test stack and `make testenv` run an OpenSSH server with a shell and sudo (`ssh`), next to the SFTP-only one.
+
 ## [0.7.0] - 2026-10-04
 
 WebDAV joins the connectors, and the development environment gets a test server for every connector.
