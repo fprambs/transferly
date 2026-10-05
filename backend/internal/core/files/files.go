@@ -401,6 +401,10 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 		lease.Release(nil)
 		return nil, err
 	}
+	trusted := remotefs.SizesTrusted(lease.FS())
+	if !r.Set && entry.Size > s.buffered && trusted {
+		trusted = sizeHolds(ctx, lease.FS(), p, entry.Size)
+	}
 	src, err := lease.FS().OpenRead(ctx, p, start)
 	if err != nil {
 		lease.Release(err)
@@ -409,7 +413,7 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 	switch {
 	case !r.Set && entry.Size <= s.buffered:
 		return buffered(ctx, t, lease, src, entry, s.buffered)
-	case !r.Set && !remotefs.SizesTrusted(lease.FS()):
+	case !r.Set && !trusted:
 		return unsized(ctx, t, lease, src, nil, entry), nil
 	}
 	d := &Download{Entry: entry, Start: start, End: end, Partial: r.Set}
@@ -420,6 +424,28 @@ func (s *Service) Download(ctx context.Context, t Target, p string, r Range) (*D
 	}
 	d.Body = b
 	return d, nil
+}
+
+// sizeHolds tells whether a file ends where its server says, for servers that may report sizes other than the bytes they send: it
+// reads from the last byte the reported size names, which must be the only one left. A file that ends sooner or goes on is noted as
+// such, so the connection stops trusting its server, and is streamed to its real end with no length announced, instead of leaving the
+// browser waiting for bytes that never come. Servers that report sizes faithfully, and failures to tell, are trusted.
+func sizeHolds(ctx context.Context, fsys remotefs.RemoteFS, p string, size int64) bool {
+	if _, ok := fsys.(remotefs.SizeChecker); !ok || size == 0 {
+		return true
+	}
+	rc, err := fsys.OpenRead(ctx, p, size-1)
+	if err != nil {
+		return true
+	}
+	defer func() { _ = rc.Close() }()
+	tail := make([]byte, 2)
+	n, err := io.ReadFull(rc, tail)
+	if n == 1 || (err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF)) {
+		return true
+	}
+	remotefs.NoteWholeRead(fsys, size, size-1+int64(n))
+	return false
 }
 
 // buffered reads a small file whole, up to the end of the file, and gives the connection back before answering, so the download

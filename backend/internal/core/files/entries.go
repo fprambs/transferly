@@ -148,7 +148,7 @@ func (s *Service) openArchive(ctx context.Context, t Target, p string, inner []s
 		return nil, err
 	}
 	opened := &openedArchive{name: p, lease: lease}
-	if entry.Size <= s.buffered || !remotefs.SizesTrusted(lease.FS()) {
+	if entry.Size <= s.buffered || !remotefs.SizesTrusted(lease.FS()) || !sizeHolds(ctx, lease.FS(), p, entry.Size) {
 		data, err := readWhole(ctx, lease.FS(), p, entry.Size, max(s.nested, s.buffered))
 		if err != nil {
 			lease.Release(err)

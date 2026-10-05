@@ -3,6 +3,7 @@ package files_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -26,7 +27,18 @@ type strictFS struct {
 	off       int64
 	untrusted bool
 	noted     [][2]int64
+	// tail answers reads that start past the beginning of a file, as the check of its size does: with this error when set.
+	tail error
 }
+
+// failingTail is a stream whose reads fail.
+type failingTail struct{ err error }
+
+// Read fails.
+func (f failingTail) Read([]byte) (int, error) { return 0, f.err }
+
+// Close does nothing.
+func (failingTail) Close() error { return nil }
 
 // Stat reports the size of a file off by s.off bytes.
 func (s *strictFS) Stat(ctx context.Context, p string) (remotefs.Entry, error) {
@@ -43,6 +55,12 @@ func (s *strictFS) OpenRead(ctx context.Context, p string, offset int64) (io.Rea
 	if err != nil {
 		return nil, err
 	}
+	if offset > 0 && s.tail != nil {
+		if errors.Is(s.tail, errTailOpen) {
+			return nil, s.tail
+		}
+		return failingTail{s.tail}, nil
+	}
 	return s.flakyFS.OpenRead(ctx, p, min(offset, entry.Size))
 }
 
@@ -53,6 +71,9 @@ func (s *strictFS) SizesTrusted() bool { return !s.untrusted }
 func (s *strictFS) NoteWholeRead(reported, read int64) {
 	s.noted = append(s.noted, [2]int64{reported, read})
 }
+
+// errTailOpen makes the check of a size fail to open the file at its end.
+var errTailOpen = errors.New("cannot open there")
 
 // strictConnector hands out connections to one strict file system.
 type strictConnector struct{ fsys *strictFS }
@@ -174,13 +195,14 @@ func TestService_Download_Unsized(t *testing.T) {
 
 // TestService_Download_ChecksStreams verifies that a whole file streamed to its end tells the connection how many bytes came.
 //
-// Use cases:
+// Use cases (on a server whose files cannot be checked at their end beforehand):
 //   - a file that ends before its reported size is reported, read chunk by chunk or written by itself
 //   - a range, copied chunk by chunk, and a download abandoned before its end and closed twice, report nothing
 func TestService_Download_ChecksStreams(t *testing.T) {
 	ctx := context.Background()
 	f, strict := newStrictFixture(t, 3)
 	f.svc.WithBufferedLimit(0)
+	strict.tail = errTailOpen
 
 	d, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{})
 	if err != nil {
@@ -270,5 +292,64 @@ func TestService_ArchiveEntries_ReadWhole(t *testing.T) {
 	}
 	if f.idle(f.viewer) != 0 {
 		t.Error("a connection that dropped while reading an archive was pooled")
+	}
+}
+
+// TestService_Download_ChecksTail verifies that a large whole file is checked at its end before it is announced with its size, so a
+// server that reports sizes other than the bytes it sends never leaves the browser waiting for bytes that never come.
+//
+// Use cases:
+//   - a file that ends before its reported size, or goes on past it, streams to its real end with no length announced, and the
+//     connection hears that the size did not hold
+//   - a file that ends where the server says streams with its size
+//   - a check that cannot open the file, or whose read fails, trusts the size; a range is never checked
+//   - a large ZIP the server reports larger than it is is read whole, so its entries are listed
+func TestService_Download_ChecksTail(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		off  int64
+		note [2]int64
+	}{{3, [2]int64{13, 12}}, {-3, [2]int64{7, 8}}} {
+		f, strict := newStrictFixture(t, tc.off)
+		f.svc.WithBufferedLimit(0)
+		d, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !d.Unsized || readAll(t, d) != "0123456789" || len(strict.noted) == 0 || strict.noted[0] != tc.note {
+			t.Errorf("off %d: unsized %v, noted %v; want unsized with %v noted", tc.off, d.Unsized, strict.noted, tc.note)
+		}
+	}
+
+	f, strict := newStrictFixture(t, 0)
+	f.svc.WithBufferedLimit(0)
+	d, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{})
+	if err != nil || d.Unsized || d.Length() != 10 || readAll(t, d) != "0123456789" {
+		t.Errorf("honest file = %+v, %v; want 10 bytes announced", d, err)
+	}
+
+	for _, tail := range []error{errTailOpen, fmt.Errorf("%w: gone", remotefs.ErrConnectionLost)} {
+		f, strict = newStrictFixture(t, 3)
+		f.svc.WithBufferedLimit(0)
+		strict.tail = tail
+		d, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{})
+		if err != nil || d.Unsized || d.Length() != 13 {
+			t.Errorf("tail %v: %+v, %v; want the reported size trusted", tail, d, err)
+		}
+		_ = d.Body.Close()
+	}
+	strict.tail = nil
+	strict.noted = nil
+	if d, err := f.svc.Download(ctx, f.viewer, "/f", files.Range{Set: true, Start: 0, End: 1}); err != nil || readAll(t, d) != "01" || len(strict.noted) != 0 {
+		t.Errorf("range = %v, noted %v; want no check", err, strict.noted)
+	}
+
+	f, _ = newStrictFixture(t, 50)
+	f.svc.WithBufferedLimit(0)
+	archive := zipOf(t, map[string][]byte{"hello.txt": []byte("hello")})
+	f.put(t, "/big.zip", string(archive))
+	listing, err := f.svc.ArchiveEntries(ctx, f.viewer, "/big.zip", nil)
+	if err != nil || len(listing.Entries) != 1 {
+		t.Errorf("ArchiveEntries() of a misreported ZIP = %+v, %v", listing, err)
 	}
 }
