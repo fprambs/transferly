@@ -1,6 +1,7 @@
 package fzimport
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
@@ -47,7 +48,9 @@ func DecryptCryptPassword(masterPassword, xmlPubKey, xmlPass string) (string, er
 }
 
 // open reads one crypt password: X25519 between the private key derived from the master password and the ephemeral key of the
-// password, SHA-256 of the key material for the AES key and the nonce, and AES-256-GCM, as libfilezilla seals it.
+// password, SHA-256 of the key material for the AES key and the nonce, and AES-256-GCM, as libfilezilla seals it. FileZilla pads
+// passwords shorter than 16 bytes with zero bytes before sealing them, so they do not tell their length; the password ends at the
+// first zero byte, which no password holds.
 func (o *cryptOpener) open(xmlPubKey, xmlPass string) (string, error) {
 	storedPub, err := decodeCryptBase64(xmlPubKey)
 	if err != nil {
@@ -87,6 +90,9 @@ func (o *cryptOpener) open(xmlPubKey, xmlPass string) (string, error) {
 	plain, err := gcm.Open(nil, iv, sealed, nil)
 	if err != nil {
 		return "", fmt.Errorf("%w: wrong master password or corrupted data", ErrCryptPassword)
+	}
+	if end := bytes.IndexByte(plain, 0); end >= 0 {
+		plain = plain[:end]
 	}
 	if !utf8.Valid(plain) {
 		return "", fmt.Errorf("%w: password is not valid UTF-8", ErrCryptPassword)

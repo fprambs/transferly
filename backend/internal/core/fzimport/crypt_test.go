@@ -22,11 +22,22 @@ const cryptVectorPass = "YrYsSF4x6gsDNnLlknBWKlC6ZXJk2pfVf2ScQ04UDTeq+2qWAU/DbM9
 //
 // Scenarios:
 //   - the master password of the site manager opens a known test vector
+//   - a password FileZilla padded with zero bytes to 16 bytes opens without them; passwords of 16 bytes or more open as they are
 //   - a wrong master password is refused
 func TestDecryptCryptPassword(t *testing.T) {
 	got, err := fzimport.DecryptCryptPassword("e2e-master", cryptVectorPubKey, cryptVectorPass)
 	if err != nil || got != "site-secret-42" {
 		t.Fatalf("DecryptCryptPassword() = %q, %v; want site-secret-42", got, err)
+	}
+	for _, tc := range []struct{ plain, want string }{
+		{"short\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", "short"},
+		{"exactly-16-bytes", "exactly-16-bytes"},
+		{"a password longer than sixteen", "a password longer than sixteen"},
+	} {
+		pub, pass := sealCrypt(t, "master", filled(32, 7), filled(32, 8), []byte(tc.plain))
+		if got, err := fzimport.DecryptCryptPassword("master", pub, pass); err != nil || got != tc.want {
+			t.Errorf("padded %q = %q, %v; want %q", tc.plain, got, err, tc.want)
+		}
 	}
 	if _, err := fzimport.DecryptCryptPassword("wrong", cryptVectorPubKey, cryptVectorPass); err == nil {
 		t.Fatal("wrong master password should fail")
