@@ -28,7 +28,8 @@ var tlsModes = map[string]ftpfs.TLSMode{
 }
 
 // openFTP connects to an FTP server, protected as the site's encryption says (ADR-0012). An FTP account may have an empty
-// password, so none is required.
+// password, so none is required. The certificate is checked again on every data connection, long after the request that opened
+// the connection ended, so its check does not end with that request.
 func openFTP(ctx context.Context, c *Connector, key connections.Key, t target) (remotefs.RemoteFS, error) {
 	mode := tlsModes[t.Setting("encryption")]
 	host, port := t.Setting(connectors.FieldHost), t.number(connectors.FieldPort)
@@ -45,7 +46,7 @@ func openFTP(ctx context.Context, c *Connector, key connections.Key, t target) (
 		Charset:       charsetOf(t.Setting("charset")),
 		DialContext:   leg.dialer(c.baseDialer(t)),
 		Timeout:       c.timeout,
-		VerifyHostKey: leg.verify(ctx, host, port),
+		VerifyHostKey: leg.verify(context.WithoutCancel(ctx), host, port),
 		Prompt:        leg.ask(ctx, auth),
 		PromptWait:    c.promptWait(),
 	})

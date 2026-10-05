@@ -1,6 +1,7 @@
 package connect_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -34,6 +35,7 @@ func (e *env) trustCertificate(address, fingerprint string) {
 //     anonymous password
 //   - an FTPS site reports the certificate it met, with its fingerprint under the certificate key type, and connects once trusted
 //   - a certificate other than the trusted one is refused as a mismatch
+//   - an FTPS connection keeps verifying the certificate of its data connections after the request that opened it ended
 //   - a legacy FTPS site off port 990 upgrades with AUTH TLS, and a site with implicit encryption starts with TLS on any port
 //   - optional encryption carries on in clear text with a server that does not offer TLS and uses TLS with one that does,
 //     while required explicit encryption refuses a server that does not offer it
@@ -87,6 +89,16 @@ func TestConnector_FTP(t *testing.T) {
 	} else {
 		_ = fsys.Close()
 	}
+	dialing, stop := context.WithCancel(t.Context())
+	connected, err := c.Connect(dialing, e.key(secure), session)
+	if err != nil {
+		t.Fatalf("Connect() to an FTPS site = %v", err)
+	}
+	stop()
+	if _, err := connected.List(t.Context(), "/"); err != nil {
+		t.Errorf("List() once the request that connected ended = %v; want the data connection verified anyway", err)
+	}
+	_ = connected.Close()
 
 	impostor := ftptest.Start(t, ftptest.Options{Encryption: ftptest.Explicit})
 	other := e.addSiteAt(impostor.Addr, spec{Name: "Impostor", Protocol: "ftps", Username: ftpUser}, changes{Password: text(ftpPassword)})
