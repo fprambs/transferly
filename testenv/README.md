@@ -7,7 +7,7 @@ Start: `make testenv` (`docker compose -f compose.dev.yaml --profile testenv up 
 | Service | Address in the Compose network | Notes |
 |---|---|---|
 | `sftp` | `sftp:22` | `atmoz/sftp`; user `transferly` with upload directory `/upload`, and `anonymous` let in with the SSH "none" method (`testenv/sftp/anonymous.sh`), serving `/pub/readme.txt`; `/preview-samples` is `testenv/preview-samples`, mounted read-only, with a sample of every format the file viewers show |
-| `ssh` | `ssh:22` | OpenSSH on Debian with bash, coreutils, tar, zip and unzip (`testenv/ssh`); `transferly` / `transferly` may run commands, so its SFTP sites copy, compress, extract, sum and measure on the server; the home folder holds a copy of `preview-samples` |
+| `ssh` | `ssh:22` | OpenSSH on Debian with bash, coreutils, tar, zip, unzip and sudo (`testenv/ssh`); `transferly` / `transferly` may run commands, so its SFTP sites copy, compress, extract, sum and measure on the server, and may use sudo with its password; `deployer` / `deployer` may use sudo without one; `/root/only-root.txt` only root may read; the home folder holds a copy of `preview-samples` |
 | `ftp` | `ftp:21` | plain FTP; `TZ=America/Santiago` so `LIST` shows local time without a zone |
 | `ftps` | `ftps:21` | explicit FTPS (AUTH TLS), TLS session reuse required |
 | `ftps-implicit` | `ftps-implicit:990` | implicit FTPS, TLS session reuse required |
@@ -27,7 +27,8 @@ S3, Google, Azure and WebDAV are in beta: offer them first in Settings → Admin
 | Connector | Settings |
 |---|---|
 | SFTP | Host `sftp`, port 22, username `transferly`, password `transferly` |
-| SFTP with SSH tools | Host `ssh`, port 22, username `transferly`, password `transferly`, default remote folder `/home/transferly` (Advanced tab); trust its key when asked |
+| SFTP with SSH tools | Host `ssh`, port 22, username `transferly`, password `transferly`; it opens in `/home/transferly`; trust its key when asked |
+| SFTP in sudo mode | As above, with Use sudo on in the Advanced tab and default remote folder `/root`; the sudo password may stay empty, since it is the password of the account |
 | FTP / FTPS | Host `ftp` with plain FTP, or `ftps` with explicit TLS, or `ftps-implicit` with implicit TLS on port 990; username `transferly`, password `transferly`; trust the certificate when asked |
 | S3 | Endpoint `s3`, HTTPS off, port 7070, bucket `transferly`, access key ID `transferly`, secret access key `transferly-secret` |
 | Google Drive | Connect with Google: the page of the fake agrees at once |

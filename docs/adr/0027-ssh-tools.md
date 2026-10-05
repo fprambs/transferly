@@ -70,6 +70,33 @@ characters of names as `^J` and the like, so a name with a newline comes back re
 where it can be: not found, permission denied, exists, no space. Output is read with a cap, and every command is bounded by its
 context and a timeout.
 
+### Sudo mode (5.7b)
+
+An SFTP site can turn on **Use sudo** on its Advanced tab, with the user to run as (root by default) and, optionally, a sudo
+password.
+
+- **How it works.** Instead of the `sftp` subsystem, the session runs, over an `exec` channel:
+
+  `sudo -S -p 'transferly-sudo-password:' -u USER -- sh -c '…exec sftp-server…'`
+
+  The script looks for the SFTP server of OpenSSH where Debian, Ubuntu, Red Hat, Arch, macOS and the BSDs keep it. The client
+  speaks SFTP over the pipes of that channel, as WinSCP does, so every operation of the explorer runs as that user.
+- **Talking to sudo.** Transferly reads the standard error of the channel and takes the first of two things it sees:
+  - the known prompt: it answers with the sudo password of the site or, without one, with the password the account signs in
+    with;
+  - the line the script writes before it starts the SFTP server: the session is ready.
+
+  A second prompt, sudo ending, or a prompt without a password to give fails the connection with `sudo_refused`, before any SFTP
+  byte is sent. Sudo is not left reading the SFTP session as password attempts. The wait is bounded by the connection timeout.
+- **Who may turn it on.** Saving a site with sudo on, or changing a site that has it on, needs the new action `elevate` of the
+  workspace, which admins and the owner have. The catalog marks such fields as `Elevated`. Anyone who may use the site connects
+  with it, as with any stored credential, and the authorization of each action still applies.
+- **With the switch of the instance.** Sudo mode runs a command, so it fails as `server_commands_unsupported` when an
+  administrator turns commands on servers off.
+- **No commands on top.** A session in sudo mode offers no operations on the server, because they would run as the account and
+  not as the elevated user. Copies and checksums go through SFTP, as root.
+- **Log.** The connection log adds "Running as USER through sudo." after signing in.
+
 ### Rules shared by the three steps
 
 - **Roles.** The operations on the server need what the matching file operations need: `editor` to copy, compress and extract,
@@ -90,6 +117,8 @@ context and a timeout.
   - servers that refuse commands keep working as before;
   - the same `exec` channel will carry the sudo mode and the terminal.
 - Negative:
+  - sudo mode needs sudo and the SFTP server of OpenSSH on the host, and sudo that asks for a one-time code or a prompt other
+    than the password is refused;
   - commands depend on the tools of the server: GNU and BSD versions differ, and the probe and the tests must cover both;
   - building shell commands is a classic injection risk, so quoting is centralized, reviewed and tested with hostile names;
   - a server-side copy is not resumable and shows no byte progress, only that it is running.
