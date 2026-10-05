@@ -32,6 +32,24 @@ error. Sudo prints the prompt without a line break, so standard error is scanned
 | ends (`not in the sudoers file`, no `sftp-server`) | `sudo_refused` with what it wrote |
 | says nothing within the timeout | `remote_unavailable` |
 
+## Terminal
+
+`FS.Shell(ctx, dir, cols, rows)` checks the probe found a shell, opens a session, asks for a PTY `xterm-256color` and starts
+`cd 'DIR' 2>/dev/null; exec "${SHELL:-/bin/sh}" -l`. The `remotefs.Terminal` it returns reads and writes the PTY, resizes it with
+`window-change`, and `Wait` gives the exit status (-1 when the shell ended without one, for example on a signal).
+
+`files.Service.Terminal` needs the action `elevate`. `httpapi/terminal.go` checks the site has `terminal` on, opens the shell
+before upgrading the request, so failures are plain problem responses, and relays it:
+
+| Message | Direction | Meaning |
+| --- | --- | --- |
+| binary | browser → server | typed bytes |
+| binary | server → browser | what the shell prints |
+| text `{"type":"resize","cols":120,"rows":40}` | browser → server | resize; malformed or out of bounds is ignored |
+| text `{"type":"exit","code":0}` | server → browser | the shell ended; a normal closure follows |
+
+When the browser goes away the shell is closed. The activity entry has kind `terminal`, the folder and the duration.
+
 ## Outcomes
 
 A command that exits with a status other than zero is a `*sftpfs.CommandError`. Its standard error, read up to 4 KiB, decides the
@@ -52,6 +70,8 @@ ended context sends `SIGKILL` and closes the session.
 - Copies within one site and checksums use the server automatically.
 - The explorer offers **Compress…** and **Extract here** in the context menu and the details panel, and **Measure** for folders,
   only when `GET …/sites/{siteId}/tools` says the server can.
+- **Terminal** appears in the explorer toolbar when the site has Allow the terminal on and the server has a shell; the panel below
+  the files holds one tab per shell (`features/terminal`).
 - Administrators turn the feature off in Settings → Administration → Limits.
 
 ## Tests
@@ -66,3 +86,6 @@ ended context sends `SIGKILL` and closes the session.
   (sudo without one), and checks wrong and missing passwords.
 - `e2e/specs/ssh-tools.spec.ts` compresses, extracts and measures on `ssh`, checks that `sftp` offers none of it, and lists `/root`
   in sudo mode.
+- `sftptest.Options.Shell` plays a PTY shell; `TestShell_OpenSSH` opens a real one on `ssh` and checks the folder, the resize and
+  the exit status. `TestTerminal` drives the WebSocket end to end against a fake shell.
+- The e2e spec also opens a terminal on `ssh`, runs a command in `/home/transferly` and waits for the exit status.

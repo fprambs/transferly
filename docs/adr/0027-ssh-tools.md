@@ -28,8 +28,7 @@ The work is split in three steps, delivered in order:
 2. **Sudo mode.**
 3. **An integrated terminal.**
 
-This ADR decides the first step and the rules all three share. The sudo mode and the terminal get their own sections when they
-are built.
+This ADR decides the three steps and the rules they share, each in its own section.
 
 ### Operations on the server (5.7a)
 
@@ -97,15 +96,38 @@ password.
   not as the elevated user. Copies and checksums go through SFTP, as root.
 - **Log.** The connection log adds "Running as USER through sudo." after signing in.
 
+### Integrated terminal (5.7c)
+
+An SFTP site can turn on **Allow the terminal** on its Advanced tab. The explorer then offers **Terminal**, which opens an
+interactive shell in the folder in view, in a panel below the files with tabs for several shells.
+
+- **How it works.** The session opens a channel on the connection it already has, asks for a PTY (`xterm-256color`, the size of
+  the panel) and runs `cd 'DIR' 2>/dev/null; exec "${SHELL:-/bin/sh}" -l`, with the folder quoted like every other path. The
+  home path starts the shell where the server opens sessions.
+- **Transport.** The browser talks to the shell over a WebSocket,
+  `GET /api/v1/workspaces/{workspaceId}/sites/{siteId}/terminal?path&cols&rows`: binary messages carry what is typed and what
+  the shell prints, a text message `{"type":"resize","cols","rows"}` resizes the screen, and `{"type":"exit","code"}` tells the
+  shell ended, before a normal closure. The request needs a session and an allowed origin, like the event stream. Screens are
+  bounded to 1000 columns and rows, and messages to 1 MiB.
+- **Who may open it.** Turning the terminal on, like sudo, needs the action `elevate`, so only admins and the owner set it.
+  Opening a terminal also needs `elevate`, even on a site that has it on, since a shell can do anything the account can. A site
+  with the terminal off answers `terminal_off`.
+- **When it is offered.** Only when the probe found a shell (`tools.shell`), so servers forced to `internal-sftp` never show it.
+  The switch of the instance turns it off with the other commands. In sudo mode the probe still runs, so the terminal opens as
+  the account, not as the elevated user, and the user may run `sudo` in it.
+- **Activity.** Each terminal is recorded as `terminal`, with its folder and how long it was open, never what was typed or printed.
+- **Browser.** The screen is drawn with xterm.js. Its style elements get the nonce of the page, so the Content-Security-Policy
+  stays without `'unsafe-inline'`.
+
 ### Rules shared by the three steps
 
 - **Roles.** The operations on the server need what the matching file operations need: `editor` to copy, compress and extract,
-  and `viewer` for checksums and sizes. The sudo mode and the terminal will need `admin` of the workspace and an opt-in on the
-  site, off by default.
+  and `viewer` for checksums and sizes. The sudo mode and the terminal need `admin` of the workspace (the action `elevate`) and an
+  opt-in on the site, off by default.
 - **Instance.** An administrator can turn SSH commands off for the whole instance in Settings → Administration → Limits
   (`serverCommands` of the limits, on by default). Sites then behave as plain SFTP.
 - **Activity.** Compressions and extractions are recorded in the activity log of the person, like the other file operations
-  (kinds `compress` and `extract`). The terminal will record its opening and closing, but not what is typed.
+  (kinds `compress` and `extract`). The terminal records its folder and how long it was open, but not what is typed (kind `terminal`).
 - **Network guard.** No new connection is opened. Commands run over the SSH connection that already passed the guard and the
   check of the server key.
 
@@ -115,10 +137,11 @@ password.
   - copies, checksums, archives and folder sizes inside one SFTP server take seconds, without moving data through Transferly
     or the browser;
   - servers that refuse commands keep working as before;
-  - the same `exec` channel will carry the sudo mode and the terminal.
+  - the same SSH connection carries the operations, the sudo mode and the terminal, with no new connection or port.
 - Negative:
   - sudo mode needs sudo and the SFTP server of OpenSSH on the host, and sudo that asks for a one-time code or a prompt other
     than the password is refused;
   - commands depend on the tools of the server: GNU and BSD versions differ, and the probe and the tests must cover both;
   - building shell commands is a classic injection risk, so quoting is centralized, reviewed and tested with hostile names;
-  - a server-side copy is not resumable and shows no byte progress, only that it is running.
+  - a server-side copy is not resumable and shows no byte progress, only that it is running;
+  - a terminal gives an admin a full shell as the account of the site, which is why it is opt-in per site and recorded.
