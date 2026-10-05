@@ -196,6 +196,7 @@ SFTP:
 - Auth: password, clave privada con passphrase, keyboard-interactive.
 - Host keys: confianza en el primer uso, bloqueo si cambian.
 - ProxyJump y proxies SOCKS5/HTTP.
+- Herramientas SSH (ADR-0027): `sftpfs` implementa el puerto opcional `remotefs.Commands` con canales `exec` de la misma conexión (copiar, checksum, comprimir, extraer y medir en el servidor), con un sondeo por conexión y respaldo cuando el servidor no permite comandos. Guía: [guides/ssh-tools.md](guides/ssh-tools.md).
 
 FTP y FTPS:
 

@@ -41,6 +41,7 @@ Before using a library for the first time, read its official documentation and r
 | [Google (Drive, Cloud Storage and the sign-in with Google)](google.md) | done |
 | [Azure Storage (Blob Storage and Azure Files)](azure.md) | done |
 | [WebDAV](webdav.md) | done |
+| [SSH tools of SFTP sites](ssh-tools.md) | done |
 | [sqlc and pgx](sqlc-pgx.md) | done |
 | [Protocol specifications (SFTP, SSH, FTP, FTPS)](protocol-specifications.md) | done |
 | [SSH key files](ssh-keys.md) | done |

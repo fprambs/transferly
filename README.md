@@ -104,6 +104,7 @@ Cada tipo de sitio es un **conector** del catálogo. Un sitio nuevo empieza elig
 
 - **SFTP**: contraseña, archivo de clave (OpenSSH, PEM y PuTTY `.ppk`), anónimo, interactivo (por ejemplo un código de un solo uso) o contraseña pedida al conectar.
 - **FTP y FTPS**: TLS explícito o implícito, o solo FTP plano. Admite el comando ACCT, el juego de caracteres configurable por sitio y la zona horaria de `LIST` detectada automáticamente.
+- **Herramientas SSH** en servidores SFTP que permiten comandos: copiar dentro del servidor, comprimir en ZIP o tar.gz, extraer, calcular checksums y medir carpetas los hace el propio servidor, sin que los datos pasen por Transferly.
 - **Saltos y proxies**: ProxyJump por SSH y proxies SOCKS5 o HTTP. Cada salto pasa por la política de red.
 - **Claves de servidor**: confianza en el primer uso, aviso si la clave cambia y soporte para servidores con varias claves detrás de un balanceador.
 - **WebDAV** (beta): Nextcloud, ownCloud, NAS y cualquier servidor WebDAV, con carpetas reales y la ruta raíz de cada sitio. Un certificado autofirmado se acepta confirmando su huella, como en FTPS.
@@ -194,7 +195,7 @@ Ya están terminadas las fases 0 a 4 del [roadmap](docs/ROADMAP.md): MVP, el nú
 **Fase 5: escala e integraciones**
 
 - ☁️ **Más destinos**: SMB, y OneDrive y SharePoint con inicio de sesión de Microsoft.
-- 🖥️ **Herramientas SSH** sobre SFTP: copiar, mover y comprimir en el propio servidor, modo sudo y una terminal integrada.
+- 🖥️ **Más herramientas SSH**: modo sudo y una terminal integrada.
 - 🔑 **Inicio de sesión único** con OIDC.
 - 🗓️ **Transferencias programadas** con cron consciente de las zonas horarias, y webhooks.
 - 🔌 **Tokens de API** y documentación pública del contrato.
@@ -250,7 +251,7 @@ make lint        # linters y chequeo de tipos
 make e2e         # pruebas de extremo a extremo contra la imagen de producción
 ```
 
-Con `make testenv` se levanta un servidor de prueba para cada conector (SFTP, FTP, FTPS, S3, WebDAV, Azure y un Google falso), con los datos para crear cada sitio en [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
+Con `make testenv` se levanta un servidor de prueba para cada conector (SFTP, SSH con comandos, FTP, FTPS, S3, WebDAV, Azure y un Google falso), con los datos para crear cada sitio en [testenv/README.md](testenv/README.md). Para probar el visor con archivos de muestra por SFTP, usa `make preview-sftp` (servidor `sftp`, usuario `transferly`). Para contribuir, lee [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentación
 

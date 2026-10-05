@@ -7,6 +7,7 @@ Start: `make testenv` (`docker compose -f compose.dev.yaml --profile testenv up 
 | Service | Address in the Compose network | Notes |
 |---|---|---|
 | `sftp` | `sftp:22` | `atmoz/sftp`; user `transferly` with upload directory `/upload`, and `anonymous` let in with the SSH "none" method (`testenv/sftp/anonymous.sh`), serving `/pub/readme.txt`; `/preview-samples` is `testenv/preview-samples`, mounted read-only, with a sample of every format the file viewers show |
+| `ssh` | `ssh:22` | OpenSSH on Debian with bash, coreutils, tar, zip and unzip (`testenv/ssh`); `transferly` / `transferly` may run commands, so its SFTP sites copy, compress, extract, sum and measure on the server; the home folder holds a copy of `preview-samples` |
 | `ftp` | `ftp:21` | plain FTP; `TZ=America/Santiago` so `LIST` shows local time without a zone |
 | `ftps` | `ftps:21` | explicit FTPS (AUTH TLS), TLS session reuse required |
 | `ftps-implicit` | `ftps-implicit:990` | implicit FTPS, TLS session reuse required |
@@ -17,7 +18,7 @@ Start: `make testenv` (`docker compose -f compose.dev.yaml --profile testenv up 
 | `fakegoogle` | `fakegoogle:8090`, and `127.0.0.1:8090` on the host | a fake of Google in memory: its sign-in page agrees at once, and My Drive holds a Google document, `Plan`, and a folder, `Shared notes`; the development backend uses it unless a real OAuth client is configured |
 | `toxiproxy` | `toxiproxy:2222` (sftp), `2121` (ftp), `2122` (ftps), `2990` (ftps-implicit); API on `8474` | fault injection |
 
-Credentials for the SFTP, FTP and WebDAV servers: `transferly` / `transferly`. The FTPS certificate is self-signed. Everything but the SFTP and FTP servers lives in memory and starts anew when its container restarts.
+Credentials for the SFTP, SSH, FTP and WebDAV servers: `transferly` / `transferly`. The FTPS certificate is self-signed. Everything but the SFTP and FTP servers lives in memory and starts anew when its container restarts.
 
 ## Trying each connector
 
@@ -26,6 +27,7 @@ S3, Google, Azure and WebDAV are in beta: offer them first in Settings → Admin
 | Connector | Settings |
 |---|---|
 | SFTP | Host `sftp`, port 22, username `transferly`, password `transferly` |
+| SFTP with SSH tools | Host `ssh`, port 22, username `transferly`, password `transferly`, default remote folder `/home/transferly` (Advanced tab); trust its key when asked |
 | FTP / FTPS | Host `ftp` with plain FTP, or `ftps` with explicit TLS, or `ftps-implicit` with implicit TLS on port 990; username `transferly`, password `transferly`; trust the certificate when asked |
 | S3 | Endpoint `s3`, HTTPS off, port 7070, bucket `transferly`, access key ID `transferly`, secret access key `transferly-secret` |
 | Google Drive | Connect with Google: the page of the fake agrees at once |
