@@ -3475,6 +3475,61 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/home:
+    get:
+      operationId: getHomeFolder
+      security:
+        - sessionCookie: []
+      summary: Tell the folder a connection starts in
+      description: >-
+        The folder the server opened the session in, as an SFTP or FTP client shows with pwd, such as /home/deploy; the root for
+        storages without one. A site without a default remote folder opens there.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/SiteId"
+      responses:
+        "200":
+          description: The folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeFolder"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}/files/usage:
     get:
       operationId: getDiskUsage
@@ -6163,6 +6218,13 @@ components:
     ArchiveFormat:
       type: string
       enum: [zip, tar.gz]
+    HomeFolder:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          description: Absolute path of the folder.
     DiskUsage:
       type: object
       required: [bytes]

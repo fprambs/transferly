@@ -88,3 +88,18 @@ func (p domainProblem) VisitCompressFilesResponse(w http.ResponseWriter) error {
 
 // VisitExtractArchiveResponse implements [ExtractArchiveResponseObject].
 func (p domainProblem) VisitExtractArchiveResponse(w http.ResponseWriter) error { return p.write(w) }
+
+// GetHomeFolder tells the folder a connection starts in when its site names none.
+func (s *server) GetHomeFolder(ctx context.Context, request GetHomeFolderRequestObject) (GetHomeFolderResponseObject, error) {
+	home, err := s.deps.Files.Home(ctx, target(ctx, request.WorkspaceId, request.SiteId))
+	if problem, ok := asProblem(err); ok {
+		return problem, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return GetHomeFolder200JSONResponse{Path: home}, nil
+}
+
+// VisitGetHomeFolderResponse implements [GetHomeFolderResponseObject].
+func (p domainProblem) VisitGetHomeFolderResponse(w http.ResponseWriter) error { return p.write(w) }

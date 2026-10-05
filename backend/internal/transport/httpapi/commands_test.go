@@ -32,6 +32,7 @@ func (e *fileEnv) tools() reply {
 //   - a server that runs commands tells its tools, measures folders, packs entries into an archive and unpacks one into a new
 //     folder, and computes checksums; compressing and extracting leave records in the activity
 //   - a refusal of the server reads as its problem, and a file that is not an archive is 422 invalid_path
+//   - a connection to a storage without a home folder starts at the root
 //   - a server that cannot run commands tells no tools and answers 422 server_commands_unsupported
 //   - once an administrator turns commands off, the server tells no tools; the limits say so, and turning them on again restores them
 func TestServerCommands(t *testing.T) {
@@ -101,6 +102,13 @@ func TestServerCommands(t *testing.T) {
 	mustDecode(t, e.tools().Body, &tools)
 	if !tools.Copy {
 		t.Errorf("tools with commands on again = %+v", tools)
+	}
+
+	var home httpapi.HomeFolder
+	r = e.get("/home", nil, nil)
+	mustDecode(t, r.Body, &home)
+	if r.Status != http.StatusOK || home.Path != "/" {
+		t.Errorf("home = %d %+v, want the root of a storage without a home folder", r.Status, home)
 	}
 
 	plain := newFileEnv(t)
