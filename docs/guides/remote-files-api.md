@@ -30,6 +30,13 @@ Endpoints live under `/api/v1/workspaces/{workspaceId}/sites/{siteId}/files`. Ev
 - Uploads are streamed end to end with no size limit; memory use does not grow with the file. An interrupted upload leaves the partial file: read its size with the entry call and send the rest with `mode=resume&offset=size`.
 - Paths are validated (not empty, at most 4096 bytes, no control characters) before any connection is used.
 - A connection is borrowed only while a call or a stream is open. A stream that hits a lost connection discards it instead of pooling it.
+- A user keeps up to four connections per site, or the `connections` setting of an SFTP or FTP site (1 to 4). Only one connection of
+  a site is opened at a time: calls that come meanwhile wait for it and share its failure, so a server sees one sign-in and the
+  connection log one connection, and a changed host key is asked about once. A call that finds every connection busy waits 250 ms
+  for one before opening another, so short calls share a connection. Servers behind a balancer whose servers each have their own
+  key are reached through few connections; with `connections` at 1, browsing, previews and transfers share one.
+- A read of the viewer that opens a new connection and meets a key that is not trusted shows the same question as the explorer, and
+  reads again once the key is trusted.
 - Errors have stable codes: `path_not_found`, `path_exists`, `directory_not_empty`, `not_a_directory`, `invalid_path`, `invalid_mode`, `remote_permission_denied`, `remote_quota_exceeded` (507), `remote_auth_failed` and `remote_unavailable` (502), plus the host key and vault codes. Internal details never reach the client.
 
 ## Tests
