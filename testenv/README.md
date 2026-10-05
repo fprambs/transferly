@@ -8,6 +8,7 @@ Start: `make testenv` (`docker compose -f compose.dev.yaml --profile testenv up 
 |---|---|---|
 | `sftp` | `sftp:22` | `atmoz/sftp`; user `transferly` with upload directory `/upload`, and `anonymous` let in with the SSH "none" method (`testenv/sftp/anonymous.sh`), serving `/pub/readme.txt`; `/preview-samples` is `testenv/preview-samples`, mounted read-only, with a sample of every format the file viewers show |
 | `ssh` | `ssh:22` | OpenSSH on Debian with bash, coreutils, tar, zip, unzip and sudo (`testenv/ssh`); `transferly` / `transferly` may run commands, so its SFTP sites copy, compress, extract, sum and measure on the server, open a terminal, and may use sudo with its password; `deployer` / `deployer` may use sudo without one; `/root/only-root.txt` only root may read; the home folder holds a copy of `preview-samples` |
+| `strict-sftp` | `strict-sftp:22` | an SFTP server that reports every file 300 bytes larger than it is, as some enterprise gateways do (`cmd/strictsftp`); `transferly` / `transferly`; holds `export.dat` (1.1 MB), `bundle.zip` (a ZIP of 1 MB) and `notes.txt` |
 | `ftp` | `ftp:21` | plain FTP; `TZ=America/Santiago` so `LIST` shows local time without a zone |
 | `ftps` | `ftps:21` | explicit FTPS (AUTH TLS), TLS session reuse required |
 | `ftps-implicit` | `ftps-implicit:990` | implicit FTPS, TLS session reuse required |
@@ -30,6 +31,7 @@ S3, Google, Azure and WebDAV are in beta: offer them first in Settings → Admin
 | SFTP with SSH tools | Host `ssh`, port 22, username `transferly`, password `transferly`; it opens in `/home/transferly`; trust its key when asked |
 | SFTP with a terminal | As SFTP with SSH tools, with Allow the terminal on in the Advanced tab; Terminal in the toolbar opens a shell in the folder in view |
 | SFTP in sudo mode | As above, with Use sudo on in the Advanced tab and default remote folder `/root`; the sudo password may stay empty, since it is the password of the account |
+| SFTP with inexact sizes | Host `strict-sftp`, port 22, username `transferly`, password `transferly`; download `export.dat` and preview `bundle.zip`; trust its key when asked, again after each restart of the container |
 | FTP / FTPS | Host `ftp` with plain FTP, or `ftps` with explicit TLS, or `ftps-implicit` with implicit TLS on port 990; username `transferly`, password `transferly`; trust the certificate when asked |
 | S3 | Endpoint `s3`, HTTPS off, port 7070, bucket `transferly`, access key ID `transferly`, secret access key `transferly-secret` |
 | Google Drive | Connect with Google: the page of the fake agrees at once |
