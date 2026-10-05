@@ -47,6 +47,8 @@ const (
 	Prompted Step = "prompted"
 	// Authenticated means the account signed in: params method, username.
 	Authenticated Step = "authenticated"
+	// Elevated means the session acts as another user through sudo (ADR-0027): params user.
+	Elevated Step = "elevated"
 	// Listing means a folder is being read: params path.
 	Listing Step = "listing"
 	// Listed means a folder was read: params path, count.

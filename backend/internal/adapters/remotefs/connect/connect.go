@@ -50,6 +50,7 @@ type Connector struct {
 	offering site.Offering
 	roots    *x509.CertPool
 	google   *googleauth.Service
+	commands func() bool
 }
 
 // Option adjusts a [Connector].
@@ -83,6 +84,12 @@ func CertificateAuthorities(roots *x509.CertPool) Option {
 // it, or without a client configured, those sites cannot connect.
 func Google(service *googleauth.Service) Option {
 	return func(c *Connector) { c.google = service }
+}
+
+// ServerCommands sets who tells whether sites may run commands on their servers (ADR-0027); when it says no, sites in sudo mode
+// fail with [remotefs.ErrUnsupported]. Without it they may.
+func ServerCommands(allowed func() bool) Option {
+	return func(c *Connector) { c.commands = allowed }
 }
 
 // errNoPrompts fails an interactive site when nobody can relay the server's questions.

@@ -9,6 +9,7 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs"
 	"github.com/fprambs/transferly/internal/core/connections"
 	"github.com/fprambs/transferly/internal/core/connectors"
+	"github.com/fprambs/transferly/internal/core/connlog"
 	"github.com/fprambs/transferly/internal/core/remotefs"
 	"github.com/fprambs/transferly/internal/core/site"
 )
@@ -52,6 +53,11 @@ func openSFTP(ctx context.Context, c *Connector, key connections.Key, t target) 
 		Prompt:        leg.ask(ctx, auth),
 		Strict:        c.strict,
 	}
+	sudo, err := c.sudoOf(t)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Sudo = sudo
 	if t.Setting("jump_host") == "" {
 		leg.connecting(t, host, port, viaOf(t))
 		cfg.DialContext = leg.dialer(c.baseDialer(t))
@@ -60,6 +66,7 @@ func openSFTP(ctx context.Context, c *Connector, key connections.Key, t target) 
 			return nil, err
 		}
 		leg.authenticated(auth, username)
+		leg.elevated(sudo)
 		return fsys, nil
 	}
 	jump, err := dialJump(ctx, c, key, t)
@@ -79,7 +86,32 @@ func openSFTP(ctx context.Context, c *Connector, key connections.Key, t target) 
 		return nil, err
 	}
 	leg.authenticated(auth, username)
+	leg.elevated(sudo)
 	return &jumpedFS{FS: fsys, jump: jump}, nil
+}
+
+// sudoOf returns the sudo mode of a site (ADR-0027), nil when it is off: the user sudo runs the SFTP server as, and the password it
+// answers with, the site's own or, without one, the password the account signs in with. Sites cannot use it when the instance
+// does not allow commands on servers.
+func (c *Connector) sudoOf(t target) (*sftpfs.Sudo, error) {
+	if t.Setting("sudo") != "true" {
+		return nil, nil
+	}
+	if c.commands != nil && !c.commands() {
+		return nil, fmt.Errorf("%w: an administrator turned commands on servers off, which sudo needs", remotefs.ErrUnsupported)
+	}
+	password := t.secret(site.SecretSudoPassword)
+	if len(password) == 0 {
+		password = t.secret(site.SecretPassword)
+	}
+	return &sftpfs.Sudo{User: t.Setting("sudo_user"), Password: string(password)}, nil
+}
+
+// elevated records that a session acts as another user through sudo, when it does.
+func (h hop) elevated(sudo *sftpfs.Sudo) {
+	if sudo != nil {
+		h.record(connlog.Info, connlog.Elevated, map[string]string{"user": sudo.User})
+	}
 }
 
 // dialJump connects to and authenticates against a site's jump host, through its proxy first when it also has one.

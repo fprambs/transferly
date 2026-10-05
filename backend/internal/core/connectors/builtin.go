@@ -111,8 +111,19 @@ var SFTP = Descriptor{
 		{Name: "password", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthPassword)},
 		{Name: "private_key", Kind: PrivateKey, Group: GroupAccess, Passphrase: "passphrase", When: whenAuth(AuthKey)},
 		{Name: "passphrase", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthKey)},
-	}, proxyFields()...), jumpFields()...),
+	}, append(proxyFields(), sudoFields()...)...), jumpFields()...),
 	EnabledByDefault: true,
+}
+
+// sudoFields are the settings of the sudo mode of SFTP sites (ADR-0027): once on, the session runs the SFTP server of the host
+// through sudo, as another user, root by default, with a password of its own or the one the account signs in with.
+func sudoFields() []Field {
+	on := &Condition{Field: "sudo", In: []string{"true"}}
+	return []Field{
+		{Name: "sudo", Kind: Boolean, Group: GroupAdvanced, Required: true, Default: "false", Elevated: true},
+		{Name: "sudo_user", Kind: Text, Group: GroupAdvanced, Required: true, Default: "root", MaxLength: 32, When: on},
+		{Name: "sudo_password", Kind: Secret, Group: GroupAdvanced, When: on},
+	}
 }
 
 // jumpFields are the settings of the SSH server an SFTP connection tunnels through, which apply once its host is given.

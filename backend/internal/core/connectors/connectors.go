@@ -124,6 +124,9 @@ type Field struct {
 	Provider string
 	// Account names the text field of an OAuth field that keeps the account that signed in, if it has one.
 	Account string
+	// Elevated marks a boolean field that, set to true, lets the site act beyond its account on the server, as sudo does
+	// (ADR-0027); only admins may save a site with it on.
+	Elevated bool
 }
 
 // IsSecret reports whether the field is sealed in the vault instead of being part of the configuration.
@@ -301,8 +304,16 @@ func (d Descriptor) Check() error {
 		if account, ok := seen[f.Account]; f.Kind == OAuth && (f.Provider == "" || (f.Account != "" && (!ok || account.Kind != Text))) {
 			return fmt.Errorf("%w: OAuth field %q has no provider, or its account field is not text", ErrInvalidDescriptor, f.Name)
 		}
+		if f.Elevated && f.Kind != Boolean {
+			return fmt.Errorf("%w: elevated field %q is not a boolean", ErrInvalidDescriptor, f.Name)
+		}
 	}
 	return nil
+}
+
+// Elevates reports whether settings turn on a field that lets the site act beyond its account on the server (ADR-0027).
+func (d Descriptor) Elevates(config map[string]string) bool {
+	return slices.ContainsFunc(d.Fields, func(f Field) bool { return f.Elevated && config[f.Name] == "true" })
 }
 
 // Field returns the field of a name.

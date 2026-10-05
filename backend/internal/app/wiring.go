@@ -130,7 +130,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	}, &http.Client{Timeout: connectTimeout, Transport: &http.Transport{DialContext: policy.Dialer(connectTimeout).DialContext}}, system.Now)
 	connector := connect.New(sites, quickConnections, hostKeys, policy, connectTimeout,
 		connect.AskedPasswords(askedPasswords), connect.ConnectionLog(connectionLog), connect.Prompts(broker),
-		connect.Offering(offered), connect.Google(google))
+		connect.Offering(offered), connect.Google(google), connect.ServerCommands(quotas.ServerCommandsAllowed))
 	pool := connections.New(connector, system, connections.Config{OnChange: connections.PublishTo(hub)})
 
 	return wiring{

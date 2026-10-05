@@ -467,6 +467,39 @@ func TestService_Authorization(t *testing.T) {
 	}
 }
 
+// TestService_Elevation verifies who may turn on the sudo mode of a site (ADR-0027).
+//
+// Scenarios:
+//   - an editor may not create a site with sudo on, nor change a site that has it, even to turn it off; both fail as ErrElevation
+//   - an admin may create it with its sudo password, and change and turn it off; an editor may then change the site again
+func TestService_Elevation(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	admin := uuid.New()
+	dek := make([]byte, vault.KeyLength)
+	if _, err := rand.Read(dek); err != nil {
+		t.Fatal(err)
+	}
+	svc := site.NewService(f.store, roles{f.editor: workspace.RoleEditor, admin: workspace.RoleAdmin}, keys{dek: dek, session: "open"}, f.guard, connectors.Builtin(), testutil.NewFakeClock(time.Now()), rand.Reader, nil)
+	sudo := with(valid(), "Root", "sudo", "true")
+	if _, err := svc.Create(ctx, f.editor, f.ws, "open", sudo, site.SecretChanges{}); !errors.Is(err, site.ErrElevation) || !errors.Is(err, workspace.ErrForbidden) {
+		t.Errorf("editor Create(sudo) = %v; want ErrElevation", err)
+	}
+	created, err := svc.Create(ctx, admin, f.ws, "open", sudo, site.SecretChanges{site.SecretSudoPassword: "root-pass"})
+	if err != nil || created.Config["sudo_user"] != "root" || !slices.Contains(created.Secrets, site.SecretSudoPassword) {
+		t.Fatalf("admin Create(sudo) = %+v, %v", created, err)
+	}
+	if _, err := svc.Update(ctx, f.editor, f.ws, created.ID, "open", with(sudo, "Root", "sudo", "false"), site.SecretChanges{}); !errors.Is(err, site.ErrElevation) {
+		t.Errorf("editor Update(sudo site) = %v; want ErrElevation", err)
+	}
+	if _, err := svc.Update(ctx, admin, f.ws, created.ID, "open", with(sudo, "Root", "sudo", "false"), site.SecretChanges{}); err != nil {
+		t.Fatalf("admin Update(sudo off) = %v", err)
+	}
+	if _, err := svc.Update(ctx, f.editor, f.ws, created.ID, "open", with(valid(), "Plain"), site.SecretChanges{}); err != nil {
+		t.Errorf("editor Update(after sudo was turned off) = %v", err)
+	}
+}
+
 // TestService_Secrets verifies sealing, opening and changing secrets.
 //
 // Scenarios:

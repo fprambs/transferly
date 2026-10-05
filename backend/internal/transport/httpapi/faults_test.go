@@ -436,7 +436,7 @@ func fileCalls(ws, siteID uuid.UUID) []request {
 // Scenarios:
 //   - a lost connection is 502 remote_unavailable and bad credentials are 502 remote_auth_failed, on every endpoint
 //   - an untrusted or a changed server key is 409 host_key_unknown or host_key_changed with the fingerprint, and a changed one lists the trusted keys
-//   - a forbidden destination is 422 destination_blocked, a locked vault 409 vault_locked
+//   - a forbidden destination is 422 destination_blocked, a locked vault 409 vault_locked, sudo refusing the account 403 sudo_refused
 //   - an unexpected error is a 500 without details, on every endpoint
 func TestRemoteFileFailures(t *testing.T) {
 	cases := []struct {
@@ -452,6 +452,7 @@ func TestRemoteFileFailures(t *testing.T) {
 		{"blocked", netguard.ErrBlocked, 422, "destination_blocked"},
 		{"locked", site.ErrLocked, 409, "vault_locked"},
 		{"quota", remotefs.ErrQuota, 507, "remote_quota_exceeded"},
+		{"sudo", remotefs.ErrElevationRefused, 403, "sudo_refused"},
 		{"unexpected", errors.New("boom: secret detail"), 500, "internal_error"},
 	}
 	for _, tt := range cases {

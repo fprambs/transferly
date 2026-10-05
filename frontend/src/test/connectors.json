@@ -381,6 +381,39 @@
         }
       },
       {
+        "default": "false",
+        "group": "advanced",
+        "kind": "boolean",
+        "name": "sudo",
+        "required": true
+      },
+      {
+        "default": "root",
+        "group": "advanced",
+        "kind": "text",
+        "maxLength": 32,
+        "name": "sudo_user",
+        "required": true,
+        "when": {
+          "field": "sudo",
+          "in": [
+            "true"
+          ]
+        }
+      },
+      {
+        "group": "advanced",
+        "kind": "secret",
+        "name": "sudo_password",
+        "required": false,
+        "when": {
+          "field": "sudo",
+          "in": [
+            "true"
+          ]
+        }
+      },
+      {
         "group": "jump",
         "kind": "host",
         "name": "jump_host",

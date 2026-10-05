@@ -50,6 +50,8 @@ const (
 	ActionModify Action = "modify"
 	// ActionManageSites creates and edits sites and their secrets.
 	ActionManageSites Action = "manage_sites"
+	// ActionElevate turns on what lets a site act beyond its account on the server, such as sudo (ADR-0027): only admins may.
+	ActionElevate Action = "elevate"
 	// ActionManageMembers manages members, limits and reads the audit log.
 	ActionManageMembers Action = "manage_members"
 	// ActionExportSecrets exports the sites with their secrets in clear text inside an encrypted file (ADR-0017). It is kept above
@@ -66,6 +68,7 @@ var permissions = map[Action][]Role{
 	ActionUpload:          {RoleEditor, RoleAdmin, RoleOwner},
 	ActionModify:          {RoleEditor, RoleAdmin, RoleOwner},
 	ActionManageSites:     {RoleEditor, RoleAdmin, RoleOwner},
+	ActionElevate:         {RoleAdmin, RoleOwner},
 	ActionManageMembers:   {RoleAdmin, RoleOwner},
 	ActionExportSecrets:   {RoleAdmin, RoleOwner},
 	ActionManageWorkspace: {RoleOwner},

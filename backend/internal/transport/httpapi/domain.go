@@ -181,6 +181,7 @@ var domainProblems = []struct {
 	code   string
 }{
 	{workspace.ErrNotFound, http.StatusNotFound, "workspace_not_found"},
+	{site.ErrElevation, http.StatusForbidden, "elevation_forbidden"},
 	{workspace.ErrForbidden, http.StatusForbidden, "forbidden"},
 	{workspace.ErrInvalidName, http.StatusUnprocessableEntity, "invalid_name"},
 	{workspace.ErrPersonal, http.StatusConflict, "personal_workspace"},
@@ -261,6 +262,7 @@ var domainProblems = []struct {
 	{archives.ErrBomb, http.StatusUnprocessableEntity, "archive_bomb"},
 	{archives.ErrEncrypted, http.StatusUnprocessableEntity, "archive_encrypted"},
 	{remotefs.ErrUnsupported, http.StatusUnprocessableEntity, "server_commands_unsupported"},
+	{remotefs.ErrElevationRefused, http.StatusForbidden, "sudo_refused"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
 	{remotefs.ErrExists, http.StatusConflict, "path_exists"},
 	{remotefs.ErrNotEmpty, http.StatusConflict, "directory_not_empty"},

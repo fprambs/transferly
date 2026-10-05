@@ -100,6 +100,7 @@ func TestCan(t *testing.T) {
 		workspace.ActionUpload:          {false, true, true, true},
 		workspace.ActionModify:          {false, true, true, true},
 		workspace.ActionManageSites:     {false, true, true, true},
+		workspace.ActionElevate:         {false, false, true, true},
 		workspace.ActionManageMembers:   {false, false, true, true},
 		workspace.ActionExportSecrets:   {false, false, true, true},
 		workspace.ActionManageWorkspace: {false, false, false, true},

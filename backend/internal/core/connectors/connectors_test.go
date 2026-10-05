@@ -181,7 +181,7 @@ func TestValidate(t *testing.T) {
 //   - a key logon is refused for FTP and an account logon for SFTP
 func TestBuiltin(t *testing.T) {
 	sftp, err := connectors.SFTP.Validate(map[string]string{"host": "h.example", "username": "deploy"})
-	if want := map[string]string{"host": "h.example", "port": "22", "username": "deploy", "auth": "password"}; err != nil || !maps.Equal(sftp, want) {
+	if want := map[string]string{"host": "h.example", "port": "22", "username": "deploy", "auth": "password", "sudo": "false"}; err != nil || !maps.Equal(sftp, want) {
 		t.Errorf("SFTP defaults = %v, %v; want %v", sftp, err, want)
 	}
 	password, _ := connectors.SFTP.Field("password")
@@ -238,6 +238,27 @@ func TestBuiltin(t *testing.T) {
 	}
 	if _, err := connectors.SFTP.Validate(map[string]string{"host": "h", "username": "u", "auth": "account"}); !errors.Is(err, connectors.ErrInvalidConfig) {
 		t.Errorf("SFTP with an account = %v", err)
+	}
+}
+
+// TestSudo verifies the sudo mode of SFTP sites (ADR-0027).
+//
+// Use cases:
+//   - sudo is off by default; once on, it runs as root unless another user is given, and takes a password of its own
+//   - only settings with sudo on elevate the site, and elevated fields must be booleans
+func TestSudo(t *testing.T) {
+	off, _ := connectors.SFTP.Validate(map[string]string{"host": "h", "username": "u"})
+	on, err := connectors.SFTP.Validate(map[string]string{"host": "h", "username": "u", "sudo": "true"})
+	password, _ := connectors.SFTP.Field("sudo_password")
+	if err != nil || on["sudo_user"] != "root" || !password.Applies(on) || password.Applies(off) {
+		t.Errorf("sudo on = %v, %v", on, err)
+	}
+	if connectors.SFTP.Elevates(off) || !connectors.SFTP.Elevates(on) || connectors.FTP.Elevates(on) {
+		t.Error("Elevates() does not tell sudo on from off")
+	}
+	bad := connectors.Descriptor{Type: "x", Name: "X", Fields: []connectors.Field{{Name: "root", Kind: connectors.Text, Elevated: true}}}
+	if err := bad.Check(); !errors.Is(err, connectors.ErrInvalidDescriptor) {
+		t.Errorf("Check(elevated text) = %v", err)
 	}
 }
 

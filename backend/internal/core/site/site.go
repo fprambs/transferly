@@ -46,6 +46,8 @@ const (
 	SecretAccountKey SecretKind = "account_key"
 	// SecretSASToken is a shared access signature of Azure Storage (ADR-0025).
 	SecretSASToken SecretKind = "sas_token"
+	// SecretSudoPassword is the password sudo asks for in the sudo mode of an SFTP site (ADR-0027).
+	SecretSudoPassword SecretKind = "sudo_password"
 )
 
 // Errors returned by the package.
@@ -66,6 +68,9 @@ var (
 	ErrInvalidSpeedLimit = errors.New("invalid speed limit")
 	// ErrInvalidRemoteDir means the default remote folder is not absolute, is too long or holds control characters.
 	ErrInvalidRemoteDir = errors.New("invalid default remote folder")
+	// ErrElevation means only admins may save a site with sudo, or another setting that acts beyond its account, turned on
+	// (ADR-0027).
+	ErrElevation = errors.New("only admins may turn on sudo")
 	// ErrInvalidColor means the label color is not one of [Colors].
 	ErrInvalidColor = errors.New("invalid color")
 	// ErrCollectionNotFound means the collection does not exist in the workspace.

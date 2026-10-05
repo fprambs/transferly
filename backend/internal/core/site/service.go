@@ -314,6 +314,9 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	if err != nil {
 		return Site{}, err
 	}
+	if err := s.checkElevation(ctx, actor, workspaceID, d.Elevates(in.Config)); err != nil {
+		return Site{}, err
+	}
 	if err := s.checkOffered(ctx, in.Connector); err != nil {
 		return Site{}, err
 	}
@@ -389,6 +392,10 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 	if err != nil {
 		return Site{}, err
 	}
+	before, _ := s.schemas.Lookup(existing.Connector)
+	if err := s.checkElevation(ctx, actor, workspaceID, d.Elevates(in.Config) || before.Elevates(existing.Config)); err != nil {
+		return Site{}, err
+	}
 	if existing.Connector != in.Connector {
 		if err := s.checkOffered(ctx, in.Connector); err != nil {
 			return Site{}, err
@@ -412,6 +419,18 @@ func (s *Service) Update(ctx context.Context, actor, workspaceID, id uuid.UUID, 
 		return Site{}, err
 	}
 	return s.store.Site(ctx, workspaceID, id)
+}
+
+// checkElevation refuses, when a site has sudo or another setting that acts beyond its account on, an actor who may not turn
+// it on: only admins may create such a site, or change one (ADR-0027).
+func (s *Service) checkElevation(ctx context.Context, actor, workspaceID uuid.UUID, elevated bool) error {
+	if !elevated {
+		return nil
+	}
+	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionElevate); err != nil {
+		return fmt.Errorf("%w: %w", ErrElevation, err)
+	}
+	return nil
 }
 
 // Delete removes a site and its secrets.
