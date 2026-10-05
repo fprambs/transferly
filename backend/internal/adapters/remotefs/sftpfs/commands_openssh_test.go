@@ -1,15 +1,19 @@
 package sftpfs_test
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"path"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -263,5 +267,63 @@ func TestShell_OpenSSH(t *testing.T) {
 	}
 	if code, err := term.Wait(); code != 3 || err != nil {
 		t.Errorf("Wait() = %d, %v; want 3", code, err)
+	}
+}
+
+// slowConn is a connection that waits before each write, as a link with a long round trip does.
+type slowConn struct {
+	net.Conn
+	delay time.Duration
+}
+
+// Write waits and writes.
+func (c slowConn) Write(p []byte) (int, error) {
+	time.Sleep(c.delay)
+	return c.Conn.Write(p)
+}
+
+// TestStrictBulkReads_OpenSSH measures, against OpenSSH, what reading a strict server with large requests saves: a file of 1.1 MB is
+// read one request at a time through a link that adds 40 ms to every message the client sends, with requests of 32 KiB and with the
+// large requests of the second channel.
+//
+// Use cases:
+//   - the file comes whole both ways, and the large requests take at most half the time
+func TestStrictBulkReads_OpenSSH(t *testing.T) {
+	plain, root := shell(t)
+	payload := bytes.Repeat([]byte("strict gateway "), 1_100_000/15)
+	put(t, plain, root+"/big", string(payload))
+	read := func(bulk bool) time.Duration {
+		t.Helper()
+		defer sftpfs.SetBulkReads(bulk)()
+		slow, err := sftpfs.Dial(t.Context(), sftpfs.Config{
+			Address: os.Getenv("TRANSFERLY_TEST_SSH_ADDR"), Username: "transferly", Password: "transferly", VerifyHostKey: trustAll, InexactSizes: true,
+			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				conn, err := (&net.Dialer{}).DialContext(ctx, network, address)
+				if err != nil {
+					return nil, err
+				}
+				return slowConn{Conn: conn, delay: 40 * time.Millisecond}, nil
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = slow.Close() }()
+		r, err := slow.OpenRead(t.Context(), root+"/big", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = r.Close() }()
+		started := time.Now()
+		var back bytes.Buffer
+		if n, err := io.Copy(&back, r); err != nil || n != int64(len(payload)) || !bytes.Equal(back.Bytes(), payload) {
+			t.Fatalf("bulk %v: read %d bytes, %v; want the whole file", bulk, n, err)
+		}
+		return time.Since(started)
+	}
+	small, large := read(false), read(true)
+	t.Logf("1.1 MB over a link of 40 ms: %v with requests of 32 KiB, %v with large requests", small.Round(time.Millisecond), large.Round(time.Millisecond))
+	if large*2 > small {
+		t.Errorf("large requests took %v against %v; want at most half", large, small)
 	}
 }

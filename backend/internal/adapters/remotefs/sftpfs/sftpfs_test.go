@@ -993,3 +993,52 @@ func TestFS_StrictServers(t *testing.T) {
 		t.Error("a site marked with inexact sizes trusted its server")
 	}
 }
+
+// TestFS_StrictBulkReads verifies that strict servers, read one request at a time, are read through a second channel of the
+// connection whose requests are as large as a reply can carry (how much that saves is measured against OpenSSH by
+// TestStrictBulkReads_OpenSSH, since this test server answers 32 KiB at most).
+//
+// Use cases:
+//   - a file on a strict server is read whole through a second SFTP session of the connection, opened once
+//   - a server that refuses a second SFTP session is read through the session, and the file still comes whole
+//   - a connection closed before reading anything closes cleanly
+func TestFS_StrictBulkReads(t *testing.T) {
+	payload := bytes.Repeat([]byte("strict gateway "), 1_100_000/15)
+	for _, tc := range []struct {
+		name     string
+		one      bool
+		sessions int64
+	}{{"bulk", false, 2}, {"one session", true, 1}} {
+		server := startServer(t, sftptest.Options{OneSFTPSession: tc.one})
+		fsys, err := connect(t, server, func(c *sftpfs.Config) { c.Password, c.InexactSizes = testPassword, true })
+		if err != nil {
+			t.Fatal(err)
+		}
+		put(t, fsys, "/big", string(payload))
+		for range 2 {
+			r, err := fsys.OpenRead(t.Context(), "/big", 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var back bytes.Buffer
+			n, err := io.Copy(&back, r)
+			_ = r.Close()
+			if err != nil || n != int64(len(payload)) || !bytes.Equal(back.Bytes(), payload) {
+				t.Errorf("%s: %d bytes, %v; want the whole file", tc.name, n, err)
+			}
+		}
+		if got := server.Sessions(); got != tc.sessions {
+			t.Errorf("%s: %d SFTP sessions; want %d", tc.name, got, tc.sessions)
+		}
+		_ = fsys.Close()
+	}
+
+	server := startServer(t, sftptest.Options{})
+	idle, err := connect(t, server, func(c *sftpfs.Config) { c.Password, c.InexactSizes = testPassword, true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idle.Close(); err != nil {
+		t.Errorf("Close() before any read = %v", err)
+	}
+}

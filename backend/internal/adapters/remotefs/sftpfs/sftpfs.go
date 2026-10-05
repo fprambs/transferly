@@ -29,7 +29,10 @@ import (
 )
 
 const (
-	maxPacket             = 32768
+	maxPacket = 32768
+	// bulkPacket is how many bytes each read of a strict server asks for, the most a reply of pkg/sftp can carry: strict servers
+	// are read one request at a time, so larger requests are what makes them fast on links with a long round trip.
+	bulkPacket            = 255 << 10
 	maxConcurrentRequests = 64
 )
 
@@ -163,6 +166,8 @@ type FS struct {
 	once     sync.Once
 	cmds     commands
 	elevated bool
+	bulkOnce sync.Once
+	bulk     *sftp.Client
 }
 
 var (
@@ -555,12 +560,13 @@ func (r reader) Read(p []byte) (int, error) {
 	return n, streamError(err)
 }
 
-// WriteTo implements [io.WriterTo]. A strict server is read one request at a time through [reader.Read]; others with several reads
+// WriteTo implements [io.WriterTo]. A strict server is read one request at a time through [reader.Read], each as large as a reply
+// can carry; others with several reads
 // in flight, and losing the connection early in such a read marks the server strict. Errors of the destination are returned as
 // they are.
 func (r reader) WriteTo(w io.Writer) (int64, error) {
 	if r.fs.strict.Load() {
-		return io.Copy(w, struct{ io.Reader }{r})
+		return io.CopyBuffer(w, struct{ io.Reader }{r}, make([]byte, bulkPacket))
 	}
 	sink := &sinkWriter{Writer: w}
 	n, err := r.file.WriteTo(sink)
@@ -615,12 +621,38 @@ func (f *FS) OpenRead(ctx context.Context, p string, offset int64) (io.ReadClose
 	if entry.IsDir() || offset < 0 || offset > entry.Size {
 		return nil, fmt.Errorf("read %s from %d: %w", p, offset, remotefs.ErrInvalid)
 	}
-	file, err := f.client.Open(p)
+	file, err := f.readClient().Open(p)
 	if err != nil {
 		return nil, wrap("read", p, err)
 	}
 	seekStart(file, offset)
 	return reader{file: file, fs: f}, nil
+}
+
+// bulkReads turns the second channel of strict servers on; tests turn it off to measure what it saves.
+var bulkReads = func() *atomic.Bool {
+	on := &atomic.Bool{}
+	on.Store(true)
+	return on
+}()
+
+// readClient is the client files are read with: for a strict server, a second SFTP channel of the same connection whose reads ask
+// for [bulkPacket] bytes each, opened on first use; otherwise, or when the server refuses that channel, or in sudo mode, the
+// client of the session. Writes always go through the client of the session, whose packets every server takes.
+func (f *FS) readClient() *sftp.Client {
+	if !f.strict.Load() || f.elevated || !bulkReads.Load() {
+		return f.client
+	}
+	f.bulkOnce.Do(func() {
+		bulk, err := sftp.NewClient(f.ssh, sftp.UseConcurrentReads(false), sftp.MaxPacketUnchecked(bulkPacket))
+		if err == nil {
+			f.bulk = bulk
+		}
+	})
+	if f.bulk == nil {
+		return f.client
+	}
+	return f.bulk
 }
 
 // OpenWrite implements [remotefs.RemoteFS].
@@ -812,6 +844,10 @@ func (f *FS) Close() error {
 	f.once.Do(func() {
 		f.closed.Store(true)
 		_ = f.client.Close()
+		f.bulkOnce.Do(func() {})
+		if f.bulk != nil {
+			_ = f.bulk.Close()
+		}
 		_ = f.ssh.Close()
 	})
 	return nil

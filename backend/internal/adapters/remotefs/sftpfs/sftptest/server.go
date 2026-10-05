@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 
@@ -62,6 +63,8 @@ type Options struct {
 	// SizeOff is added to the size the server reports for every file, while reads still give its real bytes, as enterprise SFTP
 	// gateways that report sizes other than the bytes they send do.
 	SizeOff int64
+	// OneSFTPSession refuses a second sftp subsystem on the same connection, as servers that allow one session per connection do.
+	OneSFTPSession bool
 	// Fault returns an error to answer an operation with instead of performing it; nil performs it.
 	// The method is the SFTP request method, such as Get, Put, List, Mkdir or Rename.
 	Fault func(method, path string) error
@@ -77,11 +80,15 @@ type Server struct {
 	Root string
 
 	listener net.Listener
+	sessions atomic.Int64
 	mu       sync.Mutex
 	conns    []net.Conn
 	closed   bool
 	windows  []string
 }
+
+// Sessions returns how many SFTP sessions the server served, on every connection.
+func (s *Server) Sessions() int64 { return s.sessions.Load() }
 
 // Windows returns the sizes terminals asked for, in order, as "cols x rows": first with their pseudo terminal, then with each
 // resize.
@@ -253,6 +260,7 @@ func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 		return
 	}
 	go ssh.DiscardRequests(requests)
+	sftpSessions := &atomic.Int32{}
 	for newChannel := range channels {
 		if newChannel.ChannelType() != "session" || opt.NoSessions {
 			_ = newChannel.Reject(ssh.UnknownChannelType, "only sessions")
@@ -262,14 +270,14 @@ func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 		if err != nil {
 			return
 		}
-		go s.session(channel, reqs, opt)
+		go s.session(channel, reqs, opt, sftpSessions)
 	}
 }
 
 // session answers subsystem requests of a channel and runs the SFTP server on sftp ones, runs exec requests with the Exec
 // option when it is set, and with the Shell option on sessions that asked for a pseudo terminal, while it keeps reading their
 // resizes.
-func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt Options) {
+func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt Options, sftpSessions *atomic.Int32) {
 	defer func() { _ = channel.Close() }()
 	pty := false
 	for req := range requests {
@@ -310,6 +318,11 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 			_ = req.Reply(false, nil)
 			continue
 		}
+		if sftpSessions.Add(1) > 1 && opt.OneSFTPSession {
+			_ = req.Reply(false, nil)
+			continue
+		}
+		s.sessions.Add(1)
 		_ = req.Reply(true, nil)
 		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff}
 		server := sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h})
