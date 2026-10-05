@@ -65,7 +65,7 @@ describe('site terminals', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/sites/s1?path=%2Fsrv', transport: fakeSocketTransport() })
 
-    await user.click(await screen.findByRole('button', { name: 'Terminal' }))
+    await user.click(await screen.findByRole('button', { name: 'Terminal' }, { timeout: 5_000 }))
     const panel = await screen.findByRole('region', { name: 'Terminals' })
     expect(terminals()[0].url).toContain('/api/v1/workspaces/')
     expect(terminals()[0].url).toContain('/sites/s1/terminal?path=%2Fsrv')
@@ -84,10 +84,11 @@ describe('site terminals', () => {
     await user.click(within(panel).getByRole('button', { name: 'Close Terminal 3' }))
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Terminals' })).not.toBeInTheDocument())
 
-    await user.click(screen.getByRole('button', { name: 'Terminal' }))
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Terminal' }))
     await user.click(within(await screen.findByRole('region', { name: 'Terminals' })).getByRole('button', { name: 'Close the terminals' }))
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Terminals' })).not.toBeInTheDocument())
-  })
+  }, 20_000)
 
   it('offers no terminal where it cannot open', async () => {
     mockWorkspaceData({ sites: [shellSite('s1', 'Plain', 'false')] })

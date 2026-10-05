@@ -83,6 +83,7 @@
     "sudo_refused": "sudo rechazó la cuenta o su contraseña, o el servidor no puede ejecutarlo."
   },
   "toolbar": {
+    "more": "Más acciones",
     "newFolder": "Nueva carpeta",
     "edit": "Editar",
     "rename": "Renombrar",

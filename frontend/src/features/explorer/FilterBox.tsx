@@ -28,7 +28,7 @@ export function FilterBox({ value, onChange, onLeave, inputRef, disabled = false
   return (
     <div
       className={cn(
-        'group/filter flex h-7 w-44 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 transition-[width,border-color] focus-within:w-60 focus-within:border-ring hover:border-foreground/25 @max-3xl:w-32 @max-3xl:focus-within:w-48',
+        'group/filter flex h-7 w-44 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 transition-[width,border-color] focus-within:w-60 focus-within:border-ring hover:border-foreground/25 @max-3xl:w-32 @max-3xl:focus-within:w-48 @max-2xl:w-auto @max-2xl:min-w-24 @max-2xl:flex-1 @max-2xl:shrink @max-2xl:focus-within:w-auto',
         value !== '' && 'border-primary/50',
         disabled && 'pointer-events-none opacity-50',
       )}

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, ChevronDown, CircleAlert, CircleStop, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, SquareTerminal, Unplug, Upload } from 'lucide-react'
+import { ArrowUp, ChevronDown, CircleAlert, CircleStop, Ellipsis, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, SquareTerminal, Unplug, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -403,7 +403,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
         </div>
       ) : null}
       {savedSite?.color !== undefined && <div aria-hidden="true" data-color={savedSite.color} className={cn('h-0.5 shrink-0', colorFill(savedSite.color))} />}
-      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b px-3">
+      <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b @2xl:h-11 @2xl:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <div className="flex h-10 min-w-0 items-center gap-2 overflow-hidden ps-3 @2xl:h-full">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={path === '/' || atHome} onClick={() => onNavigate(parentPath(path))}>
           <ArrowUp />
         </Button>
@@ -422,6 +423,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
             {t(($) => $.live)}
           </span>
         )}
+        </div>
+        <div className="col-span-2 row-start-2 flex h-10 min-w-0 items-center gap-2 px-3 @2xl:col-span-1 @2xl:col-start-2 @2xl:row-start-1 @2xl:h-full @2xl:ps-2 @2xl:pe-0">
         <FilterBox
           value={filter.text}
           onChange={(text) => setFilter({ ...filter, text })}
@@ -480,7 +483,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
             event.target.value = ''
           }}
         />
-        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
+        <Button variant="outline" size="sm" disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })} className="@max-2xl:hidden">
           <FolderPlus />
           <span className="@max-3xl:sr-only">{t(($) => $.toolbar.newFolder)}</span>
         </Button>
@@ -489,10 +492,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
           size="icon-sm"
           aria-label={t(($) => $.refresh)}
           onClick={() => void reload()}
+          className="@max-2xl:hidden"
         >
           <RefreshCw />
         </Button>
-        <Button variant="outline" size="sm" disabled={!listing.isSuccess} onClick={() => setSearching(true)}>
+        <Button variant="outline" size="sm" disabled={!listing.isSuccess} onClick={() => setSearching(true)} className="@max-2xl:hidden">
           <Search />
           <span className="@max-3xl:sr-only">{t(($) => $.search.title)}</span>
         </Button>
@@ -500,12 +504,38 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
           <TimeZoneProbe workspaceId={workspaceId} siteId={siteId} path={path} site={sites.find((saved) => saved.id === siteId)} onApplied={() => void reload()} />
         ) : null}
         {onTerminal !== undefined && tools?.shell === true && target !== undefined && settingOf(target, 'terminal') === 'true' ? (
-          <Button variant="outline" size="sm" onClick={() => onTerminal(path)}>
+          <Button variant="outline" size="sm" onClick={() => onTerminal(path)} className="@max-2xl:hidden">
             <SquareTerminal />
             <span className="@max-3xl:sr-only">{t(($) => $.terminal.open)}</span>
           </Button>
         ) : null}
-        {actions}
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label={t(($) => $.toolbar.more)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), '@2xl:hidden')}>
+            <Ellipsis aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem disabled={!listing.isSuccess || opening} onClick={() => setDialog({ kind: 'newFolder' })}>
+              <FolderPlus aria-hidden="true" />
+              {t(($) => $.toolbar.newFolder)}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void reload()}>
+              <RefreshCw aria-hidden="true" />
+              {t(($) => $.refresh)}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!listing.isSuccess} onClick={() => setSearching(true)}>
+              <Search aria-hidden="true" />
+              {t(($) => $.search.title)}
+            </DropdownMenuItem>
+            {onTerminal !== undefined && tools?.shell === true && target !== undefined && settingOf(target, 'terminal') === 'true' ? (
+              <DropdownMenuItem onClick={() => onTerminal(path)}>
+                <SquareTerminal aria-hidden="true" />
+                {t(($) => $.terminal.open)}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        </div>
+        <div className="flex items-center gap-2 pe-3 empty:hidden @2xl:col-start-3 @2xl:row-start-1 @2xl:ps-2">{actions}</div>
       </div>
       {each === null ? null : typeof each === 'object' ? (
         <Loading label={t(($) => $.archive.working, { count: each.count })} className="mx-3 mt-3 rounded-lg border bg-card p-3 text-foreground" />

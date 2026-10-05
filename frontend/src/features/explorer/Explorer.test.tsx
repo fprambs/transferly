@@ -555,4 +555,44 @@ describe('explorer', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(await screen.findByRole('grid')).toBeInTheDocument()
   })
+
+  it('trusts a server key the viewer meets on a new connection, and reads the file again', async () => {
+    mockListing([entry('a.txt', { size: 5 })])
+    let reads = 0
+    let trusted: unknown
+    server.use(
+      http.get('/api/v1/workspaces/:id/sites/s1/files/content', () => (++reads === 1 ? changedKey() : new HttpResponse('hello', { status: 206 }))),
+      http.post('/api/v1/workspaces/:id/known-hosts', async ({ request }) => {
+        trusted = await request.json()
+        return HttpResponse.json({}, { status: 201 })
+      }),
+    )
+    const { user } = await renderExplorer()
+    const grid = await screen.findByRole('grid')
+
+    await user.click(within(grid).getByText('a.txt'))
+    await user.keyboard(' ')
+    const viewer = await screen.findByRole('dialog', { name: 'a.txt' })
+    await user.click(await within(viewer).findByRole('button', { name: 'Trust this key too' }))
+    expect(await within(viewer).findByText('hello')).toBeInTheDocument()
+    expect(trusted).toEqual({ host: 'prod.example.com', port: 2222, keyType: 'ssh-ed25519', fingerprint: 'SHA256:new', mode: 'add' })
+  })
+
+  it('offers the actions a narrow toolbar hides in a menu', async () => {
+    mockListing([entry('a.txt')])
+    const { user } = await renderExplorer()
+    await screen.findByRole('grid')
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'New folder' }))
+    expect(await screen.findByRole('dialog', { name: 'New folder' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Refresh' }))
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Search' }))
+    expect(await screen.findByRole('dialog', { name: 'Search' })).toBeInTheDocument()
+  })
 })

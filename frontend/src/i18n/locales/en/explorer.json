@@ -83,6 +83,7 @@
     "sudo_refused": "sudo refused the account or its password, or the server cannot run it."
   },
   "toolbar": {
+    "more": "More actions",
     "newFolder": "New folder",
     "edit": "Edit",
     "rename": "Rename",

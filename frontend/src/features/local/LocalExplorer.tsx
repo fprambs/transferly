@@ -137,22 +137,22 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={drop}
-      className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+      className="@container relative flex min-h-0 min-w-0 flex-1 flex-col"
     >
       {dragging ? (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
           {t(($) => $.local.dropHint)}
         </div>
       ) : null}
-      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b px-3">
+      <div className="flex h-11 shrink-0 items-center gap-2 overflow-hidden border-b px-3">
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.up)} disabled={root === null || path === '/'} onClick={() => onNavigate(parentPath(path))}>
           <ArrowUp />
         </Button>
         {root === null ? <span className="flex-1" /> : <Breadcrumbs path={path} onNavigate={onNavigate} />}
-        {root === null ? null : <span className="font-mono text-xs text-muted-foreground">{t(($) => $.rows, { count: entries.length })}</span>}
-        <Button variant="ghost" size="sm" disabled={!localSupported()} onClick={() => void choose()}>
+        {root === null ? null : <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted-foreground @max-xl:hidden">{t(($) => $.rows, { count: entries.length })}</span>}
+        <Button variant="ghost" size="sm" disabled={!localSupported()} onClick={() => void choose()} className="shrink-0">
           <FolderOpen />
-          {root === null ? t(($) => $.local.choose) : t(($) => $.local.change)}
+          <span className={cn(root !== null && '@max-xl:sr-only')}>{root === null ? t(($) => $.local.choose) : t(($) => $.local.change)}</span>
         </Button>
         <Button variant="ghost" size="icon-sm" aria-label={t(($) => $.refresh)} disabled={root === null} onClick={() => void reload()}>
           <RefreshCw />
