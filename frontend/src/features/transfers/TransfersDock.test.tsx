@@ -308,6 +308,8 @@ describe('TransfersDock', () => {
           entry('e', 'transfer', { detail: 'download:failed', errorCode: 'remote_unavailable' }),
           entry('f', 'transfer', { detail: 'copy:done' }),
           entry('g', 'transfer', { detail: 'odd' }),
+          entry('h', 'compress', { detail: '/h.zip' }),
+          entry('i', 'extract', { detail: '/i' }),
         ])
       }),
     )
@@ -327,6 +329,8 @@ describe('TransfersDock', () => {
     expect(rows[4]).toHaveTextContent('remote_unavailable')
     expect(rows[5]).toHaveTextContent('Copy Done')
     expect(rows[6]).toHaveTextContent('Upload Done')
+    expect(rows[7]).toHaveTextContent('Compressed into /h.zip')
+    expect(rows[8]).toHaveTextContent('Extracted into /i')
     expect(rows[0]).toHaveTextContent('Prod')
     expect(rows[0]).toHaveTextContent('/a')
     expect(rows[0]).toHaveTextContent('2026')

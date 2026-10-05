@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Download, Eye, FileArchive, FilePen, Files, FolderOpen, FolderPlus, TextCursorInput, Trash2, type LucideIcon } from 'lucide-react'
+import { Download, Eye, FileArchive, FilePen, Files, FolderOpen, FolderPlus, PackageOpen, PackagePlus, TextCursorInput, Trash2, type LucideIcon } from 'lucide-react'
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -83,6 +83,12 @@ export interface EntryTableProps {
   onDelete?: (entry: RemoteEntry) => void
   /** Called to create a folder from the context menu; the item is left out without it. */
   onNewFolder?: () => void
+  /** Called to pack an entry into an archive on the server (ADR-0027); the item is left out without it. */
+  onCompress?: (entry: RemoteEntry) => void
+  /** Called to unpack an archive on the server; the item is offered for the archives it says it can unpack. */
+  onExtract?: (entry: RemoteEntry) => void
+  /** Whether the server unpacks an entry, which offers Extract here for it. */
+  canExtract?: (entry: RemoteEntry) => boolean
   /** Whether folders can be dragged too; files always can. */
   dragFolders?: boolean
   /** Called when the user starts dragging an entry, to put what it carries in the drag data. */
@@ -128,7 +134,7 @@ function movedTo(key: string, current: number, last: number): number | undefined
 }
 
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onPreview, onRename, onDelete, onNewFolder, dragFolders, onDragEntry, highlight = '' }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onPreview, onRename, onDelete, onNewFolder, onCompress, onExtract, canExtract = () => false, dragFolders, onDragEntry, highlight = '' }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const describeType = useDescribeType()
   const scroller = useRef<HTMLDivElement>(null)
@@ -141,7 +147,7 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
   })
   const current = resolveSelection(entries, selectedPath)
   const active = entries[current]
-  const menuItems = active.type === 'directory' || onDownload || onEdit || onPreview || onRename || onDelete || onNewFolder
+  const menuItems = active.type === 'directory' || onDownload || onEdit || onPreview || onRename || onDelete || onNewFolder || onCompress
 
   const openEntry = (entry: RemoteEntry): void => (entry.type === 'file' && onOpenFile ? onOpenFile(entry) : onOpen(entry))
 
@@ -265,6 +271,15 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
                 {active.type === 'file' && <MenuEntry icon={Download} label={t(($) => $.menu.download)} onClick={() => onDownload(active)} />}
                 {active.type === 'directory' && <MenuEntry icon={FileArchive} label={t(($) => $.menu.downloadZip)} onClick={() => onDownload(active)} />}
                 {active.type === 'directory' && onDownloadEach && <MenuEntry icon={Files} label={t(($) => $.menu.downloadEach)} onClick={() => onDownloadEach(active)} />}
+              </ContextMenuGroup>
+            </>
+          )}
+          {(onCompress || (onExtract && canExtract(active))) && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuGroup>
+                {onCompress && <MenuEntry icon={PackagePlus} label={t(($) => $.menu.compress)} onClick={() => onCompress(active)} />}
+                {onExtract && canExtract(active) && <MenuEntry icon={PackageOpen} label={t(($) => $.menu.extract)} onClick={() => onExtract(active)} />}
               </ContextMenuGroup>
             </>
           )}

@@ -77,7 +77,9 @@
     "tree_too_large": "This folder is too big to copy or archive: it holds too many items or goes too deep.",
     "time_zone_inconclusive": "The times of the server do not match the clock, so no time zone fits.",
     "credentials_required": "This site asks for its password when connecting.",
-    "connector_disabled": "The administrators of this instance do not offer this kind of site any more. Ask them to offer its connector again."
+    "connector_disabled": "The administrators of this instance do not offer this kind of site any more. Ask them to offer its connector again.",
+    "server_commands_unsupported": "This server does not let Transferly run commands, or an administrator turned them off.",
+    "remote_quota_exceeded": "The server has no space left."
   },
   "toolbar": {
     "newFolder": "New folder",
@@ -103,7 +105,9 @@
       "enter": "Enter",
       "space": "Space",
       "delete": "Del"
-    }
+    },
+    "compress": "Compress…",
+    "extract": "Extract here"
   },
   "newFolder": {
     "title": "New folder",
@@ -439,6 +443,27 @@
   "notices": {
     "created": "Created the folder {{name}}.",
     "renamed": "Renamed {{from}} to {{to}}.",
-    "deleted": "Deleted {{name}}."
+    "deleted": "Deleted {{name}}.",
+    "compressed": "Compressed {{name}} into {{archive}}.",
+    "extracted": "Extracted {{name}} into {{folder}}.",
+    "extractFailed": "{{name}} could not be extracted: {{reason}}"
+  },
+  "compress": {
+    "title": "Compress {{name}}",
+    "description": "The server packs it next to it, without the files passing through Transferly.",
+    "format": "Format",
+    "name": "Archive name",
+    "nameInvalid": "Give the archive a name that ends with {{extension}}, without a slash.",
+    "submit": "Compress",
+    "formats": {
+      "zip": "ZIP",
+      "tar.gz": "tar.gz"
+    }
+  },
+  "usage": {
+    "label": "Size on disk",
+    "measure": "Measure",
+    "working": "Measuring…",
+    "failed": "The size could not be measured."
   }
 }

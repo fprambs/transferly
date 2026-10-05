@@ -179,6 +179,11 @@
       "limit": "Limit",
       "value": "Value",
       "started": "At startup"
+    },
+    "commands": {
+      "title": "Commands on the server",
+      "note": "SFTP servers that let the account run commands copy, compress, extract, sum and measure files themselves, without the data passing through Transferly. Turn it off to treat every SFTP site as plain SFTP.",
+      "label": "Allow commands on SFTP servers"
     }
   },
   "connectors": {

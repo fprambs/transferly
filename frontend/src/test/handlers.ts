@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 
-import type { Bookmark, Connector, VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace } from '@/lib/api'
+import type { Bookmark, Connector, VaultStatus, Collection, QuickConnection, SessionInfo, Site, Workspace, ServerTools } from '@/lib/api'
 import catalog from './connectors.json'
 import { server } from './msw'
 
@@ -109,6 +109,15 @@ export function mockWorkspaceData({
     http.get('/api/v1/workspaces/:id/sites/:siteId/bookmarks', () => HttpResponse.json(bookmarks)),
     http.get('/api/v1/version', () => HttpResponse.json({ version: 'v0.5.0' })),
   )
+  mockServerTools(noTools)
+}
+
+/** What a server that cannot run commands offers (ADR-0027). */
+export const noTools: ServerTools = { copy: false, checksums: [], archive: [], extract: [], usage: false }
+
+/** Answers what the servers of every connection can do on their own. */
+export function mockServerTools(tools: ServerTools): void {
+  server.use(http.get('/api/v1/workspaces/:id/sites/:siteId/tools', () => HttpResponse.json(tools)))
 }
 
 /** Answers the vault state endpoint. */

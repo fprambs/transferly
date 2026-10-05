@@ -39,6 +39,8 @@ import type { TreePolicy } from './use-uploads'
 import { UploadConflictDialog } from './UploadConflictDialog'
 import { useUploads } from './use-uploads'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
+import { archiveFormatOf } from './archive-formats'
+import { CompressDialog } from './CompressDialog'
 import { EntryNameDialog } from './EntryNameDialog'
 import { useConnectionState, useDisconnected } from '../toolbar/connection-store'
 
@@ -59,7 +61,7 @@ import { EntryTable } from './EntryTable'
 import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
 import { joinPath, parentPath, resolveSelection, sortEntries } from './entries'
-import { filesKey, filesPrefix, listingFreshMs, listingKeepMs } from './files-key'
+import { filesKey, filesPrefix, listingFreshMs, listingKeepMs, toolsFreshMs } from './files-key'
 import { emptyFilter, filterEntries, isActive, type EntryFilter } from './entry-filter'
 import { FilterBox } from './FilterBox'
 import { FilterMenu } from './FilterMenu'
@@ -68,7 +70,12 @@ import { authOf, endpointOf, labelsOf, settingOf } from '../connectors/settings'
 import { useConnectors } from '../connectors/use-connectors'
 
 /** The dialog that is open over the explorer. */
-type Dialog = { kind: 'newFolder' } | { kind: 'rename'; entry: RemoteEntry } | { kind: 'delete'; entry: RemoteEntry } | { kind: 'edit'; entry: RemoteEntry }
+type Dialog =
+  | { kind: 'newFolder' }
+  | { kind: 'rename'; entry: RemoteEntry }
+  | { kind: 'delete'; entry: RemoteEntry }
+  | { kind: 'edit'; entry: RemoteEntry }
+  | { kind: 'compress'; entry: RemoteEntry }
 
 /** Props of {@link Explorer}. */
 export interface ExplorerProps {
@@ -134,6 +141,24 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
     gcTime: listingKeepMs,
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[3] === siteId ? previous : undefined),
   })
+  const tools = useQuery({
+    queryKey: ['workspaces', workspaceId, 'tools', siteId] as const,
+    queryFn: () => api.files.tools(workspaceId, siteId),
+    enabled: !disconnected && listing.isSuccess,
+    staleTime: toolsFreshMs,
+  }).data
+  const canExtract = (entry: RemoteEntry): boolean => entry.type === 'file' && tools?.extract.some((format) => format === archiveFormatOf(entry.name)) === true
+  const compress = tools !== undefined && tools.archive.length > 0 ? (entry: RemoteEntry) => setDialog({ kind: 'compress', entry }) : undefined
+  const extract = async (entry: RemoteEntry): Promise<void> => {
+    try {
+      const folder = await api.files.extract(workspaceId, siteId, entry.path)
+      setSelectedPath(folder.path)
+      notify(t(($) => $.notices.extracted, { name: entry.name, folder: folder.name }))
+      await reload()
+    } catch (error) {
+      notify(t(($) => $.notices.extractFailed, { name: entry.name, reason: t(($) => $.errors[explorerErrorKeyOf(error)]) }))
+    }
+  }
   const opening = listing.isFetching && listing.isPlaceholderData
   const canceled = !listing.isFetching && (listing.isPending || listing.isPlaceholderData)
   const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
@@ -598,6 +623,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
                 onRename={(entry) => setDialog({ kind: 'rename', entry })}
                 onDelete={(entry) => setDialog({ kind: 'delete', entry })}
                 onNewFolder={() => setDialog({ kind: 'newFolder' })}
+                onCompress={compress}
+                onExtract={(entry) => void extract(entry)}
+                canExtract={canExtract}
                 dragFolders
                 onDragEntry={dragEntry}
               />
@@ -616,6 +644,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
                 onEdit={edit}
                 onRename={(entry) => setDialog({ kind: 'rename', entry })}
                 onDelete={(entry) => setDialog({ kind: 'delete', entry })}
+                onCompress={compress}
+                onExtract={canExtract(visible[resolveSelection(visible, selectedPath)]) ? (entry) => void extract(entry) : undefined}
+                onUsage={tools?.usage ? (entry) => api.files.usage(workspaceId, siteId, entry.path) : undefined}
               />
           </Panel>
         </Group>
@@ -655,6 +686,19 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
             const renamed = await api.files.rename(workspaceId, siteId, dialog.entry.path, joinPath(path, name))
             setSelectedPath(renamed.path)
             notify(t(($) => $.notices.renamed, { from: dialog.entry.name, to: name }))
+            await reload()
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === 'compress' && tools !== undefined && (
+        <CompressDialog
+          entry={dialog.entry}
+          formats={tools.archive}
+          onCompress={async (name, format) => {
+            const archive = await api.files.compress(workspaceId, siteId, path, [dialog.entry.name], name, format)
+            setSelectedPath(archive.path)
+            notify(t(($) => $.notices.compressed, { name: dialog.entry.name, archive: archive.name }))
             await reload()
           }}
           onClose={() => setDialog(null)}

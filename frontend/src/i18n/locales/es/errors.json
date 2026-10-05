@@ -77,6 +77,14 @@
       "cause": "Las colecciones se anidan como máximo 12 niveles.",
       "next": "Ponla en una colección más cercana a la raíz."
     },
+    "connector_disabled": {
+      "cause": "Un administrador de esta instancia dejó de ofrecer este tipo de sitio.",
+      "next": "Pide a un administrador que vuelva a ofrecer su conector en Ajustes → Administración → Conectores."
+    },
+    "connector_not_found": {
+      "cause": "Este conector no es parte de esta versión de Transferly.",
+      "next": "Recarga la página para ver los conectores de esta versión."
+    },
     "credentials_not_asked": {
       "cause": "Este sitio guarda su contraseña, así que no la pide al conectar.",
       "next": "Edita el sitio para cambiar su contraseña o su tipo de acceso."
@@ -164,6 +172,14 @@
     "invalid_code": {
       "cause": "El código es incorrecto o expiró; los códigos cambian cada 30 segundos.",
       "next": "Revisa la hora de tu dispositivo e ingresa el código actual."
+    },
+    "invalid_color": {
+      "cause": "El color de la etiqueta no es uno de los que ofrece Transferly.",
+      "next": "Elige uno de los colores de la lista, o ninguno."
+    },
+    "invalid_config": {
+      "cause": "Un ajuste del sitio no sigue lo que espera su tipo de servidor, como un puerto fuera de rango o una opción que no ofrece.",
+      "next": "Corrige el campo que marca el formulario y vuelve a guardar."
     },
     "invalid_credentials": {
       "cause": "El correo o la contraseña son incorrectos.",
@@ -253,10 +269,6 @@
       "cause": "La carpeta por defecto es relativa, demasiado larga o tiene caracteres de control.",
       "next": "Escribe una ruta absoluta, o déjala vacía para la raíz."
     },
-    "invalid_color": {
-      "cause": "El color de la etiqueta no es uno de los que ofrece Transferly.",
-      "next": "Elige uno de los colores de la lista, o ninguno."
-    },
     "invalid_request": {
       "cause": "La solicitud estaba mal formada o era demasiado grande, normalmente porque la página está desactualizada.",
       "next": "Recarga la página e inténtalo de nuevo."
@@ -320,6 +332,10 @@
     "not_found": {
       "cause": "Esa dirección no existe, normalmente porque la página está desactualizada.",
       "next": "Recarga la página."
+    },
+    "oauth_not_configured": {
+      "cause": "Esta instancia no tiene un cliente OAuth registrado en Google, que hace falta para iniciar sesión con Google.",
+      "next": "Pide a un administrador que registre uno en Google Cloud y configure TRANSFERLY_GOOGLE_CLIENT_ID y TRANSFERLY_GOOGLE_CLIENT_SECRET."
     },
     "own_account": {
       "cause": "Los administradores no pueden cambiar ni desactivar su propia cuenta aquí.",
@@ -400,6 +416,10 @@
     "secret_too_large": {
       "cause": "La contraseña o la clave es más grande que cualquiera real.",
       "next": "Revisa que pegaste solo el secreto."
+    },
+    "server_commands_unsupported": {
+      "cause": "El servidor no permite que la cuenta ejecute comandos, no tiene la herramienta, o un administrador desactivó los comandos.",
+      "next": "Hazlo sin el servidor: descarga y sube, o pide a un administrador que permita los comandos en Administración → Límites."
     },
     "setup_complete": {
       "cause": "Este Transferly ya tiene un administrador.",
@@ -524,22 +544,6 @@
     "wrong_passphrase": {
       "cause": "La frase no abre la clave privada.",
       "next": "Revisa la frase de la clave."
-    },
-    "connector_disabled": {
-      "cause": "Un administrador de esta instancia dejó de ofrecer este tipo de sitio.",
-      "next": "Pide a un administrador que vuelva a ofrecer su conector en Ajustes → Administración → Conectores."
-    },
-    "connector_not_found": {
-      "cause": "Este conector no es parte de esta versión de Transferly.",
-      "next": "Recarga la página para ver los conectores de esta versión."
-    },
-    "invalid_config": {
-      "cause": "Un ajuste del sitio no sigue lo que espera su tipo de servidor, como un puerto fuera de rango o una opción que no ofrece.",
-      "next": "Corrige el campo que marca el formulario y vuelve a guardar."
-    },
-    "oauth_not_configured": {
-      "cause": "Esta instancia no tiene un cliente OAuth registrado en Google, que hace falta para iniciar sesión con Google.",
-      "next": "Pide a un administrador que registre uno en Google Cloud y configure TRANSFERLY_GOOGLE_CLIENT_ID y TRANSFERLY_GOOGLE_CLIENT_SECRET."
     }
   }
 }

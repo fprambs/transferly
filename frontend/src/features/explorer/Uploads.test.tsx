@@ -169,7 +169,7 @@ describe('uploads and downloads', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Some files could not be uploaded')
     expect(alert).toHaveTextContent('bad.txt')
-    expect(alert).toHaveTextContent('Something went wrong. Try again.')
+    expect(alert).toHaveTextContent('The server has no space left.')
     expect(uploads).toEqual(['/www/bad.txt', '/www/good.txt'])
 
     await user.click(within(alert).getByRole('button', { name: 'Dismiss' }))

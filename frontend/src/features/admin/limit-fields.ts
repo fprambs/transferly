@@ -6,13 +6,19 @@ const mebibyte = 1024 * 1024
 /** Bytes in a gibibyte, the unit of the daily volume. */
 const gibibyte = 1024 * mebibyte
 
+/** The names of the limits that are amounts, all of them but the switch of server commands. */
+export type LimitKey = Exclude<keyof InstanceLimits, 'serverCommands'>
+
+/** The amounts of the limits of the server, without the switch of server commands. */
+export type LimitAmounts = Pick<InstanceLimits, LimitKey>
+
 /** The groups the fields of the limits form are gathered in. */
 export type LimitGroup = 'bandwidth' | 'transfers' | 'quotas'
 
 /** One number of the limits form. */
 export interface LimitField {
   /** Name of the field in the limits of the server. */
-  key: keyof InstanceLimits
+  key: LimitKey
   /** The group it is drawn in. */
   group: LimitGroup
   /** How many units of the server one unit of the form is worth: bytes per mebibyte, bytes per gibibyte or one. */
@@ -51,8 +57,8 @@ export function limitValue(field: LimitField, text: string): number | null {
 }
 
 /** Turns the limits of the server into the texts of the form. */
-export function limitTexts(limits: InstanceLimits): Record<keyof InstanceLimits, string> {
-  const texts = {} as Record<keyof InstanceLimits, string>
+export function limitTexts(limits: LimitAmounts): Record<LimitKey, string> {
+  const texts = {} as Record<LimitKey, string>
   for (const field of limitFields) {
     texts[field.key] = limitText(field, limits[field.key])
   }
@@ -60,8 +66,8 @@ export function limitTexts(limits: InstanceLimits): Record<keyof InstanceLimits,
 }
 
 /** Turns the texts of the form into limits, or `null` when one of them is not a valid amount. */
-export function limitsFromTexts(texts: Record<keyof InstanceLimits, string>): InstanceLimits | null {
-  const limits = {} as InstanceLimits
+export function limitsFromTexts(texts: Record<LimitKey, string>): LimitAmounts | null {
+  const limits = {} as LimitAmounts
   for (const field of limitFields) {
     const value = limitValue(field, texts[field.key])
     if (value === null) {

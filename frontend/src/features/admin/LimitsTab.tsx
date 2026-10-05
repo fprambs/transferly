@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loading } from '@/components/ui/loading'
+import { Switch } from '@/components/ui/switch'
 import { RetryFailure } from '@/components/ui/retry-failure'
-import type { InstanceLimits, InstanceLimitsView } from '@/lib/api'
+import type { InstanceLimitsView } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 
 import { AdminFailure } from './AdminMessage'
@@ -33,6 +34,7 @@ function LimitsForm({ view }: LimitsFormProps) {
   const api = useApi()
   const queryClient = useQueryClient()
   const [texts, setTexts] = useState(limitTexts(view.current))
+  const [commands, setCommands] = useState(view.current.serverCommands !== false)
   const [failure, setFailure] = useState<AdminErrorKey | null>(null)
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -48,9 +50,10 @@ function LimitsForm({ view }: LimitsFormProps) {
     setBusy(true)
     setFailure(null)
     try {
-      const now = await api.admin.setLimits(limits)
+      const now = await api.admin.setLimits({ ...limits, serverCommands: commands })
       queryClient.setQueryData(adminKeys.limits, now)
       setTexts(limitTexts(now.current))
+      setCommands(now.current.serverCommands !== false)
       setSaved(true)
     } catch (error) {
       setFailure(adminErrorKeyOf(error))
@@ -75,7 +78,7 @@ function LimitsForm({ view }: LimitsFormProps) {
                 .filter((field) => field.group === group)
                 .map((field) => {
                   const id = `limit-${field.key}`
-                  const started = view.defaults[field.key as keyof InstanceLimits]
+                  const started = view.defaults[field.key]
                   return (
                     <Tr key={field.key}>
                       <Td>
@@ -107,6 +110,14 @@ function LimitsForm({ view }: LimitsFormProps) {
           </DataTable>
         </Section>
       ))}
+      <Section id="limits-commands" title={t(($) => $.limits.commands.title)} description={t(($) => $.limits.commands.note)}>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="limit-server-commands" className="font-normal">
+            {t(($) => $.limits.commands.label)}
+          </Label>
+          <Switch id="limit-server-commands" checked={commands} onCheckedChange={setCommands} />
+        </div>
+      </Section>
       <AdminFailure failure={failure} />
       <div className="sticky bottom-0 flex flex-wrap items-center gap-3 rounded-xl border bg-card/95 px-5 py-3 shadow-sm backdrop-blur-sm">
         <Button type="submit" disabled={busy}>

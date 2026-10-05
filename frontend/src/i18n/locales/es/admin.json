@@ -179,6 +179,11 @@
       "limit": "Límite",
       "value": "Valor",
       "started": "Al arrancar"
+    },
+    "commands": {
+      "title": "Comandos en el servidor",
+      "note": "Los servidores SFTP que permiten a la cuenta ejecutar comandos copian, comprimen, extraen, calculan checksums y miden archivos ellos mismos, sin que los datos pasen por Transferly. Desactívalo para tratar todos los sitios SFTP como SFTP simple.",
+      "label": "Permitir comandos en servidores SFTP"
     }
   },
   "connectors": {

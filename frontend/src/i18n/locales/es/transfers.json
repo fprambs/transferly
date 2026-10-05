@@ -53,6 +53,8 @@
     "delete": "Eliminó",
     "checksum": "Checksum ({{algorithm}})",
     "transfer": "{{direction}}: {{status}}",
+    "compress": "Comprimido en {{archive}}",
+    "extract": "Extraído en {{folder}}",
     "failed": "No se pudo cargar la actividad.",
     "list": "Registro de actividad"
   }

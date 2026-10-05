@@ -44,7 +44,8 @@ async function openActions(email: string) {
  * - removing the second step asks first, is unavailable for accounts without one, and a failure inside the question is shown in it
  * - the networks show what the server started with and what administrators added, add trimmed entries without blanks or repeats, remove
  *   them, save the list and explain a refusal
- * - the limits show what is in force and what the server started with, save the values in the units of the server, refuse what is not a number
+ * - the limits show what is in force and what the server started with, save the values in the units of the server, turn commands on SFTP
+ *   servers off and on, refuse what is not a number
  *   and fill in the starting values on request
  * - the audit log words every action, narrows by group, pages, and explains an empty trail
  * - a tab whose data could not load explains why and retries, instead of staying on its loading state forever
@@ -254,11 +255,26 @@ describe('administration', () => {
       {
         method: 'PUT',
         path: '/api/v1/admin/limits',
-        body: { ...defaultLimits, bandwidthGlobal: 2.5 * 1024 * 1024, maxSitesPerWorkspace: 20, dailyBytesPerUser: 0.5 * 1024 ** 3, transfersGlobal: 0 },
+        body: { ...defaultLimits, bandwidthGlobal: 2.5 * 1024 * 1024, maxSitesPerWorkspace: 20, dailyBytesPerUser: 0.5 * 1024 ** 3, transfersGlobal: 0, serverCommands: true },
       },
     ])
     expect(screen.getByLabelText('Whole server', { selector: '#limit-bandwidthGlobal' })).toHaveValue('2.5')
     expect(screen.getByLabelText('Whole server', { selector: '#limit-transfersGlobal' })).toHaveValue('')
+  })
+
+  it('turns commands on SFTP servers off and on', async () => {
+    const mock = mockAdmin({ limits: { ...defaultLimits, serverCommands: false } })
+    await renderApp({ path: '/admin' })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('tab', { name: 'Limits' }))
+
+    const toggle = await screen.findByRole('switch', { name: 'Allow commands on SFTP servers' })
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: 'Save limits' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved.')
+    expect(mock.calls.at(-1)?.body).toMatchObject({ serverCommands: true })
+    expect(screen.getByRole('switch', { name: 'Allow commands on SFTP servers' })).toBeChecked()
   })
 
   it('refuses what is not an amount before asking the server', async () => {

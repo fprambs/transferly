@@ -135,6 +135,15 @@ export type ArchiveListing = Schemas['ArchiveListing']
 /** One entry of an archive. */
 export type ArchiveEntry = Schemas['ArchiveEntry']
 
+/** What the server of a connection can do on its own: copies, checksums, archives and disk usage (ADR-0027). */
+export type ServerTools = Schemas['ServerTools']
+
+/** A format of archive a server packs and unpacks. */
+export type ArchiveFormat = Schemas['ArchiveFormat']
+
+/** The space a file or folder takes on the disk of its server. */
+export type DiskUsage = Schemas['DiskUsage']
+
 /** Algorithms a checksum can be computed with. */
 export type ChecksumAlgorithm = Checksum['algorithm']
 
@@ -338,6 +347,14 @@ export function createApi(transport: Transport) {
         transport.request<TimeZoneProbe>({ method: 'POST', path: `${filesPath(workspaceId, siteId)}/timezone-probe`, query: { path } }),
       checksum: (workspaceId: string, siteId: string, path: string, algorithm: ChecksumAlgorithm) =>
         transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
+      tools: (workspaceId: string, siteId: string) =>
+        transport.request<ServerTools>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/tools` }),
+      usage: (workspaceId: string, siteId: string, path: string) =>
+        transport.request<DiskUsage>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/usage`, query: { path } }),
+      compress: (workspaceId: string, siteId: string, dir: string, names: string[], name: string, format: ArchiveFormat) =>
+        transport.request<RemoteEntry>({ method: 'POST', path: `${filesPath(workspaceId, siteId)}/compress`, body: { dir, names, name, format } }),
+      extract: (workspaceId: string, siteId: string, path: string) =>
+        transport.request<RemoteEntry>({ method: 'POST', path: `${filesPath(workspaceId, siteId)}/extract`, body: { path } }),
       archiveUrl: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
         transport.url(`${filesPath(workspaceId, siteId)}/archive`, { path, transferId }),
       archiveEntries: (workspaceId: string, siteId: string, path: string, inner: readonly string[], signal?: AbortSignal) =>

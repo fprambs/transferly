@@ -77,7 +77,9 @@
     "tree_too_large": "Esta carpeta es demasiado grande para copiarla o archivarla: tiene demasiados elementos o es demasiado profunda.",
     "time_zone_inconclusive": "Las horas del servidor no coinciden con el reloj, así que ninguna zona encaja.",
     "credentials_required": "Este sitio pide su contraseña al conectar.",
-    "connector_disabled": "Los administradores de esta instancia ya no ofrecen este tipo de sitio. Pídeles que vuelvan a ofrecer su conector."
+    "connector_disabled": "Los administradores de esta instancia ya no ofrecen este tipo de sitio. Pídeles que vuelvan a ofrecer su conector.",
+    "server_commands_unsupported": "Este servidor no permite que Transferly ejecute comandos, o un administrador los desactivó.",
+    "remote_quota_exceeded": "El servidor no tiene espacio."
   },
   "toolbar": {
     "newFolder": "Nueva carpeta",
@@ -103,7 +105,9 @@
       "enter": "Intro",
       "space": "Espacio",
       "delete": "Supr"
-    }
+    },
+    "compress": "Comprimir…",
+    "extract": "Extraer aquí"
   },
   "newFolder": {
     "title": "Nueva carpeta",
@@ -439,6 +443,27 @@
   "notices": {
     "created": "Carpeta {{name}} creada.",
     "renamed": "{{from}} renombrado a {{to}}.",
-    "deleted": "{{name}} eliminado."
+    "deleted": "{{name}} eliminado.",
+    "compressed": "Se comprimió {{name}} en {{archive}}.",
+    "extracted": "Se extrajo {{name}} en {{folder}}.",
+    "extractFailed": "No se pudo extraer {{name}}: {{reason}}"
+  },
+  "compress": {
+    "title": "Comprimir {{name}}",
+    "description": "El servidor lo empaqueta a su lado, sin que los archivos pasen por Transferly.",
+    "format": "Formato",
+    "name": "Nombre del archivo comprimido",
+    "nameInvalid": "Usa un nombre que termine en {{extension}}, sin barras.",
+    "submit": "Comprimir",
+    "formats": {
+      "zip": "ZIP",
+      "tar.gz": "tar.gz"
+    }
+  },
+  "usage": {
+    "label": "Tamaño en disco",
+    "measure": "Medir",
+    "working": "Midiendo…",
+    "failed": "No se pudo medir el tamaño."
   }
 }

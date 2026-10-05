@@ -13,3 +13,6 @@ export const listingFreshMs = 15_000
 
 /** How long, in milliseconds, a listing that nobody is looking at stays cached to be shown at once on the next visit. */
 export const listingKeepMs = 10 * 60_000
+
+/** How long, in milliseconds, what the server of a connection can do on its own counts as known (ADR-0027). */
+export const toolsFreshMs = 5 * 60_000

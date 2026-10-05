@@ -77,6 +77,14 @@
       "cause": "Collections nest at most 12 levels deep.",
       "next": "Put it in a collection nearer the top."
     },
+    "connector_disabled": {
+      "cause": "An administrator of this instance stopped offering this kind of site.",
+      "next": "Ask an administrator to offer its connector again in Settings → Administration → Connectors."
+    },
+    "connector_not_found": {
+      "cause": "This connector is not part of this version of Transferly.",
+      "next": "Reload the page to see the connectors this version has."
+    },
     "credentials_not_asked": {
       "cause": "This site stores its password, so it does not ask for one when connecting.",
       "next": "Edit the site to change its password or its logon type."
@@ -164,6 +172,14 @@
     "invalid_code": {
       "cause": "The code is wrong or expired; codes change every 30 seconds.",
       "next": "Check the clock of your device and enter the current code."
+    },
+    "invalid_color": {
+      "cause": "The label color is not one Transferly offers.",
+      "next": "Pick one of the colors of the list, or none."
+    },
+    "invalid_config": {
+      "cause": "A setting of the site does not follow what its kind of server expects, such as a port out of range or an option it does not offer.",
+      "next": "Correct the field the form marks and save again."
     },
     "invalid_credentials": {
       "cause": "The email or the password is wrong.",
@@ -253,10 +269,6 @@
       "cause": "The default folder is relative, too long or has control characters.",
       "next": "Write an absolute path, or leave it empty for the root."
     },
-    "invalid_color": {
-      "cause": "The label color is not one Transferly offers.",
-      "next": "Pick one of the colors of the list, or none."
-    },
     "invalid_request": {
       "cause": "The request was malformed or too large, usually because the page is out of date.",
       "next": "Reload the page and try again."
@@ -320,6 +332,10 @@
     "not_found": {
       "cause": "That address does not exist, usually because the page is out of date.",
       "next": "Reload the page."
+    },
+    "oauth_not_configured": {
+      "cause": "This instance has no OAuth client registered with Google, which signing in with Google needs.",
+      "next": "Ask an administrator to register one in Google Cloud and set TRANSFERLY_GOOGLE_CLIENT_ID and TRANSFERLY_GOOGLE_CLIENT_SECRET."
     },
     "own_account": {
       "cause": "Administrators cannot change or disable their own account here.",
@@ -400,6 +416,10 @@
     "secret_too_large": {
       "cause": "The password or key is larger than any real one.",
       "next": "Check that you pasted only the secret."
+    },
+    "server_commands_unsupported": {
+      "cause": "The server does not let the account run commands, lacks the tool, or an administrator turned commands off.",
+      "next": "Use the operation without the server: download and upload, or ask an administrator to allow server commands in Administration → Limits."
     },
     "setup_complete": {
       "cause": "This Transferly already has an administrator.",
@@ -524,22 +544,6 @@
     "wrong_passphrase": {
       "cause": "The passphrase does not open the private key.",
       "next": "Check the passphrase of the key."
-    },
-    "connector_disabled": {
-      "cause": "An administrator of this instance stopped offering this kind of site.",
-      "next": "Ask an administrator to offer its connector again in Settings → Administration → Connectors."
-    },
-    "connector_not_found": {
-      "cause": "This connector is not part of this version of Transferly.",
-      "next": "Reload the page to see the connectors this version has."
-    },
-    "invalid_config": {
-      "cause": "A setting of the site does not follow what its kind of server expects, such as a port out of range or an option it does not offer.",
-      "next": "Correct the field the form marks and save again."
-    },
-    "oauth_not_configured": {
-      "cause": "This instance has no OAuth client registered with Google, which signing in with Google needs.",
-      "next": "Ask an administrator to register one in Google Cloud and set TRANSFERLY_GOOGLE_CLIENT_ID and TRANSFERLY_GOOGLE_CLIENT_SECRET."
     }
   }
 }

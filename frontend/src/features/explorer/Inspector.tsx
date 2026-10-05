@@ -1,4 +1,4 @@
-import { Copy, Download, Eye, FilePen, Files, Hash, Pencil, Trash2, type LucideIcon } from 'lucide-react'
+import { Copy, Download, Eye, FilePen, Files, Gauge, Hash, PackageOpen, PackagePlus, Pencil, Trash2, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Loading } from '@/components/ui/loading'
 import { Tip } from '@/components/ui/tip'
-import type { Checksum, ChecksumAlgorithm, RemoteEntry } from '@/lib/api'
+import type { Checksum, ChecksumAlgorithm, DiskUsage, RemoteEntry } from '@/lib/api'
 import { formatInstant, isUnknownInstant } from '@/lib/datetime'
 
 import { formatSize } from './entries'
@@ -38,6 +38,12 @@ export interface InspectorProps {
   onRename: (entry: RemoteEntry) => void
   /** Called to delete the entry. */
   onDelete: (entry: RemoteEntry) => void
+  /** Called to pack the entry into an archive on the server (ADR-0027); the button is left out without it. */
+  onCompress?: (entry: RemoteEntry) => void
+  /** Called to unpack the entry, an archive the server unpacks, next to it; the button is left out without it. */
+  onExtract?: (entry: RemoteEntry) => void
+  /** Called to measure the space a folder takes on the server; the section is left out without it. */
+  onUsage?: (entry: RemoteEntry) => Promise<DiskUsage>
 }
 
 /** Props of {@link IconAction}. */
@@ -65,15 +71,18 @@ function IconAction({ label, icon: Icon, destructive = false, onClick }: IconAct
 
 /**
  * Side panel with the selected entry: its type icon, name, kind and size at the top, its path, date and permissions below, the main actions
- * (preview and download) as buttons and the others (edit, one by one, rename, delete) as icons, and the checksum of a file.
+ * (preview and download) as buttons and the others (edit, one by one, compress, extract, rename, delete) as icons, the size a folder takes
+ * on the server, and the checksum of a file.
  */
-export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onPreview, onEdit, onRename, onDelete }: InspectorProps) {
+export function Inspector({ entry, showPermissions, locale, timeZone, onDownload, onDownloadEach, onChecksum, onPreview, onEdit, onRename, onDelete, onCompress, onExtract, onUsage }: InspectorProps) {
   const { t } = useTranslation('explorer')
   const describeType = useDescribeType()
   const [algorithm, setAlgorithm] = useState<ChecksumAlgorithm>('sha256')
   const [result, setResult] = useState<{ path: string; algorithm: ChecksumAlgorithm; state: 'working' | 'done' | 'failed'; sum?: string } | null>(null)
   const checksum = result?.path === entry.path && result.algorithm === algorithm ? result : null
   const [copied, setCopied] = useState(false)
+  const [measured, setMeasured] = useState<{ path: string; state: 'working' | 'done' | 'failed'; bytes?: number } | null>(null)
+  const usage = measured?.path === entry.path ? measured : null
 
   return (
     <aside aria-label={t(($) => $.inspector.label)} className="flex h-full w-full flex-col gap-4 overflow-y-auto bg-card p-4">
@@ -105,6 +114,8 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
         <span className="flex items-center gap-1">
           {entry.type === 'file' && onEdit ? <IconAction label={t(($) => $.toolbar.edit)} icon={FilePen} onClick={() => onEdit(entry)} /> : null}
           {entry.type === 'directory' ? <IconAction label={t(($) => $.menu.downloadEach)} icon={Files} onClick={() => onDownloadEach(entry)} /> : null}
+          {onCompress ? <IconAction label={t(($) => $.menu.compress)} icon={PackagePlus} onClick={() => onCompress(entry)} /> : null}
+          {onExtract ? <IconAction label={t(($) => $.menu.extract)} icon={PackageOpen} onClick={() => onExtract(entry)} /> : null}
           <IconAction label={t(($) => $.toolbar.rename)} icon={Pencil} onClick={() => onRename(entry)} />
           <IconAction label={t(($) => $.toolbar.delete)} icon={Trash2} destructive onClick={() => onDelete(entry)} />
         </span>
@@ -116,6 +127,33 @@ export function Inspector({ entry, showPermissions, locale, timeZone, onDownload
         <dd>{isUnknownInstant(entry.modifiedAt) ? '—' : formatInstant(entry.modifiedAt, { locale, timeZone, dateStyle: 'medium', timeStyle: 'medium' })}</dd>
         <dt className="text-muted-foreground">{t(($) => $.inspector.mode)}</dt>
         <dd className="font-mono">{showPermissions ? entry.mode : '—'}</dd>
+        {entry.type === 'directory' && onUsage ? (
+          <>
+            <dt className="self-center text-muted-foreground">{t(($) => $.usage.label)}</dt>
+            <dd className="flex min-h-7 items-center gap-2">
+              {usage?.state === 'done' ? <span>{formatSize(usage.bytes as number)}</span> : null}
+              {usage?.state === 'working' ? <Loading label={t(($) => $.usage.working)} className="text-xs" /> : null}
+              {usage?.state === 'failed' ? <span role="alert" className="text-destructive">{t(($) => $.usage.failed)}</span> : null}
+              {usage === null || usage.state === 'failed' ? (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => {
+                    const path = entry.path
+                    setMeasured({ path, state: 'working' })
+                    onUsage(entry).then(
+                      (found) => setMeasured({ path, state: 'done', bytes: found.bytes }),
+                      () => setMeasured({ path, state: 'failed' }),
+                    )
+                  }}
+                >
+                  <Gauge />
+                  {t(($) => $.usage.measure)}
+                </Button>
+              ) : null}
+            </dd>
+          </>
+        ) : null}
       </dl>
       {entry.type === 'file' ? (
         <div className="flex flex-col gap-2 border-t pt-4">

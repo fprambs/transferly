@@ -53,6 +53,8 @@
     "delete": "Deleted",
     "checksum": "Checksum ({{algorithm}})",
     "transfer": "{{direction}} {{status}}",
+    "compress": "Compressed into {{archive}}",
+    "extract": "Extracted into {{folder}}",
     "failed": "Could not load the activity.",
     "list": "Activity log"
   }

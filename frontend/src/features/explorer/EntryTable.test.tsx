@@ -20,6 +20,7 @@ function file(): RemoteEntry {
  * Scenarios:
  * - a file with no context menu action wired shows no context menu at all
  * - a file with only `onEdit` wired shows a context menu with just that action
+ * - a file offers no extraction when nothing says the server unpacks it
  * - a file opened with a double click or Enter goes to `onOpenFile` when it is wired
  * - a folder the server knows no time of, as an object store prefix, shows a dash for its date in the table and in the details
  */
@@ -41,6 +42,16 @@ describe('EntryTable', () => {
     fireEvent.contextMenu(screen.getByText('notes.txt'))
     await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
     expect(onEdit).toHaveBeenCalledWith(file())
+  })
+
+  it('offers no extraction when nothing says the server unpacks the file', async () => {
+    const user = userEvent.setup()
+    await renderWithI18n(
+      <EntryTable entries={[file()]} locale="en" timeZone="UTC" onOpen={vi.fn()} onUp={vi.fn()} showPermissions selectedPath={null} onSelect={vi.fn()} onDragEntry={vi.fn()} onEdit={vi.fn()} onExtract={vi.fn()} />,
+    )
+    fireEvent.contextMenu(screen.getByText('notes.txt'))
+    await user.hover(await screen.findByRole('menuitem', { name: 'Edit' }))
+    expect(screen.queryByRole('menuitem', { name: 'Extract here' })).not.toBeInTheDocument()
   })
 
   it('hands a file opened with a double click or Enter to onOpenFile instead of onOpen', async () => {
