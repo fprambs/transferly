@@ -134,7 +134,10 @@ type FS struct {
 	codec   codec
 }
 
-var _ remotefs.RemoteFS = (*FS)(nil)
+var (
+	_ remotefs.RemoteFS = (*FS)(nil)
+	_ remotefs.Homer    = (*FS)(nil)
+)
 
 // link tracks the connections of one FTP session and dials them on behalf of the client library.
 type link struct {
@@ -782,6 +785,24 @@ func (f *FS) Chtimes(ctx context.Context, p string, mtime time.Time) error {
 // whether times can.
 func (f *FS) Capabilities() remotefs.Capabilities {
 	return remotefs.Capabilities{Resume: true, Rewrite: false, Chmod: false, Chtimes: f.chtimes}
+}
+
+// Home implements [remotefs.Homer] with PWD: the session never changes folder, so it answers the folder the server opened it in,
+// or the root when the answer is not an absolute path.
+func (f *FS) Home(ctx context.Context) (string, error) {
+	var home string
+	err := f.run(ctx, func() error {
+		wd, err := f.conn.CurrentDir()
+		if err != nil {
+			return fmt.Errorf("home: %w", classify(err))
+		}
+		home = f.codec.client(wd)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return remotefs.HomeOf(home), nil
 }
 
 // Ping checks that the control connection answers.

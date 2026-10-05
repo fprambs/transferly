@@ -82,6 +82,7 @@ func noPwned(t *testing.T, fsys remotefs.RemoteFS, dirs ...string) {
 // TestCommands_OpenSSH runs the operations on the server against OpenSSH with bash, coreutils, tar, zip and unzip (ADR-0027).
 //
 // Scenarios:
+//   - the session starts in the home folder of the account, as pwd tells it
 //   - the probe finds every tool
 //   - files with hostile names are copied, summed and archived as they are, and nothing they smuggle runs
 //   - a copy that would replace a file is refused unless it may overwrite, and a missing source is not found
@@ -90,6 +91,9 @@ func noPwned(t *testing.T, fsys remotefs.RemoteFS, dirs ...string) {
 //   - the usage of a folder is measured
 func TestCommands_OpenSSH(t *testing.T) {
 	fsys, root := shell(t)
+	if home, err := fsys.Home(t.Context()); err != nil || home != "/home/transferly" {
+		t.Errorf("Home() = %q, %v; want the home folder of the account", home, err)
+	}
 	tools, err := fsys.Tools(t.Context())
 	want := remotefs.Tools{
 		Copy: true, Usage: true, Checksums: []string{"md5", "sha1", "sha256", "sha512"},

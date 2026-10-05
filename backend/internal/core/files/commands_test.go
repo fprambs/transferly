@@ -388,3 +388,29 @@ func TestFormatOf(t *testing.T) {
 		}
 	}
 }
+
+// homed is an in-memory file system whose server opens sessions in a home folder.
+type homed struct{ shared }
+
+// Home implements [remotefs.Homer].
+func (homed) Home(context.Context) (string, error) { return "/home/deploy", nil }
+
+// TestService_Home verifies the folder a connection starts in.
+//
+// Use cases:
+//   - a connection whose server opens sessions in a home folder starts there, and a viewer may ask
+//   - a storage without one starts at the root
+func TestService_Home(t *testing.T) {
+	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	pool := connections.New(connector{homed{shared{memfs.New(clock)}}}, clock, connections.Config{Attempts: 1})
+	t.Cleanup(pool.Close)
+	viewer := uuid.New()
+	svc := files.NewService(roles{viewer: workspace.RoleViewer}, pool)
+	if home, err := svc.Home(t.Context(), files.Target{Actor: viewer, Workspace: uuid.New(), Site: uuid.New(), Session: "s"}); err != nil || home != "/home/deploy" {
+		t.Errorf("Home() = %q, %v", home, err)
+	}
+	plain := newFixture(t)
+	if home, err := plain.svc.Home(t.Context(), plain.viewer); err != nil || home != "/" {
+		t.Errorf("Home(storage) = %q, %v; want the root", home, err)
+	}
+}

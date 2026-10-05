@@ -115,7 +115,8 @@ func TestFS_OneCommandAtATime(t *testing.T) {
 // TestFS_ServerGone verifies what happens when the server disappears.
 //
 // Scenarios:
-//   - every operation on a connection whose server stopped reports a retryable lost connection
+//   - a connection tells the folder the server opened it in; every operation on a connection whose server stopped reports a
+//     retryable lost connection
 //   - a download the server cut half way ends early, and closing it reports the lost connection so it never looks complete
 func TestFS_ServerGone(t *testing.T) {
 	server := ftptest.Start(t, ftptest.Options{})
@@ -125,6 +126,13 @@ func TestFS_ServerGone(t *testing.T) {
 	fsys, err := connect(t, server, ftptest.Plain, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	idle, err := connect(t, server, ftptest.Plain, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if home, err := idle.Home(t.Context()); err != nil || home != "/" {
+		t.Errorf("Home() = %q, %v; want the root the server opens sessions in", home, err)
 	}
 	reader, err := fsys.OpenRead(t.Context(), "/big", 0)
 	if err != nil {
@@ -145,6 +153,7 @@ func TestFS_ServerGone(t *testing.T) {
 		"List":  second(fsys.List(t.Context(), "/")),
 		"Stat":  second(fsys.Stat(t.Context(), "/big")),
 		"Mkdir": fsys.Mkdir(t.Context(), "/d"),
+		"Home":  second(idle.Home(t.Context())),
 	} {
 		if !errors.Is(err, remotefs.ErrConnectionLost) || !remotefs.Retryable(err) {
 			t.Errorf("%s on a stopped server = %v; want a retryable ErrConnectionLost", name, err)

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -42,6 +43,8 @@ type Options struct {
 	Ciphers []string
 	// KeyExchanges restricts the key exchange algorithms the server offers; nil keeps the library defaults.
 	KeyExchanges []string
+	// Home is the folder sessions open in, as pwd tells it; empty means the root.
+	Home string
 	// Exec runs the commands of exec requests: it gets the command line and writes what the command outputs, and returns its
 	// exit status. Nil refuses exec requests, as servers restricted to SFTP do.
 	Exec func(command string, stdout, stderr io.Writer) int
@@ -216,7 +219,7 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 			continue
 		}
 		_ = req.Reply(true, nil)
-		h := &handlers{root: s.Root, fault: opt.Fault}
+		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home}
 		server := sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h})
 		_ = server.Serve()
 		return
@@ -227,6 +230,7 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 type handlers struct {
 	root  string
 	fault func(method, path string) error
+	home  string
 }
 
 // real maps a client path to a path below the root, never outside it.
@@ -380,6 +384,23 @@ func (h *handlers) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		return lister{info}, nil
 	}
 	return nil, sftp.ErrSSHFxOpUnsupported
+}
+
+// RealPath resolves a path as the server does: relative paths, "." among them, against the folder the session opened in. A
+// fault named RealPath fails it.
+func (h *handlers) RealPath(p string) (string, error) {
+	if h.fault != nil {
+		if err := h.fault("RealPath", p); err != nil {
+			return "", err
+		}
+	}
+	if strings.HasPrefix(p, "/") {
+		return path.Clean(p), nil
+	}
+	if h.home == "" {
+		return path.Clean("/" + p), nil
+	}
+	return path.Join(h.home, p), nil
 }
 
 // Lstat describes one path without following a final symbolic link.

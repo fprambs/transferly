@@ -117,6 +117,7 @@ type FS struct {
 var (
 	_ remotefs.RemoteFS    = (*FS)(nil)
 	_ remotefs.SizeChecker = (*FS)(nil)
+	_ remotefs.Homer       = (*FS)(nil)
 )
 
 // authMethods builds the authentication methods for the credentials in cfg.
@@ -729,6 +730,19 @@ func (f *FS) Ping(ctx context.Context) error {
 	}
 	_, err := f.client.Getwd()
 	return wrap("ping", "", err)
+}
+
+// Home implements [remotefs.Homer]: the folder the server opened the session in, as pwd tells it, which is the root only when the
+// server answers something that is not an absolute path.
+func (f *FS) Home(ctx context.Context) (string, error) {
+	if err := f.guard(ctx); err != nil {
+		return "", err
+	}
+	wd, err := f.client.Getwd()
+	if err != nil {
+		return "", wrap("home", "", err)
+	}
+	return remotefs.HomeOf(wd), nil
 }
 
 // Close implements [remotefs.RemoteFS]. It is safe to call more than once. Errors from tearing down a
