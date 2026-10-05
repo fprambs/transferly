@@ -108,6 +108,7 @@ func TestMultistatus(t *testing.T) {
 // Use cases:
 //   - a body shorter than the offset a server that ignores ranges must skip fails the read
 //   - a body cut in the middle fails the read with a lost connection
+//   - a write to a server that answered the upload before reading it fails with a lost connection
 //   - a write to a file system that was closed fails with a lost connection
 func TestStreams(t *testing.T) {
 	f := scripted(t, func(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +126,8 @@ func TestStreams(t *testing.T) {
 			w.Header().Set("Content-Length", "10")
 			w.WriteHeader(http.StatusPartialContent)
 			_, _ = io.WriteString(w, "01")
+		case r.Method == http.MethodPut && r.URL.Path == "/dav/hasty":
+			w.WriteHeader(http.StatusCreated)
 		case r.Method == http.MethodPut:
 			_, _ = io.Copy(io.Discard, r.Body)
 			w.WriteHeader(http.StatusCreated)
@@ -141,6 +144,18 @@ func TestStreams(t *testing.T) {
 		t.Errorf("read of a cut body = %v, want ErrConnectionLost", err)
 	}
 	_ = r.Close()
+	hasty, err := f.OpenWrite(t.Context(), "/hasty", 0, remotefs.WriteOverwrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cut error
+	for i := 0; i < 2000 && cut == nil; i++ {
+		_, cut = hasty.Write(make([]byte, 64<<10))
+	}
+	if !errors.Is(cut, remotefs.ErrConnectionLost) {
+		t.Errorf("Write to a server that answered before reading = %v, want ErrConnectionLost", cut)
+	}
+	_ = hasty.Close()
 	w, err := f.OpenWrite(t.Context(), "/new", 0, remotefs.WriteOverwrite)
 	if err != nil {
 		t.Fatal(err)

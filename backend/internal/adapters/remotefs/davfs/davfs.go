@@ -18,6 +18,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -538,8 +539,16 @@ type writer struct {
 	pipe   *io.PipeWriter
 	fresh  bool
 	result chan error
+	once   sync.Once
+	answer error
 	done   bool
 	err    error
+}
+
+// outcome waits for the answer of the PUT and returns its failure, reading it once for every caller.
+func (w *writer) outcome() error {
+	w.once.Do(func() { w.answer = <-w.result })
+	return w.answer
 }
 
 // Write implements io.Writer.
@@ -553,6 +562,9 @@ func (w *writer) Write(b []byte) (int, error) {
 	}
 	n, err := w.pipe.Write(b)
 	if err != nil {
+		if refused := w.outcome(); refused != nil {
+			return n, Wrap("write", w.path, refused)
+		}
 		return n, Wrap("write", w.path, err)
 	}
 	return n, nil
@@ -567,13 +579,13 @@ func (w *writer) Close() error {
 	w.done = true
 	if err := w.ctx.Err(); err != nil {
 		_ = w.pipe.CloseWithError(err)
-		<-w.result
+		_ = w.outcome()
 		w.discard()
 		w.err = err
 		return err
 	}
 	_ = w.pipe.Close()
-	if err := <-w.result; err != nil {
+	if err := w.outcome(); err != nil {
 		w.discard()
 		w.err = Wrap("write", w.path, err)
 	}
