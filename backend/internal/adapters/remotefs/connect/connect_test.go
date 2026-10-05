@@ -78,6 +78,8 @@ type env struct {
 	vaults    *vault.Service
 	allow     *netguard.Policy
 	quick     *quick.Service
+	// workspaces authorizes what users do in their workspaces.
+	workspaces *workspace.Service
 }
 
 // newEnv builds the environment. The vault is set up and unlocked in session-1.
@@ -117,8 +119,9 @@ func newEnv(t *testing.T) *env {
 	return &env{
 		quick: quick.NewService(workspaces, sites, clock, nil),
 		t:     t, store: store, flaky: unreliable, user: user.ID, workspace: personal.ID, vaults: vaults, allow: allow,
-		sites:    sites,
-		hostKeys: hostkey.NewService(unreliable, workspaces, clock),
+		sites:      sites,
+		hostKeys:   hostkey.NewService(unreliable, workspaces, clock),
+		workspaces: workspaces,
 	}
 }
 
@@ -472,5 +475,40 @@ func TestConnector_MaxConnections(t *testing.T) {
 	}
 	if got := c.MaxConnections(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: uuid.New()}); got != 0 {
 		t.Errorf("MaxConnections(missing) = %d; want 0", got)
+	}
+}
+
+// strictStore is a store of strict servers that knows some addresses.
+type strictStore struct{ addresses []string }
+
+// StrictServers lists the known addresses.
+func (s strictStore) StrictServers(context.Context) ([]string, error) { return s.addresses, nil }
+
+// RememberStrictServer does nothing.
+func (strictStore) RememberStrictServer(context.Context, string) error { return nil }
+
+// TestConnector_StrictServers verifies how a connection learns that its server reports sizes it does not send.
+//
+// Scenarios:
+//   - a server the store of strict servers knows is not trusted, while another one is
+//   - a site marked with inexact sizes does not trust its server
+func TestConnector_StrictServers(t *testing.T) {
+	e := newEnv(t)
+	known := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
+	other := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
+	e.trust(known)
+	e.trust(other)
+	c := connect.New(e.sites, e.quick, e.hostKeys, e.allow, 5*time.Second, connect.StrictServers(strictStore{[]string{known.Addr}}))
+	trusted := func(in spec, server *sftptest.Server) bool {
+		t.Helper()
+		fsys, err := c.Connect(t.Context(), e.key(e.addSite(server, in, changes{Password: text(sshPassword)})), session)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = fsys.Close() }()
+		return remotefs.SizesTrusted(fsys)
+	}
+	if trusted(spec{Name: "Known"}, known) || !trusted(spec{Name: "Other"}, other) || trusted(spec{Name: "Marked", InexactSizes: true}, other) {
+		t.Error("the strictness of servers was not told apart")
 	}
 }

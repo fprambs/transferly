@@ -29,6 +29,7 @@ type spec struct {
 	Port                                int
 	Username, AuthMethod                string
 	Connections                         int
+	InexactSizes                        bool
 	Proxy                               proxySpec
 	Jump                                jumpSpec
 }
@@ -51,6 +52,9 @@ func (s spec) input() site.Input {
 	config := map[string]string{"host": s.Host, "username": s.Username, "auth": s.AuthMethod, "encryption": encryption}
 	if s.Port != 0 {
 		config["port"] = strconv.Itoa(s.Port)
+	}
+	if s.InexactSizes {
+		config["inexact_sizes"] = "true"
 	}
 	if s.Connections != 0 {
 		config["connections"] = strconv.Itoa(s.Connections)

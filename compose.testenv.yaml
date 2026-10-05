@@ -73,6 +73,15 @@ services:
 
   # An OpenSSH server with a shell and the usual tools (ADR-0027): transferly / transferly may run commands, unlike on sftp, so
   # its SFTP sites copy, compress, extract, sum and measure on the server.
+  # An SFTP server that reports every file 300 bytes larger than it is, as some enterprise gateways do: transferly / transferly,
+  # with export.dat (1.1 MB), bundle.zip (1 MB) and notes.txt.
+  strict-sftp:
+    profiles: ["testenv"]
+    build:
+      context: .
+      dockerfile: testenv/strictsftp/Dockerfile
+    image: transferly-testenv-strictsftp
+
   ssh:
     profiles: ["testenv"]
     build:

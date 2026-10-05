@@ -59,6 +59,9 @@ type Options struct {
 	// Exec runs the commands of exec requests: it gets the command line and writes what the command outputs, and returns its
 	// exit status. Nil refuses exec requests, as servers restricted to SFTP do.
 	Exec func(command string, stdout, stderr io.Writer) int
+	// SizeOff is added to the size the server reports for every file, while reads still give its real bytes, as enterprise SFTP
+	// gateways that report sizes other than the bytes they send do.
+	SizeOff int64
 	// Fault returns an error to answer an operation with instead of performing it; nil performs it.
 	// The method is the SFTP request method, such as Get, Put, List, Mkdir or Rename.
 	Fault func(method, path string) error
@@ -110,23 +113,46 @@ func (s *Server) window(payload []byte, pty bool) {
 // NewSigner returns a new ed25519 signer.
 func NewSigner(t testing.TB) ssh.Signer {
 	t.Helper()
-	_, private, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	signer, err := ssh.NewSignerFromKey(private)
+	signer, err := newSigner()
 	if err != nil {
 		t.Fatal(err)
 	}
 	return signer
 }
 
+// newSigner returns a new ed25519 signer.
+func newSigner() (ssh.Signer, error) {
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.NewSignerFromKey(private)
+}
+
 // Start runs a server that stops when the test ends.
 func Start(t testing.TB, opt Options) *Server {
 	t.Helper()
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := Serve(listener, t.TempDir(), opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.close)
+	return s
+}
+
+// Serve runs a server on listener that serves the folder root, until [Server.Close]; the test stacks run it as a service of their
+// own. Without a host key in opt it makes one.
+func Serve(listener net.Listener, root string, opt Options) (*Server, error) {
 	hostKey := opt.HostKey
 	if hostKey == nil {
-		hostKey = NewSigner(t)
+		var err error
+		if hostKey, err = newSigner(); err != nil {
+			return nil, err
+		}
 	}
 	config := &ssh.ServerConfig{
 		Config: ssh.Config{Ciphers: opt.Ciphers, KeyExchanges: opt.KeyExchanges},
@@ -172,15 +198,13 @@ func Start(t testing.TB, opt Options) *Server {
 	}
 	config.AddHostKey(hostKey)
 
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := &Server{Addr: listener.Addr().String(), HostKey: hostKey.PublicKey(), Root: t.TempDir(), listener: listener}
-	t.Cleanup(s.close)
+	s := &Server{Addr: listener.Addr().String(), HostKey: hostKey.PublicKey(), Root: root, listener: listener}
 	go s.accept(config, opt)
-	return s
+	return s, nil
 }
+
+// Close stops the server and every connection.
+func (s *Server) Close() { s.close() }
 
 // close stops the server and every connection.
 func (s *Server) close() {
@@ -287,7 +311,7 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 			continue
 		}
 		_ = req.Reply(true, nil)
-		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home}
+		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff}
 		server := sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h})
 		_ = server.Serve()
 		return
@@ -335,7 +359,7 @@ func (s *Server) sudo(channel ssh.Channel, opt Options) {
 		_, _ = io.WriteString(channel, "\x00\x00\x00\x05garbage")
 		return
 	}
-	h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home}
+	h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff}
 	_ = sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h}).Serve()
 }
 
@@ -356,9 +380,27 @@ func readLine(r io.Reader) (string, error) {
 
 // handlers serves the SFTP requests from a directory.
 type handlers struct {
-	root  string
-	fault func(method, path string) error
-	home  string
+	root    string
+	fault   func(method, path string) error
+	home    string
+	sizeOff int64
+}
+
+// misreported is a file whose size is reported off by some bytes.
+type misreported struct {
+	os.FileInfo
+	off int64
+}
+
+// Size reports the size off by the bytes of the server.
+func (m misreported) Size() int64 { return m.FileInfo.Size() + m.off }
+
+// report describes an entry as the server reports it: a file with the size off by [Options.SizeOff].
+func (h *handlers) report(info os.FileInfo) os.FileInfo {
+	if h.sizeOff == 0 || !info.Mode().IsRegular() {
+		return info
+	}
+	return misreported{FileInfo: info, off: h.sizeOff}
 }
 
 // real maps a client path to a path below the root, never outside it.
@@ -501,7 +543,7 @@ func (h *handlers) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 			if err != nil {
 				return nil, err
 			}
-			infos = append(infos, info)
+			infos = append(infos, h.report(info))
 		}
 		return infos, nil
 	case "Stat":
@@ -509,7 +551,7 @@ func (h *handlers) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		if err != nil {
 			return nil, wire(err)
 		}
-		return lister{info}, nil
+		return lister{h.report(info)}, nil
 	}
 	return nil, sftp.ErrSSHFxOpUnsupported
 }
@@ -540,7 +582,7 @@ func (h *handlers) Lstat(r *sftp.Request) (sftp.ListerAt, error) {
 	if err != nil {
 		return nil, wire(err)
 	}
-	return lister{info}, nil
+	return lister{h.report(info)}, nil
 }
 
 // askCode is the keyboard-interactive exchange of a server that asks for a one-time code: a banner, then the password
