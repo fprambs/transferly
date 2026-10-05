@@ -449,6 +449,10 @@
       "cause": "You own all the teams the administrator allows.",
       "next": "Delete a team or ask an administrator to raise the limit."
     },
+    "terminal_off": {
+      "cause": "The site does not have its terminal turned on.",
+      "next": "Ask an admin of the workspace to turn on Allow the terminal in the Advanced tab of the site."
+    },
     "time_zone_inconclusive": {
       "cause": "The server's listing did not show enough to tell its time zone.",
       "next": "Choose the zone of the site by hand; most servers use UTC."

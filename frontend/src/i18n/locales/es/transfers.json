@@ -55,6 +55,7 @@
     "transfer": "{{direction}}: {{status}}",
     "compress": "Comprimido en {{archive}}",
     "extract": "Extraído en {{folder}}",
+    "terminal": "Abrió una terminal ({{duration}})",
     "failed": "No se pudo cargar la actividad.",
     "list": "Registro de actividad"
   }

@@ -119,7 +119,7 @@ export function mockHome(path: string): void {
 }
 
 /** What a server that cannot run commands offers (ADR-0027). */
-export const noTools: ServerTools = { copy: false, checksums: [], archive: [], extract: [], usage: false }
+export const noTools: ServerTools = { shell: false, copy: false, checksums: [], archive: [], extract: [], usage: false }
 
 /** Answers what the servers of every connection can do on their own. */
 export function mockServerTools(tools: ServerTools): void {

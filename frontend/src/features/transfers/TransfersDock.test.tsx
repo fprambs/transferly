@@ -310,6 +310,7 @@ describe('TransfersDock', () => {
           entry('g', 'transfer', { detail: 'odd' }),
           entry('h', 'compress', { detail: '/h.zip' }),
           entry('i', 'extract', { detail: '/i' }),
+          entry('j', 'terminal', { detail: '1m5s' }),
         ])
       }),
     )
@@ -331,6 +332,7 @@ describe('TransfersDock', () => {
     expect(rows[6]).toHaveTextContent('Upload Done')
     expect(rows[7]).toHaveTextContent('Compressed into /h.zip')
     expect(rows[8]).toHaveTextContent('Extracted into /i')
+    expect(rows[9]).toHaveTextContent('Opened a terminal (1m5s)')
     expect(rows[0]).toHaveTextContent('Prod')
     expect(rows[0]).toHaveTextContent('/a')
     expect(rows[0]).toHaveTextContent('2026')

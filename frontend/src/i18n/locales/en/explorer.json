@@ -318,7 +318,8 @@
   "panels": {
     "log": "Resize the log panel",
     "split": "Resize the panes",
-    "details": "Resize the details panel"
+    "details": "Resize the details panel",
+    "terminal": "Resize the terminals"
   },
   "tabs": {
     "label": "Connection tabs",
@@ -467,5 +468,20 @@
     "measure": "Measure",
     "working": "Measuring…",
     "failed": "The size could not be measured."
+  },
+  "terminal": {
+    "open": "Terminal",
+    "label": "Terminals",
+    "tab": "Terminal {{n}}",
+    "new": "New terminal in this folder",
+    "close": "Close {{name}}",
+    "closeAll": "Close the terminals",
+    "opening": "Opening the terminal…",
+    "exited": "[The shell ended with status {{code}}]",
+    "failed": {
+      "title": "The terminal is closed",
+      "body": "It could not open or the connection dropped. Only admins open terminals, on sites that have it on in their Advanced tab, on servers that run commands and when an administrator allows commands on servers.",
+      "retry": "Open again"
+    }
   }
 }

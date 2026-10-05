@@ -2006,7 +2006,7 @@ export interface components {
             /** @description Name of the connection when it happened. */
             siteName: string;
             /** @enum {string} */
-            kind: "mkdir" | "rename" | "delete" | "checksum" | "transfer" | "compress" | "extract";
+            kind: "mkdir" | "rename" | "delete" | "checksum" | "transfer" | "compress" | "extract" | "terminal";
             path: string;
             /** @description The new path of a rename, the algorithm of a checksum, the archive of a compression, the folder of an extraction, or the direction and final state of a transfer. */
             detail?: string;
@@ -2441,6 +2441,8 @@ export interface components {
             serverCommands?: boolean;
         };
         ServerTools: {
+            /** @description The server runs commands for the account, so a terminal can open on it. */
+            shell: boolean;
             /** @description Copies within the site run on the server. */
             copy: boolean;
             /** @description Algorithms the server computes. */

@@ -449,6 +449,10 @@
       "cause": "Eres dueño de todos los equipos que el administrador permite.",
       "next": "Elimina un equipo o pide a un administrador que suba el límite."
     },
+    "terminal_off": {
+      "cause": "El sitio no tiene la terminal activada.",
+      "next": "Pide a un administrador del workspace que active Permitir la terminal en la pestaña Avanzado del sitio."
+    },
     "time_zone_inconclusive": {
       "cause": "El listado del servidor no mostró lo suficiente para saber su zona horaria.",
       "next": "Elige la zona del sitio a mano; la mayoría de los servidores usa UTC."

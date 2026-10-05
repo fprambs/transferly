@@ -414,6 +414,13 @@
         }
       },
       {
+        "default": "false",
+        "group": "advanced",
+        "kind": "boolean",
+        "name": "terminal",
+        "required": true
+      },
+      {
         "group": "jump",
         "kind": "host",
         "name": "jump_host",

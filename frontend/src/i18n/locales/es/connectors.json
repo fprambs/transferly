@@ -242,6 +242,10 @@
       "label": "Contraseña de sudo",
       "hint": "La que pide sudo. Déjala vacía para responder con la contraseña de la cuenta, o si sudo no pide ninguna.",
       "keep": "Déjala en blanco para conservar la contraseña de sudo guardada."
+    },
+    "terminal": {
+      "label": "Permitir la terminal",
+      "hint": "Permite a los administradores abrir una terminal en el servidor desde el explorador. Solo los administradores pueden activarla, y los comandos en servidores deben estar permitidos."
     }
   },
   "overrides": {

@@ -123,6 +123,8 @@ export interface Transport {
    * @returns A function that closes the stream; after it, `onClose` is not called.
    */
   events(handlers: EventHandlers): () => void
+  /** Opens a WebSocket to a path of the server, with a query, as a terminal needs (ADR-0027). */
+  socket(path: string, query?: ApiQuery): WebSocket
   /** Sets the anti-CSRF token sent with every state-changing call; `undefined` forgets it. */
   setCsrfToken(token: string | undefined): void
   /**

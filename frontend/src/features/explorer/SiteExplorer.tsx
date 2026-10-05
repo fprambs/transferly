@@ -15,6 +15,7 @@ import { useLocalRoot } from '../local/local-root-store'
 import { useRecentSites } from '../sites/recent-sites'
 import { homePath } from '../sites/start-path'
 import { useSitesData } from '../sites/use-sites-data'
+import { TerminalPanel, type OpenTerminal } from '../terminal/TerminalPanel'
 import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
 import { useTabs } from '../tabs/tabs-store'
@@ -40,12 +41,20 @@ export function SiteExplorer() {
   const { sites, quick } = useSitesData(workspace?.id)
   const localRoot = useLocalRoot((state) => state.root)
   const [comparing, setComparing] = useState(false)
+  const [shells, setShells] = useState<{ siteId: string; terminals: OpenTerminal[]; active: number; next: number }>({ siteId, terminals: [], active: 0, next: 1 })
+  const terminals = shells.siteId === siteId ? shells : { siteId, terminals: [], active: 0, next: 1 }
+  const openTerminal = (at: string): void =>
+    setShells({ siteId, terminals: [...terminals.terminals, { id: terminals.next, path: at }], active: terminals.next, next: terminals.next + 1 })
+  const closeTerminal = (id: number): void => {
+    const rest = terminals.terminals.filter((terminal) => terminal.id !== id)
+    setShells({ ...terminals, terminals: rest, active: terminals.active === id ? (rest.at(-1)?.id ?? 0) : terminals.active })
+  }
   const focus = useConnectionState((state) => state.focus)
   const disconnect = useDisconnect()
   const logOpen = useUiStore((state) => state.logOpen)
   const setLogOpen = useUiStore((state) => state.setLogOpen)
   const log = useCollapsible(logOpen, setLogOpen)
-  const stack = useDefaultLayout({ id: 'transferly-explorer', storage: layoutStorage })
+  const stack = useDefaultLayout({ id: 'transferly-explorer', panelIds: terminals.terminals.length > 0 ? ['log', 'files', 'terminal'] : ['log', 'files'], storage: layoutStorage })
   const panes = useDefaultLayout({ id: 'transferly-split', panelIds: split === undefined ? ['left'] : ['left', 'right'], storage: layoutStorage })
   const workspaceId = workspace?.id
 
@@ -123,6 +132,7 @@ export function SiteExplorer() {
                 path={path}
                 onDisconnect={() => void disconnect({ workspaceId: workspace.id, siteId })}
                 onNavigate={(next, options) => void navigate({ search: (previous) => ({ ...previous, path: next }), replace: options?.replace })}
+                onTerminal={openTerminal}
                 actions={
                   <Button
                     variant="ghost"
@@ -159,6 +169,21 @@ export function SiteExplorer() {
             )}
           </Group>
         </Panel>
+        {terminals.terminals.length > 0 && <ResizeHandle aria-label={t(($) => $.panels.terminal)} />}
+        {terminals.terminals.length > 0 && (
+          <Panel id="terminal" defaultSize={260} minSize={120} maxSize="80%" groupResizeBehavior="preserve-pixel-size" className="flex h-full min-h-0 flex-col">
+            <TerminalPanel
+              workspaceId={workspace.id}
+              siteId={siteId}
+              terminals={terminals.terminals}
+              active={terminals.active}
+              onActivate={(id) => setShells({ ...terminals, active: id })}
+              onNew={() => openTerminal(path)}
+              onClose={closeTerminal}
+              onCloseAll={() => setShells({ ...terminals, terminals: [], active: 0 })}
+            />
+          </Panel>
+        )}
       </Group>
       {comparing && otherSide !== null && (
         <CompareDialog

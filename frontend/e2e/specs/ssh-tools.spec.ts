@@ -33,6 +33,7 @@ async function openSite(page: Page, name: string, host: string): Promise<void> {
  * - on the server restricted to SFTP the explorer offers none of these
  * - a site in sudo mode, answering sudo with the password of the account, lists a folder only root may read, and the connection log
  *   says it runs as root
+ * - a site with its terminal on opens a terminal in the folder in view, which runs what is typed and tells when the shell ends
  */
 test.describe('ssh tools', () => {
   test('compresses, extracts and measures on a server that runs commands', async ({ shell }) => {
@@ -114,5 +115,43 @@ test.describe('ssh tools', () => {
     }
     await expect(grid.getByRole('row', { name: /only-root\.txt/ })).toBeVisible()
     await expect(page.getByText('Running as root through sudo.')).toBeVisible()
+  })
+
+  test('runs commands in a terminal in the folder in view', async ({ shell }) => {
+    test.setTimeout(60_000)
+    const { page } = shell
+    const name = `Terminal ${Date.now()}`
+    await page.getByRole('button', { name: 'New site' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'New site' })
+    await dialog.getByRole('button', { name: /^SFTP/ }).click()
+    await dialog.getByLabel('Name', { exact: true }).fill(name)
+    await dialog.getByLabel('Host', { exact: true }).fill('ssh')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+    await dialog.getByLabel('Password', { exact: true }).fill('transferly')
+    await dialog.getByRole('tab', { name: 'Advanced' }).click()
+    await dialog.getByRole('checkbox', { name: 'Allow the terminal' }).click()
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await expect(dialog).toBeHidden()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
+    const trust = page.getByRole('button', { name: 'Trust and connect' })
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await expect(trust.or(grid)).toBeVisible()
+    if (await trust.isVisible()) {
+      await trust.click()
+    }
+    await expect(page).toHaveURL(/path=%2Fhome%2Ftransferly$/)
+
+    await page.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const panel = page.getByRole('region', { name: 'Terminals' })
+    await expect(panel.getByRole('tab')).toHaveText(/Terminal 1/)
+    const screen = panel.locator('.xterm-rows')
+    await expect(screen).toContainText('$', { timeout: 15_000 })
+    await panel.locator('.xterm-helper-textarea').focus()
+    await page.keyboard.type('echo "in $(pwd): $((40+2))"')
+    await page.keyboard.press('Enter')
+    await expect(screen).toContainText('in /home/transferly: 42')
+    await page.keyboard.type('exit')
+    await page.keyboard.press('Enter')
+    await expect(screen).toContainText('The shell ended with status 0')
   })
 })

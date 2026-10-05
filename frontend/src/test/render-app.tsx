@@ -15,6 +15,8 @@ export interface RenderAppOptions {
   language?: SupportedLanguage
   /** An i18n instance to use instead of creating one for the language. */
   i18n?: I18n
+  /** The transport, an {@link HttpTransport} of the mock server unless given, as one whose sockets a test plays. */
+  transport?: HttpTransport
 }
 
 /**
@@ -22,10 +24,9 @@ export interface RenderAppOptions {
  *
  * @returns The router history, to assert the final location, and the transport in use.
  */
-export async function renderApp({ path = '/', language = 'en', i18n: given }: RenderAppOptions = {}) {
+export async function renderApp({ path = '/', language = 'en', i18n: given, transport = new HttpTransport() }: RenderAppOptions = {}) {
   const i18n = given ?? (await createI18n(language))
   const history = createMemoryHistory({ initialEntries: [path] })
-  const transport = new HttpTransport()
   render(
     <I18nextProvider i18n={i18n}>
       <TransportProvider transport={transport}>

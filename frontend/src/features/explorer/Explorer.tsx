@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, ChevronDown, CircleAlert, CircleStop, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, Unplug, Upload } from 'lucide-react'
+import { ArrowUp, ChevronDown, CircleAlert, CircleStop, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, SquareTerminal, Unplug, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -91,6 +91,9 @@ export interface ExplorerProps {
   onNavigate: (path: string, options?: { replace?: boolean }) => void
   /** Extra controls shown at the end of the toolbar. */
   actions?: ReactNode
+  /** Called to open a terminal in the folder in view (ADR-0027); the button shows only on sites with their terminal on, on servers
+   * that run commands. */
+  onTerminal?: (path: string) => void
   /** Which pane of the view this is; each pane remembers the width of its details panel on its own. */
   pane?: 'main' | 'second'
   /** Path of the entry selected when the explorer opens, as its tab remembered it. */
@@ -102,7 +105,7 @@ export interface ExplorerProps {
 }
 
 /** Browser of the files of one connection: path, toolbar, a table of the folder in view and a resizable details panel beside it. */
-export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane = 'main', initialSelection, onSelectionChange, onDisconnect }: ExplorerProps) {
+export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTerminal, pane = 'main', initialSelection, onSelectionChange, onDisconnect }: ExplorerProps) {
   const { t, i18n } = useTranslation('explorer')
   const api = useApi()
   const queryClient = useQueryClient()
@@ -488,6 +491,12 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, pane 
         </Button>
         {target !== undefined && settingOf(target, 'list_timezone') !== '' ? (
           <TimeZoneProbe workspaceId={workspaceId} siteId={siteId} path={path} site={sites.find((saved) => saved.id === siteId)} onApplied={() => void reload()} />
+        ) : null}
+        {onTerminal !== undefined && tools?.shell === true && target !== undefined && settingOf(target, 'terminal') === 'true' ? (
+          <Button variant="outline" size="sm" onClick={() => onTerminal(path)}>
+            <SquareTerminal />
+            <span className="@max-3xl:sr-only">{t(($) => $.terminal.open)}</span>
+          </Button>
         ) : null}
         {actions}
       </div>

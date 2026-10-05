@@ -318,7 +318,8 @@
   "panels": {
     "log": "Cambiar el tamaño del panel del registro",
     "split": "Cambiar el tamaño de los paneles",
-    "details": "Cambiar el tamaño del panel de detalles"
+    "details": "Cambiar el tamaño del panel de detalles",
+    "terminal": "Cambiar el tamaño de las terminales"
   },
   "tabs": {
     "label": "Pestañas de conexión",
@@ -467,5 +468,20 @@
     "measure": "Medir",
     "working": "Midiendo…",
     "failed": "No se pudo medir el tamaño."
+  },
+  "terminal": {
+    "open": "Terminal",
+    "label": "Terminales",
+    "tab": "Terminal {{n}}",
+    "new": "Nueva terminal en esta carpeta",
+    "close": "Cerrar {{name}}",
+    "closeAll": "Cerrar las terminales",
+    "opening": "Abriendo la terminal…",
+    "exited": "[El shell terminó con el estado {{code}}]",
+    "failed": {
+      "title": "La terminal está cerrada",
+      "body": "No se pudo abrir o se cortó la conexión. Solo los administradores abren terminales, en sitios que la tienen activada en su pestaña Avanzado, en servidores que ejecutan comandos y si un administrador permite los comandos en servidores.",
+      "retry": "Abrir de nuevo"
+    }
   }
 }

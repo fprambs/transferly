@@ -28,7 +28,7 @@ const shell: Site = {
 }
 
 /** What a server with every tool offers. */
-const everything: ServerTools = { copy: true, checksums: ['sha256'], archive: ['zip', 'tar.gz'], extract: ['zip', 'tar.gz'], usage: true }
+const everything: ServerTools = { shell: true, copy: true, checksums: ['sha256'], archive: ['zip', 'tar.gz'], extract: ['zip', 'tar.gz'], usage: true }
 
 /** Builds an entry inside /www. */
 function entry(name: string, type: RemoteEntry['type'] = 'file'): RemoteEntry {

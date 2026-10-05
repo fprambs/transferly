@@ -242,6 +242,10 @@
       "label": "Sudo password",
       "hint": "What sudo asks for. Leave it empty to answer with the password of the account, or when sudo asks for none.",
       "keep": "Leave blank to keep the saved sudo password."
+    },
+    "terminal": {
+      "label": "Allow the terminal",
+      "hint": "Lets admins open a terminal on the server from the explorer. Only admins may turn it on, and commands on servers must be allowed."
     }
   },
   "overrides": {

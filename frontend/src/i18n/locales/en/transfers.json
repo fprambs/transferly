@@ -55,6 +55,7 @@
     "transfer": "{{direction}} {{status}}",
     "compress": "Compressed into {{archive}}",
     "extract": "Extracted into {{folder}}",
+    "terminal": "Opened a terminal ({{duration}})",
     "failed": "Could not load the activity.",
     "list": "Activity log"
   }

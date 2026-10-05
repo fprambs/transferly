@@ -18,3 +18,26 @@ export function editorNonce(): Extension {
   const nonce = styleNonce()
   return nonce === undefined ? [] : EditorView.cspNonce.of(nonce)
 }
+
+/**
+ * Gives the style nonce to the style elements a library adds under root, such as those of xterm.js, which cannot be given one: the
+ * elements already there get it at once and those added later as they appear, and each is filled again so the browser applies it.
+ * Returns the function that stops watching; nothing is watched when there is no nonce.
+ */
+export function nonceStyles(root: HTMLElement): () => void {
+  const nonce = styleNonce()
+  if (nonce === undefined) {
+    return () => undefined
+  }
+  const grant = (style: HTMLStyleElement) => {
+    if (style.nonce !== nonce) {
+      const rules = style.textContent
+      style.nonce = nonce
+      style.textContent = rules
+    }
+  }
+  root.querySelectorAll('style').forEach(grant)
+  const observer = new MutationObserver(() => root.querySelectorAll('style').forEach(grant))
+  observer.observe(root, { childList: true, subtree: true })
+  return () => observer.disconnect()
+}

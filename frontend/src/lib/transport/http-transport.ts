@@ -43,6 +43,11 @@ export class HttpTransport implements Transport {
     this.openSocket = Socket === undefined ? (url) => new WebSocket(url) : (url) => new Socket(url)
   }
 
+  /** Opens a WebSocket to a path of the server, with a query. */
+  socket(path: string, query?: ApiQuery): WebSocket {
+    return this.openSocket(socketUrl(this.baseUrl, path, query))
+  }
+
   /** Sets the anti-CSRF token sent with every call that is not a read. */
   setCsrfToken(token: string | undefined): void {
     this.csrfToken = token
@@ -187,8 +192,18 @@ const eventTypes = ['snapshot', 'transfer.state', 'transfer.progress', 'vault.lo
 
 /** Builds the address of the event stream: `ws` or `wss` to match the page, or the base URL. */
 function eventsUrl(baseUrl: string): string {
-  const url = new URL('/api/v1/ws', baseUrl === '' ? window.location.href : baseUrl)
+  return socketUrl(baseUrl, '/api/v1/ws')
+}
+
+/** Builds the WebSocket URL of a path of the server, with its query: wss: under HTTPS and ws: otherwise. Empty values are left out. */
+function socketUrl(baseUrl: string, path: string, query: ApiQuery = {}): string {
+  const url = new URL(path, baseUrl === '' ? window.location.href : baseUrl)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== '') {
+      url.searchParams.set(key, String(value))
+    }
+  }
   return url.toString()
 }
 

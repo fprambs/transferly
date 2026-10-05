@@ -71,7 +71,7 @@ describe('connector schema', () => {
   })
 
   it('settles values as the server does', () => {
-    expect(settle(sftp, { host: ' h ', username: 'u', password: 'secret', jump_username: 'j' })).toEqual({ host: 'h', port: '22', username: 'u', auth: 'password', sudo: 'false' })
+    expect(settle(sftp, { host: ' h ', username: 'u', password: 'secret', jump_username: 'j' })).toEqual({ host: 'h', port: '22', username: 'u', auth: 'password', sudo: 'false', terminal: 'false' })
     expect(settle(ftp, { host: 'h', auth: 'anonymous', username: 'someone', encryption: 'implicit' })).toEqual({
       host: 'h',
       encryption: 'implicit',

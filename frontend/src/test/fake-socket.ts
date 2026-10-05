@@ -14,6 +14,12 @@ export class FakeSocket {
   onclose: (() => void) | null = null
   /** Called for each message. */
   onmessage: ((message: { data: unknown }) => void) | null = null
+  /** What the client asked binary messages to arrive as. */
+  binaryType = 'blob'
+  /** The ready state: 0 while connecting, 1 once open. */
+  readyState = 0
+  /** Every message the client sent. */
+  sent: unknown[] = []
 
   /** Records the socket. */
   constructor(url: string) {
@@ -29,6 +35,28 @@ export class FakeSocket {
   /** Records that the client closed the socket. */
   close(): void {
     this.closed = true
+  }
+
+  /** Records a message the client sent. */
+  send(data: unknown): void {
+    this.sent.push(data)
+  }
+
+  /** Plays the server accepting the connection. */
+  open(): void {
+    this.readyState = 1
+    this.onopen?.()
+  }
+
+  /** Plays the server sending a raw message: a string, or the bytes of a binary one. */
+  receive(data: string | ArrayBuffer): void {
+    this.onmessage?.({ data })
+  }
+
+  /** Plays the connection ending. */
+  drop(): void {
+    this.readyState = 3
+    this.onclose?.()
   }
 
   /** Plays the server sending an event. */

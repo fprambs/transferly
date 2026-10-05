@@ -24,6 +24,7 @@ function recorder() {
  * - open, close and known events reach the handlers; messages that are not JSON or not known events are ignored
  * - the returned function closes the socket and silences `onClose`
  * - without an injected constructor the global WebSocket is used
+ * - sockets open on other paths with their query, leaving out empty values
  */
 describe('HttpTransport.events', () => {
   afterEach(() => {
@@ -83,5 +84,17 @@ describe('HttpTransport.events', () => {
     new HttpTransport().events(recorder().handlers)
 
     expect(FakeSocket.opened).toHaveLength(1)
+  })
+
+  it('opens sockets on other paths with their query', () => {
+    const transport = new HttpTransport({ baseUrl: 'https://transferly.example.com', webSocket: FakeSocket as unknown as typeof WebSocket })
+
+    transport.socket('/api/v1/workspaces/w/sites/s/terminal', { path: '/srv', cols: 80, empty: '', missing: undefined })
+    transport.socket('/api/v1/plain')
+
+    expect(FakeSocket.opened.map((socket) => socket.url)).toEqual([
+      'wss://transferly.example.com/api/v1/workspaces/w/sites/s/terminal?path=%2Fsrv&cols=80',
+      'wss://transferly.example.com/api/v1/plain',
+    ])
   })
 })

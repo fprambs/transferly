@@ -32,6 +32,7 @@ describe('TransportProvider', () => {
       stream: () => Promise.resolve(new ReadableStream<Uint8Array>()),
       url: (path) => path,
       events: () => () => undefined,
+      socket: () => ({}) as WebSocket,
       setCsrfToken: () => undefined,
     }
     render(
