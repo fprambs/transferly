@@ -170,21 +170,39 @@ func TestService_Import(t *testing.T) {
 	}
 
 	taken, takenFake := newImport()
-	takenFake.sites = []site.Site{{Name: "one"}, {Name: "Three"}, {Name: "Three (2)"}}
-	first, _ := taken.Import(ctx, actor, ws, "s", append(servers(), server(nil, "Two", "ftp", "host", "dup.example.com", "username", "u")), nil, fzimport.Options{})
-	items = byName(first)
-	if items["One"].Status != fzimport.StatusSkipped || items["One"].Reason != "name_taken" {
-		t.Errorf("taken name = %+v", items["One"])
+	takenFake.sites = []site.Site{{Name: "one"}, {Name: "three"}, {Name: "Three (1)"}}
+	extra := []fzimport.Server{server(nil, "Two", "ftp", "host", "dup.example.com", "username", "u"), server(nil, "Three", "ftp", "host", "again.example.com", "username", "u")}
+	first, _ := taken.Import(ctx, actor, ws, "s", append(servers(), extra...), nil, fzimport.Options{})
+	statuses := []string{}
+	for _, item := range first.Items {
+		statuses = append(statuses, item.Name+":"+string(item.Status))
+	}
+	if strings.Join(statuses, ",") != "One:created,Two:created,Three:skipped,Two:created,Three:skipped" {
+		t.Errorf("names taken in the same folder only = %v", statuses)
 	}
 	renamed, renamedFake := newImport()
-	renamedFake.sites = []site.Site{{Name: "one"}, {Name: "Three"}, {Name: "Three (2)"}}
-	second, _ := renamed.Import(ctx, actor, ws, "s", append(servers(), server(nil, "Two", "ftp", "host", "dup.example.com", "username", "u")), nil, fzimport.Options{OnConflict: fzimport.RenameSite})
+	renamedFake.sites = []site.Site{{Name: "one"}, {Name: "Three"}, {Name: "Three (1)"}}
+	second, _ := renamed.Import(ctx, actor, ws, "s", append(servers(), extra...), nil, fzimport.Options{OnConflict: fzimport.RenameSite})
 	names := []string{}
 	for _, item := range second.Items {
 		names = append(names, item.Name)
 	}
-	if strings.Join(names, ",") != "One (2),Two,Three (3),Two (2)" {
+	if strings.Join(names, ",") != "One,Two,Three (2),Two,Three (3)" {
 		t.Errorf("renamed names = %v", names)
+	}
+
+	planned, plannedFake := newImport()
+	work := uuid.New()
+	plannedFake.collections = []site.Collection{{ID: work, Name: "Work"}}
+	plannedFake.sites = []site.Site{{Name: "Two", CollectionID: work}}
+	twins := []fzimport.Server{server([]string{"New"}, "Same", "ftp", "host", "a.example.com", "username", "u"), server([]string{"New"}, "Same", "ftp", "host", "b.example.com", "username", "u")}
+	plan, _ := planned.Import(ctx, actor, ws, "s", append(servers(), twins...), nil, fzimport.Options{DryRun: true, OnConflict: fzimport.RenameSite})
+	names = names[:0]
+	for _, item := range plan.Items {
+		names = append(names, item.Name)
+	}
+	if strings.Join(names, ",") != "One,Two (1),Three,Same,Same (1)" || len(plannedFake.collections) != 1 {
+		t.Errorf("dry run names = %v with %d folders; want names per folder and nothing created", names, len(plannedFake.collections))
 	}
 
 	reuse, reuseFake := newImport()

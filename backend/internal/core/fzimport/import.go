@@ -3,7 +3,6 @@ package fzimport
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -221,7 +220,7 @@ func (s *Service) ImportEntries(ctx context.Context, actor, workspaceID uuid.UUI
 	}
 	r := &run{s: s, ctx: ctx, actor: actor, ws: workspaceID, session: session, opts: opts, names: map[string]bool{}, folders: map[string]uuid.UUID{}, children: map[uuid.UUID]map[string]uuid.UUID{}}
 	for _, e := range existing {
-		r.names[strings.ToLower(e.Name)] = true
+		r.names[nameKey(e.CollectionID.String(), e.Name)] = true
 	}
 	for _, c := range all {
 		if r.children[c.ParentID] == nil {
@@ -250,20 +249,44 @@ func (s *Service) ImportEntries(ctx context.Context, actor, workspaceID uuid.UUI
 	return result, nil
 }
 
-// freeName returns the name a site is given: its own, or the first free "Name (n)" when the policy renames, or "" to skip it.
-func (r *run) freeName(name string) string {
-	if !r.names[strings.ToLower(name)] {
+// nameKey is how a name is told apart within a place: names are unique within each collection, whatever their case.
+func nameKey(place, name string) string {
+	return place + "\x00" + strings.ToLower(name)
+}
+
+// freeName returns the name a site is given in a place: its own, or the first free "Name (n)" when the policy renames, or "" to
+// skip it. Sites in other collections may have the same name.
+func (r *run) freeName(place, name string) string {
+	if !r.names[nameKey(place, name)] {
 		return name
 	}
 	if r.opts.OnConflict != RenameSite {
 		return ""
 	}
-	for n := 2; ; n++ {
-		candidate := fmt.Sprintf("%s (%d)", name, n)
-		if !r.names[strings.ToLower(candidate)] {
+	for n := 1; ; n++ {
+		candidate := site.NumberedName(name, n)
+		if !r.names[nameKey(place, candidate)] {
 			return candidate
 		}
 	}
+}
+
+// place tells the collection that receives the sites of a path, as the key of its names, and its identifier. An import creates the
+// collections that are missing; a dry run only names them, by their path, without creating anything.
+func (r *run) place(path []string) (string, uuid.UUID, error) {
+	if !r.opts.DryRun {
+		folder, err := r.folderFor(path)
+		return folder.String(), folder, err
+	}
+	parent := r.opts.Into
+	for i, name := range path {
+		id, ok := r.children[parent][strings.ToLower(name)]
+		if !ok {
+			return "planned:" + parent.String() + "/" + strings.ToLower(strings.Join(path[i:], "/")), uuid.Nil, nil
+		}
+		parent = id
+	}
+	return parent.String(), parent, nil
 }
 
 // folderFor returns the collection that receives the sites of a path, creating the collections that are missing.
@@ -297,30 +320,29 @@ func (r *run) folderFor(path []string) (uuid.UUID, error) {
 func (r *run) one(entry Entry) (Item, error) {
 	secrets := entry.hasSecrets()
 	item := Item{Name: entry.Input.Name, Path: strings.Join(entry.Path, "/"), PasswordSkipped: entry.PasswordSkipped || (!r.opts.Passwords && secrets)}
-	name := r.freeName(entry.Input.Name)
-	if name == "" {
-		item.Status, item.Reason = StatusSkipped, "name_taken"
-		return item, nil
-	}
-	item.Name = name
 	input := entry.Input
-	input.Name = name
 	if _, _, err := r.s.sites.Settle(input); err != nil {
 		item.Status, item.Reason = StatusFailed, reasonOf(err)
 		return item, nil
 	}
-	if r.opts.DryRun {
-		r.names[strings.ToLower(name)] = true
-		item.Status, item.PasswordStored = StatusWouldCreate, r.opts.Passwords && secrets
-		return item, nil
-	}
-	folder, err := r.folderFor(entry.Path)
+	place, folder, err := r.place(entry.Path)
 	if err != nil {
 		if reason := reasonOf(err); reason != "" {
 			item.Status, item.Reason = StatusFailed, reason
 			return item, nil
 		}
 		return item, err
+	}
+	name := r.freeName(place, entry.Input.Name)
+	if name == "" {
+		item.Status, item.Reason = StatusSkipped, "name_taken"
+		return item, nil
+	}
+	item.Name, input.Name = name, name
+	if r.opts.DryRun {
+		r.names[nameKey(place, name)] = true
+		item.Status, item.PasswordStored = StatusWouldCreate, r.opts.Passwords && secrets
+		return item, nil
 	}
 	input.CollectionID = folder
 	var changes site.SecretChanges
@@ -334,7 +356,7 @@ func (r *run) one(entry Entry) (Item, error) {
 		}
 		return item, err
 	}
-	r.names[strings.ToLower(name)] = true
+	r.names[nameKey(place, name)] = true
 	item.Status, item.PasswordStored = StatusCreated, r.opts.Passwords && secrets
 	return item, nil
 }

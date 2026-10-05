@@ -82,8 +82,11 @@ func TestImport_Filezilla(t *testing.T) {
 	if again := decode(a.importCall(wsID, "", manager, cookie, csrf)); again.Items[0].Status != "skipped" || *again.Items[0].Reason != "name_taken" {
 		t.Errorf("second import = %+v", again)
 	}
-	if renamed := decode(a.importCall(wsID, "?onConflict=rename&collectionId="+sites[0].CollectionId.String(), manager, cookie, csrf)); renamed.Items[0].Name != "Imported (2)" || renamed.Items[0].PasswordStored {
+	if renamed := decode(a.importCall(wsID, "?onConflict=rename", manager, cookie, csrf)); renamed.Items[0].Name != "Imported (1)" || renamed.Items[0].PasswordStored {
 		t.Errorf("renamed import = %+v", renamed)
+	}
+	if elsewhere := decode(a.importCall(wsID, "?collectionId="+sites[0].CollectionId.String(), manager, cookie, csrf)); elsewhere.Items[0].Name != "Imported" || elsewhere.Items[0].Status != "created" {
+		t.Errorf("import into another collection = %+v; want the same name, since names are unique per collection", elsewhere)
 	}
 
 	crypt := `<FileZilla3><Servers><Server><Host>c.example.com</Host><Protocol>1</Protocol><Logontype>1</Logontype><User>u</User>` +

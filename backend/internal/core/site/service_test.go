@@ -49,6 +49,11 @@ func (m *memStore) CreateSite(_ context.Context, s site.Site, secrets []site.Sea
 	if m.failCreate != nil {
 		return m.failCreate
 	}
+	for _, other := range m.sites {
+		if other.WorkspaceID == s.WorkspaceID && other.CollectionID == s.CollectionID && strings.EqualFold(other.Name, s.Name) {
+			return site.ErrNameTaken
+		}
+	}
 	m.sites[s.ID] = s
 	for _, sealed := range secrets {
 		m.secrets[s.ID.String()+string(sealed.Kind)] = sealed
@@ -60,6 +65,11 @@ func (m *memStore) CreateSite(_ context.Context, s site.Site, secrets []site.Sea
 func (m *memStore) UpdateSite(_ context.Context, s site.Site, secrets []site.Sealed, remove []site.SecretKind) error {
 	if m.failUpdate != nil {
 		return m.failUpdate
+	}
+	for id, other := range m.sites {
+		if id != s.ID && other.WorkspaceID == s.WorkspaceID && other.CollectionID == s.CollectionID && strings.EqualFold(other.Name, s.Name) {
+			return site.ErrNameTaken
+		}
 	}
 	m.sites[s.ID] = s
 	for _, sealed := range secrets {
@@ -866,6 +876,48 @@ func TestService_MoveSite(t *testing.T) {
 	f.store.failUpdate = errStore
 	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, uuid.Nil); !errors.Is(err, errStore) {
 		t.Errorf("MoveSite() with a failing store = %v", err)
+	}
+	f.store.failUpdate = nil
+
+	twin := valid()
+	twin.CollectionID = collection.ID
+	inside, err := f.svc.Create(ctx, f.editor, f.ws, "open", twin, site.SecretChanges{})
+	if err != nil {
+		t.Fatalf("Create() of a site with the same name in another collection = %v", err)
+	}
+	third, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{})
+	if !errors.Is(err, site.ErrNameTaken) {
+		t.Fatalf("Create() of a site with the same name in the same collection = %+v, %v", third, err)
+	}
+	moved, err = f.svc.MoveSite(ctx, f.editor, f.ws, created.ID, collection.ID)
+	if err != nil || moved.Name != inside.Name+" (1)" || moved.CollectionID != collection.ID {
+		t.Errorf("MoveSite() next to a site with its name = %+v, %v; want it renamed with (1)", moved, err)
+	}
+	for n := 0; n < 101; n++ {
+		filler := valid()
+		filler.Name = site.NumberedName(inside.Name, n+2)
+		filler.CollectionID = collection.ID
+		if _, err := f.svc.Create(ctx, f.editor, f.ws, "open", filler, site.SecretChanges{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.MoveSite(ctx, f.editor, f.ws, other.ID, collection.ID); !errors.Is(err, site.ErrNameTaken) {
+		t.Errorf("MoveSite() with every numbered name taken = %v; want ErrNameTaken", err)
+	}
+}
+
+// TestNumberedName verifies the names sites get beside one with their name.
+func TestNumberedName(t *testing.T) {
+	if got := site.NumberedName("Prod", 1); got != "Prod (1)" {
+		t.Errorf("NumberedName(Prod, 1) = %q", got)
+	}
+	long := strings.Repeat("ñ", 100)
+	if got := site.NumberedName(long, 12); len([]rune(got)) != 100 || !strings.HasSuffix(got, " (12)") {
+		t.Errorf("NumberedName(100 runes, 12) = %d runes %q", len([]rune(got)), got)
 	}
 }
 

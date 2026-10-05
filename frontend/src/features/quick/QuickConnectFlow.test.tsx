@@ -409,7 +409,7 @@ describe('quick connect', () => {
 
     await user.type(within(dialog).getByLabelText('Name'), 'Prod')
     await user.click(within(dialog).getByRole('button', { name: 'Save site' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A site with this name already exists.')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A site with this name already exists in this collection.')
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

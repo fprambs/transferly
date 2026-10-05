@@ -54,7 +54,7 @@
     "invalid_protocol": "Este protocolo aún no está disponible.",
     "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
     "too_many_quick_connections": "Hay demasiadas conexiones rápidas abiertas. Cierra alguna primero.",
-    "site_name_taken": "Ya existe un sitio con este nombre.",
+    "site_name_taken": "Ya existe un sitio con este nombre en esta colección.",
     "vault_locked": "Desbloquea el vault para guardar sitios.",
     "network_error": "No se pudo contactar con el servidor.",
     "unknown": "Algo salió mal. Inténtalo de nuevo."

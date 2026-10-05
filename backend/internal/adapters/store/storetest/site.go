@@ -112,6 +112,20 @@ func RunSite(t *testing.T, newStore SiteFactory) {
 		if err := store.UpdateSite(ctx, staging, nil, nil); !errors.Is(err, site.ErrNameTaken) {
 			t.Fatalf("rename onto an existing name = %v; want ErrNameTaken", err)
 		}
+
+		folder := site.Collection{ID: uuid.New(), WorkspaceID: ws, Name: "Clients"}
+		if err := store.CreateCollection(ctx, folder); err != nil {
+			t.Fatal(err)
+		}
+		inside := newSite(ws, "production")
+		inside.CollectionID = folder.ID
+		if err := store.CreateSite(ctx, inside, nil); err != nil {
+			t.Fatalf("same name in another collection = %v", err)
+		}
+		staging.CollectionID = folder.ID
+		if err := store.UpdateSite(ctx, staging, nil, nil); !errors.Is(err, site.ErrNameTaken) {
+			t.Fatalf("move onto a name of the collection = %v; want ErrNameTaken", err)
+		}
 	})
 
 	t.Run("failed creation is atomic", func(t *testing.T) {

@@ -430,7 +430,7 @@
       "next": "Inicia sesión en su lugar."
     },
     "site_name_taken": {
-      "cause": "Otro sitio del espacio de trabajo ya tiene ese nombre, sin importar mayúsculas.",
+      "cause": "Otro sitio de la misma colección ya tiene ese nombre, sin importar mayúsculas. Sitios de otras colecciones sí pueden compartirlo.",
       "next": "Elige otro nombre."
     },
     "site_not_found": {

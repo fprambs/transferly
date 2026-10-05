@@ -78,7 +78,7 @@ func TestExport_Transferly(t *testing.T) {
 	mustDecode(t, a.do(request{method: http.MethodGet, path: sitesPath(ws), cookie: cookie}).Body, &before)
 	into := "&collectionId=" + before[0].CollectionId.String()
 	done := decode(a.transferlyImport(ws, "?secrets=true&onConflict=rename"+into, exportPassword, file, cookie, csrf))
-	if item := done.Items[0]; item.Status != "created" || item.Name != "Imported (2)" || !item.PasswordStored || item.Path != "Work" {
+	if item := done.Items[0]; item.Status != "created" || item.Name != "Imported" || !item.PasswordStored || item.Path != "Work" {
 		t.Errorf("import = %+v", done)
 	}
 	var sites []httpapi.Site

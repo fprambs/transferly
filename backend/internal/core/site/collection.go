@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -175,8 +176,12 @@ func (s *Service) DeleteCollection(ctx context.Context, actor, workspaceID, id u
 	return s.store.DeleteCollection(ctx, workspaceID, id)
 }
 
+// maxMoveRenames bounds the names "Name (n)" a move tries before it gives up with [ErrNameTaken].
+const maxMoveRenames = 100
+
 // MoveSite puts a saved site in a collection, or at the top level for the nil identifier, leaving every other setting as it is (4.14h).
-// Unlike an update, it does not check the host again, so a site whose server cannot be reached right now can still be moved.
+// Unlike an update, it does not check the host again, so a site whose server cannot be reached right now can still be moved. Names are
+// unique within a collection, so a site moved next to one with its name is renamed "Name (1)", "Name (2)" and so on.
 func (s *Service) MoveSite(ctx context.Context, actor, workspaceID, id, collectionID uuid.UUID) (Site, error) {
 	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
 		return Site{}, err
@@ -188,9 +193,26 @@ func (s *Service) MoveSite(ctx context.Context, actor, workspaceID, id, collecti
 	if err != nil {
 		return Site{}, err
 	}
+	name := current.Name
 	current.CollectionID, current.UpdatedAt = collectionID, s.clock.Now().UTC()
-	if err := s.store.UpdateSite(ctx, current, nil, nil); err != nil {
-		return Site{}, err
+	for n := 1; ; n++ {
+		err := s.store.UpdateSite(ctx, current, nil, nil)
+		if err == nil {
+			return current, nil
+		}
+		if !errors.Is(err, ErrNameTaken) || n > maxMoveRenames {
+			return Site{}, err
+		}
+		current.Name = NumberedName(name, n)
 	}
-	return current, nil
+}
+
+// NumberedName is the n-th name a site gets beside one with its name, "Name (n)", shortening the name so the result fits the
+// longest name a site may have.
+func NumberedName(name string, n int) string {
+	suffix := fmt.Sprintf(" (%d)", n)
+	if runes := []rune(name); len(runes)+len(suffix) > maxNameRunes {
+		name = string(runes[:maxNameRunes-len(suffix)])
+	}
+	return name + suffix
 }

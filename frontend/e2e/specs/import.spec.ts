@@ -11,6 +11,8 @@ import { expect, test } from '../fixtures.ts'
  * - a site manager file with a folder, an SFTP site with a saved password and a protocol that is not supported is previewed, then imported
  *   with its password: the folder and the site appear in the sites tree, the site keeps its password sealed in the vault, and the
  *   unsupported one is reported as skipped
+ * - a file whose folders hold sites with the same name, as FileZilla allows, imports every one of them in its folder, each with its
+ *   password
  * - the sites exported to an encrypted file (ADR-0017) download as a file that shows none of them, and it opens again with its password:
  *   its preview lists the sites of the workspace, skipped because their names are taken; a wrong password is refused
  */
@@ -64,6 +66,38 @@ test.describe('import and export sites', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
+  test('imports sites with the same name in different folders', async ({ shell, request }) => {
+    const { page } = shell
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    const pass = Buffer.from('transferly').toString('base64')
+    const site = (name: string) =>
+      `<Server><Host>sftp</Host><Port>22</Port><Protocol>1</Protocol><Logontype>1</Logontype><User>transferly</User><Pass encoding="base64">${pass}</Pass><Name>${name}</Name></Server>`
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<FileZilla3><Servers>
+  <Folder>Client ${stamp}<Folder>7a${site('External')}${site('Internal')}</Folder><Folder>Alcala${site('External')}${site('Internal')}</Folder></Folder>
+</Servers></FileZilla3>`
+    const dir = await mkdtemp(join(tmpdir(), 'transferly-import-'))
+    const file = join(dir, 'sitemanager.xml')
+    await writeFile(file, xml)
+
+    await page.goto('/')
+    await page.getByRole('button', { name: 'More site actions' }).click()
+    await page.getByRole('menuitem', { name: 'Import sites' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Import sites' })
+    await dialog.getByLabel('File to import').setInputFiles(file)
+    await dialog.getByRole('checkbox').check()
+    await dialog.getByRole('button', { name: 'Preview' }).click()
+    await expect(dialog.getByText('4 sites will be created, 0 skipped.')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Import', exact: true }).click()
+    await expect(dialog.getByText('4 sites created, 0 skipped, 0 failed.')).toBeVisible()
+
+    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; collectionId?: string; secrets: string[] }>
+    const internal = sites.filter((s) => s.name === 'Internal' && s.secrets.includes('password'))
+    expect(new Set(internal.map((s) => s.collectionId)).size).toBeGreaterThanOrEqual(2)
+    await rm(dir, { recursive: true, force: true })
+  })
+
   test('exports the sites to an encrypted file that opens again with its password', async ({ shell }) => {
     const { page } = shell
     const name = `Exported ${Date.now()}`
@@ -101,6 +135,6 @@ test.describe('import and export sites', () => {
     await expect(dialog.getByRole('alert')).toContainText('That password does not open the file, or the file was changed.')
     await dialog.getByLabel('File password').fill('a long export password')
     await dialog.getByRole('button', { name: 'Preview' }).click()
-    await expect(dialog.getByRole('listitem').filter({ hasText: name })).toContainText('Name already used')
+    await expect(dialog.getByRole('listitem').filter({ hasText: name })).toContainText('A site in the same folder has this name')
   })
 })

@@ -430,7 +430,7 @@
       "next": "Sign in instead."
     },
     "site_name_taken": {
-      "cause": "Another site of the workspace already has that name, whatever its case.",
+      "cause": "Another site of the same collection already has that name, whatever its case. Sites in other collections may share it.",
       "next": "Choose another name."
     },
     "site_not_found": {

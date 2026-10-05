@@ -54,7 +54,7 @@ const (
 var (
 	// ErrNotFound means the site does not exist in the workspace.
 	ErrNotFound = errors.New("site not found")
-	// ErrNameTaken means another site of the workspace has the same name.
+	// ErrNameTaken means another site of the same collection has the same name.
 	ErrNameTaken = errors.New("site name already in use")
 	// ErrLocked means secrets were involved and the vault is locked in this session.
 	ErrLocked = errors.New("vault is locked")
