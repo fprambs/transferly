@@ -139,7 +139,7 @@ DEK --AES-256-GCM(nonce, AAD=site_id|kind|dek_version)--> site_secrets
 - Quitar a un miembro rota la DEK del workspace y re-cifra sus secretos en segundo plano.
 - Los parámetros KDF se guardan por usuario y se suben de forma transparente al desbloquear.
 - Se genera un recovery kit en el setup; sin él, perder la maestra pierde los secretos.
-- Las DEK viven en un key ring en memoria con TTL y bloqueo por inactividad; nunca se persisten ni se registran en logs.
+- Las DEK viven en un key ring en memoria con TTL y bloqueo por inactividad de la sesión (cualquier petición lo renueva); en producción nunca se persisten ni se registran en logs. Solo en desarrollo (`TRANSFERLY_VAULT_REMEMBER_SESSIONS`) se guardan selladas con el token de la sesión para sobrevivir a los reinicios (ADR-0028).
 - La API nunca devuelve secretos, solo si existen.
 - Límite: el servidor necesita los secretos en claro para conectarse, así que no es zero-knowledge.
 
