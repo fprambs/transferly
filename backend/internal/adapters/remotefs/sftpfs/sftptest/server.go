@@ -45,6 +45,10 @@ type Options struct {
 	KeyExchanges []string
 	// Home is the folder sessions open in, as pwd tells it; empty means the root.
 	Home string
+	// Sudo, when set, answers commands that start with "sudo " as the sudo mode of sftpfs expects (ADR-0027).
+	Sudo *Sudo
+	// NoSessions refuses every session channel, as a server that only forwards ports does.
+	NoSessions bool
 	// Exec runs the commands of exec requests: it gets the command line and writes what the command outputs, and returns its
 	// exit status. Nil refuses exec requests, as servers restricted to SFTP do.
 	Exec func(command string, stdout, stderr io.Writer) int
@@ -191,7 +195,7 @@ func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 	}
 	go ssh.DiscardRequests(requests)
 	for newChannel := range channels {
-		if newChannel.ChannelType() != "session" {
+		if newChannel.ChannelType() != "session" || opt.NoSessions {
 			_ = newChannel.Reject(ssh.UnknownChannelType, "only sessions")
 			continue
 		}
@@ -208,6 +212,11 @@ func (s *Server) serve(conn net.Conn, config *ssh.ServerConfig, opt Options) {
 func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt Options) {
 	defer func() { _ = channel.Close() }()
 	for req := range requests {
+		if req.Type == "exec" && opt.Sudo != nil && len(req.Payload) >= 4 && strings.HasPrefix(string(req.Payload[4:]), "sudo ") {
+			_ = req.Reply(true, nil)
+			s.sudo(channel, opt)
+			return
+		}
 		if req.Type == "exec" && opt.Exec != nil && len(req.Payload) >= 4 {
 			_ = req.Reply(true, nil)
 			status := opt.Exec(string(req.Payload[4:]), channel, channel.Stderr())
@@ -223,6 +232,66 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 		server := sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h})
 		_ = server.Serve()
 		return
+	}
+}
+
+// Sudo is how a test server answers the sudo mode of sftpfs.
+type Sudo struct {
+	// Password, when set, is asked for with the prompt of sftpfs; a wrong one is asked for again.
+	Password string
+	// Exit, when set, is written to standard error before the command ends with status 1, as sudo does when the account may not.
+	Exit string
+	// Hang never answers.
+	Hang bool
+	// Garbage answers the start of the SFTP session with bytes that are not SFTP.
+	Garbage bool
+}
+
+// sudo plays sudo and the SFTP server it starts on a channel: it asks for the password when one is set, reading it from the
+// channel up to a line break, says the server is ready and serves SFTP from the root of the test server.
+func (s *Server) sudo(channel ssh.Channel, opt Options) {
+	stderr := channel.Stderr()
+	switch {
+	case opt.Sudo.Hang:
+		_, _ = io.Copy(io.Discard, channel)
+		return
+	case opt.Sudo.Exit != "":
+		_, _ = io.WriteString(stderr, opt.Sudo.Exit)
+		_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{1}))
+		return
+	}
+	for opt.Sudo.Password != "" {
+		_, _ = io.WriteString(stderr, "transferly-sudo-password:")
+		line, err := readLine(channel)
+		if err != nil {
+			return
+		}
+		if line == opt.Sudo.Password {
+			break
+		}
+		_, _ = io.WriteString(stderr, "Sorry, try again.\n")
+	}
+	_, _ = io.WriteString(stderr, "transferly-sudo-ready\n")
+	if opt.Sudo.Garbage {
+		_, _ = io.WriteString(channel, "\x00\x00\x00\x05garbage")
+		return
+	}
+	h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home}
+	_ = sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h}).Serve()
+}
+
+// readLine reads one byte at a time up to a line break, so nothing after it is taken from the channel.
+func readLine(r io.Reader) (string, error) {
+	var line []byte
+	b := make([]byte, 1)
+	for {
+		if _, err := r.Read(b); err != nil {
+			return "", err
+		}
+		if b[0] == '\n' {
+			return string(line), nil
+		}
+		line = append(line, b[0])
 	}
 }
 

@@ -196,3 +196,48 @@ func TestCommands_SFTPOnly(t *testing.T) {
 		t.Errorf("the connection broke after the probe: %v", err)
 	}
 }
+
+// sudoed connects to the OpenSSH server named by TRANSFERLY_TEST_SSH_ADDR in sudo mode, as user with password, asking sudo for root
+// with sudoPassword; it skips the test when the variable is not set.
+func sudoed(t *testing.T, user, password, sudoPassword string) (*sftpfs.FS, error) {
+	t.Helper()
+	address := os.Getenv("TRANSFERLY_TEST_SSH_ADDR")
+	if address == "" {
+		t.Skip("TRANSFERLY_TEST_SSH_ADDR is not set; start the ssh profile of the test stack to run this test")
+	}
+	fsys, err := sftpfs.Dial(t.Context(), sftpfs.Config{
+		Address: address, Username: user, Password: password, VerifyHostKey: trustAll,
+		Sudo: &sftpfs.Sudo{User: "root", Password: sudoPassword},
+	})
+	if err == nil {
+		t.Cleanup(func() { _ = fsys.Close() })
+	}
+	return fsys, err
+}
+
+// TestSudo_OpenSSH runs the sudo mode against OpenSSH with sudo (ADR-0027).
+//
+// Scenarios:
+//   - an account that sudo asks for its password reads a file only root may read, once the password is given
+//   - an account that may use sudo without a password needs none
+//   - a wrong password and a missing one are refused, as elevation refused, without sending anything else
+//   - a session in sudo mode offers no commands on the server
+func TestSudo_OpenSSH(t *testing.T) {
+	for _, account := range []struct{ user, password, sudo string }{{"transferly", "transferly", "transferly"}, {"deployer", "deployer", ""}} {
+		fsys, err := sudoed(t, account.user, account.password, account.sudo)
+		if err != nil {
+			t.Fatalf("Dial(%s) in sudo mode = %v", account.user, err)
+		}
+		if got := load(t, fsys, "/root/only-root.txt"); got != "Only root reads this.\n" {
+			t.Errorf("%s read /root/only-root.txt as %q", account.user, got)
+		}
+		if tools, err := fsys.Tools(t.Context()); err != nil || tools.Copy {
+			t.Errorf("Tools() in sudo mode = %+v, %v; want none", tools, err)
+		}
+	}
+	for name, sudo := range map[string]string{"wrong": "nope", "missing": ""} {
+		if _, err := sudoed(t, "transferly", "transferly", sudo); !errors.Is(err, remotefs.ErrElevationRefused) {
+			t.Errorf("Dial() with a %s sudo password = %v, want ErrElevationRefused", name, err)
+		}
+	}
+}

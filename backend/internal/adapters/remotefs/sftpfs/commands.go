@@ -162,10 +162,14 @@ func commandError(op, p string, err error) error {
 }
 
 // Tools implements [remotefs.Commands]: one probe per connection lists the programs the server has. A server that does not run
-// commands, or runs something else in their place as servers restricted to SFTP do, offers nothing.
+// commands, or runs something else in their place as servers restricted to SFTP do, offers nothing, and so does a session in sudo
+// mode, whose commands would not run as the user it acts as.
 func (f *FS) Tools(ctx context.Context) (remotefs.Tools, error) {
 	if err := f.guard(ctx); err != nil {
 		return remotefs.Tools{}, err
+	}
+	if f.elevated {
+		return remotefs.Tools{}, nil
 	}
 	f.cmds.once.Do(func() {
 		probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), probeTimeout)

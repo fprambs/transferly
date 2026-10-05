@@ -64,6 +64,8 @@ type Config struct {
 	Prompt func(prompts.Challenge) ([]string, error)
 	// Strict remembers the servers that proved strict across connections; nil remembers nothing.
 	Strict *StrictServers
+	// Sudo, when set, runs the SFTP server of the host through sudo as another user (ADR-0027) instead of the sftp subsystem.
+	Sudo *Sudo
 }
 
 // maxStrictServers bounds how many servers a [StrictServers] remembers; once full it forgets them all and learns again.
@@ -104,14 +106,15 @@ func (s *StrictServers) add(address string) {
 
 // FS is a connection to an SFTP server. It is safe for concurrent use.
 type FS struct {
-	ssh     *ssh.Client
-	client  *sftp.Client
-	address string
-	known   *StrictServers
-	strict  atomic.Bool
-	closed  atomic.Bool
-	once    sync.Once
-	cmds    commands
+	ssh      *ssh.Client
+	client   *sftp.Client
+	address  string
+	known    *StrictServers
+	strict   atomic.Bool
+	closed   atomic.Bool
+	once     sync.Once
+	cmds     commands
+	elevated bool
 }
 
 var (
@@ -242,14 +245,24 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 		return nil, err
 	}
 	strict := cfg.Strict.Has(cfg.Address)
-	client, err := sftp.NewClient(sshClient,
+	opts := []sftp.ClientOption{
 		sftp.UseConcurrentReads(!strict), sftp.UseConcurrentWrites(true),
-		sftp.MaxConcurrentRequestsPerFile(maxConcurrentRequests), sftp.MaxPacketChecked(maxPacket))
+		sftp.MaxConcurrentRequestsPerFile(maxConcurrentRequests), sftp.MaxPacketChecked(maxPacket),
+	}
+	var client *sftp.Client
+	if cfg.Sudo != nil {
+		client, err = sudoClient(ctx, sshClient, *cfg.Sudo, cfg.Timeout, opts...)
+	} else {
+		client, err = sftp.NewClient(sshClient, opts...)
+		if err != nil {
+			err = fmt.Errorf("starting the sftp subsystem: %w: %w", remotefs.ErrConnectionLost, err)
+		}
+	}
 	if err != nil {
 		_ = sshClient.Close()
-		return nil, fmt.Errorf("starting the sftp subsystem: %w: %w", remotefs.ErrConnectionLost, err)
+		return nil, err
 	}
-	f := &FS{ssh: sshClient, client: client, address: cfg.Address, known: cfg.Strict}
+	f := &FS{ssh: sshClient, client: client, address: cfg.Address, known: cfg.Strict, elevated: cfg.Sudo != nil}
 	f.strict.Store(strict)
 	return f, nil
 }

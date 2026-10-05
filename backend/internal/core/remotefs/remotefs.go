@@ -90,6 +90,9 @@ var (
 	ErrConnectionLost = errors.New("connection lost")
 	// ErrQuota means a storage quota was exceeded.
 	ErrQuota = errors.New("quota exceeded")
+	// ErrElevationRefused means the server would not let the session act as another user, as when sudo refuses the account or
+	// its password (ADR-0027).
+	ErrElevationRefused = errors.New("elevation refused")
 )
 
 // Retryable reports whether an operation that failed with err may succeed after reconnecting.
