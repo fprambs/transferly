@@ -199,6 +199,29 @@ func (c *Connector) Admit(_ context.Context, key connections.Key, session string
 	return nil
 }
 
+// MaxConnections implements [connections.Limiter]: the connections setting of the site, for servers that allow few
+// sessions or that sit behind a balancer whose servers each have their own key; 0, the default of the pool, when the site
+// has none or cannot be read.
+func (c *Connector) MaxConnections(ctx context.Context, key connections.Key) int {
+	if q, ok := c.quick.Lookup(key.UserID, key.WorkspaceID, key.SiteID); ok {
+		return settingCount(q.Site)
+	}
+	found, err := c.sites.Get(ctx, key.UserID, key.WorkspaceID, key.SiteID)
+	if err != nil {
+		return 0
+	}
+	return settingCount(found)
+}
+
+// settingCount reads the connections setting of a site, or 0 when it has none.
+func settingCount(s site.Site) int {
+	n, err := strconv.Atoi(s.Setting(connectors.FieldConnections))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 // askedKey is where the password a session typed for the site of key is held.
 func askedKey(key connections.Key, session string) credentials.Key {
 	return credentials.Key{Session: session, UserID: key.UserID, WorkspaceID: key.WorkspaceID, SiteID: key.SiteID}

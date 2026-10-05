@@ -58,6 +58,8 @@ const (
 	FieldPort     = "port"
 	FieldUsername = "username"
 	FieldAuth     = "auth"
+	// FieldConnections caps the connections a user keeps open to the site.
+	FieldConnections = "connections"
 )
 
 // The bounds of the settings SFTP and FTP share.
@@ -111,9 +113,14 @@ var SFTP = Descriptor{
 		{Name: "password", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthPassword)},
 		{Name: "private_key", Kind: PrivateKey, Group: GroupAccess, Passphrase: "passphrase", When: whenAuth(AuthKey)},
 		{Name: "passphrase", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthKey)},
-	}, append(proxyFields(), sudoFields()...)...), jumpFields()...),
+	}, append(append(proxyFields(), sudoFields()...), connectionsField)...), jumpFields()...),
 	EnabledByDefault: true,
 }
+
+// connectionsField caps the connections a user keeps open to an SFTP or FTP site, for servers that allow few sessions or that
+// sit behind a balancer whose servers each have their own key: with one, browsing, previews and transfers share a single
+// connection.
+var connectionsField = Field{Name: FieldConnections, Kind: Number, Group: GroupAdvanced, Required: true, Default: "4", Min: 1, Max: 4}
 
 // sudoFields are the settings of the sudo mode of SFTP sites (ADR-0027): once on, the session runs the SFTP server of the host
 // through sudo, as another user, root by default, with a password of its own or the one the account signs in with. The terminal
@@ -169,6 +176,7 @@ var FTP = Descriptor{
 		{Name: "account", Kind: Secret, Group: GroupAccess, When: whenAuth(AuthAccount)},
 		{Name: "list_timezone", Kind: TimeZone, Group: GroupAdvanced, Required: true, Default: "UTC"},
 		{Name: "charset", Kind: Choice, Group: GroupCharset, Required: true, Default: "utf-8", Choices: Charsets},
+		connectionsField,
 	}, proxyFields()...),
 	Normalize: func(config map[string]string) map[string]string {
 		if charset, ok := config["charset"]; ok {

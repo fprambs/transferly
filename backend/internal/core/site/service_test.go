@@ -335,7 +335,7 @@ func TestService_CreateValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create() = %v", err)
 	}
-	want := map[string]string{"host": "public.example", "encryption": "explicit", "port": "21", "username": "me", "auth": "password", "list_timezone": "UTC", "charset": "utf-8"}
+	want := map[string]string{"host": "public.example", "encryption": "explicit", "port": "21", "username": "me", "auth": "password", "list_timezone": "UTC", "charset": "utf-8", "connections": "4"}
 	if created.Name != "Prod" || created.Connector != "ftp" || !maps.Equal(created.Config, want) || created.Setting("port") != "21" ||
 		created.CreatedAt.Location() != time.UTC || created.ID == uuid.Nil {
 		t.Errorf("Create() = %+v", created)

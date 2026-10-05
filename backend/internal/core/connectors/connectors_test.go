@@ -181,7 +181,7 @@ func TestValidate(t *testing.T) {
 //   - a key logon is refused for FTP and an account logon for SFTP
 func TestBuiltin(t *testing.T) {
 	sftp, err := connectors.SFTP.Validate(map[string]string{"host": "h.example", "username": "deploy"})
-	if want := map[string]string{"host": "h.example", "port": "22", "username": "deploy", "auth": "password", "sudo": "false", "terminal": "false"}; err != nil || !maps.Equal(sftp, want) {
+	if want := map[string]string{"host": "h.example", "port": "22", "username": "deploy", "auth": "password", "connections": "4", "sudo": "false", "terminal": "false"}; err != nil || !maps.Equal(sftp, want) {
 		t.Errorf("SFTP defaults = %v, %v; want %v", sftp, err, want)
 	}
 	password, _ := connectors.SFTP.Field("password")
@@ -222,7 +222,7 @@ func TestBuiltin(t *testing.T) {
 	}
 
 	ftp, err := connectors.FTP.Validate(map[string]string{"host": "h", "username": "u", "charset": "ISO-8859-1"})
-	want := map[string]string{"host": "h", "encryption": "explicit", "port": "21", "username": "u", "auth": "password", "list_timezone": "UTC", "charset": "iso-8859-1"}
+	want := map[string]string{"host": "h", "encryption": "explicit", "port": "21", "username": "u", "auth": "password", "list_timezone": "UTC", "charset": "iso-8859-1", "connections": "4"}
 	if err != nil || !maps.Equal(ftp, want) {
 		t.Errorf("FTP defaults = %v, %v; want %v", ftp, err, want)
 	}

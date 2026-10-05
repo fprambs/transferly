@@ -28,6 +28,7 @@ type spec struct {
 	Name, Protocol, FTPEncryption, Host string
 	Port                                int
 	Username, AuthMethod                string
+	Connections                         int
 	Proxy                               proxySpec
 	Jump                                jumpSpec
 }
@@ -50,6 +51,9 @@ func (s spec) input() site.Input {
 	config := map[string]string{"host": s.Host, "username": s.Username, "auth": s.AuthMethod, "encryption": encryption}
 	if s.Port != 0 {
 		config["port"] = strconv.Itoa(s.Port)
+	}
+	if s.Connections != 0 {
+		config["connections"] = strconv.Itoa(s.Connections)
 	}
 	if s.Proxy.Kind != "" {
 		config["proxy_kind"], config["proxy_host"], config["proxy_username"] = s.Proxy.Kind, s.Proxy.Host, s.Proxy.Username

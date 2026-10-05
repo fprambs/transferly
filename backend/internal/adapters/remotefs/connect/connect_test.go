@@ -446,3 +446,31 @@ func TestConnector_QuickConnections(t *testing.T) {
 		t.Errorf("Connect() to an ended quick connection = %v; want site.ErrNotFound", err)
 	}
 }
+
+// TestConnector_MaxConnections verifies the cap of connections the connector gives the pool for each site.
+//
+// Scenarios:
+//   - a saved site gives its connections setting, 4 when left at its default, and a quick connection gives its own
+//   - a site that cannot be read gives 0, the default of the pool
+func TestConnector_MaxConnections(t *testing.T) {
+	e := newEnv(t)
+	c := e.connector(e.allow)
+	one := e.addSiteAt("127.0.0.1:22", spec{Name: "Balanced", Connections: 1}, changes{})
+	plain := e.addSiteAt("127.0.0.1:22", spec{Name: "Plain"}, changes{})
+	if got := c.MaxConnections(t.Context(), e.key(one)); got != 1 {
+		t.Errorf("MaxConnections(capped) = %d; want 1", got)
+	}
+	if got := c.MaxConnections(t.Context(), e.key(plain)); got != 4 {
+		t.Errorf("MaxConnections(default) = %d; want 4", got)
+	}
+	quick, err := e.quick.Create(t.Context(), e.user, e.workspace, spec{Host: "127.0.0.1", Port: 22, Username: sshUser, Connections: 2}.input(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.MaxConnections(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: quick.Site.ID}); got != 2 {
+		t.Errorf("MaxConnections(quick) = %d; want 2", got)
+	}
+	if got := c.MaxConnections(t.Context(), connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: uuid.New()}); got != 0 {
+		t.Errorf("MaxConnections(missing) = %d; want 0", got)
+	}
+}

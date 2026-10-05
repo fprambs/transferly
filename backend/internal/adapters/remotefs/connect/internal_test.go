@@ -102,3 +102,11 @@ func TestAzureHost(t *testing.T) {
 		t.Errorf("azureHost(emulator) = %s:%d", host, port)
 	}
 }
+
+// TestSettingCount verifies that a site without a connections setting, such as one saved before it existed, gives 0, the
+// default of the pool.
+func TestSettingCount(t *testing.T) {
+	if got := settingCount(site.Site{Connector: "sftp"}); got != 0 {
+		t.Errorf("settingCount(no setting) = %d; want 0", got)
+	}
+}

@@ -138,6 +138,15 @@
         "required": true
       },
       {
+        "default": "4",
+        "group": "advanced",
+        "kind": "number",
+        "max": 4,
+        "min": 1,
+        "name": "connections",
+        "required": true
+      },
+      {
         "choices": [
           "socks5",
           "http"
@@ -418,6 +427,15 @@
         "group": "advanced",
         "kind": "boolean",
         "name": "terminal",
+        "required": true
+      },
+      {
+        "default": "4",
+        "group": "advanced",
+        "kind": "number",
+        "max": 4,
+        "min": 1,
+        "name": "connections",
         "required": true
       },
       {
