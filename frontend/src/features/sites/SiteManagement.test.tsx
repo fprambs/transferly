@@ -599,7 +599,7 @@ describe('site management', () => {
     expect(sent?.site.config.host).toBe('moved.example.com')
   })
 
-  it('tests a new site before it is saved, once the form passes its checks', async () => {
+  it('tests a new site before it is saved, once the form passes its checks, and cannot ask for the password of a site not saved yet', async () => {
     let sent: { siteId?: string; site: { name: string } } | undefined
     server.use(
       http.post('/api/v1/workspaces/:id/sites/test', async ({ request }) => {
@@ -622,6 +622,22 @@ describe('site management', () => {
     expect(await within(dialog).findByRole('status')).toHaveTextContent('Connected. The server answered with 1 entries in /.')
     expect(sent?.siteId).toBeUndefined()
     expect(sent?.site.name).toBe('Draft')
+
+    let answer: (() => void) | undefined
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites/test', async () => {
+        await new Promise<void>((resolve) => {
+          answer = resolve
+        })
+        return problem(409, 'credentials_required')
+      }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    expect(await within(dialog).findByRole('button', { name: 'Testing…' })).toBeDisabled()
+    await waitFor(() => expect(answer).toBeDefined())
+    answer?.()
+    expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /password/i })).not.toBeInTheDocument()
   })
 
   it('tests the connection and reports a failure', async () => {
