@@ -1943,6 +1943,11 @@ export interface components {
             /** @description Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise. */
             color?: string;
             secrets?: components["schemas"]["SiteSecretChanges"];
+            /**
+             * Format: uuid
+             * @description Only when creating, to duplicate a site: the stored secrets of this site of the workspace that secrets leaves out, and whose field applies, are copied to the new site. Needs the vault unlocked; an unknown site is site_not_found.
+             */
+            secretsFrom?: string;
         };
         SiteDraftTest: {
             /**

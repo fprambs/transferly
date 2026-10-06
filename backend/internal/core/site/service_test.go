@@ -1217,3 +1217,55 @@ func TestService_Draft(t *testing.T) {
 		t.Errorf("Draft() to a disabled connector = %v; want ErrDisabled", err)
 	}
 }
+
+// TestService_CreateCopy verifies duplicating a site with its stored secrets.
+//
+// Use cases:
+//   - the copy takes the stored secrets the changes leave out, sealed for it, and the ones typed instead; the original keeps its own
+//   - stored secrets whose field does not apply to the copy are left out
+//   - viewers, an unknown original and a locked vault are refused, and nothing is saved
+func TestService_CreateCopy(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	proxied := with(valid(), "Original", "proxy_kind", "socks5", "proxy_host", "public.example", "proxy_port", "1080")
+	original, err := f.svc.Create(ctx, f.editor, f.ws, "open", proxied, site.SecretChanges{site.SecretPassword: "stored", site.SecretProxyPassword: "proxy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	copied, err := f.svc.CreateCopy(ctx, f.editor, f.ws, "open", original.ID, with(proxied, "Copy", "username", "other"), site.SecretChanges{site.SecretPassword: "typed"})
+	if err != nil || copied.ID == original.ID || copied.Setting("username") != "other" {
+		t.Fatalf("CreateCopy() = %+v, %v", copied, err)
+	}
+	for kind, want := range map[site.SecretKind]string{site.SecretPassword: "typed", site.SecretProxyPassword: "proxy"} {
+		if got, err := f.svc.OpenSecret(ctx, f.editor, f.ws, copied.ID, "open", kind); err != nil || string(got) != want {
+			t.Errorf("copy %s = %q, %v; want %q", kind, got, err, want)
+		}
+	}
+	if got, _ := f.svc.OpenSecret(ctx, f.editor, f.ws, original.ID, "open", site.SecretPassword); string(got) != "stored" {
+		t.Errorf("original password = %q; want it kept", got)
+	}
+
+	plain, err := f.svc.CreateCopy(ctx, f.editor, f.ws, "open", original.ID, with(valid(), "Plain"), site.SecretChanges{})
+	if err != nil || slices.Contains(plain.Secrets, site.SecretProxyPassword) || !slices.Contains(plain.Secrets, site.SecretPassword) {
+		t.Errorf("copy without a proxy = %+v, %v; want the password only", plain, err)
+	}
+
+	before := len(f.store.sites)
+	for name, c := range map[string]struct {
+		actor   uuid.UUID
+		from    uuid.UUID
+		session string
+		want    error
+	}{
+		"viewer":  {f.viewer, original.ID, "open", workspace.ErrForbidden},
+		"missing": {f.editor, uuid.New(), "open", site.ErrNotFound},
+		"locked":  {f.editor, original.ID, "closed", site.ErrLocked},
+	} {
+		if _, err := f.svc.CreateCopy(ctx, c.actor, f.ws, c.session, c.from, with(valid(), "Copy "+name), site.SecretChanges{}); !errors.Is(err, c.want) {
+			t.Errorf("%s: CreateCopy() = %v; want %v", name, err, c.want)
+		}
+	}
+	if len(f.store.sites) != before {
+		t.Error("a refused copy was saved")
+	}
+}

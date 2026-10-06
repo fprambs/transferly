@@ -102,3 +102,23 @@ func TestSiteDraft_RateLimited(t *testing.T) {
 	}
 	expectProblem(t, last, http.StatusTooManyRequests, "rate_limited")
 }
+
+// TestCreateSite_Copy verifies duplicating a site over HTTP.
+//
+// Scenarios:
+//   - a site created with secretsFrom takes the stored password of that site, sealed for it, so the copy has a password of its own
+//   - an unknown site to copy from is site_not_found
+func TestCreateSite_Copy(t *testing.T) {
+	e := newTeamEnv(t)
+	owner, csrf := e.cookie["owner"], e.csrf["owner"]
+	sites := "/api/v1/workspaces/" + e.ws.String() + "/sites"
+	original := e.a.send(http.MethodPost, sites, map[string]any{"name": "Original", "connector": "sftp", "config": map[string]any{"host": "8.8.8.8", "username": "a"}, "secrets": map[string]string{"password": "stored"}}, owner, csrf)
+	if original.Status != http.StatusCreated {
+		t.Fatalf("create = %d %s", original.Status, original.Body)
+	}
+	copied := e.a.send(http.MethodPost, sites, map[string]any{"name": "Original (copy)", "connector": "sftp", "config": map[string]any{"host": "8.8.8.8", "username": "b"}, "secretsFrom": original.site(t).Id}, owner, csrf)
+	if copied.Status != http.StatusCreated || len(copied.site(t).Secrets) != 1 || copied.site(t).Id == original.site(t).Id {
+		t.Fatalf("copy = %d %s", copied.Status, copied.Body)
+	}
+	expectProblem(t, e.a.send(http.MethodPost, sites, map[string]any{"name": "Orphan", "connector": "sftp", "config": map[string]any{"host": "8.8.8.8", "username": "c"}, "secretsFrom": uuid.New()}, owner, csrf), http.StatusNotFound, "site_not_found")
+}

@@ -84,7 +84,13 @@ func (s *server) ListSites(ctx context.Context, request ListSitesRequestObject) 
 func (s *server) CreateSite(ctx context.Context, request CreateSiteRequestObject) (CreateSiteResponseObject, error) {
 	p, _ := principalFrom(ctx)
 	settings, secrets := siteInput(*request.Body)
-	created, err := s.deps.Sites.Create(ctx, p.User.ID, request.WorkspaceId, vaultKey(p), settings, secrets)
+	var created site.Site
+	var err error
+	if from := request.Body.SecretsFrom; from != nil {
+		created, err = s.deps.Sites.CreateCopy(ctx, p.User.ID, request.WorkspaceId, vaultKey(p), *from, settings, secrets)
+	} else {
+		created, err = s.deps.Sites.Create(ctx, p.User.ID, request.WorkspaceId, vaultKey(p), settings, secrets)
+	}
 	if problem, ok := asProblem(err); ok {
 		return problem, nil
 	}

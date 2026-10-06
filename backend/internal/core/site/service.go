@@ -346,6 +346,35 @@ func (s *Service) Create(ctx context.Context, actor, workspaceID uuid.UUID, sess
 	return created, nil
 }
 
+// CreateCopy saves a new site that takes the stored secrets of the site from, of the same workspace, that the changes leave out and
+// whose field applies to the new settings, so a site can be duplicated without typing its credentials again. The secrets are opened
+// and sealed again for the new site, which needs the vault unlocked; otherwise it is [Service.Create].
+func (s *Service) CreateCopy(ctx context.Context, actor, workspaceID uuid.UUID, session string, from uuid.UUID, in Input, changes SecretChanges) (Site, error) {
+	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
+		return Site{}, err
+	}
+	source, err := s.store.Site(ctx, workspaceID, from)
+	if err != nil {
+		return Site{}, err
+	}
+	copied := SecretChanges{}
+	for kind, value := range changes {
+		copied[kind] = value
+	}
+	for _, kind := range source.Secrets {
+		if _, given := copied[kind]; given {
+			continue
+		}
+		value, err := s.OpenSecret(ctx, actor, workspaceID, from, session, kind)
+		if err != nil {
+			return Site{}, err
+		}
+		copied[kind] = string(value)
+		clear(value)
+	}
+	return s.Create(ctx, actor, workspaceID, session, in, copied)
+}
+
 // normalizeRemoteDir checks the default remote folder of a site and cleans it: empty and the root both mean the root and are
 // stored empty, anything else must be an absolute path without control characters.
 func normalizeRemoteDir(dir string) (string, error) {
