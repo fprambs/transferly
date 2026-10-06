@@ -24,6 +24,7 @@ const bigFile = 64 << 20
 // Scenarios:
 //   - canceling a download cuts it, closing it reports the cancellation, and the connection is then unusable
 //   - canceling an upload cuts it in the same way
+//   - closing the file system during a download cuts it, and the next read reports a lost connection
 func TestFS_Cancellation(t *testing.T) {
 	server := ftptest.Start(t, ftptest.Options{})
 	if err := afero.WriteFile(server.FS, "/big", bytes.Repeat([]byte("x"), bigFile), 0o644); err != nil {
@@ -71,6 +72,24 @@ func TestFS_Cancellation(t *testing.T) {
 	}
 	if _, err := uploader.List(t.Context(), "/"); !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("List after a cut upload = %v; want ErrConnectionLost", err)
+	}
+
+	closing, err := connect(t, server, ftptest.Plain, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cut, err := closing.OpenRead(t.Context(), "/big", 0)
+	if err != nil {
+		t.Fatalf("OpenRead() = %v", err)
+	}
+	if _, err := io.ReadFull(cut, make([]byte, 1024)); err != nil {
+		t.Fatalf("first read = %v", err)
+	}
+	if err := closing.Close(); err != nil {
+		t.Fatalf("Close() during a download = %v", err)
+	}
+	if _, err := io.Copy(io.Discard, cut); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Errorf("reading after the file system closed = %v; want ErrConnectionLost", err)
 	}
 }
 
