@@ -22,7 +22,8 @@ function unique(prefix: string): string {
  * - the menu opens below its button, or above it when there is no room, and the dialogs it opens are centered in the window
  * - rows show a pointer, a visible hover shade and a selected state, and menu items highlight under the pointer
  * - a site is created inside a collection with a speed limit, a proxy and a jump host, all of which are kept, and edited from its menu
- * - a site is dragged into a collection and back to the top level of the tree, and the server keeps each move (4.14h)
+ * - a site is dragged into a collection and back to the top level of the tree, and the server keeps each move (4.14h); the tree draws only
+ *   the rows in view and the other tests leave many sites behind, so this runs in a tall window that draws them all
  * - a site is duplicated from a right click on its row, without typing its password, and the copy connects with the copied password
  * - a saved FTP site that cannot connect is edited into an SFTP site of another server, and testing it tries the form as it is, with the
  *   stored password, without saving anything
@@ -160,8 +161,6 @@ test.describe('sites sidebar', () => {
   })
 
   test.describe('with every row of the tree drawn', () => {
-    // The tree draws only the rows in view, and the other tests leave many sites and collections behind; a tall window keeps the site
-    // and the collection it is dragged onto drawn at once.
     test.use({ viewport: { width: 1280, height: 4000 } })
 
     test('moves a site between collections by dragging it', async ({ shell, request }) => {
