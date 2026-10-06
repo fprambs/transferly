@@ -32,7 +32,7 @@ import { connectorChoices, siteDefaults, siteResolver, tabLabelOf, tabOfField, t
 import { sitesKeys } from './use-sites-data'
 
 /** What the site dialog does. */
-export type SiteTarget = { mode: 'create'; collectionId?: string } | { mode: 'edit'; site: Site }
+export type SiteTarget = { mode: 'create'; collectionId?: string } | { mode: 'edit'; site: Site } | { mode: 'duplicate'; site: Site }
 
 /** Props of {@link SiteDialog}. */
 export interface SiteDialogProps {
@@ -89,8 +89,10 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
   const queryClient = useQueryClient()
   const [failure, setFailure] = useState<SiteErrorKey | null>(null)
   const editing = target.mode === 'edit' ? target.site : undefined
-  const choices = connectorChoices(connectors, editing?.connector)
-  const resolver = useMemo(() => siteResolver(connectors, editing?.secrets), [connectors, editing])
+  const source = target.mode === 'duplicate' ? target.site : undefined
+  const saved = editing ?? source
+  const choices = connectorChoices(connectors, saved?.connector)
+  const resolver = useMemo(() => siteResolver(connectors, saved?.secrets), [connectors, saved])
   const {
     register,
     handleSubmit,
@@ -101,7 +103,10 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
     formState: { errors, isSubmitting },
   } = useForm<SiteValues>({
     resolver,
-    defaultValues: siteDefaults(editing, target.mode === 'create' ? target.collectionId : undefined, chosen?.type ?? startingConnector(choices)),
+    defaultValues: {
+      ...siteDefaults(saved, target.mode === 'create' ? target.collectionId : undefined, chosen?.type ?? startingConnector(choices)),
+      ...(source === undefined ? {} : { name: t(($) => $.site.copyName, { name: source.name }) }),
+    },
   })
   const type = useWatch({ control, name: 'connector' })
   const connector = connectors.find((candidate) => candidate.type === type)
@@ -129,7 +134,7 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
     const chosen = connectors.find((candidate) => candidate.type === values.connector) as Connector
     try {
       const input = toSiteInput(values, chosen)
-      await (editing === undefined ? api.sites.create(workspaceId, input) : api.sites.update(workspaceId, editing.id, input))
+      await (editing === undefined ? api.sites.create(workspaceId, { ...input, secretsFrom: source?.id }) : api.sites.update(workspaceId, editing.id, input))
       await queryClient.invalidateQueries({ queryKey: sitesKeys.sites(workspaceId) })
       onClose()
     } catch (error) {
@@ -171,13 +176,13 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
   const siteError = (message: string | undefined) => (message === undefined ? undefined : t(($) => $.errors[message as 'nameRequired' | 'speedLimitInvalid' | 'remoteDirInvalid']))
   const schema = (groups: readonly FieldGroup[]) =>
     connector !== undefined && (
-      <SchemaFields connector={connector} groups={groups} control={control} register={register} errors={errors} saved={editing?.secrets} idPrefix="site" />
+      <SchemaFields connector={connector} groups={groups} control={control} register={register} errors={errors} saved={saved?.secrets} idPrefix="site" />
     )
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <DialogHeader>
-        <DialogTitle>{editing === undefined ? t(($) => $.site.createTitle) : t(($) => $.site.editTitle)}</DialogTitle>
+        <DialogTitle>{editing !== undefined ? t(($) => $.site.editTitle) : source !== undefined ? t(($) => $.site.duplicateTitle) : t(($) => $.site.createTitle)}</DialogTitle>
       </DialogHeader>
       {chosen !== undefined && (
         <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-3 py-2.5">
@@ -229,7 +234,7 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
                 render={({ field }) => <ColorPicker id="site-color" label={t(($) => $.site.color)} value={field.value} onChange={field.onChange} />}
               />
             </Row>
-            {editing !== undefined && (
+            {saved !== undefined && (
               <Row id="site-connector" label={texts.connectorLabel}>
                 <FormSelect id="site-connector" control={control} name="connector" options={choices.map((choice) => ({ value: choice.type, label: texts.connector(choice) }))} />
               </Row>
@@ -265,9 +270,9 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
       </Tabs>
       <ConnectionTest
         workspaceId={workspaceId}
-        siteId={editing?.id}
+        siteId={saved?.id}
         draft={draft}
-        labels={{ id: editing?.id ?? '', name: shownName, host: shownConfig.host ?? '', username: shownConfig.username ?? '' }}
+        labels={{ id: saved?.id ?? '', name: shownName, host: shownConfig.host ?? '', username: shownConfig.username ?? '' }}
       />
       <VaultDialog
         mode={unlocking === null ? null : vault?.initialized === false ? 'setup' : 'unlock'}
@@ -317,7 +322,7 @@ function SiteFlow({ target, connectors, ...form }: SiteFlowProps) {
   const { t } = useTranslation('sites')
   const offered = connectorChoices(connectors)
   const [chosen, setChosen] = useState<Connector | undefined>(offered.length === 1 ? offered[0] : undefined)
-  if (target.mode === 'edit') {
+  if (target.mode !== 'create') {
     return <SiteForm target={target} connectors={connectors} {...form} />
   }
   if (chosen === undefined) {

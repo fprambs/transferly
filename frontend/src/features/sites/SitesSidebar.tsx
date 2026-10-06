@@ -1,6 +1,6 @@
-import { ChevronRight, Ellipsis, FileInput, FileLock2, Folder, FolderPlus, PanelLeftClose, Plus, Zap } from 'lucide-react'
+import { ChevronRight, Copy, Ellipsis, FileInput, FileLock2, Folder, FolderPlus, PanelLeftClose, Pencil, Plus, SquareArrowOutUpRight, Trash2, Unplug, Zap, type LucideIcon } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react'
+import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactElement, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BrandIcon } from '@/components/brand/BrandIcon'
@@ -8,7 +8,8 @@ import { Illustration } from '@/components/brand/Illustration'
 import { SiteIcon } from '@/components/brand/SiteIcon'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Collection, Site, Workspace } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { formatShortcut } from '@/lib/shortcuts'
@@ -60,6 +61,8 @@ interface CollectionActions {
   onCreateSiteIn: (collectionId: string) => void
   /** Called to edit a saved site. */
   onEditSite: (id: string) => void
+  /** Opens a new site filled with the settings of the site, whose stored secrets it copies when saved. */
+  onDuplicateSite: (id: string) => void
   /** Called to delete a saved site. */
   onDeleteSite: (id: string) => void
   /** Sites and quick connections with connections open, marked in green (4.11). */
@@ -159,47 +162,45 @@ function Row({ node, actions }: RowProps) {
     'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md pe-2 text-start text-[13px] outline-none hover:bg-accent hover:[&_span]:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-primary/15 aria-selected:font-medium aria-selected:[&_span]:text-foreground'
 
   if (node.kind === 'collection') {
+    const menu: RowAction[] = [
+      { label: sites(($) => $.site.newHere), icon: Plus, run: () => actions.onCreateSiteIn(node.id) },
+      { label: sites(($) => $.collection.newSub), icon: FolderPlus, run: () => actions.onCreateIn(node.id) },
+      { label: sites(($) => $.collection.edit), icon: Pencil, run: () => actions.onEdit(node.id) },
+      { label: sites(($) => $.collection.delete), icon: Trash2, run: () => actions.onDelete(node.id), destructive: true },
+    ]
     return (
-      <div
-        role="treeitem"
-        aria-expanded={node.expanded}
-        aria-level={node.depth + 1}
-        aria-selected={selected}
-        tabIndex={0}
-        data-drop-target={node.id}
-        draggable={actions.draggable}
-        onDragStart={(event) => actions.onDragRow({ kind: 'collection', id: node.id }, event.dataTransfer)}
-        onDragEnd={actions.onDragEnd}
-        onClick={(event) => {
-          if (inRow(event)) {
-            select()
-            actions.onToggle(node.id)
-          }
-        }}
-        onKeyDown={(event) => onCollectionKey(event, node, actions.onToggle)}
-        className={cn(base, 'group cursor-pointer font-medium', actions.dropTarget === node.id && 'bg-primary/10 ring-2 ring-primary/60')}
-        style={style}
+      <RowWithMenu
+        label={sites(($) => $.collection.actions, { name: node.name })}
+        menu={menu}
+        width="min-w-44"
+        row={
+          <div
+            role="treeitem"
+            aria-expanded={node.expanded}
+            aria-level={node.depth + 1}
+            aria-selected={selected}
+            tabIndex={0}
+            data-drop-target={node.id}
+            draggable={actions.draggable}
+            onDragStart={(event) => actions.onDragRow({ kind: 'collection', id: node.id }, event.dataTransfer)}
+            onDragEnd={actions.onDragEnd}
+            onClick={(event) => {
+              if (inRow(event)) {
+                select()
+                actions.onToggle(node.id)
+              }
+            }}
+            onKeyDown={(event) => onCollectionKey(event, node, actions.onToggle)}
+            className={cn(base, 'group cursor-pointer font-medium', actions.dropTarget === node.id && 'bg-primary/10 ring-2 ring-primary/60')}
+            style={style}
+          />
+        }
       >
         <ChevronRight className={cn('size-3 shrink-0 text-faint transition-transform rtl:-scale-x-100', node.expanded && 'rotate-90 rtl:rotate-90')} />
         <Folder className="size-[15px] shrink-0 text-accent-text" />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
         <span className="font-mono text-[11px] text-muted-foreground">{node.siteCount}</span>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={sites(($) => $.collection.actions, { name: node.name })}
-            onClick={(event) => event.stopPropagation()}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background data-popup-open:bg-background data-popup-open:opacity-100"
-          >
-            <Ellipsis className="size-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-44">
-            <DropdownMenuItem onClick={() => actions.onCreateSiteIn(node.id)}>{sites(($) => $.site.newHere)}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.onCreateIn(node.id)}>{sites(($) => $.collection.newSub)}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.onEdit(node.id)}>{sites(($) => $.collection.edit)}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.onDelete(node.id)}>{sites(($) => $.collection.delete)}</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      </RowWithMenu>
     )
   }
   if (node.kind === 'quick') {
@@ -224,46 +225,123 @@ function Row({ node, actions }: RowProps) {
       </div>
     )
   }
+  const menu: RowAction[] = [
+    { label: sites(($) => $.site.openInNewTab), icon: SquareArrowOutUpRight, run: () => actions.onOpen(node.id, true) },
+    ...(actions.connected.has(node.id) ? [{ label: sites(($) => $.site.disconnect), icon: Unplug, run: () => actions.onDisconnect(node.id) }] : []),
+    { label: sites(($) => $.site.edit), icon: Pencil, run: () => actions.onEditSite(node.id) },
+    { label: sites(($) => $.site.duplicate), icon: Copy, run: () => actions.onDuplicateSite(node.id) },
+    { label: sites(($) => $.site.delete), icon: Trash2, run: () => actions.onDeleteSite(node.id), destructive: true },
+  ]
   return (
-    <div
-      role="treeitem"
-      aria-level={node.depth + 1}
-      aria-selected={selected}
-      tabIndex={0}
-      data-drop-target={node.collectionId ?? ''}
-      draggable={actions.draggable}
-      onDragStart={(event) => actions.onDragRow({ kind: 'site', id: node.id }, event.dataTransfer)}
-      onDragEnd={actions.onDragEnd}
-      onClick={click}
-      onDoubleClick={doubleClick}
-      onAuxClick={middle}
-      onKeyDown={(event) => onSiteKey(event, select, open)}
-      className={cn(base, 'group')}
-      style={style}
+    <RowWithMenu
+      label={sites(($) => $.site.actions, { name: node.name })}
+      menu={menu}
+      width="min-w-40"
+      row={
+        <div
+          role="treeitem"
+          aria-level={node.depth + 1}
+          aria-selected={selected}
+          tabIndex={0}
+          data-drop-target={node.collectionId ?? ''}
+          draggable={actions.draggable}
+          onDragStart={(event) => actions.onDragRow({ kind: 'site', id: node.id }, event.dataTransfer)}
+          onDragEnd={actions.onDragEnd}
+          onClick={click}
+          onDoubleClick={doubleClick}
+          onAuxClick={middle}
+          onKeyDown={(event) => onSiteKey(event, select, open)}
+          className={cn(base, 'group')}
+          style={style}
+        />
+      }
     >
-      <span className="flex w-3 shrink-0 justify-center">
-        <span data-color={node.color} className={cn('h-4 w-[3px] rounded-full', colorFill(node.color))} />
-      </span>
-      {actions.connected.has(node.id) ? <ConnectedDot /> : <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />}
-      <SiteIcon icon={actions.iconOf(node.connector)} transport={node.transport} className="size-[15px]" />
-      <span className="min-w-0 flex-1 truncate">{node.name}</span>
-      <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-label={sites(($) => $.site.actions, { name: node.name })}
-          onClick={(event) => event.stopPropagation()}
-          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background data-popup-open:bg-background data-popup-open:opacity-100"
-        >
-          <Ellipsis className="size-3.5" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-40">
-          <DropdownMenuItem onClick={() => actions.onOpen(node.id, true)}>{sites(($) => $.site.openInNewTab)}</DropdownMenuItem>
-          {actions.connected.has(node.id) && <DropdownMenuItem onClick={() => actions.onDisconnect(node.id)}>{sites(($) => $.site.disconnect)}</DropdownMenuItem>}
-          <DropdownMenuItem onClick={() => actions.onEditSite(node.id)}>{sites(($) => $.site.edit)}</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => actions.onDeleteSite(node.id)}>{sites(($) => $.site.delete)}</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <span className="flex w-3 shrink-0 justify-center">
+      <span data-color={node.color} className={cn('h-4 w-[3px] rounded-full', colorFill(node.color))} />
+    </span>
+    {actions.connected.has(node.id) ? <ConnectedDot /> : <span className="mx-[3px] size-2 shrink-0 rounded-full bg-muted-foreground/50" />}
+    <SiteIcon icon={actions.iconOf(node.connector)} transport={node.transport} className="size-[15px]" />
+    <span className="min-w-0 flex-1 truncate">{node.name}</span>
+    <span className="max-w-24 truncate font-mono text-[11px] text-muted-foreground">{node.host}</span>
+    </RowWithMenu>
+  )
+}
+
+/** One action of the menu of a row of the tree. */
+interface RowAction {
+  /** What the action is called. */
+  label: string
+  /** The icon drawn before its name. */
+  icon: LucideIcon
+  /** Runs the action. */
+  run: () => void
+  /** Whether the action destroys something, which draws it in red, apart from the others. */
+  destructive?: boolean
+}
+
+/** Props of {@link RowWithMenu}. */
+interface RowWithMenuProps {
+  /** The row, without its content, which the right click is caught on. */
+  row: ReactElement
+  /** The accessible name of the menu button. */
+  label: string
+  /** The actions of the row. */
+  menu: readonly RowAction[]
+  /** The smallest width of the menus. */
+  width: string
+  /** The content of the row. */
+  children: ReactNode
+}
+
+/** A row of the tree with its actions in the menu button at its end and, the same, in a menu that opens with a right click anywhere on the row. */
+function RowWithMenu({ row, label, menu, width, children }: RowWithMenuProps) {
+  const safe = menu.filter((action) => action.destructive !== true)
+  const destructive = menu.filter((action) => action.destructive === true)
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger render={row}>
+        {children}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={label}
+            onClick={(event) => event.stopPropagation()}
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-background data-popup-open:bg-background data-popup-open:opacity-100"
+          >
+            <Ellipsis className="size-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className={width}>
+            {safe.map(({ label: name, icon: Icon, run }) => (
+              <DropdownMenuItem key={name} onClick={run} className="gap-2.5">
+                <Icon aria-hidden="true" className="text-muted-foreground" />
+                {name}
+              </DropdownMenuItem>
+            ))}
+            {destructive.length > 0 && <DropdownMenuSeparator />}
+            {destructive.map(({ label: name, icon: Icon, run }) => (
+              <DropdownMenuItem key={name} variant="destructive" onClick={run} className="gap-2.5">
+                <Icon aria-hidden="true" />
+                {name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ContextMenuTrigger>
+      <ContextMenuContent className={width}>
+        {safe.map(({ label: name, icon: Icon, run }) => (
+          <ContextMenuItem key={name} onClick={run} className="gap-2.5">
+            <Icon aria-hidden="true" className="text-muted-foreground" />
+            {name}
+          </ContextMenuItem>
+        ))}
+        {destructive.length > 0 && <ContextMenuSeparator />}
+        {destructive.map(({ label: name, icon: Icon, run }) => (
+          <ContextMenuItem key={name} variant="destructive" onClick={run} className="gap-2.5">
+            <Icon aria-hidden="true" />
+            {name}
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -375,6 +453,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
       setSiteTarget({ mode: 'create', collectionId })
     },
     onEditSite: (id) => setSiteTarget({ mode: 'edit', site: sites.find((site) => site.id === id) as Site }),
+    onDuplicateSite: (id) => setSiteTarget({ mode: 'duplicate', site: sites.find((site) => site.id === id) as Site }),
     onDeleteSite: (id) => setDeletingSite(sites.find((site) => site.id === id) as Site),
     connected,
     onDisconnect,

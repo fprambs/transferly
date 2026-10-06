@@ -23,6 +23,7 @@ function unique(prefix: string): string {
  * - rows show a pointer, a visible hover shade and a selected state, and menu items highlight under the pointer
  * - a site is created inside a collection with a speed limit, a proxy and a jump host, all of which are kept, and edited from its menu
  * - a site is dragged into a collection and back to the top level of the tree, and the server keeps each move (4.14h)
+ * - a site is duplicated from a right click on its row, without typing its password, and the copy connects with the copied password
  * - a saved FTP site that cannot connect is edited into an SFTP site of another server, and testing it tries the form as it is, with the
  *   stored password, without saving anything
  */
@@ -158,30 +159,36 @@ test.describe('sites sidebar', () => {
     expect(Math.abs(editBox.x + editBox.width / 2 - viewport.width / 2)).toBeLessThan(4)
   })
 
-  test('moves a site between collections by dragging it', async ({ shell, request }) => {
-    const { page } = shell
-    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
-    const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
-    const headers = { 'X-CSRF-Token': me.csrfToken }
-    const collection = unique('Drop here')
-    const name = unique('Dragged')
-    const made = (await (await request.post(`/api/v1/workspaces/${workspace}/collections`, { headers, data: { name: collection } })).json()) as { id: string }
-    const created = (await (await request.post(`/api/v1/workspaces/${workspace}/sites`, {
-      headers,
-      data: { name, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
-    })).json()) as { id: string }
-    await page.reload()
-    const siteRow = page.getByRole('treeitem', { name: new RegExp(name) })
-    const collectionRow = page.getByRole('treeitem', { name: new RegExp(collection) })
+  test.describe('with every row of the tree drawn', () => {
+    // The tree draws only the rows in view, and the other tests leave many sites and collections behind; a tall window keeps the site
+    // and the collection it is dragged onto drawn at once.
+    test.use({ viewport: { width: 1280, height: 4000 } })
 
-    await siteRow.dragTo(collectionRow)
-    await expect(collectionRow).toHaveAttribute('aria-expanded', 'true')
-    await expect(siteRow).toHaveAttribute('aria-level', '2')
-    const inside = (await (await request.get(`/api/v1/workspaces/${workspace}/sites/${created.id}`)).json()) as { collectionId?: string }
-    expect(inside.collectionId).toBe(made.id)
+    test('moves a site between collections by dragging it', async ({ shell, request }) => {
+      const { page } = shell
+      const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+      const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
+      const headers = { 'X-CSRF-Token': me.csrfToken }
+      const collection = unique('Drop here')
+      const name = unique('Dragged')
+      const made = (await (await request.post(`/api/v1/workspaces/${workspace}/collections`, { headers, data: { name: collection } })).json()) as { id: string }
+      const created = (await (await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+        headers,
+        data: { name, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
+      })).json()) as { id: string }
+      await page.reload()
+      const siteRow = page.getByRole('treeitem', { name: new RegExp(name) })
+      const collectionRow = page.getByRole('treeitem', { name: new RegExp(collection) })
 
-    await siteRow.dragTo(page.getByRole('tree', { name: 'Sites' }), { targetPosition: { x: 20, y: 5 } })
-    await expect(siteRow).toHaveAttribute('aria-level', '1')
+      await siteRow.dragTo(collectionRow)
+      await expect(collectionRow).toHaveAttribute('aria-expanded', 'true')
+      await expect(siteRow).toHaveAttribute('aria-level', '2')
+      const inside = (await (await request.get(`/api/v1/workspaces/${workspace}/sites/${created.id}`)).json()) as { collectionId?: string }
+      expect(inside.collectionId).toBe(made.id)
+
+      await siteRow.dragTo(page.getByRole('tree', { name: 'Sites' }), { targetPosition: { x: 20, y: 5 } })
+      await expect(siteRow).toHaveAttribute('aria-level', '1')
+    })
   })
 
   test('tests the site as the form holds it, before saving it', async ({ shell, request }) => {
@@ -208,5 +215,26 @@ test.describe('sites sidebar', () => {
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     const kept = (await (await request.get(`/api/v1/workspaces/${workspace}/sites/${created.id}`)).json()) as { connector: string }
     expect(kept.connector).toBe('ftp')
+  })
+
+  test('duplicates a site from a right click and the copy connects with the copied password', async ({ shell, request }) => {
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
+    const name = unique('Original')
+    await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+      headers: { 'X-CSRF-Token': me.csrfToken },
+      data: { name, connector: 'sftp', config: { host: 'sftp', port: '22', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
+    })
+    await page.reload()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Duplicate site' })
+    await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue(`${name} (copy)`)
+    await dialog.getByRole('button', { name: 'Create site' }).click()
+    await expect(dialog).toBeHidden()
+
+    await page.getByRole('treeitem', { name: new RegExp(`${name} \\(copy\\)`) }).dblclick()
+    await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 })

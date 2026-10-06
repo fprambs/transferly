@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -575,6 +575,40 @@ describe('site management', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(body).toMatchObject({ name: 'Production', config: { host: 'prod.example.com', port: '2222', username: 'deploy' } })
     expect(body.secrets).toEqual({})
+  })
+
+  it('duplicates a site from its menu and from a right click, copying its stored secrets', async () => {
+    let sent: { name: string; secretsFrom?: string; config: Record<string, string> } | undefined
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites', async ({ request }) => {
+        sent = (await request.json()) as typeof sent
+        return HttpResponse.json({ ...sent, id: 's9', secrets: ['password'], speedLimitBps: 0, createdAt: '2026-10-06T00:00:00Z', updatedAt: '2026-10-06T00:00:00Z' }, { status: 201 })
+      }),
+    )
+    const user = await renderSidebar()
+    fireEvent.contextMenu(screen.getByRole('treeitem', { name: /Prod/ }))
+    expect(await screen.findByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Duplicate' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Duplicate site' })
+    expect(within(dialog).getByLabelText('Name', { exact: true })).toHaveValue('Prod (copy)')
+    const username = within(dialog).getByLabelText('Username', { exact: true })
+    await user.clear(username)
+    await user.type(username, 'other')
+    await user.click(within(dialog).getByRole('button', { name: 'Create site' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(sent?.name).toBe('Prod (copy)')
+    expect(sent?.secretsFrom).toBe('s1')
+    expect(sent?.config.username).toBe('other')
+
+    await pick(user, 'Prod', 'Duplicate')
+    expect(await screen.findByRole('dialog', { name: 'Duplicate site' })).toBeInTheDocument()
+  })
+
+  it('opens the actions of a collection with a right click too', async () => {
+    mockWorkspaceData({ sites: [prod], collections: [{ id: 'c1', name: 'Work' }] })
+    await renderSidebar()
+    fireEvent.contextMenu(await screen.findByRole('treeitem', { name: /Work/ }))
+    expect(await screen.findByRole('menuitem', { name: 'New subcollection' })).toBeInTheDocument()
   })
 
   it('tests the connection as the form holds it and reports success', async () => {
