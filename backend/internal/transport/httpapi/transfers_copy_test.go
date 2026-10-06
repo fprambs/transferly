@@ -37,6 +37,7 @@ func (e *fileEnv) copyBody(target uuid.UUID, from, to string, extra map[string]a
 //   - copying onto itself, an empty path, an unknown source or target site and a taken transfer identifier are refused at once
 //   - the request needs a session and the anti-CSRF token
 func TestTransfers_Copy(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	other := e.secondSite()

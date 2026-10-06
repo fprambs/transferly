@@ -17,6 +17,7 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/remotefs/connect"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/pgtest"
 	"github.com/fprambs/transferly/internal/core/auth"
 	"github.com/fprambs/transferly/internal/core/connections"
 	"github.com/fprambs/transferly/internal/core/connectors"
@@ -85,10 +86,7 @@ type env struct {
 // newEnv builds the environment. The vault is set up and unlocked in session-1.
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	dbURL := testutil.NewDatabase(t)
-	if err := postgres.Migrate(t.Context(), dbURL); err != nil {
-		t.Fatal(err)
-	}
+	dbURL := pgtest.MigratedDatabase(t)
 	store, err := postgres.Open(t.Context(), dbURL)
 	if err != nil {
 		t.Fatal(err)
@@ -200,6 +198,7 @@ func text(s string) *string { return &s }
 //   - a wrong stored password is ErrAuth
 //   - a site without a stored password is ErrAuth
 func TestConnector_Password(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	target := e.addSite(server, spec{Name: "Files"}, changes{Password: text(sshPassword)})
@@ -247,6 +246,7 @@ func TestConnector_Password(t *testing.T) {
 //   - a protected key with its stored passphrase connects
 //   - a key that is not authorized is ErrAuth, and a site without the private key is ErrAuth
 func TestConnector_Key(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	pub, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -296,6 +296,7 @@ func TestConnector_Key(t *testing.T) {
 //   - a destination that the network guard forbids is refused when dialing, even though the site was saved
 //   - a failing secret read other than a missing secret is returned
 func TestConnector_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	e.trust(server)
@@ -328,6 +329,7 @@ func TestConnector_Refusals(t *testing.T) {
 //   - the manager opens the connection through the connector and reuses it for the next operation
 //   - an untrusted server key fails the acquisition at once, without retries
 func TestConnector_WithPool(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	target := e.addSite(server, spec{Name: "Files"}, changes{Password: text(sshPassword)})
@@ -356,6 +358,7 @@ func TestConnector_WithPool(t *testing.T) {
 //   - a failing check of the presented key, after the types were read, fails the handshake
 //   - a failing read of the passphrase, other than a missing one, fails the connection
 func TestConnector_StoreFailures(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	e.trust(server)
@@ -386,6 +389,7 @@ func TestConnector_StoreFailures(t *testing.T) {
 //   - an unknown host key is reported with its fingerprint, as for saved sites
 //   - quick connections of another user are not found, and the wiped secrets of an ended connection are gone
 func TestConnector_QuickConnections(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	pub, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -456,6 +460,7 @@ func TestConnector_QuickConnections(t *testing.T) {
 //   - a saved site gives its connections setting, 4 when left at its default, and a quick connection gives its own
 //   - a site that cannot be read gives 0, the default of the pool
 func TestConnector_MaxConnections(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 	one := e.addSiteAt("127.0.0.1:22", spec{Name: "Balanced", Connections: 1}, changes{})
@@ -493,6 +498,7 @@ func (strictStore) RememberStrictServer(context.Context, string) error { return 
 //   - a server the store of strict servers knows is not trusted, while another one is
 //   - a site marked with inexact sizes does not trust its server
 func TestConnector_StrictServers(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	known := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	other := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
@@ -519,6 +525,7 @@ func TestConnector_StrictServers(t *testing.T) {
 //   - a draft with the right password connects and lists, though nothing is saved, and its secrets are wiped once used
 //   - a draft with a wrong password is refused credentials, and a draft without secrets that needs none, anonymous, connects
 func TestConnector_Probe(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}, Anonymous: true})
 	e.trust(server)

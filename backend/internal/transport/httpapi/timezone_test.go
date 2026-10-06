@@ -19,6 +19,7 @@ func (e *fileEnv) probeCall(site uuid.UUID, dir string) reply {
 //   - a server that lists exact times answers exact, for a saved site and for a quick connection, and leaves no probe file behind
 //   - a folder that does not exist is 404, an unknown site 404, a relative-looking invalid path 422 and anonymous callers 401
 func TestRemoteFiles_ProbeTimeZone(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	if r := a.send(http.MethodPost, filesPath(e.ws, e.site, "/directories", nil), map[string]string{"path": "/dir"}, e.cookie, e.csrf); r.Status != http.StatusCreated {

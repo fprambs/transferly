@@ -68,6 +68,7 @@ func (u *mfaUser) signInWithPasskey(t *testing.T, challenge string, device *pass
 //   - removing a passkey needs the password, an unknown one is 404, and removing the last factor removes the recovery codes, and an account without factors cannot ask for new ones
 //   - with the app and a passkey both are offered, disabling the app keeps the passkey and the recovery codes, and the codes can be renewed
 func TestPasskeys_Lifecycle(t *testing.T) {
+	t.Parallel()
 	u := newMFAUser(t)
 	status := func() httpapi.SecurityStatus {
 		var s httpapi.SecurityStatus
@@ -161,6 +162,7 @@ func (u *mfaUser) signInWithPasskeyStatus(t *testing.T, challenge string, device
 //   - a passkey sign-in for an account that only has the app is 409, and the passkey of a disabled account is refused
 //   - too many passkey attempts are rate limited, per address and per account, the account counting the attempts of the code step too
 func TestPasskeys_Protection(t *testing.T) {
+	t.Parallel()
 	u := newMFAUser(t)
 	for path, body := range map[string]any{
 		"/api/v1/me/passkeys/begin": nil, "/api/v1/me/passkeys/finish": map[string]any{"ceremony": "x", "name": "x", "credential": map[string]any{}},
@@ -266,6 +268,7 @@ func (b brokenPasskeys) TouchPasskey(ctx context.Context, userID, id uuid.UUID, 
 //     removing each answer 500 when the store fails
 //   - a failing recovery code store, and a password that cannot be checked, answer 500 too
 func TestPasskeys_Failures(t *testing.T) {
+	t.Parallel()
 	fail := map[string]bool{}
 	u := newMFAUser(t, func(d *httpapi.Deps) {
 		store := d.Readiness.(*postgres.Store)
@@ -308,6 +311,7 @@ func TestPasskeys_Failures(t *testing.T) {
 //   - a failing account lookup, personal workspace or session after a right passkey is a 500 problem
 //   - failing recovery codes, on registering, removing, disabling the app and renewing, are 500 problems, and so is a password that cannot be checked
 func TestPasskeys_MoreFailures(t *testing.T) {
+	t.Parallel()
 	var flaky *flakyStore
 	var workspaces *failingWorkspaces
 	keyFail, factorFail := map[string]bool{}, map[string]bool{}
@@ -366,6 +370,7 @@ func TestPasskeys_MoreFailures(t *testing.T) {
 //   - the last passkey is removed and then reading the recovery codes fails: the answer is 500
 //   - a password that cannot be checked is a 500 problem
 func TestPasskeys_RemoveFailure(t *testing.T) {
+	t.Parallel()
 	factorFail := map[string]bool{}
 	u := newMFAUser(t, func(d *httpapi.Deps) {
 		d.MFA = mfa.NewService(brokenFactors{d.Readiness.(*postgres.Store), factorFail}, instanceKey, rand.Reader, realClock{})

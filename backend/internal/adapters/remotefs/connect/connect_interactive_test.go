@@ -64,6 +64,7 @@ func connectInBackground(t *testing.T, e *env, c *connect.Connector, target site
 //   - a declined prompt is ErrAuth
 //   - without a broker, nobody can answer and the site fails with ErrAuth
 func TestConnector_Interactive(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	asked := make(promptSink, 4)
 	logged := &collected{}

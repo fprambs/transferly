@@ -27,6 +27,7 @@ import (
 //   - a ZIP of 1 MB on it lists its entries
 //   - after a restart, with a new connector over the same store, the server is strict from the first connection
 func TestStrictGateway_EndToEnd(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}, SizeOff: 300})
 	e.trust(server)

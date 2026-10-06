@@ -25,6 +25,7 @@ import (
 //   - over HTTPS, a self-signed certificate that is not trusted yet is offered by its fingerprint, under the certificate key type
 //   - a path without its leading slash is saved with it
 func TestConnector_WebDAV(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	sink := &collected{}
 	recorder := connlog.New(sink, testutil.NewFakeClock(time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)))

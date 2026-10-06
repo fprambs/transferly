@@ -34,6 +34,7 @@ func sftpDraft(host, username, password string) map[string]any {
 //   - settings that break the schema are invalid_config, an unknown site is site_not_found, and only those who may change sites may try
 //     them; attempts are limited like quick connections
 func TestSiteDraft(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t, func(d *httpapi.Deps) {
 		d.Limits.QuickConnect = ratelimit.New(realClock{}, ratelimit.Rule{Burst: 100, Every: time.Second}, 10)
 	})
@@ -93,6 +94,7 @@ func TestSiteDraft(t *testing.T) {
 
 // TestSiteDraft_RateLimited verifies that trying drafts is limited like quick connections.
 func TestSiteDraft_RateLimited(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -109,6 +111,7 @@ func TestSiteDraft_RateLimited(t *testing.T) {
 //   - a site created with secretsFrom takes the stored password of that site, sealed for it, so the copy has a password of its own
 //   - an unknown site to copy from is site_not_found
 func TestCreateSite_Copy(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	owner, csrf := e.cookie["owner"], e.csrf["owner"]
 	sites := "/api/v1/workspaces/" + e.ws.String() + "/sites"

@@ -48,6 +48,7 @@ func hostKeyBody(host, fingerprint string) map[string]any {
 //   - malformed keys are 422 invalid_host_key, malformed bodies are 400
 //   - forgetting removes the key; forgetting it again is 404 host_key_not_found; missing query parameters are 400
 func TestKnownHosts_Lifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -93,6 +94,7 @@ func TestKnownHosts_Lifecycle(t *testing.T) {
 //   - an editor may trust and forget
 //   - keys trusted in one workspace do not exist in another
 func TestKnownHosts_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	ownerCookie, ownerCSRF := a.setup()
 	ws := a.personal(ownerCookie)
@@ -151,6 +153,7 @@ func TestKnownHosts_AuthorizationMatrix(t *testing.T) {
 //   - forgetting by fingerprint removes only that key, and a fingerprint that is not trusted is 404 host_key_not_found
 //   - each decision is audited with the fingerprint and the mode
 func TestKnownHosts_SeveralKeys(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

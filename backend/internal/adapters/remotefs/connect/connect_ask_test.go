@@ -23,6 +23,7 @@ import (
 //   - the typed password connects without the vault being involved
 //   - a password the server refuses is ErrAuth and is dropped, so the next attempt asks again
 func TestConnector_AskForPassword(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	e.trust(server)
@@ -76,6 +77,7 @@ func TestConnector_AskForPassword(t *testing.T) {
 //   - a server that refuses "none" is offered FileZilla's anonymous password next
 //   - a server that takes neither refuses the site with ErrAuth
 func TestConnector_Anonymous(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 	e.vaults.Lock(session)

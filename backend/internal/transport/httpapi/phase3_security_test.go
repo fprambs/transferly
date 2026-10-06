@@ -18,6 +18,7 @@ import (
 //   - a member who is demoted loses what the old role allowed on the next request, and one who is removed loses the workspace altogether
 //   - the audit log of a team is refused to editors and viewers and hidden from strangers
 func TestPhaseThree_CrossWorkspaceAndEscalation(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	created := e.a.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "Second team"}, e.cookie["owner"], e.csrf["owner"])
 	if created.Status != http.StatusCreated {

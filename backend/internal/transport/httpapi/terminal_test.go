@@ -89,6 +89,7 @@ func writeTerminal(t *testing.T, conn *websocket.Conn, kind websocket.MessageTyp
 //     that are not UUIDs 400
 //   - a connection that cannot be opened is reported before the upgrade, as a 500 without details when it is unexpected
 func TestTerminal(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	site := terminalSite(t, a, e.ws, e.cookie, e.csrf, "true").String()
@@ -169,6 +170,7 @@ func TestTerminal(t *testing.T) {
 
 // TestTerminalNeedsAdmin verifies that only admins open terminals, even on a site that has it on.
 func TestTerminalNeedsAdmin(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	created := e.call("admin", http.MethodPost, "/sites", map[string]any{"name": shellSite, "connector": "sftp", "config": map[string]any{"host": "8.8.8.8", "username": "deploy", "terminal": "true"}})
 	if created.Status != http.StatusCreated {

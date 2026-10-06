@@ -54,6 +54,7 @@ type guide struct {
 //   - the codes are read from the sources of this package, so adding one without guidance fails here
 //   - each language of the interface has a non-empty cause and next step for each code
 func TestErrorCodes_Guided(t *testing.T) {
+	t.Parallel()
 	_, self, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(self)
 	codes := serverCodes(t, dir)

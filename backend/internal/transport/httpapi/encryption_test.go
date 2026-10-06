@@ -12,6 +12,7 @@ import (
 //   - a new FTP site requires TLS when it names no encryption, an SFTP site has none, and an unknown encryption is refused
 //   - a quick connection keeps the encryption it was given
 func TestFTPEncryption(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

@@ -21,6 +21,7 @@ import (
 //   - the request needs a session
 //   - a store that fails answers 500
 func TestRemoteFiles_Archive(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	for _, dir := range []string{"/docs", "/docs/inner"} {
@@ -76,6 +77,7 @@ func TestRemoteFiles_Archive(t *testing.T) {
 //   - a file has its SHA-256 by default and the digest of the algorithm asked for, with the size, in lower case
 //   - an unknown algorithm is 422 unsupported_algorithm, a folder is 422 invalid_path, a missing file is 404 and anonymous callers 401
 func TestRemoteFiles_Checksum(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	if r := a.upload(e.ws, e.site, q("path", "/hello.txt"), "hello", e.cookie, e.csrf); r.Status != http.StatusCreated {
@@ -113,6 +115,7 @@ func TestRemoteFiles_Checksum(t *testing.T) {
 //   - a folder whose name holds quotes, a semicolon, markup and non-ASCII text comes as an inert attachment whose file name is the folder name and nothing else
 //   - the entries inside the ZIP never hold an absolute path or a `..` part, whatever the names below the folder
 func TestRemoteFiles_ArchiveHostileNames(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	folder := `/we"ird;<b>é`

@@ -155,6 +155,7 @@ func (e *env) open(t *testing.T, d connectors.Descriptor, reference func(t *test
 //   - each built-in connector has a reference server; a connector added to the catalog without one fails here
 //   - its descriptor is valid, declares the capabilities its adapter has and no other, and the adapter passes the shared suite
 func TestConformance_Catalog(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	for _, d := range connectors.Builtin().All() {
 		t.Run(d.Type, func(t *testing.T) {

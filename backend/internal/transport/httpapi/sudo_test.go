@@ -11,6 +11,7 @@ import (
 //   - an editor creating an SFTP site with sudo on is refused with elevation_forbidden
 //   - an admin creates it
 func TestSudoNeedsAdmin(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	body := map[string]any{"name": "Root", "connector": "sftp", "config": map[string]any{"host": "8.8.8.8", "username": "deploy", "sudo": "true"}}
 	expectProblem(t, e.call("editor", http.MethodPost, "/sites", body), http.StatusForbidden, "elevation_forbidden")

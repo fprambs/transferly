@@ -23,6 +23,7 @@ import (
 //   - a wrong password is refused as elevation refused
 //   - when the instance does not allow commands on servers, a site in sudo mode fails as unsupported, and one without sudo connects
 func TestConnector_Sudo(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}, Sudo: &sftptest.Sudo{Password: sshPassword}})
 	e.trust(server)

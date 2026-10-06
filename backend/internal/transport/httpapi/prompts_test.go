@@ -56,6 +56,7 @@ func promptPath(id uuid.UUID) string { return "/api/v1/prompts/" + id.String() }
 //     different number of answers (422 invalid_answers); the prompt keeps waiting
 //   - declining fails the connection with ErrCanceled, and a prompt that no longer waits is 404 prompt_not_found
 func TestPrompts(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, token := a.setup()
 	conn, _ := a.connectEvents(cookie)

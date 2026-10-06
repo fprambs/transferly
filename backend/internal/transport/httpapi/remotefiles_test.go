@@ -85,6 +85,7 @@ func (e *fileEnv) get(endpoint string, query url.Values, headers map[string]stri
 //   - invalid paths, modes, offsets (also negative ones) and sizes (negative ones) are 422, malformed bodies are 400;
 //     resuming a file with no ".part" staged, since it was never interrupted, is 404 whatever the offset
 func TestRemoteFiles_Lifecycle(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 
@@ -170,6 +171,7 @@ func TestRemoteFiles_Lifecycle(t *testing.T) {
 //   - directories cannot be downloaded and missing files are 404
 //   - a large file survives a round trip
 func TestRemoteFiles_Download(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	e.a.upload(e.ws, e.site, q("path", "/f.bin"), "0123456789", e.cookie, e.csrf)
 
@@ -248,6 +250,7 @@ func TestRemoteFiles_Download(t *testing.T) {
 //     file gone
 //   - resuming at an offset inside the staged file rewrites from there
 func TestRemoteFiles_ResumableUpload(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	e.a.upload(e.ws, e.site, q("path", "/movie.part"), "first-half|", e.cookie, e.csrf)
 
@@ -277,6 +280,7 @@ func TestRemoteFiles_ResumableUpload(t *testing.T) {
 //   - an editor may change files
 //   - a site of another workspace, or a missing one, is 404 site_not_found
 func TestRemoteFiles_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	strangerCookie, _ := a.signIn("stranger@example.com")
@@ -352,6 +356,7 @@ func TestRemoteFiles_AuthorizationMatrix(t *testing.T) {
 //   - a second workspace member sees the files of the site through the same site, without a shared connection
 //     between users
 func TestRemoteFiles_SharedByOneUser(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	viewerCookie, viewer := e.a.signIn("viewer@example.com")
 	e.a.addMember(e.ws, viewer.ID, workspace.RoleViewer)
@@ -369,6 +374,7 @@ func TestRemoteFiles_SharedByOneUser(t *testing.T) {
 // Use cases:
 //   - a file too large to buffer streams to its end with no length announced, recorded as a transfer that ends done
 func TestRemoteFiles_DownloadUnsized(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	created := e.a.send(http.MethodPost, sitesPath(e.ws), siteBody(strictSite), e.cookie, e.csrf)
 	if created.Status != http.StatusCreated {

@@ -35,6 +35,7 @@ func (e *fileEnv) activityOf(query string) []httpapi.ActivityEntry {
 //   - the log can be narrowed to a site and limited, and it is private to the user who acted
 //   - an action on a site that does not exist leaves nothing, and anonymous callers are refused
 func TestActivity_Log(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	other := e.secondSite()
@@ -114,6 +115,7 @@ func (brokenActivity) ActivityByUser(context.Context, uuid.UUID, uuid.UUID, uuid
 // Scenarios:
 //   - creating a folder still works when the log cannot be written, and reading the log answers 500 without details
 func TestActivity_LogFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Activity = activity.NewService(brokenActivity{d.Readiness.(*postgres.Store)}, realClock{}, time.Hour, nil)
 	})

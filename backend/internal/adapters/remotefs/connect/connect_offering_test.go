@@ -28,6 +28,7 @@ func (o offering) CheckConnector(_ context.Context, kind string) error {
 //   - a site of a disabled connector fails with ErrDisabled and its server is never dialed
 //   - a site of a connector that is offered connects
 func TestConnector_Offering(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
 	e.trust(server)

@@ -237,6 +237,7 @@ func relayChannel(channel ssh.Channel, target net.Conn) {
 //   - a wrong proxy password fails the connection
 //   - an FTP site behind a proxy connects too, since the proxy only replaces the raw TCP dial
 func TestConnector_Proxy(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 
@@ -295,6 +296,7 @@ func TestConnector_Proxy(t *testing.T) {
 //   - a wrong jump password fails the connection
 //   - a jump host reached through a proxy works too, and one is refused for a protocol other than SFTP
 func TestConnector_Jump(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})
@@ -434,6 +436,7 @@ func marshalKey(t *testing.T, private ed25519.PrivateKey, passphrase string) (pe
 //   - a quick connection with a password jump host, and one with a key jump host, are both ErrAuth without a stored
 //     jump credential
 func TestConnector_JumpEdgeCases(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}})

@@ -42,6 +42,7 @@ func (a *api) transferlyImport(ws uuid.UUID, query, password, file string, cooki
 //   - a wrong password is wrong_export_password, a file that is not an export is invalid_export, and a body over the limit is refused
 //     before it is read
 func TestExport_Transferly(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -113,6 +114,7 @@ func (brokenImporter) ImportEntries(context.Context, uuid.UUID, uuid.UUID, strin
 
 // TestExport_Faults covers exports and imports that fail for reasons of the server: they answer 500 without details.
 func TestExport_Faults(t *testing.T) {
+	t.Parallel()
 	var sealer *backup.Sealer
 	a := newAPI(t, func(d *httpapi.Deps) {
 		sealer = backup.NewSealer(vault.NewKDF(1), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +33,22 @@ func DatabaseURL(t testing.TB) string {
 // The database is dropped when the test ends.
 func NewDatabase(t testing.TB) string {
 	t.Helper()
+	return newDatabase(t, "")
+}
+
+// NewDatabaseFrom creates a uniquely named database as a copy of the template database, such as one with the schema already applied,
+// and returns its URL. The database is dropped when the test ends.
+func NewDatabaseFrom(t testing.TB, template string) string {
+	t.Helper()
+	return newDatabase(t, template)
+}
+
+// databases counts the databases this process created, which keeps the names of databases created at once apart.
+var databases atomic.Int64
+
+// newDatabase creates a uniquely named database, empty or copied from a template, and returns its URL.
+func newDatabase(t testing.TB, template string) string {
+	t.Helper()
 	baseURL := DatabaseURL(t)
 	ctx := context.Background()
 
@@ -41,15 +58,24 @@ func NewDatabase(t testing.TB) string {
 	}
 	t.Cleanup(func() { _ = admin.Close(ctx) })
 
-	name := fmt.Sprintf("transferly_t_%d", time.Now().UnixNano())
+	name := fmt.Sprintf("transferly_t_%d_%d_%d", os.Getpid(), time.Now().UnixNano(), databases.Add(1))
 	quoted := pgx.Identifier{name}.Sanitize()
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+quoted); err != nil {
+	create := "CREATE DATABASE " + quoted
+	if template != "" {
+		create += " TEMPLATE " + pgx.Identifier{template}.Sanitize()
+	}
+	if _, err := admin.Exec(ctx, create); err != nil {
 		t.Fatalf("creating isolated database: %v", err)
 	}
 	t.Cleanup(func() {
 		_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+quoted+" WITH (FORCE)")
 	})
+	return urlOf(t, baseURL, name)
+}
 
+// urlOf returns the URL of another database of the server of baseURL.
+func urlOf(t testing.TB, baseURL, name string) string {
+	t.Helper()
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		t.Fatalf("parsing database URL: %v", err)

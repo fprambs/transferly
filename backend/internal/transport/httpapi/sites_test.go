@@ -84,6 +84,7 @@ func (a *api) personal(cookie *http.Cookie) uuid.UUID {
 //     configuration or a secret that breaks the connector's schema is 422 invalid_config naming the field
 //   - deleting removes the site; reading, updating or deleting it again is 404 site_not_found
 func TestSites_Lifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -193,6 +194,7 @@ func TestSites_Lifecycle(t *testing.T) {
 //   - an editor may create, update and delete
 //   - a site of one workspace is 404 when addressed through another workspace of the same user
 func TestSites_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	ownerCookie, ownerCSRF := a.setup()
 	ws := a.personal(ownerCookie)
@@ -265,6 +267,7 @@ func TestSites_AuthorizationMatrix(t *testing.T) {
 //     character set is not case sensitive
 //   - SFTP sites only use UTF-8
 func TestSites_Charset(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -293,6 +296,7 @@ func TestSites_Charset(t *testing.T) {
 //   - a site without one opens at the root and does not say so; one given is returned cleaned and kept when the site is changed
 //   - setting the root removes it, and a relative folder is 422 invalid_remote_dir
 func TestSites_RemoteDir(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -320,6 +324,7 @@ func TestSites_RemoteDir(t *testing.T) {
 //   - a site without one does not say so; one given is returned, changed, and removed by sending it empty
 //   - an unknown color is 422 invalid_color
 func TestSites_Color(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -351,6 +356,7 @@ func TestSites_Color(t *testing.T) {
 //   - an FTP site of the account logon type keeps its account as a secret, which is never returned
 //   - the account logon type is refused for SFTP
 func TestSites_Account(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

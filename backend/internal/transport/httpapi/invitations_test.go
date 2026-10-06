@@ -37,6 +37,7 @@ func (e *teamEnv) anonymous(path string, body any) reply {
 //   - an address that already has an account cannot join and is told so, and short passwords are refused without spending the token
 //   - revoked invitations, unknown tokens and inviting an existing member fail with stable codes
 func TestInvitations_Lifecycle(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	created, r := e.invite("admin", "  Stranger@Example.com ", "editor")
 	if r.Status != http.StatusCreated || len(created.Token) < 43 || created.Invitation.Email != "stranger@example.com" || created.Invitation.Role != "editor" {
@@ -121,6 +122,7 @@ func TestInvitations_Lifecycle(t *testing.T) {
 //   - too many attempts from one address are rate limited on preview, accept and join
 //   - the workspace holds at most 50 pending invitations
 func TestInvitations_AuthorizationAndLimits(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	base := "/api/v1/workspaces/" + e.ws.String() + "/invitations"
 	body := map[string]string{"email": "a@example.com", "role": "viewer"}
