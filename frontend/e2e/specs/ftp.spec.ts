@@ -10,7 +10,7 @@ import { choose } from '../select.ts'
 async function quickConnect(page: Page, host: string, encryption?: string): Promise<void> {
   await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
   const dialog = page.getByRole('dialog', { name: 'Quick connect' })
-  await dialog.getByRole('tab', { name: 'FTP / FTPS', exact: true }).click()
+  await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
   if (encryption !== undefined) {
     await choose(dialog.getByLabel('Encryption'), encryption)
   }
@@ -45,7 +45,7 @@ test.describe('ftp and ftps', () => {
     const { page } = shell
     await page.getByRole('navigation', { name: 'Sites' }).getByRole('button', { name: /Quick connect/ }).click()
     const dialog = page.getByRole('dialog')
-    await dialog.getByRole('tab', { name: 'FTP / FTPS', exact: true }).click()
+    await choose(dialog.getByLabel('Protocol'), 'FTP - File Transfer Protocol')
     await expect(dialog.getByLabel('Encryption')).toContainText('Require explicit FTP over TLS')
     await choose(dialog.getByLabel('Encryption'), 'Use explicit FTP over TLS if available')
     await expect(dialog.getByRole('note')).toContainText('someone on the network removes the offer')

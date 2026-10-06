@@ -3,9 +3,10 @@ import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
+import { ConnectorIcon } from '@/components/brand/ConnectorIcon'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select } from '@/components/ui/select'
 import type { Connector, QuickConnectInput, QuickConnection } from '@/lib/api'
 import { useApi, type Api } from '@/lib/api/use-api'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
@@ -13,6 +14,7 @@ import { ErrorGuide } from '@/features/errors/ErrorGuide'
 import { SchemaFields } from '../connectors/SchemaFields'
 import { settle, startingConnector } from '../connectors/schema'
 import { endpointOf } from '../connectors/settings'
+import { useConnectorTexts } from '../connectors/use-connector-texts'
 import { useConnectors } from '../connectors/use-connectors'
 
 import { quickErrorKeyOf, unknownHostKeyOf, type QuickErrorKey, type UnknownHostKey } from './errors'
@@ -71,6 +73,7 @@ interface QuickConnectFormProps extends Omit<QuickConnectDialogProps, 'open'> {
 /** The form of a quick connection, drawn from the schema of the chosen connector, and the trust of an unknown server key on the way. */
 function QuickConnectForm({ workspaceId, offered, onOpenChange, onConnected }: QuickConnectFormProps) {
   const { t } = useTranslation('quick')
+  const texts = useConnectorTexts()
   const api = useApi()
   const [pending, setPending] = useState<PendingTrust | null>(null)
   const [failure, setFailure] = useState<QuickErrorKey | null>(null)
@@ -138,15 +141,21 @@ function QuickConnectForm({ workspaceId, offered, onOpenChange, onConnected }: Q
         </DialogTitle>
         <DialogDescription>{t(($) => $.description)}</DialogDescription>
       </DialogHeader>
-      <Tabs value={type} onValueChange={(value) => setValue('connector', String(value))} aria-label={t(($) => $.protocol.label)}>
-        <TabsList className="w-full">
-          {offered.map((candidate) => (
-            <TabsTrigger key={candidate.type} value={candidate.type}>
-              {candidate.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex items-center gap-3">
+        <label htmlFor="quick-connector" className="shrink-0 text-sm font-medium">
+          {t(($) => $.protocol.label)}
+        </label>
+        <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <ConnectorIcon icon={connector.icon} className="size-5" />
+        </span>
+        <Select
+          id="quick-connector"
+          aria-label={t(($) => $.protocol.label)}
+          value={type}
+          onValueChange={(value) => setValue('connector', value)}
+          options={offered.map((candidate) => ({ value: candidate.type, label: texts.connector(candidate) }))}
+        />
+      </div>
       <div className="flex flex-col gap-4">
         <SchemaFields connector={connector} groups={['connection', 'access']} control={control} register={register} errors={errors} exclude={unattended} idPrefix="quick" />
       </div>
