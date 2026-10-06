@@ -81,7 +81,7 @@ export function ConnectionLog({ workspaceId, siteId }: ConnectionLogProps) {
           {open ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
           <BrandIcon name="logs" />
           {t(($) => $.log.title)}
-          <span className="tabular-nums text-muted-foreground group-aria-expanded/button:text-foreground/75">{lines.length}</span>
+          <span className="tabular-nums text-muted-foreground group-aria-expanded/button:text-foreground">{lines.length}</span>
         </Button>
         {!open && last !== undefined ? (
           <button
