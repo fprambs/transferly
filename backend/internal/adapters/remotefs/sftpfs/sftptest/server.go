@@ -87,11 +87,16 @@ type Server struct {
 
 	listener net.Listener
 	sessions atomic.Int64
+	refused  *atomic.Int64
 	mu       sync.Mutex
 	conns    []net.Conn
 	closed   bool
 	windows  []string
 }
+
+// RefusedPasswords returns how many passwords the server refused, with the password method or keyboard-interactive, on every
+// connection.
+func (s *Server) RefusedPasswords() int64 { return s.refused.Load() }
 
 // Sessions returns how many SFTP sessions the server served, on every connection.
 func (s *Server) Sessions() int64 { return s.sessions.Load() }
@@ -167,12 +172,14 @@ func Serve(listener net.Listener, root string, opt Options) (*Server, error) {
 			return nil, err
 		}
 	}
+	refused := &atomic.Int64{}
 	config := &ssh.ServerConfig{
 		Config: ssh.Config{Ciphers: opt.Ciphers, KeyExchanges: opt.KeyExchanges},
 		PasswordCallback: func(c ssh.ConnMetadata, pw []byte) (*ssh.Permissions, error) {
 			if want, ok := opt.Users[c.User()]; ok && want == string(pw) {
 				return nil, nil
 			}
+			refused.Add(1)
 			return nil, errors.New("wrong password")
 		},
 		KeyboardInteractiveCallback: func(c ssh.ConnMetadata, ask ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
@@ -182,6 +189,9 @@ func Serve(listener net.Listener, root string, opt Options) (*Server, error) {
 			answers, err := ask(c.User(), "", []string{"Password: "}, []bool{false})
 			if want, ok := opt.Users[c.User()]; err == nil && ok && len(answers) == 1 && answers[0] == want {
 				return nil, nil
+			}
+			if err == nil {
+				refused.Add(1)
 			}
 			return nil, errors.New("wrong password")
 		},
@@ -211,7 +221,7 @@ func Serve(listener net.Listener, root string, opt Options) (*Server, error) {
 	}
 	config.AddHostKey(hostKey)
 
-	s := &Server{Addr: listener.Addr().String(), HostKey: hostKey.PublicKey(), Root: root, listener: listener}
+	s := &Server{Addr: listener.Addr().String(), HostKey: hostKey.PublicKey(), Root: root, listener: listener, refused: refused}
 	go s.accept(config, opt)
 	return s, nil
 }

@@ -200,7 +200,11 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 		methods = append(methods, ssh.PublicKeys(signer))
 	}
 	if cfg.Password != "" {
-		methods = append(methods, ssh.Password(cfg.Password), ssh.KeyboardInteractive(passwordAnswers(cfg.Password)))
+		sent := &atomic.Bool{}
+		methods = append(methods, ssh.PasswordCallback(func() (string, error) {
+			sent.Store(true)
+			return cfg.Password, nil
+		}), ssh.KeyboardInteractive(passwordAnswers(cfg.Password, sent)))
 	}
 	if cfg.Prompt != nil {
 		methods = append(methods, ssh.KeyboardInteractive(relay(cfg.Prompt)), ssh.PasswordCallback(askPassword(cfg.Prompt)))
@@ -214,12 +218,17 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 // passwordAnswers answers the first keyboard-interactive challenge that asks something with the password, every question
 // alike. A second one means the server did not take it: answering again would only repeat the same password until the
 // server gives up and disconnects, which reads as a lost connection, so the challenge fails as refused credentials
-// instead. Challenges without questions, such as a banner, are acknowledged.
-func passwordAnswers(password string) ssh.KeyboardInteractiveChallenge {
+// instead. A password the password method already sent, which sent marks, was refused the same way: sending it again
+// would only count as a second failed attempt towards the lockout of the server. Challenges without questions, such as a
+// banner, are acknowledged.
+func passwordAnswers(password string, sent *atomic.Bool) ssh.KeyboardInteractiveChallenge {
 	asked := false
 	return func(_, _ string, questions []string, _ []bool) ([]string, error) {
 		if len(questions) == 0 {
 			return nil, nil
+		}
+		if sent.Load() {
+			return nil, fmt.Errorf("%w: the server refused the password", remotefs.ErrAuth)
 		}
 		if asked {
 			return nil, fmt.Errorf("%w: the server asked again after the password", remotefs.ErrAuth)
