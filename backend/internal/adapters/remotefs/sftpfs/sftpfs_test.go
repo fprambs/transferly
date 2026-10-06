@@ -119,6 +119,8 @@ func connect(t *testing.T, s *sftptest.Server, mutate func(*sftpfs.Config)) (*sf
 // Scenarios:
 //   - a password works, also on servers that only offer keyboard-interactive
 //   - a wrong password and no credentials at all are ErrAuth and not retryable
+//   - a wrong password is tried once, on servers that offer both the password method and keyboard-interactive and on those
+//     that offer one, so it counts as a single failed attempt towards a lockout
 //   - a private key works, with and without a passphrase
 //   - a key that needs a passphrase but got none, a wrong passphrase, unreadable key data and a key the server does not
 //     know are ErrAuth
@@ -151,6 +153,17 @@ func TestDial_Authentication(t *testing.T) {
 	}
 	if _, err := connect(t, keyboard, func(c *sftpfs.Config) { c.Password = "wrong wrong wrong" }); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("keyboard-interactive wrong password = %v; want ErrAuth", err)
+	}
+
+	passwordOnly := startServer(t, sftptest.Options{PasswordOnly: true})
+	for name, s := range map[string]*sftptest.Server{"both methods": server, "keyboard-interactive": keyboard, "password method": passwordOnly} {
+		before := s.RefusedPasswords()
+		if _, err := connect(t, s, func(c *sftpfs.Config) { c.Password = "wrong wrong wrong" }); !errors.Is(err, remotefs.ErrAuth) {
+			t.Errorf("%s: wrong password = %v; want ErrAuth", name, err)
+		}
+		if got := s.RefusedPasswords() - before; got != 1 {
+			t.Errorf("%s: wrong password tried %d times; want once", name, got)
+		}
 	}
 
 	failures := map[string]func(*sftpfs.Config){

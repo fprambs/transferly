@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"net"
+	"sync/atomic"
 	"syscall"
 	"testing"
 
@@ -183,8 +184,10 @@ func TestHandshakeError(t *testing.T) {
 //   - a challenge without questions is acknowledged without answers
 //   - the first challenge with questions gets the password for each one
 //   - a second one fails as refused credentials instead of repeating the password
+//   - a password the password method already sent is not sent again: the challenge fails as refused credentials
 func TestPasswordAnswers(t *testing.T) {
-	answer := passwordAnswers("pw")
+	sent := &atomic.Bool{}
+	answer := passwordAnswers("pw", sent)
 	if answers, err := answer("", "banner", nil, nil); err != nil || answers != nil {
 		t.Errorf("banner = %v, %v; want no answers", answers, err)
 	}
@@ -194,6 +197,10 @@ func TestPasswordAnswers(t *testing.T) {
 	}
 	if _, err := answer("", "", []string{"Password:"}, []bool{false}); !errors.Is(err, remotefs.ErrAuth) {
 		t.Errorf("second challenge = %v; want ErrAuth", err)
+	}
+	sent.Store(true)
+	if answers, err := passwordAnswers("pw", sent)("", "", []string{"Password:"}, []bool{false}); !errors.Is(err, remotefs.ErrAuth) || answers != nil {
+		t.Errorf("challenge after the password method = %v, %v; want ErrAuth", answers, err)
 	}
 }
 
