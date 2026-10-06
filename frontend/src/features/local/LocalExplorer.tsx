@@ -10,7 +10,9 @@ import type { RemoteEntry } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { ApiError } from '@/lib/transport'
 import { uuid } from '@/lib/uuid'
+import { nextSort } from '@/lib/entry-sort'
 import { cn } from '@/lib/utils'
+import { useUiStore } from '@/state/ui-store'
 
 import { Breadcrumbs } from '../explorer/Breadcrumbs'
 import { EntryTable } from '../explorer/EntryTable'
@@ -62,7 +64,9 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
     queryFn: () => listLocal(root as FileSystemDirectoryHandle, path),
     enabled: root !== null,
   })
-  const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
+  const sort = useUiStore((state) => state.entrySort)
+  const setSort = useUiStore((state) => state.setEntrySort)
+  const entries = useMemo(() => sortEntries(listing.data ?? [], sort), [listing.data, sort])
   const [previewing, setPreviewing] = useState<number | null>(null)
   const files = useMemo(() => entries.filter((entry) => entry.type === 'file'), [entries])
   const sources = useMemo(
@@ -206,6 +210,8 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
       {listing.isSuccess && entries.length > 0 && (
         <div className={cn('flex min-h-0 flex-1')}>
           <EntryTable
+            sort={sort}
+            onSort={(key) => setSort(nextSort(sort, key))}
             key={path}
             entries={entries}
             locale={i18n.language}

@@ -98,7 +98,7 @@ async function renderExplorer(path = '/www', siteId = 's1', language: 'en' | 'es
  */
 describe('explorer', () => {
   beforeEach(() => {
-    useUiStore.setState({ fileDoubleClick: 'download' })
+    useUiStore.setState({ fileDoubleClick: 'download', entrySort: { key: 'modified', direction: 'desc' } })
     mockSession(adminSession)
     mockWorkspaceData({ sites: [prod] })
   })
@@ -118,12 +118,34 @@ describe('explorer', () => {
     expect(within(rows[1]).getByText('assets')).toBeInTheDocument()
     expect(within(rows[1]).getByText('—')).toBeInTheDocument()
     expect(within(rows[1]).getByText('drwxr-xr-x')).toBeInTheDocument()
-    expect(within(rows[2]).getByText('alpha.txt')).toBeInTheDocument()
-    expect(within(rows[2]).getByText('Mar 8, 2026')).toBeInTheDocument()
-    expect(within(rows[3]).getByText('5.0 MB')).toBeInTheDocument()
-    expect(within(rows[3]).getByText('Mar 8, 2026, 7:30 AM')).toBeInTheDocument()
+    expect(within(rows[2]).getByText('zeta.txt')).toBeInTheDocument()
+    expect(within(rows[2]).getByText('5.0 MB')).toBeInTheDocument()
+    expect(within(rows[2]).getByText('Mar 8, 2026, 7:30 AM')).toBeInTheDocument()
+    expect(within(rows[3]).getByText('alpha.txt')).toBeInTheDocument()
+    expect(within(rows[3]).getByText('Mar 8, 2026')).toBeInTheDocument()
     expect(screen.getByText('3 items')).toBeInTheDocument()
     expect(grid).toHaveAttribute('aria-rowcount', '4')
+    expect(within(grid).getByRole('columnheader', { name: 'Modified' })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('sorts by a column clicked in its header, flips it with a second click, and keeps the choice', async () => {
+    mockListing([entry('zeta.txt', { size: 1 }), entry('alpha.txt', { size: 9, modifiedAt: '2026-03-07T00:00:00Z' })])
+    const user = userEvent.setup()
+    await renderExplorer()
+    const grid = await screen.findByRole('grid', { name: 'Files' })
+    const names = () => within(grid).getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('gridcell')[0].textContent)
+    expect(names()).toEqual(['zeta.txt', 'alpha.txt'])
+
+    await user.click(within(grid).getByRole('button', { name: 'Name' }))
+    expect(names()).toEqual(['alpha.txt', 'zeta.txt'])
+    expect(within(grid).getByRole('columnheader', { name: 'Name' })).toHaveAttribute('aria-sort', 'ascending')
+    await user.click(within(grid).getByRole('button', { name: 'Name' }))
+    expect(names()).toEqual(['zeta.txt', 'alpha.txt'])
+    await user.click(within(grid).getByRole('button', { name: 'Size' }))
+    expect(names()).toEqual(['alpha.txt', 'zeta.txt'])
+    expect(within(grid).getByRole('columnheader', { name: 'Name' })).toHaveAttribute('aria-sort', 'none')
+    expect(useUiStore.getState().entrySort).toEqual({ key: 'size', direction: 'desc' })
+    act(() => useUiStore.getState().setEntrySort({ key: 'modified', direction: 'desc' }))
   })
 
   it('marks an open connection as connected', async () => {

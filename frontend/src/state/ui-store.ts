@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import { defaultSort, type EntrySort, type SortKey } from '@/lib/entry-sort'
 import { defaultThemeId, findTheme } from '@/lib/theme'
 
 /** What a double click, or Enter, does on a file of the explorer: download it, as FileZilla does, or open it in the remote editor. */
@@ -33,6 +34,8 @@ export interface UiState {
   sitesOpen: boolean
   /** Whether the details panel beside the files is shown. */
   detailsOpen: boolean
+  /** How the entries of folders are ordered, in every explorer. */
+  entrySort: EntrySort
   /** Chooses a theme. */
   setTheme: (themeId: string) => void
   /** Turns following the operating system on or off. */
@@ -63,10 +66,15 @@ export interface UiState {
   setSitesOpen: (open: boolean) => void
   /** Shows or hides the details panel. */
   setDetailsOpen: (open: boolean) => void
+  /** Chooses how the entries of folders are ordered. */
+  setEntrySort: (sort: EntrySort) => void
 }
 
+/** The columns entries can be sorted by, to check what storage holds. */
+const sortKeys: readonly SortKey[] = ['name', 'size', 'type', 'modified']
+
 /** The subset of {@link UiState} that is persisted. */
-type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'preferencesSynced' | 'logOpen' | 'sitesOpen' | 'detailsOpen'>
+type PersistedUi = Pick<UiState, 'themeId' | 'followSystem' | 'queueOpen' | 'workspaceId' | 'fileDoubleClick' | 'preferencesSynced' | 'logOpen' | 'sitesOpen' | 'detailsOpen' | 'entrySort'>
 
 /** Themes of the first versions, stored as a color scheme, mapped to the themes that replaced them. */
 const legacySchemes: Readonly<Record<string, Partial<PersistedUi>>> = {
@@ -106,6 +114,10 @@ function sanitize(raw: unknown): Partial<PersistedUi> {
   if (typeof value.preferencesSynced === 'boolean') {
     clean.preferencesSynced = value.preferencesSynced
   }
+  const sort = value.entrySort as Partial<EntrySort> | undefined
+  if (sort !== undefined && sortKeys.includes(sort.key as SortKey) && (sort.direction === 'asc' || sort.direction === 'desc')) {
+    clean.entrySort = { key: sort.key as SortKey, direction: sort.direction }
+  }
   return clean
 }
 
@@ -124,6 +136,7 @@ export const useUiStore = create<UiState>()(
       logOpen: false,
       sitesOpen: true,
       detailsOpen: false,
+      entrySort: defaultSort,
       setTheme: (themeId) => set({ themeId }),
       setFollowSystem: (followSystem) => set({ followSystem }),
       toggleQueue: () => set((state) => ({ queueOpen: !state.queueOpen, queueAuto: false })),
@@ -139,10 +152,11 @@ export const useUiStore = create<UiState>()(
       setLogOpen: (logOpen) => set({ logOpen }),
       setSitesOpen: (sitesOpen) => set({ sitesOpen }),
       setDetailsOpen: (detailsOpen) => set({ detailsOpen }),
+      setEntrySort: (entrySort) => set({ entrySort }),
     }),
     {
       name: 'transferly-ui',
-      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, preferencesSynced, logOpen, sitesOpen, detailsOpen }): PersistedUi => ({
+      partialize: ({ themeId, followSystem, queueOpen, workspaceId, fileDoubleClick, preferencesSynced, logOpen, sitesOpen, detailsOpen, entrySort }): PersistedUi => ({
         themeId,
         followSystem,
         queueOpen,
@@ -152,6 +166,7 @@ export const useUiStore = create<UiState>()(
         logOpen,
         sitesOpen,
         detailsOpen,
+        entrySort,
       }),
       merge: (persisted, current) => ({ ...current, ...sanitize(persisted) }),
     },

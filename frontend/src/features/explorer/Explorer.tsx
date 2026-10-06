@@ -11,6 +11,7 @@ import { Group, layoutStorage, Panel, ResizeHandle, useCollapsible, useDefaultLa
 import { LoadingBar } from '@/components/ui/loading-bar'
 import { Loading } from '@/components/ui/loading'
 import { refresh } from '@/lib/motion'
+import { nextSort } from '@/lib/entry-sort'
 import { cn } from '@/lib/utils'
 import type { HostKeyTrustMode, RemoteEntry } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
@@ -183,7 +184,9 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
   }, [atHome, home, onNavigate])
   const opening = listing.isFetching && listing.isPlaceholderData
   const canceled = !listing.isFetching && (listing.isPending || listing.isPlaceholderData)
-  const entries = useMemo(() => sortEntries(listing.data ?? []), [listing.data])
+  const sort = useUiStore((state) => state.entrySort)
+  const setSort = useUiStore((state) => state.setEntrySort)
+  const entries = useMemo(() => sortEntries(listing.data ?? [], sort), [listing.data, sort])
   const [filtered, setFiltered] = useState<{ path: string; filter: EntryFilter }>({ path, filter: emptyFilter })
   const filter = filtered.path === path ? filtered.filter : emptyFilter
   const setFilter = (next: EntryFilter): void => setFiltered({ path, filter: next })
@@ -669,6 +672,8 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
         >
           <Panel id="entries" minSize={380} className="flex h-full min-h-0 min-w-0 flex-col">
               <EntryTable
+                sort={sort}
+                onSort={(key) => setSort(nextSort(sort, key))}
                 key={path}
                 entries={visible}
                 highlight={filter.text}

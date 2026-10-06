@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RemoteEntry } from '@/lib/api'
+import { defaultSort, firstDirection, nextSort, type EntrySort } from '@/lib/entry-sort'
 
 import { formatSize, joinPath, normalizePath, parentPath, pathSegments, resolveSelection, sortEntries } from './entries'
 
@@ -19,16 +20,47 @@ function entry(name: string, type: RemoteEntry['type'] = 'file'): RemoteEntry {
  * - a typed path becomes absolute and plain: spaces around it, repeated and trailing slashes and `.` go, `..` climbs but not above the root
  * - the parent of a path is the step before it, and the root is its own parent
  * - names join onto folders, including the root
+ * - entries sort by name, size, type and time in both directions, folders first and the newest first by default, ties by name; each
+ *   column starts in its own direction and a second click flips it
  * - the selection is the entry with the selected path, or the first one when there is none or it is gone
  */
 describe('explorer entries', () => {
   it('lists directories first and sorts names naturally', () => {
     const input = [entry('b.txt'), entry('file10'), entry('file2'), entry('Zeta', 'directory'), entry('alpha', 'directory'), entry('A.txt')]
 
-    const sorted = sortEntries(input)
+    const sorted = sortEntries(input, { key: 'name', direction: 'asc' })
 
     expect(sorted.map((item) => item.name)).toEqual(['alpha', 'Zeta', 'A.txt', 'b.txt', 'file2', 'file10'])
     expect(input[0].name).toBe('b.txt')
+  })
+
+  it('sorts by every column in both directions, folders first, the newest first by default and ties by name', () => {
+    const at = (name: string, type: RemoteEntry['type'], size: number, modifiedAt: string): RemoteEntry => ({ ...entry(name, type), size, modifiedAt })
+    const input = [
+      at('old.zip', 'file', 300, '2026-01-01T00:00:00Z'),
+      at('new.txt', 'file', 100, '2026-03-01T00:00:00Z'),
+      at('mid.csv', 'file', 200, '2026-02-01T00:00:00Z'),
+      at('noext', 'file', 200, '2026-02-01T00:00:00Z'),
+      at('docs', 'directory', 0, '2025-01-01T00:00:00Z'),
+      at('build', 'directory', 0, '2026-04-01T00:00:00Z'),
+    ]
+    const names = (sort?: EntrySort) => sortEntries(input, sort).map((item) => item.name)
+    expect(names()).toEqual(['build', 'docs', 'new.txt', 'mid.csv', 'noext', 'old.zip'])
+    expect(names({ key: 'modified', direction: 'asc' })).toEqual(['docs', 'build', 'old.zip', 'mid.csv', 'noext', 'new.txt'])
+    expect(names({ key: 'size', direction: 'desc' })).toEqual(['build', 'docs', 'old.zip', 'mid.csv', 'noext', 'new.txt'])
+    expect(names({ key: 'size', direction: 'asc' })).toEqual(['build', 'docs', 'new.txt', 'mid.csv', 'noext', 'old.zip'])
+    expect(names({ key: 'type', direction: 'asc' })).toEqual(['build', 'docs', 'noext', 'mid.csv', 'new.txt', 'old.zip'])
+    expect(names({ key: 'name', direction: 'desc' })).toEqual(['docs', 'build', 'old.zip', 'noext', 'new.txt', 'mid.csv'])
+  })
+
+  it('starts each column in its own direction and flips the column in use', () => {
+    expect(firstDirection('name')).toBe('asc')
+    expect(firstDirection('type')).toBe('asc')
+    expect(firstDirection('size')).toBe('desc')
+    expect(firstDirection('modified')).toBe('desc')
+    expect(nextSort(defaultSort, 'modified')).toEqual({ key: 'modified', direction: 'asc' })
+    expect(nextSort({ key: 'modified', direction: 'asc' }, 'modified')).toEqual({ key: 'modified', direction: 'desc' })
+    expect(nextSort(defaultSort, 'name')).toEqual({ key: 'name', direction: 'asc' })
   })
 
   it.each([

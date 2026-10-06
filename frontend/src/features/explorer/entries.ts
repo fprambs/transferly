@@ -1,4 +1,5 @@
 import type { RemoteEntry } from '@/lib/api'
+import { defaultSort, type EntrySort, type SortKey } from '@/lib/entry-sort'
 
 /** One step of a path, for breadcrumbs. */
 export interface PathSegment {
@@ -11,16 +12,35 @@ export interface PathSegment {
 /** Units of size, from bytes up. */
 const sizeUnits = ['B', 'KB', 'MB', 'GB', 'TB'] as const
 
+/** Compares names ignoring case and comparing digits as numbers. */
+function byName(a: RemoteEntry, b: RemoteEntry): number {
+  return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+/** The extension of a file, lowercase, or empty for folders and files without one. */
+function extensionOf(entry: RemoteEntry): string {
+  const dot = entry.name.lastIndexOf('.')
+  return entry.type === 'directory' || dot <= 0 ? '' : entry.name.slice(dot + 1).toLowerCase()
+}
+
+/** Compares two entries by one column, ascending. */
+const compareBy: Record<SortKey, (a: RemoteEntry, b: RemoteEntry) => number> = {
+  name: byName,
+  size: (a, b) => a.size - b.size,
+  type: (a, b) => extensionOf(a).localeCompare(extensionOf(b)),
+  modified: (a, b) => Date.parse(a.modifiedAt) - Date.parse(b.modifiedAt),
+}
+
 /**
- * Sorts entries the way file managers do: directories first, then by name ignoring case and comparing digits as numbers.
+ * Sorts entries the way file managers do: folders first, then by the column chosen, the newest first unless told otherwise; entries
+ * that tie are ordered by name.
  *
  * @returns A new array; the input is left as it is.
  */
-export function sortEntries(entries: readonly RemoteEntry[]): RemoteEntry[] {
+export function sortEntries(entries: readonly RemoteEntry[], sort: EntrySort = defaultSort): RemoteEntry[] {
   const rank = (entry: RemoteEntry): number => (entry.type === 'directory' ? 0 : 1)
-  return [...entries].sort(
-    (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
-  )
+  const sign = sort.direction === 'asc' ? 1 : -1
+  return [...entries].sort((a, b) => rank(a) - rank(b) || sign * compareBy[sort.key](a, b) || byName(a, b))
 }
 
 /** Formats a size in bytes with binary steps and one decimal from kilobytes up, such as `1.5 MB`. */

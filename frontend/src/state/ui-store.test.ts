@@ -22,7 +22,7 @@ function store(state: object): void {
 describe('useUiStore', () => {
   beforeEach(() => {
     localStorage.clear()
-    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true })
+    useUiStore.setState({ themeId: 'transferly-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true, entrySort: { key: 'modified', direction: 'desc' } })
   })
 
   it('starts with the default theme and an open queue', () => {
@@ -90,23 +90,23 @@ describe('useUiStore', () => {
     useUiStore.getState().setTheme('nord')
 
     const stored = JSON.parse(localStorage.getItem('transferly-ui') ?? '{}') as { state: object }
-    expect(Object.keys(stored.state).sort()).toEqual(['detailsOpen', 'fileDoubleClick', 'followSystem', 'logOpen', 'preferencesSynced', 'queueOpen', 'sitesOpen', 'themeId', 'workspaceId'])
+    expect(Object.keys(stored.state).sort()).toEqual(['detailsOpen', 'entrySort', 'fileDoubleClick', 'followSystem', 'logOpen', 'preferencesSynced', 'queueOpen', 'sitesOpen', 'themeId', 'workspaceId'])
   })
 
   it('restores valid persisted values', async () => {
-    store({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit', preferencesSynced: true, logOpen: false, sitesOpen: false, detailsOpen: false })
+    store({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit', preferencesSynced: true, logOpen: false, sitesOpen: false, detailsOpen: false, entrySort: { key: 'size', direction: 'asc' } })
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit', preferencesSynced: true, logOpen: false, sitesOpen: false, detailsOpen: false })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'dracula', followSystem: true, queueOpen: false, workspaceId: 'w2', fileDoubleClick: 'edit', preferencesSynced: true, logOpen: false, sitesOpen: false, detailsOpen: false, entrySort: { key: 'size', direction: 'asc' } })
   })
 
   it('ignores values of the wrong type and unknown themes', async () => {
-    store({ themeId: 'no-such-theme', followSystem: 'yes', queueOpen: 'no', workspaceId: 7, fileDoubleClick: 'open', preferencesSynced: 'yes', logOpen: 'no', sitesOpen: 1, detailsOpen: null })
+    store({ themeId: 'no-such-theme', followSystem: 'yes', queueOpen: 'no', workspaceId: 7, fileDoubleClick: 'open', preferencesSynced: 'yes', logOpen: 'no', sitesOpen: 1, detailsOpen: null, entrySort: { key: 'owner', direction: 'up' } })
 
     await useUiStore.persist.rehydrate()
 
-    expect(useUiStore.getState()).toMatchObject({ themeId: 'transferly-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true })
+    expect(useUiStore.getState()).toMatchObject({ themeId: 'transferly-dark', followSystem: false, queueOpen: true, workspaceId: null, fileDoubleClick: 'download', preferencesSynced: false, logOpen: true, sitesOpen: true, detailsOpen: true, entrySort: { key: 'modified', direction: 'desc' } })
   })
 
   it('works with nothing stored', async () => {

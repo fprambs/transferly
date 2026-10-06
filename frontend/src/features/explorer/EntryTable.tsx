@@ -1,10 +1,11 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Download, Eye, FileArchive, FilePen, Files, FolderOpen, FolderPlus, PackageOpen, PackagePlus, TextCursorInput, Trash2, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, Download, Eye, FileArchive, FilePen, Files, FolderOpen, FolderPlus, PackageOpen, PackagePlus, TextCursorInput, Trash2, type LucideIcon } from 'lucide-react'
 import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ContextMenu, ContextMenuContent, ContextMenuGroup, ContextMenuItem, ContextMenuSeparator, ContextMenuShortcut, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { RemoteEntry } from '@/lib/api'
+import type { EntrySort, SortKey } from '@/lib/entry-sort'
 import { formatInstant, isUnknownInstant } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
 
@@ -91,6 +92,10 @@ export interface EntryTableProps {
   canExtract?: (entry: RemoteEntry) => boolean
   /** Whether folders can be dragged too; files always can. */
   dragFolders?: boolean
+  /** How the entries are ordered, which the headers show; left out, the headers cannot sort. */
+  sort?: EntrySort
+  /** Called with the column whose header was clicked, to order the entries by it. */
+  onSort?: (key: SortKey) => void
   /** Called when the user starts dragging an entry, to put what it carries in the drag data. */
   onDragEntry: (entry: RemoteEntry, data: DataTransfer) => void
   /** Text of the filter of the folder, whose words are highlighted in the names (4.14d). */
@@ -133,8 +138,40 @@ function movedTo(key: string, current: number, last: number): number | undefined
   return moves[key]
 }
 
+/** Props of {@link SortHeader}. */
+interface SortHeaderProps {
+  /** The column of the header. */
+  column: SortKey
+  /** The name of the column. */
+  label: string
+  /** How the entries are ordered. */
+  sort?: EntrySort
+  /** Orders the entries by the column; left out, the header is plain text. */
+  onSort?: (key: SortKey) => void
+  /** Classes of the header cell. */
+  className?: string
+}
+
+/** The header of a column the entries can be sorted by: a button that orders them by it, with an arrow on the column in use. */
+function SortHeader({ column, label, sort, onSort, className }: SortHeaderProps) {
+  const active = sort?.key === column
+  const Arrow = sort?.direction === 'asc' ? ArrowUp : ArrowDown
+  return (
+    <span role="columnheader" aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className={cn('flex min-w-0', className)}>
+      {onSort === undefined ? (
+        label
+      ) : (
+        <button type="button" onClick={() => onSort(column)} className={cn('flex min-w-0 items-center gap-1 uppercase hover:text-foreground', active && 'text-foreground')}>
+          <span className="truncate">{label}</span>
+          {active && <Arrow aria-hidden="true" className="size-3 shrink-0" />}
+        </button>
+      )}
+    </span>
+  )
+}
+
 /** Virtualized table of the entries of a folder, with keyboard navigation. It needs at least one entry. */
-export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onPreview, onRename, onDelete, onNewFolder, onCompress, onExtract, canExtract = () => false, dragFolders, onDragEntry, highlight = '' }: EntryTableProps) {
+export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp, showPermissions, selectedPath, onSelect, onDownload, onDownloadEach, onEdit, onPreview, onRename, onDelete, onNewFolder, onCompress, onExtract, canExtract = () => false, dragFolders, onDragEntry, highlight = '', sort, onSort }: EntryTableProps) {
   const { t } = useTranslation('explorer')
   const describeType = useDescribeType()
   const scroller = useRef<HTMLDivElement>(null)
@@ -201,16 +238,10 @@ export function EntryTable({ entries, locale, timeZone, onOpen, onOpenFile, onUp
         role="row"
         className={cn(columns, 'sticky top-0 z-10 h-8 border-b bg-background text-[11px] font-medium tracking-wider text-muted-foreground uppercase')}
       >
-        <span role="columnheader">{t(($) => $.columns.name)}</span>
-        <span role="columnheader" className="text-end">
-          {t(($) => $.columns.size)}
-        </span>
-        <span role="columnheader" className="@max-3xl:hidden">
-          {t(($) => $.columns.type)}
-        </span>
-        <span role="columnheader" className="@max-lg:hidden">
-          {t(($) => $.columns.modified)}
-        </span>
+        <SortHeader column="name" label={t(($) => $.columns.name)} sort={sort} onSort={onSort} />
+        <SortHeader column="size" label={t(($) => $.columns.size)} sort={sort} onSort={onSort} className="justify-end text-end" />
+        <SortHeader column="type" label={t(($) => $.columns.type)} sort={sort} onSort={onSort} className="@max-3xl:hidden" />
+        <SortHeader column="modified" label={t(($) => $.columns.modified)} sort={sort} onSort={onSort} className="@max-lg:hidden" />
         <span role="columnheader" className="@max-lg:hidden">
           {t(($) => $.columns.mode)}
         </span>

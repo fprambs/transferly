@@ -5,10 +5,16 @@ import { expect, test } from '../fixtures.ts'
 /** Where the screenshots of the viewers are written, relative to the frontend folder. */
 const shots = 'shots'
 
-/** Opens a folder of the preview samples mounted into the SFTP server of the test stack. */
+/** Opens a folder of the preview samples mounted into the SFTP server of the test stack, sorted by name, since the arrows walk it in order. */
 async function openSamples(page: Page, quickId: string, folder: string): Promise<void> {
   await page.goto(`/sites/${quickId}?path=${encodeURIComponent(`/preview-samples/${folder}`)}`)
-  await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
+  const grid = page.getByRole('grid', { name: 'Files' })
+  await expect(grid).toBeVisible()
+  const name = grid.getByRole('columnheader', { name: 'Name' })
+  if ((await name.getAttribute('aria-sort')) !== 'ascending') {
+    await grid.getByRole('button', { name: 'Name' }).click()
+  }
+  await expect(name).toHaveAttribute('aria-sort', 'ascending')
 }
 
 /**

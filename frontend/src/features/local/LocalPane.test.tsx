@@ -1,6 +1,6 @@
 import { Blob as NodeBlob } from 'node:buffer'
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,6 +11,7 @@ import { FakeDir, handleOf, offerPicker, withdrawPicker } from '@/test/fake-loca
 import { server } from '@/test/msw'
 import { choose, optionsOf } from '@/test/select'
 import { renderApp } from '@/test/render-app'
+import { useUiStore } from '@/state/ui-store'
 
 import { entryDragType } from '../explorer/entry-drag'
 
@@ -93,7 +94,7 @@ async function chooseFolder(user: ReturnType<typeof userEvent.setup>, pane: HTML
  *
  * Scenarios:
  * - without a folder picker the pane says so and the selector does not offer it; with one it does, and asks to choose a folder first
- * - choosing a folder lists it, folders open and the path steps, a file opens in the viewer, Backspace goes up, refresh works, and a closed
+ * - choosing a folder lists it, its entries sort by the column clicked, folders open and the path steps, a file opens in the viewer, Backspace goes up, refresh works, and a closed
  *   dialog changes nothing
  * - changing the folder shows the new one
  * - a folder that cannot be read is reported
@@ -151,6 +152,10 @@ describe('local folder pane', () => {
     expect(within(grid).getByText('notes.txt')).toBeInTheDocument()
     expect(within(pane).getByText('2 items')).toBeInTheDocument()
     expect(within(grid).getByText('photos').closest('[role="row"]')).toHaveAttribute('draggable', 'true')
+    await user.click(within(grid).getByRole('button', { name: 'Name' }))
+    expect(within(grid).getByRole('columnheader', { name: 'Name' })).toHaveAttribute('aria-sort', 'ascending')
+    expect(useUiStore.getState().entrySort).toEqual({ key: 'name', direction: 'asc' })
+    act(() => useUiStore.getState().setEntrySort({ key: 'modified', direction: 'desc' }))
 
     await user.dblClick(within(grid).getByText('photos'))
     expect(await within(await within(pane).findByRole('grid')).findByText('cat.png')).toBeInTheDocument()
