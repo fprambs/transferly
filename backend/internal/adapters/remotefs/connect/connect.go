@@ -170,6 +170,23 @@ func (c *Connector) Connect(ctx context.Context, key connections.Key, session st
 		return nil, err
 	}
 	defer t.wipe()
+	return c.open(ctx, key, session, t)
+}
+
+// Probe opens a connection to a site that is not saved as it is, such as the draft of a site form, with the secrets given, outside
+// the pool: the caller closes it. key names the user, the workspace whose trusted keys apply and the site whose connection log hears
+// the attempt. The secrets are wiped once used.
+func (c *Connector) Probe(ctx context.Context, key connections.Key, session string, s site.Site, secrets map[site.SecretKind][]byte) (remotefs.RemoteFS, error) {
+	if secrets == nil {
+		secrets = map[site.SecretKind][]byte{}
+	}
+	t := target{Site: s, secrets: secrets}
+	defer t.wipe()
+	return c.open(ctx, key, session, t)
+}
+
+// open connects to a resolved target with the opener of its connector.
+func (c *Connector) open(ctx context.Context, key connections.Key, session string, t target) (remotefs.RemoteFS, error) {
 	if c.offering != nil {
 		if err := c.offering.CheckConnector(ctx, t.Connector); err != nil {
 			return nil, err

@@ -65,6 +65,8 @@ export type CollectionChanges = Schemas['CollectionChanges']
 export type Site = Schemas['Site']
 /** Settings and credentials of a site. */
 export type SiteInput = Schemas['SiteInput']
+/** What trying a site form found: the folder listed and how many entries it holds. */
+export type SiteDraftTestResult = Schemas['SiteDraftTestResult']
 /** A server tried without saving it. */
 export type QuickConnection = Schemas['QuickConnection']
 /** Settings and credentials of a quick connection. */
@@ -284,6 +286,8 @@ export function createApi(transport: Transport) {
         transport.request<Site>({ method: 'PUT', path: `${root}/workspaces/${workspaceId}/sites/${siteId}`, body: input }),
       remove: (workspaceId: string, siteId: string) =>
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}` }),
+      test: (workspaceId: string, site: SiteInput, siteId?: string) =>
+        transport.request<SiteDraftTestResult>({ method: 'POST', path: `${root}/workspaces/${workspaceId}/sites/test`, body: { site, siteId } }),
       disconnect: (workspaceId: string, siteId: string) =>
         transport.request<void>({ method: 'DELETE', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/connection` }),
       setCredential: (workspaceId: string, siteId: string, password: string, remember: boolean) =>

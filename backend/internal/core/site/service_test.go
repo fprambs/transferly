@@ -1147,3 +1147,73 @@ func TestService_Quota(t *testing.T) {
 		t.Errorf("a viewer creating = %v, quota asked %d times; want ErrForbidden and no question", err, len(refusing.asked))
 	}
 }
+
+// TestService_Draft verifies the draft of a site form, tried before it is saved.
+//
+// Use cases:
+//   - a new site gets the secrets typed and an identifier of its own; nothing is saved
+//   - an edit keeps the stored secrets left blank, with the settings of the form, and takes the ones typed instead; stored secrets
+//     whose field no longer applies are left out
+//   - viewers, settings that break the schema, unknown secrets, private hosts, a missing site, sudo for an editor and a connector
+//     the instance does not offer are refused as saving refuses them; a locked vault is ErrLocked when a stored secret is needed
+func TestService_Draft(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t, &switchable{})
+	draft, secrets, err := f.svc.Draft(ctx, f.editor, f.ws, uuid.Nil, "open", valid(), site.SecretChanges{site.SecretPassword: "typed"})
+	if err != nil || draft.ID == uuid.Nil || string(secrets[site.SecretPassword]) != "typed" || len(f.store.sites) != 0 {
+		t.Fatalf("Draft(new) = %+v, %v, %v with %d sites saved", draft, secrets, err, len(f.store.sites))
+	}
+
+	created, err := f.svc.Create(ctx, f.editor, f.ws, "open", valid(), site.SecretChanges{site.SecretPassword: "stored"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := with(valid(), "Moved", "username", "other")
+	draft, secrets, err = f.svc.Draft(ctx, f.editor, f.ws, created.ID, "open", moved, site.SecretChanges{})
+	if err != nil || draft.ID != created.ID || draft.Setting("username") != "other" || string(secrets[site.SecretPassword]) != "stored" {
+		t.Errorf("Draft(edit, blank password) = %+v, %v, %v; want the stored password with the new settings", draft, secrets, err)
+	}
+	if _, secrets, _ = f.svc.Draft(ctx, f.editor, f.ws, created.ID, "open", moved, site.SecretChanges{site.SecretPassword: "typed"}); string(secrets[site.SecretPassword]) != "typed" {
+		t.Errorf("Draft(edit, typed password) = %v; want the typed one", secrets)
+	}
+	if _, secrets, _ = f.svc.Draft(ctx, f.editor, f.ws, created.ID, "open", with(valid(), "Ask", "auth", "ask"), site.SecretChanges{}); len(secrets) != 0 {
+		t.Errorf("Draft(edit to ask) = %v; want no stored password", secrets)
+	}
+	if stored := f.store.sites[created.ID]; stored.Setting("username") != "deploy" {
+		t.Error("a draft changed the saved site")
+	}
+
+	refusals := map[string]struct {
+		actor   uuid.UUID
+		id      uuid.UUID
+		session string
+		in      site.Input
+		changes site.SecretChanges
+		want    error
+	}{
+		"viewer":         {f.viewer, uuid.Nil, "open", valid(), nil, workspace.ErrForbidden},
+		"invalid":        {f.editor, uuid.Nil, "open", with(valid(), "Bad", "host", ""), nil, connectors.ErrInvalidConfig},
+		"unknown secret": {f.editor, uuid.Nil, "open", valid(), site.SecretChanges{"token": "x"}, connectors.ErrInvalidConfig},
+		"private host":   {f.editor, uuid.Nil, "open", with(valid(), "Private", "host", "private.example"), nil, netguard.ErrBlocked},
+		"missing":        {f.editor, uuid.New(), "open", valid(), nil, site.ErrNotFound},
+		"sudo":           {f.editor, uuid.Nil, "open", with(valid(), "Root", "sudo", "true"), nil, site.ErrElevation},
+		"locked":         {f.editor, created.ID, "closed", moved, site.SecretChanges{"passphrase": "typed"}, site.ErrLocked},
+	}
+	for name, c := range refusals {
+		if _, _, err := f.svc.Draft(ctx, c.actor, f.ws, c.id, c.session, c.in, c.changes); !errors.Is(err, c.want) {
+			t.Errorf("%s: Draft() = %v; want %v", name, err, c.want)
+		}
+	}
+	proxied := with(valid(), "Proxied", "proxy_kind", "socks5", "proxy_host", "public.example", "proxy_port", "1080")
+	both, err := f.svc.Create(ctx, f.editor, f.ws, "open", proxied, site.SecretChanges{site.SecretPassword: "stored", site.SecretProxyPassword: "proxy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := f.svc.Draft(ctx, f.editor, f.ws, both.ID, "closed", proxied, site.SecretChanges{site.SecretPassword: "typed"}); !errors.Is(err, site.ErrLocked) {
+		t.Errorf("Draft() keeping a stored proxy password while locked = %v; want ErrLocked", err)
+	}
+	f.svc.UseOffering(offering{"ftp": true})
+	if _, _, err := f.svc.Draft(ctx, f.editor, f.ws, created.ID, "open", ftp("Moved"), site.SecretChanges{}); !errors.Is(err, connectors.ErrDisabled) {
+		t.Errorf("Draft() to a disabled connector = %v; want ErrDisabled", err)
+	}
+}

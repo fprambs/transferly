@@ -2159,6 +2159,77 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/workspaces/{workspaceId}/sites/test:
+    post:
+      operationId: testSiteDraft
+      security:
+        - sessionCookie: []
+      summary: Try a site as a form holds it, without saving it
+      description: >-
+        Connects with the settings given, lists the folder the server opens sessions in and disconnects, saving nothing. With a
+        siteId, the secrets left out are the stored ones of that site whose field still applies, so an edit can be tried before it
+        is saved; keeping a stored secret needs the vault unlocked. It needs what saving needs. The connection log of the site hears
+        the attempt. Failures are those of connecting, such as host_key_unknown with the fingerprint to confirm.
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SiteDraftTest"
+      responses:
+        "200":
+          description: The server answered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteDraftTestResult"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /api/v1/workspaces/{workspaceId}/sites/{siteId}:
     get:
       operationId: getSite
@@ -5423,6 +5494,26 @@ components:
           description: Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise.
         secrets:
           $ref: "#/components/schemas/SiteSecretChanges"
+    SiteDraftTest:
+      type: object
+      required: [site]
+      properties:
+        siteId:
+          type: string
+          format: uuid
+          description: The saved site the draft edits, whose stored secrets fill the ones left out; left out for a new site.
+        site:
+          $ref: "#/components/schemas/SiteInput"
+    SiteDraftTestResult:
+      type: object
+      required: [path, entries]
+      properties:
+        path:
+          type: string
+          description: The folder that was listed, where the server opens sessions.
+        entries:
+          type: integer
+          description: How many entries the folder holds.
     KnownHost:
       type: object
       required: [host, port, keyType, fingerprint, firstSeen]

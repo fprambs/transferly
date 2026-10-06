@@ -512,3 +512,40 @@ func TestConnector_StrictServers(t *testing.T) {
 		t.Error("the strictness of servers was not told apart")
 	}
 }
+
+// TestConnector_Probe verifies connecting to a site that is not saved, as a site form is tried before it is saved.
+//
+// Scenarios:
+//   - a draft with the right password connects and lists, though nothing is saved, and its secrets are wiped once used
+//   - a draft with a wrong password is refused credentials, and a draft without secrets that needs none, anonymous, connects
+func TestConnector_Probe(t *testing.T) {
+	e := newEnv(t)
+	server := sftptest.Start(t, sftptest.Options{Users: map[string]string{sshUser: sshPassword}, Anonymous: true})
+	e.trust(server)
+	host, port, _ := splitAddr(server.Addr)
+	c := e.connector(e.allow)
+	key := connections.Key{UserID: e.user, WorkspaceID: e.workspace, SiteID: uuid.New()}
+	draft := func(username, auth string) site.Site {
+		return site.Site{ID: key.SiteID, WorkspaceID: e.workspace, Connector: "sftp", Config: map[string]string{"host": host, "port": strconv.Itoa(port), "username": username, "auth": auth}}
+	}
+	secrets := map[site.SecretKind][]byte{site.SecretPassword: []byte(sshPassword)}
+	fsys, err := c.Probe(t.Context(), key, session, draft(sshUser, "password"), secrets)
+	if err != nil {
+		t.Fatalf("Probe() = %v", err)
+	}
+	if _, err := fsys.List(t.Context(), "/"); err != nil {
+		t.Errorf("List() = %v", err)
+	}
+	_ = fsys.Close()
+	if string(secrets[site.SecretPassword]) == sshPassword {
+		t.Error("the secrets of a draft were not wiped")
+	}
+	if _, err := c.Probe(t.Context(), key, session, draft(sshUser, "password"), map[site.SecretKind][]byte{site.SecretPassword: []byte("wrong")}); !errors.Is(err, remotefs.ErrAuth) {
+		t.Errorf("Probe() with a wrong password = %v; want ErrAuth", err)
+	}
+	anonymous, err := c.Probe(t.Context(), key, session, draft("anonymous", "anonymous"), nil)
+	if err != nil {
+		t.Fatalf("Probe(anonymous) = %v", err)
+	}
+	_ = anonymous.Close()
+}

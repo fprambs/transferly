@@ -149,6 +149,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Vault:         vaults,
 			Keys:          keys,
 			Sites:         sites,
+			Probe:         connector,
 			HostKeys:      hostKeys,
 			Bookmarks:     bookmark.NewService(store, store, workspaces, system, nil),
 			Connections:   pool,

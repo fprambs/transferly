@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -123,7 +125,8 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 	quickConnections := quick.NewService(workspaces, sites, clock, nil)
 	asked := credentials.New(clock, 8*time.Hour)
 	hub := events.New(64)
-	pool := connections.New(newMemConnector(clock, sites, quickConnections, asked), clock, connections.Config{Attempts: 1, OnChange: connections.PublishTo(hub)})
+	connector := newMemConnector(clock, sites, quickConnections, asked)
+	pool := connections.New(connector, clock, connections.Config{Attempts: 1, OnChange: connections.PublishTo(hub)})
 	recorded := &recordedEvents{}
 	broker := prompts.New(hub, time.Minute)
 	importer := fzimport.NewService(workspaces, sites)
@@ -156,6 +159,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 		Connections:   pool,
 		Credentials:   asked,
 		Sites:         sites,
+		Probe:         connector,
 		Connectors:    offered,
 		Files:         files.NewService(workspaces, pool).WithCommands(func() bool { return !quotas.Current().ServerCommandsOff }),
 		Transfers:     transferService,
@@ -713,6 +717,63 @@ type selfWriting struct{ io.ReadCloser }
 func (s selfWriting) WriteTo(w io.Writer) (int64, error) {
 	selfWrites.Add(1)
 	return io.Copy(w, struct{ io.Reader }{s.ReadCloser})
+}
+
+// probePassword is the password the servers that drafts are tried against accept.
+const probePassword = "draft secret"
+
+// unknownProbeHost is a host whose server key is not trusted yet when a draft is tried against it.
+const unknownProbeHost = "1.1.1.1"
+
+// Probe opens a connection to a draft: a fresh file system holding one folder, when the draft carries [probePassword]; a draft for
+// [unknownProbeHost] meets an unknown server key, and any other password is refused.
+func (c memConnector) Probe(_ context.Context, _ connections.Key, _ string, s site.Site, secrets map[site.SecretKind][]byte) (remotefs.RemoteFS, error) {
+	switch s.Setting(connectors.FieldHost) {
+	case unknownProbeHost:
+		return nil, &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:draft"}
+	case failingProbeHost:
+		return nil, errors.New("boom: internal detail")
+	}
+	if string(secrets[site.SecretPassword]) != probePassword {
+		return nil, fmt.Errorf("%w: wrong password", remotefs.ErrAuth)
+	}
+	fsys := memfs.New(c.clock)
+	_ = fsys.Mkdir(context.Background(), "/draft")
+	switch s.Setting(connectors.FieldHost) {
+	case homeProbeHost:
+		return draftFS{FS: fsys, home: "/draft"}, nil
+	case brokenHomeProbeHost:
+		return draftFS{FS: fsys, homeErr: fmt.Errorf("%w: gone", remotefs.ErrConnectionLost)}, nil
+	case brokenListProbeHost:
+		return draftFS{FS: fsys, listErr: fmt.Errorf("%w: gone", remotefs.ErrConnectionLost)}, nil
+	}
+	return fsys, nil
+}
+
+// The hosts whose drafts open sessions in a folder of their own, cannot tell it, and cannot list.
+const (
+	homeProbeHost       = "2.2.2.2"
+	brokenHomeProbeHost = "3.3.3.3"
+	brokenListProbeHost = "4.4.4.4"
+	failingProbeHost    = "5.5.5.5"
+)
+
+// draftFS is the file system of a draft whose server tells the folder sessions open in, or fails to, or fails to list.
+type draftFS struct {
+	*memfs.FS
+	home             string
+	homeErr, listErr error
+}
+
+// Home implements [remotefs.Homer].
+func (d draftFS) Home(context.Context) (string, error) { return d.home, d.homeErr }
+
+// List fails when told to.
+func (d draftFS) List(ctx context.Context, p string) ([]remotefs.Entry, error) {
+	if d.listErr != nil {
+		return nil, d.listErr
+	}
+	return d.FS.List(ctx, p)
 }
 
 // newMemConnector returns a connector over the sites service.

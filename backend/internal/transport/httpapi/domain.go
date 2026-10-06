@@ -147,6 +147,9 @@ func (p domainProblem) VisitSetTransferPriorityResponse(w http.ResponseWriter) e
 // VisitCancelTransferResponse implements [CancelTransferResponseObject].
 func (p domainProblem) VisitCancelTransferResponse(w http.ResponseWriter) error { return p.write(w) }
 
+// VisitTestSiteDraftResponse implements [TestSiteDraftResponseObject].
+func (p domainProblem) VisitTestSiteDraftResponse(w http.ResponseWriter) error { return p.write(w) }
+
 // VisitListFilesResponse implements [ListFilesResponseObject].
 func (p domainProblem) VisitListFilesResponse(w http.ResponseWriter) error { return p.write(w) }
 

@@ -977,6 +977,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/sites/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Try a site as a form holds it, without saving it
+         * @description Connects with the settings given, lists the folder the server opens sessions in and disconnects, saving nothing. With a siteId, the secrets left out are the stored ones of that site whose field still applies, so an edit can be tried before it is saved; keeping a stored secret needs the vault unlocked. It needs what saving needs. The connection log of the site hears the attempt. Failures are those of connecting, such as host_key_unknown with the fingerprint to confirm.
+         */
+        post: operations["testSiteDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/sites/{siteId}": {
         parameters: {
             query?: never;
@@ -1923,6 +1943,20 @@ export interface components {
             /** @description Label of the site, one of SiteColor; left out or empty for none, invalid_color otherwise. */
             color?: string;
             secrets?: components["schemas"]["SiteSecretChanges"];
+        };
+        SiteDraftTest: {
+            /**
+             * Format: uuid
+             * @description The saved site the draft edits, whose stored secrets fill the ones left out; left out for a new site.
+             */
+            siteId?: string;
+            site: components["schemas"]["SiteInput"];
+        };
+        SiteDraftTestResult: {
+            /** @description The folder that was listed, where the server opens sessions. */
+            path: string;
+            /** @description How many entries the folder holds. */
+            entries: number;
         };
         KnownHost: {
             host: string;
@@ -5610,6 +5644,100 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    testSiteDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the workspace. */
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteDraftTest"];
+            };
+        };
+        responses: {
+            /** @description The server answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteDraftTestResult"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description An error. The stable code tells the client what happened. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

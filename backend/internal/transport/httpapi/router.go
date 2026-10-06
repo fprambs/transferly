@@ -2,6 +2,7 @@
 package httpapi
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"github.com/fprambs/transferly/internal/core/ports"
 	"github.com/fprambs/transferly/internal/core/prompts"
 	"github.com/fprambs/transferly/internal/core/quick"
+	"github.com/fprambs/transferly/internal/core/remotefs"
 	"github.com/fprambs/transferly/internal/core/site"
 	"github.com/fprambs/transferly/internal/core/transfer"
 	"github.com/fprambs/transferly/internal/core/vault"
@@ -63,6 +65,12 @@ type CookieConfig struct {
 	Secure bool
 	// MaxAge is how long the browser keeps the cookie.
 	MaxAge time.Duration
+}
+
+// SiteProber opens a connection to a site as it is given, outside the pool; the caller closes it.
+type SiteProber interface {
+	// Probe connects to s with the secrets given, as the user of key, and wipes the secrets.
+	Probe(ctx context.Context, key connections.Key, session string, s site.Site, secrets map[site.SecretKind][]byte) (remotefs.RemoteFS, error)
 }
 
 // Deps are the dependencies of the router.
@@ -123,6 +131,8 @@ type Deps struct {
 	Bookmarks *bookmark.Service
 	// Sites is the saved connections service.
 	Sites *site.Service
+	// Probe opens connections to sites that are not saved, to try a site form before it is saved.
+	Probe SiteProber
 	// Keys hands out the keys that seal the secrets of each workspace.
 	Keys *wskey.Service
 	// Vault is the credential vault service.

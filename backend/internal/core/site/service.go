@@ -477,3 +477,66 @@ func (s *Service) OpenSecret(ctx context.Context, actor, workspaceID, id uuid.UU
 	defer vault.Wipe(dek)
 	return vault.OpenSecret(dek, vault.SecretRef{Site: id.String(), Kind: string(kind), DEKVersion: sealed.DEKVersion}, sealed.Data)
 }
+
+// Draft settles a site as saving it would, new for the nil identifier or replacing the site id, and returns it with the secrets it
+// would have, opened, without saving anything: the secrets given replace the stored ones, and stored ones whose field still applies
+// are kept, so a form can be tried as it is before it is saved. It needs what saving needs, and the vault unlocked when a stored
+// secret is kept. The caller wipes the secrets.
+func (s *Service) Draft(ctx context.Context, actor, workspaceID, id uuid.UUID, session string, in Input, changes SecretChanges) (Site, map[SecretKind][]byte, error) {
+	if _, err := s.authz.Authorize(ctx, actor, workspaceID, workspace.ActionManageSites); err != nil {
+		return Site{}, nil, err
+	}
+	in, d, err := s.Settle(in)
+	if err != nil {
+		return Site{}, nil, err
+	}
+	elevated, connector := d.Elevates(in.Config), ""
+	var stored []SecretKind
+	if id != uuid.Nil {
+		existing, err := s.store.Site(ctx, workspaceID, id)
+		if err != nil {
+			return Site{}, nil, err
+		}
+		before, _ := s.schemas.Lookup(existing.Connector)
+		elevated = elevated || before.Elevates(existing.Config)
+		connector, stored = existing.Connector, existing.Secrets
+	}
+	if err := s.checkElevation(ctx, actor, workspaceID, elevated); err != nil {
+		return Site{}, nil, err
+	}
+	if connector != in.Connector {
+		if err := s.checkOffered(ctx, in.Connector); err != nil {
+			return Site{}, nil, err
+		}
+	}
+	if changes, err = PlanSecrets(d, in.Config, changes, stored); err != nil {
+		return Site{}, nil, err
+	}
+	if err := s.CheckHosts(ctx, d, in.Config); err != nil {
+		return Site{}, nil, err
+	}
+	secrets := map[SecretKind][]byte{}
+	for kind, value := range changes {
+		if value != "" {
+			secrets[kind] = []byte(value)
+		}
+	}
+	for _, kind := range stored {
+		if _, changed := changes[kind]; changed {
+			continue
+		}
+		value, err := s.OpenSecret(ctx, actor, workspaceID, id, session, kind)
+		if err != nil {
+			for _, opened := range secrets {
+				clear(opened)
+			}
+			return Site{}, nil, err
+		}
+		secrets[kind] = value
+	}
+	if id == uuid.Nil {
+		id = uuid.New()
+	}
+	now := s.clock.Now().UTC()
+	return build(in, id, workspaceID, now, now), secrets, nil
+}
