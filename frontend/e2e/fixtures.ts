@@ -10,7 +10,8 @@ import { ShellPage } from './pages/shell-page.ts'
  * other's look or language (a test that wants the real account passes `accountTheme: 'real'`), an application shell that is already open, signed in by the global setup, the shared quick connection,
  * and an empty folder of the test's own on the SFTP server of the test stack, removed when the test ends, so what a test lists never depends on what other
  * tests left behind. A browser with nothing stored starts with the transfer queue, the log and the details open, as if the user had opened
- * them, so the queue does not collapse by itself while a test reads its rows and the log lines and details can be read. */
+ * them, so the queue does not collapse by itself while a test reads its rows and the log lines and details can be read. The quick
+ * connections a page opens are closed when its test ends, so they never use up the quick connections of the account for later tests. */
 export const test = base.extend<{ shell: ShellPage; quickId: string; folder: string; accountTheme: 'mocked' | 'real' }>({
   accountTheme: ['mocked', { option: true }],
   page: async ({ page, accountTheme }, use) => {
@@ -32,7 +33,20 @@ export const test = base.extend<{ shell: ShellPage; quickId: string; folder: str
         await route.fulfill({ status: 200, json: request.method() === 'PATCH' ? user : { ...body, user } })
       })
     }
+    const opened: Array<Promise<string | undefined>> = []
+    page.on('response', (response) => {
+      if (response.request().method() === 'POST' && response.ok() && new URL(response.url()).pathname.endsWith('/quick-connections')) {
+        opened.push(response.json().then((body: { id: string }) => `${response.url()}/${body.id}`, () => undefined))
+      }
+    })
     await use(page)
+    const urls = (await Promise.all(opened)).filter((url) => url !== undefined)
+    if (urls.length > 0) {
+      const me = (await (await page.request.get('/api/v1/me')).json()) as { csrfToken: string }
+      for (const url of urls) {
+        await page.request.delete(url, { headers: { 'X-CSRF-Token': me.csrfToken } })
+      }
+    }
   },
   quickId: async ({ page: _page }, use) => {
     const { quickId } = JSON.parse(await readFile(quickConnectionPath, 'utf8')) as { quickId: string }

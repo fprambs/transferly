@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
 
+import type { Locator } from '@playwright/test'
+
 import { expect, test } from '../fixtures.ts'
 
 /** What the page offers the test to reach the folder that the picker answers with. */
@@ -55,6 +57,20 @@ const folderScript = `
 `
 
 /**
+ * Drags a row onto a drop target until the row it should bring appears. A synthetic drag that lands before the target listens is lost
+ * without a trace, so a drag that brings nothing within a few seconds is made again.
+ */
+async function dragUntil(row: Locator, target: Locator, arrived: Locator): Promise<void> {
+  await expect(row).toBeVisible()
+  await expect(async () => {
+    if (!(await arrived.isVisible())) {
+      await row.dragTo(target)
+    }
+    await expect(arrived).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 45_000 })
+}
+
+/**
  * The local folder pane against the SFTP server of the isolated test stack.
  *
  * The browser's folder dialog cannot be driven by a test, so the picker is replaced by one that answers with a folder kept
@@ -93,10 +109,9 @@ test.describe('local folder pane', () => {
     await local.getByRole('button', { name: 'Choose a folder' }).click()
     await expect(local.getByText('This folder is empty.')).toBeVisible()
 
-    const remoteGrid = page.getByRole('grid', { name: 'Files' })
-    await remoteGrid.getByRole('row', { name: new RegExp(down) }).dragTo(local.getByRole('region', { name: 'Local folder' }))
+    const remoteGrid = page.getByRole('grid', { name: 'Files' }).first()
     const localGrid = local.getByRole('grid', { name: 'Files' })
-    await expect(localGrid.getByRole('row', { name: new RegExp(down) })).toBeVisible()
+    await dragUntil(remoteGrid.getByRole('row', { name: new RegExp(down) }), local.getByRole('region', { name: 'Local folder' }), localGrid.getByRole('row', { name: new RegExp(down) }))
     const tops = await localGrid.getByRole('columnheader').evaluateAll((cells) =>
       cells.filter((cell) => cell.getClientRects().length > 0).map((cell) => Math.round(cell.getBoundingClientRect().top)),
     )
@@ -107,11 +122,9 @@ test.describe('local folder pane', () => {
     await page.evaluate((name) => (globalThis as unknown as { folderTools: FolderTools }).folderTools.write(name, 'from the computer\n'), up)
     await local.getByRole('button', { name: 'Refresh' }).click()
     await expect(localGrid.getByRole('row', { name: new RegExp(up) })).toBeVisible()
-    await localGrid.getByRole('row', { name: new RegExp(up) }).dragTo(page.getByRole('region', { name: 'Files' }).first())
+    await dragUntil(localGrid.getByRole('row', { name: new RegExp(up) }), page.getByRole('region', { name: 'Files' }).first(), remoteGrid.getByRole('row', { name: new RegExp(up) }))
 
-    await expect(remoteGrid.getByRole('row', { name: new RegExp(up) })).toBeVisible()
-    const uploaded = await request.get(`${files}/content`, { params: { path: `/upload/${source}/${up}` } })
-    expect(await uploaded.text()).toBe('from the computer\n')
+    await expect.poll(async () => (await request.get(`${files}/content`, { params: { path: `/upload/${source}/${up}` } })).text()).toBe('from the computer\n')
 
     await page.evaluate((names) => names.forEach((name) => (globalThis as unknown as { folderTools: FolderTools }).folderTools.remove(name)), [down, up])
     await request.delete(files, { params: { path: `/upload/${source}`, recursive: true }, headers })

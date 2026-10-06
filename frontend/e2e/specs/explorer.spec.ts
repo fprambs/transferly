@@ -273,17 +273,18 @@ test.describe('explorer', () => {
     await request.delete(`/api/v1/workspaces/${workspaces[0].id}/sites/${slow.id}`, { headers })
   })
 
-  test('has no WCAG violations in any theme', async ({ shell, quickId }) => {
-    test.setTimeout(120_000)
-    const { page } = shell
-    await openQuickConnection(page, quickId)
+  for (const theme of themes) {
+    test(`has no WCAG violations with the ${theme} theme`, async ({ shell, quickId }) => {
+      const { page } = shell
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await openQuickConnection(page, quickId)
 
-    for (const theme of themes) {
       await shell.setTheme(theme)
       await expect(page.getByRole('grid', { name: 'Files' })).toBeVisible()
       await settle(page)
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
-      expect(results.violations, theme).toEqual([])
-    }
-  })
+
+      expect(results.violations).toEqual([])
+    })
+  }
 })
