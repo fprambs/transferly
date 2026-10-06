@@ -4,6 +4,57 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [0.9.0] - 2026-10-06
+
+A round of fixes from daily use against enterprise SFTP gateways, FileZilla imports and large files, with faster and steadier
+tests.
+
+### Sites and connections
+
+- Strict servers, such as gateways that report sizes they do not deliver: large files are checked at their end before their size
+  is announced, the servers found strict are remembered across restarts, and a site can say its sizes are inexact. Reads from them
+  go by large requests on a second channel, so downloads are no longer slow.
+- A pool opens one connection per site at a time, with a short grace before a second one, and SFTP and FTP sites can cap their
+  connections (for servers that change their key per connection, set it to 1).
+- A connection keeps opening when the request that started it goes away and another comes at once, as when the explorer moves to
+  another folder while connecting: the question the server asked while signing in is no longer withdrawn and reported as refused
+  credentials.
+- A wrong SFTP password is sent once per connection, so it counts as a single failed attempt towards the lockout of the server.
+- A server that closes the sign-in counts as refused credentials, not as a lost connection to retry.
+- FTPS keeps checking the certificate of data connections after the request that opened the session ends.
+- FTP: a canceled download fails at once instead of returning bytes already received.
+- The SFTP client no longer crashes on servers that send false lengths.
+
+### Sites
+
+- Duplicate a site, with its stored secrets copied on the server, from its menu.
+- Right click on a site or collection opens the same actions as its ⋯ menu, now with icons and Delete set apart in red.
+- Site names are unique per collection instead of per workspace, so the same name can live in different folders, as in FileZilla.
+- Test connection tries what the form holds, before saving and after editing, not the saved site.
+- FileZilla import: passwords stored by FileZilla with padding are read right.
+
+### Vault
+
+- The vault stays unlocked while the session is in use (ADR-0028), also for previews that need it. Keeping it across restarts is
+  only for development, with `TRANSFERLY_VAULT_REMEMBER_SESSIONS`.
+
+### Interface
+
+- The explorer lists folders first and the newest files first, and sorts by the Name, Size, Type or Modified column clicked; the
+  choice is remembered.
+- Previews of tables and spreadsheets show the first 1,000 rows and say how to get the rest; spreadsheets over 10 MB are offered as
+  a download, and a "Preparing the view…" notice shows while a viewer builds. Archives open whatever their size.
+- Quick connect picks the protocol from a list with its icon instead of a row of tabs.
+- The explorer toolbar folds into two rows in narrow panes.
+- A server key met while previewing a file is asked about, as when listing.
+- The count of an open connection log is readable in every theme.
+
+### Operations
+
+- The isolated test stack runs an SFTP server whose sizes do not hold (`strict-sftp`).
+- Go integration tests copy a migrated template database and run in parallel; browser tests no longer depend on what earlier runs
+  left behind, and `make e2e SPECS="..."` runs some specs on a fresh stack.
+
 ## [0.8.0] - 2026-10-05
 
 SFTP sites gain SSH tools: the server does the work itself, sudo opens what only root may read, and a terminal opens in the folder
