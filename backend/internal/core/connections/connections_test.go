@@ -285,7 +285,8 @@ func TestManager_Limit(t *testing.T) {
 //   - network failures are retried with doubling waits, capped, with jitter, until the connection opens
 //   - the attempts are limited and the last error is returned
 //   - credentials, host key and other non-retryable failures are returned at once without waiting
-//   - a canceled context, or a sleep that fails, stops the retries
+//   - a sleep that fails stops the retries; an acquisition whose context ends stops waiting at once, while the connection it
+//     started goes on opening, retries included, and is handed to the next acquisition
 func TestManager_Backoff(t *testing.T) {
 	f := newFixture(t, connections.Config{Attempts: 5, InitialBackoff: 100 * time.Millisecond, MaxBackoff: 300 * time.Millisecond, Jitter: func() float64 { return 0.5 }})
 	f.conn.failures = []error{errLost, errLost, errLost, errLost}
@@ -345,29 +346,90 @@ func TestManager_Backoff(t *testing.T) {
 		t.Errorf("Acquire() with a canceled context = %v", err)
 	}
 
-	stopping := newFixture(t, connections.Config{})
+	stopping := newFixture(t, connections.Config{Abandon: time.Hour})
+	stopping.conn.block = make(chan struct{})
 	stopCtx, stopCancel := context.WithCancel(t.Context())
-	stopping.conn.failures = []error{errLost}
-	stopping.m = connections.New(cancelingConnector{inner: stopping.conn, cancel: stopCancel}, stopping.clock, connections.Config{Sleep: func(context.Context, time.Duration) error { return nil }})
-	t.Cleanup(stopping.m.Close)
-	if _, err := stopping.m.Acquire(stopCtx, stopping.key, "s"); !errors.Is(err, remotefs.ErrConnectionLost) {
-		t.Errorf("Acquire() whose context ended while connecting = %v; want the connection error, not a retry", err)
+	left := stopping.acquireAsync(stopCtx)
+	waitUntil(t, func() bool { return stopping.conn.callCount() == 1 })
+	stopCancel()
+	if got := <-left; !errors.Is(got.err, context.Canceled) {
+		t.Errorf("Acquire() whose context ended while connecting = %v; want the context error", got.err)
 	}
-	if stopping.conn.calls != 1 {
-		t.Errorf("connect calls = %d; want no retry after the context ended", stopping.conn.calls)
+	close(stopping.conn.block)
+	waitUntil(t, func() bool { idle, _ := stopping.m.Stats(stopping.key); return idle == 1 })
+	lease, err := stopping.m.Acquire(t.Context(), stopping.key, "s")
+	if err != nil || stopping.conn.callCount() != 1 {
+		t.Fatalf("Acquire() after the opener left = %v after %d calls; want the connection it went on opening", err, stopping.conn.callCount())
 	}
+	lease.Release(nil)
 }
 
-// cancelingConnector cancels a context while it fails, to end it in the middle of a connection attempt.
-type cancelingConnector struct {
-	inner  *connector
-	cancel context.CancelFunc
-}
+// TestManager_DialAfterTheRequest verifies how a connection that goes on opening for acquisitions that went away ends.
+//
+// Scenarios:
+//   - a connection that opens once its site was closed is closed at once, and the waiting acquisition is told the pool closed
+//   - closing the manager stops a connection still opening, and the acquisition waiting for it is told the pool closed
+//   - a connection that nobody waits for stops after the abandon period, and the next acquisition opens a new one
+//   - an acquisition that comes within the abandon period, as a request the browser sends again at once, gets the connection
+//     that went on opening, so the server signs in once
+func TestManager_DialAfterTheRequest(t *testing.T) {
+	f := newFixture(t, connections.Config{})
+	f.conn.block = make(chan struct{})
+	waiting := f.acquireAsync(t.Context())
+	waitUntil(t, func() bool { return f.conn.callCount() == 1 })
+	f.m.CloseKey(f.key)
+	close(f.conn.block)
+	if got := <-waiting; !errors.Is(got.err, connections.ErrClosed) {
+		t.Errorf("Acquire() whose site closed while connecting = %v; want ErrClosed", got.err)
+	}
+	f.conn.mu.Lock()
+	opened := f.conn.opened
+	f.conn.mu.Unlock()
+	if len(opened) != 1 || !opened[0].closed.Load() {
+		t.Errorf("connection opened after its site closed: %d opened, closed %v; want it closed", len(opened), len(opened) == 1 && opened[0].closed.Load())
+	}
 
-// Connect cancels the context and then behaves as the wrapped connector.
-func (c cancelingConnector) Connect(ctx context.Context, key connections.Key, session string) (remotefs.RemoteFS, error) {
-	c.cancel()
-	return c.inner.Connect(ctx, key, session)
+	g := newFixture(t, connections.Config{Attempts: 1})
+	g.conn.block = make(chan struct{})
+	stopped := g.acquireAsync(t.Context())
+	waitUntil(t, func() bool { return g.conn.callCount() == 1 })
+	g.m.Close()
+	if got := <-stopped; !errors.Is(got.err, connections.ErrClosed) {
+		t.Errorf("Acquire() while the manager closed = %v; want ErrClosed", got.err)
+	}
+
+	abandoned := newFixture(t, connections.Config{Abandon: 10 * time.Millisecond})
+	abandoned.conn.block = make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+	gone := abandoned.acquireAsync(ctx)
+	waitUntil(t, func() bool { return abandoned.conn.callCount() == 1 })
+	cancel()
+	if got := <-gone; !errors.Is(got.err, context.Canceled) {
+		t.Errorf("Acquire() that went away = %v; want context.Canceled", got.err)
+	}
+	waitUntil(t, func() bool { _, total := abandoned.m.Stats(abandoned.key); return total == 0 })
+	close(abandoned.conn.block)
+	lease, err := abandoned.m.Acquire(t.Context(), abandoned.key, "s")
+	if err != nil || abandoned.conn.callCount() != 2 {
+		t.Fatalf("Acquire() after an abandoned connection = %v after %d calls; want a new connection", err, abandoned.conn.callCount())
+	}
+	lease.Release(nil)
+
+	again := newFixture(t, connections.Config{Abandon: time.Hour})
+	again.conn.block = make(chan struct{})
+	first, leave := context.WithCancel(t.Context())
+	dropped := again.acquireAsync(first)
+	waitUntil(t, func() bool { return again.conn.callCount() == 1 })
+	leave()
+	<-dropped
+	back := again.acquireAsync(t.Context())
+	time.Sleep(20 * time.Millisecond)
+	close(again.conn.block)
+	if got := <-back; got.err != nil || again.conn.callCount() != 1 {
+		t.Errorf("Acquire() sent again = %v after %d calls; want the connection that went on opening", got.err, again.conn.callCount())
+	} else {
+		got.lease.Release(nil)
+	}
 }
 
 // TestManager_Validation verifies that stale connections are checked before use.
@@ -920,7 +982,8 @@ func (c *connector) callCount() int {
 //     connection once it is released, so the server sees one sign-in and the log one connection
 //   - when that connection fails, as with a changed host key, every waiter gets the same failure without connecting; a waiter
 //     whose context ends stops waiting
-//   - when the acquisition that opened it gives up, a waiter opens its own
+//   - when the acquisition that opened it gives up, the connection goes on opening and the waiter gets it, so a question the
+//     server asks while signing in is not withdrawn because the request that started it went away
 //   - with every connection busy, another one opens only after the grace period, and a release within it is reused
 func TestManager_OneDialAtATime(t *testing.T) {
 	f := newFixture(t, connections.Config{Grace: time.Hour})
@@ -976,10 +1039,9 @@ func TestManager_OneDialAtATime(t *testing.T) {
 	if got := <-gone; !errors.Is(got.err, context.Canceled) {
 		t.Errorf("canceled = %v", got.err)
 	}
-	waitUntil(t, func() bool { return quitter.conn.callCount() == 2 })
 	close(quitter.conn.block)
-	if got := <-staying; got.err != nil {
-		t.Errorf("waiter after the opener gave up = %v", got.err)
+	if got := <-staying; got.err != nil || quitter.conn.callCount() != 1 {
+		t.Errorf("waiter after the opener gave up = %v after %d calls; want the connection the opener started", got.err, quitter.conn.callCount())
 	} else {
 		got.lease.Release(nil)
 	}

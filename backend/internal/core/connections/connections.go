@@ -67,6 +67,11 @@ type Config struct {
 	// opens another; 250 milliseconds by default. Short operations then share one connection, and servers behind a balancer,
 	// each with its own key, are not reached through a new connection for every request.
 	Grace time.Duration
+	// Abandon is how long a connection goes on opening once no acquisition waits for it any more; 2 seconds by default. A
+	// request the browser drops and sends again at once, as when the explorer moves to another folder while connecting, finds
+	// the connection still opening, with the question the server asked the person connecting still shown; a request dropped for
+	// good, as when its tab closes, does not leave a connection to the site behind.
+	Abandon time.Duration
 	// Attempts is the number of tries to connect, the first included; 4 by default.
 	Attempts int
 	// InitialBackoff is the wait after the first failed attempt, doubled after each one; 200 milliseconds by default.
@@ -109,7 +114,7 @@ func (c Config) withDefaults() Config {
 	}{
 		{&c.IdleTimeout, 5 * time.Minute}, {&c.KeepAlive, 30 * time.Second}, {&c.ValidateAfter, 10 * time.Second},
 		{&c.PingTimeout, 10 * time.Second}, {&c.InitialBackoff, 200 * time.Millisecond}, {&c.MaxBackoff, 5 * time.Second},
-		{&c.Grace, 250 * time.Millisecond},
+		{&c.Grace, 250 * time.Millisecond}, {&c.Abandon, 2 * time.Second},
 	}
 	for _, d := range defaults {
 		if *d.field <= 0 {
@@ -150,10 +155,18 @@ type conn struct {
 	lastPing time.Time
 }
 
-// dial is a connection being opened for a pool, which other acquisitions wait for instead of opening their own.
+// dial is a connection being opened for a pool, which other acquisitions wait for instead of opening their own. Guarded
+// by the mutex of the pool, waiters counts the acquisitions waiting for it, the one that started it included, finished says
+// it ended, conn holds the connection once it opened until one of them takes it, and openerGone says the one that started it
+// stopped waiting, which lets the others take it; cancel stops it.
 type dial struct {
-	done chan struct{}
-	err  error
+	done       chan struct{}
+	err        error
+	cancel     context.CancelFunc
+	waiters    int
+	finished   bool
+	conn       *conn
+	openerGone bool
 }
 
 // pool holds the connections of one key. Every field but users is guarded by mu; users is guarded by the
@@ -184,6 +197,10 @@ type Manager struct {
 	clock     ports.Clock
 	cfg       Config
 
+	// life ends with [Manager.Close], which stops the connections still opening for acquisitions that went away.
+	life context.Context
+	end  context.CancelFunc
+
 	mu     sync.Mutex
 	pools  map[Key]*pool
 	closed bool
@@ -191,7 +208,8 @@ type Manager struct {
 
 // New returns a manager that opens connections with connector.
 func New(connector Connector, clock ports.Clock, cfg Config) *Manager {
-	return &Manager{connector: connector, clock: clock, cfg: cfg.withDefaults(), pools: map[Key]*pool{}}
+	life, end := context.WithCancel(context.Background())
+	return &Manager{connector: connector, clock: clock, cfg: cfg.withDefaults(), life: life, end: end, pools: map[Key]*pool{}}
 }
 
 // pool returns the pool of a key for an acquisition, creating it, or nil when the manager is closed.
@@ -364,22 +382,31 @@ func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease,
 			return &Lease{m: m, p: p, c: c}, nil
 		case p.dialing != nil:
 			d := p.dialing
+			d.waiters++
 			p.mu.Unlock()
-			select {
-			case <-d.done:
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-			if d.err != nil && !errors.Is(d.err, context.Canceled) && !errors.Is(d.err, context.DeadlineExceeded) {
-				return nil, d.err
+			c, err := m.await(ctx, p, d, false)
+			switch {
+			case err != nil:
+				return nil, err
+			case c != nil:
+				return &Lease{m: m, p: p, c: c}, nil
 			}
 			continue
 		case p.total == 0 || (graceOver && p.total < limit):
-			d := &dial{done: make(chan struct{})}
+			dialCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+			d := &dial{done: make(chan struct{}), cancel: cancel, waiters: 1}
 			p.dialing = d
 			p.total++
 			p.mu.Unlock()
-			return m.open(ctx, p, d, session)
+			go m.open(dialCtx, p, d, session)
+			c, err := m.await(ctx, p, d, true)
+			switch {
+			case err != nil:
+				return nil, err
+			case c != nil:
+				return &Lease{m: m, p: p, c: c}, nil
+			}
+			continue
 		}
 		changed := p.changed
 		total := p.total
@@ -402,23 +429,80 @@ func (m *Manager) Acquire(ctx context.Context, key Key, session string) (*Lease,
 	}
 }
 
-// open opens the connection of a dial that the caller registered in its pool, and tells the acquisitions waiting for it.
-func (m *Manager) open(ctx context.Context, p *pool, d *dial, session string) (*Lease, error) {
+// await waits, as one of its waiters, for the dial d of pool p to end, and returns the connection it opened when this waiter
+// takes it, or its failure. The acquisition that started the dial, the opener, takes the connection; the others take it only
+// once the opener stopped waiting. A dial stopped because nobody waited for it is no failure; with neither a connection nor a
+// failure the caller looks at the pool again. An acquisition whose context ends before the dial does stops waiting at once;
+// when it was the last waiter, the dial goes on for [Config.Abandon] and stops unless another acquisition comes for it.
+func (m *Manager) await(ctx context.Context, p *pool, d *dial, opener bool) (*conn, error) {
+	select {
+	case <-d.done:
+	case <-ctx.Done():
+	}
+	p.mu.Lock()
+	d.waiters--
+	if !d.finished {
+		d.openerGone = d.openerGone || opener
+		last := d.waiters == 0
+		p.mu.Unlock()
+		if last {
+			time.AfterFunc(m.cfg.Abandon, func() {
+				p.mu.Lock()
+				abandoned := d.waiters == 0
+				p.mu.Unlock()
+				if abandoned {
+					d.cancel()
+				}
+			})
+		}
+		return nil, ctx.Err()
+	}
+	var c *conn
+	if opener || d.openerGone {
+		c, d.conn = d.conn, nil
+	}
+	p.mu.Unlock()
+	if c == nil && d.err != nil && !errors.Is(d.err, context.Canceled) && !errors.Is(d.err, context.DeadlineExceeded) {
+		return nil, d.err
+	}
+	return c, nil
+}
+
+// open opens the connection of a dial that the caller registered in its pool, hands it to the acquisitions waiting for it, or
+// puts it with the idle ones when none waits, and tells them. It runs on its own, with a context that keeps the values of the acquisition that started it
+// but not its end: it stops when [Manager.await] finds nobody waiting for it, or when the manager closes. A request that
+// goes away and comes back at once, such as a listing the browser sends again for another folder, then does not end the
+// connection half way, which would withdraw a question the server asked the person connecting and fail every acquisition
+// sharing it. A connection that opens once its pool is closed is closed at once.
+func (m *Manager) open(ctx context.Context, p *pool, d *dial, session string) {
+	stop := context.AfterFunc(m.life, d.cancel)
+	defer func() {
+		stop()
+		d.cancel()
+	}()
 	fsys, err := m.connect(ctx, p.key, session)
 	p.mu.Lock()
 	p.dialing = nil
 	d.err = err
-	close(d.done)
-	if err != nil {
+	d.finished = true
+	closed := err == nil && p.closed
+	switch {
+	case err != nil || closed:
 		p.total--
+	case d.waiters > 0:
+		d.conn = &conn{fs: fsys, lastUsed: m.clock.Now()}
+	default:
+		p.idle = append(p.idle, &conn{fs: fsys, lastUsed: m.clock.Now()})
 	}
+	close(d.done)
 	p.notify()
 	p.mu.Unlock()
-	if err != nil {
-		return nil, err
+	if closed {
+		_ = fsys.Close()
 	}
-	m.announce(p)
-	return &Lease{m: m, p: p, c: &conn{fs: fsys, lastUsed: m.clock.Now()}}, nil
+	if err == nil {
+		m.announce(p)
+	}
 }
 
 // maxOf is the most connections the pool of a key may hold: the limit of its site when the connector is a [Limiter]
@@ -629,6 +713,7 @@ func (m *Manager) CloseUser(userID uuid.UUID) {
 
 // Close closes every connection and makes later acquisitions fail with [ErrClosed].
 func (m *Manager) Close() {
+	m.end()
 	m.mu.Lock()
 	m.closed = true
 	doomed := make([]*pool, 0, len(m.pools))
