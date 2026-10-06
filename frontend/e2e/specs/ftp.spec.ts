@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
-import type { Page } from '@playwright/test'
+import type { APIRequestContext, Page } from '@playwright/test'
 
-import { expect, test } from '../fixtures.ts'
+import { expect, test as base } from '../fixtures.ts'
 import { choose } from '../select.ts'
 
 /** Fills the quick connect dialog for an FTP server of the test stack, with an encryption when given, and presses Connect. */
@@ -19,6 +19,39 @@ async function quickConnect(page: Page, host: string, encryption?: string): Prom
   await dialog.getByLabel('Password').fill('transferly')
   await dialog.getByRole('button', { name: 'Connect' }).click()
 }
+
+/** Forgets the certificates of host:port that an earlier run trusted, so the server asks to be trusted again. */
+async function forgetCertificates(request: APIRequestContext, host: string, port: number): Promise<void> {
+  const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+  const [workspace] = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+  const knownHosts = `/api/v1/workspaces/${workspace.id}/known-hosts`
+  const keys = (await (await request.get(knownHosts)).json()) as Array<{ host: string; port: number; keyType: string }>
+  for (const key of keys.filter((known) => known.host === host && known.port === port)) {
+    await request.delete(knownHosts, { headers: { 'X-CSRF-Token': me.csrfToken }, params: { host, port: String(port), keyType: key.keyType } })
+  }
+}
+
+/**
+ * The tests of this file, with a quick connection of their own to the plain FTP server of the test stack, opened through the API and
+ * closed when the test ends, also when it fails, so a retry never finds the quick connections of the user used up.
+ */
+const test = base.extend<{ ftpQuick: { workspace: string; quickId: string; headers: Record<string, string> } }>({
+  ftpQuick: async ({ request }, use) => {
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const [{ id: workspace }] = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const headers = { 'X-CSRF-Token': me.csrfToken }
+    const quick = await request.post(`/api/v1/workspaces/${workspace}/quick-connections`, {
+      headers,
+      data: { connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
+    })
+    if (!quick.ok()) {
+      throw new Error(`Could not open the quick connection to the test FTP server: ${quick.status()}`)
+    }
+    const { id: quickId } = (await quick.json()) as { id: string }
+    await use({ workspace, quickId, headers })
+    await request.delete(`/api/v1/workspaces/${workspace}/quick-connections/${quickId}`, { headers })
+  },
+})
 
 /**
  * FTP and FTPS against real vsftpd servers.
@@ -126,8 +159,9 @@ test.describe('ftp and ftps', () => {
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 
-  test('connects to a site that requires implicit TLS, on its default port 990', async ({ shell }) => {
+  test('connects to a site that requires implicit TLS, on its default port 990', async ({ shell, request }) => {
     const { page } = shell
+    await forgetCertificates(request, 'ftps-implicit', 990)
     const name = `Implicit ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })
@@ -147,9 +181,10 @@ test.describe('ftp and ftps', () => {
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 
-  test('asks to trust an FTPS certificate and transfers a file over TLS', async ({ shell }) => {
+  test('asks to trust an FTPS certificate and transfers a file over TLS', async ({ shell, request }) => {
     test.setTimeout(120_000)
     const { page } = shell
+    await forgetCertificates(request, 'ftps', 21)
     await quickConnect(page, 'ftps')
 
     await expect(page.getByText('Trust this server?')).toBeVisible()
@@ -183,19 +218,11 @@ test.describe('ftp and ftps', () => {
     await expect(row).toBeHidden()
   })
 
-  test('resumes a canceled upload to an FTP server', async ({ shell, request }) => {
+  test('resumes a canceled upload to an FTP server', async ({ shell, request, ftpQuick }) => {
     test.setTimeout(120_000)
     const { page } = shell
-    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
-    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const headers = { 'X-CSRF-Token': me.csrfToken }
-    const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
-      headers,
-      data: { connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
-    })
-    expect(quick.ok()).toBe(true)
-    const { id: quickId } = (await quick.json()) as { id: string }
-    const files = `/api/v1/workspaces/${workspaces[0].id}/sites/${quickId}/files`
+    const { workspace, quickId, headers } = ftpQuick
+    const files = `/api/v1/workspaces/${workspace}/sites/${quickId}/files`
     const name = `e2e-ftp-resume-${Date.now()}-${Math.floor(Math.random() * 1e6)}.bin`
     const content = Buffer.alloc(3 * 1024 * 1024)
     for (let index = 0; index < content.length; index++) {
@@ -235,20 +262,11 @@ test.describe('ftp and ftps', () => {
     expect(createHash('sha256').update(received).digest('hex')).toBe(createHash('sha256').update(content).digest('hex'))
 
     await request.delete(files, { params: { path: `/upload/${name}` }, headers })
-    await request.delete(`/api/v1/workspaces/${workspaces[0].id}/quick-connections/${quickId}`, { headers })
   })
 
-  test('detects that the FTP server prints its times in another zone', async ({ shell, request }) => {
+  test('detects that the FTP server prints its times in another zone', async ({ shell, ftpQuick }) => {
     const { page } = shell
-    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
-    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const headers = { 'X-CSRF-Token': me.csrfToken }
-    const quick = await request.post(`/api/v1/workspaces/${workspaces[0].id}/quick-connections`, {
-      headers,
-      data: { connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
-    })
-    expect(quick.ok()).toBe(true)
-    const { id: quickId } = (await quick.json()) as { id: string }
+    const { quickId } = ftpQuick
 
     await page.goto(`/sites/${quickId}?path=%2Fupload`)
     await expect(page.getByRole('grid', { name: 'Files' }).or(page.getByText('This folder is empty.'))).toBeVisible()
@@ -256,6 +274,5 @@ test.describe('ftp and ftps', () => {
 
     await expect(page.getByRole('status')).toContainText(/The server prints times -0[34]:00 from UTC\./)
     await expect(page.getByRole('status')).toContainText('Save this connection as a site to keep the time zone.')
-    await request.delete(`/api/v1/workspaces/${workspaces[0].id}/quick-connections/${quickId}`, { headers })
   })
 })
