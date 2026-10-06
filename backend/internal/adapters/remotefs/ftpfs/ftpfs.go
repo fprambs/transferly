@@ -386,7 +386,8 @@ func (f *FS) abort() {
 }
 
 // begin waits for its turn on the control connection, honoring the context, and starts watching the context. The returned function ends the
-// operation, releases the connection, and reports whether the context ended it.
+// operation, releases the connection, and reports whether the context ended it; when it did, the connections are already cut, without
+// waiting for the watcher, so the next operation finds the session unusable.
 func (f *FS) begin(ctx context.Context) (end func() bool, err error) {
 	if err := f.guard(ctx); err != nil {
 		return nil, err
@@ -404,6 +405,9 @@ func (f *FS) begin(ctx context.Context) (end func() bool, err error) {
 	stop := context.AfterFunc(ctx, f.abort)
 	return func() bool {
 		ok := stop()
+		if !ok {
+			f.abort()
+		}
 		<-f.turn
 		return ok
 	}, nil
@@ -842,8 +846,12 @@ type readStream struct {
 	finished bool
 }
 
-// Read reads the next bytes of the file.
+// Read reads the next bytes of the file. Once the context of the download ended it fails with the context error, without
+// waiting for the data connection to be cut, which bytes already received could otherwise outrun.
 func (r *readStream) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
 	n, err := r.response.Read(p)
 	if errors.Is(err, io.EOF) {
 		r.done = true
