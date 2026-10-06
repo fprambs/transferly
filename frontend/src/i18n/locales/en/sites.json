@@ -105,7 +105,7 @@
     "test": {
       "run": "Test connection",
       "running": "Testing…",
-      "ok": "Connected. The server answered with {{count}} entries at the root.",
+      "ok": "Connected. The server answered with {{count}} entries in {{path}}.",
       "trust": "This server key is new. Check the fingerprint before trusting it.",
       "keyType": "Key type",
       "fingerprint": "Fingerprint",

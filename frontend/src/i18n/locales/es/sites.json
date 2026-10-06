@@ -105,7 +105,7 @@
     "test": {
       "run": "Probar conexión",
       "running": "Probando…",
-      "ok": "Conectado. El servidor respondió con {{count}} entradas en la raíz.",
+      "ok": "Conectado. El servidor respondió con {{count}} entradas en {{path}}.",
       "trust": "La clave de este servidor es nueva. Comprueba la huella antes de confiar en ella.",
       "keyType": "Tipo de clave",
       "fingerprint": "Huella",

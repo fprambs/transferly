@@ -23,6 +23,8 @@ function unique(prefix: string): string {
  * - rows show a pointer, a visible hover shade and a selected state, and menu items highlight under the pointer
  * - a site is created inside a collection with a speed limit, a proxy and a jump host, all of which are kept, and edited from its menu
  * - a site is dragged into a collection and back to the top level of the tree, and the server keeps each move (4.14h)
+ * - a saved FTP site that cannot connect is edited into an SFTP site of another server, and testing it tries the form as it is, with the
+ *   stored password, without saving anything
  */
 test.describe('sites sidebar', () => {
   test('creates a collection', async ({ shell }) => {
@@ -180,5 +182,31 @@ test.describe('sites sidebar', () => {
 
     await siteRow.dragTo(page.getByRole('tree', { name: 'Sites' }), { targetPosition: { x: 20, y: 5 } })
     await expect(siteRow).toHaveAttribute('aria-level', '1')
+  })
+
+  test('tests the site as the form holds it, before saving it', async ({ shell, request }) => {
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
+    const name = unique('Edited')
+    const created = (await (await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+      headers: { 'X-CSRF-Token': me.csrfToken },
+      data: { name, connector: 'ftp', config: { host: 'ftp', port: '2121', username: 'nobody', encryption: 'plain', auth: 'password' }, secrets: { password: 'transferly' } },
+    })).json()) as { id: string }
+    await page.reload()
+    await page.getByRole('treeitem', { name: new RegExp(name) }).hover()
+    await page.getByRole('button', { name: `Actions for ${name}` }).click()
+    await page.getByRole('menuitem', { name: 'Edit' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit site' })
+    await choose(dialog.getByLabel('Protocol'), /^SFTP/)
+    await dialog.getByLabel('Host', { exact: true }).fill('sftp')
+    await dialog.getByLabel('Port', { exact: true }).fill('22')
+    await dialog.getByLabel('Username', { exact: true }).fill('transferly')
+
+    await dialog.getByRole('button', { name: 'Test connection' }).click()
+    await expect(dialog.getByRole('status')).toContainText(/Connected\. The server answered with \d+ entries in \//)
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    const kept = (await (await request.get(`/api/v1/workspaces/${workspace}/sites/${created.id}`)).json()) as { connector: string }
+    expect(kept.connector).toBe('ftp')
   })
 })

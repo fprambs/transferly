@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import type { Site } from '@/lib/api'
+import type { SiteInput } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
@@ -13,14 +13,14 @@ import { VaultDialog } from '../vault/VaultDialog'
 import { CredentialDialog } from './CredentialDialog'
 
 import { siteErrorKeyOf, type SiteErrorKey } from './errors'
-import { endpointOf, labelsOf } from '../connectors/settings'
+import { endpointOf } from '../connectors/settings'
 
 /** Where a connection test stands. */
 type TestState =
   | { step: 'idle' }
   | { step: 'running' }
-  | { step: 'ok'; entries: number }
-  | { step: 'trust'; hostKey: UnknownHostKey }
+  | { step: 'ok'; entries: number; path: string }
+  | { step: 'trust'; hostKey: UnknownHostKey; endpoint: { host: string; port: number } }
   | { step: 'unlock' }
   | { step: 'credential' }
   | { step: 'failed'; key: SiteErrorKey }
@@ -29,32 +29,46 @@ type TestState =
 export interface ConnectionTestProps {
   /** Workspace the site belongs to. */
   workspaceId: string
-  /** The saved site to test. */
-  site: Site
+  /** The saved site the form edits, whose stored secrets fill the ones left blank; left out for a new site. */
+  siteId?: string
+  /** The site as the form holds it, checked first; undefined when the form does not pass its checks, which then show. */
+  draft: () => Promise<SiteInput | undefined>
+  /** How the site is named in the dialogs that ask for the master password or its password. */
+  labels: { id: string; name: string; host: string; username: string }
 }
 
-/** Tries a saved site by listing its root; it asks to trust a new server key on the way, for the master password when the vault is locked,
- * and for the site's password when it asks for one when connecting. */
-export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
+/** Tries a site as the form holds it, saved or not, by listing the folder its server opens sessions in; the secrets left blank are the
+ * stored ones. It asks to trust a new server key on the way, for the master password when the vault is locked, and for the site's password
+ * when it asks for one when connecting. */
+export function ConnectionTest({ workspaceId, siteId, draft, labels }: ConnectionTestProps) {
   const { t } = useTranslation('sites')
   const api = useApi()
   const [state, setState] = useState<TestState>({ step: 'idle' })
 
   const run = async (): Promise<void> => {
+    const site = await draft()
+    if (site === undefined) {
+      setState({ step: 'idle' })
+      return
+    }
     setState({ step: 'running' })
     try {
-      const entries = await api.files.list(workspaceId, site.id, '/')
-      setState({ step: 'ok', entries: entries.length })
+      const result = await api.sites.test(workspaceId, site, siteId)
+      setState({ step: 'ok', entries: result.entries, path: result.path })
     } catch (error) {
       const hostKey = unknownHostKeyOf(error)
       const key = siteErrorKeyOf(error)
-      setState(hostKey !== undefined ? { step: 'trust', hostKey } : key === 'vault_locked' ? { step: 'unlock' } : key === 'credentials_required' ? { step: 'credential' } : { step: 'failed', key })
+      if (hostKey !== undefined) {
+        setState({ step: 'trust', hostKey, endpoint: endpointOf(site) })
+        return
+      }
+      setState(key === 'vault_locked' ? { step: 'unlock' } : key === 'credentials_required' && siteId !== undefined ? { step: 'credential' } : { step: 'failed', key })
     }
   }
 
-  const trust = async (hostKey: UnknownHostKey): Promise<void> => {
+  const trust = async (hostKey: UnknownHostKey, endpoint: { host: string; port: number }): Promise<void> => {
     try {
-      await api.hostKeys.trust(workspaceId, { ...endpointOf(site), ...hostKey })
+      await api.hostKeys.trust(workspaceId, { ...endpoint, ...hostKey })
     } catch (error) {
       setState({ step: 'failed', key: siteErrorKeyOf(error) })
       return
@@ -72,7 +86,7 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
         {state.step === 'ok' && (
           <p role="status" className="flex items-center gap-1.5 text-sm text-ok">
             <CircleCheck className="size-4" />
-            {t(($) => $.site.test.ok, { count: state.entries })}
+            {t(($) => $.site.test.ok, { count: state.entries, path: state.path })}
           </p>
         )}
       </div>
@@ -91,20 +105,20 @@ export function ConnectionTest({ workspaceId, site }: ConnectionTestProps) {
             <dt className="text-muted-foreground">{t(($) => $.site.test.fingerprint)}</dt>
             <dd className="font-mono break-all">{state.hostKey.fingerprint}</dd>
           </dl>
-          <Button type="button" size="sm" className="self-start" onClick={() => trust(state.hostKey)}>
+          <Button type="button" size="sm" className="self-start" onClick={() => trust(state.hostKey, state.endpoint)}>
             {t(($) => $.site.test.confirm)}
           </Button>
         </div>
       )}
       <VaultDialog
         mode={state.step === 'unlock' ? 'unlock' : null}
-        target={labelsOf(site)}
+        target={labels}
         onClose={() => setState({ step: 'failed', key: 'vault_locked' })}
         onUnlocked={() => void run()}
       />
       <CredentialDialog
         workspaceId={workspaceId}
-        target={state.step === 'credential' ? labelsOf(site) : null}
+        target={state.step === 'credential' ? labels : null}
         onClose={() => setState({ step: 'failed', key: 'credentials_required' })}
         onGiven={() => void run()}
       />

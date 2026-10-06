@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { FormSelect } from '@/components/ui/form-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { Collection, Connector, Site } from '@/lib/api'
+import type { Collection, Connector, Site, SiteInput } from '@/lib/api'
 import { useApi } from '@/lib/api/use-api'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
@@ -96,6 +96,8 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
     handleSubmit,
     control,
     setError,
+    trigger,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<SiteValues>({
     resolver,
@@ -104,6 +106,14 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
   const type = useWatch({ control, name: 'connector' })
   const connector = connectors.find((candidate) => candidate.type === type)
   const secrets = useWatch({ control, name: 'secrets' })
+  const [shownName, shownConfig] = useWatch({ control, name: ['name', 'config'] })
+  const draft = async (): Promise<SiteInput | undefined> => {
+    if (!(await trigger())) {
+      return undefined
+    }
+    const values = getValues()
+    return toSiteInput(values, connectors.find((candidate) => candidate.type === values.connector) as Connector)
+  }
   const vault = useVaultStatus()
   const needsVault = vault !== undefined && !(vault.initialized && vault.unlocked) && Object.values(secrets).some(Boolean)
 
@@ -253,7 +263,12 @@ function SiteForm({ target, workspaceId, collections, connectors, chosen, onChan
           </TabsContent>
         )}
       </Tabs>
-      {editing !== undefined && <ConnectionTest workspaceId={workspaceId} site={editing} />}
+      <ConnectionTest
+        workspaceId={workspaceId}
+        siteId={editing?.id}
+        draft={draft}
+        labels={{ id: editing?.id ?? '', name: shownName, host: shownConfig.host ?? '', username: shownConfig.username ?? '' }}
+      />
       <VaultDialog
         mode={unlocking === null ? null : vault?.initialized === false ? 'setup' : 'unlock'}
         target={unlocking === null ? undefined : { name: unlocking.name, host: hostOf(unlocking), username: usernameOf(unlocking) }}

@@ -577,19 +577,55 @@ describe('site management', () => {
     expect(body.secrets).toEqual({})
   })
 
-  it('tests the connection and reports success', async () => {
-    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files', () => HttpResponse.json([{ name: 'a' }, { name: 'b' }])))
+  it('tests the connection as the form holds it and reports success', async () => {
+    let sent: { siteId?: string; site: { config: Record<string, string>; secrets?: Record<string, string> } } | undefined
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites/test', async ({ request }) => {
+        sent = (await request.json()) as typeof sent
+        return HttpResponse.json({ path: '/home/deploy', entries: 2 })
+      }),
+    )
     const user = await renderSidebar()
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog')
+    const host = within(dialog).getByLabelText('Host', { exact: true })
+    await user.clear(host)
+    await user.type(host, 'moved.example.com')
 
     await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
 
-    expect(await within(dialog).findByRole('status')).toHaveTextContent('Connected. The server answered with 2 entries at the root.')
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Connected. The server answered with 2 entries in /home/deploy.')
+    expect(sent?.siteId).toBe('s1')
+    expect(sent?.site.config.host).toBe('moved.example.com')
+  })
+
+  it('tests a new site before it is saved, once the form passes its checks', async () => {
+    let sent: { siteId?: string; site: { name: string } } | undefined
+    server.use(
+      http.post('/api/v1/workspaces/:id/sites/test', async ({ request }) => {
+        sent = (await request.json()) as typeof sent
+        return HttpResponse.json({ path: '/', entries: 1 })
+      }),
+    )
+    const user = await renderSidebar()
+    await user.click(screen.getAllByRole('button', { name: 'New site' })[0])
+    const dialog = await screen.findByRole('dialog', { name: 'New site' })
+    await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
+    expect(sent).toBeUndefined()
+
+    await user.type(within(dialog).getByLabelText('Name', { exact: true }), 'Draft')
+    await user.type(within(dialog).getByLabelText('Host', { exact: true }), 'draft.example.com')
+    await user.type(within(dialog).getByLabelText('Username', { exact: true }), 'deploy')
+    await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Connected. The server answered with 1 entries in /.')
+    expect(sent?.siteId).toBeUndefined()
+    expect(sent?.site.name).toBe('Draft')
   })
 
   it('tests the connection and reports a failure', async () => {
-    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files', () => problem(502, 'remote_auth_failed')))
+    server.use(http.post('/api/v1/workspaces/:id/sites/test', () => problem(502, 'remote_auth_failed')))
     const user = await renderSidebar()
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog')
@@ -601,7 +637,7 @@ describe('site management', () => {
 
   it('asks for the master password when the test finds the vault locked, and tests again once it is unlocked', async () => {
     const vault = mockUnlocking()
-    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files', () => (vault.unlocked() ? HttpResponse.json([]) : problem(409, 'vault_locked'))))
+    server.use(http.post('/api/v1/workspaces/:id/sites/test', () => (vault.unlocked() ? HttpResponse.json({ path: '/', entries: 0 }) : problem(409, 'vault_locked'))))
     const user = await renderSidebar()
     await pick(user, 'Prod', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit site' })
@@ -623,7 +659,7 @@ describe('site management', () => {
     mockWorkspaceData({ sites: [{ ...prod, config: { ...prod.config, auth: 'ask' }, secrets: [] }], collections: [] })
     let given = false
     server.use(
-      http.get('/api/v1/workspaces/:id/sites/s1/files', () => (given ? HttpResponse.json([]) : problem(409, 'credentials_required'))),
+      http.post('/api/v1/workspaces/:id/sites/test', () => (given ? HttpResponse.json({ path: '/', entries: 0 }) : problem(409, 'credentials_required'))),
       http.put('/api/v1/workspaces/:id/sites/s1/credential', () => {
         given = true
         return new HttpResponse(null, { status: 204 })
@@ -651,7 +687,7 @@ describe('site management', () => {
     let listed = 0
     let trusted: unknown
     server.use(
-      http.get('/api/v1/workspaces/:id/sites/s1/files', () => (++listed === 1 ? unknownKey() : HttpResponse.json([]))),
+      http.post('/api/v1/workspaces/:id/sites/test', () => (++listed === 1 ? unknownKey() : HttpResponse.json({ path: '/', entries: 0 }))),
       http.post('/api/v1/workspaces/:id/known-hosts', async ({ request }) => {
         trusted = await request.json()
         return HttpResponse.json({}, { status: 201 })
@@ -671,7 +707,7 @@ describe('site management', () => {
 
   it('reports a failure to trust the key', async () => {
     server.use(
-      http.get('/api/v1/workspaces/:id/sites/s1/files', () => unknownKey()),
+      http.post('/api/v1/workspaces/:id/sites/test', () => unknownKey()),
       http.post('/api/v1/workspaces/:id/known-hosts', () => problem(403, 'forbidden')),
     )
     const user = await renderSidebar()
