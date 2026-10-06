@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { bytesSource } from '@/test/preview'
@@ -24,8 +24,21 @@ function renderFrame(props: Partial<Parameters<typeof SandboxFrame>[0]> = {}) {
  * - ranges are read from the source and handed back; without a source, over 4 MiB or when the read fails, the answer is null
  * - Escape and the arrows pressed inside the page are pressed again on the frame
  * - a failure is reported with its reason, or an empty one
+ * - when asked, a notice says the view is being prepared until the page says it drew the file; without it there is none
  */
 describe('SandboxFrame', () => {
+  it('says the view is being prepared until the page drew it', () => {
+    expect(renderFrame().frame).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    cleanup()
+    const { fromPage } = renderFrame({ preparing: true })
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    fromPage({ type: 'transferly:ready' })
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    fromPage({ type: 'transferly:rendered' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('serves the page its file by ranges', async () => {
     const source = bytesSource('a.pdf', new Uint8Array(100).map((_, index) => index))
     const { sent, fromPage } = renderFrame({ source, labels: { page: 'Page' } })

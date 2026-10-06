@@ -7,6 +7,7 @@
   "edit": "Abrir en el editor",
   "position": "{{index}} de {{count}}",
   "loading": "Leyendo el archivo…",
+  "rendering": "Preparando la vista…",
   "failed": "No se pudo leer el archivo.",
   "retry": "Reintentar",
   "empty": "Este archivo está vacío.",
@@ -40,7 +41,7 @@
   },
   "tooLarge": {
     "title": "Demasiado grande para mostrarlo aquí",
-    "body": "Este visor lee archivos de hasta {{limit}}. Igual puedes ver sus bytes, que se leen por páginas.",
+    "body": "Este visor muestra archivos de hasta {{limit}}. Descárgalo para abrirlo con su programa, o mira sus bytes, que se leen por páginas.",
     "asBytes": "Ver como bytes"
   },
   "text": {
@@ -61,6 +62,7 @@
     "invalid": "Este archivo no se puede leer: {{error}}"
   },
   "table": {
+    "cut": "Mostrando las primeras {{shown}} filas. Descarga el archivo para verlas todas.",
     "label": "Tabla de {{name}}",
     "summary": "{{rows}} filas · {{columns}} columnas · separadas por {{delimiter}}",
     "header": "La primera fila es el encabezado",
@@ -150,7 +152,7 @@
   "office": {
     "label": "Documento {{name}}",
     "sheets": "Hojas",
-    "rowsCut": "Se muestran las primeras {{shown}} de {{total}} filas.",
+    "rowsCut": "Mostrando las primeras {{shown}} de {{total}} filas. Descarga el archivo para verlas todas.",
     "columnsCut": "Se muestran las primeras {{shown}} de {{total}} columnas.",
     "emptySheet": "Esta hoja está vacía.",
     "slides": "Diapositivas: {{total}}",

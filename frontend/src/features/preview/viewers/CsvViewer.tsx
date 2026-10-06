@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 
-import { compareCells, parseTable, tableLimit, type Table } from './table'
+import { compareCells, maxTableRows, parseTable, tableLimit, type Table } from './table'
 import { decodeText } from './text'
 import type { ViewerProps } from './types'
 import { WholeFile } from './WholeFile'
@@ -49,6 +49,11 @@ function TableView({ name, text }: { name: string; text: string }) {
           {t(($) => $.table.header)}
         </Button>
       </div>
+      {table.cut && (
+        <p role="status" className="border-b bg-warn/10 px-3 py-1 text-xs text-warn-text">
+          {t(($) => $.table.cut, { shown: maxTableRows })}
+        </p>
+      )}
       <div ref={scroller} role="table" aria-label={t(($) => $.table.label, { name })} aria-rowcount={rows.length + 1} className="min-h-0 flex-1 overflow-auto bg-card text-xs">
         <div role="row" className="sticky top-0 z-10 grid border-b bg-muted font-medium" style={{ gridTemplateColumns: template }}>
           {table.columns.map((column, index) => (

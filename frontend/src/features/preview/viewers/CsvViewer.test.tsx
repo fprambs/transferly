@@ -6,6 +6,7 @@ import { textSource } from '@/test/preview'
 import { renderWithProviders } from '@/test/render'
 
 import { CsvViewer } from './CsvViewer'
+import { maxTableRows } from './table'
 
 /** The cells of the first column, top to bottom. */
 function firstColumn(table: HTMLElement): string[] {
@@ -43,6 +44,13 @@ describe('CsvViewer', () => {
     await user.click(screen.getByRole('button', { name: 'First row is the header' }))
     expect(screen.getByRole('columnheader', { name: '1' })).toBeInTheDocument()
     expect(firstColumn(table)[0]).toBe('n')
+  })
+
+  it('shows the first rows of a long file and says so', async () => {
+    const lines = Array.from({ length: maxTableRows + 3 }, (_, index) => `${index},x`).join('\n')
+    await renderWithProviders(<CsvViewer source={textSource('long.csv', `n,v\n${lines}`)} kind="csv" />)
+    expect(await screen.findByText(`Showing the first ${maxTableRows} rows. Download the file to see them all.`)).toBeInTheDocument()
+    expect(screen.getByText(`${maxTableRows} rows · 2 columns · separated by commas`)).toBeInTheDocument()
   })
 
   it('names the delimiters', async () => {

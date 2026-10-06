@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { utils, write } from 'xlsx'
 
 import { expect, test } from '../fixtures.ts'
 
@@ -29,7 +30,7 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  * - Markdown is rendered inside the isolated page; hostile Markdown keeps no script, handler, frame, form or javascript link, its links do
  *   not navigate, and its source is a click away
  * - JSON, YAML, XML and JSON Lines are trees; broken JSON and a YAML alias bomb say they do not parse
- * - CSV and TSV are tables that tell rows, columns and delimiter, and sort by column
+ * - CSV and TSV are tables that tell rows, columns and delimiter, sort by column, and show the first 1000 rows of a long file with a notice
  * - images show with their size, zoom, rotation and camera metadata: PNG, JPEG, GIF, WebP, AVIF, BMP, ICO, SVG and TIFF (on a canvas); a
  *   hostile SVG runs nothing, and a truncated PNG never breaks the viewer
  * - audio and video play streamed by ranges, with their length, picture size and speed; an AVI the browser cannot play says so
@@ -52,6 +53,8 @@ async function openSamples(page: Page, quickId: string, folder: string): Promise
  *   key, a certificate request and an OpenSSH key; a private key is never shown and a damaged block says it cannot be read
  * - email messages show their headers, their HTML cleaned in the isolated page with their inline picture, their text, header lines and
  *   attachments that open with their own viewer; a hostile message runs nothing and loads nothing from the network, and says so
+ * - a workbook of 1500 rows shows its first 1000 with a notice to download it, once the view is prepared; one over 10 MB is too large to
+ *   show and offers to be downloaded; archives keep opening whatever their size
  * - the isolated page of the viewers answers inside a sandboxed frame, and has no cookies, no access to the parent and no network
  */
 test.describe('file viewer', () => {
@@ -158,7 +161,8 @@ test.describe('file viewer', () => {
     await grid.getByRole('row', { name: /people\.csv/ }).click()
     await page.keyboard.press(' ')
     const viewer = page.getByRole('dialog', { name: 'people.csv' })
-    await expect(viewer).toContainText('2000 rows · 6 columns · separated by commas')
+    await expect(viewer).toContainText('1000 rows · 6 columns · separated by commas')
+    await expect(viewer.getByText('Showing the first 1000 rows. Download the file to see them all.')).toBeVisible()
     await viewer.getByRole('columnheader', { name: 'files' }).click()
     await expect(viewer.getByRole('columnheader', { name: 'files' })).toHaveAttribute('aria-sort', 'ascending')
     await page.screenshot({ path: `${shots}/preview-csv.png` })
@@ -453,7 +457,8 @@ test.describe('file viewer', () => {
     await expect(xlsx.locator('table.sheet tbody tr').nth(6)).toContainText('4,471.50')
     await page.screenshot({ path: `${shots}/preview-xlsx.png` })
     await xlsx.getByRole('tab', { name: 'Big' }).click()
-    await expect(xlsx.locator('table.sheet tbody tr')).toHaveCount(5001)
+    await expect(xlsx.locator('table.sheet tbody tr')).toHaveCount(1000)
+    await expect(xlsx.getByText('Showing the first 1000 of 5001 rows. Download the file to see them all.')).toBeVisible()
     await page.keyboard.press('Escape')
   })
 
@@ -617,5 +622,40 @@ test.describe('file viewer', () => {
       return { origin: window.origin, cookie: blocked(() => document.cookie), parent: blocked(() => window.parent.document.title), network }
     })
     expect(probe).toEqual({ origin: 'null', cookie: true, parent: true, network: 'blocked' })
+  })
+
+  test('caps large spreadsheets and refuses those too large to read', async ({ shell, quickId, folder, request }) => {
+    test.setTimeout(90_000)
+    const { page } = shell
+    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspace = ((await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>)[0].id
+    const put = async (name: string, data: Buffer): Promise<void> => {
+      const done = await request.put(`/api/v1/workspaces/${workspace}/sites/${quickId}/files/content`, {
+        params: { path: `${folder}/${name}`, mode: 'overwrite' },
+        data,
+        headers: { 'X-CSRF-Token': me.csrfToken, 'Content-Type': 'application/octet-stream' },
+      })
+      expect(done.ok()).toBe(true)
+    }
+    const book = utils.book_new()
+    utils.book_append_sheet(book, utils.aoa_to_sheet(Array.from({ length: 1500 }, (_, row) => [row + 1, `row ${row + 1}`])), 'Rows')
+    await put('long.xlsx', Buffer.from(write(book, { type: 'buffer', bookType: 'xlsx' }) as ArrayBuffer))
+    await put('huge.xlsx', Buffer.alloc(11 * 1024 * 1024, 7))
+
+    await page.goto(`/sites/${quickId}?path=${encodeURIComponent(folder)}`)
+    const grid = page.getByRole('grid', { name: 'Files' })
+    await grid.getByRole('row', { name: /long\.xlsx/ }).click()
+    await page.keyboard.press(' ')
+    const sheet = page.frameLocator('iframe[title="Document long.xlsx"]')
+    await expect(sheet.getByText('Showing the first 1000 of 1500 rows. Download the file to see them all.')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('dialog', { name: 'long.xlsx' }).getByText('Preparing the view…')).toHaveCount(0)
+    await expect(sheet.locator('tbody tr')).toHaveCount(1000)
+    await page.keyboard.press('Escape')
+
+    await grid.getByRole('row', { name: /huge\.xlsx/ }).click()
+    await page.keyboard.press(' ')
+    const viewer = page.getByRole('dialog', { name: 'huge.xlsx' })
+    await expect(viewer.getByText('Too large to show here')).toBeVisible()
+    await expect(viewer.getByText(/Download it to open it with its program/)).toBeVisible()
   })
 })

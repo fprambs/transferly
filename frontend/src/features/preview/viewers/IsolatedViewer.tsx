@@ -17,7 +17,7 @@ type Group = 'office' | 'sqlite' | 'font'
 /** The group of each kind this viewer shows, and the largest file of it the viewer reads, since it is read whole into the page. */
 const groups: Partial<Record<PreviewKind, { group: Group; limit: number }>> = {
   document: { group: 'office', limit: 50 * 1024 * 1024 },
-  spreadsheet: { group: 'office', limit: 50 * 1024 * 1024 },
+  spreadsheet: { group: 'office', limit: 10 * 1024 * 1024 },
   presentation: { group: 'office', limit: 50 * 1024 * 1024 },
   sqlite: { group: 'sqlite', limit: 64 * 1024 * 1024 },
   font: { group: 'font', limit: 20 * 1024 * 1024 },
@@ -88,7 +88,7 @@ export function IsolatedViewer({ source, kind }: ViewerProps) {
   }
   return (
     <WholeFile source={source} limit={limit}>
-      {(bytes) => <SandboxFrame kind={kind} name={source.name} bytes={bytes} labels={labels} title={t(($) => $[group].label, { name: source.name })} onFailed={setFailure} />}
+      {(bytes) => <SandboxFrame kind={kind} name={source.name} bytes={bytes} labels={labels} title={t(($) => $[group].label, { name: source.name })} onFailed={setFailure} preparing />}
     </WholeFile>
   )
 }

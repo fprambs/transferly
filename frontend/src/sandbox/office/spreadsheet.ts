@@ -3,7 +3,7 @@ import { read, utils, type Range, type WorkSheet } from 'xlsx'
 import { element, fill, ProtectedDocument } from './common'
 
 /** The most rows of a sheet the viewer reads and draws. */
-export const maxRows = 10_000
+export const maxRows = 1_000
 
 /** The most columns of a sheet the viewer draws. */
 export const maxColumns = 200

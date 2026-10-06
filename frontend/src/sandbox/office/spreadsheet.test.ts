@@ -46,7 +46,7 @@ beforeEach(() => {
  * Scenarios:
  * - an Excel workbook shows one tab per sheet and the first sheet as a table with the letters of its columns and the numbers of its rows,
  *   its merged cells spanning, numbers and dates as the workbook formats them, and formulas as the results the file saved
- * - the tabs switch sheets, and a sheet of 5000 rows shows them all
+ * - the tabs switch sheets, and a sheet of 5000 rows shows its first rows only, saying how many it has
  * - legacy Excel and OpenDocument workbooks show too
  * - sheets over the caps of rows and columns show the first ones and say so; an empty sheet says so
  * - a workbook protected with a password fails as protected, and a damaged one fails as it is
@@ -65,7 +65,8 @@ describe('renderSpreadsheet', () => {
     expect(cells(root)[6]).toEqual(['', 'Total', '4,471.50', ''])
     tabs[2].click()
     expect(tabs[2].getAttribute('aria-selected')).toBe('true')
-    expect(cells(root)).toHaveLength(5001)
+    expect(cells(root)).toHaveLength(maxRows)
+    expect(root.textContent).toContain(`First ${maxRows} of 5001 rows.`)
     expect(cells(root)[3]).toEqual(['3', '4.5', '9'])
     tabs[1].click()
     expect(root.textContent).toContain('a formula link')

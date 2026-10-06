@@ -31,7 +31,7 @@ describe('IsolatedViewer', () => {
     fromFrame('Document book.xlsx', { type: 'transferly:ready' })
     expect(sent[0]).toMatchObject({
       kind: 'spreadsheet',
-      labels: { sheets: 'Sheets', rowsCut: 'Showing the first {{shown}} of {{total}} rows.', slides: 'Slides: {{total}}', slide: 'Slide {{number}}', rows: 'Rows {{from}}–{{to}} of {{total}}', resultRows: '{{count}} rows' },
+      labels: { sheets: 'Sheets', rowsCut: 'Showing the first {{shown}} of {{total}} rows. Download the file to see them all.', slides: 'Slides: {{total}}', slide: 'Slide {{number}}', rows: 'Rows {{from}}–{{to}} of {{total}}', resultRows: '{{count}} rows' },
     })
   })
 

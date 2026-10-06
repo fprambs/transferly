@@ -7,6 +7,7 @@
   "edit": "Open in the editor",
   "position": "{{index}} of {{count}}",
   "loading": "Reading the file…",
+  "rendering": "Preparing the view…",
   "failed": "The file could not be read.",
   "retry": "Try again",
   "empty": "This file is empty.",
@@ -40,7 +41,7 @@
   },
   "tooLarge": {
     "title": "Too large to show here",
-    "body": "This viewer reads files up to {{limit}}. You can still look at its bytes, which are read by pages.",
+    "body": "This viewer shows files up to {{limit}}. Download it to open it with its program, or look at its bytes, which are read by pages.",
     "asBytes": "Show as bytes"
   },
   "text": {
@@ -61,6 +62,7 @@
     "invalid": "This file does not parse: {{error}}"
   },
   "table": {
+    "cut": "Showing the first {{shown}} rows. Download the file to see them all.",
     "label": "Table of {{name}}",
     "summary": "{{rows}} rows · {{columns}} columns · separated by {{delimiter}}",
     "header": "First row is the header",
@@ -150,7 +152,7 @@
   "office": {
     "label": "Document {{name}}",
     "sheets": "Sheets",
-    "rowsCut": "Showing the first {{shown}} of {{total}} rows.",
+    "rowsCut": "Showing the first {{shown}} of {{total}} rows. Download the file to see them all.",
     "columnsCut": "Showing the first {{shown}} of {{total}} columns.",
     "emptySheet": "This sheet is empty.",
     "slides": "Slides: {{total}}",
