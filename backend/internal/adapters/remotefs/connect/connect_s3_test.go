@@ -39,6 +39,7 @@ func (e *env) addS3Site(t *testing.T, s *s3test.Server, config map[string]string
 //   - a bucket that does not exist is not found, and nothing signs in
 //   - the network guard applies to object stores too
 func TestConnector_S3(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	sink := &collected{}
 	recorder := connlog.New(sink, testutil.NewFakeClock(time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)))

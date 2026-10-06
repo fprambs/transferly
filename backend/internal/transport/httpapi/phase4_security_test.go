@@ -14,6 +14,7 @@ import (
 //   - a Transferly import, whose file travels inside the JSON body, takes more than 1 MiB and reaches the export check
 //   - uploads stream files larger than the limit, which another test covers with a 4 MiB file
 func TestPhaseFour_BodyLimits(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -36,6 +37,7 @@ func TestPhaseFour_BodyLimits(t *testing.T) {
 //   - editors and viewers are refused with forbidden, and a stranger does not learn that the team exists
 //   - the owner exports the sites of the team
 func TestPhaseFour_ExportNeedsAdmin(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	for _, role := range []string{"editor", "viewer"} {
 		expectProblem(t, e.a.exportCall(e.ws, exportPassword, e.cookie[role], e.csrf[role]), http.StatusForbidden, "forbidden")

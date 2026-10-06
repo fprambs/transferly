@@ -99,6 +99,7 @@ func (realClock) Now() time.Time { return time.Now().UTC() }
 //   - a session lookup that fails while signing out, after authentication succeeded, fails logout
 //   - a preference update that cannot be stored fails the update
 func TestHandlerFailures(t *testing.T) {
+	t.Parallel()
 	broken := newAPI(t, withFlaky(func(f *flakyStore) { f.failCreateSession = true }))
 	expectProblem(t, broken.do(request{method: http.MethodPost, path: "/api/v1/setup", body: map[string]string{"email": adminEmail, "password": adminPassword}}), 500, "internal_error")
 	expectProblem(t, broken.do(request{method: http.MethodPost, path: "/api/v1/auth/login", body: map[string]string{"email": adminEmail, "password": adminPassword}}), 500, "internal_error")
@@ -118,6 +119,7 @@ func TestHandlerFailures(t *testing.T) {
 //   - an oversized User-Agent is cut to 256 characters
 //   - when the client address cannot be determined it is recorded as unknown, never as an attacker-chosen value
 func TestClientInfoIsSanitized(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) { d.TrustedProxies = []string{"127.0.0.0/8"} })
 	a.do(request{method: http.MethodPost, path: "/api/v1/setup", body: map[string]string{"email": adminEmail, "password": adminPassword},
 		headers: map[string]string{"User-Agent": strings.Repeat("a", 600), "X-Forwarded-For": "not-an-ip"}})
@@ -210,6 +212,7 @@ func withFailingWorkspaces(configure func(*failingWorkspaces)) func(*httpapi.Dep
 //   - a team that cannot be created, and a workspace that cannot be read, fail creating, listing, changing, removing, leaving, transferring and
 //     listing the open connections
 func TestWorkspaceFailures(t *testing.T) {
+	t.Parallel()
 	create := newAPI(t, withFailingWorkspaces(func(f *failingWorkspaces) { f.failCreate = true }))
 	expectProblem(t, create.do(request{method: http.MethodPost, path: "/api/v1/setup", body: map[string]string{"email": adminEmail, "password": adminPassword}}), 500, "internal_error")
 	if _, err := create.auth.Register(t.Context(), "u@example.com", adminPassword); err != nil {
@@ -269,6 +272,7 @@ func (brokenVaults) Vault(context.Context, uuid.UUID) (vault.Enrollment, error) 
 //   - reading the vault state, setting up, unlocking, changing the password, recovering and regenerating the kit
 //     each answer 500 when the store fails
 func TestVaultFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		store := brokenVaults{d.Readiness.(*postgres.Store)}
 		v, err := vault.New(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
@@ -309,6 +313,7 @@ func (brokenSites) DeleteSite(context.Context, uuid.UUID, uuid.UUID) error { ret
 //   - listing, reading, creating, updating, deleting, moving, giving the password of and disconnecting from a site answer 500 when
 //     the store fails
 func TestSiteFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		store := brokenSites{d.Readiness.(*postgres.Store)}
 		d.Sites = site.NewService(store, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), connectors.Builtin(), realClock{}, rand.Reader, nil)
@@ -350,6 +355,7 @@ func (brokenHostKeys) Delete(context.Context, uuid.UUID, string, int, string, st
 // Scenarios:
 //   - listing, trusting and forgetting answer 500 when the store fails
 func TestHostKeyFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.HostKeys = hostkey.NewService(brokenHostKeys{d.Readiness.(*postgres.Store)}, d.Workspaces, realClock{})
 	})
@@ -379,6 +385,7 @@ func (brokenBookmarks) Bookmark(context.Context, uuid.UUID, uuid.UUID, uuid.UUID
 // Scenarios:
 //   - listing, creating, updating and removing answer 500 when the store fails
 func TestBookmarkFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		store := d.Readiness.(*postgres.Store)
 		d.Bookmarks = bookmark.NewService(brokenBookmarks{store}, store, d.Workspaces, realClock{}, nil)
@@ -439,6 +446,7 @@ func fileCalls(ws, siteID uuid.UUID) []request {
 //   - a forbidden destination is 422 destination_blocked, a locked vault 409 vault_locked, sudo refusing the account 403 sudo_refused
 //   - an unexpected error is a 500 without details, on every endpoint
 func TestRemoteFileFailures(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		err    error
@@ -502,6 +510,7 @@ func (brokenTransfers) TransferByID(context.Context, uuid.UUID, uuid.UUID) (tran
 //   - an archive whose record cannot be created answers 500
 //   - an upload or a download whose record cannot be created answers 500 and moves no data
 func TestTransferFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Transfers = transfer.NewService(brokenTransfers{d.Readiness.(*postgres.Store)}, &recordedEvents{}, realClock{}, transfer.Config{}, nil)
 	})
@@ -544,6 +553,7 @@ func (brokenCollections) DeleteCollection(context.Context, uuid.UUID, uuid.UUID)
 // Scenarios:
 //   - listing, creating, updating and deleting answer 500 when the store fails
 func TestCollectionFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Sites = site.NewService(brokenCollections{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Keys, netguard.NewPolicy(nil, nil), connectors.Builtin(), realClock{}, rand.Reader, nil)
 	})
@@ -584,6 +594,7 @@ func (brokenInvites) Revoke(context.Context, uuid.UUID, uuid.UUID) error { retur
 //   - listing, creating, revoking, previewing, accepting and joining each answer 500 when the store fails
 //   - joining answers 500 when the personal workspace cannot be created or the session cannot be started
 func TestInvitationFailures(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t, func(d *httpapi.Deps) {
 		d.Invites = invite.NewService(brokenInvites{d.Readiness.(*postgres.Store)}, d.Workspaces, d.Readiness.(*postgres.Store), d.Auth, realClock{}, rand.Reader, 0, nil)
 	})
@@ -630,6 +641,7 @@ func (b brokenKeys) UserKeys(ctx context.Context, id uuid.UUID) (wskey.UserKeys,
 // Scenarios:
 //   - setting up, unlocking and recovering the vault each answer 500 when the key pair cannot be read
 func TestVaultKeyFailures(t *testing.T) {
+	t.Parallel()
 	broken := &atomic.Bool{}
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Keys = wskey.NewService(brokenKeys{d.Readiness.(*postgres.Store), broken}, d.Vault, d.Workspaces, rand.Reader)

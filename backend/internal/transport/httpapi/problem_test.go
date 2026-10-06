@@ -23,6 +23,7 @@ func doProblem(t *testing.T, method, url string) (testutil.Response, httpapi.Pro
 // TestProblem_UnknownRoute verifies that an unknown route answers 404
 // as application/problem+json with the stable code not_found.
 func TestProblem_UnknownRoute(t *testing.T) {
+	t.Parallel()
 	srv := newServer(t, fakeReadiness{})
 	resp, p := doProblem(t, http.MethodGet, srv.URL+"/missing")
 
@@ -40,6 +41,7 @@ func TestProblem_UnknownRoute(t *testing.T) {
 // TestProblem_MethodNotAllowed verifies that a wrong method on a known route
 // answers 405 as a problem document with the stable code method_not_allowed.
 func TestProblem_MethodNotAllowed(t *testing.T) {
+	t.Parallel()
 	srv := newServer(t, fakeReadiness{})
 	resp, p := doProblem(t, http.MethodPost, srv.URL+"/healthz")
 

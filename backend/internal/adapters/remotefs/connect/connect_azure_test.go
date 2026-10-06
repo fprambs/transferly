@@ -21,6 +21,7 @@ import (
 //   - a container or a share that does not exist is not found
 //   - the log tells the host it reached, that plain HTTP is clear text, and the account that signed in, never the key nor the token
 func TestConnector_Azure(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	sink := &collected{}
 	recorder := connlog.New(sink, testutil.NewFakeClock(time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)))

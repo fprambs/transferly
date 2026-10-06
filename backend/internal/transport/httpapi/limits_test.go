@@ -52,6 +52,7 @@ func counts(l httpapi.InstanceLimits) httpapi.InstanceLimits {
 //   - a replacement is written to the audit trail of the instance
 //   - a store that fails to save answers 500
 func TestLimits_Endpoints(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	guest, _ := e.a.signIn("regular@example.com")
 	for _, c := range []struct {
@@ -134,6 +135,7 @@ func (noApplier) SetBandwidth(int64, int64) {}
 //   - a limits change that cannot be saved answers 500
 //   - creating a team answers 500 when the teams the person owns cannot be counted
 func TestLimits_StoreFailures(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t, func(d *httpapi.Deps) {
 		store := d.Readiness.(*postgres.Store)
 		d.Quotas = limits.NewService(brokenLimits{store}, noApplier{}, limits.Limits{MaxTeamsPerUser: 1}, realClock{})
@@ -156,6 +158,7 @@ func TestLimits_StoreFailures(t *testing.T) {
 //   - a person who owns as many teams as their quota cannot create another (409 team_quota_reached)
 //   - a team whose members and waiting invitations reach its quota refuses another invitation (409 member_quota_reached)
 func TestLimits_Quotas(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	if r := e.setLimits(httpapi.InstanceLimits{MaxSitesPerWorkspace: 1}); r.Status != http.StatusOK {
 		t.Fatalf("set limits = %d %s", r.Status, r.Body)

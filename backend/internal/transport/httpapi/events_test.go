@@ -173,6 +173,7 @@ func slowUpload(t *testing.T, e *fileEnv, id uuid.UUID, name string) (*io.PipeWr
 //   - an allowed origin connects, and so does a client that sends no Origin, such as a script
 //   - the first message is a snapshot with what is running, and nothing else was sent yet
 func TestEvents_Access(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 
@@ -220,6 +221,7 @@ func TestEvents_Access(t *testing.T) {
 //   - locking the vault sends vault.locked to the user's clients
 //   - events with a payload the stream does not know are skipped
 func TestEvents_Stream(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	conn, _ := a.connectEvents(e.cookie)
@@ -290,6 +292,7 @@ func (a *api) userID(cookie *http.Cookie) uuid.UUID {
 //   - a stream the hub dropped is closed
 //   - when the transfers cannot be read the stream is closed with an internal error
 func TestEvents_Lifecycle(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 
@@ -347,6 +350,7 @@ func (a *api) sessionOf(cookie *http.Cookie) string {
 // Scenarios:
 //   - when the current transfers cannot be read, the stream is closed with an internal error
 func TestEvents_Failures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Transfers = transfer.NewService(brokenTransfers{d.Readiness.(*postgres.Store)}, &recordedEvents{}, realClock{}, transfer.Config{}, nil)
 	})
@@ -366,6 +370,7 @@ func TestEvents_Failures(t *testing.T) {
 //   - a stream stays open while its session is valid, and closes once the session was idle for the idle limit in
 //     total, although the stream checked it many times in between
 func TestEvents_DoesNotKeepSessionsAlive(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	client, _ := e.a.connectEvents(e.cookie)
 

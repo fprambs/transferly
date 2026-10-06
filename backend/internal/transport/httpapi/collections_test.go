@@ -39,6 +39,7 @@ func (r reply) collection(t *testing.T) httpapi.Collection {
 //   - sites are placed in collections, listed with them, moved between them and back to the top level; a missing
 //     collection is 404; a collection holding a site cannot be deleted
 func TestCollections_Lifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -135,6 +136,7 @@ func siteBody2(from map[string]any, name string) map[string]any {
 //   - an editor may change collections
 //   - a collection of another workspace is 404 collection_not_found
 func TestCollections_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	ownerCookie, ownerCSRF := a.setup()
 	ws := a.personal(ownerCookie)
@@ -193,6 +195,7 @@ func TestCollections_AuthorizationMatrix(t *testing.T) {
 //   - a missing collection is 404 collection_not_found, a missing site 404 site_not_found, a malformed body 400
 //   - a viewer gets 403 forbidden and a stranger 404 workspace_not_found
 func TestSites_Move(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

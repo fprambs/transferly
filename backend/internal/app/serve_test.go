@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/pgtest"
 	"github.com/fprambs/transferly/internal/app"
 	"github.com/fprambs/transferly/internal/config"
 	"github.com/fprambs/transferly/internal/core/auth"
@@ -233,10 +234,7 @@ func TestServe_FailsWhenTransfersCannotBeRecovered(t *testing.T) {
 // Scenarios:
 //   - a database whose allowed networks table is gone makes Serve return that error
 func TestServe_FailsWhenTheAllowedNetworksCannotBeLoaded(t *testing.T) {
-	url := testutil.NewDatabase(t)
-	if err := postgres.Migrate(t.Context(), url); err != nil {
-		t.Fatal(err)
-	}
+	url := pgtest.MigratedDatabase(t)
 	store, err := postgres.Open(t.Context(), url)
 	if err != nil {
 		t.Fatal(err)
@@ -261,10 +259,7 @@ func TestServe_FailsWhenTheAllowedNetworksCannotBeLoaded(t *testing.T) {
 // Scenarios:
 //   - a database whose limits table is gone makes Serve return that error
 func TestServe_FailsWhenTheLimitsCannotBeLoaded(t *testing.T) {
-	url := testutil.NewDatabase(t)
-	if err := postgres.Migrate(t.Context(), url); err != nil {
-		t.Fatal(err)
-	}
+	url := pgtest.MigratedDatabase(t)
 	store, err := postgres.Open(t.Context(), url)
 	if err != nil {
 		t.Fatal(err)
@@ -289,10 +284,7 @@ func TestServe_FailsWhenTheLimitsCannotBeLoaded(t *testing.T) {
 //   - a transfer that was running when the previous process stopped is marked interrupted at startup and the
 //     server logs how many there were
 func TestServe_InterruptsTransfersLeftRunning(t *testing.T) {
-	url := testutil.NewDatabase(t)
-	if err := postgres.Migrate(t.Context(), url); err != nil {
-		t.Fatal(err)
-	}
+	url := pgtest.MigratedDatabase(t)
 	store, err := postgres.Open(t.Context(), url)
 	if err != nil {
 		t.Fatal(err)

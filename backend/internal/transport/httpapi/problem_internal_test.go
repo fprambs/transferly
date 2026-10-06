@@ -17,6 +17,7 @@ import (
 
 // TestWriteProblem_Params verifies that parameters are included in the problem document when given.
 func TestWriteProblem_Params(t *testing.T) {
+	t.Parallel()
 	rec := httptest.NewRecorder()
 
 	writeProblem(rec, http.StatusConflict, "already_exists", map[string]any{"name": "backup"})
@@ -32,6 +33,7 @@ func TestWriteProblem_Params(t *testing.T) {
 
 // TestRequestErrorHandler verifies that undecodable requests answer 400 with the stable code invalid_request.
 func TestRequestErrorHandler(t *testing.T) {
+	t.Parallel()
 	rec := httptest.NewRecorder()
 
 	requestErrorHandler(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), errors.New("bad parameter"))
@@ -47,6 +49,7 @@ func TestRequestErrorHandler(t *testing.T) {
 
 // TestResponseErrorHandler verifies that operation failures are logged and answered as 500 without details.
 func TestResponseErrorHandler(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	rec := httptest.NewRecorder()
 
@@ -75,6 +78,7 @@ func TestResponseErrorHandler(t *testing.T) {
 //   - regular files, directories, symbolic links and special files get their type
 //   - the mode is in ls notation, the time is UTC and the precision has its public name
 func TestRemoteEntryDTO(t *testing.T) {
+	t.Parallel()
 	when := time.Date(2026, 3, 8, 12, 0, 0, 0, time.FixedZone("UTC-3", -3*3600))
 	tests := []struct {
 		name string
@@ -106,6 +110,7 @@ func TestRemoteEntryDTO(t *testing.T) {
 //   - plain names are quoted parameters, and names with line breaks, NUL bytes, invalid UTF-8 or non-ASCII text are
 //     percent-encoded, never containing raw control characters
 func TestAttachment(t *testing.T) {
+	t.Parallel()
 	if got := attachment("report.txt"); got != "attachment; filename=report.txt" {
 		t.Errorf("attachment(report.txt) = %q", got)
 	}
@@ -123,6 +128,7 @@ func TestAttachment(t *testing.T) {
 //   - a domain error becomes its problem as a response of the operation
 //   - any other error is returned as it is, with no response
 func TestProblemOr(t *testing.T) {
+	t.Parallel()
 	if response, err := problemOr[ListArchiveEntriesResponseObject](remotefs.ErrNotFound); err != nil || response.(domainProblem).code != "path_not_found" {
 		t.Errorf("problemOr(ErrNotFound) = %v, %v", response, err)
 	}

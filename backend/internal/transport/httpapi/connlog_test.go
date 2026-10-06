@@ -39,6 +39,7 @@ func (c *wsClient) nextLog(t *testing.T) logMessage {
 //   - listing tells the folder it reads and then how many entries it found, about the site and workspace listed
 //   - a listing that fails tells the stable code the API answers
 func TestConnectionLog_Listing(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	conn, _ := e.a.connectEvents(e.cookie)
 
@@ -64,6 +65,7 @@ func TestConnectionLog_Listing(t *testing.T) {
 //   - after listing, disconnecting closes the pooled connection, tells the log, and the next listing connects again
 //   - a site that does not exist is not found
 func TestDisconnectSite(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	conn, _ := e.a.connectEvents(e.cookie)
 	e.get("", q("path", "/"), nil)
@@ -94,6 +96,7 @@ func TestDisconnectSite(t *testing.T) {
 // Use cases:
 //   - the log tells that the listing was canceled, as a warning, instead of a failure with a code
 func TestConnectionLog_Canceled(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	body := siteBody(slowSite)
 	created := e.a.send(http.MethodPost, sitesPath(e.ws), body, e.cookie, e.csrf)
@@ -126,6 +129,7 @@ func TestConnectionLog_Canceled(t *testing.T) {
 //   - disconnecting tells it closed and empties the list
 //   - a workspace the caller does not belong to is not found
 func TestOpenConnections(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	conn, _ := e.a.connectEvents(e.cookie)
 	path := "/api/v1/workspaces/" + e.ws.String() + "/connections"

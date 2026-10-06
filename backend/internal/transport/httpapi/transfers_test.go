@@ -67,6 +67,7 @@ func (a *api) transferState(cookie *http.Cookie, id uuid.UUID) httpapi.TransferS
 //   - failed requests are recorded with their error code, and requests refused beforehand leave no trace
 //   - state events are published to the owner as the transfer moves
 func TestTransfers_Recording(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	id := uuid.New()
@@ -154,6 +155,7 @@ func TestTransfers_Recording(t *testing.T) {
 //   - the identifier of a transfer of another user, or of another file, is 409 transfer_id_taken
 //   - the identifier of a transfer that is still running is 409 transfer_active
 func TestTransfers_Resume(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	id := uuid.New()
@@ -193,6 +195,7 @@ func TestTransfers_Resume(t *testing.T) {
 //   - canceling a finished transfer is 409 transfer_not_active, an unknown one 404
 //   - a running transfer cannot be deleted (409 transfer_active); a finished one can, once
 func TestTransfers_Cancel(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	id := uuid.New()
@@ -259,6 +262,7 @@ func TestTransfers_Cancel(t *testing.T) {
 //     the transfers of others
 //   - a viewer's refused upload leaves no transfer, and the viewer's own downloads are theirs alone
 func TestTransfers_ListingAndAccess(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	for i, name := range []string{"/one", "/two", "/three"} {

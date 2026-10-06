@@ -78,6 +78,7 @@ func (e *fileEnv) control(method, id, tail string, body any) reply {
 //   - an unknown priority is 422 invalid_priority
 //   - pausing, resuming or reprioritizing a transfer that runs, is over or does not exist is refused, and other users cannot reach it
 func TestTransfers_Queue(t *testing.T) {
+	t.Parallel()
 	a := newAPIWithTransfers(t, transfer.Config{EventEvery: time.Millisecond, Limits: scheduler.Limits{PerSite: 1}})
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

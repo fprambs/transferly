@@ -13,6 +13,7 @@ import (
 //   - a whole number of hours suggests the Etc zone with the inverted sign, zero suggests UTC and a half hour suggests nothing
 //   - an exact listing suggests no zone
 func TestProbeResponse(t *testing.T) {
+	t.Parallel()
 	for offset, want := range map[time.Duration]string{
 		0:                               "UTC",
 		-3 * time.Hour:                  "Etc/GMT+3",

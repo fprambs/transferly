@@ -13,6 +13,7 @@ import (
 //   - a signed-in person reads the version of the build, dev for builds that do not set it
 //   - an anonymous request is refused, so the version is not told to anyone who asks
 func TestGetVersion(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, _ := a.setup()
 	r := a.do(request{method: http.MethodGet, path: "/api/v1/version", cookie: cookie})

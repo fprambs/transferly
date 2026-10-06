@@ -8,6 +8,7 @@ import "testing"
 //   - the health, setup and login operations are public
 //   - logout, the current user and preference updates are protected
 func TestProtectedOperations(t *testing.T) {
+	t.Parallel()
 	spec, err := GetSpec()
 	if err != nil {
 		t.Fatalf("GetSpec() = %v", err)

@@ -44,6 +44,7 @@ func (r reply) quickConnection(t *testing.T) httpapi.QuickConnection {
 //   - a taken site name keeps the quick connection
 //   - closing ends it, twice is 404, and its identifier no longer reaches files
 func TestQuickConnections_Lifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -142,6 +143,7 @@ func q2(m map[string]string) map[string][]string {
 //   - other users cannot use, list, close or save a connection they do not own
 //   - signing out ends the user's quick connections
 func TestQuickConnections_Rules(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -208,6 +210,7 @@ func TestQuickConnections_Rules(t *testing.T) {
 //   - a stranger gets 404 workspace_not_found
 //   - a viewer may list (their own, none) but gets 403 forbidden creating; an editor may create
 func TestQuickConnections_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	ownerCookie, _ := a.setup()
 	ws := a.personal(ownerCookie)
@@ -273,6 +276,7 @@ func (failingSaver) Create(context.Context, uuid.UUID, uuid.UUID, string, site.I
 // Scenarios:
 //   - listing and creating answer 500 when authorization fails unexpectedly, and saving does when the site cannot be stored
 func TestQuickConnectionFailures(t *testing.T) {
+	t.Parallel()
 	authz := &flakyAuthz{}
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Quick = quick.NewService(authz, failingSaver{d.Sites}, realClock{}, nil)

@@ -24,6 +24,7 @@ import (
 //   - without the sign-in with Google, or without a client configured, the site cannot connect; a site with no account connected is
 //     refused credentials, and so is one whose token Google revoked
 func TestConnector_GDrive(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	s := googletest.Start(t, googletest.Options{})
 	google := googleauth.New(googleauth.Config{

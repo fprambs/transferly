@@ -41,6 +41,7 @@ func (e *env) trustCertificate(address, fingerprint string) {
 //     while required explicit encryption refuses a server that does not offer it
 //   - a wrong password is ErrAuth and the destination guard applies to FTP too
 func TestConnector_FTP(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 
@@ -153,6 +154,7 @@ func TestConnector_FTP(t *testing.T) {
 //   - an FTP quick connection connects with its password, and one without a password connects too, as an anonymous account does
 //   - an FTPS quick connection asks to trust the certificate first, in memory only
 func TestConnector_QuickFTP(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 	start := func(address, protocol string, secrets qsecrets, user string) uuid.UUID {
@@ -201,6 +203,7 @@ func TestConnector_QuickFTP(t *testing.T) {
 //   - a site with a password and an account connects to a server that does not ask for the account
 //   - an account that cannot be opened, because the vault is locked in the session, fails the connection
 func TestConnector_FTPAccount(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	c := e.connector(e.allow)
 	plain := ftptest.Start(t, ftptest.Options{})

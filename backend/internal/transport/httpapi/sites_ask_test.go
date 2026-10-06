@@ -18,6 +18,7 @@ import (
 //     never echoed back
 //   - locking the vault and changing the site drop the password, so the folder needs it again
 func TestSites_AskForPassword(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

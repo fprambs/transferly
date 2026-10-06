@@ -42,6 +42,7 @@ func (a *api) importCall(ws string, query, body string, cookie *http.Cookie, csr
 //   - crypt passwords are skipped without the master password of the file, and read with it in its header
 //   - a file that is not a site manager, one with a document type definition and one that is too large are 422, and anonymous callers are refused
 func TestImport_Filezilla(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -139,6 +140,7 @@ func (deadSites) CanSeal(string) bool { return true }
 // Scenarios:
 //   - an import that cannot read the existing sites answers internal_error without details
 func TestImport_Failure(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Import = fzimport.NewService(d.Workspaces, deadSites{site.NewService(nil, nil, nil, nil, connectors.Builtin(), nil, nil, nil)})
 	})

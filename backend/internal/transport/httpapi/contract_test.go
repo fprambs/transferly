@@ -39,6 +39,7 @@ func loadSpec(t *testing.T) (*openapi3.T, routers.Router) {
 //   - GET /readyz answers 200 with a HealthStatus when the dependency is up
 //   - GET /readyz answers 503 with a HealthStatus when the dependency is down
 func TestContract_ResponsesMatchTheSpec(t *testing.T) {
+	t.Parallel()
 	_, router := loadSpec(t)
 	tests := []struct {
 		name string
@@ -89,6 +90,7 @@ func TestContract_ResponsesMatchTheSpec(t *testing.T) {
 // TestContract_ProblemsMatchTheSchema verifies that error responses satisfy the Problem schema,
 // for an unknown route and a wrong method.
 func TestContract_ProblemsMatchTheSchema(t *testing.T) {
+	t.Parallel()
 	spec, _ := loadSpec(t)
 	schema := spec.Components.Schemas["Problem"].Value
 	srv := newServer(t, fakeReadiness{})
@@ -138,6 +140,7 @@ func validateReply(t *testing.T, router routers.Router, method, target string, r
 //   - a whole download, a range and an unsatisfiable range answer as documented, headers included
 //   - path, exists, not empty and invalid mode problems answer as documented
 func TestContract_FileResponses(t *testing.T) {
+	t.Parallel()
 	_, router := loadSpec(t)
 	e := newFileEnv(t)
 	check := func(method, target string, r reply) reply {
@@ -183,6 +186,7 @@ func TestContract_FileResponses(t *testing.T) {
 //   - uploading and downloading with an identifier answer with the documented headers
 //   - listing, reading, canceling a finished transfer and deleting answer as documented, problems included
 func TestContract_TransferResponses(t *testing.T) {
+	t.Parallel()
 	_, router := loadSpec(t)
 	e := newFileEnv(t)
 	check := func(method, target string, r reply) reply {

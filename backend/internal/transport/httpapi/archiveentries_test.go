@@ -30,6 +30,7 @@ func archiveSample(t *testing.T, name string) string {
 //   - an encrypted 7z entry, found only once decoded, is a 422 problem instead of a broken download
 //   - a missing entry is 404, a file that is no archive, a bomb and a chain deeper than four levels are 422
 func TestArchiveEntries(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	for _, name := range []string{"project.zip", "server.log.gz", "secret-entries.7z", "bomb.zip"} {
 		if r := e.a.upload(e.ws, e.site, q("path", "/"+name), archiveSample(t, name), e.cookie, e.csrf); r.Status != http.StatusCreated {

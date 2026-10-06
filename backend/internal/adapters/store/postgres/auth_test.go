@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/pgtest"
 	"github.com/fprambs/transferly/internal/adapters/store/storetest"
 	"github.com/fprambs/transferly/internal/core/activity"
 	"github.com/fprambs/transferly/internal/core/admin"
@@ -29,16 +30,12 @@ import (
 	"github.com/fprambs/transferly/internal/core/vault"
 	"github.com/fprambs/transferly/internal/core/workspace"
 	"github.com/fprambs/transferly/internal/core/wskey"
-	"github.com/fprambs/transferly/internal/testutil"
 )
 
 // openMigrated returns a store over a fresh, migrated database.
 func openMigrated(t *testing.T) *postgres.Store {
 	t.Helper()
-	dbURL := testutil.NewDatabase(t)
-	if err := postgres.Migrate(t.Context(), dbURL); err != nil {
-		t.Fatalf("Migrate() = %v", err)
-	}
+	dbURL := pgtest.MigratedDatabase(t)
 	store, err := postgres.Open(t.Context(), dbURL)
 	if err != nil {
 		t.Fatalf("Open() = %v", err)
@@ -88,11 +85,8 @@ func TestAuthStore_ReportsDatabaseFailures(t *testing.T) {
 // through the advisory lock: while another transaction holds the lock the call blocks, and once the lock is
 // released it completes. A statistical race test cannot detect a missing lock because the window is tiny.
 func TestCreateFirstUser_WaitsForTheCreationLock(t *testing.T) {
-	dbURL := testutil.NewDatabase(t)
+	dbURL := pgtest.MigratedDatabase(t)
 	ctx := context.Background()
-	if err := postgres.Migrate(ctx, dbURL); err != nil {
-		t.Fatal(err)
-	}
 	store, err := postgres.Open(ctx, dbURL)
 	if err != nil {
 		t.Fatal(err)

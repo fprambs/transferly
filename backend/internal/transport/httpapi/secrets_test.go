@@ -43,6 +43,7 @@ func (b *lockedBuffer) String() string {
 //   - none of them appears in the logs, at debug level, including for failed and rejected requests that carried them
 //   - a site and a quick connection only report which kinds of secret they hold
 func TestSecrets_NeverLeave(t *testing.T) {
+	t.Parallel()
 	logs := &lockedBuffer{}
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Logger = slog.New(slog.NewTextHandler(io.MultiWriter(logs), &slog.HandlerOptions{Level: slog.LevelDebug}))

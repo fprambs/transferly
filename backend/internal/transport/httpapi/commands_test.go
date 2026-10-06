@@ -36,6 +36,7 @@ func (e *fileEnv) tools() reply {
 //   - a server that cannot run commands tells no tools and answers 422 server_commands_unsupported
 //   - once an administrator turns commands off, the server tells no tools; the limits say so, and turning them on again restores them
 func TestServerCommands(t *testing.T) {
+	t.Parallel()
 	e := newShellEnv(t)
 	a := e.a
 	if r := a.upload(e.ws, e.site, q("path", "/a.txt"), "alpha", e.cookie, e.csrf); r.Status != http.StatusCreated {

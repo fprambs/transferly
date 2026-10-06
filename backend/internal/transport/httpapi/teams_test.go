@@ -91,6 +91,7 @@ func (e *teamEnv) members(as string) map[string]string {
 //   - ownership is transferred and the old owner becomes an admin
 //   - bad names, unknown roles and the like are refused with stable codes
 func TestTeams_Lifecycle(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	want := map[string]string{"owner@example.com": "owner", "admin@example.com": "admin", "editor@example.com": "editor", "viewer@example.com": "viewer"}
 	got := e.members("viewer")
@@ -152,6 +153,7 @@ func TestTeams_Lifecycle(t *testing.T) {
 //   - an admin cannot change another admin or grant admin, and cannot transfer
 //   - personal workspaces have no members, cannot be left and cannot be transferred: 409 personal_workspace
 func TestTeams_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	editor, viewer := e.user["editor"].String(), e.user["viewer"].String()
 	type call struct {
@@ -221,6 +223,7 @@ func (e *teamEnv) openSecret(as string, siteID uuid.UUID) (string, error) {
 //   - the copy is made when the owner unlocks the vault, and also when a member lists the team
 //   - a member who never got a copy cannot open the secret, and personal workspaces keep using the vault of their owner
 func TestTeams_SharedKeys(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	expectProblem(t, e.a.send(http.MethodPost, "/api/v1/workspaces", map[string]string{"name": "No vault"}, e.cookie["stranger"], e.csrf["stranger"]), 409, "vault_locked")
 
@@ -320,6 +323,7 @@ func (e *teamEnv) keyState() (int, bool) {
 //   - removing a member as somebody whose vault is locked leaves the rotation waiting, and it happens when that member unlocks
 //   - a member who leaves also makes the next member with the key rotate it
 func TestTeams_KeyRotation(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	body := secret(siteBody("Production"), "password", "hunter2-hunter2")
 	created := e.call("owner", http.MethodPost, "/sites", body)

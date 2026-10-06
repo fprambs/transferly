@@ -54,6 +54,7 @@ func (r reply) workspaces(t *testing.T) []httpapi.Workspace {
 //   - a user sees only their own workspaces, and a foreign workspace is 404 like a missing one
 //   - fetching a workspace returns the role of the caller
 func TestWorkspaces(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	adminCookie, _ := a.setup()
 	otherCookie, _ := a.signIn("other@example.com")
@@ -92,6 +93,7 @@ func (a *api) signIn2(t *testing.T, email string) {
 //   - a non-member gets 404 on workspace-scoped endpoints, indistinguishable from a missing workspace
 //   - a viewer member and the owner may browse
 func TestAuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	ownerCookie, _ := a.setup()
 	strangerCookie, _ := a.signIn("stranger@example.com")

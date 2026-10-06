@@ -44,6 +44,7 @@ func (r reply) info(t *testing.T) httpapi.SshKeyInfo {
 //     its reason
 //   - a key or passphrase larger than any real one is refused, and a caller who is not signed in is refused
 func TestInspectSshKey(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ppk := keyFixture(t, "ppk3-rsa-argon2id.ppk")
@@ -87,6 +88,7 @@ func TestInspectSshKey(t *testing.T) {
 //   - an encrypted key without its passphrase is passphrase_required
 //   - a jump host key with a wrong passphrase is wrong_passphrase for the jump host's key
 func TestSites_KeyRefusals(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)

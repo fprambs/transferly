@@ -48,6 +48,7 @@ func getStatus(t *testing.T, url string) (int, map[string]string) {
 
 // TestHealthz verifies that GET /healthz answers 200 with status ok.
 func TestHealthz(t *testing.T) {
+	t.Parallel()
 	srv := newServer(t, fakeReadiness{})
 	status, body := getStatus(t, srv.URL+"/healthz")
 	if status != http.StatusOK || body["status"] != "ok" {
@@ -58,6 +59,7 @@ func TestHealthz(t *testing.T) {
 // TestHealthz_IgnoresDependencyFailures verifies that liveness stays 200
 // while the readiness dependency is down, so orchestrators do not restart a healthy process.
 func TestHealthz_IgnoresDependencyFailures(t *testing.T) {
+	t.Parallel()
 	srv := newServer(t, fakeReadiness{err: errors.New("database down")})
 	status, _ := getStatus(t, srv.URL+"/healthz")
 	if status != http.StatusOK {
@@ -71,6 +73,7 @@ func TestHealthz_IgnoresDependencyFailures(t *testing.T) {
 //   - dependency reachable: 200 with status ok
 //   - dependency down: 503 with status unavailable
 func TestReadyz(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		err        error
@@ -94,6 +97,7 @@ func TestReadyz(t *testing.T) {
 // TestReadyz_DoesNotLeakInternalErrors verifies that a failing dependency
 // never exposes its error text (hosts, credentials) in the response body.
 func TestReadyz_DoesNotLeakInternalErrors(t *testing.T) {
+	t.Parallel()
 	srv := newServer(t, fakeReadiness{err: errors.New("password=secret host=internal")})
 	resp := testutil.Do(t, http.MethodGet, srv.URL+"/readyz")
 	if string(resp.Body) != "{\"status\":\"unavailable\"}\n" {
@@ -127,6 +131,7 @@ func newServerWithWeb(t *testing.T) *httptest.Server {
 //   - responses are not cacheable by default, and the frontend can set its own cache policy
 //   - the isolated page of the file viewers has an opaque origin, no network, and may be framed by Transferly only (ADR-0018)
 func TestSecurityHeaders(t *testing.T) {
+	t.Parallel()
 	api := newServer(t, fakeReadiness{})
 	web := newServerWithWeb(t)
 
@@ -180,6 +185,7 @@ func TestSecurityHeaders(t *testing.T) {
 //   - anything under /api/ is a not_found problem, never HTML
 //   - other methods on unknown paths are a not_found problem
 func TestNotFound_Frontend(t *testing.T) {
+	t.Parallel()
 	srv := newServerWithWeb(t)
 
 	for _, method := range []string{http.MethodGet, http.MethodHead} {

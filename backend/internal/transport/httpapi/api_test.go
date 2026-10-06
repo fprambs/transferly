@@ -25,6 +25,7 @@ import (
 	"github.com/fprambs/transferly/internal/adapters/ratelimit"
 	"github.com/fprambs/transferly/internal/adapters/remotefs/memfs"
 	"github.com/fprambs/transferly/internal/adapters/store/postgres"
+	"github.com/fprambs/transferly/internal/adapters/store/postgres/pgtest"
 	"github.com/fprambs/transferly/internal/core/activity"
 	"github.com/fprambs/transferly/internal/core/admin"
 	"github.com/fprambs/transferly/internal/core/audit"
@@ -96,10 +97,7 @@ func newAPI(t *testing.T, tweaks ...func(*httpapi.Deps)) *api {
 // newAPIWithTransfers is newAPI with the configuration of the transfer service, for tests that need limits.
 func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func(*httpapi.Deps)) *api {
 	t.Helper()
-	dbURL := testutil.NewDatabase(t)
-	if err := postgres.Migrate(t.Context(), dbURL); err != nil {
-		t.Fatal(err)
-	}
+	dbURL := pgtest.MigratedDatabase(t)
 	store, err := postgres.Open(t.Context(), dbURL)
 	if err != nil {
 		t.Fatal(err)
@@ -310,6 +308,7 @@ func (a *api) setup() (*http.Cookie, string) {
 //   - invalid emails and weak passwords are 422 with stable codes
 //   - malformed JSON and a missing body are 400
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 
 	status := a.do(request{method: http.MethodGet, path: "/api/v1/setup/status"})
@@ -353,6 +352,7 @@ func TestSetup(t *testing.T) {
 //   - logout needs the anti-CSRF token: without it or with a wrong one it is 403 and keeps the session
 //   - logout clears the cookie and the session stops working
 func TestSessionLifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	a.setup()
 
@@ -393,6 +393,7 @@ func TestSessionLifecycle(t *testing.T) {
 
 // TestCSRFTokensAreBoundToTheirSession verifies that a token from one session is useless in another.
 func TestCSRFTokensAreBoundToTheirSession(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	first, firstToken := a.setup()
 	second := a.do(request{method: http.MethodPost, path: "/api/v1/auth/login", body: map[string]string{"email": adminEmail, "password": adminPassword}})
@@ -415,6 +416,7 @@ func TestCSRFTokensAreBoundToTheirSession(t *testing.T) {
 //   - invalid languages, zones, themes and double click actions are 422 with stable codes
 //   - a missing or malformed body is 400
 func TestUpdateMe(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	patch := func(body any) reply {
@@ -447,6 +449,7 @@ func TestUpdateMe(t *testing.T) {
 //   - the configured origin, same-origin requests and clients that send neither header are accepted
 //   - safe methods are never blocked
 func TestOriginGuard(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	attempts := 0
 	login := func(headers map[string]string) reply {
@@ -488,6 +491,7 @@ func TestOriginGuard(t *testing.T) {
 //   - waiting earns attempts back
 //   - the setup endpoint is limited per address
 func TestRateLimits(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	a.setup()
 	attempt := func(email string) reply {
@@ -521,6 +525,7 @@ func TestRateLimits(t *testing.T) {
 //   - without trusted proxies X-Forwarded-For is ignored, so spoofing it does not evade the limit
 //   - behind a trusted proxy the forwarded address is used, so each client has its own limit
 func TestClientAddress(t *testing.T) {
+	t.Parallel()
 	attempts := func(a *api, spoof bool) int {
 		limited := 0
 		for i := range 8 {
@@ -549,6 +554,7 @@ func TestClientAddress(t *testing.T) {
 
 // TestCookieSecureFlag verifies that the session cookie is https only when configured so.
 func TestCookieSecureFlag(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) { d.Cookie.Secure = true })
 
 	cookie, _ := a.setup()
@@ -560,6 +566,7 @@ func TestCookieSecureFlag(t *testing.T) {
 
 // TestSessionsExpire verifies expiry through the API: an idle session stops working.
 func TestSessionsExpire(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, _ := a.setup()
 
@@ -573,6 +580,7 @@ func TestSessionsExpire(t *testing.T) {
 
 // TestDisabledAccounts verifies that a disabled account cannot sign in and loses its sessions' effect.
 func TestDisabledAccounts(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	hash, _ := a.hash.Hash(t.Context(), adminPassword)
 	id, _ := uuid.NewV7()
@@ -602,6 +610,7 @@ func TestDisabledAccounts(t *testing.T) {
 //   - endpoints that need the store answer internal_error and never expose the cause
 //   - a request carrying a session cookie also fails cleanly when the session lookup fails
 func TestInfrastructureFailures(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	a.store.Close()
@@ -623,6 +632,7 @@ func TestInfrastructureFailures(t *testing.T) {
 // TestContract_AuthEndpointsMatchTheSpec verifies that real responses of the authentication endpoints,
 // successes and errors, satisfy api/openapi.yaml, including which status codes are declared.
 func TestContract_AuthEndpointsMatchTheSpec(t *testing.T) {
+	t.Parallel()
 	_, router := loadSpec(t)
 	a := newAPI(t)
 	check := func(r request, want int) reply {

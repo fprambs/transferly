@@ -75,6 +75,7 @@ func (e *env) logged(sink *collected) *connect.Connector {
 //   - FTP with optional encryption tells that it went on without TLS, and FTP with TLS tells the certificate it checked
 //   - every entry is about the site and the user of the connection, and none holds a password, key or passphrase
 func TestConnector_ConnectionLog(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	sink := &collected{}
 	c := e.logged(sink)

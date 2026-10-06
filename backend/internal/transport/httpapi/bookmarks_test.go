@@ -37,6 +37,7 @@ func (r reply) bookmark(t *testing.T) httpapi.Bookmark {
 //   - removing is 204 and removing again 404; a site that is not saved is 404 site_not_found
 //   - creating, changing and removing are audited with the name, the site and the path
 func TestBookmarks_Lifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	ws := a.personal(cookie)
@@ -97,6 +98,7 @@ func TestBookmarks_Lifecycle(t *testing.T) {
 //   - a viewer may list but gets 403 forbidden on create, update and delete
 //   - an editor may create, update and delete
 func TestBookmarks_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	ownerCookie, ownerCSRF := a.setup()
 	ws := a.personal(ownerCookie)

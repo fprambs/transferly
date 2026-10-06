@@ -48,6 +48,7 @@ func newAdminEnv(t *testing.T, tweaks ...func(*httpapi.Deps)) *adminEnv {
 //   - anonymous callers get 401 on every endpoint
 //   - a regular account gets 403 forbidden on every endpoint, and nothing changes
 func TestAdmin_Refusals(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t)
 	id := e.id.String()
 	calls := []struct {
@@ -100,6 +101,7 @@ func (e *adminEnv) listUsers(t *testing.T) map[string]httpapi.AdminUser {
 //   - an administrator cannot change their own account
 //   - each change is written to the audit trail of the instance
 func TestAdmin_Accounts(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t)
 	users := e.listUsers(t)
 	if len(users) != 3 || users["root@example.com"].Role != "admin" || !users["mfa@example.com"].SecondFactor || users["other@example.com"].SecondFactor || users["other@example.com"].Disabled {
@@ -178,6 +180,7 @@ func TestAdmin_Accounts(t *testing.T) {
 //   - the reset is written to the audit trail with the account as the target
 //   - an administrator cannot reset their own, and an unknown account is not found
 func TestAdmin_SecondFactorReset(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t)
 	login := func() reply {
 		return e.a.do(request{method: http.MethodPost, path: "/api/v1/auth/login", body: map[string]string{"email": e.email, "password": adminPassword}})
@@ -222,6 +225,7 @@ func TestAdmin_SecondFactorReset(t *testing.T) {
 //   - entries that are not networks, are too wide or are never allowed, and more than the maximum, are refused with their codes and change nothing
 //   - each replacement is written to the audit trail with the count
 func TestAdmin_Networks(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t)
 	read := func() httpapi.Networks {
 		r := e.root.call(http.MethodGet, "/api/v1/admin/networks", nil)
@@ -314,6 +318,7 @@ func (brokenAdmin) ReplaceNetworks(context.Context, []netip.Prefix, uuid.UUID, t
 //   - every endpoint answers 500 when the store fails
 //   - a change still succeeds when its audit event cannot be written
 func TestAdmin_Failures(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t, func(d *httpapi.Deps) {
 		d.Admin = admin.NewService(brokenAdmin{d.Readiness.(*postgres.Store)}, netguard.NewPolicy(nil, nil), d.Quotas, realClock{})
 	})

@@ -61,6 +61,7 @@ func (a *api) vaultState(cookie *http.Cookie) (initialized, unlocked bool) {
 //   - regenerating the kit needs the master password and invalidates the old kit
 //   - operations before setup are 409 vault_not_initialized
 func TestVault_Lifecycle(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t, func(d *httpapi.Deps) {
 		d.Limits.VaultAttempts = ratelimit.New(realClock{}, ratelimit.Rule{Burst: 100, Every: time.Second}, 10)
 	})
@@ -143,6 +144,7 @@ func TestVault_Lifecycle(t *testing.T) {
 //   - guessing secrets is rate limited per account with a Retry-After header, on unlock, change, recover and kit regeneration
 //   - malformed bodies are 400
 func TestVault_Protection(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, csrf := a.setup()
 	a.vaultCall("/setup", map[string]string{"masterPassword": masterPassword}, cookie, csrf)
@@ -180,6 +182,7 @@ func TestVault_Protection(t *testing.T) {
 //   - signing out closes them too
 //   - connections of other users are left alone
 func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
+	t.Parallel()
 	var pool *connections.Manager
 	a := newAPI(t, func(d *httpapi.Deps) { pool = d.Connections })
 	cookie, csrf := a.setup()
@@ -227,6 +230,7 @@ func TestConnections_ClosedOnLockAndLogout(t *testing.T) {
 // Scenarios:
 //   - editing a site closes its pooled connections, so the next use connects with the new settings, and deleting it closes them too
 func TestConnections_ClosedWhenTheSiteChanges(t *testing.T) {
+	t.Parallel()
 	var pool *connections.Manager
 	a := newAPI(t, func(d *httpapi.Deps) { pool = d.Connections })
 	cookie, csrf := a.setup()
@@ -269,6 +273,7 @@ func TestConnections_ClosedWhenTheSiteChanges(t *testing.T) {
 //   - remembering sessions, the request that unlocks the vault keeps its key, sealed; locking the vault forgets it, unlocking keeps
 //     it again, and signing out forgets it with the session
 func TestVault_Sessions(t *testing.T) {
+	t.Parallel()
 	var vaults *vault.Service
 	a := newAPI(t, func(d *httpapi.Deps) { vaults = d.Vault })
 	cookie, csrf := a.setup()

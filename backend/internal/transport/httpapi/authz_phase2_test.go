@@ -20,6 +20,7 @@ import (
 //   - a stranger reads an empty activity log, and never the entries of the owner
 //   - a copy that names a site of another workspace is 404 site_not_found
 func TestPhaseTwoEndpoints_AuthorizationMatrix(t *testing.T) {
+	t.Parallel()
 	e := newFileEnv(t)
 	a := e.a
 	other := e.secondSite()

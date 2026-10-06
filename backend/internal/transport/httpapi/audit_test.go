@@ -47,6 +47,7 @@ func actions(events []httpapi.AuditEvent) []string {
 //   - editors and viewers are refused, strangers get 404, anonymous callers 401, and a filter that is not words is 422
 //   - a failing audit store never fails what was being recorded
 func TestAudit_Trail(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t)
 	editor, viewer := e.user["editor"].String(), e.user["viewer"].String()
 	for _, as := range []string{"editor", "viewer"} {
@@ -171,6 +172,7 @@ func (brokenAudit) AuditInstance(context.Context, audit.Filter, int) ([]audit.Ev
 //   - a change still succeeds when its audit event cannot be written
 //   - reading the trail answers 500
 func TestAudit_Failures(t *testing.T) {
+	t.Parallel()
 	e := newTeamEnv(t, func(d *httpapi.Deps) {
 		d.Audit = audit.NewService(brokenAudit{d.Readiness.(*postgres.Store)}, d.Workspaces, realClock{})
 	})

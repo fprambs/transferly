@@ -101,6 +101,7 @@ func (u *mfaUser) verify(challenge, code string) reply {
 //   - a recovery code works once, and new recovery codes replace the old ones
 //   - disabling and replacing recovery codes need the password again, and after disabling signing in gives a session at once
 func TestMFA_Lifecycle(t *testing.T) {
+	t.Parallel()
 	u := newMFAUser(t)
 	status := func() httpapi.SecurityStatus {
 		var s httpapi.SecurityStatus
@@ -175,6 +176,7 @@ func TestMFA_Lifecycle(t *testing.T) {
 //     needs no session but refuses a foreign origin
 //   - too many wrong codes from one address, and from one account, are rate limited, and the challenge of a disabled account is refused
 func TestMFA_Protection(t *testing.T) {
+	t.Parallel()
 	u := newMFAUser(t)
 	for _, path := range []string{"/api/v1/me/totp", "/api/v1/me/totp/confirm", "/api/v1/me/totp/disable", "/api/v1/me/recovery-codes"} {
 		expectProblem(t, u.a.do(request{method: http.MethodPost, path: path, body: map[string]string{"code": "1", "password": "x"}}), 401, "unauthenticated")
@@ -252,6 +254,7 @@ func (b brokenFactors) ReplaceRecovery(ctx context.Context, id uuid.UUID, hashes
 // Scenarios:
 //   - reading the status, beginning, confirming, disabling, replacing the codes, signing in and finishing the second step each answer 500 when the store fails
 func TestMFA_Failures(t *testing.T) {
+	t.Parallel()
 	fail := map[string]bool{}
 	u := newMFAUser(t, func(d *httpapi.Deps) {
 		d.MFA = mfa.NewService(brokenFactors{d.Readiness.(*postgres.Store), fail}, instanceKey, rand.Reader, realClock{})
@@ -286,6 +289,7 @@ func TestMFA_Failures(t *testing.T) {
 //   - too many confirmations, and too many password attempts to disable or replace codes, are rate limited
 //   - a password that cannot be checked is a 500 problem
 func TestMFA_SecondStepFailures(t *testing.T) {
+	t.Parallel()
 	var flaky *flakyStore
 	var workspaces *failingWorkspaces
 	u := newMFAUser(t, withFailingWorkspaces(func(f *failingWorkspaces) { workspaces = f }), func(d *httpapi.Deps) {

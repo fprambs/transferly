@@ -56,6 +56,7 @@ func outcomeOf(t *testing.T, r reply) string {
 //   - without the sign-in with Google, starting is refused with guidance and the callback says it is not configured; without a session
 //     starting is refused
 func TestGoogleSignIn(t *testing.T) {
+	t.Parallel()
 	fake := googletest.Start(t, googletest.Options{})
 	a := signedInWithGoogle(t, fake)
 	cookie, csrf := a.setup()

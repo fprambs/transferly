@@ -25,6 +25,7 @@ import (
 //     authenticating and whether the instance offers them; settings without them leave them out; S3, in beta, is not offered until enabled
 //   - an anonymous request is refused
 func TestListConnectors(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, _ := a.setup()
 	r := a.do(request{method: http.MethodGet, path: "/api/v1/connectors", cookie: cookie})
@@ -98,6 +99,7 @@ func connectorsOf(t *testing.T, u *mfaUser) map[string]bool {
 //   - a regular account is refused and changes nothing, an anonymous caller too, and an unknown type is not found
 //   - S3, off by default, is offered to everyone once an administrator enables it
 func TestSetConnectorEnabled(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t)
 	r := e.root.call(http.MethodPut, "/api/v1/admin/connectors/ftp", map[string]bool{"enabled": false})
 	var changed httpapi.Connector
@@ -162,6 +164,7 @@ func (brokenConnectorSettings) SetConnector(context.Context, string, bool, uuid.
 // Use cases:
 //   - listing and changing the connectors answer 500 when the store fails
 func TestConnectorFailures(t *testing.T) {
+	t.Parallel()
 	e := newAdminEnv(t, func(d *httpapi.Deps) {
 		d.Connectors = connectors.NewService(connectors.Builtin(), brokenConnectorSettings{d.Readiness.(*postgres.Store)}, realClock{})
 	})
@@ -177,6 +180,7 @@ const connectorsFixture = "../../../../frontend/src/test/connectors.json"
 // Use cases:
 //   - the fixture equals the answer of GET /api/v1/connectors; with TRANSFERLY_UPDATE_FIXTURES set it is written again instead
 func TestConnectors_FrontendFixture(t *testing.T) {
+	t.Parallel()
 	a := newAPI(t)
 	cookie, _ := a.setup()
 	r := a.do(request{method: http.MethodGet, path: "/api/v1/connectors", cookie: cookie})
