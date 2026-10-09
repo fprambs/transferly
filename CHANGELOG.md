@@ -4,9 +4,9 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
-## [1.0.0-rc.1] - Unreleased
+## [1.0.0-rc.1] - 2026-10-09
 
-Stable-readiness candidate; not yet tagged or published.
+Stable-readiness prerelease candidate, published with local validation; remote CI remains deferred.
 
 ### Security and integrity
 

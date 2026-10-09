@@ -221,7 +221,7 @@ Estado por hallazgo: pendiente → en implementación → en validación → cer
 | R10 | PR11 | Ninguna funcional | Validado local |
 | R11 | PR12 | Coordinación con R03/R09/R10 | Validado local |
 | R12 | PR13 | R11 | Validado local |
-| R13 | PR17 | Gate final completo | Candidato validado localmente; CI diferido; publicación pendiente |
+| R13 | PR17 | Gate final completo | RC publicado; público/estable pendientes; CI diferido |
 | R14 | PR16 | R09–R12, R16 | Validado local; controladores extraídos |
 | R15 | PR14 | Ninguna funcional; integrar con R03/R11 | Validado local |
 | R16 | PR15 | R03, R15; coordinación con R11 | Validado local |
@@ -238,7 +238,7 @@ La [validación final del 9 de octubre](2026-10-09-validation-results.md) regist
 
 - [x] Aceptar el gate local del candidato; CI remoto diferido por decisión del usuario.
 - [x] Construir y probar la imagen versionada del candidato; hashes registrados.
-- [ ] Integrar el candidato actualizado en main y publicar su imagen/version.
+- [x] Integrar el candidato actualizado en main y publicar su imagen/version RC.
 - [ ] Verificar reporte privado/protecciones cuando el repositorio sea público y aprobar la publicación estable.
 
 
@@ -275,3 +275,10 @@ Se corrigieron dos avisos HIGH de la primera imagen actualizando Go. Go completo
 ## Integración y preparación de publicación
 
 La integración del candidato en main conserva el historial mediante fast-forward. El código validado es `75c39f1`; los commits posteriores de documentación no cambian la imagen ya probada. La [lista concreta de publicación](../releases/1.0.0-rc.1-publication.md) identifica notas, versión, hashes, artefacto y pasos pendientes. CI remoto sigue diferido; tag RC, subida al registro, prerelease y visibilidad pública no se ejecutan como parte de esta preparación.
+
+
+## RC entregado
+
+El 9 de octubre se publicó [v1.0.0-rc.1](https://github.com/fprambs/transferly/releases/tag/v1.0.0-rc.1) como prerelease, con archivo de imagen, checksums y metadatos. Main contiene el candidato y el tag apunta a `0a9a231`. GHCR: `ghcr.io/fprambs/transferly:v1.0.0-rc.1`, digest `sha256:fcf224a3c6f1fc0525ca014a4268f3bccd16bd1277ed3859669190001bffa3f8`; coincide con el índice validado localmente y se verificó pull/run remoto.
+
+Repositorio y paquete permanecen privados; no se cambió facturación, protecciones ni llaves SSH. R13 aún requiere publicación pública/configuración de acceso y seguridad, comprobación del candidato distribuido y promoción a estable 1.0.0. CI sigue diferido por la decisión vigente. Esta entrada actualiza los estados de preparación anteriores, sin presentar CI como aprobado.

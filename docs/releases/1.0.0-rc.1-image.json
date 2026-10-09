@@ -8,7 +8,7 @@
   "archiveSHA256": "6aa6332729881445c3bc5a46744d502b8d3541a6255ad7f36c2ee86a1dfda9d4",
   "archiveBytes": 12920832,
   "goVersion": "1.27.2",
-  "published": false,
+  "published": true,
   "platform": "linux/amd64",
   "checks": {
     "binaryVersion": "v1.0.0-rc.1",
@@ -19,5 +19,9 @@
     "browserPassed": 163,
     "browserSkippedDocumentationCaptures": 19,
     "browserRetries": 0
-  }
+  },
+  "registryReference": "ghcr.io/fprambs/transferly:v1.0.0-rc.1",
+  "registryDigest": "sha256:fcf224a3c6f1fc0525ca014a4268f3bccd16bd1277ed3859669190001bffa3f8",
+  "releaseCommit": "0a9a231e58b58044fb1884c3f945adc9842e8f1c",
+  "githubReleaseURL": "https://github.com/fprambs/transferly/releases/tag/v1.0.0-rc.1"
 }
