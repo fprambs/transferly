@@ -135,7 +135,13 @@ func (s *Service) openArchive(ctx context.Context, t Target, p string, inner []s
 	if len(inner) > maxNesting {
 		return nil, fmt.Errorf("%w: archives nest deeper than %d", archives.ErrTooLarge, maxNesting)
 	}
-	lease, err := s.begin(ctx, t, workspace.ActionDownload, append(append([]string{p}, inner...), names...)...)
+	if err := s.Check(ctx, t, workspace.ActionDownload, p); err != nil {
+		return nil, err
+	}
+	if err := checkPathText(append(append([]string{}, inner...), names...)...); err != nil {
+		return nil, err
+	}
+	lease, err := s.pool.Acquire(ctx, t.key(), t.Session)
 	if err != nil {
 		return nil, err
 	}

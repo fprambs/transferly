@@ -13,7 +13,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/fprambs/transferly/internal/core/activity"
+	"github.com/fprambs/transferly/internal/core/files"
 	"github.com/fprambs/transferly/internal/core/remotefs"
+	"github.com/fprambs/transferly/internal/core/workspace"
 )
 
 // TerminalPath is where clients open the WebSocket of a terminal on the server of a site (ADR-0027).
@@ -55,7 +57,8 @@ func terminalHandler(d Deps) http.HandlerFunc {
 	patterns := originPatterns(d.AllowedOrigins)
 	s := newServer(d)
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := principalFrom(r.Context()); !ok {
+		p, ok := principalFrom(r.Context())
+		if !ok {
 			writeProblem(w, http.StatusUnauthorized, "unauthenticated", nil)
 			return
 		}
@@ -69,8 +72,11 @@ func terminalHandler(d Deps) http.HandlerFunc {
 			writeProblem(w, http.StatusBadRequest, "invalid_request", nil)
 			return
 		}
-		ctx := r.Context()
+		ctx, unregister := d.terminals.register(r.Context(), vaultKey(p), p.User.ID, workspaceID)
+		defer unregister()
 		t := target(ctx, workspaceID, siteID)
+		valid := func() bool { return s.terminalValid(ctx, p, t) }
+		go monitorTerminal(ctx, unregister, d.WebSocket.withDefaults().VerifyEvery, valid)
 		dir := r.URL.Query().Get("path")
 		term, release, err := s.openTerminal(ctx, t.Actor, workspaceID, siteID, dir, screenSize(r, "cols", defaultCols), screenSize(r, "rows", defaultRows))
 		if err != nil {
@@ -83,15 +89,62 @@ func terminalHandler(d Deps) http.HandlerFunc {
 		}
 		defer release()
 		defer func() { _ = term.Close() }()
+		if !valid() {
+			writeProblem(w, http.StatusForbidden, "forbidden", nil)
+			return
+		}
 		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: patterns})
 		if err != nil {
 			return
 		}
 		defer func() { _ = conn.CloseNow() }()
+		stop := context.AfterFunc(ctx, func() { _ = conn.CloseNow(); _ = term.Close() })
+		defer stop()
 		conn.SetReadLimit(terminalReadLimit)
 		opened := time.Now()
-		relayTerminal(ctx, conn, term)
+		relayTerminal(ctx, conn, term, valid)
 		s.audit(context.WithoutCancel(ctx), t, activity.Terminal, dir, time.Since(opened).Round(time.Second).String(), nil)
+	}
+}
+
+// terminalValid rechecks the session and current permissions before accepting terminal input.
+func (s *server) terminalValid(ctx context.Context, p authenticated, t files.Target) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	if _, err := s.deps.Auth.Verify(ctx, p.token); err != nil {
+		return false
+	}
+	if err := s.deps.Files.Check(ctx, t, workspace.ActionElevate); err != nil {
+		return false
+	}
+	if found, ok := s.deps.Quick.Describe(t.Actor, t.Workspace, t.Site); ok {
+		return found.Setting("terminal") == "true" && s.deps.Quotas.ServerCommandsAllowed()
+	}
+	found, err := s.deps.Sites.Get(ctx, t.Actor, t.Workspace, t.Site)
+	if err != nil {
+		return false
+	}
+	if found.Setting("terminal") != "true" {
+		return false
+	}
+	return !s.deps.Quotas.Current().ServerCommandsOff
+}
+
+// monitorTerminal revokes idle terminals when their session or authorization expires.
+func monitorTerminal(ctx context.Context, cancel func(), every time.Duration, valid func() bool) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !valid() {
+				cancel()
+				return
+			}
+		}
 	}
 }
 
@@ -113,7 +166,7 @@ func (s *server) openTerminal(ctx context.Context, actor, workspaceID, siteID uu
 // relayTerminal copies what the shell prints to the client and what the client sends to the shell until either ends, then tells
 // the client how the shell ended. When the client goes away, or the shell refuses what is typed, the shell is closed, which ends
 // the copy of what it prints.
-func relayTerminal(ctx context.Context, conn *websocket.Conn, term remotefs.Terminal) {
+func relayTerminal(ctx context.Context, conn *websocket.Conn, term remotefs.Terminal, valid func() bool) {
 	reading, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() {
@@ -124,6 +177,9 @@ func relayTerminal(ctx context.Context, conn *websocket.Conn, term remotefs.Term
 		for {
 			kind, data, err := conn.Read(reading)
 			if err != nil {
+				return
+			}
+			if !valid() {
 				return
 			}
 			if kind == websocket.MessageBinary {

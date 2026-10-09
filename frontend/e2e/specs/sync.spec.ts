@@ -55,73 +55,80 @@ const folderScript = `
  * - comparing a remote folder against a local one downloads the file missing locally into the chosen folder
  */
 test.describe('compare and sync', () => {
-  test('lists the differences between two saved sites and copies what is checked', async ({ shell, quickId, request }) => {
-    test.setTimeout(120_000)
-    const { page } = shell
-    const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
-    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const workspace = workspaces[0].id
-    const headers = { 'X-CSRF-Token': me.csrfToken }
-    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
-    const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
-      headers,
-      data: { name: `sync-${stamp}`, connector: 'ftp', config: { host: 'ftp', port: '21', encryption: 'optional', username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
+  for (const connector of ['sftp', 'ftp'] as const) {
+    test(`syncs files with ${connector} and preserves unsupported replacements`, async ({ shell, quickId, request }) => {
+      test.setTimeout(120_000)
+      const { page } = shell
+      const me = (await (await request.get('/api/v1/me')).json()) as { csrfToken: string }
+      const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+      const workspace = workspaces[0].id
+      const headers = { 'X-CSRF-Token': me.csrfToken }
+      const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+      const created = await request.post(`/api/v1/workspaces/${workspace}/sites`, {
+        headers,
+        data: { name: `sync-${stamp}`, connector, config: { host: connector, port: connector === 'ftp' ? '21' : '22', ...(connector === 'ftp' ? { encryption: 'optional' } : {}), username: 'transferly', auth: 'password' }, secrets: { password: 'transferly' } },
+      })
+      expect(created.ok()).toBe(true)
+      const { id: siteId } = (await created.json()) as { id: string }
+      const leftFiles = `/api/v1/workspaces/${workspace}/sites/${quickId}/files`
+      const rightFiles = `/api/v1/workspaces/${workspace}/sites/${siteId}/files`
+      const folder = `e2e-sync-${stamp}`
+      const targetFolder = `${folder}-target`
+      for (const [files, directory] of [[leftFiles, folder], [rightFiles, targetFolder]]) {
+        expect((await request.post(`${files}/directories`, { headers, data: { path: `/upload/${directory}` } })).ok()).toBe(true)
+      }
+      const write = async (files: string, path: string, content: string) =>
+        (await request.put(`${files}/content`, { params: { path, mode: 'overwrite' }, data: Buffer.from(content), headers: { ...headers, 'Content-Type': 'application/octet-stream' } })).ok()
+      const onlyLeft = `only-left-${stamp}.txt`
+      const onlyRight = `only-right-${stamp}.txt`
+      const changed = `changed-${stamp}.txt`
+      expect(await write(leftFiles, `/upload/${folder}/${onlyLeft}`, 'from the left\n')).toBe(true)
+      expect(await write(rightFiles, `/upload/${targetFolder}/${onlyRight}`, 'from the right\n')).toBe(true)
+      expect(await write(leftFiles, `/upload/${folder}/${changed}`, 'the left version, longer\n')).toBe(true)
+      expect(await write(rightFiles, `/upload/${targetFolder}/${changed}`, 'right\n')).toBe(true)
+
+      await page.goto(`/sites/${quickId}?path=%2Fupload%2F${folder}`)
+      await page.getByRole('button', { name: 'Split view' }).click()
+      const second = page.getByRole('group', { name: 'Second pane' })
+      await choose(second.getByRole('combobox', { name: 'Site of the second pane' }), `sync-${stamp}`)
+      await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ }).dblclick()
+      await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(targetFolder) }).dblclick()
+      await expect(second.getByRole('button', { name: targetFolder, exact: true })).toHaveAttribute('aria-current', 'page')
+
+      await second.getByRole('button', { name: 'Compare and sync with the other pane' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Compare and sync' })
+      const list = dialog.getByRole('list', { name: 'Comparison' })
+      await expect(list.getByText(onlyLeft)).toBeVisible()
+      await expect(list.getByText(onlyRight)).toBeVisible()
+      await expect(list.getByText(changed)).toBeVisible()
+      await expect(dialog.getByRole('checkbox', { name: `Include ${onlyRight} in the sync` })).not.toBeChecked()
+
+      await dialog.getByRole('button', { name: 'Sync 2 files' }).click()
+      await expect(dialog.getByText('Done')).toHaveCount(connector === 'ftp' ? 1 : 2)
+      if (connector === 'ftp') {
+        await expect(dialog.getByText('This server cannot safely replace an existing file. Save under a different name.')).toBeVisible()
+        await dialog.getByRole('checkbox', { name: `Include ${changed} in the sync` }).uncheck()
+      }
+      const uploaded = await request.get(`${rightFiles}/content`, { params: { path: `/upload/${targetFolder}/${onlyLeft}` } })
+      expect(uploaded.ok()).toBe(true)
+      const synced = await request.get(`${rightFiles}/content`, { params: { path: `/upload/${targetFolder}/${changed}` } })
+      expect(await synced.text()).toBe(connector === 'ftp' ? 'right\n' : 'the left version, longer\n')
+
+      await dialog.getByRole('checkbox', { name: `Include ${onlyRight} in the sync` }).check()
+      await dialog.getByRole('button', { name: 'Sync 1 file' }).click()
+      await expect(dialog.getByRole('alert')).toContainText(`This will permanently remove 1 file from sync-${stamp}`)
+      await dialog.getByRole('button', { name: 'Yes, sync and delete' }).click()
+      await expect(dialog.getByText('Done')).toHaveCount(connector === 'ftp' ? 2 : 3)
+      const removed = await request.get(`${rightFiles}/content`, { params: { path: `/upload/${targetFolder}/${onlyRight}` } })
+      expect(removed.status()).toBe(404)
+
+      await dialog.getByRole('button', { name: 'Close' }).click()
+      for (const [files, directory] of [[leftFiles, folder], [rightFiles, targetFolder]]) {
+        await request.delete(files, { params: { path: `/upload/${directory}`, recursive: true }, headers })
+      }
+      await request.delete(`/api/v1/workspaces/${workspace}/sites/${siteId}`, { headers })
     })
-    expect(created.ok()).toBe(true)
-    const { id: siteId } = (await created.json()) as { id: string }
-    const leftFiles = `/api/v1/workspaces/${workspace}/sites/${quickId}/files`
-    const rightFiles = `/api/v1/workspaces/${workspace}/sites/${siteId}/files`
-    const folder = `e2e-sync-${stamp}`
-    for (const files of [leftFiles, rightFiles]) {
-      expect((await request.post(`${files}/directories`, { headers, data: { path: `/upload/${folder}` } })).ok()).toBe(true)
-    }
-    const write = async (files: string, path: string, content: string) =>
-      (await request.put(`${files}/content`, { params: { path, mode: 'overwrite' }, data: Buffer.from(content), headers: { ...headers, 'Content-Type': 'application/octet-stream' } })).ok()
-    const onlyLeft = `only-left-${stamp}.txt`
-    const onlyRight = `only-right-${stamp}.txt`
-    const changed = `changed-${stamp}.txt`
-    expect(await write(leftFiles, `/upload/${folder}/${onlyLeft}`, 'from the left\n')).toBe(true)
-    expect(await write(rightFiles, `/upload/${folder}/${onlyRight}`, 'from the right\n')).toBe(true)
-    expect(await write(leftFiles, `/upload/${folder}/${changed}`, 'the left version, longer\n')).toBe(true)
-    expect(await write(rightFiles, `/upload/${folder}/${changed}`, 'right\n')).toBe(true)
-
-    await page.goto(`/sites/${quickId}?path=%2Fupload%2F${folder}`)
-    await page.getByRole('button', { name: 'Split view' }).click()
-    const second = page.getByRole('group', { name: 'Second pane' })
-    await choose(second.getByRole('combobox', { name: 'Site of the second pane' }), `sync-${stamp}`)
-    await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ }).dblclick()
-    await second.getByRole('grid', { name: 'Files' }).getByRole('row', { name: new RegExp(folder) }).dblclick()
-    await expect(second.getByRole('button', { name: folder, exact: true })).toHaveAttribute('aria-current', 'page')
-
-    await second.getByRole('button', { name: 'Compare and sync with the other pane' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Compare and sync' })
-    const list = dialog.getByRole('list', { name: 'Comparison' })
-    await expect(list.getByText(onlyLeft)).toBeVisible()
-    await expect(list.getByText(onlyRight)).toBeVisible()
-    await expect(list.getByText(changed)).toBeVisible()
-    await expect(dialog.getByRole('checkbox', { name: `Include ${onlyRight} in the sync` })).not.toBeChecked()
-
-    await dialog.getByRole('button', { name: 'Sync 2 files' }).click()
-    await expect(dialog.getByText('Done')).toHaveCount(2)
-    const uploaded = await request.get(`${rightFiles}/content`, { params: { path: `/upload/${folder}/${onlyLeft}` } })
-    expect(uploaded.ok()).toBe(true)
-    const synced = await request.get(`${rightFiles}/content`, { params: { path: `/upload/${folder}/${changed}` } })
-    expect(await synced.text()).toBe('the left version, longer\n')
-
-    await dialog.getByRole('checkbox', { name: `Include ${onlyRight} in the sync` }).check()
-    await dialog.getByRole('button', { name: 'Sync 1 file' }).click()
-    await expect(dialog.getByRole('alert')).toContainText(`This will permanently remove 1 file from sync-${stamp}`)
-    await dialog.getByRole('button', { name: 'Yes, sync and delete' }).click()
-    await expect(dialog.getByText('Done')).toHaveCount(3)
-    const removed = await request.get(`${rightFiles}/content`, { params: { path: `/upload/${folder}/${onlyRight}` } })
-    expect(removed.status()).toBe(404)
-
-    await dialog.getByRole('button', { name: 'Close' }).click()
-    for (const files of [leftFiles, rightFiles]) {
-      await request.delete(files, { params: { path: `/upload/${folder}`, recursive: true }, headers })
-    }
-    await request.delete(`/api/v1/workspaces/${workspace}/sites/${siteId}`, { headers })
-  })
+  }
 
   test('downloads a file missing from a local folder into it', async ({ shell, quickId, request }) => {
     const { page } = shell

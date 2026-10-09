@@ -1,4 +1,5 @@
 {
+  "actionFailed": "Could not apply this change. Try again.",
   "tabs": {
     "active": "Active",
     "finished": "Finished",
@@ -30,7 +31,8 @@
   "resumeErrors": {
     "mismatch": "That is not the file that was being uploaded: its name or size differ.",
     "unknown": "The upload could not be resumed. Try again.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "legacy": "This upload used an older staging format. Its partial file was preserved. Start a new upload."
   },
   "fileInput": "Choose the file to resume the upload",
   "waiting": "Waiting for a free slot",

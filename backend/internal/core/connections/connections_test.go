@@ -316,7 +316,7 @@ func TestManager_Backoff(t *testing.T) {
 		t.Errorf("Acquire() = %v after %d calls; want the last error after 3", err, exhausted.conn.calls)
 	}
 
-	for _, permanent := range []error{remotefs.ErrAuth, &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:x"}, errors.New("site not found")} {
+	for _, permanent := range []error{&remotefs.NegotiationError{Category: "cipher", ServerAlgorithms: []string{"aes128-cbc"}}, remotefs.ErrAuth, &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:x"}, errors.New("site not found")} {
 		p := newFixture(t, connections.Config{})
 		p.conn.failures = []error{permanent}
 		if _, err := p.m.Acquire(t.Context(), p.key, "s"); !errors.Is(err, permanent) || p.conn.calls != 1 || len(p.sleeps) != 0 {
@@ -868,7 +868,8 @@ func TestManager_Admitter(t *testing.T) {
 // TestManager_OnChange covers telling which sites have connections open (4.11).
 //
 // Use cases:
-//   - the first connection of a key is told as open, reusing or pooling it again tells nothing, and losing the last
+//   - opening publishes asynchronously after handing the lease to its waiter; the first connection is told as open,
+//     reusing or pooling it again tells nothing, and losing the last
 //     connection is told as closed
 //   - closing a key is told as closed at once, even while a connection is still borrowed, and releasing that one later
 //     tells nothing more
@@ -897,6 +898,10 @@ func TestManager_OnChange(t *testing.T) {
 	first := f.acquire(t)
 	first.Release(nil)
 	f.acquire(t).Release(nil)
+	deadline := time.Now().Add(5 * time.Second)
+	for len(states()) == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
 	if got := states(); !slices.Equal(got, []bool{true}) {
 		t.Fatalf("after opening and reusing = %v; want [true]", got)
 	}
@@ -1110,5 +1115,19 @@ func waitUntil(t *testing.T, cond func() bool) {
 			t.Fatal("condition not met in time")
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+// TestManager_ConnectorTimeoutStops distinguishes connector failures from abandonment of the shared dial.
+func TestManager_ConnectorTimeoutStops(t *testing.T) {
+	for _, failure := range []error{context.DeadlineExceeded, context.Canceled, remotefs.ErrConnectTimeout, errors.Join(remotefs.ErrConnectTimeout, remotefs.ErrConnectionLost)} {
+		f := newFixture(t, connections.Config{Attempts: 4})
+		f.conn.failures = []error{failure}
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		_, err := f.m.Acquire(ctx, f.key, "s")
+		cancel()
+		if !errors.Is(err, failure) || f.conn.callCount() != 1 || len(f.sleeps) != 0 {
+			t.Fatalf("failure %v: err=%v, calls=%d, sleeps=%v", failure, err, f.conn.callCount(), f.sleeps)
+		}
 	}
 }

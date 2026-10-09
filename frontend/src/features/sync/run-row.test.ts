@@ -83,7 +83,9 @@ describe('runSyncRow', () => {
 
   it('fails a row whose copy did not finish', async () => {
     const api = fakeApi({ transferGet: vi.fn().mockResolvedValue({ status: 'failed' }) })
-    await expect(runSyncRow(api, remote('/src'), remote('/dst'), row('a.txt', 'create'), newEnsuredDirectories())).rejects.toThrow('failed')
+    await expect(runSyncRow(api, remote('/src'), remote('/dst'), row('a.txt', 'create'), newEnsuredDirectories())).rejects.toMatchObject({ code: 'unknown' })
+    const refused = fakeApi({ transferGet: vi.fn().mockResolvedValue({ status: 'failed', errorCode: 'safe_replace_unsupported' }) })
+    await expect(runSyncRow(refused, remote('/src'), remote('/dst'), row('a.txt', 'update'), newEnsuredDirectories())).rejects.toMatchObject({ code: 'safe_replace_unsupported' })
   })
 
   it('downloads from a remote source into a local target, reusing a folder already made', async () => {

@@ -4,6 +4,7 @@ import type { AnyRouter } from '@tanstack/react-router'
 import type { Transport } from '@/lib/transport'
 
 import { sessionKey } from './session'
+import { announceSessionChange, clearPrivateState, sessionChangeKey } from './private-state'
 
 /**
  * Ends the session on the client once the server says nobody is signed in: it forgets the anti-CSRF token, records the session as
@@ -17,6 +18,9 @@ export function endSession(transport: Transport, queryClient: QueryClient, route
     return
   }
   transport.setCsrfToken(undefined)
+  transport.resetSession?.()
+  clearPrivateState(queryClient)
+  announceSessionChange()
   queryClient.setQueryData(sessionKey, null)
   void router.navigate({ to: '/login', replace: true })
 }
@@ -28,5 +32,17 @@ export function endSession(transport: Transport, queryClient: QueryClient, route
  */
 export function bindSessionExpiry(transport: Transport, queryClient: QueryClient, router: AnyRouter): () => void {
   transport.setOnUnauthenticated?.(() => endSession(transport, queryClient, router))
-  return () => transport.setOnUnauthenticated?.(undefined)
+  const changed = (event: StorageEvent): void => {
+    if (event.key !== sessionChangeKey) return
+    transport.setCsrfToken(undefined)
+    transport.resetSession?.()
+    clearPrivateState(queryClient)
+    queryClient.setQueryData(sessionKey, null)
+    void router.navigate({ to: '/login', replace: true })
+  }
+  window.addEventListener('storage', changed)
+  return () => {
+    transport.setOnUnauthenticated?.(undefined)
+    window.removeEventListener('storage', changed)
+  }
 }

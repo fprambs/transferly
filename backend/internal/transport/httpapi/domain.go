@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/fprambs/transferly/internal/adapters/googleauth"
 	"github.com/fprambs/transferly/internal/core/admin"
@@ -265,6 +266,8 @@ var domainProblems = []struct {
 	{archives.ErrBomb, http.StatusUnprocessableEntity, "archive_bomb"},
 	{archives.ErrEncrypted, http.StatusUnprocessableEntity, "archive_encrypted"},
 	{errTerminalOff, http.StatusForbidden, "terminal_off"},
+	{remotefs.ErrUnsafeReplace, http.StatusUnprocessableEntity, "safe_replace_unsupported"},
+	{files.ErrCopyConnectionLimit, http.StatusUnprocessableEntity, "copy_connection_limit"},
 	{remotefs.ErrUnsupported, http.StatusUnprocessableEntity, "server_commands_unsupported"},
 	{remotefs.ErrElevationRefused, http.StatusForbidden, "sudo_refused"},
 	{remotefs.ErrNotFound, http.StatusNotFound, "path_not_found"},
@@ -275,6 +278,7 @@ var domainProblems = []struct {
 	{remotefs.ErrPermission, http.StatusForbidden, "remote_permission_denied"},
 	{remotefs.ErrQuota, http.StatusInsufficientStorage, "remote_quota_exceeded"},
 	{remotefs.ErrAuth, http.StatusBadGateway, "remote_auth_failed"},
+	{remotefs.ErrConnectTimeout, http.StatusGatewayTimeout, "remote_connection_timeout"},
 	{remotefs.ErrConnectionLost, http.StatusBadGateway, "remote_unavailable"},
 	{netguard.ErrBlocked, http.StatusUnprocessableEntity, "destination_blocked"},
 	{netguard.ErrUnresolvable, http.StatusUnprocessableEntity, "host_unresolvable"},
@@ -301,11 +305,14 @@ func keyProblem(err *site.KeyError) domainProblem {
 
 // asProblem returns the problem for err, or false when err is not one the client can act on.
 func asProblem(err error) (domainProblem, bool) {
+	var negotiation *remotefs.NegotiationError
 	var hostKey *remotefs.HostKeyError
 	var badRange *files.RangeError
 	var badKey *site.KeyError
 	var badField *connectors.FieldError
 	switch {
+	case errors.As(err, &negotiation):
+		return domainProblem{status: http.StatusUnprocessableEntity, code: "ssh_algorithm_incompatible", params: map[string]any{"category": negotiation.Category, "serverAlgorithms": strings.Join(negotiation.ServerAlgorithms, ", ")}}, true
 	case errors.As(err, &badKey):
 		return keyProblem(badKey), true
 	case errors.As(err, &badField):

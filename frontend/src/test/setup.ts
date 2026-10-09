@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import { useTabs } from '@/features/tabs/tabs-store'
 import { usePrompts } from '@/features/prompts/prompts-store'
 import { useDialogsStore } from '@/state/dialogs-store'
+import { useConnectionState } from '@/features/toolbar/connection-store'
 
 import { FakeSocket } from './fake-socket'
 import { server } from './msw'
@@ -20,7 +21,7 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
-configure({ asyncUtilTimeout: 4000 })
+configure({ asyncUtilTimeout: process.env.VITEST_COVERAGE === '1' ? 10_000 : 4000 })
 
 window.scrollTo = () => undefined
 
@@ -57,6 +58,7 @@ const emptyRects: DOMRectList = Object.assign([] as DOMRect[], { item: () => nul
 Range.prototype.getClientRects = () => emptyRects
 
 beforeEach(() => {
+  useConnectionState.setState({ focused: null, disconnected: {} })
   useTabs.setState({ tabs: [], activeId: null })
   useDialogsStore.setState({ quickConnectOpen: false, paletteOpen: false })
   usePrompts.setState({ waiting: [] })

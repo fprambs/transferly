@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { checkOfficeBudget } from './budget'
 
 import { element, safeColor } from './common'
 
@@ -179,6 +180,7 @@ export function fixBullets(styles: HTMLElement): void {
  * plain HTML: headings, paragraphs, styled spans, lists, tables and pictures, keeping only the styles and colors the viewer trusts.
  */
 export async function renderDocument(bytes: Uint8Array, root: HTMLElement): Promise<void> {
+  await checkOfficeBudget(bytes)
   const zip = await JSZip.loadAsync(bytes)
   const mimetype = await zip.file('mimetype')?.async('string')
   if (mimetype === 'application/vnd.oasis.opendocument.text') {

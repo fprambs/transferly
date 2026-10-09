@@ -15,14 +15,14 @@ export interface CollectedFile {
 /** Turns an absolute path below a folder into its path relative to that folder. */
 function relativeTo(root: string, path: string): string {
   const prefix = root.endsWith('/') ? root : `${root}/`
-  return path.startsWith(prefix) ? path.slice(prefix.length) : path
+  return path.slice(prefix.length)
 }
 
 /**
  * Lists every file below a folder, breadth first, with its path relative to that folder. Symlinks and special files are left
  * out, like every tree walk of the explorer; a folder past the limit throws {@link TooManyFiles}.
  */
-export async function collectRelative(list: (path: string) => Promise<RemoteEntry[]>, root: string, limit: number): Promise<CollectedFile[]> {
-  const files = await collectFiles(list, root, limit)
+export async function collectRelative(list: (path: string, signal?: AbortSignal) => Promise<RemoteEntry[]>, root: string, limit: number, signal?: AbortSignal): Promise<CollectedFile[]> {
+  const files = await collectFiles(list, root, limit, signal)
   return files.map((entry) => ({ relativePath: relativeTo(root, entry.path), entry }))
 }

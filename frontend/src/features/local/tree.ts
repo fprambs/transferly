@@ -55,6 +55,7 @@ async function readAll(entry: FsEntry): Promise<FsEntry[]> {
     if (batch.length === 0) {
       return all
     }
+    if (all.length + batch.length > maxTreeEntries) throw new TreeTooLarge()
     all.push(...batch)
   }
 }
@@ -105,6 +106,7 @@ export async function readDropped(data: DataTransfer): Promise<Dropped> {
 
 /** Builds the tree of a folder picked with a `webkitdirectory` input, whose files carry their path below the picked folder. */
 export function treeFromInput(files: readonly File[]): UploadTree | null {
+  if (files.length > maxTreeEntries) throw new TreeTooLarge()
   const first = files.find((file) => Boolean(file.webkitRelativePath))
   if (first === undefined) {
     return null
@@ -120,6 +122,7 @@ export function treeFromInput(files: readonly File[]): UploadTree | null {
     tree.files.push({ path: parts.join('/'), file })
   }
   tree.dirs = [...dirs].sort()
+  if (tree.dirs.length + tree.files.length > maxTreeEntries) throw new TreeTooLarge()
   return tree
 }
 

@@ -5,6 +5,7 @@ export const quickErrorKeys = [
   'host_key_changed',
   'remote_auth_failed',
   'remote_unavailable',
+  'ssh_algorithm_incompatible', 'remote_connection_timeout',
   'destination_blocked',
   'host_unresolvable',
   'invalid_host',

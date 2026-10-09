@@ -159,7 +159,7 @@ func TestTransfers_Resume(t *testing.T) {
 	e := newFileEnv(t)
 	a := e.a
 	id := uuid.New()
-	a.upload(e.ws, e.site, q("path", "/movie.part"), "first-half|", e.cookie, e.csrf)
+	a.upload(e.ws, e.site, q("path", "/transferly-"+id.String()+".part"), "first-half|", e.cookie, e.csrf)
 	done := a.upload(e.ws, e.site, q("path", "/movie", "transferId", id.String(), "size", "22", "mode", "resume", "offset", "11"), "second-half", e.cookie, e.csrf)
 	if done.Status != http.StatusCreated {
 		t.Fatalf("resume = %d %s", done.Status, done.Body)
@@ -242,7 +242,7 @@ func TestTransfers_Cancel(t *testing.T) {
 	expectProblem(t, <-replies, 409, "transfer_canceled")
 	waitFor(t, "the transfer to be canceled", func() bool { return a.transferState(e.cookie, id) == "canceled" })
 	expectProblem(t, e.get("/entry", q("path", "/slow"), nil), 404, "path_not_found")
-	if entry := e.get("/entry", q("path", "/slow.part"), nil); entry.Status != http.StatusOK || entry.entry(t).Size == 0 {
+	if entry := e.get("/entry", q("path", "/transferly-"+id.String()+".part"), nil); entry.Status != http.StatusOK || entry.entry(t).Size == 0 {
 		t.Errorf("the staged file = %d %s; want it kept", entry.Status, entry.Body)
 	}
 

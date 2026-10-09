@@ -10,9 +10,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fprambs/transferly/internal/core/connections"
 	"github.com/fprambs/transferly/internal/core/remotefs"
 	"github.com/fprambs/transferly/internal/core/workspace"
 )
+
+// ErrCopyConnectionLimit means a streamed same-site copy cannot reserve both its reader and writer.
+var ErrCopyConnectionLimit = errors.New("copy requires two connections")
 
 // Policy says what a copy does with a file that already exists at the destination.
 type Policy int
@@ -50,12 +54,12 @@ type CopyLocation struct {
 
 // sameFile reports whether both ends of a copy name the same file.
 func (l CopyLocation) sameFile() bool {
-	return l.Source.Site == l.Destination.Site && l.SourcePath == l.DestinationPath
+	return l.Source.Site == l.Destination.Site && path.Clean(l.SourcePath) == path.Clean(l.DestinationPath)
 }
 
 // intoItself reports whether the destination lies inside the source, which would copy a folder into itself forever.
 func (l CopyLocation) intoItself() bool {
-	return l.Source.Site == l.Destination.Site && strings.HasPrefix(l.DestinationPath, strings.TrimSuffix(l.SourcePath, "/")+"/")
+	return l.Source.Site == l.Destination.Site && strings.HasPrefix(path.Clean(l.DestinationPath), strings.TrimSuffix(path.Clean(l.SourcePath), "/")+"/")
 }
 
 // CheckCopy verifies, before any data moves, that the user may read the source and write the destination and that the
@@ -98,6 +102,11 @@ func (s *Service) Copy(ctx context.Context, l CopyLocation, policy Policy) (remo
 	if err := s.CheckCopy(ctx, l); err != nil {
 		return remotefs.Entry{}, err
 	}
+	release, err := s.copies.pair(ctx, l)
+	if err != nil {
+		return remotefs.Entry{}, err
+	}
+	defer release()
 	source, err := s.Stat(ctx, l.Source, l.SourcePath)
 	if err != nil {
 		return remotefs.Entry{}, err
@@ -217,6 +226,15 @@ func (s *Service) copyFile(ctx context.Context, l CopyLocation, source remotefs.
 		return remotefs.Entry{}, err
 	}
 	defer func() { _ = d.Body.Close() }()
+	if l.Source.key() == l.Destination.key() {
+		if budget, ok := s.pool.(interface {
+			MaxConnections(context.Context, connections.Key) int
+		}); ok && budget.MaxConnections(ctx, l.Source.key()) < 2 {
+			if _, buffered := d.Body.(*bufferedBody); !buffered {
+				return remotefs.Entry{}, fmt.Errorf("%w: %w", ErrCopyConnectionLimit, remotefs.ErrUnsupported)
+			}
+		}
+	}
 	to := l.Destination
 	to.Observer = fileObserver{inner: obs, total: d.Length(), announce: whole}
 	body := io.Reader(d.Body)

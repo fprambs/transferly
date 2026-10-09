@@ -1,6 +1,6 @@
 # Production stack: docker compose up -d
 # The application answers on http://localhost:8080.
-# HTTPS with automatic certificates: set TRANSFERLY_DOMAIN and add --profile https.
+# HTTPS with automatic certificates: set TRANSFERLY_DOMAIN and the matching HTTPS TRANSFERLY_BASE_URL, then add --profile https.
 name: transferly
 
 services:
@@ -16,7 +16,8 @@ services:
       TRANSFERLY_DATABASE_URL: postgres://transferly:${TRANSFERLY_DB_PASSWORD:-transferly}@postgres:5432/transferly?sslmode=disable
       TRANSFERLY_HTTP_ADDR: ":8080"
       TRANSFERLY_BASE_URL: ${TRANSFERLY_BASE_URL:-http://localhost:8080}
-      TRANSFERLY_TRUSTED_PROXIES: ${TRANSFERLY_TRUSTED_PROXIES:-}
+      TRANSFERLY_DOMAIN: ${TRANSFERLY_DOMAIN:-}
+      TRANSFERLY_TRUSTED_PROXIES: ${TRANSFERLY_TRUSTED_PROXIES:-172.30.252.3/32}
       TRANSFERLY_ALLOWED_NETWORKS: ${TRANSFERLY_ALLOWED_NETWORKS:-}
       TRANSFERLY_GOOGLE_CLIENT_ID: ${TRANSFERLY_GOOGLE_CLIENT_ID:-}
       TRANSFERLY_GOOGLE_CLIENT_SECRET: ${TRANSFERLY_GOOGLE_CLIENT_SECRET:-}
@@ -24,6 +25,9 @@ services:
       - "${TRANSFERLY_BIND:-127.0.0.1}:${TRANSFERLY_HTTP_PORT:-8080}:8080"
     volumes:
       - data:/data
+    networks:
+      - default
+      - gateway
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -60,6 +64,15 @@ services:
       - caddy_data:/data
     depends_on:
       - app
+    networks:
+      gateway:
+        ipv4_address: 172.30.252.3
+
+networks:
+  gateway:
+    ipam:
+      config:
+        - subnet: 172.30.252.0/29
 
 volumes:
   data:

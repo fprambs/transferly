@@ -78,7 +78,7 @@ Abre **http://localhost:8080**. El asistente del primer arranque crea la cuenta 
 Para publicarlo con HTTPS y certificados automáticos:
 
 ```sh
-TRANSFERLY_DOMAIN=transferly.tuempresa.com docker compose --profile https up -d
+TRANSFERLY_DOMAIN=transferly.tuempresa.com TRANSFERLY_BASE_URL=https://transferly.tuempresa.com docker compose --profile https up -d
 ```
 
 La imagen corre sin privilegios, con el sistema de archivos de solo lectura y sin capacidades del kernel.
@@ -223,7 +223,7 @@ Variables principales del despliegue con Docker Compose:
 | `TRANSFERLY_BIND` y `TRANSFERLY_HTTP_PORT` | Interfaz y puerto donde escucha | `127.0.0.1` y `8080` |
 | `TRANSFERLY_DB_PASSWORD` | Contraseña de Postgres | `transferly` |
 | `TRANSFERLY_ALLOWED_NETWORKS` | Redes privadas que los sitios pueden alcanzar, separadas por coma | ninguna |
-| `TRANSFERLY_TRUSTED_PROXIES` | Proxies de confianza, para conocer la IP real del cliente | ninguno |
+| `TRANSFERLY_TRUSTED_PROXIES` | Proxies de confianza, para conocer la IP real del cliente | ninguno en el binario; Compose confía solo en Caddy (`172.30.252.3`) |
 | `TRANSFERLY_GOOGLE_CLIENT_ID`, `TRANSFERLY_GOOGLE_CLIENT_SECRET` | Cliente OAuth registrado en Google Cloud, para los sitios de Google Drive ([guía](docs/guides/google.md)) | ninguno |
 
 Las redes permitidas y los límites también se cambian en caliente desde el panel de administración.
@@ -264,3 +264,7 @@ Con `make testenv` se levanta un servidor de prueba para cada conector (SFTP, SS
 ## Licencia
 
 Transferly se distribuye bajo la [licencia Apache 2.0](LICENSE).
+
+### Respaldo y recuperación
+
+Consulta la [guía de respaldo y restauración](docs/guides/backup-restoration.md) para conservar PostgreSQL y la clave de instancia, y ensayar la recuperación de la bóveda.

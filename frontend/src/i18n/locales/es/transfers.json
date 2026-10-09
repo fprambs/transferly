@@ -1,4 +1,5 @@
 {
+  "actionFailed": "No se pudo aplicar este cambio. Inténtalo de nuevo.",
   "tabs": {
     "active": "Activas",
     "finished": "Terminadas",
@@ -30,7 +31,8 @@
   "resumeErrors": {
     "mismatch": "Ese no es el archivo que se estaba subiendo: el nombre o el tamaño no coinciden.",
     "unknown": "No se pudo reanudar la subida. Inténtalo de nuevo.",
-    "dismiss": "Cerrar"
+    "dismiss": "Cerrar",
+    "legacy": "Esta subida usó un formato temporal anterior. Su archivo parcial se conservó. Inicia una nueva subida."
   },
   "fileInput": "Elegir el archivo para reanudar la subida",
   "waiting": "Esperando un turno libre",

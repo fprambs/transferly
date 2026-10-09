@@ -75,6 +75,7 @@ func (s *server) UpdateAdminUser(ctx context.Context, request UpdateAdminUserReq
 		if account.Disabled {
 			action = audit.AdminUserDisabled
 			s.deps.Credentials.CloseUser(request.UserId)
+			s.deps.terminals.revoke("", request.UserId, uuid.Nil)
 		}
 		s.recordInstance(ctx, p.User, action, account.Email, nil)
 	}
@@ -193,5 +194,8 @@ func (s *server) SetLimits(ctx context.Context, request SetLimitsRequestObject) 
 		return nil, err
 	}
 	s.recordInstance(ctx, p.User, audit.AdminLimitsChanged, "", nil)
+	if view.Current.ServerCommandsOff {
+		s.deps.terminals.revoke("", uuid.Nil, uuid.Nil)
+	}
 	return SetLimits200JSONResponse(limitsView(view)), nil
 }

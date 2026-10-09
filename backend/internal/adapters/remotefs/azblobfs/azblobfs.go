@@ -121,6 +121,8 @@ type page struct {
 // list returns the blobs under prefix, and their common prefixes one level down unless the listing is recursive, at most
 // limit of them when limit is above zero.
 func (f *FS) list(ctx context.Context, prefix string, recursive bool, limit int) ([]item, []item, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	q := url.Values{"restype": {"container"}, "comp": {"list"}, "prefix": {prefix}, "maxresults": {strconv.Itoa(pageSize)}}
 	if !recursive {
 		q.Set("delimiter", "/")
@@ -129,18 +131,23 @@ func (f *FS) list(ctx context.Context, prefix string, recursive bool, limit int)
 		q.Set("maxresults", strconv.Itoa(limit))
 	}
 	var blobs, prefixes []item
+	seen := map[string]bool{}
 	for {
 		resp, err := f.client.Do(ctx, http.MethodGet, f.container, q, nil, nil)
 		if err != nil {
 			return nil, nil, err
 		}
 		var p page
-		err = xml.NewDecoder(resp.Body).Decode(&p)
+		err = xml.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&p)
 		_ = resp.Body.Close()
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unreadable listing: %w", remotefs.ErrConnectionLost, err)
 		}
 		blobs, prefixes = append(blobs, p.Blobs.Blob...), append(prefixes, p.Blobs.Prefix...)
+		if len(blobs)+len(prefixes) > 100000 || (p.Next != "" && seen[p.Next]) {
+			return nil, nil, remotefs.ErrInvalid
+		}
+		seen[p.Next] = true
 		if p.Next == "" || limit > 0 {
 			return blobs, prefixes, nil
 		}

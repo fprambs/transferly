@@ -104,7 +104,7 @@ describe('Toolbar', () => {
     mockSecurity()
     const user = userEvent.setup()
     await renderApp({ path: '/settings' })
-    await screen.findByRole('heading', { level: 1, name: 'General' })
+    await screen.findByRole('heading', { level: 1, name: 'General' }, { timeout: 10_000 })
     expect(screen.queryByRole('toolbar', { name: 'Toolbar' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Close settings' }))
@@ -240,7 +240,7 @@ describe('Toolbar', () => {
     await user.dblClick(screen.getByRole('treeitem', { name: /Backup/ }))
     await waitFor(() => expect(history.location.pathname).toBe('/sites/s2'))
     await waitFor(() => expect(disconnected).toEqual(['s1']))
-    expect(useConnectionState.getState().disconnected).toEqual({})
+    expect(Object.keys(useConnectionState.getState().disconnected)).toHaveLength(1)
 
     server.use(http.delete('/api/v1/workspaces/:id/sites/:siteId/connection', () => problem(500, 'internal_error')))
     await user.dblClick(screen.getByRole('treeitem', { name: /Prod/ }))

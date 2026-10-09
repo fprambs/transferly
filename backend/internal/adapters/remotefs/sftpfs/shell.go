@@ -35,9 +35,10 @@ func shellCommand(dir string) (string, error) {
 
 // terminal is a shell on a session with a pseudo terminal, whose standard output and error both arrive through the terminal.
 type terminal struct {
-	session *ssh.Session
-	in      io.WriteCloser
-	out     io.Reader
+	session    *ssh.Session
+	in         io.WriteCloser
+	out        io.Reader
+	stopCancel func() bool
 }
 
 // Read implements io.Reader.
@@ -63,7 +64,10 @@ func (t *terminal) Wait() (int, error) {
 }
 
 // Close implements io.Closer.
-func (t *terminal) Close() error { return t.session.Close() }
+func (t *terminal) Close() error {
+	t.stopCancel()
+	return t.session.Close()
+}
 
 // Shell implements [remotefs.Sheller] with a new session of the connection that asks for a pseudo terminal and starts the login
 // shell of the account. A server the probe found runs no commands, such as one that forces internal-sftp and would answer with
@@ -76,6 +80,15 @@ func (f *FS) Shell(ctx context.Context, dir string, cols, rows int) (remotefs.Te
 	if err != nil {
 		return nil, err
 	}
+	stopCancel := context.AfterFunc(ctx, func() {
+		_ = f.Close()
+	})
+	opened := false
+	defer func() {
+		if !opened {
+			stopCancel()
+		}
+	}()
 	if tools, err := f.Tools(ctx); err != nil || !tools.Shell {
 		return nil, fmt.Errorf("shell: %w: the server runs no commands for this account", remotefs.ErrUnsupported)
 	}
@@ -93,5 +106,6 @@ func (f *FS) Shell(ctx context.Context, dir string, cols, rows int) (remotefs.Te
 		_ = session.Close()
 		return nil, fmt.Errorf("shell: %w: the server runs no commands: %w", remotefs.ErrUnsupported, err)
 	}
-	return &terminal{session: session, in: in, out: out}, nil
+	opened = true
+	return &terminal{session: session, in: in, out: out, stopCancel: stopCancel}, nil
 }

@@ -197,6 +197,10 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 		case err != nil:
 			return nil, fmt.Errorf("%w: unreadable private key", remotefs.ErrAuth)
 		}
+		signer, err = safeSigner(signer)
+		if err != nil {
+			return nil, fmt.Errorf("%w: private key requires an obsolete signature: %w", remotefs.ErrAuth, err)
+		}
 		methods = append(methods, ssh.PublicKeys(signer))
 	}
 	if cfg.Password != "" {
@@ -288,6 +292,7 @@ var keyExchanges = []string{
 	"ecdh-sha2-nistp521",
 	"diffie-hellman-group14-sha256",
 	"diffie-hellman-group16-sha512",
+	"diffie-hellman-group-exchange-sha256",
 }
 
 // ciphers are offered in the order OpenSSH prefers them, ChaCha20-Poly1305 and CTR before AES-GCM. The library puts AES-GCM first,
@@ -350,7 +355,7 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 	var rejected error
 	verified := false
 	clientConfig := &ssh.ClientConfig{
-		Config: ssh.Config{KeyExchanges: keyExchanges, Ciphers: ciphers},
+		Config: ssh.Config{KeyExchanges: keyExchanges, Ciphers: ciphers, MACs: ssh.SupportedAlgorithms().MACs},
 		User:   cfg.Username,
 		Auth:   methods,
 		HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
@@ -358,7 +363,7 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 			verified = rejected == nil
 			return rejected
 		},
-		HostKeyAlgorithms: cfg.HostKeyAlgorithms,
+		HostKeyAlgorithms: safeHostAlgorithms(cfg.HostKeyAlgorithms),
 		Timeout:           cfg.Timeout,
 	}
 
@@ -375,6 +380,10 @@ func DialSSH(ctx context.Context, cfg Config) (*ssh.Client, error) {
 			}
 			if errors.Is(err, netguard.ErrBlocked) {
 				return nil, fmt.Errorf("connecting to %s: %w", cfg.Address, err)
+			}
+			var timeout net.Error
+			if errors.As(err, &timeout) && timeout.Timeout() {
+				return nil, fmt.Errorf("connecting to %s: %w", cfg.Address, remotefs.ErrConnectTimeout)
 			}
 			return nil, fmt.Errorf("connecting to %s: %w: %w", cfg.Address, remotefs.ErrConnectionLost, err)
 		}
@@ -415,6 +424,13 @@ func closedBy(err error) bool {
 // client signs in, refused the credentials: some gateways answer wrong passwords that way instead of with a failure, and taking it
 // for a lost connection would try the same credentials again and again, which can lock the account.
 func handshakeError(address string, rejected error, verified bool, err error) error {
+	var negotiation *ssh.AlgorithmNegotiationError
+	if errors.As(err, &negotiation) {
+		return negotiationError(negotiation)
+	}
+	if signatureError := authenticationNegotiation(err); signatureError != nil {
+		return signatureError
+	}
 	switch {
 	case rejected != nil:
 		return fmt.Errorf("verifying the host key of %s: %w", address, rejected)
@@ -816,6 +832,20 @@ func (f *FS) Rename(ctx context.Context, from, to string) error {
 	return wrap("rename", from, err)
 }
 
+// CanReplace reports whether this server negotiated the OpenSSH atomic rename extension.
+func (f *FS) CanReplace() bool { _, ok := f.client.HasExtension("posix-rename@openssh.com"); return ok }
+
+// Replace implements remotefs.Replacer through the negotiated OpenSSH atomic rename extension.
+func (f *FS) Replace(ctx context.Context, from, to string) error {
+	if err := f.guard(ctx); err != nil {
+		return err
+	}
+	if !f.CanReplace() {
+		return remotefs.ErrUnsupported
+	}
+	return wrap("replace", from, f.client.PosixRename(from, to))
+}
+
 // Chmod implements [remotefs.RemoteFS].
 func (f *FS) Chmod(ctx context.Context, p string, mode fs.FileMode) error {
 	if err := f.guard(ctx); err != nil {
@@ -864,12 +894,12 @@ func (f *FS) Home(ctx context.Context) (string, error) {
 func (f *FS) Close() error {
 	f.once.Do(func() {
 		f.closed.Store(true)
+		_ = f.ssh.Close()
 		_ = f.client.Close()
 		f.bulkOnce.Do(func() {})
 		if f.bulk != nil {
 			_ = f.bulk.Close()
 		}
-		_ = f.ssh.Close()
 	})
 	return nil
 }

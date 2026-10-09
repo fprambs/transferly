@@ -1,3 +1,4 @@
+import { checkOfficeBudget } from './budget'
 import { read, utils, type Range, type WorkSheet } from 'xlsx'
 
 import { element, fill, ProtectedDocument } from './common'
@@ -19,8 +20,8 @@ function mergesOf(sheet: WorkSheet): { spans: Map<string, Range>; covered: Set<s
   const covered = new Set<string>()
   for (const merge of sheet['!merges'] ?? []) {
     spans.set(`${merge.s.r}:${merge.s.c}`, merge)
-    for (let row = merge.s.r; row <= merge.e.r; row++) {
-      for (let column = merge.s.c; column <= merge.e.c; column++) {
+    for (let row = Math.max(merge.s.r, 0); row <= Math.min(merge.e.r, maxRows - 1); row++) {
+      for (let column = Math.max(merge.s.c, 0); column <= Math.min(merge.e.c, maxColumns - 1); column++) {
         if (row !== merge.s.r || column !== merge.s.c) {
           covered.add(`${row}:${column}`)
         }
@@ -86,7 +87,8 @@ function drawSheet(sheet: WorkSheet, labels: Record<string, string>): HTMLElemen
  * macros, styles and the HTML of cells are not read, and at most {@link maxRows} rows and {@link maxColumns} columns are drawn, saying
  * so when a sheet has more. A workbook protected with a password fails with {@link ProtectedDocument}.
  */
-export function renderSpreadsheet(bytes: Uint8Array, root: HTMLElement, labels: Record<string, string>): void {
+export async function renderSpreadsheet(bytes: Uint8Array, root: HTMLElement, labels: Record<string, string>): Promise<void> {
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b) await checkOfficeBudget(bytes)
   let book
   try {
     book = read(bytes, { type: 'array', dense: true, sheetRows: maxRows, cellFormula: false, cellHTML: false, cellStyles: false, bookVBA: false })

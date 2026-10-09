@@ -5,5 +5,9 @@
   },
   "language": {
     "label": "Idioma"
+  },
+  "deferred": {
+    "failed": "No se pudo cargar esta función. Recarga la página para volver a intentarlo.",
+    "reload": "Recargar página"
   }
 }

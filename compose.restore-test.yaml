@@ -1,0 +1,45 @@
+name: transferly-restore-test
+services:
+  app:
+    image: transferly:test
+    environment:
+      TRANSFERLY_DATABASE_URL: postgres://transferly:transferly@postgres:5432/transferly?sslmode=disable
+      TRANSFERLY_BASE_URL: http://restore.localhost:8080
+      TRANSFERLY_ALLOWED_ORIGINS: http://app:8080
+      TRANSFERLY_ALLOWED_NETWORKS: 172.16.0.0/12
+    volumes:
+      - data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:17-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
+    environment:
+      POSTGRES_USER: transferly
+      POSTGRES_PASSWORD: transferly
+      POSTGRES_DB: transferly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transferly -d transferly"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  sftp:
+    image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
+    command: transferly:transferly:1001:100:upload
+  verify:
+    image: transferly-dev-tools
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    profiles: [verify]
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:ro
+      - /tmp/transferly-audit:/reports
+    command: ["python3", "scripts/verify-backup.py", "check"]
+volumes:
+  data:
+  pgdata:

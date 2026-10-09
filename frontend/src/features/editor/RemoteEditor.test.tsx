@@ -63,6 +63,24 @@ async function paste(user: ReturnType<typeof userEvent.setup>, dialog: HTMLEleme
  * - a failure while loading or saving is explained
  */
 describe('RemoteEditor', () => {
+  it('rejects a response larger than its advertised size', async () => {
+    mockFile('x'.repeat(maxEditableBytes + 1), { size: 1 })
+    await renderWithI18n(<RemoteEditor api={api} workspaceId={workspaceId} siteId={siteId} entry={entry()} onClose={vi.fn()} onSaved={vi.fn()} />)
+    expect(await screen.findByText(/too large/i)).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('ignores bytes returned by an uncooperative client after closing the editor', async () => {
+    let deliver: (stream: ReadableStream<Uint8Array>) => void = () => {}
+    const download = vi.spyOn(api.files, 'download').mockImplementation(() => new Promise((resolve) => { deliver = resolve }))
+    mockFile('hello')
+    await renderWithI18n(<RemoteEditor api={api} workspaceId={workspaceId} siteId={siteId} entry={entry()} onClose={vi.fn()} onSaved={vi.fn()} />)
+    cleanup()
+    deliver(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('late')); controller.close() } }))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    download.mockRestore()
+  })
   const api = createApi(new HttpTransport())
 
   it('loads the content and closes without asking when nothing changed', async () => {
@@ -145,6 +163,9 @@ describe('RemoteEditor', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     expect(await within(dialog).findByText('This file changed since you opened it')).toBeInTheDocument()
 
+    server.use(http.get(`/api/v1/workspaces/${workspaceId}/sites/${siteId}/files/content`, () => new HttpResponse(null, { status: 502 })))
+    await user.click(within(dialog).getByRole('button', { name: 'Reload their version' }))
+    expect(await within(dialog).findByText('Something went wrong. Try again.')).toBeInTheDocument()
     mockFile('someone else wrote this')
     await user.click(within(dialog).getByRole('button', { name: 'Reload their version' }))
     await waitFor(() => expect(editorContent(dialog)).toHaveTextContent('someone else wrote this'))

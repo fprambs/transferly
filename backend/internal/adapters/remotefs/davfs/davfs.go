@@ -270,6 +270,8 @@ type resource struct {
 // find sends a PROPFIND of the given depth to target and returns the resources of its answer below the root of the site, by
 // their paths. A redirect that only adds a trailing slash, which some servers answer for folders, is followed once.
 func (f *FS) find(ctx context.Context, target, depth string) ([]resource, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	header := http.Header{"Depth": {depth}, "Content-Type": {`application/xml; charset="utf-8"`}}
 	resp, err := f.send(ctx, "PROPFIND", target, header, strings.NewReader(propfind))
 	if status := statusOf(err); status >= 300 && status < 400 && !strings.HasSuffix(target, "/") {
@@ -282,7 +284,7 @@ func (f *FS) find(ctx context.Context, target, depth string) ([]resource, error)
 	var answer struct {
 		Responses []item `xml:"response"`
 	}
-	if err := xml.NewDecoder(resp.Body).Decode(&answer); err != nil {
+	if err := xml.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&answer); err != nil {
 		return nil, fmt.Errorf("%w: unreadable listing: %w", remotefs.ErrConnectionLost, err)
 	}
 	out := make([]resource, 0, len(answer.Responses))

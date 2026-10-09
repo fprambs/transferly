@@ -4,5 +4,14 @@
 **/coverage
 docs
 .env
+.env.*
+backend/coverage.out
+backend/test.log
 frontend/test-results
 frontend/playwright-report
+
+.agents
+.codex
+.aws
+frontend/e2e/.auth
+**/__pycache__

@@ -103,7 +103,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	sites := site.NewService(store, workspaces, keys, policy, catalog, system, rand.Reader, nil)
 	hub := events.New(eventBuffer)
 	activityLog := activity.NewService(store, system, cfg.ActivityRetention, nil)
-	transfers := transfer.NewService(store, hub, system, transfer.Config{OnFinish: transferLogger(activityLog, logger), Limits: scheduler.Limits{
+	transfers := transfer.NewService(store, hub, system, transfer.Config{OnPersistenceError: persistenceLogger(logger), OnFinish: transferLogger(activityLog, logger), Limits: scheduler.Limits{
 		Global: cfg.TransferLimits.Global, PerWorkspace: cfg.TransferLimits.PerWorkspace,
 		PerUser: cfg.TransferLimits.PerUser, PerSite: cfg.TransferLimits.PerSite,
 	}}, nil)
@@ -276,4 +276,9 @@ func runJanitor(ctx context.Context, every time.Duration, logger *slog.Logger, t
 			}
 		}
 	}
+}
+
+// persistenceLogger reports transfer history failures while keeping remote contents out of diagnostics.
+func persistenceLogger(logger *slog.Logger) func(error) {
+	return func(err error) { logger.Error("transfer persistence failed", "error", err) }
 }

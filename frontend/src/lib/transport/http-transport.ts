@@ -32,6 +32,10 @@ export class HttpTransport implements Transport {
   private readonly openSocket: (url: string) => WebSocket
   /** Anti-CSRF token sent with state-changing calls. */
   private csrfToken: string | undefined
+  /** Abort scope replaced whenever the session token changes. */
+  private lifetime = new AbortController()
+  /** Sockets bound to the current session, removed when closed or revoked. */
+  private sockets = new Set<WebSocket>()
   /** Called when the server answers that nobody is signed in. */
   private onUnauthenticated: (() => void) | undefined
 
@@ -45,12 +49,30 @@ export class HttpTransport implements Transport {
 
   /** Opens a WebSocket to a path of the server, with a query. */
   socket(path: string, query?: ApiQuery): WebSocket {
-    return this.openSocket(socketUrl(this.baseUrl, path, query))
+    const socket = this.openSocket(socketUrl(this.baseUrl, path, query))
+    this.sockets.add(socket)
+    socket.addEventListener('close', () => this.sockets.delete(socket), { once: true })
+    return socket
   }
 
   /** Sets the anti-CSRF token sent with every call that is not a read. */
   setCsrfToken(token: string | undefined): void {
+    if (this.csrfToken !== undefined && token !== this.csrfToken) this.resetSession()
     this.csrfToken = token
+  }
+
+  /** Revokes in-flight responses and sockets without mistaking initial token discovery for a new identity. */
+  resetSession(): void {
+    this.lifetime.abort()
+    for (const socket of this.sockets) {
+      socket.onopen = null
+      socket.onclose = null
+      socket.onmessage = null
+      socket.close()
+    }
+    this.sockets.clear()
+    this.lifetime = new AbortController()
+    this.csrfToken = undefined
   }
 
   /** Sets the handler invoked when a call fails with code `unauthenticated`. */
@@ -72,9 +94,9 @@ export class HttpTransport implements Transport {
 
   /** Opens `GET /api/v1/ws`, on the same origin as the page unless a base URL was given. */
   events(handlers: EventHandlers): () => void {
-    const socket = this.openSocket(eventsUrl(this.baseUrl))
+    const socket = this.socket('/api/v1/ws')
     socket.onopen = () => handlers.onOpen()
-    socket.onclose = () => handlers.onClose()
+    socket.onclose = () => { this.sockets.delete(socket); handlers.onClose() }
     socket.onmessage = (message) => {
       const event = parseEvent(message.data)
       if (event !== undefined) {
@@ -83,17 +105,23 @@ export class HttpTransport implements Transport {
     }
     return () => {
       socket.onclose = null
+      socket.onopen = null
+      socket.onmessage = null
+      this.sockets.delete(socket)
       socket.close()
     }
   }
 
   /** Performs an API call, sending the session cookie and, for changes, the anti-CSRF token. */
   async request<T>(request: ApiRequest): Promise<T> {
+    const lifetime = this.lifetime
     const response = await this.call(request, 'application/json')
     if (response.status === 204) {
       return undefined as T
     }
-    return (await this.parse(response)) as T
+    const parsed = await this.parse(response)
+    lifetime.signal.throwIfAborted()
+    return parsed as T
   }
 
   /** Performs an API call like {@link request} and returns the body as a stream, for downloads. */
@@ -107,6 +135,7 @@ export class HttpTransport implements Transport {
 
   /** Sends a call with its body and the anti-CSRF token for changes, and returns a successful response; a failure throws its problem. */
   private async call(request: ApiRequest, accept: string): Promise<Response> {
+    const lifetime = this.lifetime
     const headers: Record<string, string> = { Accept: accept }
     let body: BodyInit | undefined
     if (isBinary(request.body)) {
@@ -127,14 +156,17 @@ export class HttpTransport implements Transport {
     }
     let response: Response
     try {
-      response = await this.send(this.url(request.path, request.query), { method: request.method, headers, body, signal: request.signal })
+      const signal = request.signal === undefined ? lifetime.signal : AbortSignal.any([request.signal, lifetime.signal])
+      response = await this.send(this.url(request.path, request.query), { method: request.method, headers, body, signal })
     } catch {
       throw new ApiError({ type: 'about:blank', title: 'Network Error', status: 0, code: 'network_error' })
     }
+    lifetime.signal.throwIfAborted()
     if (!response.ok) {
       const problem = await readProblem(response)
+      lifetime.signal.throwIfAborted()
       if (problem.status === 401 && problem.code === 'unauthenticated') {
-        queueMicrotask(() => this.onUnauthenticated?.())
+        queueMicrotask(() => { if (!lifetime.signal.aborted) this.onUnauthenticated?.() })
       }
       throw new ApiError(problem)
     }
@@ -189,11 +221,6 @@ export class HttpTransport implements Transport {
 
 /** Event types the server sends. */
 const eventTypes = ['snapshot', 'transfer.state', 'transfer.progress', 'vault.locked', 'connection.log', 'connection.state', 'connection.prompt', 'connection.prompt_closed']
-
-/** Builds the address of the event stream: `ws` or `wss` to match the page, or the base URL. */
-function eventsUrl(baseUrl: string): string {
-  return socketUrl(baseUrl, '/api/v1/ws')
-}
 
 /** Builds the WebSocket URL of a path of the server, with its query: wss: under HTTPS and ws: otherwise. Empty values are left out. */
 function socketUrl(baseUrl: string, path: string, query: ApiQuery = {}): string {

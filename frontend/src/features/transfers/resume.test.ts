@@ -8,7 +8,7 @@ import { HttpTransport, type TransferRecord } from '@/lib/transport'
 import { problem } from '@/test/handlers'
 import { server } from '@/test/msw'
 
-import { isStoppedUpload, resumeUpload, ResumeMismatchError } from './resume'
+import { isStoppedUpload, resumeUpload, ResumeMismatchError, LegacyResumeError } from './resume'
 
 /** A transfer that stopped after part of the file. */
 const record: TransferRecord = {
@@ -105,7 +105,7 @@ describe('resumeUpload', () => {
 
     await resumeUpload(api, record, { file: file('big.bin', '0123456789'), siteId: 's1' })
 
-    expect(statPaths).toEqual([`${record.path}.part`])
+    expect(statPaths).toEqual([`${record.path.slice(0, record.path.lastIndexOf('/') + 1)}transferly-${record.id}.part`])
   })
 
   it('starts over when the partial file is gone', async () => {
@@ -114,6 +114,18 @@ describe('resumeUpload', () => {
     await resumeUpload(api, record, { file: file('big.bin', '0123456789'), siteId: 's1' })
 
     expect(uploads).toEqual([{ mode: 'create', offset: null, transferId: 't1', size: '10', body: '0123456789' }])
+  })
+
+  it('preserves unowned staging from older versions and reports a failed legacy check', async () => {
+    const uploads = mockServer('missing')
+    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files/entry', ({ request }) => {
+      const legacy = new URL(request.url).searchParams.get('path') === `${record.path}.part`
+      return legacy ? HttpResponse.json({ size: 4 }) : problem(404, 'path_not_found')
+    }))
+    await expect(resumeUpload(api, record, { file: file('big.bin', '0123456789'), siteId: 's1' })).rejects.toBeInstanceOf(LegacyResumeError)
+    expect(uploads).toEqual([])
+    server.use(http.get('/api/v1/workspaces/:id/sites/s1/files/entry', ({ request }) => new URL(request.url).searchParams.get('path') === `${record.path}.part` ? problem(502, 'remote_unavailable') : problem(404, 'path_not_found')))
+    await expect(resumeUpload(api, record, { file: file('big.bin', '0123456789'), siteId: 's1' })).rejects.toMatchObject({ code: 'remote_unavailable' })
   })
 
   it('starts from the beginning when nothing arrived yet', async () => {

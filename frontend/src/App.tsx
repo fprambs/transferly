@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { RouterProvider, type RouterHistory } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 import { createQueryClient } from '@/app/query'
 import { createAppRouter } from '@/app/router'
@@ -30,7 +30,7 @@ export default function App({ history }: AppProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<div role="status" aria-busy="true" />}><RouterProvider router={router} /></Suspense>
       </TooltipProvider>
     </QueryClientProvider>
   )

@@ -5,14 +5,18 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
+	"encoding/asn1"
 	"encoding/pem"
 	"errors"
 	"io"
 	"io/fs"
+	"math/big"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -911,6 +915,18 @@ func TestDial_RefusesLegacyCryptography(t *testing.T) {
 	}
 }
 
+// TestDial_GroupExchangeSHA256 covers enterprise gateways whose only SHA-2 key exchange is group exchange.
+func TestDial_GroupExchangeSHA256(t *testing.T) {
+	server := startServer(t, sftptest.Options{
+		KeyExchanges: []string{"diffie-hellman-group-exchange-sha256"},
+		Ciphers:      []string{"aes256-ctr"},
+	})
+	fsys := dial(t, server)
+	if _, err := fsys.List(t.Context(), "/"); err != nil {
+		t.Fatalf("List after group exchange = %v", err)
+	}
+}
+
 // dropAfter accepts every write and drops the server's connections once it received limit bytes.
 type dropAfter struct {
 	server *sftptest.Server
@@ -1125,5 +1141,146 @@ func TestDial_ServerDropsOnBadPassword(t *testing.T) {
 	_, err = sftpfs.Dial(t.Context(), sftpfs.Config{Address: listener.Addr().String(), Username: "u", Password: "p", VerifyHostKey: func(string, string) error { return nil }})
 	if !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("closed before the key = %v; want ErrConnectionLost", err)
+	}
+}
+
+// TestDial_NegotiationDiagnostics checks that incompatibility is actionable and never retried.
+func TestDial_NegotiationDiagnostics(t *testing.T) {
+	for _, tc := range []struct {
+		category, algorithm string
+		options             sftptest.Options
+	}{
+		{"key_exchange", "diffie-hellman-group14-sha1", sftptest.Options{KeyExchanges: []string{"diffie-hellman-group14-sha1"}}},
+		{"cipher", "aes128-cbc", sftptest.Options{Ciphers: []string{"aes128-cbc"}}},
+		{"mac", "hmac-sha1-96", sftptest.Options{Ciphers: []string{"aes128-ctr"}, MACs: []string{"hmac-sha1-96"}}},
+	} {
+		t.Run(tc.category, func(t *testing.T) {
+			server := startServer(t, tc.options)
+			_, err := connect(t, server, func(c *sftpfs.Config) { c.Password = testPassword })
+			var negotiation *remotefs.NegotiationError
+			if !errors.As(err, &negotiation) {
+				t.Fatalf("expected negotiation error, got %v", err)
+			}
+			if negotiation.Category != tc.category || !slices.Contains(negotiation.ServerAlgorithms, tc.algorithm) {
+				t.Fatalf("diagnostic = %+v", negotiation)
+			}
+			if remotefs.Retryable(err) || remotefs.Retryable(errors.Join(err, remotefs.ErrConnectionLost)) {
+				t.Fatal("incompatibility must not retry")
+			}
+			if server.Sessions() != 0 {
+				t.Fatal("incompatible connection started SFTP")
+			}
+		})
+	}
+	for _, mac := range ssh.SupportedAlgorithms().MACs {
+		t.Run(mac, func(t *testing.T) {
+			_, err := connect(t, startServer(t, sftptest.Options{Ciphers: []string{"aes128-ctr"}, MACs: []string{mac}}), func(c *sftpfs.Config) { c.Password = testPassword })
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+// TestDial_HostSignatures accepts RSA SHA-2 server signatures and refuses SHA-1.
+func TestDial_HostSignatures(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, algorithm := range []string{ssh.KeyAlgoRSASHA256, ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSA} {
+		t.Run(algorithm, func(t *testing.T) {
+			restricted, err := ssh.NewSignerWithAlgorithms(signer.(ssh.AlgorithmSigner), []string{algorithm})
+			if err != nil {
+				t.Fatal(err)
+			}
+			server := startServer(t, sftptest.Options{HostKey: restricted})
+			_, err = connect(t, server, func(c *sftpfs.Config) { c.Password = testPassword })
+			if algorithm != ssh.KeyAlgoRSA {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			var negotiation *remotefs.NegotiationError
+			if !errors.As(err, &negotiation) || negotiation.Category != "host_signature" || !slices.Contains(negotiation.ServerAlgorithms, algorithm) {
+				t.Fatalf("unsafe signature diagnostic = %v", err)
+			}
+		})
+	}
+}
+
+// TestDial_AuthenticationSignatures accepts RSA SHA-2 authentication and refuses SHA-1.
+func TestDial_AuthenticationSignatures(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, err := ssh.MarshalPrivateKey(key, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, algorithm := range []string{ssh.KeyAlgoRSASHA256, ssh.KeyAlgoRSASHA512, ssh.KeyAlgoRSA} {
+		t.Run(algorithm, func(t *testing.T) {
+			server := startServer(t, sftptest.Options{PublicKeyAuths: []string{algorithm}, Keys: map[string][]ssh.PublicKey{testUser: {signer.PublicKey()}}})
+			_, err := connect(t, server, func(c *sftpfs.Config) { c.PrivateKey = pem.EncodeToMemory(block) })
+			if algorithm != ssh.KeyAlgoRSA {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			var negotiation *remotefs.NegotiationError
+			if !errors.As(err, &negotiation) || negotiation.Category != "authentication_signature" || remotefs.Retryable(err) {
+				t.Fatalf("unsafe authentication signature diagnostic = %v", err)
+			}
+		})
+	}
+}
+
+// TestDial_TCPTimeoutStops checks that a TCP timeout ends without host verification or retry.
+func TestDial_TCPTimeoutStops(t *testing.T) {
+	calls := 0
+	_, err := sftpfs.DialSSH(t.Context(), sftpfs.Config{
+		Address: "blocked.example:22", Username: testUser, Password: testPassword,
+		VerifyHostKey: func(string, string) error { t.Fatal("timeout must precede host verification"); return nil },
+		DialContext: func(context.Context, string, string) (net.Conn, error) {
+			calls++
+			return nil, &net.DNSError{Err: "i/o timeout", IsTimeout: true}
+		},
+	})
+	if !errors.Is(err, remotefs.ErrConnectTimeout) || remotefs.Retryable(err) || calls != 1 {
+		t.Fatalf("timeout = %v, calls = %d", err, calls)
+	}
+}
+
+// TestDial_RejectsDSAAuthentication refuses an obsolete signing key before opening a network connection.
+// Its synthetic parser fixture has the required field sizes and is never used to sign.
+func TestDial_RejectsDSAAuthentication(t *testing.T) {
+	p := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 1023), big.NewInt(1))
+	q := new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 159), big.NewInt(1))
+	der, err := asn1.Marshal([]any{0, p, q, big.NewInt(2), big.NewInt(8), big.NewInt(3)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = sftpfs.DialSSH(t.Context(), sftpfs.Config{
+		Address: "unused.example:22", Username: testUser,
+		PrivateKey:    pem.EncodeToMemory(&pem.Block{Type: "DSA PRIVATE KEY", Bytes: der}),
+		VerifyHostKey: func(string, string) error { return nil },
+		DialContext: func(context.Context, string, string) (net.Conn, error) {
+			t.Fatal("obsolete key reached network")
+			return nil, nil
+		},
+	})
+	if !errors.Is(err, remotefs.ErrAuth) || !strings.Contains(err.Error(), "obsolete signature") {
+		t.Fatalf("DSA = %v", err)
 	}
 }

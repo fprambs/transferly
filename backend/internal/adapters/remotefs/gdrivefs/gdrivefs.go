@@ -163,6 +163,8 @@ func Dial(ctx context.Context, cfg Config) (*FS, error) {
 
 // call sends a request to the API, with query and a JSON body when given, and decodes the JSON answer into out when given.
 func (f *FS) call(ctx context.Context, method, endpoint string, query url.Values, body, out any) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	resp, err := f.send(ctx, method, f.api+endpoint, query, body, nil)
 	if err != nil {
 		return err
@@ -171,7 +173,7 @@ func (f *FS) call(ctx context.Context, method, endpoint string, query url.Values
 	if out == nil {
 		return nil
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(out); err != nil {
 		return fmt.Errorf("%w: unreadable answer: %w", remotefs.ErrConnectionLost, err)
 	}
 	return nil
@@ -211,7 +213,7 @@ func (f *FS) send(ctx context.Context, method, target string, query url.Values, 
 				Errors []struct{ Reason string } `json:"errors"`
 			} `json:"error"`
 		}
-		_ = json.NewDecoder(resp.Body).Decode(&answer)
+		_ = json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&answer)
 		reason := ""
 		if len(answer.Error.Errors) > 0 {
 			reason = answer.Error.Errors[0].Reason
@@ -286,6 +288,7 @@ func (f *FS) children(ctx context.Context, parent, terms string) ([]file, error)
 		q.Set("driveId", f.drive)
 	}
 	var all []file
+	seen := map[string]bool{}
 	for {
 		var page struct {
 			Files []file `json:"files"`
@@ -295,6 +298,10 @@ func (f *FS) children(ctx context.Context, parent, terms string) ([]file, error)
 			return nil, err
 		}
 		all = append(all, page.Files...)
+		if len(all) > 100000 || (page.Next != "" && seen[page.Next]) {
+			return nil, remotefs.ErrInvalid
+		}
+		seen[page.Next] = true
 		if page.Next == "" {
 			return all, nil
 		}

@@ -78,11 +78,13 @@ export function useTransferStream(): void {
   const queryClient = useQueryClient()
 
   useEffect(() => {
+    let disposed = false
     let failures = 0
     let timer: ReturnType<typeof setTimeout> | undefined
     const connect = (): (() => void) =>
       transport.events({
         onEvent: (event) => {
+          if (disposed) return
           applyEvent(event, () => void queryClient.invalidateQueries({ queryKey: vaultKey }))
           if (event.type === 'connection.state') {
             const { workspaceId, siteId, open } = event.data
@@ -93,14 +95,16 @@ export function useTransferStream(): void {
           }
         },
         onOpen: () => {
+          if (disposed) return
           failures = 0
           void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === 'workspaces' && query.queryKey[2] === 'connections' })
           void api.transfers
             .list({ limit: historyLimit })
-            .then((records) => useTransfersStore.getState().upsert(records))
+            .then((records) => { if (!disposed) useTransfersStore.getState().upsert(records) })
             .catch(() => undefined)
         },
         onClose: () => {
+          if (disposed) return
           timer = setTimeout(() => {
             stop = connect()
           }, retryDelay(failures++))
@@ -108,6 +112,7 @@ export function useTransferStream(): void {
       })
     let stop = connect()
     return () => {
+      disposed = true
       clearTimeout(timer)
       stop()
     }

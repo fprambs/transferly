@@ -208,6 +208,9 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, fmt.Errorf("invalid TRANSFERLY_BASE_URL %q: %w", cfg.BaseURL, err))
 	}
 	cfg.BaseURL = origin
+	if domain := getenv("TRANSFERLY_DOMAIN"); domain != "" && !strings.EqualFold(origin, "https://"+domain) {
+		errs = append(errs, errors.New("TRANSFERLY_BASE_URL must match https://TRANSFERLY_DOMAIN when a domain is configured"))
+	}
 	cfg.AllowedOrigins = []string{origin}
 	for _, extra := range splitList(getenv("TRANSFERLY_ALLOWED_ORIGINS")) {
 		o, err := parseOrigin(extra)
@@ -219,10 +222,12 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	for _, proxy := range splitList(getenv("TRANSFERLY_TRUSTED_PROXIES")) {
 		if _, err := netip.ParsePrefix(proxy); err != nil {
-			if _, addrErr := netip.ParseAddr(proxy); addrErr != nil {
+			addr, addrErr := netip.ParseAddr(proxy)
+			if addrErr != nil {
 				errs = append(errs, fmt.Errorf("invalid TRANSFERLY_TRUSTED_PROXIES entry %q (want an IP address or CIDR)", proxy))
 				continue
 			}
+			proxy = netip.PrefixFrom(addr, addr.BitLen()).String()
 		}
 		cfg.TrustedProxies = append(cfg.TrustedProxies, proxy)
 	}

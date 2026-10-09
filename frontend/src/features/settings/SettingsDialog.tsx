@@ -1,22 +1,27 @@
 import { KeyRound, Lock, ScrollText, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { lazy, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-
-import { AdminPage } from '../admin/AdminPage'
+import { DeferredContent } from '@/lib/layout/DeferredContent'
 import { useSession } from '../auth/use-session'
-import { SecurityPage } from '../security/SecurityPage'
-import { TrustedServers } from '../servers/TrustedServers'
-import { AuditPage } from '../teams/AuditPage'
-import { MembersPage } from '../teams/MembersPage'
 import { canManageMembers } from '../teams/roles'
 import { useWorkspace } from '../workspace/use-workspace'
-
 import { useSettingsDialog, type SettingsSection } from './sections'
-import { SettingsPage } from './SettingsPage'
 import { useVersion } from './use-version'
+/** Loads AdminPage when its section opens. */
+const AdminPage = lazy(() => import('../admin/AdminPage').then((module) => ({ default: module.AdminPage })))
+/** Loads SecurityPage when its section opens. */
+const SecurityPage = lazy(() => import('../security/SecurityPage').then((module) => ({ default: module.SecurityPage })))
+/** Loads TrustedServers when its section opens. */
+const TrustedServers = lazy(() => import('../servers/TrustedServers').then((module) => ({ default: module.TrustedServers })))
+/** Loads AuditPage when its section opens. */
+const AuditPage = lazy(() => import('../teams/AuditPage').then((module) => ({ default: module.AuditPage })))
+/** Loads MembersPage when its section opens. */
+const MembersPage = lazy(() => import('../teams/MembersPage').then((module) => ({ default: module.MembersPage })))
+
+/** Loads SettingsPage when its section opens. */
+const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })))
 
 /** The groups of the side bar, each with its sections and their icons. */
 const groups: ReadonlyArray<{ key: 'account' | 'workspace' | 'instance'; items: ReadonlyArray<{ section: SettingsSection; icon: LucideIcon }> }> = [
@@ -114,7 +119,7 @@ export function SettingsDialog() {
           >
             <XIcon />
           </button>
-          {section === undefined ? null : contents[section]()}
+          <DeferredContent key={section}>{section === undefined ? null : contents[section]()}</DeferredContent>
         </div>
       </DialogContent>
     </Dialog>

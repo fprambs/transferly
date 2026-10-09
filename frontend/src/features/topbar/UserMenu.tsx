@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { sessionKey } from '@/app/session'
+import { announceSessionChange, clearPrivateState } from '@/app/private-state'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
@@ -45,7 +46,9 @@ export function UserMenu() {
           onClick={async () => {
             await api.auth.logout()
             transport.setCsrfToken(undefined)
-            queryClient.clear()
+            transport.resetSession?.()
+            clearPrivateState(queryClient)
+            announceSessionChange()
             queryClient.setQueryData(sessionKey, null)
             await navigate({ to: '/login' })
           }}

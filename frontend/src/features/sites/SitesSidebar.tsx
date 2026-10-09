@@ -1,6 +1,5 @@
 import { ChevronRight, Copy, Ellipsis, FileInput, FileLock2, Folder, FolderPlus, PanelLeftClose, Pencil, Plus, SquareArrowOutUpRight, Trash2, Unplug, Zap, type LucideIcon } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactElement, type ReactNode } from 'react'
+import { useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactElement, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BrandIcon } from '@/components/brand/BrandIcon'
@@ -11,7 +10,6 @@ import { Tip } from '@/components/ui/tip'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Collection, Site, Workspace } from '@/lib/api'
-import { useApi } from '@/lib/api/use-api'
 import { formatShortcut } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useDialogsStore } from '@/state/dialogs-store'
@@ -27,11 +25,11 @@ import { ExportDialog } from './ExportDialog'
 import { ImportDialog } from './ImportDialog'
 import { SiteDialog, type SiteTarget } from './SiteDialog'
 import { colorFill } from './site-colors'
-import { siteErrorKeyOf, type SiteErrorKey } from './errors'
 import { buildTree, type CollectionNode, type TreeNode } from './tree'
-import { canDrop, treeDragType, type TreeDrag } from './tree-drag'
+import type { TreeDrag } from './tree-drag'
+import { useSiteTreeDrag } from './use-site-tree-drag'
 import { useOpenConnections } from './use-open-connections'
-import { sitesKeys, useSitesData } from './use-sites-data'
+import { useSitesData } from './use-sites-data'
 
 /** Tells whether the user may export the sites of a workspace with their secrets: its admins and owner only (ADR-0017). */
 function canExport(workspace: Workspace | undefined): boolean {
@@ -393,50 +391,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
   const [exporting, setExporting] = useState(false)
   const rows = useMemo(() => buildTree({ collections, sites, quick, expanded }), [collections, sites, quick, expanded])
   const [selected, setSelected] = useState<string | null>(null)
-  const api = useApi()
-  const queryClient = useQueryClient()
-  const [dragging, setDragging] = useState<TreeDrag | null>(null)
-  const [over, setOver] = useState<string | null | undefined>(undefined)
-  const [moveFailure, setMoveFailure] = useState<SiteErrorKey | null>(null)
-  const endDrag = (): void => {
-    setDragging(null)
-    setOver(undefined)
-  }
-  const targetOf = (event: DragEvent<HTMLElement>): string | null => (event.target as HTMLElement).closest('[data-drop-target]')?.getAttribute('data-drop-target') || null
-  const dragOver = (event: DragEvent<HTMLElement>): void => {
-    const target = targetOf(event)
-    if (dragging === null || !canDrop(dragging, target, collections, sites)) {
-      setOver(undefined)
-      return
-    }
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    setOver(target)
-  }
-  const drop = async (event: DragEvent<HTMLElement>): Promise<void> => {
-    event.preventDefault()
-    const drag = dragging
-    const target = targetOf(event)
-    endDrag()
-    if (drag === null || !canDrop(drag, target, collections, sites)) {
-      return
-    }
-    setMoveFailure(null)
-    const id = (workspace as Workspace).id
-    try {
-      if (drag.kind === 'site') {
-        await api.sites.move(id, drag.id, target ?? undefined)
-      } else {
-        await api.collections.update(id, drag.id, target === null ? { moveToTop: true } : { parentId: target })
-      }
-      if (target !== null) {
-        setExpanded((open) => new Set([...open, target]))
-      }
-    } catch (error) {
-      setMoveFailure(siteErrorKeyOf(error))
-    }
-    await Promise.all([queryClient.invalidateQueries({ queryKey: sitesKeys.sites(id) }), queryClient.invalidateQueries({ queryKey: sitesKeys.collections(id) })])
-  }
+  const { over, moveFailure, beginDrag, endDrag, dragOver, dragLeave, drop } = useSiteTreeDrag({ workspace, collections, sites, onMoved: (target) => setExpanded((open) => new Set([...open, target])) })
   const actions: CollectionActions = {
     selected,
     onSelect: setSelected,
@@ -459,11 +414,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
     onDisconnect,
     iconOf: (connector) => icons.get(connector) ?? connector,
     draggable: workspace !== undefined && canManageSites(workspace.role),
-    onDragRow: (drag, data) => {
-      data.setData(treeDragType, drag.id)
-      data.effectAllowed = 'move'
-      setDragging(drag)
-    },
+    onDragRow: beginDrag,
     onDragEnd: endDrag,
     dropTarget: over,
   }
@@ -551,7 +502,7 @@ export function SitesSidebar({ onOpen, onHide, onDisconnect = () => undefined }:
         role="tree"
         aria-label={t(($) => $.sidebar.sites)}
         onDragOver={dragOver}
-        onDragLeave={(event) => !event.currentTarget.contains(event.relatedTarget as Node | null) && setOver(undefined)}
+        onDragLeave={dragLeave}
         onDrop={(event) => void drop(event)}
         className={cn('flex min-h-0 flex-1 flex-col gap-px overflow-y-auto rounded-md px-2 pb-4', over === null && 'bg-primary/5 ring-2 ring-primary/40 ring-inset')}
       >

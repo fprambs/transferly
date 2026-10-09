@@ -55,9 +55,9 @@ interface RunOutcome {
 }
 
 /** Reads every file below a side's folder, relative to it. */
-async function collectSide(api: Api, side: SyncSide): Promise<CollectedFile[]> {
-  const list = side.kind === 'remote' ? (path: string) => api.files.list(side.workspaceId, side.siteId, path) : (path: string) => listLocal(side.root, path)
-  return collectRelative(list, side.path, maxEachFiles)
+async function collectSide(api: Api, side: SyncSide, signal?: AbortSignal): Promise<CollectedFile[]> {
+  const list = side.kind === 'remote' ? (path: string, abort?: AbortSignal) => api.files.list(side.workspaceId, side.siteId, path, abort) : (path: string) => listLocal(side.root, path)
+  return collectRelative(list, side.path, maxEachFiles, signal)
 }
 
 /** A key that tells one side of a comparison apart from another, for the query cache. */
@@ -93,8 +93,8 @@ async function checksumOf(api: Api, side: SyncSide, relativePath: string): Promi
  */
 export function useSyncPlan(api: Api, left: SyncSide, right: SyncSide): SyncPlan {
   const queryClient = useQueryClient()
-  const leftQuery = useQuery({ queryKey: ['sync', sideKey(left)], queryFn: () => collectSide(api, left) })
-  const rightQuery = useQuery({ queryKey: ['sync', sideKey(right)], queryFn: () => collectSide(api, right) })
+  const leftQuery = useQuery({ queryKey: ['sync', sideKey(left)], queryFn: ({ signal }) => collectSide(api, left, signal) })
+  const rightQuery = useQuery({ queryKey: ['sync', sideKey(right)], queryFn: ({ signal }) => collectSide(api, right, signal) })
   const [direction, setDirectionState] = useState<SyncDirection>('leftToRight')
   const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(new Map())
   const [includedOverrides, setIncludedOverrides] = useState<ReadonlyMap<string, boolean>>(new Map())

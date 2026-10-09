@@ -68,6 +68,8 @@ type Capabilities struct {
 
 // Errors returned by adapters. Adapters wrap them with context, so callers must use [errors.Is].
 var (
+	// ErrUnsafeReplace means the server cannot preserve the destination during a replacement.
+	ErrUnsafeReplace = errors.New("safe file replacement is not supported")
 	// ErrNotFound means the path does not exist.
 	ErrNotFound = errors.New("not found")
 	// ErrExists means the path already exists.
@@ -88,6 +90,8 @@ var (
 	ErrHostKeyUnknown = errors.New("host key not trusted yet")
 	// ErrConnectionLost means the connection dropped; the operation may be retried after reconnecting.
 	ErrConnectionLost = errors.New("connection lost")
+	// ErrConnectTimeout means a connection attempt timed out; retry only on explicit user action.
+	ErrConnectTimeout = errors.New("connection timed out")
 	// ErrQuota means a storage quota was exceeded.
 	ErrQuota = errors.New("quota exceeded")
 	// ErrElevationRefused means the server would not let the session act as another user, as when sudo refuses the account or
@@ -98,7 +102,8 @@ var (
 // Retryable reports whether an operation that failed with err may succeed after reconnecting.
 // Authentication, host key and permission failures are never retried.
 func Retryable(err error) bool {
-	return errors.Is(err, ErrConnectionLost)
+	var negotiation *NegotiationError
+	return !errors.As(err, &negotiation) && !errors.Is(err, ErrConnectTimeout) && errors.Is(err, ErrConnectionLost)
 }
 
 // RemoteFS is a file system on a remote server, seen through one protocol.
@@ -130,6 +135,15 @@ type RemoteFS interface {
 	Ping(ctx context.Context) error
 	// Close releases the connection; later operations fail with [ErrConnectionLost].
 	Close() error
+}
+
+// Replacer commits a staged file over an existing destination without deleting the original first.
+// A failure must preserve the original; unsupported servers return ErrUnsupported.
+type Replacer interface {
+	// CanReplace reports whether atomic replacement was negotiated for this connection.
+	CanReplace() bool
+	// Replace atomically moves from onto to when this server supports that guarantee.
+	Replace(ctx context.Context, from, to string) error
 }
 
 // SizeChecker is implemented by connections to servers whose reported sizes may not match the bytes they send, as some

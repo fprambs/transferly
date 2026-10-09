@@ -20,6 +20,9 @@
     "vault_locked": "Desbloquea el vault para abrir este archivo.",
     "destination_blocked": "La política del servidor no permite esta dirección.",
     "network_error": "No se pudo contactar con el servidor.",
-    "unknown": "Algo salió mal. Inténtalo de nuevo."
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "safe_replace_unsupported": "Este servidor no puede reemplazar un archivo existente con seguridad. Guarda con otro nombre.",
+    "ssh_algorithm_incompatible": "No hay algoritmos SSH compatibles.",
+    "remote_connection_timeout": "La conexión agotó el tiempo de espera. Los intentos automáticos se detuvieron."
   }
 }

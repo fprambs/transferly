@@ -167,6 +167,7 @@ type dial struct {
 	finished   bool
 	conn       *conn
 	openerGone bool
+	aborted    bool
 }
 
 // pool holds the connections of one key. Every field but users is guarded by mu; users is guarded by the
@@ -462,7 +463,7 @@ func (m *Manager) await(ctx context.Context, p *pool, d *dial, opener bool) (*co
 		c, d.conn = d.conn, nil
 	}
 	p.mu.Unlock()
-	if c == nil && d.err != nil && !errors.Is(d.err, context.Canceled) && !errors.Is(d.err, context.DeadlineExceeded) {
+	if c == nil && d.err != nil && !d.aborted {
 		return nil, d.err
 	}
 	return c, nil
@@ -484,6 +485,7 @@ func (m *Manager) open(ctx context.Context, p *pool, d *dial, session string) {
 	p.mu.Lock()
 	p.dialing = nil
 	d.err = err
+	d.aborted = ctx.Err() != nil
 	d.finished = true
 	closed := err == nil && p.closed
 	switch {
@@ -515,6 +517,9 @@ func (m *Manager) maxOf(ctx context.Context, key Key) int {
 	}
 	return m.cfg.MaxPerSite
 }
+
+// MaxConnections reports the connection budget used to plan operations requiring two simultaneous leases.
+func (m *Manager) MaxConnections(ctx context.Context, key Key) int { return m.maxOf(ctx, key) }
 
 // connect opens a connection, retrying network failures with exponential backoff and jitter.
 // Failures that repeating cannot fix, such as bad credentials or a changed host key, are returned at once.

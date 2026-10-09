@@ -188,8 +188,8 @@ func (s *Service) Terminal(ctx context.Context, t Target, dir string, cols, rows
 	}
 	term, err := sheller.Shell(ctx, dir, cols, rows)
 	if err != nil {
-		lease.Release(err)
+		lease.Release(errors.Join(err, ctx.Err()))
 		return nil, nil, err
 	}
-	return term, func() { lease.Release(nil) }, nil
+	return term, func() { lease.Release(ctx.Err()) }, nil
 }

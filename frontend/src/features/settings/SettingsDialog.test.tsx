@@ -10,6 +10,11 @@ function sections(): HTMLElement {
   return screen.getByRole('navigation', { name: 'Settings' })
 }
 
+/** Waits for a deferred settings module, including its first import under coverage instrumentation. */
+function sectionHeading(name: string): Promise<HTMLElement> {
+  return screen.findByRole('heading', { level: 1, name }, { timeout: 10_000 })
+}
+
 /**
  * Covers {@link SettingsDialog} and {@link useSettingsDialog}.
  *
@@ -31,12 +36,12 @@ describe('settings dialog', () => {
     const user = userEvent.setup()
     const { history } = await renderApp({ path: '/?settings=general' })
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'General' })).toBeInTheDocument()
+    expect(await sectionHeading('General')).toBeInTheDocument()
     expect(within(sections()).getByRole('button', { name: 'General' })).toHaveAttribute('aria-current', 'page')
 
     await user.click(within(sections()).getByRole('button', { name: 'Security' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Security' })).toBeInTheDocument()
+    expect(await sectionHeading('Security')).toBeInTheDocument()
     expect(within(sections()).getByRole('button', { name: 'Security' })).toHaveAttribute('aria-current', 'page')
     expect(history.location.search).toContain('settings=security')
     expect(within(sections()).getByText('Transferly v0.5.0')).toBeInTheDocument()
@@ -44,7 +49,7 @@ describe('settings dialog', () => {
 
   it('lists the sections the account may see', async () => {
     await renderApp({ path: '/?settings=general' })
-    await screen.findByRole('heading', { level: 1, name: 'General' })
+    await sectionHeading('General')
 
     const names = within(sections())
       .getAllByRole('button')
@@ -55,7 +60,7 @@ describe('settings dialog', () => {
   it('hides the administration from a user who is not an administrator', async () => {
     mockSession({ ...adminSession, user: { ...adminSession.user, role: 'user' } })
     await renderApp({ path: '/?settings=general' })
-    await screen.findByRole('heading', { level: 1, name: 'General' })
+    await sectionHeading('General')
 
     expect(within(sections()).queryByRole('button', { name: 'Administration' })).not.toBeInTheDocument()
   })
@@ -63,7 +68,7 @@ describe('settings dialog', () => {
   it('closes with Escape and leaves the page under it', async () => {
     const user = userEvent.setup()
     const { history } = await renderApp({ path: '/?settings=general' })
-    await screen.findByRole('heading', { level: 1, name: 'General' })
+    await sectionHeading('General')
 
     await user.keyboard('{Escape}')
 

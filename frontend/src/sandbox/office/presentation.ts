@@ -1,3 +1,4 @@
+import { checkOfficeBudget } from './budget'
 import JSZip from 'jszip'
 
 import { element, fill, safeColor } from './common'
@@ -283,6 +284,7 @@ async function drawSlide(deck: Deck, path: string, number: number, labels: Recor
  * effects are left out, and at most {@link maxSlides} slides are drawn. Sizes are fractions of the slide, so it scales with the page.
  */
 export async function renderPresentation(bytes: Uint8Array, root: HTMLElement, labels: Record<string, string>): Promise<void> {
+  await checkOfficeBudget(bytes)
   const deck = new Deck(await JSZip.loadAsync(bytes))
   const presentation = await deck.part('ppt/presentation.xml')
   if (presentation === null) {

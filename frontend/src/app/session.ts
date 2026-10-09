@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 
 import type { Api } from '@/lib/api/use-api'
 import { ApiError, type Transport } from '@/lib/transport'
+import { ensurePrivateOwner } from './private-state'
 
 /** Query key of the signed-in session. */
 export const sessionKey = ['session'] as const
@@ -22,6 +23,7 @@ export function sessionQuery(api: Api, transport: Transport) {
     queryFn: async () => {
       try {
         const session = await api.auth.me()
+        ensurePrivateOwner(session.user.id)
         transport.setCsrfToken(session.csrfToken)
         return session
       } catch (error) {

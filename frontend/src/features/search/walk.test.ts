@@ -36,6 +36,10 @@ async function run(tree: Tree, root: string, matches: (name: string) => boolean,
  * - progress is reported after every entry looked at, when asked for
  */
 describe('searchTree', () => {
+  it('reports a traversal timeout as an incomplete search', async () => {
+    const summary = await searchTree(async () => { throw new DOMException('deadline', 'TimeoutError') }, '/', () => true, () => {}, new AbortController().signal)
+    expect(summary).toEqual({ scanned: 0, truncated: true, canceled: false })
+  })
   it('reports matching files and folders with their relative path, breadth first', async () => {
     const tree: Tree = {
       '/root': [entry('/root/report.csv'), entry('/root/notes.txt'), { ...entry('/root/reports'), type: 'directory' }],
@@ -57,9 +61,9 @@ describe('searchTree', () => {
     expect(found.map((match) => match.relativePath)).toEqual(['report.txt'])
   })
 
-  it('keeps a path that is not below the searched folder as it is', async () => {
+  it('refuses a path that is not below the searched folder', async () => {
     const { found } = await run({ '/root': [entry('/elsewhere/report.txt')] }, '/root', (name) => name.includes('report'))
-    expect(found).toEqual([{ relativePath: '/elsewhere/report.txt', entry: entry('/elsewhere/report.txt') }])
+    expect(found).toEqual([])
   })
 
   it('leaves out symlinks and other special entries, and never walks into them', async () => {

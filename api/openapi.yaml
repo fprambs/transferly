@@ -3332,7 +3332,7 @@ paths:
       security:
         - sessionCookie: []
       summary: Upload a file
-      description: The body is streamed to a "<path>.part" file with no size limit, which takes the place of path only once it is complete; path itself is never partially written. If an upload is interrupted the ".part" file stays there, and a request with mode=resume and the size of that file (found by getting "<path>.part") as offset completes it.
+      description: The body is streamed to a "<directory>/transferly-<transferId>.part" file owned by its recorded transfer. An interrupted upload retains that staging file; resume must use the same transferId and its staged size as offset. Existing destinations are replaced only when the adapter and server provide safe replacement; otherwise safe_replace_unsupported preserves the original and the client can save under another name. Unowned legacy "<path>.part" files are not adopted automatically.
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/SiteId"

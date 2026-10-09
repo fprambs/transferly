@@ -124,6 +124,8 @@ type Store interface {
 
 // Config tunes the service. Zero values select the defaults.
 type Config struct {
+	// OnPersistenceError reports failed transfer writes without including credentials or remote response bodies.
+	OnPersistenceError func(error)
 	// EventEvery is the least time between progress events of one transfer; 250 ms by default.
 	EventEvery time.Duration
 	// SaveEvery is the least time between progress writes to the store; 2 seconds by default.

@@ -4,6 +4,32 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [1.0.0-rc.1] - Unreleased
+
+Stable-readiness candidate; not yet tagged or published.
+
+### Security and integrity
+
+- Revoke terminal access and isolate private state across sessions.
+- Preserve original files during failed replacement; use transfer-owned staging and refuse unsafe resume.
+- Bound remote metadata, archive/Office parsing and tree traversal; validate canonical paths.
+- Validate HTTPS origins and trusted proxies; document and test restore, upgrade and rollback.
+
+### Connections and interface
+
+- Support secure SSH group-exchange SHA-256 and restrict MAC and signature algorithms.
+- Explain negotiation failures and stop automatic retries on incompatibility and SFTP TCP timeout.
+- Fix the shared connection loop that could restart indefinitely after connector deadlines.
+- Prevent circular waits during copies, refresh previews and contain deferred import failures.
+- Extract reusable download and site-tree controllers and keep initial JavaScript under 500,000 gzip bytes.
+
+### Upgrade notes
+
+- Back up PostgreSQL and `/data`, including the instance key.
+- Legacy `.part` files are preserved but not adopted automatically; restart interrupted uploads deliberately.
+- Safe overwrite requires server support. This release supports one application instance.
+- Full draft notes: [1.0.0-rc.1](docs/releases/1.0.0-rc.1.md).
+
 ## [0.9.0] - 2026-10-06
 
 A round of fixes from daily use against enterprise SFTP gateways, FileZilla imports and large files, with faster and steadier

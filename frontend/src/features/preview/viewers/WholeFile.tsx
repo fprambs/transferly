@@ -34,7 +34,8 @@ export function WholeFile({ source, limit, children }: WholeFileProps) {
     queryKey: ['preview', source.key, 'all'],
     queryFn: ({ signal }) => source.read(0, source.size, signal),
     enabled: !tooLarge && !asBytes,
-    staleTime: Infinity,
+    staleTime: 0,
+    gcTime: 0,
     retry: false,
   })
   if (asBytes) {

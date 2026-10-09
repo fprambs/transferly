@@ -1,3 +1,5 @@
+import { DeferredContent } from '@/lib/layout/DeferredContent'
+import { lazy } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
 import { ArrowLeftRight, Columns2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -15,7 +17,7 @@ import { useLocalRoot } from '../local/local-root-store'
 import { useRecentSites } from '../sites/recent-sites'
 import { homePath } from '../sites/start-path'
 import { useSitesData } from '../sites/use-sites-data'
-import { TerminalPanel, type OpenTerminal } from '../terminal/TerminalPanel'
+import type { OpenTerminal } from '../terminal/TerminalPanel'
 import { CompareDialog } from '../sync/CompareDialog'
 import type { SyncSide } from '../sync/sides'
 import { useTabs } from '../tabs/tabs-store'
@@ -24,6 +26,9 @@ import { useDisconnect } from '../toolbar/use-disconnect'
 import { useWorkspace } from '../workspace/use-workspace'
 
 import { Explorer } from './Explorer'
+
+/** Loads the terminal panel only when a shell is opened. */
+const TerminalPanel = lazy(() => import('../terminal/TerminalPanel').then((module) => ({ default: module.TerminalPanel })))
 
 /** Height of the log panel while collapsed: its header, which keeps the button that opens it again. */
 const logHeaderPx = 33
@@ -172,7 +177,7 @@ export function SiteExplorer() {
         {terminals.terminals.length > 0 && <ResizeHandle aria-label={t(($) => $.panels.terminal)} />}
         {terminals.terminals.length > 0 && (
           <Panel id="terminal" defaultSize={260} minSize={120} maxSize="80%" groupResizeBehavior="preserve-pixel-size" className="flex h-full min-h-0 flex-col">
-            <TerminalPanel
+            <DeferredContent><TerminalPanel
               workspaceId={workspace.id}
               siteId={siteId}
               terminals={terminals.terminals}
@@ -181,7 +186,7 @@ export function SiteExplorer() {
               onNew={() => openTerminal(path)}
               onClose={closeTerminal}
               onCloseAll={() => setShells({ ...terminals, terminals: [], active: 0 })}
-            />
+            /></DeferredContent>
           </Panel>
         )}
       </Group>

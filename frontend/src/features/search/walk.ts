@@ -1,4 +1,5 @@
 import type { RemoteEntry } from '@/lib/api'
+import { walkTree, TreeLimitError } from '@/lib/tree-walk'
 
 /** Most entries a search reads before it stops looking further, so a pathological tree cannot run forever. */
 export const maxScanned = 20_000
@@ -27,7 +28,7 @@ export interface SearchSummary {
 /** Turns an absolute path below a folder into its path relative to that folder. */
 function relativeTo(root: string, path: string): string {
   const prefix = root.endsWith('/') ? root : `${root}/`
-  return path.startsWith(prefix) ? path.slice(prefix.length) : path
+  return path.slice(prefix.length)
 }
 
 /**
@@ -37,52 +38,31 @@ function relativeTo(root: string, path: string): string {
  * reported {@link maxMatches} matches.
  */
 export async function searchTree(
-  list: (path: string) => Promise<RemoteEntry[]>,
+  list: (path: string, signal?: AbortSignal) => Promise<RemoteEntry[]>,
   root: string,
   matches: (name: string) => boolean,
   onMatch: (match: SearchMatch) => void,
   signal: AbortSignal,
   onProgress?: (scanned: number) => void,
 ): Promise<SearchSummary> {
-  const pending = [root]
   let scanned = 0
   let found = 0
-  for (let folder = pending.shift(); folder !== undefined; folder = pending.shift()) {
-    if (signal.aborted) {
-      return { scanned, truncated: false, canceled: true }
-    }
-    let entries: RemoteEntry[]
-    try {
-      entries = await list(folder)
-    } catch (error) {
-      if (signal.aborted) {
-        return { scanned, truncated: false, canceled: true }
-      }
-      throw error
-    }
-    for (const entry of entries) {
-      if (signal.aborted) {
-        return { scanned, truncated: false, canceled: true }
-      }
-      if (entry.type !== 'file' && entry.type !== 'directory') {
-        continue
-      }
-      scanned += 1
+  let truncated = false
+  try {
+    await walkTree(list, root, (entry) => {
+      scanned++
       onProgress?.(scanned)
       if (matches(entry.name)) {
         onMatch({ relativePath: relativeTo(root, entry.path), entry })
-        found += 1
-        if (found >= maxMatches) {
-          return { scanned, truncated: true, canceled: false }
-        }
+        found++
       }
-      if (entry.type === 'directory') {
-        pending.push(entry.path)
-      }
-      if (scanned >= maxScanned) {
-        return { scanned, truncated: true, canceled: false }
-      }
-    }
+      truncated = scanned >= maxScanned || found >= maxMatches
+      return !truncated
+    }, signal)
+  } catch (error) {
+    if (signal.aborted) return { scanned, truncated: false, canceled: true }
+    if (error instanceof TreeLimitError || (error instanceof DOMException && error.name === 'TimeoutError')) truncated = true
+    else throw error
   }
-  return { scanned, truncated: false, canceled: false }
+  return { scanned, truncated, canceled: signal.aborted }
 }

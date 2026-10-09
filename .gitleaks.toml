@@ -1,0 +1,14 @@
+# Retain every default rule. Compressed OpenAPI chunks are scanned in their original api/openapi.yaml source.
+# Both the generated path and a complete base64-only literal must match; assignments and other files remain scanned.
+# Configuration format: https://github.com/gitleaks/gitleaks#configuration
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+  [[rules.allowlists]]
+  description = "Generated compressed OpenAPI base64 literal, with its uncompressed source scanned separately"
+  condition = "AND"
+  regexTarget = "line"
+  paths = ['''(^|/)backend/internal/transport/httpapi/api\.gen\.go$''']
+  regexes = ['''^(\s*"[A-Za-z0-9+/=]{64,}",\s*)+$''']
