@@ -32,8 +32,7 @@ describe('collectRelative', () => {
     expect(files).toEqual([{ relativePath: 'a.txt', entry: entry('/a.txt') }])
   })
 
-  it('keeps the path as it is when it is not below the compared folder', async () => {
-    const files = await collectRelative(() => Promise.resolve([entry('/elsewhere/a.txt')]), '/site/backup', 10)
-    expect(files).toEqual([{ relativePath: '/elsewhere/a.txt', entry: entry('/elsewhere/a.txt') }])
+  it('rejects paths outside the compared folder', async () => {
+    await expect(collectRelative(() => Promise.resolve([entry('/elsewhere/a.txt')]), '/site/backup', 10)).rejects.toThrow()
   })
 })

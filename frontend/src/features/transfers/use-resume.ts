@@ -7,11 +7,11 @@ import type { TransferRecord } from '@/lib/transport'
 import { parentPath } from '../explorer/entries'
 import { filesKey } from '../explorer/files-key'
 
-import { resumeUpload, ResumeMismatchError } from './resume'
+import { resumeUpload, ResumeMismatchError, LegacyResumeError } from './resume'
 import { forgetUpload, recallUpload } from './upload-sources'
 
 /** Why a resume did not go through. */
-export type ResumeFailure = 'mismatch' | 'unknown'
+export type ResumeFailure = 'mismatch' | 'legacy' | 'unknown'
 
 /** What {@link useResume} offers. */
 export interface Resume {
@@ -49,7 +49,7 @@ export function useResume(): Resume {
       forgetUpload(record.id)
       await queryClient.invalidateQueries({ queryKey: filesKey(record.workspaceId, siteId, parentPath(record.path)) })
     } catch (error) {
-      setFailure(error instanceof ResumeMismatchError ? 'mismatch' : 'unknown')
+      setFailure(error instanceof ResumeMismatchError ? 'mismatch' : error instanceof LegacyResumeError ? 'legacy' : 'unknown')
     }
   }
 

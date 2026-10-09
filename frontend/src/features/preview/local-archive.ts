@@ -100,11 +100,15 @@ async function readZip(blob: Blob): Promise<{ entries: ZipEntry[]; truncated: bo
   let directorySize = tailView.getUint32(end + 12, true)
   let directoryOffset = tailView.getUint32(end + 16, true)
   if (end >= 20 && tailView.getUint32(end - 20, true) === 0x07064b50) {
-    const zip64 = view(await slice(blob, Number(tailView.getBigUint64(end - 12, true)), blob.size))
+    const zip64Offset = Number(tailView.getBigUint64(end - 12, true))
+    if (!Number.isSafeInteger(zip64Offset) || zip64Offset < 0 || zip64Offset + 56 > blob.size) throw guided('archive_unsupported')
+    const zip64 = view(await slice(blob, zip64Offset, zip64Offset + 56))
     count = Number(zip64.getBigUint64(32, true))
     directorySize = Number(zip64.getBigUint64(40, true))
     directoryOffset = Number(zip64.getBigUint64(48, true))
   }
+  if (count > 100_000 || directorySize > 16 * 1024 * 1024) throw guided('archive_too_large')
+  if (!Number.isSafeInteger(directoryOffset) || !Number.isSafeInteger(directorySize) || directoryOffset < 0 || directoryOffset + directorySize > blob.size) throw guided('archive_unsupported')
   const directory = await slice(blob, directoryOffset, directoryOffset + directorySize)
   const read = view(directory)
   const entries: ZipEntry[] = []

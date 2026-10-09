@@ -1,0 +1,21 @@
+# Reviewed synthetic test keys and the public Azurite key.
+# Exact historical fingerprints only; future findings still require review.
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/sshkey_test.go:private-key:163
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/openssh-ed25519-encrypted:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/openssh-ed25519:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/pem-ec-p224:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/pem-rsa-encrypted:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/pem-rsa:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/pkcs8-ecdsa-encrypted:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/pkcs8-ecdsa:private-key:1
+0cb73647f26dafe1ef57be44378fc35834ab4ad8:backend/internal/core/sshkey/testdata/pkcs8-x25519-encrypted:private-key:1
+126b7b251cf2224daf360a475bef9c6c6945a92c:backend/internal/core/mfa/mfa_test.go:generic-api-key:220
+1b62eb5c42b3fe5643a8319c10861a1035e57fe8:frontend/e2e/specs/azure.spec.ts:generic-api-key:8
+3095c22eea0d932f528fe8afc379a176c6f738a0:backend/internal/core/mfa/mfa_test.go:generic-api-key:220
+5ae37166009448c069f47cdac843b969feae0d95:backend/internal/adapters/remotefs/azblobfs/azurite_test.go:generic-api-key:23
+5eb3b241597e92c5976ad27c8c3d9aa54f9656a6:backend/internal/transport/httpapi/sites_test.go:generic-api-key:100
+89464626e3a15e87791e6d6b74161209b1de5548:frontend/e2e/specs/security.spec.ts:generic-api-key:39
+baf1d2fd4915312ae6bf0f33d4d91bd5c9be5403:testenv/preview-samples/certificates/private-key.pem:private-key:1
+ddc179feccd92704989df93ee1b23d987759c288:backend/cmd/fakeazure/main.go:generic-api-key:27
+e8c4fe96f96641ce6dee4f73bcaccf527782ba28:backend/internal/core/mfa/mfa_test.go:generic-api-key:222
+ee42721c4ec7bfb465a3f2dec1fdf819b86902c1:backend/internal/core/auth/password_test.go:generic-api-key:78

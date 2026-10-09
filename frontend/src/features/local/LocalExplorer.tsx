@@ -73,9 +73,9 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
     () =>
       files.map((entry) => {
         const open = () => readLocalFile(root as FileSystemDirectoryHandle, entry.path)
-        return withLocalArchive(localSource(entry, open), open)
+        return withLocalArchive(localSource(entry, open, version), open)
       }),
-    [files, root],
+    [files, root, version],
   )
   const preview = (entry: RemoteEntry): void => setPreviewing(files.findIndex((file) => file.path === entry.path))
   const timeZone = resolveTimeZone()

@@ -80,7 +80,7 @@ async function waitForTransfer(api: Api, transferId: string): Promise<void> {
       return
     }
     if (transfer.status !== 'queued' && transfer.status !== 'running') {
-      throw new Error(`the copy did not finish: ${transfer.status}`)
+      throw new ApiError({ type: 'about:blank', title: `the copy did not finish: ${transfer.status}`, status: 422, code: transfer.errorCode || 'unknown' })
     }
     await new Promise((resolve) => setTimeout(resolve, pollEvery))
   }

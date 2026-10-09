@@ -1,4 +1,5 @@
 import type { RemoteEntry } from '@/lib/api'
+import { walkTree } from '@/lib/tree-walk'
 
 /** Most files a folder may hold to be downloaded one by one. */
 export const maxEachFiles = 500
@@ -30,20 +31,13 @@ export function startDownload(url: string): void {
 }
 
 /** Lists the files of a folder and of its subfolders, breadth first; links and special files are left out. */
-export async function collectFiles(list: (path: string) => Promise<RemoteEntry[]>, root: string, limit: number): Promise<RemoteEntry[]> {
+export async function collectFiles(list: (path: string, signal?: AbortSignal) => Promise<RemoteEntry[]>, root: string, limit: number, signal?: AbortSignal): Promise<RemoteEntry[]> {
   const found: RemoteEntry[] = []
-  const pending = [root]
-  for (let folder = pending.shift(); folder !== undefined; folder = pending.shift()) {
-    for (const entry of await list(folder)) {
-      if (entry.type === 'directory') {
-        pending.push(entry.path)
-      } else if (entry.type === 'file') {
-        found.push(entry)
-        if (found.length > limit) {
-          throw new TooManyFiles()
-        }
-      }
+  await walkTree(list, root, (entry) => {
+    if (entry.type === 'file') {
+      found.push(entry)
+      if (found.length > limit) throw new TooManyFiles()
     }
-  }
+  }, signal)
   return found
 }

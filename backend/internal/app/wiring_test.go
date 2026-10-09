@@ -243,3 +243,12 @@ func TestNewWiring_VaultRememberSessions(t *testing.T) {
 		}
 	}
 }
+
+// TestPersistenceLogger verifies that a store failure is visible to instance operators.
+func TestPersistenceLogger(t *testing.T) {
+	var logs bytes.Buffer
+	persistenceLogger(slog.New(slog.NewTextHandler(&logs, nil)))(errors.New("database unavailable"))
+	if !strings.Contains(logs.String(), "transfer persistence failed") {
+		t.Fatalf("missing diagnostic: %s", logs.String())
+	}
+}

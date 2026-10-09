@@ -28,6 +28,10 @@ export const test = base.extend<{ shell: ShellPage; quickId: string; folder: str
           Object.assign(preferences, request.postDataJSON() as Record<string, unknown>)
         }
         const response = await route.fetch({ method: 'GET', postData: undefined })
+        if (!response.ok()) {
+          await route.fulfill({ response })
+          return
+        }
         const body = (await response.json()) as { user: Record<string, unknown> }
         const user = { ...body.user, ...preferences }
         await route.fulfill({ status: 200, json: request.method() === 'PATCH' ? user : { ...body, user } })

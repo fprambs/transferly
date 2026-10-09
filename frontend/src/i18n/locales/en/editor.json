@@ -20,6 +20,9 @@
     "vault_locked": "Unlock the vault to open this file.",
     "destination_blocked": "This address is not allowed by the server policy.",
     "network_error": "Could not reach the server.",
-    "unknown": "Something went wrong. Try again."
+    "unknown": "Something went wrong. Try again.",
+    "safe_replace_unsupported": "This server cannot safely replace an existing file. Save under a different name.",
+    "ssh_algorithm_incompatible": "No compatible SSH algorithms.",
+    "remote_connection_timeout": "Connection timed out. Automatic attempts stopped."
   }
 }

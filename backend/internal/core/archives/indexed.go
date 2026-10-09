@@ -22,6 +22,9 @@ func typeOf(mode fs.FileMode) EntryType {
 
 // listZip lists a ZIP archive from its central directory, read by offset at the end of the file.
 func listZip(src Source) ([]Entry, bool, error) {
+	if err := checkZipIndex(src); err != nil {
+		return nil, false, err
+	}
 	reader, err := zip.NewReader(src, src.Size())
 	if err != nil {
 		return nil, false, ErrNotArchive
@@ -37,6 +40,9 @@ func listZip(src Source) ([]Entry, bool, error) {
 
 // openZip reads one file entry of a ZIP archive, refusing encrypted entries and entries over the caps before decompressing them.
 func openZip(src Source, name string) (io.ReadCloser, int64, error) {
+	if err := checkZipIndex(src); err != nil {
+		return nil, 0, err
+	}
 	reader, err := zip.NewReader(src, src.Size())
 	if err != nil {
 		return nil, 0, ErrNotArchive

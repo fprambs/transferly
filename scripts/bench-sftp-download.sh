@@ -26,7 +26,7 @@ code=$(curl -s -o /tmp/r -w '%{http_code}' -c $J -H 'Content-Type: application/j
 H="X-CSRF-Token: $(jq -r .csrfToken /tmp/r)"
 for step in setup unlock; do curl -s -o /dev/null -b $J -H "$H" -H 'Content-Type: application/json' -d "$M" $B/api/v1/vault/$step; done
 WS=$(curl -s -b $J $B/api/v1/workspaces | jq -r '.[0].id')
-Q=$(curl -s -b $J -H "$H" -H 'Content-Type: application/json' -d '{"protocol":"sftp","host":"sftp","port":22,"username":"transferly","authMethod":"password","password":"transferly"}' $B/api/v1/workspaces/$WS/quick-connections | jq -r .id)
+Q=$(curl -s -b $J -H "$H" -H 'Content-Type: application/json' -d '{"connector":"sftp","config":{"host":"sftp","port":"22","username":"transferly","auth":"password"},"secrets":{"password":"transferly"}}' $B/api/v1/workspaces/$WS/quick-connections | jq -r .id)
 F=$B/api/v1/workspaces/$WS/sites/$Q/files
 if [ "$(curl -s -o /tmp/l -w '%{http_code}' -b $J "$F?path=/")" = 409 ]; then
   curl -s -o /dev/null -b $J -H "$H" -H 'Content-Type: application/json' -d "{\"host\":\"sftp\",\"port\":22,\"keyType\":\"$(jq -r .params.keyType /tmp/l)\",\"fingerprint\":\"$(jq -r .params.fingerprint /tmp/l)\"}" $B/api/v1/workspaces/$WS/known-hosts

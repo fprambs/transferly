@@ -252,20 +252,22 @@ func TestRemoteFiles_Download(t *testing.T) {
 func TestRemoteFiles_ResumableUpload(t *testing.T) {
 	t.Parallel()
 	e := newFileEnv(t)
-	e.a.upload(e.ws, e.site, q("path", "/movie.part"), "first-half|", e.cookie, e.csrf)
+	id := uuid.NewString()
+	part := "/transferly-" + id + ".part"
+	e.a.upload(e.ws, e.site, q("path", part), "first-half|", e.cookie, e.csrf)
 
-	size := e.get("/entry", q("path", "/movie.part"), nil).entry(t).Size
-	done := e.a.upload(e.ws, e.site, q("path", "/movie", "mode", "resume", "offset", "11"), "second-half", e.cookie, e.csrf)
+	size := e.get("/entry", q("path", part), nil).entry(t).Size
+	done := e.a.upload(e.ws, e.site, q("path", "/movie", "transferId", id, "mode", "resume", "offset", "11"), "second-half", e.cookie, e.csrf)
 	if size != 11 || done.Status != http.StatusCreated || done.entry(t).Size != 22 {
 		t.Fatalf("resume from %d = %d %s", size, done.Status, done.Body)
 	}
 	if got := e.get("/content", q("path", "/movie"), nil); string(got.Body) != "first-half|second-half" {
 		t.Errorf("content = %q", got.Body)
 	}
-	expectProblem(t, e.get("/entry", q("path", "/movie.part"), nil), 404, "path_not_found")
+	expectProblem(t, e.get("/entry", q("path", part), nil), 404, "path_not_found")
 
-	e.a.upload(e.ws, e.site, q("path", "/movie.part"), "first-", e.cookie, e.csrf)
-	e.a.upload(e.ws, e.site, q("path", "/movie", "mode", "resume", "offset", "6"), "HALF|SECOND", e.cookie, e.csrf)
+	e.a.upload(e.ws, e.site, q("path", part), "first-", e.cookie, e.csrf)
+	e.a.upload(e.ws, e.site, q("path", "/movie", "transferId", id, "mode", "resume", "offset", "6"), "HALF|SECOND", e.cookie, e.csrf)
 	if got := e.get("/content", q("path", "/movie"), nil); !strings.HasPrefix(string(got.Body), "first-HALF|SECOND") {
 		t.Errorf("content after a rewrite = %q", got.Body)
 	}

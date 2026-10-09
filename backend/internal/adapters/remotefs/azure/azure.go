@@ -27,6 +27,9 @@ import (
 // APIVersion is the version of the REST APIs every request asks for.
 const APIVersion = "2023-11-03"
 
+// errorReadTimeout bounds a remote error body even when it stalls; tests use a shorter budget.
+var errorReadTimeout = 10 * time.Second
+
 // Config tells how to reach a service of a storage account.
 type Config struct {
 	// Endpoint is the base URL of the service: https://{account}.blob.core.windows.net, or an emulator with the account in its
@@ -192,7 +195,9 @@ func failure(resp *http.Response) error {
 		var body struct {
 			Code string `xml:"Code"`
 		}
-		raw, _ := io.ReadAll(resp.Body)
+		deadline := time.AfterFunc(errorReadTimeout, func() { _ = resp.Body.Close() })
+		defer deadline.Stop()
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 		_ = xml.Unmarshal(raw, &body)
 		code = body.Code
 	}

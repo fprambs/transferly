@@ -86,6 +86,16 @@ async function renderDock() {
  * - a failure of the server shows the generic message
  */
 describe('resuming uploads', () => {
+  it('explains why an older staging file is preserved without adopting it', async () => {
+    const uploads = mockServer()
+    server.use(http.get('/api/v1/workspaces/:id/sites/:siteId/files/entry', ({ request }) => new URL(request.url).searchParams.get('path') === '/www/big.bin.part' ? HttpResponse.json({ size: 4 }) : problem(404, 'path_not_found')))
+    rememberUpload('t1', { file: file('big.bin', '0123456789'), workspaceId: 'w1', siteId: 's1' })
+    useTransfersStore.getState().upsert([stopped()])
+    const user = await renderDock()
+    await user.click(screen.getByRole('button', { name: 'Resume big.bin' }))
+    expect(await screen.findByText('This upload used an older staging format. Its partial file was preserved. Start a new upload.')).toBeInTheDocument()
+    expect(uploads).toEqual([])
+  })
   beforeEach(() => {
     clearUploadSources()
     useTransfersStore.getState().reset()

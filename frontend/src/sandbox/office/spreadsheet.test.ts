@@ -52,8 +52,8 @@ beforeEach(() => {
  * - a workbook protected with a password fails as protected, and a damaged one fails as it is
  */
 describe('renderSpreadsheet', () => {
-  it('shows an Excel workbook sheet by sheet', () => {
-    renderSpreadsheet(sample('workbook.xlsx'), root, labels)
+  it('shows an Excel workbook sheet by sheet', async () => {
+    await renderSpreadsheet(sample('workbook.xlsx'), root, labels)
     const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Sales', 'Notes', 'Big'])
     expect(tabs[0].getAttribute('aria-selected')).toBe('true')
@@ -72,18 +72,18 @@ describe('renderSpreadsheet', () => {
     expect(root.textContent).toContain('a formula link')
   })
 
-  it('shows legacy Excel and OpenDocument workbooks', () => {
-    renderSpreadsheet(sample('legacy.xls'), root, labels)
+  it('shows legacy Excel and OpenDocument workbooks', async () => {
+    await renderSpreadsheet(sample('legacy.xls'), root, labels)
     expect(cells(root)[1]).toEqual(['Ana', 'Santiago', '1200.5'])
     const ods = document.createElement('div')
-    renderSpreadsheet(sample('sheet.ods'), ods, labels)
+    await renderSpreadsheet(sample('sheet.ods'), ods, labels)
     expect(Array.from(ods.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent)).toEqual(['People', 'Cities'])
   })
 
-  it('cuts large sheets and says when a sheet is empty', () => {
+  it('cuts large sheets and says when a sheet is empty', async () => {
     const tall = Array.from({ length: maxRows + 5 }, (_, index) => [index])
     const wide = [Array.from({ length: maxColumns + 5 }, (_, index) => index)]
-    renderSpreadsheet(book({ Tall: tall, Wide: wide, Empty: [] }), root, labels)
+    await renderSpreadsheet(book({ Tall: tall, Wide: wide, Empty: [] }), root, labels)
     expect(root.textContent).toContain(`First ${maxRows} of ${maxRows + 5} rows.`)
     expect(cells(root)).toHaveLength(maxRows)
     const tabs = root.querySelectorAll<HTMLButtonElement>('[role="tab"]')
@@ -94,14 +94,15 @@ describe('renderSpreadsheet', () => {
     expect(root.textContent).toContain('Empty sheet.')
   })
 
-  it('refuses protected and damaged workbooks', () => {
+  it('refuses protected and damaged workbooks', async () => {
     const container = CFB.utils.cfb_new()
     CFB.utils.cfb_add(container, '/EncryptionInfo', new Uint8Array([4, 0, 4, 0, 0x40, 0, 0, 0]))
     CFB.utils.cfb_add(container, '/EncryptedPackage', new Uint8Array(64))
     const locked = new Uint8Array(CFB.write(container, { type: 'array' }) as ArrayBuffer)
-    expect(() => renderSpreadsheet(locked, root, labels)).toThrow(ProtectedDocument)
+    await expect(renderSpreadsheet(locked, root, labels)).rejects.toThrow(ProtectedDocument)
     const whole = sample('workbook.xlsx')
-    expect(() => renderSpreadsheet(whole.slice(0, whole.length / 2), root, labels)).toThrow()
-    expect(() => renderSpreadsheet(whole.slice(0, whole.length / 2), root, labels)).not.toThrow(ProtectedDocument)
+    await expect(renderSpreadsheet(whole.slice(0, whole.length / 2), root, labels)).rejects.toThrow()
+    await expect(renderSpreadsheet(whole.slice(0, whole.length / 2), root, labels)).rejects.not.toThrow(ProtectedDocument)
+    await expect(renderSpreadsheet(new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), root, labels)).rejects.not.toThrow(ProtectedDocument)
   })
 })

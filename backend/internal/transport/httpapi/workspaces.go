@@ -121,6 +121,7 @@ func (s *server) SetMemberRole(ctx context.Context, request SetMemberRoleRequest
 		return nil, err
 	}
 	s.record(ctx, p.User.ID, request.WorkspaceId, audit.MemberRoleChanged, email, map[string]string{"role": string(request.Body.Role)})
+	s.deps.terminals.revoke("", request.UserId, request.WorkspaceId)
 	return SetMemberRole204Response{}, nil
 }
 
@@ -131,6 +132,7 @@ func (s *server) RemoveMember(ctx context.Context, request RemoveMemberRequestOb
 	err := s.deps.Workspaces.RemoveMember(ctx, p.User.ID, request.WorkspaceId, request.UserId)
 	if err == nil {
 		s.record(ctx, p.User.ID, request.WorkspaceId, audit.MemberRemoved, email, nil)
+		s.deps.terminals.revoke("", request.UserId, request.WorkspaceId)
 		err = s.completeKeys(ctx, p, request.WorkspaceId)
 	}
 	if problem, ok := asProblem(err); ok {
@@ -153,6 +155,7 @@ func (s *server) LeaveWorkspace(ctx context.Context, request LeaveWorkspaceReque
 		return nil, err
 	}
 	s.record(ctx, p.User.ID, request.WorkspaceId, audit.MemberLeft, p.User.Email, nil)
+	s.deps.terminals.revoke("", p.User.ID, request.WorkspaceId)
 	return LeaveWorkspace204Response{}, nil
 }
 

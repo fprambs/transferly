@@ -346,6 +346,7 @@ func (s *server) UploadFile(ctx context.Context, request UploadFileRequestObject
 		return uploadFailure(err)
 	}
 	t.Observer = tracker
+	t.UploadID = tracker.ID()
 	entry, err := s.deps.Files.Upload(runCtx, t, request.Params.Path, mode, offset, request.Body)
 	tracker.Finish(err, problemCode(err))
 	if err != nil {

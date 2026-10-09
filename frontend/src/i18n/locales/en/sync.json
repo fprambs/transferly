@@ -50,6 +50,10 @@
     "network_error": "Could not reach the server.",
     "localFailure": "The local file system refused this file.",
     "tooMany": "One of the folders holds more files than can be compared at once.",
-    "unknown": "Something went wrong. Try again."
+    "unknown": "Something went wrong. Try again.",
+    "safe_replace_unsupported": "This server cannot safely replace an existing file. Save under a different name.",
+    "copy_connection_limit": "Copying this file needs two connections. Increase the site connection limit, or download and upload the file.",
+    "ssh_algorithm_incompatible": "No compatible SSH algorithms.",
+    "remote_connection_timeout": "Connection timed out. Automatic attempts stopped."
   }
 }

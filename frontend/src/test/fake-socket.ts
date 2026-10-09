@@ -20,6 +20,13 @@ export class FakeSocket {
   readyState = 0
   /** Every message the client sent. */
   sent: unknown[] = []
+  /** Cleanup listeners independent of the handler installed by a terminal component. */
+  private closeListeners: Array<() => void> = []
+
+  /** Records close listeners for transport resource cleanup. */
+  addEventListener(_type: string, listener: () => void): void {
+    this.closeListeners.push(listener)
+  }
 
   /** Records the socket. */
   constructor(url: string) {
@@ -35,6 +42,7 @@ export class FakeSocket {
   /** Records that the client closed the socket. */
   close(): void {
     this.closed = true
+    this.closeListeners.forEach((listener) => listener())
   }
 
   /** Records a message the client sent. */
@@ -56,6 +64,7 @@ export class FakeSocket {
   /** Plays the connection ending. */
   drop(): void {
     this.readyState = 3
+    this.closeListeners.forEach((listener) => listener())
     this.onclose?.()
   }
 

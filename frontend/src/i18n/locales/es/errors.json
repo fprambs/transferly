@@ -556,6 +556,31 @@
     "wrong_passphrase": {
       "cause": "La frase no abre la clave privada.",
       "next": "Revisa la frase de la clave."
+    },
+    "safe_replace_unsupported": {
+      "cause": "El servidor no ofrece un reemplazo seguro. Se conservó el archivo original.",
+      "next": "Guarda el archivo nuevo con otro nombre o usa un servidor que permita un reemplazo atómico."
+    },
+    "copy_connection_limit": {
+      "cause": "Copiar este archivo requiere dos conexiones.",
+      "next": "Aumenta el límite de conexiones del sitio, o descarga y sube el archivo."
+    },
+    "ssh_algorithm_incompatible": {
+      "cause": "Falló la negociación SSH ({{category}}). Algoritmos del servidor: {{serverAlgorithms}}.",
+      "next": "Pide al administrador del servidor habilitar algoritmos SSH seguros. Los reintentos automáticos no resuelven esta incompatibilidad."
+    },
+    "remote_connection_timeout": {
+      "cause": "El servidor no respondió dentro del plazo de conexión. El acceso puede estar bloqueado o el servidor o la red pueden no estar disponibles.",
+      "next": "Los intentos automáticos se detuvieron. Revisa el host, puerto, red y lista de IP permitidas antes de volver a intentar manualmente."
     }
-  }
+  },
+  "sshCategories": {
+    "key_exchange": "intercambio de claves",
+    "cipher": "cifrado",
+    "mac": "autenticación de mensajes (MAC)",
+    "host_signature": "firma del servidor",
+    "authentication_signature": "firma de autenticación del usuario",
+    "unknown": "categoría no especificada"
+  },
+  "sshUnknownAlgorithms": "no disponibles"
 }

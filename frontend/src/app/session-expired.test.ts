@@ -7,6 +7,7 @@ import { adminSession } from '@/test/handlers'
 
 import { sessionKey } from './session'
 import { bindSessionExpiry, endSession } from './session-expired'
+import { sessionChangeKey } from './private-state'
 
 /** Builds a transport that keeps its unauthenticated handler, a client holding a session and a router that records navigations. */
 function setup() {
@@ -35,9 +36,24 @@ function setup() {
  * - unbinding removes the handler, and a transport that does not report expiries is left alone
  */
 describe('session expiry', () => {
+  it('revokes private data when another tab changes identity and removes the listener on unbind', () => {
+    const { transport, queryClient, router, navigate } = setup()
+    const unbind = bindSessionExpiry(transport, queryClient, router)
+    window.dispatchEvent(new StorageEvent('storage', { key: 'appearance' }))
+    expect(navigate).not.toHaveBeenCalled()
+    queryClient.setQueryData(['private-file'], 'previous user data')
+    window.dispatchEvent(new StorageEvent('storage', { key: sessionChangeKey, newValue: 'new identity' }))
+    expect(queryClient.getQueryData(['private-file'])).toBeUndefined()
+    expect(queryClient.getQueryData(sessionKey)).toBeNull()
+    expect(transport.setCsrfToken).toHaveBeenCalledWith(undefined)
+    expect(navigate).toHaveBeenCalledTimes(1)
+    unbind()
+    window.dispatchEvent(new StorageEvent('storage', { key: sessionChangeKey }))
+    expect(navigate).toHaveBeenCalledTimes(1)
+  })
   it('ends the session once and opens the login screen', () => {
     const { transport, queryClient, router, navigate, expire } = setup()
-    bindSessionExpiry(transport, queryClient, router)
+    const unbind = bindSessionExpiry(transport, queryClient, router)
 
     expire()
     expire()
@@ -46,6 +62,7 @@ describe('session expiry', () => {
     expect(transport.setCsrfToken).toHaveBeenCalledWith(undefined)
     expect(navigate).toHaveBeenCalledTimes(1)
     expect(navigate).toHaveBeenCalledWith({ to: '/login', replace: true })
+    unbind()
   })
 
   it('ends a later session again after signing in without reloading', () => {

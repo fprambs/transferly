@@ -576,14 +576,14 @@ func TestService_Upload_Atomic(t *testing.T) {
 	f.put(t, "/i", "original")
 	f.fs.failRemove = true
 	if _, err := f.svc.Upload(ctx, f.editor, "/i", remotefs.WriteOverwrite, 0, strings.NewReader("replaced")); !errors.Is(err, remotefs.ErrConnectionLost) {
-		t.Errorf("Upload() whose finishing remove fails = %v; want ErrConnectionLost", err)
+		t.Errorf("Upload() whose atomic commit fails = %v; want ErrConnectionLost", err)
 	}
 	f.fs.failRemove = false
 	if e, err := f.svc.Stat(ctx, f.editor, "/i"); err != nil || e.Size != int64(len("original")) {
-		t.Errorf("the file after a finishing remove fails = %+v, %v; want it untouched", e, err)
+		t.Errorf("the file after an atomic commit fails = %+v, %v; want it untouched", e, err)
 	}
 	if e, err := f.svc.Stat(ctx, f.editor, "/i.part"); err != nil || e.Size != int64(len("replaced")) {
-		t.Errorf("the staging file after a finishing remove fails = %+v, %v; want it kept", e, err)
+		t.Errorf("the staging file after an atomic commit fails = %+v, %v; want it kept", e, err)
 	}
 }
 
@@ -602,6 +602,14 @@ func (w *wholeFS) Capabilities() remotefs.Capabilities { return remotefs.Capabil
 func (w *wholeFS) Rename(ctx context.Context, from, to string) error {
 	w.renamed = append(w.renamed, from)
 	return w.flakyFS.Rename(ctx, from, to)
+}
+
+// Replace injects commit failures without deleting the original file.
+func (f *flakyFS) Replace(ctx context.Context, from, to string) error {
+	if f.failRemove {
+		return remotefs.ErrConnectionLost
+	}
+	return f.shared.Replace(ctx, from, to)
 }
 
 // OpenWrite returns a writer that stores the file whole when it is closed, as object stores do, and records whether its

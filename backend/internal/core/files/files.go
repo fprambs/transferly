@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -85,6 +87,8 @@ type Target struct {
 	Site uuid.UUID
 	// Session identifies the actor's session, whose unlocked vault key opens the site credentials.
 	Session string
+	// UploadID owns the staging path; HTTP transfers always supply their persisted identifier.
+	UploadID uuid.UUID
 	// Observer follows uploads and downloads; nil follows nothing.
 	Observer Observer
 	// Ready is called once the connection is open and the operation is about to run, so the connection log can tell
@@ -99,6 +103,10 @@ func (t Target) key() connections.Key {
 
 // Service performs file operations.
 type Service struct {
+	// copies coordinates acquisition of both ends of streaming copies.
+	copies copyLocks
+	// uploads excludes concurrent writes to the same normalized destination within this instance.
+	uploads  sync.Map
 	authz    Authorizer
 	pool     Pool
 	limits   treeLimits
@@ -113,8 +121,21 @@ func NewService(authz Authorizer, pool Pool) *Service {
 	return &Service{authz: authz, pool: pool, limits: treeLimits{depth: defaultTreeDepth, entries: defaultTreeEntries}, nested: defaultNestedBytes, buffered: defaultBufferedBytes, now: time.Now}
 }
 
-// checkPath refuses paths that cannot be valid: empty, too long, or holding control characters.
+// checkPath refuses paths that cannot be valid: relative, too long, or holding control characters.
 func checkPath(paths ...string) error {
+	if err := checkPathText(paths...); err != nil {
+		return err
+	}
+	for _, p := range paths {
+		if !path.IsAbs(p) {
+			return fmt.Errorf("%w: the path is not absolute", remotefs.ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// checkPathText validates path text in both remote paths and relative archive member names.
+func checkPathText(paths ...string) error {
 	for _, p := range paths {
 		if p == "" || len(p) > maxPathLength || strings.ContainsFunc(p, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
 			return fmt.Errorf("%w: the path is empty, too long or has control characters", remotefs.ErrInvalid)
@@ -480,10 +501,11 @@ func unsized(ctx context.Context, t Target, lease *connections.Lease, src io.Rea
 // the real path and an interrupted upload leaves something a resume can find and finish.
 const partSuffix = ".part"
 
-// Upload writes the request body to a temporary "<path>.part" file and, once it is complete, renames it onto
+// Upload writes the request body to a transfer-owned sibling staging file and, once it is complete, renames it onto
 // path, returning the file afterwards. The mode says what happens when path exists: create refuses, overwrite
 // replaces it, resume continues an interrupted upload at offset, which is the size of the ".part" file already
-// staged there and must not exceed it. Offsets are only valid for resume. A body that ends early, or a failure
+// staged there and must not exceed it. Offsets are only valid for resume. Callers without an UploadID retain the
+// legacy <path>.part path; HTTP callers always supply their persisted transfer ID. A body that ends early, or a failure
 // while renaming, leaves the ".part" file in place so a resumed upload can complete it; path itself is only ever
 // created or replaced at the very end, atomically, once the whole body has been written.
 //
@@ -491,6 +513,15 @@ const partSuffix = ".part"
 // appear whole, a rename would copy the file on the server, and there is nothing a resume could continue. A body
 // that ends early cancels that write, so path keeps what it had.
 func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.WriteMode, offset int64, data io.Reader) (remotefs.Entry, error) {
+	if err := checkPath(p); err != nil {
+		return remotefs.Entry{}, err
+	}
+	p = path.Clean(p)
+	lock := t.Workspace.String() + ":" + t.Site.String() + ":" + p
+	if _, busy := s.uploads.LoadOrStore(lock, struct{}{}); busy {
+		return remotefs.Entry{}, remotefs.ErrExists
+	}
+	defer s.uploads.Delete(lock)
 	if offset < 0 || (offset != 0 && mode != remotefs.WriteResume) {
 		return remotefs.Entry{}, fmt.Errorf("%w: an offset is only valid when resuming", remotefs.ErrInvalid)
 	}
@@ -503,7 +534,21 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 		lease.Release(nil)
 		return remotefs.Entry{}, fmt.Errorf("%w: %s cannot resume an upload", remotefs.ErrInvalid, p)
 	}
+	if staged && mode != remotefs.WriteCreate {
+		if _, existsErr := lease.FS().Stat(ctx, p); existsErr == nil {
+			if replacer, ok := lease.FS().(remotefs.Replacer); !ok || !replacer.CanReplace() {
+				lease.Release(nil)
+				return remotefs.Entry{}, fmt.Errorf("%w: %w", remotefs.ErrUnsafeReplace, remotefs.ErrUnsupported)
+			}
+		} else if !errors.Is(existsErr, remotefs.ErrNotFound) {
+			lease.Release(existsErr)
+			return remotefs.Entry{}, existsErr
+		}
+	}
 	part := p + partSuffix
+	if t.UploadID != uuid.Nil {
+		part = path.Join(path.Dir(p), "transferly-"+t.UploadID.String()+partSuffix)
+	}
 	if mode == remotefs.WriteCreate {
 		if _, statErr := lease.FS().Stat(ctx, p); statErr == nil {
 			lease.Release(nil)
@@ -550,13 +595,20 @@ func (s *Service) Upload(ctx context.Context, t Target, p string, mode remotefs.
 	return entry, err
 }
 
-// finish makes the completed ".part" file take the place of path. When mode is not create, any file already at
-// path is removed first so the rename, which never replaces an existing target, can succeed. A create whose
-// rename loses a race to a file that appeared at path in the meantime discards the ".part" file, since the
-// upload it staged must not land under a different name.
+// finish commits a staged file without deleting the destination first. A server without safe replacement may
+// create a missing destination but never overwrite an existing one. A lost create race discards its own staging file.
 func (s *Service) finish(ctx context.Context, fsys remotefs.RemoteFS, part, p string, mode remotefs.WriteMode) error {
 	if mode != remotefs.WriteCreate {
-		if err := fsys.Remove(ctx, p); err != nil && !errors.Is(err, remotefs.ErrNotFound) {
+		if replacer, ok := fsys.(remotefs.Replacer); ok && replacer.CanReplace() {
+			err := replacer.Replace(ctx, part, p)
+			if errors.Is(err, remotefs.ErrUnsupported) {
+				return fmt.Errorf("%w: %w", remotefs.ErrUnsafeReplace, err)
+			}
+			return err
+		}
+		if _, err := fsys.Stat(ctx, p); err == nil {
+			return fmt.Errorf("%w: %w", remotefs.ErrUnsafeReplace, remotefs.ErrUnsupported)
+		} else if !errors.Is(err, remotefs.ErrNotFound) {
 			return err
 		}
 	}

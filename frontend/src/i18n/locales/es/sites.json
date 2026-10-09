@@ -54,7 +54,9 @@
     "wrong_export_password": "Esa contraseña no abre el archivo, o el archivo fue modificado.",
     "weak_export_password": "La contraseña necesita al menos 12 caracteres.",
     "connector_disabled": "Los administradores de esta instancia no ofrecen este tipo de sitio.",
-    "elevation_forbidden": "Solo los administradores pueden activar sudo, o cambiar un sitio que lo tiene activado."
+    "elevation_forbidden": "Solo los administradores pueden activar sudo, o cambiar un sitio que lo tiene activado.",
+    "ssh_algorithm_incompatible": "No hay algoritmos SSH compatibles.",
+    "remote_connection_timeout": "La conexión agotó el tiempo de espera. Los intentos automáticos se detuvieron."
   },
   "collection": {
     "actions": "Acciones de {{name}}",

@@ -30,6 +30,27 @@ describe('ErrorGuide', () => {
     expect(screen.getByText('Code: remote_auth_failed')).toBeInTheDocument()
   })
 
+  it('explains the failed SSH category and server algorithms', async () => {
+    const failure = new ApiError({ type: 'about:blank', title: 'SSH', status: 422, code: 'ssh_algorithm_incompatible', params: { category: 'mac', serverAlgorithms: 'hmac-sha1-96' } })
+    await renderWithI18n(<ErrorGuide failure={failure} />)
+    expect(screen.getByText('SSH negotiation failed (message authentication (MAC)). Server algorithms: hmac-sha1-96.')).toBeInTheDocument()
+  })
+
+  it('explains a connection timeout and manual retry', async () => {
+    await renderWithI18n(<ErrorGuide failure={failed('remote_connection_timeout')} />, 'es')
+    expect(screen.getByText(/El servidor no respondió dentro del plazo de conexión/)).toBeInTheDocument()
+    expect(screen.getByText(/Los intentos automáticos se detuvieron/)).toBeInTheDocument()
+  })
+
+  it('explains missing and unknown SSH diagnostics without showing untrusted categories', async () => {
+    await renderWithI18n(<>
+      <ErrorGuide failure="ssh_algorithm_incompatible" />
+      <ErrorGuide failure={new ApiError({ type: 'about:blank', title: 'SSH', status: 422, code: 'ssh_algorithm_incompatible', params: { category: 'untrusted-category', serverAlgorithms: 'ssh-rsa' } })} />
+    </>)
+    expect(screen.getByText('SSH negotiation failed (unspecified category). Server algorithms: not available.')).toBeInTheDocument()
+    expect(screen.getByText('SSH negotiation failed (unspecified category). Server algorithms: ssh-rsa.')).toBeInTheDocument()
+  })
+
   it('finds the guidance of codes', () => {
     expect(guidedCodeOf('vault_locked')).toBe('vault_locked')
     expect(guidedCodeOf('jump_wrong_passphrase')).toBe('wrong_passphrase')

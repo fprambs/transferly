@@ -69,7 +69,7 @@ function clamp(size: number, start: number, end: number): [number, number] {
 export function remoteSource(api: Api, workspaceId: string, siteId: string, entry: RemoteEntry, trust?: TrustKey): PreviewSource {
   return {
     trust,
-    key: `remote:${workspaceId}:${siteId}:${entry.path}`,
+    key: `remote:${workspaceId}:${siteId}:${entry.path}:${entry.size}:${entry.modifiedAt}`,
     name: entry.name,
     size: entry.size,
     modifiedAt: entry.modifiedAt,
@@ -84,10 +84,10 @@ export function remoteSource(api: Api, workspaceId: string, siteId: string, entr
 
 /** A file of the local panel, read by slices of the file the browser gives access to, and played from a blob URL; the file is opened
  * once, on first use. */
-export function localSource(entry: RemoteEntry, open: () => Promise<File>): PreviewSource {
+export function localSource(entry: RemoteEntry, open: () => Promise<File>, rootVersion = 0): PreviewSource {
   let file: Promise<File> | undefined
   return {
-    key: `local:${entry.path}`,
+    key: `local:${rootVersion}:${entry.path}:${entry.size}:${entry.modifiedAt}`,
     name: entry.name,
     size: entry.size,
     modifiedAt: entry.modifiedAt,
@@ -105,7 +105,7 @@ export function localSource(entry: RemoteEntry, open: () => Promise<File>): Prev
   }
 }
 
-/** Reads a stream whole, and fails with {@link EntryTooLarge} as soon as it goes past `limit` bytes. */
+/** Reads a stream whole and fails as soon as it goes past `limit` bytes, even if a tee or custom stream defers cancellation. */
 export async function readCapped(stream: ReadableStream<Uint8Array>, limit = maxEntryBytes): Promise<Uint8Array> {
   const reader = stream.getReader()
   const chunks: Uint8Array[] = []
@@ -113,7 +113,7 @@ export async function readCapped(stream: ReadableStream<Uint8Array>, limit = max
   for (let next = await reader.read(); !next.done; next = await reader.read()) {
     total += next.value.length
     if (total > limit) {
-      await reader.cancel()
+      void reader.cancel().catch(() => undefined)
       throw new EntryTooLarge()
     }
     chunks.push(next.value)

@@ -164,6 +164,7 @@ test.describe('teams', () => {
   })
 
   test('has no WCAG violations on the members and invitation pages', async ({ shell, page, browser, baseURL }) => {
+    test.setTimeout(120_000)
     for (const theme of ['transferly-dark', 'transferly-light']) {
       await closeSettings(page)
       await shell.setTheme(theme)

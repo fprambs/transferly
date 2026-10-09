@@ -57,7 +57,9 @@
     "site_name_taken": "Ya existe un sitio con este nombre en esta colección.",
     "vault_locked": "Desbloquea el vault para guardar sitios.",
     "network_error": "No se pudo contactar con el servidor.",
-    "unknown": "Algo salió mal. Inténtalo de nuevo."
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "ssh_algorithm_incompatible": "No hay algoritmos SSH compatibles.",
+    "remote_connection_timeout": "La conexión agotó el tiempo de espera. Los intentos automáticos se detuvieron."
   },
   "ftpWarning": "Usa TLS si el servidor lo ofrece, como FileZilla, y sigue sin cifrar si no. Para exigir TLS, guarda la conexión como sitio."
 }

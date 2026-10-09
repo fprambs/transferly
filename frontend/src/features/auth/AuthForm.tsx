@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { sessionKey, setupKey } from '@/app/session'
+import { announceSessionChange, clearPrivateState, ensurePrivateOwner } from '@/app/private-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -62,7 +63,11 @@ export function AuthForm({ mode, onSecondStepChange }: AuthFormProps) {
   } = useForm({ resolver: zodResolver(schema) })
 
   const start = async (session: SessionInfo) => {
+    transport.resetSession?.()
     transport.setCsrfToken(session.csrfToken)
+    clearPrivateState(queryClient)
+    ensurePrivateOwner(session.user.id)
+    announceSessionChange()
     queryClient.setQueryData(sessionKey, session)
     queryClient.setQueryData(setupKey, false)
     await navigate({ to: '/' })

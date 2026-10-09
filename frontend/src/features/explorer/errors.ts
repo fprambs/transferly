@@ -2,9 +2,11 @@ import { ApiError } from '@/lib/transport'
 
 /** Translation keys of the failures the explorer explains. */
 const explorerErrorKeys = [
+  'copy_connection_limit',
   'host_key_changed',
   'remote_auth_failed',
   'remote_unavailable',
+  'ssh_algorithm_incompatible', 'remote_connection_timeout',
   'remote_permission_denied',
   'path_not_found',
   'not_a_directory',
@@ -20,6 +22,7 @@ const explorerErrorKeys = [
   'tree_too_large',
   'time_zone_inconclusive',
   'server_commands_unsupported',
+  'safe_replace_unsupported',
   'sudo_refused',
   'remote_quota_exceeded',
   'network_error',

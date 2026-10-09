@@ -21,6 +21,12 @@ const entry: RemoteEntry = { name: 'a.bin', path: '/d/a.bin', type: 'file', size
  *   listing
  */
 describe('preview sources', () => {
+  it('rejects over-budget streams even when cancellation stalls or fails', async () => {
+    for (const cancel of [() => new Promise<void>(() => {}), () => Promise.reject(new Error('already closed'))]) {
+      const stream = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new Uint8Array(4)) }, cancel })
+      await expect(readCapped(stream, 3)).rejects.toBeInstanceOf(EntryTooLarge)
+    }
+  })
   it('reads ranges of a remote file', async () => {
     const ranges: Array<string | null> = []
     server.use(
@@ -31,7 +37,7 @@ describe('preview sources', () => {
     )
     const source = remoteSource(createApi(new HttpTransport()), 'w', 's', entry)
 
-    expect(source).toMatchObject({ key: 'remote:w:s:/d/a.bin', name: 'a.bin', size: 10 })
+    expect(source).toMatchObject({ key: `remote:w:s:/d/a.bin:${entry.size}:${entry.modifiedAt}`, name: 'a.bin', size: 10 })
     expect([...(await source.read(8, 64))]).toEqual([7, 8])
     expect(ranges).toEqual(['bytes=8-9'])
     expect(await source.read(20, 30)).toHaveLength(0)
@@ -46,7 +52,7 @@ describe('preview sources', () => {
     const open = async () => (opened++, new File(['hello world'], 'hi.txt'))
     const source = localSource({ ...entry, name: 'hi.txt', path: '/docs/hi.txt', size: 11 }, open)
 
-    expect(source).toMatchObject({ key: 'local:/docs/hi.txt', name: 'hi.txt', size: 11, modifiedAt: '2026-09-29T12:00:00Z' })
+    expect(source).toMatchObject({ key: `local:0:/docs/hi.txt:11:${entry.modifiedAt}`, name: 'hi.txt', size: 11, modifiedAt: '2026-09-29T12:00:00Z' })
     expect(opened).toBe(0)
     expect(new TextDecoder().decode(await source.read(6, 100))).toBe('world')
     expect(await source.read(-5, 0)).toHaveLength(0)

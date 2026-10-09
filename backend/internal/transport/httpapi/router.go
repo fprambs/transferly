@@ -75,6 +75,8 @@ type SiteProber interface {
 
 // Deps are the dependencies of the router.
 type Deps struct {
+	// terminals tracks interactive resources owned by this router.
+	terminals *terminalSessions
 	// Logger receives access and error logs.
 	Logger *slog.Logger
 	// Readiness backs the readiness endpoint.
@@ -155,6 +157,7 @@ type Deps struct {
 // require a valid session and, for state-changing methods, the anti-CSRF token.
 // Errors, including unknown routes and wrong methods, are returned as [Problem] documents.
 func NewRouter(d Deps) http.Handler {
+	d.terminals = &terminalSessions{}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(clientIPMiddleware(d.TrustedProxies))

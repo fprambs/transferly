@@ -172,10 +172,13 @@ type item struct {
 
 // children lists the files and the directories of a directory, with their sizes and times.
 func (f *FS) children(ctx context.Context, dir string) ([]item, []item, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	q := directory("list")
 	q.Set("include", "Timestamps")
 	q.Set("maxresults", strconv.Itoa(pageSize))
 	var files, dirs []item
+	seen := map[string]bool{}
 	for {
 		resp, err := f.client.Do(ctx, http.MethodGet, f.resource(dir), q, nil, nil)
 		if err != nil {
@@ -188,12 +191,16 @@ func (f *FS) children(ctx context.Context, dir string) ([]item, []item, error) {
 			} `xml:"Entries"`
 			Next string `xml:"NextMarker"`
 		}
-		err = xml.NewDecoder(resp.Body).Decode(&page)
+		err = xml.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&page)
 		_ = resp.Body.Close()
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: unreadable listing: %w", remotefs.ErrConnectionLost, err)
 		}
 		files, dirs = append(files, page.Entries.File...), append(dirs, page.Entries.Directory...)
+		if len(files)+len(dirs) > 100000 || (page.Next != "" && seen[page.Next]) {
+			return nil, nil, remotefs.ErrInvalid
+		}
+		seen[page.Next] = true
 		if page.Next == "" {
 			return files, dirs, nil
 		}

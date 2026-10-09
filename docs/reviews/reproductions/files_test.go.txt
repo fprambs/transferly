@@ -1,0 +1,52 @@
+package files_test
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/fprambs/transferly/internal/core/connections"
+	"github.com/fprambs/transferly/internal/core/files"
+	"github.com/fprambs/transferly/internal/core/remotefs"
+)
+
+type reviewRenameFailure struct{ *flakyFS }
+
+func (reviewRenameFailure) Rename(context.Context, string, string) error {
+	return remotefs.ErrPermission
+}
+
+func TestReviewOverwriteRenameFailure(t *testing.T) {
+	f := newFixture(t)
+	f.put(t, "/important.txt", "original")
+	pool := connections.New(connector{reviewRenameFailure{f.fs}}, f.clock, connections.Config{Attempts: 1})
+	defer pool.Close()
+	svc := files.NewService(roles{f.editor.Actor: "editor"}, pool)
+	_, err := svc.Upload(t.Context(), f.editor, "/important.txt", remotefs.WriteOverwrite, 0, strings.NewReader("replacement"))
+	if !errors.Is(err, remotefs.ErrPermission) { t.Fatalf("expected rename failure, got %v", err) }
+	_, err = f.fs.Stat(t.Context(), "/important.txt")
+	if !errors.Is(err, remotefs.ErrNotFound) { t.Fatalf("expected observed loss of original, got %v", err) }
+	t.Log("OBSERVED: failed overwrite removed the original file before the rename failed")
+}
+
+func TestReviewCopySingleConnection(t *testing.T) {
+	f := newFixture(t)
+	f.put(t, "/src.txt", "original")
+	pool := connections.New(connector{f.fs}, f.clock, connections.Config{MaxPerSite: 1, Grace: time.Millisecond, Attempts: 1})
+	defer pool.Close()
+	svc := files.NewService(roles{f.editor.Actor: "editor"}, pool).WithBufferedLimit(0)
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	_, err := svc.Copy(ctx, files.CopyLocation{Source: f.editor, SourcePath: "/src.txt", Destination: f.editor, DestinationPath: "/dst.txt"}, files.PolicyFail)
+	if !errors.Is(err, context.DeadlineExceeded) { t.Fatalf("expected acquisition to block, got %v", err) }
+	t.Log("OBSERVED: same-site streaming copy waited for a second lease until its deadline")
+}
+
+func TestReviewCopyPathAliases(t *testing.T) {
+	f := newFixture(t)
+	err := f.svc.CheckCopy(t.Context(), files.CopyLocation{Source: f.editor, SourcePath: "/src/../src", Destination: f.editor, DestinationPath: "/src/child"})
+	if err != nil { t.Fatalf("expected observed acceptance of alias, got %v", err) }
+	t.Log("OBSERVED: a copy into its own source passed CheckCopy when source had path aliases")
+}

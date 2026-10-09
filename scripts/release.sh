@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Makes a release of Transferly: ./scripts/release.sh X.Y.Z [--dry-run]
+# Makes a release of Transferly: ./scripts/release.sh X.Y.Z[-prerelease] [--dry-run]
 #
 # On a clean main that matches origin/main, it takes the notes of the version from CHANGELOG.md, or writes them from the
 # Conventional Commits since the last tag when the changelog has no section for it, sets the version of the frontend,
@@ -11,9 +11,18 @@ cd "$(git rev-parse --show-toplevel)"
 
 version="${1:-}"
 dry_run="${2:-}"
-if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "usage: scripts/release.sh X.Y.Z [--dry-run]" >&2
+if ! [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+  echo "usage: scripts/release.sh X.Y.Z[-prerelease] [--dry-run]" >&2
   exit 2
+fi
+if [[ "$version" == *-* ]]; then
+  IFS='.' read -r -a prerelease_parts <<< "${version#*-}"
+  for part in "${prerelease_parts[@]}"; do
+    if [[ "$part" =~ ^[0-9]+$ && "$part" != "0" && "$part" == 0* ]]; then
+      echo "release: numeric prerelease identifiers cannot start with zero" >&2
+      exit 2
+    fi
+  done
 fi
 tag="v$version"
 
@@ -22,9 +31,23 @@ if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
   exit 1
 fi
 last="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
-if [ -n "$last" ] && [ "$(printf '%s\n%s\n' "${last#v}" "$version" | sort -V | tail -n 1)" != "$version" ]; then
-  echo "release: $tag is not newer than $last" >&2
-  exit 1
+if [ -n "$last" ]; then
+  if ! python3 - "${last#v}" "$version" <<'PYSEMVER'
+import sys
+
+
+def precedence(version):
+    core, separator, prerelease = version.partition("-")
+    identifiers = tuple((0, int(part)) if part.isdigit() else (1, part) for part in prerelease.split(".")) if separator else ()
+    return tuple(map(int, core.split("."))), not bool(separator), identifiers
+
+
+sys.exit(0 if precedence(sys.argv[2]) > precedence(sys.argv[1]) else 1)
+PYSEMVER
+  then
+    echo "release: $tag is not newer than $last" >&2
+    exit 1
+  fi
 fi
 
 # section prints the notes CHANGELOG.md has for a version, without its heading.

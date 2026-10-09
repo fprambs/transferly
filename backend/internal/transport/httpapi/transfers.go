@@ -170,6 +170,7 @@ func (s *server) CreateCopy(ctx context.Context, request CreateCopyRequestObject
 		policy = copyPolicies[*body.Policy]
 	}
 	location.Destination.Observer = tracker
+	location.Destination.UploadID = tracker.ID()
 	record := tracker.Snapshot()
 	go func() {
 		err := tracker.Admit(runCtx)

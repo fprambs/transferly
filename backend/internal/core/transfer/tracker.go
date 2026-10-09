@@ -105,7 +105,7 @@ func (s *Service) Begin(ctx context.Context, in BeginInput) (*Tracker, context.C
 	case err != nil:
 		return nil, nil, err
 	default:
-		if t.Direction != in.Direction || t.Path != in.Path || t.SiteID != in.SiteID {
+		if t.Direction != in.Direction || t.Path != in.Path || t.SiteID != in.SiteID || t.WorkspaceID != in.WorkspaceID {
 			return nil, nil, ErrExists
 		}
 		if t.Status.Active() {
@@ -169,11 +169,29 @@ func (k *Tracker) Snapshot() Transfer {
 	return k.s.decorate(t)
 }
 
-// save writes the current record to the store; the caller holds the lock.
+// save writes the current record while the caller holds the lock. Progress is coalesced by later saves;
+// a final transition retries its idempotent database update three times within one timeout.
 func (k *Tracker) save() {
 	ctx, cancel := context.WithTimeout(k.base, saveTimeout)
 	defer cancel()
-	_ = k.s.store.UpdateTransfer(ctx, k.t)
+	attempts := 1
+	if k.finished {
+		attempts = 3
+	}
+	for attempt := 0; attempt < attempts; attempt++ {
+		err := k.s.store.UpdateTransfer(ctx, k.t)
+		if err == nil {
+			return
+		}
+		if k.s.cfg.OnPersistenceError != nil {
+			k.s.cfg.OnPersistenceError(err)
+		}
+		if attempt+1 < attempts {
+			if err := k.s.cfg.Sleep(ctx, 100*time.Millisecond<<attempt); err != nil {
+				return
+			}
+		}
+	}
 }
 
 // Admit waits for the transfer's turn: it returns once the limits of the scheduler leave room for it, and the slot is

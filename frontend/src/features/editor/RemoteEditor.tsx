@@ -12,6 +12,7 @@ import type { Api } from '@/lib/api/use-api'
 import { useActiveTheme } from '@/lib/theme/use-theme'
 import { cn } from '@/lib/utils'
 import { editorNonce } from '@/lib/csp'
+import { EntryTooLarge, readCapped } from '../preview/source'
 
 import { stampChanged, type FileStamp } from './conflict'
 import { loadLanguageFor } from './editor-language'
@@ -41,7 +42,7 @@ type Phase = { kind: 'loading' } | { kind: 'tooLarge' } | { kind: 'error'; key: 
 
 /** Reads the whole body of a stream as text. */
 async function readText(stream: ReadableStream<Uint8Array>): Promise<string> {
-  return new Response(stream).text()
+  return new TextDecoder().decode(await readCapped(stream, maxEditableBytes))
 }
 
 /**
@@ -71,9 +72,10 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
       return
     }
     let cancelled = false
+    const controller = new AbortController()
     void (async () => {
       try {
-        const [stream, fresh] = await Promise.all([api.files.download(workspaceId, siteId, entry.path), api.files.stat(workspaceId, siteId, entry.path)])
+        const [stream, fresh] = await Promise.all([api.files.download(workspaceId, siteId, entry.path, undefined, controller.signal), api.files.stat(workspaceId, siteId, entry.path)])
         const [text, language] = await Promise.all([readText(stream), loadLanguageFor(entry.path)])
         if (cancelled || container.current === null) {
           return
@@ -95,12 +97,13 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
         setPhase({ kind: 'ready' })
       } catch (error) {
         if (!cancelled) {
-          setPhase({ kind: 'error', key: editorErrorKeyOf(error) })
+          setPhase(error instanceof EntryTooLarge ? { kind: 'tooLarge' } : { kind: 'error', key: editorErrorKeyOf(error) })
         }
       }
     })()
     return () => {
       cancelled = true
+      controller.abort()
       view.current?.destroy()
       view.current = null
     }
@@ -176,7 +179,7 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
             <p className="font-medium">{t(($) => $.conflict.title)}</p>
             <p className="text-muted-foreground">{t(($) => $.conflict.body)}</p>
             <div className="flex gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={() => void reload()}>
+              <Button type="button" size="sm" variant="outline" onClick={() => void reload().catch((error: unknown) => setSaveError(editorErrorKeyOf(error)))}>
                 {t(($) => $.conflict.reload)}
               </Button>
               <Button type="button" size="sm" variant="destructive" onClick={() => void save(true)}>

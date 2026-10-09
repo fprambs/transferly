@@ -10,6 +10,9 @@ export class ResumeMismatchError extends Error {
   }
 }
 
+/** An older upload used an unowned staging file that this version cannot safely adopt. */
+export class LegacyResumeError extends Error {}
+
 /** Statuses of an upload that stopped before it finished, and can be continued. */
 const stoppedStatuses: readonly TransferRecord['status'][] = ['failed', 'interrupted', 'canceled']
 
@@ -29,16 +32,22 @@ interface ResumePlan {
 /**
  * Asks the server how much of the file arrived, and plans the rest.
  *
- * An upload stages into a "<path>.part" file on the server and only becomes the real file once it finishes, so
+ * An upload stages into an adjacent "transferly-<id>.part" file and only becomes the real file once it finishes, so
  * an interrupted upload is found there, not at the final path; a partial file that is gone means starting over.
  */
 async function planResume(api: Api, record: TransferRecord, siteId: string, size: number): Promise<ResumePlan> {
   try {
-    const partial = await api.files.stat(record.workspaceId, siteId, `${record.path}.part`)
+    const partial = await api.files.stat(record.workspaceId, siteId, `${record.path.slice(0, record.path.lastIndexOf('/') + 1)}transferly-${record.id}.part`)
     return { mode: 'resume', offset: Math.min(partial.size, size) }
   } catch (error) {
     if (error instanceof ApiError && error.code === 'path_not_found') {
-      return { mode: 'create', offset: 0 }
+      try {
+        await api.files.stat(record.workspaceId, siteId, `${record.path}.part`)
+      } catch (legacyError) {
+        if (legacyError instanceof ApiError && legacyError.code === 'path_not_found') return { mode: 'create', offset: 0 }
+        throw legacyError
+      }
+      throw new LegacyResumeError()
     }
     throw error
   }

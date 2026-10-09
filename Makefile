@@ -3,9 +3,6 @@ TOOLS := $(COMPOSE) run --rm -T tools
 
 TEST := docker compose -f compose.test.yaml
 
-# Starts every service of the test stack from scratch, so each browser run sees a fresh database and fresh servers.
-TEST_STACK := $(TEST) --profile ftp --profile s3 --profile google --profile azure --profile webdav --profile ssh up -d --build --force-recreate --wait postgres transferly sftp ftp ftps ftps-implicit s3 fakegoogle azurite fakeazure webdav ssh strict-sftp
-
 # The browser tests to run, such as SPECS="specs/local.spec.ts"; every one when empty.
 SPECS ?=
 
@@ -38,12 +35,10 @@ unit:
 	$(TEST) run --rm unit
 
 e2e:
-	$(TEST_STACK)
-	$(TEST) run --rm e2e node_modules/.bin/playwright test $(SPECS)
+	sh ./scripts/test-browser.sh $(SPECS)
 
 e2e-update:
-	$(TEST_STACK)
-	$(TEST) run --rm e2e node_modules/.bin/playwright test --update-snapshots
+	sh ./scripts/test-browser.sh --update-snapshots
 
 lint:
 	$(TOOLS) sh -c 'cd backend && golangci-lint run ./... && cd ../frontend && pnpm lint && pnpm typecheck'

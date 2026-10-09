@@ -4,6 +4,7 @@ import { createElement, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
+import { DeferredContent } from '@/lib/layout/DeferredContent'
 import { Loading } from '@/components/ui/loading'
 import { PanelState } from '@/components/ui/panel-state'
 
@@ -44,7 +45,8 @@ export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?
   const head = useQuery({
     queryKey: ['preview', source.key, 'head'],
     queryFn: ({ signal }) => source.read(0, headLength, signal),
-    staleTime: Infinity,
+    staleTime: 0,
+    gcTime: 0,
     retry: false,
   })
   if (source.size === 0) {
@@ -73,7 +75,7 @@ export function PreviewBody({ source, onEdit }: { source: PreviewSource; onEdit?
           </Button>
         )}
       </div>
-      {View === undefined ? <NoViewer source={source} /> : createElement(View, { source, kind })}
+      {View === undefined ? <NoViewer source={source} /> : <DeferredContent key={source.key}>{createElement(View, { source, kind })}</DeferredContent>}
     </>
   )
 }

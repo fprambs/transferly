@@ -78,3 +78,6 @@ require (
 replace github.com/jlaffaye/ftp => ./third_party/ftp
 
 replace github.com/pkg/sftp => ./third_party/sftp
+
+// The 7z parser bounds hostile header allocations and decoder dictionaries; see third_party/sevenzip/PATCHES.md.
+replace github.com/bodgit/sevenzip => ./third_party/sevenzip

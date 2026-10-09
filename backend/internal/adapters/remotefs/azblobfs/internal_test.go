@@ -123,6 +123,15 @@ func TestCopies(t *testing.T) {
 	if err := aborted.copy(t.Context(), "a", "b"); !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("copy() aborted = %v, want ErrConnectionLost", err)
 	}
+	marker := fixed(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.Header.Get("x-ms-blob-type") != "BlockBlob" {
+			t.Errorf("folder marker request = %s, %s", r.Method, r.Header.Get("x-ms-blob-type"))
+		}
+		w.WriteHeader(http.StatusCreated)
+	})
+	if err := marker.copy(t.Context(), "folder/", "other/"); err != nil {
+		t.Fatalf("copy() of a folder marker = %v", err)
+	}
 }
 
 // TestListings verifies listings of many pages, blobs that are also folders, unreadable listings and reads cut short.

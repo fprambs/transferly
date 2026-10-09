@@ -1,0 +1,32 @@
+# Isolated HTTPS smoke test using Caddy's local certificate authority; no host ports.
+name: transferly-https-test
+services:
+  app:
+    image: transferly:test
+    ports: !reset []
+    environment:
+      TRANSFERLY_DOMAIN: localhost
+      TRANSFERLY_BASE_URL: https://localhost
+      TRANSFERLY_TRUSTED_PROXIES: 172.30.251.3/32
+  caddy:
+    ports: !reset []
+    environment:
+      TRANSFERLY_DOMAIN: localhost
+    networks:
+      gateway:
+        ipv4_address: 172.30.251.3
+  verify:
+    image: transferly-dev-tools
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    profiles: [verify]
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:ro
+      - /tmp/transferly-audit:/reports
+    networks: [gateway]
+    command: [python3, scripts/verify-https.py]
+networks:
+  gateway:
+    ipam:
+      config: !override
+        - subnet: 172.30.251.0/29

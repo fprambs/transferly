@@ -57,7 +57,9 @@
     "site_name_taken": "A site with this name already exists in this collection.",
     "vault_locked": "Unlock the vault to save sites.",
     "network_error": "Could not reach the server.",
-    "unknown": "Something went wrong. Try again."
+    "unknown": "Something went wrong. Try again.",
+    "ssh_algorithm_incompatible": "No compatible SSH algorithms.",
+    "remote_connection_timeout": "Connection timed out. Automatic attempts stopped."
   },
   "ftpWarning": "Uses TLS when the server offers it, as FileZilla does, and goes on without encryption when it does not. To require TLS, save the connection as a site."
 }

@@ -56,7 +56,7 @@ export function useSearch(api: Api, workspaceId: string, siteId: string): Search
         setScanned(count)
       }
     }
-    void searchTree((folder) => api.files.list(workspaceId, siteId, folder, signal.signal), path, matcher, (match) => setMatches((previous) => [...previous, match]), signal.signal, onProgress).then((result) => {
+    void searchTree((folder, walkSignal) => api.files.list(workspaceId, siteId, folder, walkSignal), path, matcher, (match) => setMatches((previous) => [...previous, match]), signal.signal, onProgress).then((result) => {
       setScanned(result.scanned)
       setSummary(result)
       setPhase('done')

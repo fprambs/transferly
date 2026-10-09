@@ -137,6 +137,8 @@ describe('sites tree drag', () => {
     fireEvent.dragOver(within(tree).getByRole('treeitem', { name: /Clients/ }), { dataTransfer: data })
     expect(tree).not.toHaveClass('ring-inset')
     fireEvent.dragOver(tree, { dataTransfer: data })
+    fireEvent(tree, new MouseEvent('dragleave', { bubbles: true, relatedTarget: archive }))
+    expect(tree).toHaveClass('ring-inset')
     fireEvent.dragLeave(tree, { relatedTarget: document.body })
     expect(tree).not.toHaveClass('ring-inset')
     fireEvent.dragEnd(within(tree).getByRole('treeitem', { name: /Prod/ }), { dataTransfer: data })

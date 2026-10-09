@@ -3,6 +3,7 @@ import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { EventHandlers } from '@/lib/transport'
 import { FakeSocket, fakeSocketTransport } from '@/test/fake-socket'
 import { mockVault } from '@/test/handlers'
 import { server } from '@/test/msw'
@@ -75,6 +76,30 @@ async function renderProbe() {
  * - unmounting closes the stream and cancels a pending reconnection
  */
 describe('useTransferStream', () => {
+  it('ignores late history and queued stream callbacks after unmount', async () => {
+    const transport = fakeSocketTransport()
+    let handlers: EventHandlers | undefined
+    let resolveHistory: (response: Response) => void = () => {}
+    let historyStarted = false
+    server.use(http.get('/api/v1/transfers', () => {
+      historyStarted = true
+      return new Promise<Response>((resolve) => { resolveHistory = resolve })
+    }))
+    vi.spyOn(transport, 'events').mockImplementation((next) => { handlers = next; return () => {} })
+    await renderWithProviders(<Probe />, 'en', transport)
+    act(() => handlers?.onOpen())
+    await waitFor(() => expect(historyStarted).toBe(true))
+    cleanup()
+    act(() => {
+      handlers?.onEvent({ type: 'snapshot', data: { transfers: [record] } })
+      handlers?.onClose()
+      handlers?.onOpen()
+      resolveHistory(HttpResponse.json([record]))
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(useTransfersStore.getState().items).toEqual({})
+  })
+
   beforeEach(() => {
     useTransfersStore.getState().reset()
     mockVault()

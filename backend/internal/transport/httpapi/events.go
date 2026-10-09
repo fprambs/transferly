@@ -232,7 +232,7 @@ func (s *stream) step(ctx context.Context) error {
 		}
 		return s.write(ctx, m)
 	case <-s.verify.C:
-		if _, err := s.d.Auth.Verify(ctx, s.p.token); isAnonymous(err) {
+		if _, err := s.d.Auth.Verify(ctx, s.p.token); err != nil {
 			return errSessionEnded
 		}
 		return nil

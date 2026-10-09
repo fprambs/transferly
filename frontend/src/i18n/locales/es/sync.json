@@ -50,6 +50,10 @@
     "network_error": "No se pudo contactar con el servidor.",
     "localFailure": "El sistema de archivos local rechazó este archivo.",
     "tooMany": "Una de las carpetas tiene más archivos de los que se pueden comparar a la vez.",
-    "unknown": "Algo salió mal. Inténtalo de nuevo."
+    "unknown": "Algo salió mal. Inténtalo de nuevo.",
+    "safe_replace_unsupported": "Este servidor no permite reemplazar un archivo existente de forma segura. Guárdalo con otro nombre.",
+    "copy_connection_limit": "Copiar este archivo requiere dos conexiones. Aumenta el límite de conexiones del sitio, o descarga y sube el archivo.",
+    "ssh_algorithm_incompatible": "No hay algoritmos SSH compatibles.",
+    "remote_connection_timeout": "La conexión agotó el tiempo de espera. Los intentos automáticos se detuvieron."
   }
 }

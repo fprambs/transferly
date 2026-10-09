@@ -8,6 +8,19 @@ import (
 	"github.com/fprambs/transferly/internal/config"
 )
 
+// TestHTTPSDomainCoherence rejects a domain whose public origin would otherwise leave cookies and CSRF configured for HTTP.
+func TestHTTPSDomainCoherence(t *testing.T) {
+	values := map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x", "TRANSFERLY_DOMAIN": "files.example.com"}
+	if _, err := config.Load(env(values)); err == nil {
+		t.Fatal("accepted mismatched domain and default HTTP origin")
+	}
+	values["TRANSFERLY_BASE_URL"] = "https://files.example.com"
+	cfg, err := config.Load(env(values))
+	if err != nil || !cfg.CookieSecure() {
+		t.Fatalf("HTTPS origin: %v, secure=%v", err, cfg.CookieSecure())
+	}
+}
+
 // env returns a getenv function backed by m.
 func env(m map[string]string) func(string) string {
 	return func(k string) string { return m[k] }
@@ -185,6 +198,7 @@ func TestLoad_WebSettings(t *testing.T) {
 	}
 	if cfg.BaseURL != "https://files.example.com" || !cfg.CookieSecure() || len(cfg.AllowedOrigins) != 3 ||
 		cfg.AllowedOrigins[1] != "http://localhost:5173" || len(cfg.TrustedProxies) != 3 ||
+		cfg.TrustedProxies[1] != "192.168.1.5/32" || cfg.TrustedProxies[2] != "::1/128" ||
 		len(cfg.AllowedNetworks) != 2 || cfg.AllowedNetworks[0].String() != "192.168.1.0/24" || cfg.AllowedNetworks[1].String() != "10.0.0.9/32" ||
 		cfg.SessionIdle != 10*time.Minute || cfg.SessionMax != 2*time.Hour || cfg.JanitorInterval != time.Minute || cfg.ActivityRetention != 72*time.Hour {
 		t.Errorf("overrides = %+v", cfg)

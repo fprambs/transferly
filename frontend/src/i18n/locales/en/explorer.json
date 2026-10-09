@@ -80,7 +80,11 @@
     "connector_disabled": "The administrators of this instance do not offer this kind of site any more. Ask them to offer its connector again.",
     "server_commands_unsupported": "This server does not let Transferly run commands, or an administrator turned them off.",
     "remote_quota_exceeded": "The server has no space left.",
-    "sudo_refused": "sudo refused the account or its password, or the server cannot run it."
+    "sudo_refused": "sudo refused the account or its password, or the server cannot run it.",
+    "safe_replace_unsupported": "This server cannot safely replace an existing file. Save under a different name.",
+    "copy_connection_limit": "Copying this file needs two connections. Increase the site connection limit, or download and upload the file.",
+    "ssh_algorithm_incompatible": "No compatible SSH algorithms.",
+    "remote_connection_timeout": "Connection timed out. Automatic attempts stopped."
   },
   "toolbar": {
     "more": "More actions",

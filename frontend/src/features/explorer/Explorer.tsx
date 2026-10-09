@@ -1,6 +1,8 @@
+import { DeferredContent } from '@/lib/layout/DeferredContent'
+import { lazy } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, ChevronDown, CircleAlert, CircleStop, Ellipsis, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, SquareTerminal, Unplug, Upload } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Illustration } from '@/components/brand/Illustration'
@@ -34,7 +36,8 @@ import { localSiteId, readLocalFile } from '../local/local-fs'
 import { useLocalRoot } from '../local/local-root-store'
 import { useNotices } from '../notices/notices-store'
 import { readDropped, treeFromHandle, treeFromInput, TreeTooLarge, type UploadTree } from '../local/tree'
-import { collectFiles, eachDelayMs, maxEachFiles, preparingTimeoutMs, startDownload, TooManyFiles } from './download'
+import { maxEachFiles } from './download'
+import { useRemoteDownloads } from './use-remote-downloads'
 import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from './entry-drag'
 import { CopyPolicyDialog, type CopyPolicy } from './CopyPolicyDialog'
 import type { TreePolicy } from './use-uploads'
@@ -48,14 +51,14 @@ import { useConnectionState, useDisconnected } from '../toolbar/connection-store
 
 import { ChangedHostKeyNotice } from './ChangedHostKeyNotice'
 import { ConnectingState } from './ExplorerLoading'
-import { DownloadNotices, type RequestedDownload } from './DownloadNotices'
+import { DownloadNotices } from './DownloadNotices'
 import { VaultLockedNotice } from '../vault/VaultLockedNotice'
 import { CredentialNotice } from '../sites/CredentialNotice'
 import { useUiStore } from '@/state/ui-store'
 import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { SearchDialog } from '../search/SearchDialog'
-import { RemoteEditor } from '../editor/RemoteEditor'
+
 import { QuickLook } from '../preview/QuickLook'
 import type { TrustKey } from '../preview/HostKeyPrompt'
 import { remoteSource, type PreviewSource } from '../preview/source'
@@ -79,6 +82,9 @@ type Dialog =
   | { kind: 'delete'; entry: RemoteEntry }
   | { kind: 'edit'; entry: RemoteEntry }
   | { kind: 'compress'; entry: RemoteEntry }
+
+/** Loads RemoteEditor on first use. */
+const RemoteEditor = lazy(() => import('../editor/RemoteEditor').then((module) => ({ default: module.RemoteEditor })))
 
 /** Props of {@link Explorer}. */
 export interface ExplorerProps {
@@ -120,13 +126,11 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
   }
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [dragging, setDragging] = useState<'upload' | 'copy' | null>(null)
-  const [each, setEach] = useState<{ count: number } | ExplorerErrorKey | 'tooMany' | null>(null)
   const [folders, setFolders] = useState<UploadTree[]>([])
   const [asking, setAsking] = useState<{ source: DraggedEntry; name: string } | null>(null)
   const [copyFailure, setCopyFailure] = useState<ExplorerErrorKey | null>(null)
   const [searching, setSearching] = useState(false)
-  const [preparing, setPreparing] = useState<RequestedDownload[]>([])
-  const dismissDownload = useCallback((id: string) => setPreparing((list) => list.filter((item) => item.id !== id)), [])
+  const { preparing, each, download, downloadEach, dismissDownload, dismissEach } = useRemoteDownloads(api, workspaceId, siteId)
   const fileDoubleClick = useUiStore((state) => state.fileDoubleClick)
   const picker = useRef<HTMLInputElement>(null)
   const folderPicker = useRef<HTMLInputElement>(null)
@@ -161,7 +165,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
   })
   const tools = useQuery({
     queryKey: ['workspaces', workspaceId, 'tools', siteId] as const,
-    queryFn: () => api.files.tools(workspaceId, siteId),
+    queryFn: ({ signal }) => api.files.tools(workspaceId, siteId, signal),
     enabled: !disconnected && listing.isSuccess,
     staleTime: toolsFreshMs,
   }).data
@@ -244,16 +248,12 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
     await listing.refetch()
   }
 
-  const reload = (): Promise<void> => queryClient.invalidateQueries({ queryKey: filesPrefix(workspaceId, siteId) })
+  const reload = async (): Promise<void> => {
+    await queryClient.invalidateQueries({ queryKey: ['preview'] })
+    await queryClient.invalidateQueries({ queryKey: filesPrefix(workspaceId, siteId) })
+  }
 
   const uploads = useUploads({ api, workspaceId, siteId, path, onUploaded: reload })
-
-  const download = (entry: RemoteEntry): void => {
-    const id = uuid()
-    setPreparing((list) => [...list, { id, name: entry.name }])
-    setTimeout(() => dismissDownload(id), preparingTimeoutMs)
-    startDownload(entry.type === 'directory' ? api.files.archiveUrl(workspaceId, siteId, entry.path, id) : api.files.downloadUrl(workspaceId, siteId, entry.path, id))
-  }
 
   const edit = (entry: RemoteEntry): void => setDialog({ kind: 'edit', entry })
 
@@ -268,20 +268,6 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
   const sources = files.map((entry) => remoteSource(api, workspaceId, siteId, entry, trustKey))
   const preview = (entry: RemoteEntry): void => setPreviewing(files.findIndex((file) => file.path === entry.path))
   const entryOf = (source: PreviewSource): RemoteEntry => files[sources.indexOf(source)]
-
-  const downloadEach = async (folder: RemoteEntry): Promise<void> => {
-    try {
-      const found = await collectFiles((dir) => api.files.list(workspaceId, siteId, dir), folder.path, maxEachFiles)
-      setEach({ count: found.length })
-      for (const file of found) {
-        startDownload(api.files.downloadUrl(workspaceId, siteId, file.path, uuid()))
-        await new Promise((resolve) => setTimeout(resolve, eachDelayMs))
-      }
-      setEach(null)
-    } catch (error) {
-      setEach(error instanceof TooManyFiles ? 'tooMany' : explorerErrorKeyOf(error))
-    }
-  }
 
   const copyWith = async (source: DraggedEntry, policy: CopyPolicy, verify: boolean): Promise<void> => {
     const name = source.path.slice(source.path.lastIndexOf('/') + 1)
@@ -545,7 +531,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
       ) : (
         <div role="alert" className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
           <span>{each === 'tooMany' ? t(($) => $.archive.tooMany, { limit: maxEachFiles }) : `${t(($) => $.archive.failure)}: ${t(($) => $.errors[each])}`}</span>
-          <Button variant="outline" size="sm" onClick={() => setEach(null)}>
+          <Button variant="outline" size="sm" onClick={dismissEach}>
             {t(($) => $.archive.dismiss)}
           </Button>
         </div>
@@ -774,7 +760,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
         />
       )}
       {dialog?.kind === 'edit' && (
-        <RemoteEditor
+        <DeferredContent><RemoteEditor
           key={dialog.entry.path}
           api={api}
           workspaceId={workspaceId}
@@ -782,7 +768,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
           entry={dialog.entry}
           onClose={() => setDialog(null)}
           onSaved={() => void reload()}
-        />
+        /></DeferredContent>
       )}
       {dialog?.kind === 'delete' && (
         <DeleteEntryDialog

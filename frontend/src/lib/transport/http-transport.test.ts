@@ -315,6 +315,8 @@ describe('HttpTransport.request', () => {
 
     await new HttpTransport({ fetch: fetchStub }).request({ method: 'GET', path: '/a', signal: controller.signal })
 
-    expect(inits[0]?.signal).toBe(controller.signal)
+    expect(inits[0]?.signal?.aborted).toBe(false)
+    controller.abort()
+    expect(inits[0]?.signal?.aborted).toBe(true)
   })
 })

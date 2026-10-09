@@ -234,6 +234,11 @@ func TestService_Begin(t *testing.T) {
 	if _, _, err := f.svc.Begin(ctx, otherSite); !errors.Is(err, transfer.ErrExists) {
 		t.Errorf("the identifier of another site = %v; want ErrExists", err)
 	}
+	otherWorkspace := chosen
+	otherWorkspace.WorkspaceID = uuid.New()
+	if _, _, err := f.svc.Begin(ctx, otherWorkspace); !errors.Is(err, transfer.ErrExists) {
+		t.Errorf("the identifier of another workspace = %v; want ErrExists", err)
+	}
 	f.clock.Advance(time.Minute)
 	resume := chosen
 	resume.Offset, resume.Total = 400, 1000

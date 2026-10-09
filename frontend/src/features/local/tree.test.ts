@@ -62,6 +62,12 @@ function picked(relative: string): File {
  * - a folder of the chosen local folder becomes a tree with its files and subfolders
  */
 describe('folder trees', () => {
+  it('counts directories across batches and input paths as part of the work budget', async () => {
+    const many = Array.from({ length: maxTreeEntries }, (_, index) => fileEntry(`f${index}`))
+    await expect(readDropped(dropOf([dirEntry('root', [dirEntry('sub', many)])], []))).rejects.toBeInstanceOf(TreeTooLarge)
+    expect(() => treeFromInput(Array.from({ length: maxTreeEntries + 1 }, () => picked('root/file')))).toThrow(TreeTooLarge)
+    expect(() => treeFromInput(Array.from({ length: maxTreeEntries / 2 + 1 }, (_, i) => picked(`root/dir${i}/file`)))).toThrow(TreeTooLarge)
+  })
   it('passes files through when the browser gives no entries', async () => {
     const files = [new File(['a'], 'a.txt')]
 

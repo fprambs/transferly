@@ -1,0 +1,37 @@
+package httpapi_test
+
+import (
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/coder/websocket"
+)
+
+func TestReviewTerminalAfterLogout(t *testing.T) {
+	e := newFileEnv(t)
+	site := terminalSite(t, e.a, e.ws, e.cookie, e.csrf, "true").String()
+	conn, status := e.a.dialTerminal(e.ws.String(), site, e.cookie, "", "")
+	if conn == nil { t.Fatalf("dial = %d", status) }
+	readTerminal(t, conn)
+	r := e.a.send(http.MethodPost, "/api/v1/auth/logout", nil, e.cookie, e.csrf)
+	if r.Status != http.StatusNoContent { t.Fatalf("logout = %d %s", r.Status, r.Body) }
+	writeTerminal(t, conn, websocket.MessageBinary, "after logout\n")
+	_, text := readTerminal(t, conn)
+	if text != "echo: after logout\n" { t.Fatalf("unexpected response: %q", text) }
+	t.Log("OBSERVED: remote terminal still accepted input after a successful logout")
+}
+
+func TestReviewTerminalAfterExpiry(t *testing.T) {
+	e := newFileEnv(t)
+	site := terminalSite(t, e.a, e.ws, e.cookie, e.csrf, "true").String()
+	conn, status := e.a.dialTerminal(e.ws.String(), site, e.cookie, "", "")
+	if conn == nil { t.Fatalf("dial = %d", status) }
+	readTerminal(t, conn)
+	e.a.clock.Advance(9*time.Hour)
+	if _, err := e.a.auth.Verify(t.Context(), e.cookie.Value); err == nil { t.Fatal("session should be expired") }
+	writeTerminal(t, conn, websocket.MessageBinary, "after expiry\n")
+	_, text := readTerminal(t, conn)
+	if text != "echo: after expiry\n" { t.Fatalf("unexpected response: %q", text) }
+	t.Log("OBSERVED: remote terminal still accepted input after the session expired")
+}

@@ -127,6 +127,8 @@ export interface Transport {
   socket(path: string, query?: ApiQuery): WebSocket
   /** Sets the anti-CSRF token sent with every state-changing call; `undefined` forgets it. */
   setCsrfToken(token: string | undefined): void
+  /** Cancels resources of an old identity before an explicit login or logout transition. */
+  resetSession?(): void
   /**
    * Registers a callback for answers with code `unauthenticated` (session cookie expired or invalid).
    * Implementations that do not track sessions may omit this.

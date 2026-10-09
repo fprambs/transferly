@@ -45,6 +45,10 @@ type Options struct {
 	NoSFTP bool
 	// Ciphers restricts the ciphers the server offers; nil keeps the library defaults.
 	Ciphers []string
+	// PublicKeyAuths restricts accepted client signatures.
+	PublicKeyAuths []string
+	// MACs restricts message authentication algorithms.
+	MACs []string
 	// KeyExchanges restricts the key exchange algorithms the server offers; nil keeps the library defaults.
 	KeyExchanges []string
 	// Home is the folder sessions open in, as pwd tells it; empty means the root.
@@ -174,7 +178,8 @@ func Serve(listener net.Listener, root string, opt Options) (*Server, error) {
 	}
 	refused := &atomic.Int64{}
 	config := &ssh.ServerConfig{
-		Config: ssh.Config{Ciphers: opt.Ciphers, KeyExchanges: opt.KeyExchanges},
+		PublicKeyAuthAlgorithms: opt.PublicKeyAuths,
+		Config:                  ssh.Config{Ciphers: opt.Ciphers, KeyExchanges: opt.KeyExchanges, MACs: opt.MACs},
 		PasswordCallback: func(c ssh.ConnMetadata, pw []byte) (*ssh.Permissions, error) {
 			if want, ok := opt.Users[c.User()]; ok && want == string(pw) {
 				return nil, nil

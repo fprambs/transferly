@@ -2,9 +2,12 @@ import { ApiError } from '@/lib/transport'
 
 /** Translation keys of the failures a sync run explains, reusing the codes the file endpoints already answer with. */
 const syncErrorKeys = [
+  'copy_connection_limit',
+  'safe_replace_unsupported',
   'host_key_changed',
   'remote_auth_failed',
   'remote_unavailable',
+  'ssh_algorithm_incompatible', 'remote_connection_timeout',
   'remote_permission_denied',
   'path_not_found',
   'path_exists',

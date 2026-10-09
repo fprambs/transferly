@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BrandIcon } from '@/components/brand/BrandIcon'
@@ -52,6 +52,7 @@ export function TransfersDock() {
   const workspace = useWorkspace()
   const timeZone = useTimeZone()
   const api = useApi()
+  const [actionFailed, setActionFailed] = useState(false)
   const open = useUiStore((state) => state.queueOpen)
   const toggle = useUiStore((state) => state.toggleQueue)
   const items = useTransfersStore((state) => state.items)
@@ -94,12 +95,12 @@ export function TransfersDock() {
     }
   }
 
-  const cancel = (id: string): void => void api.transfers.cancel(id).catch(() => undefined)
-  const apply = (change: Promise<Transfer>): void => void change.catch(() => undefined)
+  const cancel = (id: string): void => apply(api.transfers.cancel(id))
+  const apply = (change: Promise<Transfer | void>): void => { setActionFailed(false); void change.catch(() => setActionFailed(true)) }
   const pause = (id: string): void => apply(api.transfers.pause(id))
   const proceed = (id: string): void => apply(api.transfers.resume(id))
   const prioritize = (id: string, priority: TransferPriority): void => apply(api.transfers.setPriority(id, priority))
-  const remove = (id: string): void => void api.transfers.remove(id).then(() => forget(id)).catch(() => undefined)
+  const remove = (id: string): void => apply(api.transfers.remove(id).then(() => forget(id)))
 
   return (
     <section aria-labelledby="queue-title" className="flex h-full min-h-0 flex-col bg-card">
@@ -125,6 +126,7 @@ export function TransfersDock() {
           event.target.value = ''
         }}
       />
+      {actionFailed && <p role="alert" className="px-4 text-sm text-destructive">{transfers(($) => $.actionFailed)}</p>}
       {failure === null ? null : (
         <div role="alert" className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm duration-200 animate-in fade-in-0 slide-in-from-bottom-1">
           <span>{transfers(($) => $.resumeErrors[failure])}</span>

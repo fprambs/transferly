@@ -323,6 +323,34 @@ func (f *FS) Rename(ctx context.Context, from, to string) error {
 	return nil
 }
 
+// CanReplace reports the atomic commit capability of the reference file system.
+func (*FS) CanReplace() bool { return true }
+
+// Replace implements remotefs.Replacer for regular files under a single file-system lock.
+func (f *FS) Replace(ctx context.Context, from, to string) error {
+	if err := f.begin(ctx); err != nil {
+		return err
+	}
+	defer f.mu.Unlock()
+	from, to = clean(from), clean(to)
+	n, ok := f.nodes[from]
+	if !ok {
+		return fail("replace", from, remotefs.ErrNotFound)
+	}
+	if n.mode.IsDir() {
+		return fail("replace", from, remotefs.ErrInvalid)
+	}
+	if old, ok := f.nodes[to]; ok && old.mode.IsDir() {
+		return fail("replace", to, remotefs.ErrInvalid)
+	}
+	if err := f.parentDir("replace", to); err != nil {
+		return err
+	}
+	f.nodes[to] = n
+	delete(f.nodes, from)
+	return nil
+}
+
 // Chmod implements [remotefs.RemoteFS].
 func (f *FS) Chmod(ctx context.Context, p string, mode fs.FileMode) error {
 	if err := f.begin(ctx); err != nil {

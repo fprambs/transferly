@@ -28,6 +28,7 @@ export function problem(status: number, code: string, params?: Record<string, un
 
 /** Answers `GET /me` with a session, or with 401 when there is none. */
 export function mockSession(session: SessionInfo | null): void {
+  if (session !== null) localStorage.setItem('transferly-private-owner', session.user.id)
   server.use(http.get('/api/v1/me', () => (session === null ? problem(401, 'unauthenticated') : HttpResponse.json(session))))
 }
 

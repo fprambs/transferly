@@ -2,10 +2,12 @@ package sftpfs_test
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/core/remotefs"
@@ -131,4 +133,32 @@ func TestFS_Shell(t *testing.T) {
 	if _, err := fsys.Shell(t.Context(), "/", 80, 24); !errors.Is(err, remotefs.ErrConnectionLost) {
 		t.Errorf("Shell() after Close = %v, want ErrConnectionLost", err)
 	}
+}
+
+// TestShellCancellation closes a borrowed SSH connection on revocation and unblocks a waiting shell reader.
+func TestShellCancellation(t *testing.T) {
+	server, started := shellServer(t, sftptest.Options{})
+	fsys := dial(t, server)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	term, err := fsys.Shell(ctx, "/", 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	done := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(io.Discard, term)
+		done <- err
+	}()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("revoked shell reader remained blocked")
+	}
+	if _, err := fsys.Stat(t.Context(), "/"); !errors.Is(err, remotefs.ErrConnectionLost) {
+		t.Fatalf("revoked connection: %v", err)
+	}
+	_ = term.Close()
 }

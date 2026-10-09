@@ -354,8 +354,8 @@ export function createApi(transport: Transport) {
         transport.request<TimeZoneProbe>({ method: 'POST', path: `${filesPath(workspaceId, siteId)}/timezone-probe`, query: { path } }),
       checksum: (workspaceId: string, siteId: string, path: string, algorithm: ChecksumAlgorithm) =>
         transport.request<Checksum>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/checksum`, query: { path, algorithm } }),
-      tools: (workspaceId: string, siteId: string) =>
-        transport.request<ServerTools>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/tools` }),
+      tools: (workspaceId: string, siteId: string, signal?: AbortSignal) =>
+        transport.request<ServerTools>({ method: 'GET', path: `${root}/workspaces/${workspaceId}/sites/${siteId}/tools`, signal }),
       home: (workspaceId: string, siteId: string) =>
         transport.request<HomeFolder>({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/home` }),
       usage: (workspaceId: string, siteId: string, path: string) =>
@@ -378,8 +378,8 @@ export function createApi(transport: Transport) {
             await transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/content`, query: { path }, range: { start, end: end - 1 }, signal }),
           ).arrayBuffer(),
         ),
-      download: (workspaceId: string, siteId: string, path: string, transferId?: string) =>
-        transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/content`, query: { path, transferId } }),
+      download: (workspaceId: string, siteId: string, path: string, transferId?: string, signal?: AbortSignal) =>
+        transport.stream({ method: 'GET', path: `${filesPath(workspaceId, siteId)}/content`, query: { path, transferId }, signal }),
       upload: (workspaceId: string, siteId: string, path: string, body: Blob | Uint8Array, options: UploadOptions = {}) =>
         transport.request<RemoteEntry>({
           method: 'PUT',

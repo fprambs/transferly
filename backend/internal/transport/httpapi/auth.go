@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/fprambs/transferly/internal/core/auth"
 )
 
@@ -100,6 +102,7 @@ func (s *server) Logout(ctx context.Context, _ LogoutRequestObject) (LogoutRespo
 	if err := s.deps.Auth.Logout(ctx, p.token); err != nil {
 		return nil, err
 	}
+	s.deps.terminals.revoke(vaultKey(p), p.User.ID, uuid.Nil)
 	cleared := clearedSessionCookie(s.deps.Cookie)
 	return Logout204Response{Headers: Logout204ResponseHeaders{SetCookie: &cleared}}, nil
 }

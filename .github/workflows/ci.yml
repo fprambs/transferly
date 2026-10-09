@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -10,7 +11,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 env:
   COMPOSE_DEV: docker compose -f compose.dev.yaml
@@ -45,8 +46,12 @@ jobs:
       - name: Backend lint and module hygiene
         run: |
           $COMPOSE_DEV run --rm -T tools sh -c 'cd backend && golangci-lint run ./... && go mod tidy -diff'
+      - name: Patched archive parser budgets
+        run: $COMPOSE_DEV run --rm --no-deps -T tools sh -c 'cd backend && go test github.com/bodgit/sevenzip'
       - name: Tests with 100 percent coverage
         run: $COMPOSE_TEST run --rm unit
+      - name: Production bundle budget
+        run: $COMPOSE_DEV run --rm --no-deps -T tools sh -c 'cd frontend && pnpm build && node ../scripts/check-bundle.mjs'
 
   e2e:
     name: Browser tests against the production image
@@ -60,7 +65,7 @@ jobs:
       - name: Install frontend dependencies
         run: $COMPOSE_DEV run --rm --no-deps -T tools sh -c 'cd frontend && pnpm install --frozen-lockfile'
       - name: Playwright suites
-        run: $COMPOSE_TEST run --rm e2e
+        run: sh ./scripts/test-browser.sh --workers=4
       - name: Keep the report when tests fail
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -76,13 +81,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: Use the runner user inside containers
         run: |
           echo "HOST_UID=$(id -u)" >> "$GITHUB_ENV"
           echo "HOST_GID=$(id -g)" >> "$GITHUB_ENV"
       - name: Go and npm dependency audit
         run: |
-          $COMPOSE_DEV run --rm --no-deps -T tools sh -c 'cd backend && govulncheck ./... && cd ../frontend && pnpm install --frozen-lockfile && pnpm audit --prod'
+          $COMPOSE_DEV run --rm --no-deps -T tools sh -c 'cd backend && govulncheck ./... && cd ../frontend && pnpm install --frozen-lockfile && pnpm audit'
+      - name: Scan secrets in the complete history
+        run: |
+          mkdir -p /tmp/transferly-audit
+          docker compose -f compose.audit.yaml run --rm -T secrets
       - name: Build the production image
         run: docker compose build app
       - name: Scan the image
@@ -97,13 +108,14 @@ jobs:
         with:
           scan-type: config
           scan-ref: .
+          skip-dirs: frontend/node_modules,frontend/dist,frontend/coverage
           severity: HIGH,CRITICAL
           exit-code: "1"
           trivyignores: .trivyignore.yaml
 
   image:
     name: Publish the image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
     needs: [generated, unit, e2e, security]
     runs-on: ubuntu-latest
     permissions:
@@ -119,11 +131,31 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate immutable release identity
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          [[ "$RELEASE_REF" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]
+          python3 -c 'import os; ids=os.environ["RELEASE_REF"].partition("-")[2].split("."); assert all(not part.isdigit() or part == "0" or not part.startswith("0") for part in ids)'
+          python3 -c 'import json,os; assert json.load(open("frontend/package.json"))["version"] == os.environ["RELEASE_REF"][1:]'
+          if result=$(docker buildx imagetools inspect "$IMAGE:$RELEASE_REF" 2>&1); then
+            echo "Release image already exists; refusing to replace it"
+            exit 1
+          fi
+          if ! printf '%s' "$result" | grep -Eiq 'manifest unknown|not found'; then
+            echo "Could not verify whether the release image exists"
+            exit 1
+          fi
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: docker/app.Dockerfile
           push: true
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            VERSION=${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.ref_type == 'tag' && github.ref_name || 'main' }}

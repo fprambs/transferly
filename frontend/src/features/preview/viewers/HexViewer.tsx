@@ -32,6 +32,7 @@ function usePage(source: PreviewSource, page: number) {
     queryKey: ['preview', source.key, 'hex', page],
     queryFn: ({ signal }) => source.read(page * pageBytes, (page + 1) * pageBytes, signal),
     staleTime: Infinity,
+    gcTime: 0,
   })
 }
 

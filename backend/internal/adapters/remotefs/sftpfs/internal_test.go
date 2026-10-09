@@ -2,16 +2,21 @@ package sftpfs
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"net"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"testing"
 
 	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/fprambs/transferly/internal/adapters/remotefs/sftpfs/sftptest"
 	"github.com/fprambs/transferly/internal/core/remotefs"
@@ -272,5 +277,72 @@ func TestStrictServers_Store(t *testing.T) {
 	fresh.add("first:22")
 	if !fresh.Has("first:22") {
 		t.Error("a server learned before the store was read was forgotten")
+	}
+}
+
+// TestSafeAlgorithms checks complete secure algorithm coverage and fail-closed trusted identities.
+func TestSafeAlgorithms(t *testing.T) {
+	safe := ssh.SupportedAlgorithms()
+	for _, algorithm := range safe.KeyExchanges {
+		if !slices.Contains(keyExchanges, algorithm) {
+			t.Errorf("missing secure key exchange %s", algorithm)
+		}
+	}
+	for _, algorithm := range safe.Ciphers {
+		if !slices.Contains(ciphers, algorithm) {
+			t.Errorf("missing secure cipher %s", algorithm)
+		}
+	}
+	if got := safeHostAlgorithms(nil); !slices.Equal(got, safe.HostKeys) {
+		t.Fatal("host algorithms differ from secure policy")
+	}
+	if got := safeHostAlgorithms([]string{ssh.KeyAlgoRSA}); len(got) == 0 || slices.Contains(got, ssh.KeyAlgoRSA) {
+		t.Fatal("unsafe or unrestricted host algorithms", got)
+	}
+	e := negotiationError(&ssh.AlgorithmNegotiationError{What: "host key", RequestedAlgorithms: []string{"ssh-rsa"}})
+	var negotiation *remotefs.NegotiationError
+	if !errors.As(e, &negotiation) || negotiation.Category != "host_signature" {
+		t.Fatal(e)
+	}
+}
+
+// TestAuthenticationSignatureNegotiation checks the legacy RSA fallback diagnostic.
+func TestAuthenticationSignatureNegotiation(t *testing.T) {
+	err := handshakeError("h:22", nil, true, errors.New(`ssh: handshake failed: ssh: no common public key signature algorithm, server only supports "ssh-rsa" for key type "ssh-rsa", signer only supports [rsa-sha2-256 rsa-sha2-512]`))
+	var negotiation *remotefs.NegotiationError
+	if !errors.As(err, &negotiation) || negotiation.Category != "authentication_signature" || remotefs.Retryable(err) {
+		t.Fatal(err)
+	}
+}
+
+// basicSigner deliberately lacks AlgorithmSigner, so restrictions cannot be applied.
+type basicSigner struct{ ssh.Signer }
+
+// TestSafeSignerRequiresRestrictions verifies that a signer without algorithm restrictions fails closed.
+func TestSafeSignerRequiresRestrictions(t *testing.T) {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := ssh.NewSignerFromKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := safeSigner(basicSigner{signer}); err == nil {
+		t.Fatal("unrestricted signer accepted")
+	}
+}
+
+// TestNegotiationAdvertisementBounds verifies that untrusted names cannot inject controls or grow diagnostics indefinitely.
+func TestNegotiationAdvertisementBounds(t *testing.T) {
+	names := []string{"bad\nname\x00é", strings.Repeat("a", 256)}
+	names = append(names, make([]string, 80)...)
+	err := negotiationError(&ssh.AlgorithmNegotiationError{What: "public key signature algorithm", RequestedAlgorithms: names})
+	var diagnostic *remotefs.NegotiationError
+	if !errors.As(err, &diagnostic) || diagnostic.Category != "authentication_signature" {
+		t.Fatal(err)
+	}
+	if len(diagnostic.ServerAlgorithms) != 64 || diagnostic.ServerAlgorithms[0] != "badname" || len(diagnostic.ServerAlgorithms[1]) != 128 {
+		t.Fatalf("unbounded advertisement: %+v", diagnostic)
 	}
 }

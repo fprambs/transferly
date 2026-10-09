@@ -6,6 +6,9 @@ import { filesPrefix } from '../explorer/files-key'
 import { localSiteId } from '../local/local-fs'
 
 import { useTabs } from './tabs-store'
+import { useConnectionState } from '../toolbar/connection-store'
+import { openConnectionsKey, withState } from '../sites/use-open-connections'
+import type { OpenConnections } from '@/lib/api'
 
 /**
  * Returns what closes the connections of sites that no tab shows any more, in either pane: a tab that closed, or a site the active tab
@@ -21,8 +24,13 @@ export function useCloseUnused(): (workspaceId: string, siteIds: ReadonlyArray<s
       if (siteId === undefined || siteId === localSiteId || tabs.some((tab) => tab.siteId === siteId || tab.split === siteId)) {
         continue
       }
-      queryClient.removeQueries({ queryKey: filesPrefix(workspaceId, siteId) })
-      api.sites.disconnect(workspaceId, siteId).catch(() => undefined)
+      const prefix = filesPrefix(workspaceId, siteId)
+      useConnectionState.getState().markDisconnected({ workspaceId, siteId })
+      void queryClient.cancelQueries({ predicate: (query) => query.queryKey[0] === 'workspaces' && query.queryKey[1] === workspaceId && query.queryKey.includes(siteId) }).then(async () => {
+        await api.sites.disconnect(workspaceId, siteId)
+        queryClient.removeQueries({ queryKey: prefix })
+        queryClient.setQueryData(openConnectionsKey(workspaceId), (answer: OpenConnections | undefined) => withState(answer, siteId, false))
+      }).catch(() => { void queryClient.invalidateQueries({ queryKey: openConnectionsKey(workspaceId) }) })
     }
   }
 }

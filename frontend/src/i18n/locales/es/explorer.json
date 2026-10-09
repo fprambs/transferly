@@ -80,7 +80,11 @@
     "connector_disabled": "Los administradores de esta instancia ya no ofrecen este tipo de sitio. Pídeles que vuelvan a ofrecer su conector.",
     "server_commands_unsupported": "Este servidor no permite que Transferly ejecute comandos, o un administrador los desactivó.",
     "remote_quota_exceeded": "El servidor no tiene espacio.",
-    "sudo_refused": "sudo rechazó la cuenta o su contraseña, o el servidor no puede ejecutarlo."
+    "sudo_refused": "sudo rechazó la cuenta o su contraseña, o el servidor no puede ejecutarlo.",
+    "safe_replace_unsupported": "Este servidor no puede reemplazar un archivo existente con seguridad. Guarda con otro nombre.",
+    "copy_connection_limit": "Copiar este archivo requiere dos conexiones. Aumenta el límite de conexiones del sitio, o descarga y sube el archivo.",
+    "ssh_algorithm_incompatible": "No hay algoritmos SSH compatibles.",
+    "remote_connection_timeout": "La conexión agotó el tiempo de espera. Los intentos automáticos se detuvieron."
   },
   "toolbar": {
     "more": "Más acciones",

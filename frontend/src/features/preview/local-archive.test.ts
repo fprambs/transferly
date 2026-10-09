@@ -178,6 +178,21 @@ afterEach(() => {
  * - a file of the local panel gets the archive of the browser, which opens the file once
  */
 describe('local archives', () => {
+  it('rejects oversized directories and invalid ZIP64 pointers before allocating or slicing them', async () => {
+    const make = () => zipOf([{ name: 'file', data: new Uint8Array([1]) }], true)
+    const pointer = make()
+    new DataView(pointer.buffer).setBigUint64(pointer.length - 34, BigInt(pointer.length), true)
+    await expectCode(archiveOf('pointer.zip', pointer).list(), 'archive_unsupported')
+    const count = make()
+    new DataView(count.buffer).setBigUint64(count.length - 98 + 32, 100_001n, true)
+    await expectCode(archiveOf('count.zip', count).list(), 'archive_too_large')
+    const directory = make()
+    new DataView(directory.buffer).setBigUint64(directory.length - 98 + 40, 16_777_217n, true)
+    await expectCode(archiveOf('directory.zip', directory).list(), 'archive_too_large')
+    const offset = make()
+    new DataView(offset.buffer).setBigUint64(offset.length - 98 + 48, BigInt(offset.length), true)
+    await expectCode(archiveOf('offset.zip', offset).list(), 'archive_unsupported')
+  })
   it('reads the samples', async () => {
     const zip = archiveOf('project.zip', sample('archives/project.zip'))
     const listing = await zip.list()
