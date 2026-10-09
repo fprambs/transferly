@@ -55,7 +55,7 @@ Before using a library for the first time, read its official documentation and r
 
 | Component | Version |
 |---|---|
-| Go | 1.27 (`golang:1.27-bookworm`) |
+| Go | 1.27.2 (`golang:1.27.2-bookworm`) |
 | Node | 24 LTS |
 | pnpm | 12.6.0 |
 | sqlc | v1.31.1 |

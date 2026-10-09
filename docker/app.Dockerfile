@@ -1,5 +1,5 @@
 # Production image: builds the frontend, embeds it in the Go binary and ships a minimal non-root image.
-ARG GO_VERSION=1.27
+ARG GO_VERSION=1.27.2
 ARG NODE_VERSION=24
 ARG PNPM_VERSION=12.6.0
 
