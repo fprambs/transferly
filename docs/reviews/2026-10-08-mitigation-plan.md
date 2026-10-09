@@ -221,14 +221,14 @@ Estado por hallazgo: pendiente → en implementación → en validación → cer
 | R10 | PR11 | Ninguna funcional | Validado local |
 | R11 | PR12 | Coordinación con R03/R09/R10 | Validado local |
 | R12 | PR13 | R11 | Validado local |
-| R13 | PR17 | Gate final completo | Preparado; CI/publicación pendientes |
+| R13 | PR17 | Gate final completo | Candidato validado localmente; CI diferido; publicación pendiente |
 | R14 | PR16 | R09–R12, R16 | Validado local; controladores extraídos |
 | R15 | PR14 | Ninguna funcional; integrar con R03/R11 | Validado local |
 | R16 | PR15 | R03, R15; coordinación con R11 | Validado local |
 
 Para cada PR: pruebas específicas primero; lint/tipos/contrato de capas afectadas; conformidad cuando cambie un adaptador; suite completa y seguridad en CI. Evitar ejecutar la batería completa repetidamente sin cambios o fallos que lo justifiquen.
 
-Para declarar estable: todos los P1 cerrados; cada P2 cerrado o funcionalidad limitada/deshabilitada de forma explícita y comprobada; R15 incluido por su impacto en diagnóstico y recuperación; CI del commit exacto verde; instalación HTTPS, actualización/restauración y presupuestos comprobados; versión/digest identificables. Preparar primero un candidato `1.0.0-rc.1` con notas y evidencia, antes del lanzamiento final.
+Para declarar estable: todos los P1 cerrados; cada P2 cerrado o funcionalidad limitada/deshabilitada de forma explícita y comprobada; R15 incluido por su impacto en diagnóstico y recuperación; gate del commit exacto aprobado (local para este candidato, según la excepción acordada abajo); instalación HTTPS, actualización/restauración y presupuestos comprobados; versión/digest identificables. Preparar primero un candidato `1.0.0-rc.1` con notas y evidencia, antes del lanzamiento final.
 
 **Primera ejecución propuesta:** PR01 para recuperar el gate; después PR02 y PR03 de seguridad/identidad, PR04 de rutas y PR05–06 de integridad. La estimación de calendario se hará tras diseñar las garantías de escritura de R02 y contrastar los parsers de R12: ambos concentran la mayor incertidumbre, por lo que no se fija una fecha de release antes de resolverlos.
 
@@ -236,7 +236,10 @@ Para declarar estable: todos los P1 cerrados; cada P2 cerrado o funcionalidad li
 
 La [validación final del 9 de octubre](2026-10-09-validation-results.md) registra cobertura, dos suites de navegador, veinte repeticiones, seguridad, restauración/actualización y comparación de rendimiento. La publicación sigue pendiente de CI sobre el commit definitivo y configuración del repositorio. Los límites de una instancia, reemplazo FTP y recuperación de temporales están documentados.
 
-- [ ] Ejecutar CI remoto sobre el commit definitivo, verificar reporte privado/protecciones de GitHub y aprobar la publicación de la versión elegida.
+- [x] Aceptar el gate local del candidato; CI remoto diferido por decisión del usuario.
+- [x] Construir y probar la imagen versionada del candidato; hashes registrados.
+- [ ] Integrar el candidato actualizado en main y publicar su imagen/version.
+- [ ] Verificar reporte privado/protecciones cuando el repositorio sea público y aprobar la publicación estable.
 
 
 ## Revalidación del candidato con SSH y timeout
@@ -249,3 +252,26 @@ R13 continúa pendiente: el workspace todavía informa versión 0.9.0/dev. Prepa
 ## Identidad del candidato
 
 Versión preparada: `1.0.0-rc.1`; rama de validación: `release/1.0.0-rc.1`. La configuración CI ejecuta los gates sobre ramas `release/**` sin publicar imágenes. Las notas están en CHANGELOG.md y docs/releases/1.0.0-rc.1.md. El script de release admite prereleases y rechaza identificadores numéricos con ceros iniciales. Tag, imagen de release, CI remoto aprobado y verificación de protecciones/reporte privado continúan pendientes.
+
+
+## Decisión vigente: gate local y CI diferido
+
+El 9 de octubre el usuario acepta usar la validación local de Docker para este candidato y diferir CI remoto, sin contratar un plan de pago. El candidato es `1.0.0-rc.1`, rama `release/1.0.0-rc.1`, commit de código `cfe9a8b81551a82a73a039cd2ebb0bd1c219cc6c`. La ejecución remota [37974611676](https://github.com/fprambs/transferly/actions/runs/37974611676) no inició ninguno de los cuatro jobs de comprobación por bloqueo de facturación/límite de gasto; no equivale a pruebas fallidas ni aprobadas.
+
+Se conservan workflow, pruebas, umbrales y escáneres. La excepción es el lugar de ejecución del gate, no una reducción de controles. Go con detector de carreras y 100 % por función, frontend con 1.296 pruebas y 100 %, lint/tipos, instalación congelada y build de 489.273 bytes gzip pasaron en la preparación de ese commit. El navegador completo pasó sobre la imagen de prueba previa a cambiar únicamente la identidad del candidato: 163 aprobadas, 19 capturas deliberadamente omitidas, sin retries. Esa imagen informa `dev`; falta construir/probar/publicar la imagen con identidad de release y registrar su digest.
+
+GitHub confirma repositorio privado y `main` sin protección. La API de rulesets devuelve 403 por disponibilidad del plan y el endpoint de reporte privado devuelve 404; ese último control no está verificado. Antes del lanzamiento público hay que comprobar/configurar estos controles en el estado público del repositorio. CI remoto puede retomarse entonces o mediante un runner propio, como tarea separada.
+
+Las etapas 0–4 están validadas localmente. R13 sigue abierto únicamente por entrega y publicación: imagen/version/digest, prueba del candidato distribuible, integración en main, configuración del repositorio público y lanzamiento estable. No se creó tag, release ni se cambió visibilidad.
+
+
+## Imagen RC validada
+
+Imagen local `transferly:1.0.0-rc.1`, commit de código `75c39f1`, Go 1.27.2. Binario y API reportan `v1.0.0-rc.1`; exportación y carga verificadas. Digest del índice OCI local: `sha256:fcf224a3c6f1fc0525ca014a4268f3bccd16bd1277ed3859669190001bffa3f8`. Archivo y checksums locales: `/tmp/transferly-release/`; [metadatos completos](../releases/1.0.0-rc.1-image.json).
+
+Se corrigieron dos avisos HIGH de la primera imagen actualizando Go. Go completo con `-race` y cobertura por función al 100 %, govulncheck sin uso afectado, Trivy con cero HIGH/CRITICAL (incluidos sin parche), y 163 pruebas de navegador sin retries. El commit de seguridad es local y no fue enviado; no se publicó imagen, tag ni release y no se cambiaron llaves de Git ni visibilidad. R13 pendiente: integrar/publicar candidato, verificar controles del repositorio público y lanzar estable.
+
+
+## Integración y preparación de publicación
+
+La integración del candidato en main conserva el historial mediante fast-forward. El código validado es `75c39f1`; los commits posteriores de documentación no cambian la imagen ya probada. La [lista concreta de publicación](../releases/1.0.0-rc.1-publication.md) identifica notas, versión, hashes, artefacto y pasos pendientes. CI remoto sigue diferido; tag RC, subida al registro, prerelease y visibilidad pública no se ejecutan como parte de esta preparación.

@@ -1,0 +1,23 @@
+{
+  "version": "v1.0.0-rc.1",
+  "codeCommit": "75c39f186d8f9cff4afa2194753ffbc881f72656",
+  "imageID": "sha256:fcf224a3c6f1fc0525ca014a4268f3bccd16bd1277ed3859669190001bffa3f8",
+  "archiveImageDigest": "sha256:fcf224a3c6f1fc0525ca014a4268f3bccd16bd1277ed3859669190001bffa3f8",
+  "platformManifestDigest": "sha256:b70577738f354d30d2f7fd44f2b971cbce58708b4c5ec587e8617bf2e27aa75c",
+  "configDigest": "sha256:2c0cdf3af15f19a327286b64098e022fc2425a9443a11add2b3676ff4eac27af",
+  "archiveSHA256": "6aa6332729881445c3bc5a46744d502b8d3541a6255ad7f36c2ee86a1dfda9d4",
+  "archiveBytes": 12920832,
+  "goVersion": "1.27.2",
+  "published": false,
+  "platform": "linux/amd64",
+  "checks": {
+    "binaryVersion": "v1.0.0-rc.1",
+    "authenticatedAPIVersion": "v1.0.0-rc.1",
+    "imageScanHighCritical": 0,
+    "archiveLoad": "passed",
+    "goRaceCoverage": "100%",
+    "browserPassed": 163,
+    "browserSkippedDocumentationCaptures": 19,
+    "browserRetries": 0
+  }
+}

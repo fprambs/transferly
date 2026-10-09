@@ -88,3 +88,19 @@ Las [notas de 1.0.0-rc.1](../releases/1.0.0-rc.1.md) son un borrador. La versió
 
 
 La revalidación local de esta ronda terminó correctamente. Los registros de Go, frontend y navegador finalizan con código de salida 0. Los siguientes pasos son fijar la versión/commit del candidato, validar ese commit en CI remoto y verificar la configuración del repositorio antes de publicar.
+
+
+## Gate aceptado para el candidato
+
+La decisión vigente está en el [plan](2026-10-08-mitigation-plan.md#decisión-vigente-gate-local-y-ci-diferido): el usuario acepta la validación local y difiere CI remoto por el bloqueo de facturación. El candidato de código es `cfe9a8b` / `1.0.0-rc.1`. Go, frontend, lint/tipos, módulos, instalación congelada y build pasaron al preparar el commit; registro `/tmp/transferly-rc-gate.log`. El commit de preparación pasó además el hook de lint/tipos. No se modificó lógica de producción después de esas pruebas.
+
+La ejecución de GitHub 37974611676 terminó como failure sin iniciar pruebas; todos los jobs de comprobación llevan el mismo diagnóstico de pagos/límite de gasto. La publicación de imagen se omitió. Evidencia remota resumida en `/tmp/transferly-rc-remote-validation.json`. No se presenta CI como aprobado. Los párrafos anteriores sobre versión 0.9.0/workspace describen la validación previa, no la identidad vigente.
+
+
+## Imagen versionada y actualización de seguridad
+
+El RC distribuible local se recompiló con Go 1.27.2 (commit `75c39f1`) después de que el escaneo actualizado detectara CVE-2026-78667 y CVE-2026-97031 en la primera imagen Go 1.27.1. La imagen inicial no se acepta como artefacto de release.
+
+La imagen corregida pasa versión de binario y API, exportación y recarga Docker, Go completo con `-race` y 100 % por función, y 163 pruebas de navegador sin retries (19 capturas omitidas deliberadamente). Trivy: cero HIGH/CRITICAL incluso sin `--ignore-unfixed`. Govulncheck: cero símbolos o paquetes importados afectados; seis avisos en módulos requeridos sin uso afectado. Metadatos y hashes en [1.0.0-rc.1-image.json](../releases/1.0.0-rc.1-image.json).
+
+Registros: `/tmp/transferly-rc-go1272-gate.log`, `/tmp/transferly-rc-go-update-commit.log`, `/tmp/transferly-rc-image-fixed-build.log`, `/tmp/transferly-rc-image-fixed-version.log`, `/tmp/transferly-rc-image-fixed-browser.log`, `/tmp/transferly-rc-image-fixed-all-high.log` y `/tmp/transferly-audit/rc-image-fixed-all-high.json`. No se repitió frontend completo porque no cambió su código. No se hizo nuevo push: remoto `cfe9a8b`, código local `75c39f1`; documentación de esta evidencia permanece en el workspace.

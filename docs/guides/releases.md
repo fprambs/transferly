@@ -42,3 +42,6 @@ The script:
 ## Candidate validation
 
 Branches named `release/**` run the complete CI gates without publishing images. Freeze the candidate version and commit on that branch, verify the run and repository protections, then integrate it into main before creating a release tag. Numeric prerelease identifiers cannot have leading zeroes. `scripts/release.sh 1.0.0-rc.1 --dry-run` prints candidate notes without creating commits, tags or pushes.
+
+
+For the 1.0.0-rc.1 preparation, the owner accepted Docker local gates while remote CI is blocked by billing. This exception does not disable workflow checks or lower coverage thresholds, and does not declare the remote run successful. The release image must still be built with its version, tested and identified by digest. Repository protections and private security reporting must be checked before public launch. See docs/reviews/2026-10-08-mitigation-plan.md for evidence and pending release work.
