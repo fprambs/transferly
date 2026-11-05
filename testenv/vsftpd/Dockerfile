@@ -6,7 +6,7 @@ FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f0
 COPY --from=golang:1.27.3-trixie /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources
 
-RUN printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \
+RUN printf 'Acquire::Retries "5";\nAcquire::https::CaInfo "/etc/ssl/certs/ca-certificates.crt";\n' > /etc/apt/apt.conf.d/80-retries \
     && apt-get update \
     && apt-get install -y --no-install-recommends --fix-missing vsftpd openssl ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
