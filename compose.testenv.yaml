@@ -16,7 +16,7 @@ x-ftp: &ftp
 services:
   sftp:
     profiles: ["testenv"]
-    image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
+    image: atmoz/sftp:alpine@sha256:5eb757b2fac4d15e458ecec96f7edd9101b5efeefb16138b93e9f975075d8825
     command: transferly:transferly:1001:100:upload
     volumes:
       - ./testenv/preview-samples:/home/transferly/preview-samples:ro
@@ -56,7 +56,7 @@ services:
 
   s3:
     profiles: ["testenv"]
-    image: versity/versitygw@sha256:30292fc2eeacc67a36993b01f7a7a5e3361a19cced0e80c1d71cfa2a4b0a2499
+    image: versity/versitygw@sha256:89cad13cc981986ee284cbafea4613f9533ce6fd5f37a2c96c4c4fb8adb3a316
     entrypoint:
       - sh
       - -c
@@ -146,7 +146,7 @@ services:
 
   toxiproxy:
     profiles: ["testenv"]
-    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    image: ghcr.io/shopify/toxiproxy:2.13.0@sha256:5d3dae09bc185dcc5ff6cf43abf6062a4a720aff0c4306a471e773acdcd107aa
     command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
     volumes:
       - ./testenv/toxiproxy.json:/config/toxiproxy.json:ro

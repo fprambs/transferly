@@ -1,7 +1,7 @@
 # An OpenSSH server with a shell and the usual tools, for the SSH tools of SFTP sites (ADR-0027): the account transferly, with
 # the password transferly, may run commands, unlike the sftp service, which only offers SFTP, and may use sudo with its password;
 # deployer, with the password deployer, may use sudo without one. /root/only-root.txt can only be read as root.
-FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssh-server zip unzip sudo \
  && rm -rf /var/lib/apt/lists/* \

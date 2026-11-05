@@ -36,7 +36,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:17-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
+    image: postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
     restart: unless-stopped
     environment:
       POSTGRES_USER: transferly
@@ -52,7 +52,7 @@ services:
 
   caddy:
     profiles: ["https"]
-    image: caddy@sha256:0c994536bddb66445885237f1a5dcc1916bccea922661c76b4e9fc24061f9b52
+    image: caddy:2.11.8@sha256:4fcafa98afd1c2e642e353e3c5cf9ddbe892fcee14bc990e7ba2c5b78e51f9cf
     restart: unless-stopped
     environment:
       TRANSFERLY_DOMAIN: ${TRANSFERLY_DOMAIN:-localhost}

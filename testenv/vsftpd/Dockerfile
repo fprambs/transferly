@@ -1,9 +1,9 @@
 # vsftpd test servers: plain FTP, explicit FTPS and implicit FTPS from one image.
 # Test use only: fixed credentials and a self-signed certificate. The plain server also lets anonymous users read /srv/anon.
-FROM debian:bookworm-slim
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 # Package downloads use HTTPS so a middlebox cannot alter them; the slim image ships no CA bundle.
-COPY --from=golang:1.27-bookworm /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=golang:1.27.3-trixie /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources
 
 RUN printf 'Acquire::Retries "5";\n' > /etc/apt/apt.conf.d/80-retries \

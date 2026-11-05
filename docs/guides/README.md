@@ -51,19 +51,19 @@ Before using a library for the first time, read its official documentation and r
 | jlaffaye/ftp (see the FTPS spike), coder/websocket, `x/text` | before first use |
 
 
-## Pinned Versions (checked 2026-09-24)
+## Pinned Versions (checked 2026-11-05)
 
 | Component | Version |
 |---|---|
-| Go | 1.27.2 (`golang:1.27.2-bookworm`) |
+| Go | 1.27.3 (`golang:1.27.3-trixie`) |
 | Node | 24 LTS |
-| pnpm | 12.6.0 |
+| pnpm | 12.16.1 |
 | sqlc | v1.31.1 |
-| goose | v3.28.0 |
-| oapi-codegen | v2.8.0 |
-| govulncheck | v1.8.0 |
+| goose | v3.29.0 |
+| oapi-codegen | v2.8.2 |
+| govulncheck | v1.9.0 |
 | air | v1.67.4 |
-| golangci-lint | v2.14.0 |
+| golangci-lint | v2.15.0 |
 | chi | v5.3.2 |
 | pgx | v5.11.0 |
 | pkg/sftp | v1.13.11 |

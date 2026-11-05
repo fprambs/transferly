@@ -15,7 +15,7 @@ x-vsftpd: &vsftpd
 
 services:
   postgres:
-    image: postgres:17-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652
+    image: postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
     environment:
       POSTGRES_USER: transferly
       POSTGRES_PASSWORD: transferly
@@ -83,7 +83,7 @@ services:
   # An S3 server (Versity Gateway) for the S3 connector (ADR-0023): plain HTTP, the bucket transferly and its root access key.
   s3:
     profiles: ["s3"]
-    image: versity/versitygw@sha256:30292fc2eeacc67a36993b01f7a7a5e3361a19cced0e80c1d71cfa2a4b0a2499
+    image: versity/versitygw@sha256:89cad13cc981986ee284cbafea4613f9533ce6fd5f37a2c96c4c4fb8adb3a316
     entrypoint: ["sh", "-c", "mkdir -p /data/transferly && exec versitygw --access transferly --secret transferly-secret posix /data"]
     tmpfs:
       - /data
@@ -154,7 +154,7 @@ services:
       retries: 20
 
   sftp:
-    image: atmoz/sftp:alpine@sha256:a81ea210713555be76075b4b2788a4addfaa54d137cd881f3a99ac539f0be2c5
+    image: atmoz/sftp:alpine@sha256:5eb757b2fac4d15e458ecec96f7edd9101b5efeefb16138b93e9f975075d8825
     command: transferly:transferly:1001:100:upload anonymous::1002:100
     volumes:
       - ./testenv/sftp/anonymous.sh:/etc/sftp.d/anonymous.sh:ro
@@ -199,7 +199,7 @@ services:
   e2e:
     <<: *user
     profiles: ["e2e"]
-    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
     init: true
     ipc: host
     working_dir: /workspace/frontend
