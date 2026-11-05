@@ -524,15 +524,14 @@ func TestRateLimits(t *testing.T) {
 // Scenarios:
 //   - without trusted proxies X-Forwarded-For is ignored, so spoofing it does not evade the limit
 //   - behind a trusted proxy the forwarded address is used, so each client has its own limit
+//   - a client that is not the trusted proxy cannot choose its address by naming the proxy last in X-Forwarded-For
+//     (CVE-2026-114437), so spoofing it does not evade the limit either
 func TestClientAddress(t *testing.T) {
 	t.Parallel()
-	attempts := func(a *api, spoof bool) int {
+	attempts := func(a *api, suffix string) int {
 		limited := 0
 		for i := range 8 {
-			headers := map[string]string{}
-			if spoof {
-				headers["X-Forwarded-For"] = "203.0.113." + string(rune('1'+i))
-			}
+			headers := map[string]string{"X-Forwarded-For": "203.0.113." + string(rune('1'+i)) + suffix}
 			r := a.do(request{method: http.MethodPost, path: "/api/v1/auth/login", headers: headers,
 				body: map[string]string{"email": "user" + string(rune('a'+i)) + "@example.com", "password": "wrong password here"}})
 			if r.Status == 429 {
@@ -543,12 +542,16 @@ func TestClientAddress(t *testing.T) {
 	}
 
 	direct := newAPI(t)
-	if got := attempts(direct, true); got != 3 {
+	if got := attempts(direct, ""); got != 3 {
 		t.Errorf("without trusted proxies %d of 8 spoofed attempts were limited, want 3", got)
 	}
 	proxied := newAPI(t, func(d *httpapi.Deps) { d.TrustedProxies = []string{"127.0.0.0/8"} })
-	if got := attempts(proxied, true); got != 0 {
+	if got := attempts(proxied, ""); got != 0 {
 		t.Errorf("behind a trusted proxy %d of 8 attempts from different clients were limited, want 0", got)
+	}
+	bypass := newAPI(t, func(d *httpapi.Deps) { d.TrustedProxies = []string{"10.0.0.0/8"} })
+	if got := attempts(bypass, ", 10.0.0.1"); got != 3 {
+		t.Errorf("from outside the trusted proxies %d of 8 spoofed attempts were limited, want 3", got)
 	}
 }
 

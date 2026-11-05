@@ -121,7 +121,7 @@ func (f *FS) run(ctx context.Context, command string) ([]byte, error) {
 	case <-ctx.Done():
 		_ = session.Signal(ssh.SIGKILL)
 		_ = session.Close()
-		<-done
+		<-done //nolint:errcheck // Only waits for the session to end: the context is the result.
 		return nil, ctx.Err()
 	}
 	var exit *ssh.ExitError

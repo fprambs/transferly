@@ -153,7 +153,8 @@ func TestShellCancellation(t *testing.T) {
 	}()
 	cancel()
 	select {
-	case <-done:
+	case err := <-done:
+		t.Logf("revoked shell reader ended: %v", err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("revoked shell reader remained blocked")
 	}

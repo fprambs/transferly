@@ -71,6 +71,8 @@ type Options struct {
 	// LyingReads makes every reply to a read claim more data than it carries, as a malicious server can, to check that clients do
 	// not trust the length a server gives.
 	LyingReads bool
+	// RefuseWritesFrom, when above zero, refuses every write that reaches this offset, as a server that runs out of quota does.
+	RefuseWritesFrom int64
 	// DropOnBadPassword closes the connection when a password is wrong, instead of answering with a failure, as some gateways do.
 	DropOnBadPassword bool
 	// OneSFTPSession refuses a second sftp subsystem on the same connection, as servers that allow one session per connection do.
@@ -357,7 +359,7 @@ func (s *Server) session(channel ssh.Channel, requests <-chan *ssh.Request, opt 
 		}
 		s.sessions.Add(1)
 		_ = req.Reply(true, nil)
-		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff}
+		h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff, refuseFrom: opt.RefuseWritesFrom}
 		var stream io.ReadWriteCloser = channel
 		if opt.LyingReads {
 			stream = &lyingStream{ReadWriteCloser: channel}
@@ -439,7 +441,7 @@ func (s *Server) sudo(channel ssh.Channel, opt Options) {
 		_, _ = io.WriteString(channel, "\x00\x00\x00\x05garbage")
 		return
 	}
-	h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff}
+	h := &handlers{root: s.Root, fault: opt.Fault, home: opt.Home, sizeOff: opt.SizeOff, refuseFrom: opt.RefuseWritesFrom}
 	_ = sftp.NewRequestServer(channel, sftp.Handlers{FileGet: h, FilePut: h, FileCmd: h, FileList: h}).Serve()
 }
 
@@ -460,10 +462,11 @@ func readLine(r io.Reader) (string, error) {
 
 // handlers serves the SFTP requests from a directory.
 type handlers struct {
-	root    string
-	fault   func(method, path string) error
-	home    string
-	sizeOff int64
+	root       string
+	fault      func(method, path string) error
+	home       string
+	sizeOff    int64
+	refuseFrom int64
 }
 
 // misreported is a file whose size is reported off by some bytes.
@@ -531,7 +534,24 @@ func (h *handlers) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		flags |= os.O_TRUNC
 	}
 	file, err := os.OpenFile(h.real(r.Filepath), flags, 0o644)
+	if err == nil && h.refuseFrom > 0 {
+		return &quotaWriter{File: file, limit: h.refuseFrom}, nil
+	}
 	return file, wire(err)
+}
+
+// quotaWriter is a file that refuses the writes that reach its limit.
+type quotaWriter struct {
+	*os.File
+	limit int64
+}
+
+// WriteAt writes below the limit and refuses the rest.
+func (q *quotaWriter) WriteAt(p []byte, off int64) (int, error) {
+	if off+int64(len(p)) > q.limit {
+		return 0, sftp.ErrSSHFxFailure
+	}
+	return q.File.WriteAt(p, off)
 }
 
 // Filecmd runs commands that change the file system. Renames never overwrite, as in SFTP version 3.

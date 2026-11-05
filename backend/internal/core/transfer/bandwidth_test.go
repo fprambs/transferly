@@ -252,8 +252,8 @@ func TestService_SetLimits(t *testing.T) {
 	admitted := make(chan error, 1)
 	go func() { admitted <- second.Admit(ctx) }()
 	select {
-	case <-admitted:
-		t.Fatal("the second transfer was admitted with a cap of one")
+	case err := <-admitted:
+		t.Fatalf("the second transfer was admitted with a cap of one: %v", err)
 	case <-time.After(50 * time.Millisecond):
 	}
 	f.svc.SetLimits(limitsOf(2))

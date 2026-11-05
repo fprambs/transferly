@@ -1284,3 +1284,53 @@ func TestDial_RejectsDSAAuthentication(t *testing.T) {
 		t.Fatalf("DSA = %v", err)
 	}
 }
+
+// cutSource gives its bytes and then ends as a request body whose connection was cut does.
+type cutSource struct{ io.Reader }
+
+// Read reads the bytes and turns their end into [io.ErrUnexpectedEOF].
+func (c cutSource) Read(p []byte) (int, error) {
+	n, err := c.Reader.Read(p)
+	if errors.Is(err, io.EOF) {
+		return n, io.ErrUnexpectedEOF
+	}
+	return n, err
+}
+
+// TestWrite_ReportsWhatDidNotArrive verifies that an upload that did not complete is never reported as finished, which would let
+// a staged upload replace the file it was going to overwrite (pkg/sftp v1.13.12).
+//
+// Scenarios:
+//   - a source cut part way gives its own error, as a request body whose connection was lost does
+//   - a server that refuses the last, short write of a file gives an error, as one out of quota does
+func TestWrite_ReportsWhatDidNotArrive(t *testing.T) {
+	t.Parallel()
+	const size = 100_000
+	auth := func(c *sftpfs.Config) { c.Password = testPassword }
+
+	fsys, err := connect(t, startServer(t, sftptest.Options{}), auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := fsys.OpenWrite(t.Context(), "/cut.bin", 0, remotefs.WriteOverwrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(w, cutSource{bytes.NewReader(make([]byte, size))}); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("copy from a cut source = %v; want io.ErrUnexpectedEOF", err)
+	}
+	_ = w.Close()
+
+	refusing, err := connect(t, startServer(t, sftptest.Options{RefuseWritesFrom: size - 1}), auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err = refusing.OpenWrite(t.Context(), "/quota.bin", 0, remotefs.WriteOverwrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(w, bytes.NewReader(make([]byte, size))); err == nil {
+		t.Error("copy with the last write refused = nil; want an error")
+	}
+	_ = w.Close()
+}

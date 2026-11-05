@@ -1,6 +1,8 @@
-# pkg/sftp v1.13.11
+# pkg/sftp v1.13.12
 
-Transferly builds a patched copy in `backend/third_party/sftp` (see its PATCHES.md): upstream trusts the length a server gives in its replies to reads, so a malicious server could make it panic inside its own goroutines and bring the process down.
+Transferly uses upstream as it is. Until v1.13.11 it built a patched copy, because upstream trusted the length a server gives in its replies to reads, so a malicious server could make it panic inside its own goroutines and bring the process down. v1.13.12 checks those lengths, and `TestFS_LyingServer` keeps testing it.
+
+v1.13.12 also stops reporting as finished an upload whose source was cut or whose last write was refused; `TestWrite_ReportsWhatDidNotArrive` covers it. Its three advisories of 2026-10-23 do not reach Transferly: `FS.RemoveAll` walks the tree with `Lstat` instead of `Client.RemoveAll`, and only the test servers use `sftp.Server` and `RequestServer`.
 
 Source: [pkg.go.dev/github.com/pkg/sftp](https://pkg.go.dev/github.com/pkg/sftp).
 

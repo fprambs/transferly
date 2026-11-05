@@ -88,6 +88,6 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger, ln net.L
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("graceful shutdown: %w", err)
 	}
-	<-errc
+	<-errc //nolint:errcheck // Only waits for the server to stop: the shutdown is the result.
 	return nil
 }
