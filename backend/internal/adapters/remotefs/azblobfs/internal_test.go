@@ -96,11 +96,21 @@ func TestBlocks(t *testing.T) {
 	}
 }
 
+// pendingThenCancel answers every request with a copy still pending and ends the context of the test, so the copy is waiting when the
+// context ends, however loaded the machine is.
+type pendingThenCancel struct{ cancel context.CancelFunc }
+
+// RoundTrip reports the copy as pending and cancels.
+func (p pendingThenCancel) RoundTrip(r *http.Request) (*http.Response, error) {
+	p.cancel()
+	return &http.Response{StatusCode: http.StatusAccepted, Header: http.Header{"X-Ms-Copy-Status": {"pending"}}, Body: http.NoBody, Request: r}, nil
+}
+
 // TestCopies verifies renames whose copy the service reports as pending, or as failed.
 //
 // Use cases:
 //   - a copy reported pending twice is waited for, and the rename completes
-//   - a rename whose context ends while it waits fails with the cancellation
+//   - a copy whose context ends while it waits fails with the cancellation
 //   - a copy that ends other than in success fails the rename
 func TestCopies(t *testing.T) {
 	saved := copyWait
@@ -113,11 +123,15 @@ func TestCopies(t *testing.T) {
 		t.Fatalf("Rename() with pending copies = %v", err)
 	}
 	copyWait = time.Hour
-	server.Put("h", []byte("content"))
-	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	if err := fsys.Rename(ctx, "/h", "/i"); !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("Rename() that waits past its context = %v, want the deadline", err)
+	client, err := azure.New(azure.Config{Endpoint: "http://azure.invalid/acct", Account: "acct", Client: &http.Client{Transport: pendingThenCancel{cancel}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting := &FS{client: client, container: "c", idle: func() {}}
+	if err := waiting.copy(ctx, "h", "i"); !errors.Is(err, context.Canceled) {
+		t.Errorf("copy() that waits past its context = %v, want the cancellation", err)
 	}
 	aborted := fixed(t, func(w http.ResponseWriter, _ *http.Request) { w.Header().Set("x-ms-copy-status", "aborted") })
 	if err := aborted.copy(t.Context(), "a", "b"); !errors.Is(err, remotefs.ErrConnectionLost) {
