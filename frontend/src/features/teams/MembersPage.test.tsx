@@ -339,7 +339,7 @@ describe('members page', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/' })
 
-    await user.click(await screen.findByRole('button', { name: 'Workspace' }))
+    await user.click(await screen.findByRole('button', { name: /Workspace$/ }))
     expect(await screen.findByRole('menuitem', { name: /Acme Web\s*Admin/ })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Members' })).not.toBeInTheDocument()
   })
@@ -351,7 +351,7 @@ describe('members page', () => {
     const user = userEvent.setup()
     await renderApp({ path: '/' })
 
-    await user.click(await screen.findByRole('button', { name: 'Workspace' }))
+    await user.click(await screen.findByRole('button', { name: /Workspace$/ }))
     const create = await screen.findByRole('menuitem', { name: 'New team workspace' })
     expect(screen.queryByRole('menuitem', { name: 'Members' })).not.toBeInTheDocument()
     await user.click(create)

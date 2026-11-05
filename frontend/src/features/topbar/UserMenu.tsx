@@ -27,13 +27,15 @@ export function UserMenu() {
   const settingsDialog = useSettingsDialog()
   const session = useSession()
 
+  const initials = initialsOf(session?.user.email ?? '')
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={t(($) => $.topbar.account)}
+        aria-label={t(($) => $.topbar.account, { initials })}
         className="flex size-7 items-center justify-center rounded-full border bg-muted text-[11px] font-semibold text-muted-foreground"
       >
-        {initialsOf(session?.user.email ?? '')}
+        {initials}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>

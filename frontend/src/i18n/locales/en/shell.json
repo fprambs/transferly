@@ -1,8 +1,8 @@
 {
   "topbar": {
     "label": "Main toolbar",
-    "workspace": "Workspace",
-    "account": "Account",
+    "workspace": "{{name}}, Workspace",
+    "account": "{{initials}}, Account",
     "signOut": "Sign out",
     "brand": "Transferly"
   },

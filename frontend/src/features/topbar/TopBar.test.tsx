@@ -29,9 +29,9 @@ describe('top bar', () => {
     const user = userEvent.setup()
     await renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Account' }))
+    await user.click(await screen.findByRole('button', { name: /Account$/ }))
 
-    expect(screen.getByRole('button', { name: 'Account' })).toHaveTextContent('AD')
+    expect(screen.getByRole('button', { name: /Account$/ })).toHaveTextContent('AD')
     expect(await screen.findByText('admin@example.com')).toBeInTheDocument()
   })
 
@@ -48,7 +48,7 @@ describe('top bar', () => {
     const user = userEvent.setup()
     const { history } = await renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Account' }))
+    await user.click(await screen.findByRole('button', { name: /Account$/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Sign out' }))
 
     await waitFor(() => expect(history.location.pathname).toBe('/login'))
@@ -61,7 +61,7 @@ describe('top bar', () => {
     const user = userEvent.setup()
     await renderApp()
 
-    const switcher = await screen.findByRole('button', { name: 'Workspace' })
+    const switcher = await screen.findByRole('button', { name: /Workspace$/ })
     expect(switcher).toHaveTextContent('Personal')
 
     await user.click(switcher)
@@ -75,8 +75,8 @@ describe('top bar', () => {
     mockWorkspaceData({ workspaces: [] })
     await renderApp()
 
-    await screen.findByRole('button', { name: 'Account' })
+    await screen.findByRole('button', { name: /Account$/ })
 
-    expect(screen.queryByRole('button', { name: 'Workspace' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Workspace$/ })).not.toBeInTheDocument()
   })
 })

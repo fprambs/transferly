@@ -460,7 +460,7 @@ describe('administration', () => {
     mockAdmin()
     await renderApp({ path: '/' })
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: 'Account' }))
+    await user.click(await screen.findByRole('button', { name: /Account$/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Settings' }))
     await user.click(within(await screen.findByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Administration' }))
 
@@ -471,7 +471,7 @@ describe('administration', () => {
     mockSession({ ...adminSession, user: { ...adminSession.user, role: 'user' } })
     mockWorkspaceData()
     await renderApp({ path: '/' })
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Account' }))
+    await userEvent.setup().click(await screen.findByRole('button', { name: /Account$/ }))
 
     expect(await screen.findByRole('menuitem', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Administration' })).not.toBeInTheDocument()

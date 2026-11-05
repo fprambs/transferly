@@ -1,8 +1,8 @@
 {
   "topbar": {
     "label": "Barra principal",
-    "workspace": "Espacio de trabajo",
-    "account": "Cuenta",
+    "workspace": "{{name}}, Espacio de trabajo",
+    "account": "{{initials}}, Cuenta",
     "signOut": "Cerrar sesión",
     "brand": "Transferly"
   },

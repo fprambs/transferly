@@ -25,7 +25,7 @@ export function WorkspaceSwitcher() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          aria-label={t(($) => $.topbar.workspace)}
+          aria-label={t(($) => $.topbar.workspace, { name: current.name })}
           className="flex h-[30px] items-center gap-2 rounded-lg border bg-muted/50 px-2.5 text-[13px] font-medium"
         >
           {current.name}

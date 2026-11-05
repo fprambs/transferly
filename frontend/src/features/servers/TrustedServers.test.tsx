@@ -132,7 +132,7 @@ describe('trusted servers', () => {
     const user = userEvent.setup()
     const { history } = await renderApp()
 
-    await user.click(await screen.findByRole('button', { name: 'Account' }))
+    await user.click(await screen.findByRole('button', { name: /Account$/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Settings' }))
     await user.click(within(await screen.findByRole('navigation', { name: 'Settings' })).getByRole('button', { name: 'Trusted servers' }))
 

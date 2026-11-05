@@ -46,6 +46,6 @@ describe('useSession', () => {
     const router = createRouter({ routeTree: createRootRoute({ component: UserMenu }), history: createMemoryHistory() })
     await renderWithProviders(<RouterProvider router={router} />)
 
-    expect(await screen.findByRole('button', { name: 'Account' })).toHaveTextContent('')
+    expect(await screen.findByRole('button', { name: /Account$/ })).toHaveTextContent('')
   })
 })
