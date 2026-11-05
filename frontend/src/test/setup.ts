@@ -51,6 +51,7 @@ Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
 Object.defineProperties(HTMLElement.prototype, {
   offsetWidth: { configurable: true, get: () => 900 },
   offsetHeight: { configurable: true, get: () => 400 },
+  clientHeight: { configurable: true, get: () => 400 },
 })
 
 /** jsdom lacks this, and CodeMirror's measurement pass needs it to lay out the remote editor. */
@@ -66,7 +67,7 @@ beforeEach(() => {
   vi.stubGlobal('WebSocket', FakeSocket)
 })
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 
 afterEach(() => {
   cleanup()

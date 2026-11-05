@@ -438,6 +438,7 @@ describe('site management', () => {
     let dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
 
+    await user.click(within(dialog).getByRole('tab', { name: 'Proxy and jump host' }))
     expect(within(dialog).queryByLabelText('Proxy host')).not.toBeInTheDocument()
     await choose(user, within(dialog).getByLabelText('Proxy'), 'SOCKS5')
     await user.type(within(dialog).getByLabelText('Proxy host'), 'proxy.example.com')
@@ -451,6 +452,7 @@ describe('site management', () => {
     await user.type(within(dialog).getByLabelText('Jump username'), 'bastion')
     await user.type(within(dialog).getByLabelText('Jump host password'), 'bastionpass')
 
+    await user.click(within(dialog).getByRole('tab', { name: 'General' }))
     await user.type(within(dialog).getByLabelText('Name'), 'Jumped')
     await user.type(within(dialog).getByLabelText('Host'), 'h.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'u')
@@ -466,6 +468,7 @@ describe('site management', () => {
     await user.click(screen.getByRole('button', { name: 'New site' }))
     dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^SFTP/ }))
+    await user.click(within(dialog).getByRole('tab', { name: 'Proxy and jump host' }))
     await user.type(within(dialog).getByLabelText('Jump host'), 'bastion.example.com')
     await choose(user, within(dialog).getByLabelText('Jump host logon type'), 'Key file')
     expect(within(dialog).queryByLabelText('Jump host password')).not.toBeInTheDocument()
@@ -473,6 +476,7 @@ describe('site management', () => {
     await user.type(await within(dialog).findByLabelText('Jump host key passphrase'), 'phrase')
     await user.type(within(dialog).getByLabelText('Jump username'), 'bastion')
 
+    await user.click(within(dialog).getByRole('tab', { name: 'General' }))
     await user.type(within(dialog).getByLabelText('Name'), 'Jumped key')
     await user.type(within(dialog).getByLabelText('Host'), 'h.example.com')
     await user.type(within(dialog).getByLabelText('Username'), 'u')

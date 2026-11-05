@@ -96,4 +96,14 @@ describe('readMail', () => {
     expect(addressText([{ name: 'Team', group: [{ name: 'Ana', address: 'ana@x' }, { name: '', address: 'bo@x' }] }])).toBe('Team: Ana <ana@x>, bo@x')
     expect(addressText(undefined)).toBe('')
   })
+
+  it('reads a header of many encoded words in linear time, so a hostile message does not freeze the page', async () => {
+    const words = '=?utf-8?B?QUJD?= '.repeat(100_000)
+    const started = performance.now()
+
+    const mail = await readMail(message(`Subject: ${words}`, '', 'x'))
+
+    expect(mail.subject.startsWith('ABCABC')).toBe(true)
+    expect(performance.now() - started).toBeLessThan(5_000)
+  })
 })

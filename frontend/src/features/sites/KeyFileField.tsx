@@ -67,6 +67,7 @@ export function KeyFileField({ control, name, passphraseName, id, passphraseLabe
   const [dragging, setDragging] = useState(false)
   const [tooLarge, setTooLarge] = useState(false)
   const [inspection, setInspection] = useState<Inspection>({ state: 'checking' })
+  const [encrypted, setEncrypted] = useState(false)
   const keyText = (key.field.value as string | undefined) ?? ''
   const phrase = (passphrase.field.value as string | undefined) ?? ''
 
@@ -78,7 +79,12 @@ export function KeyFileField({ control, name, passphraseName, id, passphraseLabe
     const timer = setTimeout(() => {
       setInspection({ state: 'checking' })
       api.sshKeys.inspect(keyText, phrase === '' ? undefined : phrase).then(
-        (info) => current && setInspection({ state: 'read', info }),
+        (info) => {
+          if (current) {
+            setInspection({ state: 'read', info })
+            setEncrypted(info.encrypted === true)
+          }
+        },
         (error: unknown) => current && setInspection(inspectionOf(error as ApiError)),
       )
     }, inspectDelayMs)
@@ -94,6 +100,7 @@ export function KeyFileField({ control, name, passphraseName, id, passphraseLabe
     }
     setFileName(file.name)
     setInspection({ state: 'checking' })
+    setEncrypted(false)
     passphrase.field.onChange('')
     setTooLarge(file.size > maxKeyFileBytes)
     key.field.onChange(file.size > maxKeyFileBytes ? '' : await file.text())
@@ -102,6 +109,7 @@ export function KeyFileField({ control, name, passphraseName, id, passphraseLabe
   const clear = (): void => {
     setFileName('')
     setTooLarge(false)
+    setEncrypted(false)
     key.field.onChange('')
     passphrase.field.onChange('')
     ;(picker.current as HTMLInputElement).value = ''
@@ -113,9 +121,8 @@ export function KeyFileField({ control, name, passphraseName, id, passphraseLabe
     void choose(event.dataTransfer.files[0])
   }
 
-  const info = inspection.state === 'read' ? inspection.info : undefined
   const chosen = keyText !== '' || tooLarge
-  const asksPassphrase = keyText !== '' && info?.encrypted === true
+  const asksPassphrase = keyText !== '' && encrypted
 
   return (
     <div className="flex flex-col gap-2">

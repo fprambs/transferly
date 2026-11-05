@@ -68,7 +68,7 @@ import { Inspector } from './Inspector'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from './errors'
 import { joinPath, parentPath, resolveSelection, sortEntries } from './entries'
 import { filesKey, filesPrefix, listingFreshMs, listingKeepMs, toolsFreshMs } from './files-key'
-import { emptyFilter, filterEntries, isActive, type EntryFilter } from './entry-filter'
+import { emptyFilter, filterEntriesNow, isActive, type EntryFilter } from './entry-filter'
 import { FilterBox } from './FilterBox'
 import { FilterMenu } from './FilterMenu'
 import { FilterSummary } from './FilterSummary'
@@ -232,7 +232,7 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
   const hostKey = unknownHostKeyOf(listing.error)
   const changedKey = changedHostKeyOf(listing.error)
   const timeZone = useTimeZone()
-  const visible = useMemo(() => filterEntries(entries, filter, new Date(), timeZone), [entries, filter, timeZone])
+  const visible = useMemo(() => filterEntriesNow(entries, filter, timeZone), [entries, filter, timeZone])
   const filtering = isActive(filter)
   const failure = listing.error === null ? null : explorerErrorKeyOf(listing.error)
   const asksPassword = target !== undefined && (failure === 'credentials_required' || (failure === 'remote_auth_failed' && authOf(target) === 'ask'))

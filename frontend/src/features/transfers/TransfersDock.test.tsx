@@ -320,7 +320,7 @@ describe('TransfersDock', () => {
     expect(reads).toBe(0)
     await user.click(screen.getByRole('tab', { name: 'Activity' }))
     const log = await screen.findByRole('list', { name: 'Activity log' })
-    const rows = within(log).getAllByRole('listitem')
+    const rows = await within(log).findAllByRole('listitem')
     expect(rows[0]).toHaveTextContent('Created a folder')
     expect(rows[1]).toHaveTextContent('Renamed to /b2')
     expect(rows[2]).toHaveTextContent('Deleted')

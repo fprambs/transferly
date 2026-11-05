@@ -34,9 +34,9 @@ export function CodeView({ name, text }: CodeViewProps) {
   const [initialScheme] = useState(scheme)
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     void loadLanguageFor(name).then((language) => {
-      if (cancelled) {
+      if (controller.signal.aborted) {
         return
       }
       view.current = new EditorView({
@@ -56,7 +56,7 @@ export function CodeView({ name, text }: CodeViewProps) {
       })
     })
     return () => {
-      cancelled = true
+      controller.abort()
       view.current?.destroy()
       view.current = null
     }

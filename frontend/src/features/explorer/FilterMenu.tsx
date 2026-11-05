@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils'
 
 import { dateOfDay, dayOfDate, formatDay } from './days'
-import { dayOf, emptyFilter, facetCount, kindGroups, modifiedPresets, sizePresets, type EntryFilter, type KindGroup } from './entry-filter'
+import { emptyFilter, facetCount, kindGroups, modifiedPresets, sizePresets, todayIn, type EntryFilter, type KindGroup } from './entry-filter'
 
 /** A choice of the menu that stays pressed while it is part of the filter. */
 function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
@@ -55,7 +55,7 @@ export interface FilterMenuProps {
  */
 export function FilterMenu({ filter, onChange, timeZone, disabled = false }: FilterMenuProps) {
   const { t, i18n } = useTranslation('explorer')
-  const today = dateOfDay(dayOf(new Date(), timeZone)) as Date
+  const today = todayIn(timeZone)
   const count = facetCount(filter)
   const toggleKind = (kind: KindGroup): void =>
     onChange({ ...filter, kinds: filter.kinds.includes(kind) ? filter.kinds.filter((item) => item !== kind) : [...filter.kinds, kind] })

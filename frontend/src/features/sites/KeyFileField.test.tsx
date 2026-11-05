@@ -53,6 +53,8 @@ async function renderField(saved = false) {
  * Scenarios:
  * - a chosen file is read in the browser, kept in the form and described: format, kind, type, size and fingerprint, and ready to use
  * - an encrypted key asks for its passphrase, checks it again as it is typed, and says when it does not open the key
+ * - the passphrase input stays in place, with what was typed, while a slow server checks the key again; the answer to a check
+ *   that a newer one replaced is ignored
  * - a public key is told apart, and what the file does not tell before the passphrase is left out
  * - a file that is no key, an unsupported key with its reason, a file too large to be a key and a failed check are explained
  * - a file can be dropped, removed, or the choice cancelled; the button opens the file picker; a saved key is said to be kept
@@ -88,6 +90,39 @@ describe('KeyFileField', () => {
     await user.type(screen.getByLabelText('Key passphrase'), 'phrase')
     expect(await screen.findByText('Ready to use.')).toBeInTheDocument()
     expect(seen.at(-1)).toEqual({ key: 'KEY', passphrase: 'phrase' })
+  })
+
+  it('keeps the passphrase input while the key is checked again', async () => {
+    let release = (): void => undefined
+    const answered = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let checks = 0
+    server.use(
+      http.post('/api/v1/ssh-keys/inspect', async ({ request }) => {
+        const { passphrase } = (await request.json()) as { passphrase?: string }
+        if (passphrase !== undefined) {
+          checks++
+          await answered
+        }
+        return info({ encrypted: true, status: passphrase === undefined ? 'passphrase_required' : 'usable' })
+      }),
+    )
+    const user = await renderField()
+    await user.upload(screen.getByLabelText('Key file'), new File(['KEY'], 'id_rsa'))
+    await screen.findByText('Enter the passphrase of this key.')
+
+    const input = screen.getByLabelText('Key passphrase')
+    await user.type(input, 'phr')
+    await waitFor(() => expect(checks).toBe(1))
+    await user.type(input, 'ase')
+    await waitFor(() => expect(checks).toBe(2))
+
+    expect(screen.getByLabelText('Key passphrase')).toBe(input)
+    expect(input).toHaveValue('phrase')
+    expect(input).toHaveFocus()
+    release()
+    expect(await screen.findByText('Ready to use.')).toBeInTheDocument()
   })
 
   it('tells a public key apart and leaves out what the file does not tell', async () => {

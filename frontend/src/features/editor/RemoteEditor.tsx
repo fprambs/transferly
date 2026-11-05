@@ -71,13 +71,12 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
     if (tooLarge) {
       return
     }
-    let cancelled = false
     const controller = new AbortController()
     void (async () => {
       try {
         const [stream, fresh] = await Promise.all([api.files.download(workspaceId, siteId, entry.path, undefined, controller.signal), api.files.stat(workspaceId, siteId, entry.path)])
         const [text, language] = await Promise.all([readText(stream), loadLanguageFor(entry.path)])
-        if (cancelled || container.current === null) {
+        if (controller.signal.aborted || container.current === null) {
           return
         }
         view.current = new EditorView({
@@ -96,13 +95,12 @@ export function RemoteEditor({ api, workspaceId, siteId, entry, onClose, onSaved
         setBaseline({ size: fresh.size, modifiedAt: fresh.modifiedAt })
         setPhase({ kind: 'ready' })
       } catch (error) {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setPhase(error instanceof EntryTooLarge ? { kind: 'tooLarge' } : { kind: 'error', key: editorErrorKeyOf(error) })
         }
       }
     })()
     return () => {
-      cancelled = true
       controller.abort()
       view.current?.destroy()
       view.current = null

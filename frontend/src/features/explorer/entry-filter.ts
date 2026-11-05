@@ -1,5 +1,6 @@
 import type { RemoteEntry } from '@/lib/api'
 
+import { dateOfDay } from './days'
 import { fileTypeOf, type FileType } from './file-types'
 
 /** Groups of types the filter offers, built on the file types of 4.14e. */
@@ -213,4 +214,14 @@ export function filterEntries(entries: readonly RemoteEntry[], filter: EntryFilt
       matchesSize(entry, filter.size)
     )
   })
+}
+
+/** Filters entries as of this moment, for the facets that count back from now. */
+export function filterEntriesNow(entries: readonly RemoteEntry[], filter: EntryFilter, timeZone: string): RemoteEntry[] {
+  return filterEntries(entries, filter, new Date(), timeZone)
+}
+
+/** The day this moment falls on in a time zone, as a local date for calendars. */
+export function todayIn(timeZone: string): Date {
+  return dateOfDay(dayOf(new Date(), timeZone)) as Date
 }

@@ -156,7 +156,7 @@ describe('connection tabs', () => {
     await renderApp({ path: '/sites/s1?path=%2F&split=s2' })
     await showing('s1')
 
-    await user.click(bar().getByRole('button', { name: 'Close Prod' }))
+    await user.click(await bar().findByRole('button', { name: 'Close Prod' }))
     await waitFor(() => expect(tabs()).toEqual(['Stage*', 'Backup']))
     expect(disconnected).toEqual([])
     await user.click(bar().getByRole('button', { name: 'Close Stage' }))
