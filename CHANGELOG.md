@@ -4,6 +4,38 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [1.0.0-rc.2] - 2026-11-05
+
+Second candidate for 1.0.0: a security update of everything Transferly is built on. Details in
+[docs/security/2026-11-dependencias.md](docs/security/2026-11-dependencias.md).
+
+### Security
+
+- Go 1.27.3 stops trusting the compromised eMudhra intermediate certificates (CVE-2026-111943).
+- chi 5.5.0: a client reaching the server directly can no longer choose its address and evade the login rate limit
+  (CVE-2026-114437).
+- postal-mime 4: a hostile message no longer freezes the page (GHSA-f2hq-32vh-53cc).
+- Caddy 2.11.8, on current Go and TLS libraries.
+- The images move to Debian 13, except Postgres, which stays on Debian 12 so the collations of existing data do not change. Images
+  are pinned to their current digests.
+- `make audit` looks for known vulnerabilities in the dependencies, the production image and the Git history.
+
+### Fixed
+
+- An SFTP upload whose last write the server refuses is reported as failed, using upstream pkg/sftp 1.13.12 instead of a patched copy.
+- The passphrase input of a private key stays in place, with what was typed, while the server checks the key.
+- The account and workspace buttons name what they show, for people who use voice control (WCAG 2.5.3).
+
+### Dependencies
+
+- All Go modules and npm packages are current, except TypeScript, which stays on 6.0 because 7 removes the compiler API that the code
+  generator uses, and `@types/node`, which follows Node 24.
+
+### Operations
+
+- The Git history was rewritten to remove an attribution line from six commits. Tags `v0.9.0` and `v1.0.0-rc.1` moved to the rewritten
+  commits with the same files; clones made before need `git fetch --force --tags` and a reset of their branches.
+
 ## [1.0.0-rc.1] - 2026-10-09
 
 Stable-readiness prerelease candidate, published with local validation; remote CI remains deferred.
