@@ -57,6 +57,7 @@ Before using a library for the first time, read its official documentation and r
 |---|---|
 | Go | 1.27.3 (`golang:1.27.3-trixie`) |
 | Node | 24 LTS |
+| npm | 11.21.2 |
 | pnpm | 12.16.1 |
 | sqlc | v1.31.1 |
 | goose | v3.29.0 |

@@ -36,6 +36,7 @@ services:
         condition: service_healthy
 
   postgres:
+    # Stays on Debian 12: moving a database with data to another system can change its collations and needs a planned reindex.
     image: postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
     restart: unless-stopped
     environment:

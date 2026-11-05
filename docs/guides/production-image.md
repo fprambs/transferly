@@ -4,7 +4,7 @@ Sources: [Dockerfile best practices](https://docs.docker.com/build/building/best
 
 ## Image
 
-`docker/app.Dockerfile` is multi-stage: Node builds the frontend, Go embeds `dist/` (`//go:embed all:dist`) and compiles a static binary, and the result runs on distroless `static-debian12` as user `65532`. The final image is about 6 MB.
+`docker/app.Dockerfile` is multi-stage: Node builds the frontend, Go embeds `dist/` (`//go:embed all:dist`) and compiles a static binary, and the result runs on distroless `static-debian13` as user `65532`. The final image is about 6 MB.
 
 ## Rules
 

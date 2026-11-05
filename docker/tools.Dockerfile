@@ -51,7 +51,11 @@ RUN GOBIN=/usr/local/bin go install github.com/sqlc-dev/sqlc/cmd/sqlc@${SQLC_VER
 
 # pnpm installed with npm and pinned: no runtime downloads, works with any UID.
 ARG PNPM_VERSION=12.16.1
-RUN npm install -g pnpm@${PNPM_VERSION} && pnpm --version
+ARG NPM_VERSION=11.21.2
+RUN npm install -g npm@${NPM_VERSION} \
+    && npm uninstall -g corepack \
+    && npm install -g --allow-scripts=pnpm pnpm@${PNPM_VERSION} \
+    && pnpm --version
 
 WORKDIR /workspace
 USER node

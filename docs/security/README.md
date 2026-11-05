@@ -2,6 +2,8 @@
 
 Al cerrar **cada fase** del [roadmap](../ROADMAP.md) se analiza la seguridad de lo construido. Una fase no se da por cerrada con hallazgos altos o críticos abiertos. El informe se guarda como `docs/security/fase-N.md`.
 
+Revisiones de dependencias fuera del cierre de una fase: [noviembre de 2026](2026-11-dependencias.md). Se repiten con `make audit`.
+
 ## Proceso
 
 1. **Modelo de amenazas (STRIDE)** de lo nuevo: activos, límites de confianza, flujos de datos y actores.
