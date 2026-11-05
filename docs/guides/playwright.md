@@ -21,6 +21,7 @@ Source: [Best practices](https://playwright.dev/docs/best-practices).
 - `make e2e` recreates every service of the test stack, so each run starts from an empty database and servers without the files of earlier runs. Run some specs with `make e2e SPECS="specs/local.spec.ts specs/explorer.spec.ts"`, which recreates the stack too; tests must not depend on what an earlier run left behind.
 - The global setup closes the quick connections an earlier run left open, which count towards the limit of five per user.
 - HTML5 drags synthesized by `dragTo` can be lost when they land before the drop target listens: assert the result and repeat the drag within `expect(...).toPass()` (see `dragUntil` in `local.spec.ts`).
+- A test that makes a server ask something while signing in uses the `ownShell` fixture: the question reaches every page of the account, so with a shared account the Escape of another test declines it and takes the keystroke of that test.
 - Keep each accessibility scan in a test of its own, one per theme, instead of looping over the themes in one test: the scans then run in parallel and each one has the whole test timeout.
 - Never use a single-label host such as `app`, `dev` or `page` for the server: those are HSTS-preloaded top-level domains and Chromium forces HTTPS (`ERR_SSL_PROTOCOL_ERROR`).
 - Relative imports in `e2e/` need `.ts` extensions and fixtures cannot use parameter properties (`erasableSyntaxOnly`).

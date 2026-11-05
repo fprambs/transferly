@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 
 import { test as base } from '@playwright/test'
 
+import { createAccount } from './accounts.ts'
 import { quickConnectionPath } from './global-setup.ts'
 import { ShellPage } from './pages/shell-page.ts'
 
@@ -11,8 +12,11 @@ import { ShellPage } from './pages/shell-page.ts'
  * and an empty folder of the test's own on the SFTP server of the test stack, removed when the test ends, so what a test lists never depends on what other
  * tests left behind. A browser with nothing stored starts with the transfer queue, the log and the details open, as if the user had opened
  * them, so the queue does not collapse by itself while a test reads its rows and the log lines and details can be read. The quick
- * connections a page opens are closed when its test ends, so they never use up the quick connections of the account for later tests. */
-export const test = base.extend<{ shell: ShellPage; quickId: string; folder: string; accountTheme: 'mocked' | 'real' }>({
+ * connections a page opens are closed when its test ends, so they never use up the quick connections of the account for later tests.
+ * `ownShell` is an application shell signed in to an account of the test alone, which trusts the SFTP server of the test stack: what the
+ * server asks while signing in reaches every page of the account, so a test that makes it ask must not share one with tests that press
+ * Escape. */
+export const test = base.extend<{ shell: ShellPage; ownShell: ShellPage; quickId: string; folder: string; accountTheme: 'mocked' | 'real' }>({
   accountTheme: ['mocked', { option: true }],
   page: async ({ page, accountTheme }, use) => {
     await page.addInitScript(() => {
@@ -73,6 +77,30 @@ export const test = base.extend<{ shell: ShellPage; quickId: string; folder: str
     const shell = new ShellPage(page)
     await shell.goto()
     await use(shell)
+  },
+  ownShell: async ({ browser, playwright, request, baseURL }, use) => {
+    const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    const guest = await playwright.request.newContext({ baseURL, storageState: { cookies: [], origins: [] } })
+    await createAccount(request, guest, `own-${stamp}@example.com`, `Own team ${stamp}`)
+    const me = (await (await guest.get('/api/v1/me')).json()) as { csrfToken: string }
+    const workspaces = (await (await guest.get('/api/v1/workspaces')).json()) as Array<{ id: string; kind: string }>
+    const personal = workspaces.find((workspace) => workspace.kind === 'personal') as { id: string }
+    const [admin] = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
+    const known = (await (await request.get(`/api/v1/workspaces/${admin.id}/known-hosts`)).json()) as Array<{ host: string; port: number; keyType: string; fingerprint: string }>
+    const { host, port, keyType, fingerprint } = known.find((key) => key.host === 'sftp') as (typeof known)[number]
+    const trusted = await guest.post(`/api/v1/workspaces/${personal.id}/known-hosts`, { data: { host, port, keyType, fingerprint }, headers: { 'X-CSRF-Token': me.csrfToken } })
+    if (!trusted.ok()) {
+      throw new Error(`Could not trust the test SFTP server: ${trusted.status()}`)
+    }
+    const context = await browser.newContext({ baseURL, storageState: await guest.storageState() })
+    await context.addInitScript(() => {
+      globalThis.localStorage.setItem('transferly-ui', JSON.stringify({ state: { queueOpen: true, logOpen: true, detailsOpen: true }, version: 0 }))
+    })
+    const shell = new ShellPage(await context.newPage())
+    await shell.goto()
+    await use(shell)
+    await context.close()
+    await guest.dispose()
   },
 })
 

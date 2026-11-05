@@ -137,8 +137,8 @@ test.describe('ftp and ftps', () => {
     await expect(page.getByRole('grid', { name: 'Files' }).getByRole('row', { name: /upload/ })).toBeVisible()
   })
 
-  test('asks for the password of an interactive site while connecting', async ({ shell }) => {
-    const { page } = shell
+  test('asks for the password of an interactive site while connecting', async ({ ownShell }) => {
+    const { page } = ownShell
     const name = `Asks live ${Date.now()}`
     await page.getByRole('button', { name: 'New site' }).click()
     const dialog = page.getByRole('dialog', { name: 'New site' })

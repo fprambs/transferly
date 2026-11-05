@@ -28,11 +28,13 @@ async function saveInteractiveSite(page: Page, prefix: string): Promise<string> 
  * - declining the question fails the connection as refused credentials
  */
 test.describe('interactive logon', () => {
-  test('answers what the server asks and lists the folder', async ({ shell, request }) => {
-    const { page } = shell
+  test('answers what the server asks and lists the folder', async ({ ownShell }) => {
+    const { page } = ownShell
+    const { request } = page
     const name = await saveInteractiveSite(page, 'Interactive')
-    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string }>
-    const sites = (await (await request.get(`/api/v1/workspaces/${workspaces[0].id}/sites`)).json()) as Array<{ name: string; config: Record<string, string>; secrets: string[] }>
+    const workspaces = (await (await request.get('/api/v1/workspaces')).json()) as Array<{ id: string; kind: string }>
+    const personal = workspaces.find((workspace) => workspace.kind === 'personal') as { id: string }
+    const sites = (await (await request.get(`/api/v1/workspaces/${personal.id}/sites`)).json()) as Array<{ name: string; config: Record<string, string>; secrets: string[] }>
     expect(sites.find((site) => site.name === name)).toMatchObject({ config: { auth: 'interactive' }, secrets: [] })
 
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
@@ -49,8 +51,8 @@ test.describe('interactive logon', () => {
     await expect(page.getByRole('list', { name: 'Connection log' })).toContainText('The server asks for an answer.')
   })
 
-  test('fails as refused credentials when the question is declined', async ({ shell }) => {
-    const { page } = shell
+  test('fails as refused credentials when the question is declined', async ({ ownShell }) => {
+    const { page } = ownShell
     const name = await saveInteractiveSite(page, 'Declined')
     await page.getByRole('treeitem', { name: new RegExp(name) }).dblclick()
     const prompt = page.getByRole('dialog', { name: `${name} asks` })
