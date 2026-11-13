@@ -1,7 +1,7 @@
 # Development tools image: Go, Node, pnpm, code generators and linters.
 # It is the only place development tools live; the host installs nothing.
 # Pinned versions are listed in docs/guides/README.md.
-ARG GO_VERSION=1.27.3
+ARG GO_VERSION=1.27.4
 ARG NODE_VERSION=24
 
 FROM golang:${GO_VERSION}-trixie AS go

@@ -37,7 +37,7 @@ services:
 
   postgres:
     # Stays on Debian 12: moving a database with data to another system can change its collations and needs a planned reindex.
-    image: postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
+    image: postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
     restart: unless-stopped
     environment:
       POSTGRES_USER: transferly
@@ -53,7 +53,7 @@ services:
 
   caddy:
     profiles: ["https"]
-    image: caddy:2.11.8@sha256:4fcafa98afd1c2e642e353e3c5cf9ddbe892fcee14bc990e7ba2c5b78e51f9cf
+    image: caddy:2.11.9@sha256:4e2425f6009577e7c651010f16679c28f7d12df3e7b1914f941a7a3370746b3c
     restart: unless-stopped
     environment:
       TRANSFERLY_DOMAIN: ${TRANSFERLY_DOMAIN:-localhost}

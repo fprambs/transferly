@@ -55,7 +55,7 @@ Before using a library for the first time, read its official documentation and r
 
 | Component | Version |
 |---|---|
-| Go | 1.27.3 (`golang:1.27.3-trixie`) |
+| Go | 1.27.4 (`golang:1.27.4-trixie`) |
 | Node | 24 LTS |
 | npm | 11.21.2 |
 | pnpm | 12.16.1 |

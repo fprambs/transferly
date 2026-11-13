@@ -52,3 +52,8 @@ Conteo final: `govulncheck` sin vulnerabilidades alcanzables, `pnpm audit` limpi
 
 - La frase de una clave privada ya no desaparece mientras el servidor la valida (`KeyFileField`).
 - Los botones de cuenta y espacio de trabajo incluyen en su nombre accesible lo que muestran (WCAG 2.5.3).
+
+## Actualización del 13 de noviembre
+
+Go 1.27.4 (10 de noviembre) corrige GO-2026-6859 / CVE-2026-97054: una petición que supera el límite de `MaxBytesReader` podía tumbar el servidor HTTP/1. `govulncheck` encontraba la ruta desde nuestro código, que limita los cuerpos a 1 MiB, así que la imagen `v1.0.0-rc.2` quedó afectada. Se publica `v1.0.0-rc.3` con Go 1.27.4 y Caddy 2.11.9, que ya está en Docker Hub. Caddy 2.11.9 actualiza go-jose v4 pero sigue trayendo go-jose v3, sin parche para CVE-2026-116587 (denegación de servicio con claves RSA manipuladas, en la emisión de certificados ACME), y CVE-2026-78661 en `x/net/html`, que Caddy usa en sus plantillas; ambos quedan como riesgo aceptado hasta una versión de Caddy que los resuelva. La imagen de Transferly queda sin hallazgos altos ni críticos.
+

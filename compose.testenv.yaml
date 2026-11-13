@@ -16,7 +16,7 @@ x-ftp: &ftp
 services:
   sftp:
     profiles: ["testenv"]
-    image: atmoz/sftp:alpine@sha256:5eb757b2fac4d15e458ecec96f7edd9101b5efeefb16138b93e9f975075d8825
+    image: atmoz/sftp:alpine@sha256:c5fb9e4beb8b7054a4c0b65c5e11df47cc20da95ad6002e88aecff62bab06372
     command: transferly:transferly:1001:100:upload
     volumes:
       - ./testenv/preview-samples:/home/transferly/preview-samples:ro
@@ -56,7 +56,7 @@ services:
 
   s3:
     profiles: ["testenv"]
-    image: versity/versitygw@sha256:89cad13cc981986ee284cbafea4613f9533ce6fd5f37a2c96c4c4fb8adb3a316
+    image: versity/versitygw@sha256:8319a530d08d537426e2f855bae5280709795dc73a3f0c347973ef915d6343c5
     entrypoint:
       - sh
       - -c

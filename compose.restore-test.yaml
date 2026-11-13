@@ -16,7 +16,7 @@ services:
       postgres:
         condition: service_healthy
   postgres:
-    image: postgres:17-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
+    image: postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
     environment:
       POSTGRES_USER: transferly
       POSTGRES_PASSWORD: transferly
@@ -29,7 +29,7 @@ services:
       timeout: 3s
       retries: 30
   sftp:
-    image: atmoz/sftp:alpine@sha256:5eb757b2fac4d15e458ecec96f7edd9101b5efeefb16138b93e9f975075d8825
+    image: atmoz/sftp:alpine@sha256:c5fb9e4beb8b7054a4c0b65c5e11df47cc20da95ad6002e88aecff62bab06372
     command: transferly:transferly:1001:100:upload
   verify:
     image: transferly-dev-tools

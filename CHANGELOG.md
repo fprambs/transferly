@@ -4,6 +4,18 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [1.0.0-rc.3] - 2026-11-13
+
+Security update of rc.2.
+
+### Security
+
+- Go 1.27.4: a request body over its size limit could crash the HTTP server (GO-2026-6859, CVE-2026-97054), plus the other fixes
+  of that Go release.
+- Caddy 2.11.9. It still carries go-jose v3, which has no fix for CVE-2026-116587, and an x/net/html finding (CVE-2026-78661);
+  both are inside Caddy's own binary.
+- Current digests of the Postgres 17 (still 17.11), distroless and test server images.
+
 ## [1.0.0-rc.2] - 2026-11-05
 
 Second candidate for 1.0.0: a security update of everything Transferly is built on. Details in
