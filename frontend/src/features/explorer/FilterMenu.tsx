@@ -1,14 +1,17 @@
 import { SlidersHorizontal } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { lazy, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { buttonVariants } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DeferredOverlay } from '@/lib/layout/DeferredContent'
 import { cn } from '@/lib/utils'
 
 import { dateOfDay, dayOfDate, formatDay } from './days'
 import { emptyFilter, facetCount, kindGroups, modifiedPresets, sizePresets, todayIn, type EntryFilter, type KindGroup } from './entry-filter'
+
+/** Loads the calendar, with its date library, when a range of days is chosen rather than with the page. */
+const Calendar = lazy(() => import('@/components/ui/calendar').then((module) => ({ default: module.Calendar })))
 
 /** A choice of the menu that stays pressed while it is part of the filter. */
 function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
@@ -95,18 +98,20 @@ export function FilterMenu({ filter, onChange, timeZone, disabled = false }: Fil
                   </div>
                 ))}
               </dl>
-              <Calendar
-                language={i18n.language}
-                mode="range"
-                resetOnSelect
-                captionLayout="dropdown"
-                startMonth={new Date(1990, 0)}
-                endMonth={today}
-                today={today}
-                defaultMonth={dateOfDay(filter.from) ?? today}
-                selected={{ from: dateOfDay(filter.from), to: dateOfDay(filter.to) }}
-                onSelect={(range) => onChange({ ...filter, from: range?.from ? dayOfDate(range.from) : '', to: range?.to ? dayOfDate(range.to) : '' })}
-              />
+              <DeferredOverlay>
+                <Calendar
+                  language={i18n.language}
+                  mode="range"
+                  resetOnSelect
+                  captionLayout="dropdown"
+                  startMonth={new Date(1990, 0)}
+                  endMonth={today}
+                  today={today}
+                  defaultMonth={dateOfDay(filter.from) ?? today}
+                  selected={{ from: dateOfDay(filter.from), to: dateOfDay(filter.to) }}
+                  onSelect={(range) => onChange({ ...filter, from: range?.from ? dayOfDate(range.from) : '', to: range?.to ? dayOfDate(range.to) : '' })}
+                />
+              </DeferredOverlay>
             </div>
           )}
         </Section>

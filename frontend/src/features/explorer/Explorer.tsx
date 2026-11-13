@@ -1,4 +1,4 @@
-import { DeferredContent } from '@/lib/layout/DeferredContent'
+import { DeferredContent, DeferredOverlay } from '@/lib/layout/DeferredContent'
 import { lazy } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, ChevronDown, CircleAlert, CircleStop, Ellipsis, FileUp, FolderPlus, FolderUp, Plug, RefreshCw, Search, SearchX, ShieldQuestion, SquareTerminal, Unplug, Upload } from 'lucide-react'
@@ -59,7 +59,6 @@ import { ErrorGuide } from '@/features/errors/ErrorGuide'
 
 import { SearchDialog } from '../search/SearchDialog'
 
-import { QuickLook } from '../preview/QuickLook'
 import type { TrustKey } from '../preview/HostKeyPrompt'
 import { remoteSource, type PreviewSource } from '../preview/source'
 
@@ -82,6 +81,9 @@ type Dialog =
   | { kind: 'delete'; entry: RemoteEntry }
   | { kind: 'edit'; entry: RemoteEntry }
   | { kind: 'compress'; entry: RemoteEntry }
+
+/** Loads QuickLook, the viewer of files, outside the initial download. */
+const QuickLook = lazy(() => import('../preview/QuickLook').then((module) => ({ default: module.QuickLook })))
 
 /** Loads RemoteEditor on first use. */
 const RemoteEditor = lazy(() => import('../editor/RemoteEditor').then((module) => ({ default: module.RemoteEditor })))
@@ -706,20 +708,22 @@ export function Explorer({ workspaceId, siteId, path, onNavigate, actions, onTer
           </Panel>
         </Group>
       )}
-      <QuickLook
-        sources={sources}
-        index={previewing}
-        onIndexChange={(index) => {
-          setPreviewing(index)
-          setSelectedPath(files[index].path)
-        }}
-        onClose={() => setPreviewing(null)}
-        onDownload={(source) => download(entryOf(source))}
-        onEdit={(source) => {
-          setPreviewing(null)
-          edit(entryOf(source))
-        }}
-      />
+      <DeferredOverlay>
+        <QuickLook
+          sources={sources}
+          index={previewing}
+          onIndexChange={(index) => {
+            setPreviewing(index)
+            setSelectedPath(files[index].path)
+          }}
+          onClose={() => setPreviewing(null)}
+          onDownload={(source) => download(entryOf(source))}
+          onEdit={(source) => {
+            setPreviewing(null)
+            edit(entryOf(source))
+          }}
+        />
+      </DeferredOverlay>
       {dialog?.kind === 'newFolder' && (
         <EntryNameDialog
           mode="newFolder"

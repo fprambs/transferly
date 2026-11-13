@@ -34,15 +34,27 @@ class DeferredBoundary extends Component<DeferredBoundaryProps, DeferredBoundary
   render(): ReactNode { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
-/** Keeps surrounding dialogs and navigation mounted while feature code loads, and offers recovery if it fails. */
-export function DeferredContent({ children }: DeferredContentProps) {
-  const { t } = useTranslation('preview')
+/** The recovery view of a feature whose code could not be loaded: a page reload brings the current code. */
+function FailedFeature() {
   const { t: common } = useTranslation('common')
-  const failure = (
+  return (
     <div role="alert" className="flex flex-col items-start gap-3 p-4 text-sm">
       <p>{common(($) => $.deferred.failed)}</p>
       <Button type="button" variant="outline" size="sm" onClick={() => window.location.reload()}>{common(($) => $.deferred.reload)}</Button>
     </div>
   )
-  return <DeferredBoundary fallback={failure}><Suspense fallback={<Loading label={t(($) => $.loading)} />}>{children}</Suspense></DeferredBoundary>
+}
+
+/** Keeps surrounding dialogs and navigation mounted while feature code loads, and offers recovery if it fails. */
+export function DeferredContent({ children }: DeferredContentProps) {
+  const { t } = useTranslation('preview')
+  return <DeferredBoundary fallback={<FailedFeature />}><Suspense fallback={<Loading label={t(($) => $.loading)} />}>{children}</Suspense></DeferredBoundary>
+}
+
+/**
+ * Loads an overlay, such as a dialog that stays mounted while closed, on demand: nothing shows while its code loads, so it keeps out of
+ * the initial download without a loading state in the page behind it, and the same recovery shows if it fails.
+ */
+export function DeferredOverlay({ children }: DeferredContentProps) {
+  return <DeferredBoundary fallback={<FailedFeature />}><Suspense fallback={null}>{children}</Suspense></DeferredBoundary>
 }

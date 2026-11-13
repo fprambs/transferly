@@ -150,7 +150,7 @@ describe('explorer filter', () => {
     await user.click(within(menu).getByRole('button', { name: 'Last 7 days' }))
     expect(names(grid)).toEqual(['access.log'])
     await user.click(within(menu).getByRole('button', { name: 'Between dates' }))
-    await choose(user, within(menu).getByRole('combobox', { name: 'Choose the Year' }), '2020')
+    await choose(user, await within(menu).findByRole('combobox', { name: 'Choose the Year' }), '2020')
     await choose(user, within(menu).getByRole('combobox', { name: 'Choose the Month' }), /January/i)
     await user.click(within(menu).getByRole('button', { name: /December 31st, 2019/ }))
     await user.click(within(menu).getByRole('button', { name: /January 2nd, 2020/ }))

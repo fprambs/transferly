@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, CircleAlert, FolderOpen, HardDrive, RefreshCw } from 'lucide-react'
-import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
+import { lazy, useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -21,13 +21,16 @@ import { isEntryDrag, readDrag, writeDrag, type DraggedEntry } from '../explorer
 import { parentPath, sortEntries } from '../explorer/entries'
 import { explorerErrorKeyOf, type ExplorerErrorKey } from '../explorer/errors'
 import { resolveTimeZone } from '@/lib/datetime'
-import { QuickLook } from '../preview/QuickLook'
 import { withLocalArchive } from '../preview/local-archive'
 import { localSource } from '../preview/source'
 
 import { downloadFolderToLocal, type LocalPolicy, type SaveFailure } from './download-tree'
 import { listLocal, LocalNameTaken, localSiteId, localSupported, pickLocalDirectory, readLocalFile, saveToLocal } from './local-fs'
 import { useLocalRoot } from './local-root-store'
+import { DeferredOverlay } from '@/lib/layout/DeferredContent'
+
+/** Loads QuickLook, the viewer of files, outside the initial download. */
+const QuickLook = lazy(() => import('../preview/QuickLook').then((module) => ({ default: module.QuickLook })))
 
 /** Props of {@link LocalExplorer}. */
 export interface LocalExplorerProps {
@@ -228,15 +231,17 @@ export function LocalExplorer({ workspaceId, path, onNavigate, actions }: LocalE
           />
         </div>
       )}
-      <QuickLook
-        sources={sources}
-        index={previewing}
-        onIndexChange={(index) => {
-          setPreviewing(index)
-          setSelectedPath(files[index].path)
-        }}
-        onClose={() => setPreviewing(null)}
-      />
+      <DeferredOverlay>
+        <QuickLook
+          sources={sources}
+          index={previewing}
+          onIndexChange={(index) => {
+            setPreviewing(index)
+            setSelectedPath(files[index].path)
+          }}
+          onClose={() => setPreviewing(null)}
+        />
+      </DeferredOverlay>
     </section>
   )
 }
