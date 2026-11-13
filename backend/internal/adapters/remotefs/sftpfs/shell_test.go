@@ -48,7 +48,7 @@ func shellServer(t *testing.T, opt sftptest.Options) (*sftptest.Server, chan str
 //
 // Use cases:
 //   - a shell starts in the folder asked for, quoted, or where the server starts sessions; it runs what is typed, takes resizes and
-//     ends with its status, zero included
+//     ends with its status, zero included; the server takes a resize on its own, so it is awaited
 //   - a relative folder is invalid
 //   - a server that runs no commands, gives no terminal, refuses the command of the shell or opens no session is unsupported, and
 //     a closed connection is lost
@@ -76,8 +76,12 @@ func TestFS_Shell(t *testing.T) {
 	if want, got := `cd '/srv/it'\''s' 2>/dev/null; exec "${SHELL:-/bin/sh}" -l`, <-started; got != want {
 		t.Errorf("the shell started with %q", got)
 	}
-	if got := strings.Join(s.Windows(), ","); !strings.HasPrefix(got, "90x20,100x30") {
-		t.Errorf("windows = %s", got)
+	resized := func() bool { return strings.HasPrefix(strings.Join(s.Windows(), ","), "90x20,100x30") }
+	for deadline := time.Now().Add(5 * time.Second); !resized() && time.Now().Before(deadline); {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !resized() {
+		t.Errorf("windows = %s", strings.Join(s.Windows(), ","))
 	}
 
 	home, err := fsys.Shell(t.Context(), "", 80, 24)
