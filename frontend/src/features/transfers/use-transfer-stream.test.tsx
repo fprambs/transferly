@@ -71,6 +71,7 @@ async function renderProbe() {
  * - a vault lock event refreshes the vault state
  * - a prompt of an interactive site waits for an answer until the server says it closed (ADR-0016)
  * - connection state events keep the connected sites of their workspace current, and opening the stream reloads them
+ * - a reload of the connected sites that left before a connection opened and answers after its event does not hide that connection
  * - a transfer that starts opens a closed queue on its active tab, while updates of a running one, finished ones and progress leave it as the user set it
  * - a dropped stream reconnects after a growing wait that is capped, and the wait starts again after a successful open
  * - unmounting closes the stream and cancels a pending reconnection
@@ -217,22 +218,63 @@ describe('useTransferStream', () => {
 
   it('keeps the connected sites current and reloads them whenever the stream opens', async () => {
     let reads = 0
-    server.use(http.get('/api/v1/workspaces/w1/connections', () => (reads++, HttpResponse.json({ siteIds: ['s1'] }))))
+    let connected = ['s1']
+    server.use(http.get('/api/v1/workspaces/w1/connections', () => (reads++, HttpResponse.json({ siteIds: connected }))))
     await renderWithProviders(<Connected />, 'en', fakeSocketTransport())
     expect(await screen.findByText('connected: s1')).toBeInTheDocument()
     const socket = FakeSocket.opened[0]
 
+    connected = ['s1', 's2']
     act(() => socket.emit('connection.state', { workspaceId: 'w1', siteId: 's2', open: true }))
     expect(await screen.findByText('connected: s1,s2')).toBeInTheDocument()
+    connected = ['s2']
     act(() => socket.emit('connection.state', { workspaceId: 'w1', siteId: 's1', open: false }))
     expect(await screen.findByText('connected: s2')).toBeInTheDocument()
     act(() => socket.emit('connection.state', { workspaceId: 'w9', siteId: 's1', open: true }))
     expect(screen.getByText('connected: s2')).toBeInTheDocument()
 
-    const before = reads
+    await waitFor(() => expect(reads).toBe(3))
+    connected = ['s1']
     act(() => socket.onopen?.())
-    await waitFor(() => expect(reads).toBe(before + 1))
+    await waitFor(() => expect(reads).toBe(4))
     expect(await screen.findByText('connected: s1')).toBeInTheDocument()
+  })
+
+  it('keeps a connection that opens while the connected sites are being reloaded', async () => {
+    let connected = ['s1']
+    let release = (): void => undefined
+    let held = false
+    let arrived = (): void => undefined
+    const reloading = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    server.use(
+      http.get('/api/v1/workspaces/w1/connections', async () => {
+        const answer = { siteIds: [...connected] }
+        if (held) {
+          held = false
+          arrived()
+          await new Promise<void>((resolve) => {
+            release = resolve
+          })
+        }
+        return HttpResponse.json(answer)
+      }),
+    )
+    await renderWithProviders(<Connected />, 'en', fakeSocketTransport())
+    expect(await screen.findByText('connected: s1')).toBeInTheDocument()
+    const socket = FakeSocket.opened[0]
+
+    held = true
+    act(() => socket.onopen?.())
+    await reloading
+    connected = ['s1', 's2']
+    act(() => socket.emit('connection.state', { workspaceId: 'w1', siteId: 's2', open: true }))
+    expect(await screen.findByText('connected: s1,s2')).toBeInTheDocument()
+    act(() => release())
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.getByText('connected: s1,s2')).toBeInTheDocument()
   })
 
   it('reconnects with growing waits and starts again after opening', async () => {

@@ -70,7 +70,8 @@ export function applyEvent(event: ServerEvent, onVaultLocked: () => void): void 
  *
  * It opens the event stream, loads the history whenever the stream opens, reconnects with growing waits when it drops,
  * refreshes the vault state when the server reports a lock, reloads the folder listings when a copy between sites ends, and keeps the
- * connected sites current, reloading them whenever the stream opens.
+ * connected sites current, reloading them whenever the stream opens. A change of a connection is applied at once and the connected sites
+ * are asked for again, which drops a reload that left before the change and would otherwise answer without it.
  */
 export function useTransferStream(): void {
   const transport = useTransport()
@@ -89,6 +90,7 @@ export function useTransferStream(): void {
           if (event.type === 'connection.state') {
             const { workspaceId, siteId, open } = event.data
             queryClient.setQueryData(openConnectionsKey(workspaceId), (answer: OpenConnections | undefined) => withState(answer, siteId, open))
+            void queryClient.invalidateQueries({ queryKey: openConnectionsKey(workspaceId) })
           }
           if (event.type === 'transfer.state' && event.data.direction === 'copy' && event.data.status === 'done') {
             void queryClient.invalidateQueries({ queryKey: ['workspaces', event.data.workspaceId, 'files'] })
