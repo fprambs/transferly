@@ -15,6 +15,11 @@ import { maxTreeEntries } from '../local/tree'
 
 import { Explorer } from './Explorer'
 
+vi.mock('./free-name', async (actual) => {
+  const real = await actual<typeof import('./free-name')>()
+  return { ...real, freeName: (exists: (candidate: string) => Promise<boolean>, target: string) => real.freeName(exists, target, 3) }
+})
+
 /** Workspace the mock server answers for. */
 const workspaceId = '0f3c1a52-1d0e-4b8f-8a55-6d2f9b7c4e10'
 

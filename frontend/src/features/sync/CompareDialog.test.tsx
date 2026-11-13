@@ -125,7 +125,7 @@ describe('compare and sync', () => {
     await waitFor(() => expect(seen.copies).toHaveLength(2))
     expect(seen.copies).toContainEqual(expect.objectContaining({ sourceSiteId: 's1', sourcePath: '/a.txt', targetSiteId: 's2', targetPath: '/a.txt', policy: 'overwrite' }))
     expect(seen.copies).toContainEqual(expect.objectContaining({ sourceSiteId: 's1', sourcePath: '/c.txt', targetSiteId: 's2', targetPath: '/c.txt' }))
-    expect(await screen.findAllByText('Done')).toHaveLength(2)
+    await waitFor(() => expect(screen.getAllByText('Done')).toHaveLength(2))
     expect(seen.mkdirs).toEqual([])
   })
 

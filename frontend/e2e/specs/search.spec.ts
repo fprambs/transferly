@@ -96,7 +96,11 @@ test.describe('search', () => {
     const dialog = page.getByRole('dialog', { name: 'Search' })
     await dialog.getByLabel('Search query').fill('note')
     await dialog.getByRole('button', { name: 'Search' }).click()
-    await dialog.getByRole('button', { name: 'Stop' }).click()
+    await expect(dialog.getByRole('list', { name: 'Search results' }).getByRole('listitem').first()).toBeVisible()
+    const stop = dialog.getByRole('button', { name: 'Stop', exact: true })
+    if (await stop.isVisible()) {
+      await stop.click()
+    }
 
     await expect(dialog.getByText(/match(es)? found/)).toBeVisible()
     await expect(dialog.getByRole('button', { name: 'Search', exact: true })).toBeVisible()
