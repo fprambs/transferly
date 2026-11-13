@@ -4,6 +4,19 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [1.0.0-rc.4] - 2026-11-13
+
+Fixes that the first CI runs on GitHub brought out.
+
+### Fixed
+
+- The sidebar keeps a site marked as connected when a reload of the connected sites answers after the connection opened.
+- The file viewer and the calendar of the filters load on demand, so the initial download is back under its 500 KB budget (477 KB).
+
+### Operations
+
+- Tests no longer depend on the speed of the machine that runs them, which made them fail on GitHub's runners.
+
 ## [1.0.0-rc.3] - 2026-11-13
 
 Security update of rc.2.
