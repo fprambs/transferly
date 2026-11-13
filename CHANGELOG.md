@@ -4,6 +4,30 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [1.0.0] - 2026-11-13
+
+The first stable release of Transferly, a web file transfer client for SFTP, FTP and FTPS, S3, Google Cloud Storage and Drive, Azure
+Blob Storage and Files, and WebDAV, with a vault for credentials, teams, previews of files without downloading them, and SSH tools. Its
+application code is the code of 1.0.0-rc.4; since then only a test changed, one that depended on timing.
+
+From this release on, a change that breaks the API, the configuration or stored data needs a new major version.
+
+### Since 0.9.0
+
+- Security: Go 1.27.4 and current dependencies, chi with trusted proxies that cannot be spoofed, postal-mime 4, Debian 13 images
+  except Postgres, and `make audit` (see 1.0.0-rc.2 to 1.0.0-rc.4).
+- Integrity: transfer-owned staging that keeps the original file when a replacement fails, and bounded parsing of remote metadata,
+  archives and Office files (see 1.0.0-rc.1).
+- Connections: SSH group exchange, explained negotiation failures, and a pool that no longer withdraws a question the server asked
+  while signing in.
+
+### Upgrade notes
+
+- No database migrations since 0.9.0. Back up PostgreSQL and `/data`, including the instance key, before upgrading.
+- The production image is `ghcr.io/fprambs/transferly:v1.0.0`; pin it by digest. The published port is set with
+  `TRANSFERLY_HTTP_PORT` (8080 by default), without rebuilding the image.
+- This release supports one application instance.
+
 ## [1.0.0-rc.4] - 2026-11-13
 
 Fixes that the first CI runs on GitHub brought out.
