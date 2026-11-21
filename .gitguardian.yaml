@@ -1,0 +1,21 @@
+# GitGuardian / ggshield configuration.
+# The paths below hold only test fixtures: throwaway credentials for the
+# fake servers the test suites start, and sample keys and certificates.
+version: 2
+
+secret:
+  ignored_paths:
+    # Go unit and integration tests
+    - "**/*_test.go"
+    - "**/testdata/**"
+    # Frontend unit tests and shared test helpers
+    - "**/*.test.ts"
+    - "**/*.test.tsx"
+    - "frontend/src/test/**"
+    # Playwright end-to-end tests
+    - "frontend/e2e/**"
+    # Local test environment and its sample files
+    - "testenv/**"
+    - "compose.test.yaml"
+    - "compose.testenv.yaml"
+    - "compose.restore-test.yaml"
