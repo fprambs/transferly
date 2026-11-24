@@ -1,6 +1,6 @@
 # ADR-0029: Terminal client and sign-in through the browser
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-24
 
 ## Context
@@ -33,8 +33,10 @@ flow most exposed to phishing. Native apps are better served by the authorizatio
      opens `<server>/cli/authorize` with the challenge, the state, that redirect address and its name and host name.
    - The page needs a browser session, so the person signs in first if needed, with password, second factor or passkey. It shows
      the client name and host name as the client declared them, warns to approve only a sign-in the person just started, and waits
-     for an explicit Approve or Deny; nothing is approved without a click.
-   - Approving calls `POST /api/v1/cli/authorizations` (session and CSRF), which stores the challenge, the redirect address and the
+     for an explicit Approve or Deny; nothing is approved without a click. **Approving asks for the account password again**, as
+     turning off the second factor does: otherwise a stolen browser cookie, which lives 8 hours at most, could mint a terminal
+     session of 30 days.
+   - Approving calls `POST /api/v1/cli/authorizations` (session, CSRF and password), which stores the challenge, the redirect address and the
      user with a code that is single use, lives 5 minutes and is kept only as a hash. The page sends the browser to the redirect
      address with the code and the state.
    - **Without a browser on the machine**, such as over SSH, or when the client cannot listen, it shows the address instead, the
@@ -61,8 +63,28 @@ flow most exposed to phishing. Native apps are better served by the authorizatio
 5. **One command to install.** Releases build the client for Linux (x86_64, aarch64, static musl), macOS (x86_64, arm64) and
    Windows (x86_64) with cargo-dist, which publishes archives, checksums and the installers
    `curl -LsSf …/transferly-tui-installer.sh | sh` and `irm …/transferly-tui-installer.ps1 | iex`, installing to `$XDG_BIN_HOME`
-   or `~/.local/bin` ([spike](../spikes/cargo-dist.md)). The client has the same version as the server and is released with the
-   same tag; it reads the API version after login and warns when they differ.
+   or `~/.local/bin` ([spike](../spikes/cargo-dist.md)).
+6. **Same version as the server, compatible across versions.** The client is released with the server's tag `vX.Y.Z` and the same
+   version; one `scripts/release.sh` run releases both. A client does not demand the exact version of its server:
+   - after signing in it reads `GET /api/v1/version` and shows a notice when the minor versions differ;
+   - it finds what the server offers by using it: an endpoint the server lacks answers `404`, and the client explains that this
+     needs a newer server and disables that action instead of failing. Only a server without the sign-in of point 2 cannot be used
+     at all, and the login screen says so.
+7. **The client finds and installs its own updates**, with the `axoupdater` library and the install receipt the installer writes:
+   - At start, in the background and at most once a day, it asks GitHub for the latest release, remembering the answer and when it
+     asked in its configuration folder. The check never delays the interface, fails silently without network, and contacts only
+     github.com, never the person's server.
+   - A newer release shows a quiet line in the status bar ("v1.5.0 available, U to update"). When the person's server is older than
+     that release, the line says so, since some features of the new client would need the newer server.
+   - **U** asks for confirmation, then leaves the interface (restoring the terminal), runs the installer of the new version through
+     `axoupdater`, prints the result and asks to start the client again. Nothing is downloaded or replaced without that
+     confirmation.
+   - `transferly-tui update` does the same from the command line, with `--version X.Y.Z` to install a given release and
+     `--match-server` to install the version of the server the profile points to.
+   - Without an install receipt (installed by `cargo install`, a package manager or by hand) the client only tells that a release
+     exists and how it was installed, and never replaces the binary itself.
+   - `check_updates = false` in the configuration, or `TRANSFERLY_TUI_NO_UPDATE_CHECK=1`, turns the check off, for machines without
+     internet access and for packagers.
 
 ## Consequences
 
@@ -70,7 +92,9 @@ flow most exposed to phishing. Native apps are better served by the authorizatio
   - the terminal client reuses the server for protocols, queue, vault and permissions; it stays small;
   - signing in is one approval in the browser, and the second factor and passkeys keep protecting the account;
   - one approval page serves both the loopback redirect and the code to paste; the server needs no polling;
-  - terminal sessions are the base that D3 (scoped API tokens) can build on later.
+  - terminal sessions are the base that D3 (scoped API tokens) can build on later;
+  - one version for server and client keeps compatibility simple, and the client still works with servers of nearby versions;
+  - people learn about new releases inside the client and update with one key, but nothing changes without their confirmation.
 - Negative:
   - a second language and toolchain (Rust) with its own lint, coverage, audit and library guides;
   - a stolen terminal token gives the account, without the vault, for up to 30 days unless revoked; revocation and the list of
@@ -78,4 +102,7 @@ flow most exposed to phishing. Native apps are better served by the authorizatio
   - someone can send a person a link to the approval page made with their own challenge and ask for the pasted code. The page names
     the client and its host, asks for a click, and warns never to share the code; with a loopback redirect the code only reaches
     the person's own machine;
-  - macOS builds need a macOS runner in CI.
+  - macOS builds need a macOS runner in CI;
+  - a fix only in the client still makes a release of the server, whose image may not change;
+  - every feature of the client must handle a server that lacks it;
+  - the update check depends on GitHub and its anonymous rate limit, which once a day per machine stays far from.
