@@ -249,6 +249,34 @@
       "cause": "La contraseña de tu cuenta es incorrecta.",
       "next": "Ingresa la contraseña con la que inicias sesión."
     },
+    "browser_session_required": {
+      "cause": "Solo la interfaz web, con la sesión iniciada en el navegador, puede aprobar un inicio de sesión de la terminal.",
+      "next": "Abre el enlace de aprobación en tu navegador y apruébalo ahí."
+    },
+    "ambiguous_credentials": {
+      "cause": "La solicitud llevaba a la vez la cookie de sesión y un token bearer, y el servidor acepta solo uno.",
+      "next": "Envía solo el token bearer desde la terminal, o vuelve a iniciar sesión en el navegador."
+    },
+    "cli_login_disabled": {
+      "cause": "El inicio de sesión desde la terminal está desactivado en este servidor.",
+      "next": "Pide a quien administra el servidor que lo active (TRANSFERLY_CLI_LOGIN)."
+    },
+    "invalid_cli_request": {
+      "cause": "La solicitud de inicio de sesión de la terminal está mal formada.",
+      "next": "Vuelve a iniciar sesión desde la terminal; si sigue fallando, actualiza transferly-tui."
+    },
+    "invalid_grant": {
+      "cause": "El código de inicio de sesión es incorrecto, ya se usó o caducó; los códigos duran 5 minutos.",
+      "next": "Vuelve a iniciar sesión desde la terminal y aprueba la nueva solicitud."
+    },
+    "invalid_redirect": {
+      "cause": "La terminal pidió enviar el código a un lugar que no es este equipo.",
+      "next": "Aprueba solo inicios de sesión que hayas empezado tú, y vuelve a empezarlo desde la terminal."
+    },
+    "session_not_found": {
+      "cause": "Esa sesión ya terminó o es de otra cuenta.",
+      "next": "Actualiza la lista de sesiones."
+    },
     "invalid_path": {
       "cause": "La ruta está vacía, es relativa o tiene caracteres que el servidor rechaza.",
       "next": "Usa una ruta absoluta, que empiece con /."

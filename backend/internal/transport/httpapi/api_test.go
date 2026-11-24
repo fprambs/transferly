@@ -183,6 +183,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 			QuickConnect:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
 			MFA:           ratelimit.New(clock, ratelimit.Rule{Burst: 6, Every: 10 * time.Second}, 100),
 			Invitations:   ratelimit.New(clock, ratelimit.Rule{Burst: 20, Every: 10 * time.Second}, 100),
+			CLIToken:      ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
 		},
 		InstanceKey:    instanceKey,
 		Cookie:         httpapi.CookieConfig{MaxAge: 8 * time.Hour},

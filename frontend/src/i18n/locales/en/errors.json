@@ -249,6 +249,34 @@
       "cause": "The password of your account is wrong.",
       "next": "Enter the password you sign in with."
     },
+    "browser_session_required": {
+      "cause": "Only the web interface, signed in in the browser, can approve a sign-in of the terminal client.",
+      "next": "Open the approval link in your browser and approve it there."
+    },
+    "ambiguous_credentials": {
+      "cause": "The request carried both the session cookie and a bearer token, and the server accepts only one.",
+      "next": "Send the bearer token alone from the terminal client, or sign in again in the browser."
+    },
+    "cli_login_disabled": {
+      "cause": "Signing in from the terminal client is turned off on this server.",
+      "next": "Ask the administrator of the server to turn it on (TRANSFERLY_CLI_LOGIN)."
+    },
+    "invalid_cli_request": {
+      "cause": "The sign-in request of the terminal client is malformed.",
+      "next": "Start the sign-in again from the terminal; if it keeps failing, update transferly-tui."
+    },
+    "invalid_grant": {
+      "cause": "The sign-in code is wrong, was already used or expired; codes last 5 minutes.",
+      "next": "Start the sign-in again from the terminal and approve the new request."
+    },
+    "invalid_redirect": {
+      "cause": "The terminal client asked to send the code somewhere other than this computer.",
+      "next": "Approve only sign-ins you started yourself, and start it again from the terminal."
+    },
+    "session_not_found": {
+      "cause": "That session already ended or belongs to another account.",
+      "next": "Refresh the list of sessions."
+    },
     "invalid_path": {
       "cause": "The path is empty, relative, or has characters the server refuses.",
       "next": "Use an absolute path, starting with /."

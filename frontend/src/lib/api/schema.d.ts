@@ -1781,6 +1781,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cli/authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a sign-in of the terminal client
+         * @description Called by the approval page of the browser (ADR-0029), never by a terminal session. Needs the account password again, so a stolen browser cookie cannot start a terminal session. Answers a single-use code that lives 5 minutes, for the loopback redirect address or for the person to paste. Password attempts are rate limited per account.
+         */
+        post: operations["approveCli"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cli/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange an approved code for a session of the terminal client
+         * @description The code is spent by the first attempt, right or wrong. Every refusal is invalid_grant. Rate limited per client address. Send the token as Authorization Bearer; it is never a cookie.
+         */
+        post: operations["exchangeCliCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The sessions of the terminal client of the signed-in account
+         * @description Most recently used first; the one making the request is marked current.
+         */
+        get: operations["listCliSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End a session of the signed-in account
+         * @description Ends it at once, with its vault keys, typed passwords, event streams and terminals.
+         */
+        delete: operations["revokeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2640,6 +2720,58 @@ export interface components {
             /** @enum {string} */
             fileDoubleClick: "download" | "edit" | "preview";
         };
+        CliApproval: {
+            /** @description PKCE S256 challenge, base64url of the SHA-256 of the verifier without padding (43 characters). */
+            codeChallenge: string;
+            /** @description http://127.0.0.1:<port>/callback or http://[::1]:<port>/callback; left out or empty when the person pastes the code. */
+            redirectUri?: string;
+            /** @description Name the client declares, 1 to 64 printable characters. */
+            clientName: string;
+            /** @description Host name the client declares it runs on, up to 253 printable characters. */
+            clientHost?: string;
+            /** @description The account password, asked again. Sent to the server only; never returned. */
+            password: string;
+        };
+        CliApprovalCode: {
+            /** @description Single-use code for the terminal client; valid for 5 minutes. Never share it. */
+            code: string;
+        };
+        CliTokenRequest: {
+            code: string;
+            /** @description PKCE verifier whose S256 challenge was approved. */
+            codeVerifier: string;
+            /** @description The same redirect address as the approval; left out or empty for a pasted code. */
+            redirectUri?: string;
+        };
+        CliToken: {
+            /** @description Opaque bearer token of the session; shown once. */
+            token: string;
+            /**
+             * Format: date-time
+             * @description Latest end of the session; it ends earlier when unused for the idle time of terminal sessions.
+             */
+            expiresAt: string;
+            user: components["schemas"]["User"];
+        };
+        CliSession: {
+            /** Format: uuid */
+            id: string;
+            /** @description Name the client declared. */
+            name: string;
+            /** @description Host name the client declared it runs on. */
+            host: string;
+            /** @description Address the session was started from. */
+            ip: string;
+            userAgent: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastSeenAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description Whether this is the session making the request. */
+            current: boolean;
+        };
         SessionInfo: {
             user: components["schemas"]["User"];
             /** @description Send it as X-CSRF-Token on state-changing requests. */
@@ -2684,6 +2816,8 @@ export interface components {
         PromptId: string;
         /** @description Identifier of the bookmark. */
         BookmarkId: string;
+        /** @description Identifier of the session. */
+        SessionId: string;
         /** @description Identifier of the quick connection. */
         QuickId: string;
     };
@@ -9670,6 +9804,148 @@ export interface operations {
             };
             /** @description An error. The stable code tells the client what happened. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    approveCli: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CliApproval"];
+            };
+        };
+        responses: {
+            /** @description Approved; hand the code to the terminal client. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliApprovalCode"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    exchangeCliCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CliTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliToken"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listCliSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sessions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliSession"][];
+                };
+            };
+        };
+    };
+    revokeSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Anti-CSRF token returned with the session and bound to it. Mandatory on state-changing requests of signed-in users; the server answers 403 csrf_invalid without it. */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description Identifier of the session. */
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session ended. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -41,6 +41,7 @@ type flakyStore struct {
 	failPreferences   bool
 	failLookupAfter   int64
 	failUserByID      bool
+	failCLI           bool
 	lookups           atomic.Int64
 }
 
@@ -76,13 +77,45 @@ func (f *flakyStore) SessionByTokenHash(ctx context.Context, hash []byte) (auth.
 	return f.Store.SessionByTokenHash(ctx, hash)
 }
 
+// CreateCLIAuthorization fails when configured to.
+func (f *flakyStore) CreateCLIAuthorization(ctx context.Context, a auth.CLIAuthorization) error {
+	if f.failCLI {
+		return errInjected
+	}
+	return f.Store.CreateCLIAuthorization(ctx, a)
+}
+
+// UseCLIAuthorization fails when configured to.
+func (f *flakyStore) UseCLIAuthorization(ctx context.Context, codeHash []byte, at time.Time) (auth.CLIAuthorization, error) {
+	if f.failCLI {
+		return auth.CLIAuthorization{}, errInjected
+	}
+	return f.Store.UseCLIAuthorization(ctx, codeHash, at)
+}
+
+// ListUserSessions fails when configured to.
+func (f *flakyStore) ListUserSessions(ctx context.Context, userID uuid.UUID, kind auth.SessionKind) ([]auth.Session, error) {
+	if f.failCLI {
+		return nil, errInjected
+	}
+	return f.Store.ListUserSessions(ctx, userID, kind)
+}
+
+// DeleteUserSession fails when configured to.
+func (f *flakyStore) DeleteUserSession(ctx context.Context, userID, id uuid.UUID) (bool, error) {
+	if f.failCLI {
+		return false, errInjected
+	}
+	return f.Store.DeleteUserSession(ctx, userID, id)
+}
+
 // withFlaky replaces the auth service by one over a store with injected failures.
 func withFlaky(configure func(*flakyStore)) func(*httpapi.Deps) {
 	return func(d *httpapi.Deps) {
 		flaky := &flakyStore{Store: d.Readiness.(*postgres.Store)}
 		configure(flaky)
 		hasher := auth.NewHasher(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
-		d.Auth = auth.NewService(flaky, flaky, flaky, hasher, realClock{}, rand.Reader, auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: 8 * time.Hour})
+		d.Auth = auth.NewService(flaky, flaky, flaky, hasher, realClock{}, rand.Reader, auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: 8 * time.Hour, CLIIdleTimeout: time.Hour, CLIAbsoluteTimeout: time.Hour, CLILogin: true})
 	}
 }
 

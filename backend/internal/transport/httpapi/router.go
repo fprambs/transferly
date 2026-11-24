@@ -57,6 +57,8 @@ type Limits struct {
 	MFA ports.RateLimiter
 	// VaultAttempts limits attempts to prove a vault secret, per signed-in account.
 	VaultAttempts ports.RateLimiter
+	// CLIToken limits the exchanges of codes of the terminal client, per client address.
+	CLIToken ports.RateLimiter
 }
 
 // CookieConfig describes the session cookie.

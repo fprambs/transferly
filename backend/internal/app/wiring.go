@@ -64,6 +64,7 @@ var (
 	vaultRule        = ratelimit.Rule{Burst: 5, Every: 12 * time.Second}
 	mfaRule          = ratelimit.Rule{Burst: 5, Every: 30 * time.Second}
 	invitationRule   = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
+	cliTokenRule     = ratelimit.Rule{Burst: 10, Every: 6 * time.Second}
 )
 
 // janitorTask is a periodic cleanup that reports how many items it removed.
@@ -179,6 +180,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 				VaultAttempts: ratelimit.New(system, vaultRule, maxTrackedClients),
 				Invitations:   ratelimit.New(system, invitationRule, maxTrackedClients),
 				MFA:           ratelimit.New(system, mfaRule, maxTrackedClients),
+				CLIToken:      ratelimit.New(system, cliTokenRule, maxTrackedClients),
 			},
 			InstanceKey:    instanceKey,
 			Cookie:         httpapi.CookieConfig{Secure: cfg.CookieSecure(), MaxAge: cfg.SessionMax},
