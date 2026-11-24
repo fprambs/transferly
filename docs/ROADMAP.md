@@ -443,7 +443,7 @@ Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termi
 
 - [ ] Aceptar el ADR-0029 (nombre del binario, duraciones de las sesiones de dispositivo, mismo tag que el servidor)
 - [x] Spike: cliente Rust generado desde `openapi.yaml`. `progenitor` queda descartado (solo admite una respuesta de éxito por operación y el login tiene 200 y 202); `openapi-generator` (`rust`, reqwest) genera y compila el contrato 3.1 tal cual. El login, las subidas reanudables y el WebSocket van escritos a mano ([informe](spikes/rust-api-client.md))
-- [ ] Spike: subida en flujo desde disco con `reqwest` y progreso, y el WebSocket `/api/v1/ws` con `tokio-tungstenite` y cabecera `Authorization`
+- [x] Spike: subida en flujo desde disco con `reqwest` y progreso, y el WebSocket `/api/v1/ws` con `tokio-tungstenite`. 512 MiB cortados a la mitad y reanudados con el mismo `transferId`, descarga por rango y eventos, con 9 MiB de memoria en el cliente. Reanudar exige esperar a que el servidor dé por detenida la subida anterior ([informe](spikes/rust-streaming.md))
 - [ ] Spike: cargo-dist con los cinco targets y un instalador de prueba
 - [ ] Guías en `docs/guides/`: `ratatui.md`, `tokio.md`, `reqwest.md`, `cargo-dist.md`, `rust-tooling.md`
 
