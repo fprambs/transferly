@@ -161,7 +161,10 @@ export function mockUnlocking(initialized = true): { unlocked: () => boolean } {
   return { unlocked: () => unlocked }
 }
 
-/** Answers the second factor state of the account as off. */
+/** Answers the second factor state of the account as off, with no session of the terminal client. */
 export function mockSecurity(): void {
-  server.use(http.get('/api/v1/me/security', () => HttpResponse.json({ totp: false, recoveryCodesLeft: 0, passkeys: [] })))
+  server.use(
+    http.get('/api/v1/me/security', () => HttpResponse.json({ totp: false, recoveryCodesLeft: 0, passkeys: [] })),
+    http.get('/api/v1/me/sessions', () => HttpResponse.json([])),
+  )
 }

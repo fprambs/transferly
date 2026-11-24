@@ -16,6 +16,7 @@ import { AddPasskeyDialog } from './AddPasskeyDialog'
 import { EnableTotpDialog } from './EnableTotpDialog'
 import { PasswordDialog, type PasswordAction } from './PasswordDialog'
 import { RemovePasskeyDialog } from './RemovePasskeyDialog'
+import { TerminalSessions } from './TerminalSessions'
 import { securityKey } from './use-security'
 
 /** Props of {@link MethodRow}. */
@@ -48,7 +49,7 @@ function MethodRow({ icon: Icon, title, detail, children }: MethodRowProps) {
 
 /**
  * The second step of the account, in two cards: the authenticator app with its recovery codes, turned on and off with the password, and
- * the passkeys, each in its own row with when it was added and last used.
+ * the passkeys, each in its own row with when it was added and last used; then the sessions of the terminal client.
  */
 export function SecuritySection() {
   const { t, i18n } = useTranslation('security')
@@ -139,6 +140,7 @@ export function SecuritySection() {
           </ul>
         )}
       </Section>
+      <TerminalSessions />
       <EnableTotpDialog
         open={enabling}
         onClose={() => {

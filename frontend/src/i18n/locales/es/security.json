@@ -108,7 +108,7 @@
     "intro": "{{client}} en {{host}} pide usar tu cuenta {{email}}.",
     "introNoHost": "{{client}} pide usar tu cuenta {{email}}.",
     "declared": "El nombre y el equipo son lo que el cliente de terminal dice de sí mismo; el servidor no puede comprobarlos.",
-    "warning": "Aprueba solo si acabas de iniciar este inicio de sesión en tu terminal. Esa terminal usará tu cuenta hasta 30 días, hasta que cierres la sesión en Seguridad.",
+    "warning": "Aprueba solo si acabas de iniciar este inicio de sesión en tu terminal. Esa terminal usará tu cuenta hasta que su sesión caduque o la cierres en Seguridad.",
     "password": "Tu contraseña",
     "approve": "Aprobar",
     "working": "Aprobando…",
@@ -124,5 +124,19 @@
     "deniedBody": "La terminal no inició sesión. Puedes cerrar esta página.",
     "invalidTitle": "Este enlace de inicio de sesión no es válido",
     "invalidBody": "Vuelve a iniciar sesión desde tu terminal y abre el enlace que muestra."
+  },
+  "terminals": {
+    "title": "Sesiones de terminal",
+    "description": "Terminales con la sesión iniciada en transferly-tui. Cierra aquí la sesión si perdiste ese equipo o ya no lo usas.",
+    "loading": "Cargando las sesiones de terminal…",
+    "empty": "Ninguna terminal tiene la sesión iniciada. Instala transferly-tui e inicia sesión desde ahí.",
+    "nameOn": "{{name}} en {{host}}",
+    "detail": "Inició sesión el {{started}} · último uso el {{used}} · desde {{ip}}",
+    "current": "Esta terminal",
+    "end": "Cerrar sesión",
+    "endOf": "Cerrar la sesión de {{name}}",
+    "endTitle": "¿Cerrar la sesión de {{name}}?",
+    "endBody": "Esa terminal pierde el acceso a tu cuenta al instante y tendrá que volver a iniciar sesión para usarla.",
+    "endConfirm": "Cerrar sesión"
   }
 }
