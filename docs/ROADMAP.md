@@ -435,6 +435,66 @@ Ver [ADR-0001](adr/0001-web-first-desktop-ready.md).
 - [ ] Instaladores, firma de código y auto actualización
 - [ ] Revisión de seguridad de la fase: superficie de los bindings de Wails, actualizaciones firmadas, almacenamiento local de la base y del vault
 
+## Bloque T: cliente de terminal (pedido del 2026-11-24)
+
+Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termirs, con ratatui. Decisiones en [ADR-0029](adr/0029-terminal-client-and-device-login.md). Sin terminal SSH embebida, vista previa, comprimidos ni administración en la primera versión: solo conexiones, archivos y transferencias. La política de calidad aplica igual al código Rust (lint, formato, 100 % de cobertura, guías de librerías, auditoría de dependencias).
+
+### T0. Decisiones y spikes (3 a 4 días)
+
+- [ ] Aceptar el ADR-0029 (nombre del binario, duraciones de las sesiones de dispositivo, mismo tag que el servidor)
+- [ ] Spike: cliente Rust generado desde `openapi.yaml`. El contrato es OpenAPI **3.1** y `progenitor` solo lee 3.0: probar `progenitor` sobre una conversión a 3.0, `openapi-generator` y un cliente escrito a mano para las ~35 operaciones que usa la TUI; elegir uno con informe
+- [ ] Spike: subida en flujo desde disco con `reqwest` y progreso, y el WebSocket `/api/v1/ws` con `tokio-tungstenite` y cabecera `Authorization`
+- [ ] Spike: cargo-dist con los cinco targets y un instalador de prueba
+- [ ] Guías en `docs/guides/`: `ratatui.md`, `tokio.md`, `reqwest.md`, `cargo-dist.md`, `rust-tooling.md`
+
+### T1. Login por dispositivo en el servidor (1,5 a 2 semanas)
+
+- [ ] Migración: `user_sessions.kind` (`browser` | `device`) y `name`; tabla `device_authorizations` (hash del código de dispositivo, código de usuario, estado, usuario que aprobó, cliente, IP, caducidad)
+- [ ] Core: crear, aprobar, rechazar y canjear autorizaciones; sesión `device` con sus duraciones (`TRANSFERLY_DEVICE_SESSION_IDLE`, `TRANSFERLY_DEVICE_SESSION_MAX`); `TRANSFERLY_DEVICE_LOGIN` para apagarlo
+- [ ] API: `POST /device/authorizations`, `POST /device/authorizations/{userCode}/approve` y `/deny`, `POST /device/token` con `authorization_pending`, `slow_down`, `access_denied` y `expired_token`; rate limits por IP y por código
+- [ ] Transporte: `Authorization: Bearer` en `authenticate` y en `/api/v1/ws`; bearer solo para sesiones `device` y cookie solo para `browser`; sin CSRF con bearer
+- [ ] Frontend: página `/device` (código, nombre del cliente, IP, user agent, aviso contra phishing, aprobar o rechazar) y sesiones de consola en Seguridad, con revocación
+- [ ] Errores guiados e i18n para los códigos nuevos; contrato, matriz de autorización y tests de seguridad (bearer con cookie, cookie como bearer, código caducado, fuerza bruta del código, usuario desactivado)
+- [ ] `docs/guides/authentication.md` y variables nuevas en el compose
+
+### T2. Base de la TUI (1 a 1,5 semanas)
+
+- [ ] `tui/` como crate (`transferly-tui`): `clap`, `tokio`, `ratatui` + `crossterm`, `reqwest` con rustls, cliente elegido en T0
+- [ ] Perfiles por servidor en `~/.config/transferly/config.toml`; token en el llavero del sistema (`keyring`) o archivo `0600`
+- [ ] Comandos `login <url>`, `logout`, `status`; login muestra el código y la URL (y un QR en la terminal), y espera la aprobación
+- [ ] Arquitectura: estado único y bucle de eventos (teclado, respuestas HTTP, WebSocket) sin bloquear el dibujo
+- [ ] Desbloqueo del vault en un modal, y de nuevo ante `vault_locked`; aviso si la versión de la API no coincide
+- [ ] Selector de workspace y árbol de sitios con colecciones; conexión rápida
+- [ ] i18n inglés y español; errores con su código y la guía del catálogo del frontend
+
+### T3. Explorador de doble panel (1,5 a 2 semanas)
+
+- [ ] Panel local (`std::fs`) y panel remoto, intercambiables; navegar, ordenar, filtrar, selección múltiple
+- [ ] Crear carpeta, renombrar, borrar con confirmación, refrescar, desconectar
+- [ ] Prompts del servidor en modales: confiar en la clave de host, pedir contraseña, keyboard-interactive (`/prompts/{id}`)
+- [ ] Registro de conexión (`connection.log`) en un panel que se oculta
+- [ ] Atajos al estilo termscp, documentados en la ayuda (`?`)
+
+### T4. Transferencias (1,5 a 2 semanas)
+
+- [ ] Subir desde disco en flujo (`PUT files/content`), reanudar con `mode=resume&offset=`; descargar con `Range` y reanudar
+- [ ] Carpetas completas en ambos sentidos; política ante archivos existentes (falla, sobrescribe, omite, más nuevo, renombra)
+- [ ] Copias entre sitios por el servidor (`POST /copies`)
+- [ ] Panel de cola con el progreso del WebSocket: pausar, reanudar, cancelar, prioridad; recarga tras reconectar
+- [ ] Integración con el stack de pruebas: login por dispositivo, subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv`
+
+### T5. Instalación con un comando (1 semana)
+
+- [ ] cargo-dist en la CI de releases: Linux x86_64 y aarch64 (musl), macOS x86_64 y arm64, Windows x86_64; sumas de verificación
+- [ ] Instaladores `curl -LsSf https://github.com/fprambs/transferly/releases/latest/download/transferly-tui-installer.sh | sh` e `irm …/transferly-tui-installer.ps1 | iex`
+- [ ] `scripts/release.sh` sube también la versión de `tui/Cargo.toml`; mismo tag que el servidor
+- [ ] Actualización desde el propio binario (`transferly-tui update`)
+- [ ] README: sección "Usar desde la terminal"
+
+### T6. Revisión de seguridad del bloque (3 a 4 días)
+
+- [ ] Flujo de dispositivo (phishing del código, fuerza bruta, canje doble, caducidad), almacenamiento del token, bearer en registros, revocación inmediata en HTTP y WebSocket, rutas locales hostiles en descargas (`../`, absolutas), dependencias (`cargo audit`, `cargo deny`), firma de los binarios
+
 ## Pendientes al final: diferenciadores (anotados el 2026-09-26)
 
 Tres funciones que distinguen a Transferly de un cliente FTP clásico. Se hacen después de las fases 3 a 5, porque se apoyan en ellas (permisos por rol, auditoría, tokens de API) y no deben adelantarse.
