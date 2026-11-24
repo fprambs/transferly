@@ -13,16 +13,20 @@ import (
 )
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
-DELETE FROM user_sessions WHERE expires_at <= $1 OR last_seen_at < $2
+DELETE FROM user_sessions
+WHERE expires_at <= $1
+   OR (kind = 'browser' AND last_seen_at < $2)
+   OR (kind = 'cli' AND last_seen_at < $3)
 `
 
 type DeleteExpiredSessionsParams struct {
-	ExpiresAt  time.Time
-	LastSeenAt time.Time
+	Now               time.Time
+	BrowserIdleBefore time.Time
+	CliIdleBefore     time.Time
 }
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context, arg DeleteExpiredSessionsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredSessions, arg.ExpiresAt, arg.LastSeenAt)
+	result, err := q.db.Exec(ctx, deleteExpiredSessions, arg.Now, arg.BrowserIdleBefore, arg.CliIdleBefore)
 	if err != nil {
 		return 0, err
 	}
@@ -38,6 +42,23 @@ func (q *Queries) DeleteSession(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const deleteUserSession = `-- name: DeleteUserSession :execrows
+DELETE FROM user_sessions WHERE id = $1 AND user_id = $2
+`
+
+type DeleteUserSessionParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteUserSession(ctx context.Context, arg DeleteUserSessionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUserSession, arg.ID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteUserSessions = `-- name: DeleteUserSessions :execrows
 DELETE FROM user_sessions WHERE user_id = $1
 `
@@ -51,8 +72,8 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID uuid.UUID) (int
 }
 
 const insertSession = `-- name: InsertSession :exec
-INSERT INTO user_sessions (id, user_id, token_hash, user_agent, ip, created_at, last_seen_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO user_sessions (id, user_id, token_hash, user_agent, ip, created_at, last_seen_at, expires_at, kind, name, host)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
 type InsertSessionParams struct {
@@ -64,6 +85,9 @@ type InsertSessionParams struct {
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	ExpiresAt  time.Time
+	Kind       string
+	Name       string
+	Host       string
 }
 
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
@@ -76,12 +100,58 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.CreatedAt,
 		arg.LastSeenAt,
 		arg.ExpiresAt,
+		arg.Kind,
+		arg.Name,
+		arg.Host,
 	)
 	return err
 }
 
+const listUserSessions = `-- name: ListUserSessions :many
+SELECT id, user_id, token_hash, user_agent, ip, created_at, last_seen_at, expires_at, kind, name, host
+FROM user_sessions WHERE user_id = $1 AND kind = $2
+ORDER BY last_seen_at DESC, id
+`
+
+type ListUserSessionsParams struct {
+	UserID uuid.UUID
+	Kind   string
+}
+
+func (q *Queries) ListUserSessions(ctx context.Context, arg ListUserSessionsParams) ([]UserSession, error) {
+	rows, err := q.db.Query(ctx, listUserSessions, arg.UserID, arg.Kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserSession
+	for rows.Next() {
+		var i UserSession
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TokenHash,
+			&i.UserAgent,
+			&i.Ip,
+			&i.CreatedAt,
+			&i.LastSeenAt,
+			&i.ExpiresAt,
+			&i.Kind,
+			&i.Name,
+			&i.Host,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sessionByTokenHash = `-- name: SessionByTokenHash :one
-SELECT id, user_id, token_hash, user_agent, ip, created_at, last_seen_at, expires_at
+SELECT id, user_id, token_hash, user_agent, ip, created_at, last_seen_at, expires_at, kind, name, host
 FROM user_sessions WHERE token_hash = $1
 `
 
@@ -97,6 +167,9 @@ func (q *Queries) SessionByTokenHash(ctx context.Context, tokenHash []byte) (Use
 		&i.CreatedAt,
 		&i.LastSeenAt,
 		&i.ExpiresAt,
+		&i.Kind,
+		&i.Name,
+		&i.Host,
 	)
 	return i, err
 }

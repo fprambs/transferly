@@ -87,7 +87,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	kdf := vault.NewKDF(max(runtime.NumCPU(), 2))
 	hasher := auth.NewHasher(kdf, vault.DefaultParams, rand.Reader)
 	authService := auth.NewService(store, store, hasher, system, rand.Reader,
-		auth.Config{IdleTimeout: cfg.SessionIdle, AbsoluteTimeout: cfg.SessionMax})
+		auth.Config{IdleTimeout: cfg.SessionIdle, AbsoluteTimeout: cfg.SessionMax, CLIIdleTimeout: cfg.CLISessionIdle, CLIAbsoluteTimeout: cfg.CLISessionMax})
 
 	workspaces := workspace.NewService(store, system, nil)
 	keyRing := vault.NewKeyRing(system, cfg.SessionIdle)

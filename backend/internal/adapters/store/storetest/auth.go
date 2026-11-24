@@ -17,6 +17,7 @@ import (
 type AuthStore interface {
 	auth.UserStore
 	auth.SessionStore
+	auth.CLIAuthorizationStore
 }
 
 // AuthFactory returns a new, empty store for one test.
@@ -38,6 +39,7 @@ func newSession(userID uuid.UUID, tokenHash string) auth.Session {
 	return auth.Session{
 		ID: uuid.New(), UserID: userID, TokenHash: []byte(tokenHash), UserAgent: "agent", IP: "10.0.0.7",
 		CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(8 * time.Hour),
+		Kind: auth.SessionBrowser,
 	}
 }
 
@@ -47,7 +49,9 @@ func newSession(userID uuid.UUID, tokenHash string) auth.Session {
 //   - users: round trip of every field with UTC times, lookup by email and id, missing users, duplicate emails,
 //     disabled status, password and preference updates, counting
 //   - first user: created once, refused afterwards, and exactly one of many concurrent attempts wins
-//   - sessions: round trip, lookup by token hash, missing sessions, touch, delete, delete by user, expiry purge
+//   - sessions: round trip with kind, name and host, lookup by token hash, missing sessions, touch, delete, delete by user, expiry
+//     purge with the idle time of each kind, listing by user and kind, and deleting one session of a user only
+//   - approvals of the terminal client: round trip, a code is used once even by concurrent exchanges, expiry purge
 //   - referential integrity: a session cannot exist without its user, and deleting nothing is not an error
 func RunAuth(t *testing.T, newStore AuthFactory) {
 	t.Helper()
@@ -64,6 +68,11 @@ func RunAuth(t *testing.T, newStore AuthFactory) {
 		{"sessions round trip, touch and delete", testSessions},
 		{"deleting by user and by expiry", testSessionCleanup},
 		{"sessions need an existing user and unique tokens", testSessionIntegrity},
+		{"terminal sessions keep their kind, name and host", testCLISessions},
+		{"each kind of session idles out on its own", testSessionIdleByKind},
+		{"listing and revoking the sessions of a user", testUserSessions},
+		{"an approval of the terminal client is used once", testCLIAuthorizations},
+		{"concurrent exchanges of one code produce exactly one winner", testCLIAuthorizationRace},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) { tt.run(t, newStore(t)) })
@@ -267,7 +276,7 @@ func testSessionCleanup(t *testing.T, s AuthStore) {
 	idle.LastSeenAt = now.Add(-2 * time.Hour)
 	_ = s.CreateSession(ctx, expired)
 	_ = s.CreateSession(ctx, idle)
-	if n, err := s.DeleteExpiredSessions(ctx, now, now.Add(-time.Hour)); err != nil || n != 2 {
+	if n, err := s.DeleteExpiredSessions(ctx, now, auth.IdleCutoffs{Browser: now.Add(-time.Hour), CLI: now.Add(-time.Hour)}); err != nil || n != 2 {
 		t.Errorf("DeleteExpiredSessions() = %d, %v, want the expired and the idle session", n, err)
 	}
 	if _, err := s.SessionByTokenHash(ctx, []byte("b1")); err != nil {
@@ -286,5 +295,186 @@ func testSessionIntegrity(t *testing.T, s AuthStore) {
 	_ = s.CreateSession(ctx, newSession(u.ID, "same"))
 	if err := s.CreateSession(ctx, newSession(u.ID, "same")); err == nil {
 		t.Error("a duplicate token hash was accepted")
+	}
+}
+
+// newCLISession returns a session of the terminal client of a user with a distinct token hash.
+func newCLISession(userID uuid.UUID, tokenHash string) auth.Session {
+	s := newSession(userID, tokenHash)
+	s.Kind, s.Name, s.Host, s.ExpiresAt = auth.SessionCLI, "transferly-tui", "laptop", now.Add(30*24*time.Hour)
+	return s
+}
+
+// newCLIAuthorization returns an approval of a user with a distinct code hash that expires five minutes after now.
+func newCLIAuthorization(userID uuid.UUID, codeHash string) auth.CLIAuthorization {
+	return auth.CLIAuthorization{
+		ID: uuid.New(), UserID: userID, CodeHash: []byte(codeHash), CodeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+		RedirectURI: "http://127.0.0.1:49152/callback", ClientName: "transferly-tui", ClientHost: "laptop", IP: "10.0.0.8",
+		CreatedAt: now, ExpiresAt: now.Add(5 * time.Minute),
+	}
+}
+
+// testCLISessions checks that a session of the terminal client keeps its kind, name and host, that a session without a kind is a
+// browser session, and that the database refuses an
+// unknown kind.
+func testCLISessions(t *testing.T, s AuthStore) {
+	ctx := t.Context()
+	u := newUser("cli@example.com")
+	_ = s.CreateUser(ctx, u)
+	session := newCLISession(u.ID, "cli-1")
+	if err := s.CreateSession(ctx, session); err != nil {
+		t.Fatalf("CreateSession() = %v", err)
+	}
+	got, err := s.SessionByTokenHash(ctx, []byte("cli-1"))
+	if err != nil || got.Kind != auth.SessionCLI || got.Name != "transferly-tui" || got.Host != "laptop" || !got.ExpiresAt.Equal(session.ExpiresAt) {
+		t.Errorf("SessionByTokenHash() = %+v, %v, want %+v", got, err, session)
+	}
+	untyped := newSession(u.ID, "no-kind")
+	untyped.Kind = ""
+	_ = s.CreateSession(ctx, untyped)
+	if got, err := s.SessionByTokenHash(ctx, []byte("no-kind")); err != nil || got.Kind != auth.SessionBrowser {
+		t.Errorf("session without a kind = %q, %v, want a browser session", got.Kind, err)
+	}
+	unknown := newSession(u.ID, "unknown-kind")
+	unknown.Kind = "robot"
+	if err := s.CreateSession(ctx, unknown); err == nil {
+		t.Error("a session of an unknown kind was accepted")
+	}
+}
+
+// testSessionIdleByKind checks that the purge applies the idle cutoff of each kind to its own sessions only.
+func testSessionIdleByKind(t *testing.T, s AuthStore) {
+	ctx := t.Context()
+	u := newUser("idle@example.com")
+	_ = s.CreateUser(ctx, u)
+	browser := newSession(u.ID, "browser-2h")
+	browser.LastSeenAt = now.Add(-2 * time.Hour)
+	cli := newCLISession(u.ID, "cli-2h")
+	cli.LastSeenAt = now.Add(-2 * time.Hour)
+	staleCLI := newCLISession(u.ID, "cli-8d")
+	staleCLI.LastSeenAt = now.Add(-8 * 24 * time.Hour)
+	for _, session := range []auth.Session{browser, cli, staleCLI} {
+		_ = s.CreateSession(ctx, session)
+	}
+	cutoffs := auth.IdleCutoffs{Browser: now.Add(-30 * time.Minute), CLI: now.Add(-7 * 24 * time.Hour)}
+	if n, err := s.DeleteExpiredSessions(ctx, now, cutoffs); err != nil || n != 2 {
+		t.Errorf("DeleteExpiredSessions() = %d, %v, want the idle browser session and the stale terminal one", n, err)
+	}
+	if _, err := s.SessionByTokenHash(ctx, []byte("cli-2h")); err != nil {
+		t.Errorf("a terminal session idle for 2 hours was purged with the browser idle time: %v", err)
+	}
+}
+
+// testUserSessions checks listing the sessions of a kind of a user, most recently used first, and revoking one of them without
+// touching the sessions of other users.
+func testUserSessions(t *testing.T, s AuthStore) {
+	ctx := t.Context()
+	a, b := newUser("owner@example.com"), newUser("other@example.com")
+	_ = s.CreateUser(ctx, a)
+	_ = s.CreateUser(ctx, b)
+	older, newer := newCLISession(a.ID, "a-older"), newCLISession(a.ID, "a-newer")
+	older.LastSeenAt = now.Add(-time.Hour)
+	for _, session := range []auth.Session{older, newer, newSession(a.ID, "a-browser"), newCLISession(b.ID, "b-cli")} {
+		_ = s.CreateSession(ctx, session)
+	}
+	list, err := s.ListUserSessions(ctx, a.ID, auth.SessionCLI)
+	if err != nil || len(list) != 2 || list[0].ID != newer.ID || list[1].ID != older.ID {
+		t.Errorf("ListUserSessions(cli) = %+v, %v, want the newer then the older terminal session", list, err)
+	}
+	if list, err := s.ListUserSessions(ctx, b.ID, auth.SessionBrowser); err != nil || len(list) != 0 {
+		t.Errorf("ListUserSessions(other user, browser) = %+v, %v, want none", list, err)
+	}
+
+	bSessions, _ := s.ListUserSessions(ctx, b.ID, auth.SessionCLI)
+	if deleted, err := s.DeleteUserSession(ctx, a.ID, bSessions[0].ID); err != nil || deleted {
+		t.Errorf("DeleteUserSession(session of another user) = %v, %v, want false", deleted, err)
+	}
+	if deleted, err := s.DeleteUserSession(ctx, a.ID, newer.ID); err != nil || !deleted {
+		t.Errorf("DeleteUserSession() = %v, %v, want true", deleted, err)
+	}
+	if deleted, err := s.DeleteUserSession(ctx, a.ID, newer.ID); err != nil || deleted {
+		t.Errorf("DeleteUserSession() again = %v, %v, want false", deleted, err)
+	}
+	if _, err := s.SessionByTokenHash(ctx, []byte("b-cli")); err != nil {
+		t.Errorf("the session of another user was deleted: %v", err)
+	}
+}
+
+// testCLIAuthorizations checks the round trip of an approval, that its code is used once, the purge of expired approvals, and that
+// an approval needs an existing user and a unique code.
+func testCLIAuthorizations(t *testing.T, s AuthStore) {
+	ctx := t.Context()
+	u := newUser("approver@example.com")
+	_ = s.CreateUser(ctx, u)
+	approval := newCLIAuthorization(u.ID, "code-1")
+	if err := s.CreateCLIAuthorization(ctx, approval); err != nil {
+		t.Fatalf("CreateCLIAuthorization() = %v", err)
+	}
+	got, err := s.UseCLIAuthorization(ctx, []byte("code-1"), now.Add(time.Minute))
+	if err != nil || got.ID != approval.ID || got.UserID != u.ID || got.CodeChallenge != approval.CodeChallenge ||
+		got.RedirectURI != approval.RedirectURI || got.ClientName != "transferly-tui" || got.ClientHost != "laptop" ||
+		got.IP != "10.0.0.8" || !got.CreatedAt.Equal(now) || !got.ExpiresAt.Equal(approval.ExpiresAt) || got.ExpiresAt.Location() != time.UTC {
+		t.Errorf("UseCLIAuthorization() = %+v, %v, want %+v", got, err, approval)
+	}
+	if _, err := s.UseCLIAuthorization(ctx, []byte("code-1"), now.Add(2*time.Minute)); !errors.Is(err, auth.ErrNotFound) {
+		t.Errorf("UseCLIAuthorization() again = %v, want ErrNotFound", err)
+	}
+	if _, err := s.UseCLIAuthorization(ctx, []byte("unknown"), now); !errors.Is(err, auth.ErrNotFound) {
+		t.Errorf("UseCLIAuthorization(unknown) = %v, want ErrNotFound", err)
+	}
+
+	pasted := newCLIAuthorization(u.ID, "code-2")
+	pasted.RedirectURI = ""
+	_ = s.CreateCLIAuthorization(ctx, pasted)
+	if got, err := s.UseCLIAuthorization(ctx, []byte("code-2"), now); err != nil || got.RedirectURI != "" {
+		t.Errorf("UseCLIAuthorization(pasted) = %+v, %v, want no redirect", got, err)
+	}
+
+	_ = s.CreateCLIAuthorization(ctx, newCLIAuthorization(u.ID, "code-3"))
+	if n, err := s.DeleteExpiredCLIAuthorizations(ctx, now.Add(4*time.Minute)); err != nil || n != 0 {
+		t.Errorf("DeleteExpiredCLIAuthorizations(before expiry) = %d, %v, want 0", n, err)
+	}
+	if n, err := s.DeleteExpiredCLIAuthorizations(ctx, now.Add(5*time.Minute)); err != nil || n != 3 {
+		t.Errorf("DeleteExpiredCLIAuthorizations(at expiry) = %d, %v, want 3, used ones included", n, err)
+	}
+
+	if err := s.CreateCLIAuthorization(ctx, newCLIAuthorization(uuid.New(), "orphan")); err == nil {
+		t.Error("an approval without a user was accepted")
+	}
+	_ = s.CreateCLIAuthorization(ctx, newCLIAuthorization(u.ID, "same"))
+	if err := s.CreateCLIAuthorization(ctx, newCLIAuthorization(u.ID, "same")); err == nil {
+		t.Error("a duplicate code hash was accepted")
+	}
+}
+
+// testCLIAuthorizationRace checks that of many concurrent exchanges of one code exactly one gets the approval.
+func testCLIAuthorizationRace(t *testing.T, s AuthStore) {
+	ctx := t.Context()
+	u := newUser("race@example.com")
+	_ = s.CreateUser(ctx, u)
+	_ = s.CreateCLIAuthorization(ctx, newCLIAuthorization(u.ID, "contested"))
+
+	const attempts = 8
+	var wg sync.WaitGroup
+	results := make(chan error, attempts)
+	for range attempts {
+		wg.Go(func() {
+			_, err := s.UseCLIAuthorization(ctx, []byte("contested"), now)
+			results <- err
+		})
+	}
+	wg.Wait()
+	close(results)
+	winners := 0
+	for err := range results {
+		switch {
+		case err == nil:
+			winners++
+		case !errors.Is(err, auth.ErrNotFound):
+			t.Errorf("UseCLIAuthorization() = %v, want nil or ErrNotFound", err)
+		}
+	}
+	if winners != 1 {
+		t.Errorf("%d exchanges got the approval, want exactly 1", winners)
 	}
 }

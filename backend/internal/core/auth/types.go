@@ -97,7 +97,17 @@ type Preferences struct {
 	FileDoubleClick string
 }
 
-// Session is a signed-in browser session. The token itself is never stored, only its hash.
+// SessionKind tells how a session is used: by a browser with the cookie, or by the terminal client with a bearer token (ADR-0029).
+type SessionKind string
+
+const (
+	// SessionBrowser is a session of the web interface, carried by the cookie.
+	SessionBrowser SessionKind = "browser"
+	// SessionCLI is a session of the terminal client, carried by a bearer token.
+	SessionCLI SessionKind = "cli"
+)
+
+// Session is a signed-in session of a browser or of the terminal client. The token itself is never stored, only its hash.
 type Session struct {
 	// ID identifies the session.
 	ID uuid.UUID
@@ -115,6 +125,20 @@ type Session struct {
 	LastSeenAt time.Time
 	// ExpiresAt is the absolute end of the session, in UTC.
 	ExpiresAt time.Time
+	// Kind tells whether the browser or the terminal client uses the session.
+	Kind SessionKind
+	// Name is the name the terminal client declared, empty for browser sessions.
+	Name string
+	// Host is the host name the terminal client declared it runs on, empty for browser sessions.
+	Host string
+}
+
+// IdleCutoffs are the instants before which a session of each kind counts as idle.
+type IdleCutoffs struct {
+	// Browser is the cutoff of browser sessions.
+	Browser time.Time
+	// CLI is the cutoff of sessions of the terminal client.
+	CLI time.Time
 }
 
 // ClientInfo describes the client that opens a session.
@@ -163,6 +187,44 @@ type SessionStore interface {
 	DeleteSession(ctx context.Context, id uuid.UUID) error
 	// DeleteUserSessions removes every session of a user and returns how many were removed.
 	DeleteUserSessions(ctx context.Context, userID uuid.UUID) (int, error)
-	// DeleteExpiredSessions removes sessions past their absolute end or idle since idleBefore, returning the count.
-	DeleteExpiredSessions(ctx context.Context, now, idleBefore time.Time) (int, error)
+	// ListUserSessions returns the sessions of a kind of a user, most recently used first.
+	ListUserSessions(ctx context.Context, userID uuid.UUID, kind SessionKind) ([]Session, error)
+	// DeleteUserSession removes one session of a user, reporting whether it existed; the session of another user is left alone.
+	DeleteUserSession(ctx context.Context, userID, id uuid.UUID) (bool, error)
+	// DeleteExpiredSessions removes sessions past their absolute end or idle before the cutoff of their kind, returning the count.
+	DeleteExpiredSessions(ctx context.Context, now time.Time, idle IdleCutoffs) (int, error)
+}
+
+// CLIAuthorization is an approval in the browser waiting to be exchanged for a session of the terminal client (ADR-0029). The code
+// itself is never stored, only its hash.
+type CLIAuthorization struct {
+	// ID identifies the approval.
+	ID uuid.UUID
+	// UserID is the person who approved.
+	UserID uuid.UUID
+	// CodeHash is the SHA-256 of the single-use code.
+	CodeHash []byte
+	// CodeChallenge is the PKCE S256 challenge of the client.
+	CodeChallenge string
+	// RedirectURI is the loopback address the code was sent to, or empty when the person pastes it.
+	RedirectURI string
+	// ClientName and ClientHost are what the client declared about itself.
+	ClientName, ClientHost string
+	// IP is the address of the browser that approved.
+	IP string
+	// CreatedAt is when it was approved, in UTC.
+	CreatedAt time.Time
+	// ExpiresAt is when the code stops being accepted, in UTC.
+	ExpiresAt time.Time
+}
+
+// CLIAuthorizationStore persists approvals of the terminal client.
+type CLIAuthorizationStore interface {
+	// CreateCLIAuthorization stores an approval.
+	CreateCLIAuthorization(ctx context.Context, a CLIAuthorization) error
+	// UseCLIAuthorization marks the approval with the given code hash as used at the given instant and returns it, atomically, so
+	// only one of several exchanges of the same code gets it; an unknown or already used code is [ErrNotFound].
+	UseCLIAuthorization(ctx context.Context, codeHash []byte, at time.Time) (CLIAuthorization, error)
+	// DeleteExpiredCLIAuthorizations removes approvals that expired at or before now, returning the count.
+	DeleteExpiredCLIAuthorizations(ctx context.Context, now time.Time) (int, error)
 }

@@ -41,6 +41,10 @@ type Config struct {
 	IdleTimeout time.Duration
 	// AbsoluteTimeout ends a session this long after it started, however active it is.
 	AbsoluteTimeout time.Duration
+	// CLIIdleTimeout ends a session of the terminal client that was not used for this long (ADR-0029).
+	CLIIdleTimeout time.Duration
+	// CLIAbsoluteTimeout ends a session of the terminal client this long after it started.
+	CLIAbsoluteTimeout time.Duration
 }
 
 // Service implements sign-up of the first administrator, sign-in, sign-out and session validation.
@@ -204,6 +208,7 @@ func (s *Service) StartSession(ctx context.Context, user User, client ClientInfo
 		ID: id, UserID: user.ID, TokenHash: hashToken(token),
 		UserAgent: client.UserAgent, IP: client.IP,
 		CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(s.config.AbsoluteTimeout),
+		Kind: SessionBrowser,
 	}
 	if err := s.sessions.CreateSession(ctx, session); err != nil {
 		return "", Principal{}, err
@@ -277,10 +282,10 @@ func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 	return err
 }
 
-// PurgeExpired deletes expired sessions and returns how many were removed.
+// PurgeExpired deletes expired sessions, each kind with its own idle time, and returns how many were removed.
 func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 	now := s.clock.Now()
-	return s.sessions.DeleteExpiredSessions(ctx, now, now.Add(-s.config.IdleTimeout))
+	return s.sessions.DeleteExpiredSessions(ctx, now, IdleCutoffs{Browser: now.Add(-s.config.IdleTimeout), CLI: now.Add(-s.config.CLIIdleTimeout)})
 }
 
 // UpdatePreferences validates and stores the preferences of a user and returns the updated user.

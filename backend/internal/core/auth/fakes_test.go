@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -218,8 +219,40 @@ func (f *fakeStore) DeleteUserSessions(_ context.Context, userID uuid.UUID) (int
 	return n, nil
 }
 
-// DeleteExpiredSessions removes expired or idle sessions.
-func (f *fakeStore) DeleteExpiredSessions(_ context.Context, now, idleBefore time.Time) (int, error) {
+// ListUserSessions returns the sessions of a kind of a user, most recently used first.
+func (f *fakeStore) ListUserSessions(_ context.Context, userID uuid.UUID, kind auth.SessionKind) ([]auth.Session, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["ListUserSessions"]; err != nil {
+		return nil, err
+	}
+	var list []auth.Session
+	for _, s := range f.sessions {
+		if s.UserID == userID && s.Kind == kind {
+			list = append(list, s)
+		}
+	}
+	slices.SortFunc(list, func(a, b auth.Session) int { return b.LastSeenAt.Compare(a.LastSeenAt) })
+	return list, nil
+}
+
+// DeleteUserSession removes one session of a user.
+func (f *fakeStore) DeleteUserSession(_ context.Context, userID, id uuid.UUID) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["DeleteUserSession"]; err != nil {
+		return false, err
+	}
+	s, ok := f.sessions[id]
+	if !ok || s.UserID != userID {
+		return false, nil
+	}
+	delete(f.sessions, id)
+	return true, nil
+}
+
+// DeleteExpiredSessions removes expired sessions and sessions idle before the cutoff of their kind.
+func (f *fakeStore) DeleteExpiredSessions(_ context.Context, now time.Time, idle auth.IdleCutoffs) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err := f.fail["DeleteExpiredSessions"]; err != nil {
@@ -227,6 +260,10 @@ func (f *fakeStore) DeleteExpiredSessions(_ context.Context, now, idleBefore tim
 	}
 	n := 0
 	for id, s := range f.sessions {
+		idleBefore := idle.Browser
+		if s.Kind == auth.SessionCLI {
+			idleBefore = idle.CLI
+		}
 		if !now.Before(s.ExpiresAt) || s.LastSeenAt.Before(idleBefore) {
 			delete(f.sessions, id)
 			n++
