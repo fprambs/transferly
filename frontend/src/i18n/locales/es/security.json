@@ -29,7 +29,12 @@
     "no_passkeys": "Esta cuenta no tiene passkeys.",
     "passkey_not_found": "Esta passkey ya no existe.",
     "passkeyCancelled": "No se usó la passkey: se canceló o venció la solicitud.",
-    "passkeyUnsupported": "Este navegador o esta dirección no puede usar passkeys. Necesitan una página segura (https)."
+    "passkeyUnsupported": "Este navegador o esta dirección no puede usar passkeys. Necesitan una página segura (https).",
+    "invalid_redirect": "La terminal pidió enviar el código a un lugar que no es este equipo.",
+    "invalid_cli_request": "La solicitud de inicio de sesión de la terminal no es válida.",
+    "cli_login_disabled": "El inicio de sesión desde la terminal está desactivado en este servidor.",
+    "browser_session_required": "Aprueba los inicios de sesión de la terminal desde el navegador.",
+    "session_not_found": "Esa sesión ya terminó."
   },
   "section": {
     "title": "Verificación en dos pasos",
@@ -97,5 +102,27 @@
     "title": "Quitar la passkey {{name}}",
     "body": "Escribe tu contraseña para confirmar.",
     "confirm": "Quitar"
+  },
+  "cli": {
+    "title": "¿Iniciar sesión desde la terminal?",
+    "intro": "{{client}} en {{host}} pide usar tu cuenta {{email}}.",
+    "introNoHost": "{{client}} pide usar tu cuenta {{email}}.",
+    "declared": "El nombre y el equipo son lo que el cliente de terminal dice de sí mismo; el servidor no puede comprobarlos.",
+    "warning": "Aprueba solo si acabas de iniciar este inicio de sesión en tu terminal. Esa terminal usará tu cuenta hasta 30 días, hasta que cierres la sesión en Seguridad.",
+    "password": "Tu contraseña",
+    "approve": "Aprobar",
+    "working": "Aprobando…",
+    "deny": "Rechazar",
+    "approvedTitle": "Inicio de sesión aprobado",
+    "returningBody": "Volviendo a tu terminal. Puedes cerrar esta página.",
+    "codeBody": "Pega este código en tu terminal. Sirve una vez, durante 5 minutos.",
+    "codeLabel": "Código de inicio de sesión",
+    "codeWarning": "No le des este código a nadie: quien lo tenga, con la terminal que lo pidió, entra como tú.",
+    "copy": "Copiar código",
+    "copied": "Copiado",
+    "deniedTitle": "Inicio de sesión rechazado",
+    "deniedBody": "La terminal no inició sesión. Puedes cerrar esta página.",
+    "invalidTitle": "Este enlace de inicio de sesión no es válido",
+    "invalidBody": "Vuelve a iniciar sesión desde tu terminal y abre el enlace que muestra."
   }
 }
