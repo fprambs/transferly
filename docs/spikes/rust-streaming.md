@@ -1,6 +1,6 @@
 # Spike: Streaming Transfers and Events from Rust
 
-Program: `tui/spikes/apistream`. For the terminal client of [ADR-0029](../adr/0029-terminal-client-and-device-login.md). Run on
+Program: `tui/spikes/apistream`. For the terminal client of [ADR-0029](../adr/0029-terminal-client-and-browser-login.md). Run on
 2026-11-24 in Docker against the isolated stack of `compose.test.yaml` (`transferly:test` built from `main`, `atmoz/sftp`), with
 `reqwest` 0.12 (rustls), `tokio`, `tokio-util` and `tokio-tungstenite` 0.24; nothing was installed on the host.
 

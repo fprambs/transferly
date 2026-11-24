@@ -437,31 +437,32 @@ Ver [ADR-0001](adr/0001-web-first-desktop-ready.md).
 
 ## Bloque T: cliente de terminal (pedido del 2026-11-24)
 
-Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termirs, con ratatui. Decisiones en [ADR-0029](adr/0029-terminal-client-and-device-login.md). Sin terminal SSH embebida, vista previa, comprimidos ni administración en la primera versión: solo conexiones, archivos y transferencias. La política de calidad aplica igual al código Rust (lint, formato, 100 % de cobertura, guías de librerías, auditoría de dependencias).
+Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termirs, con ratatui. Decisiones en [ADR-0029](adr/0029-terminal-client-and-browser-login.md). Sin terminal SSH embebida, vista previa, comprimidos ni administración en la primera versión: solo conexiones, archivos y transferencias. La política de calidad aplica igual al código Rust (lint, formato, 100 % de cobertura, guías de librerías, auditoría de dependencias).
 
 ### T0. Decisiones y spikes (3 a 4 días)
 
-- [ ] Aceptar el ADR-0029. Decidido el 2026-11-24: el binario se llama `transferly-tui`. Faltan confirmar las duraciones de las sesiones de dispositivo y el mismo tag que el servidor
+- [ ] Aceptar el ADR-0029. Decidido el 2026-11-24: el binario se llama `transferly-tui`, y el login se hace por el navegador al estilo de Claude Code (código de autorización con PKCE y redirección a `127.0.0.1`, o código para pegar sin navegador) en vez del device flow. Faltan confirmar las duraciones de las sesiones de terminal y el mismo tag que el servidor
 - [x] Spike: cliente Rust generado desde `openapi.yaml`. `progenitor` queda descartado (solo admite una respuesta de éxito por operación y el login tiene 200 y 202); `openapi-generator` (`rust`, reqwest) genera y compila el contrato 3.1 tal cual. El login, las subidas reanudables y el WebSocket van escritos a mano ([informe](spikes/rust-api-client.md))
 - [x] Spike: subida en flujo desde disco con `reqwest` y progreso, y el WebSocket `/api/v1/ws` con `tokio-tungstenite`. 512 MiB cortados a la mitad y reanudados con el mismo `transferId`, descarga por rango y eventos, con 9 MiB de memoria en el cliente. Reanudar exige esperar a que el servidor dé por detenida la subida anterior ([informe](spikes/rust-streaming.md))
 - [x] Spike: cargo-dist con los cinco targets y un instalador de prueba. Con el crate en `tui/` y la configuración en la raíz, `curl … | sh` instala y ejecuta el binario estático (526 KB) en Debian y Alpine limpios, en `~/.local/bin`; solo Linux `musl`; los tags `vX.Y.Z` del servidor disparan la release sin chocar con `ci.yml` ([informe](spikes/cargo-dist.md))
 - [ ] Guías en `docs/guides/`: `ratatui.md`, `tokio.md`, `reqwest.md`, `cargo-dist.md`, `rust-tooling.md`
 
-### T1. Login por dispositivo en el servidor (1,5 a 2 semanas)
+### T1. Login de terminal por el navegador en el servidor (1,5 a 2 semanas)
 
-- [ ] Migración: `user_sessions.kind` (`browser` | `device`) y `name`; tabla `device_authorizations` (hash del código de dispositivo, código de usuario, estado, usuario que aprobó, cliente, IP, caducidad)
-- [ ] Core: crear, aprobar, rechazar y canjear autorizaciones; sesión `device` con sus duraciones (`TRANSFERLY_DEVICE_SESSION_IDLE`, `TRANSFERLY_DEVICE_SESSION_MAX`); `TRANSFERLY_DEVICE_LOGIN` para apagarlo
-- [ ] API: `POST /device/authorizations`, `POST /device/authorizations/{userCode}/approve` y `/deny`, `POST /device/token` con `authorization_pending`, `slow_down`, `access_denied` y `expired_token`; rate limits por IP y por código
-- [ ] Transporte: `Authorization: Bearer` en `authenticate` y en `/api/v1/ws`; bearer solo para sesiones `device` y cookie solo para `browser`; sin CSRF con bearer
-- [ ] Frontend: página `/device` (código, nombre del cliente, IP, user agent, aviso contra phishing, aprobar o rechazar) y sesiones de consola en Seguridad, con revocación
-- [ ] Errores guiados e i18n para los códigos nuevos; contrato, matriz de autorización y tests de seguridad (bearer con cookie, cookie como bearer, código caducado, fuerza bruta del código, usuario desactivado)
+- [ ] Migración: `user_sessions.kind` (`browser` | `cli`) y `name`; tabla `cli_authorizations` (hash del código, reto PKCE S256, dirección de redirección, usuario que aprobó, nombre y host del cliente, IP, usado, caducidad a los 5 minutos)
+- [ ] Core: aprobar una autorización (código de un solo uso) y canjearla comprobando el verificador PKCE, la redirección, el uso y la caducidad; sesión `cli` con sus duraciones (`TRANSFERLY_CLI_SESSION_IDLE`, `TRANSFERLY_CLI_SESSION_MAX`); `TRANSFERLY_CLI_LOGIN` para apagarlo
+- [ ] API: `POST /cli/authorizations` (sesión y CSRF) y `POST /cli/token` (anónimo, con rate limit por IP), con un único error `invalid_grant` para código erróneo, usado, caducado o verificador que no coincide; redirecciones aceptadas solo `http://127.0.0.1:<puerto>/callback` y `http://[::1]:<puerto>/callback`, o ninguna para el código a pegar
+- [ ] Transporte: `Authorization: Bearer` en `authenticate` y en `/api/v1/ws`; bearer solo para sesiones `cli` y cookie solo para `browser`; sin CSRF con bearer
+- [ ] Frontend: página `/cli/authorize` (pide iniciar sesión si hace falta y vuelve; muestra el nombre y el host que declara el cliente, avisa que solo se apruebe un inicio de sesión propio, Aprobar o Rechazar con un clic explícito; redirige a `127.0.0.1` o muestra el código para pegar con el aviso de no compartirlo) y sesiones de terminal en Seguridad, con revocación
+- [ ] Errores guiados e i18n para los códigos nuevos; contrato, matriz de autorización y tests de seguridad (bearer con cookie, cookie como bearer, código reusado o caducado, verificador erróneo, redirección que no es loopback, usuario desactivado tras aprobar)
 - [ ] `docs/guides/authentication.md` y variables nuevas en el compose
 
 ### T2. Base de la TUI (1 a 1,5 semanas)
 
 - [ ] `tui/` como crate (`transferly-tui`): `clap`, `tokio`, `ratatui` + `crossterm`, `reqwest` con rustls, cliente elegido en T0
 - [ ] Perfiles por servidor en `~/.config/transferly/config.toml`; token en el llavero del sistema (`keyring`) o archivo `0600`
-- [ ] Comandos `login <url>`, `logout`, `status`; login muestra el código y la URL (y un QR en la terminal), y espera la aprobación
+- [ ] Login dentro de la interfaz, como Claude Code: sin sesión guardada, `transferly-tui` pide la URL del servidor, comprueba que es un Transferly, escucha en `127.0.0.1` con un puerto libre, abre el navegador en `/cli/authorize` con el reto PKCE y el `state`, y entra al recibir el código. Sin navegador (por SSH) o si no puede escuchar, muestra la URL (y un QR) y un campo para pegar el código
+- [ ] Comandos `login <url>`, `logout` y `status` para scripts, con el mismo flujo
 - [ ] Arquitectura: estado único y bucle de eventos (teclado, respuestas HTTP, WebSocket) sin bloquear el dibujo
 - [ ] Desbloqueo del vault en un modal, y de nuevo ante `vault_locked`; aviso si la versión de la API no coincide
 - [ ] Selector de workspace y árbol de sitios con colecciones; conexión rápida
@@ -481,7 +482,7 @@ Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termi
 - [ ] Carpetas completas en ambos sentidos; política ante archivos existentes (falla, sobrescribe, omite, más nuevo, renombra)
 - [ ] Copias entre sitios por el servidor (`POST /copies`)
 - [ ] Panel de cola con el progreso del WebSocket: pausar, reanudar, cancelar, prioridad; recarga tras reconectar
-- [ ] Integración con el stack de pruebas: login por dispositivo, subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv`
+- [ ] Integración con el stack de pruebas: login por el navegador (redirección a `127.0.0.1` y código pegado), subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv`
 
 ### T5. Instalación con un comando (1 semana)
 
@@ -493,7 +494,7 @@ Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termi
 
 ### T6. Revisión de seguridad del bloque (3 a 4 días)
 
-- [ ] Flujo de dispositivo (phishing del código, fuerza bruta, canje doble, caducidad), almacenamiento del token, bearer en registros, revocación inmediata en HTTP y WebSocket, rutas locales hostiles en descargas (`../`, absolutas), dependencias (`cargo audit`, `cargo deny`), firma de los binarios
+- [ ] Login por el navegador (enlaces de aprobación preparados por un atacante, código pegado compartido, canje doble, caducidad, PKCE, solo redirecciones loopback), almacenamiento del token, bearer en registros, revocación inmediata en HTTP y WebSocket, rutas locales hostiles en descargas (`../`, absolutas), dependencias (`cargo audit`, `cargo deny`), firma de los binarios
 
 ## Pendientes al final: diferenciadores (anotados el 2026-09-26)
 

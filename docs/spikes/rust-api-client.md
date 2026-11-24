@@ -1,6 +1,6 @@
 # Spike: Rust Client from the API Contract
 
-For the terminal client of [ADR-0029](../adr/0029-terminal-client-and-device-login.md). Run on 2026-11-24 in Docker (`rust:1-bookworm`,
+For the terminal client of [ADR-0029](../adr/0029-terminal-client-and-browser-login.md). Run on 2026-11-24 in Docker (`rust:1-bookworm`,
 `openapitools/openapi-generator-cli:v7.17.0`); nothing was installed on the host.
 
 ## Question
@@ -20,7 +20,7 @@ hand? The contract says OpenAPI 3.1.
 
 - Models, path and query parameters, `X-CSRF-Token` and the `problem+json` error bodies (one error enum per operation) are right.
 - `login` returns `SessionInfo` for every 2xx, so a `202` second-factor challenge fails to decode. Login and `/auth/mfa` need a
-  hand-written call (the device flow of T1 replaces the password login in the terminal anyway).
+  hand-written call (the browser sign-in of T1 replaces the password login in the terminal anyway).
 - `upload_file` streams a file from a `PathBuf` from its first byte: no resume from an offset and no progress. Uploads need a
   hand-written call that seeks to the offset and wraps the stream to count bytes.
 - `download_file` returns the raw `reqwest::Response`, which streams and accepts `Range`: usable as it is.

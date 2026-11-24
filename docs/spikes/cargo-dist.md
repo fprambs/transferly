@@ -1,6 +1,6 @@
 # Spike: One-Command Install with cargo-dist
 
-Program: `tui/spikes/distinstall`, the smallest `transferly-tui`. For [ADR-0029](../adr/0029-terminal-client-and-device-login.md).
+Program: `tui/spikes/distinstall`, the smallest `transferly-tui`. For [ADR-0029](../adr/0029-terminal-client-and-browser-login.md).
 Run on 2026-11-24 in Docker (`rust:1-bookworm`, cargo-dist 0.34.0 installed in a cache volume); nothing was installed on the host.
 
 ## Question
