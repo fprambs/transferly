@@ -82,7 +82,7 @@ func withFlaky(configure func(*flakyStore)) func(*httpapi.Deps) {
 		flaky := &flakyStore{Store: d.Readiness.(*postgres.Store)}
 		configure(flaky)
 		hasher := auth.NewHasher(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
-		d.Auth = auth.NewService(flaky, flaky, hasher, realClock{}, rand.Reader, auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: 8 * time.Hour})
+		d.Auth = auth.NewService(flaky, flaky, flaky, hasher, realClock{}, rand.Reader, auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: 8 * time.Hour})
 	}
 }
 

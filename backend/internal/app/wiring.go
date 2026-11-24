@@ -86,8 +86,8 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 	system := clock.System{}
 	kdf := vault.NewKDF(max(runtime.NumCPU(), 2))
 	hasher := auth.NewHasher(kdf, vault.DefaultParams, rand.Reader)
-	authService := auth.NewService(store, store, hasher, system, rand.Reader,
-		auth.Config{IdleTimeout: cfg.SessionIdle, AbsoluteTimeout: cfg.SessionMax, CLIIdleTimeout: cfg.CLISessionIdle, CLIAbsoluteTimeout: cfg.CLISessionMax})
+	authService := auth.NewService(store, store, store, hasher, system, rand.Reader,
+		auth.Config{IdleTimeout: cfg.SessionIdle, AbsoluteTimeout: cfg.SessionMax, CLIIdleTimeout: cfg.CLISessionIdle, CLIAbsoluteTimeout: cfg.CLISessionMax, CLILogin: cfg.CLILogin})
 
 	workspaces := workspace.NewService(store, system, nil)
 	keyRing := vault.NewKeyRing(system, cfg.SessionIdle)
@@ -187,6 +187,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		},
 		janitor: []janitorTask{
 			{name: "expired sessions", run: authService.PurgeExpired},
+			{name: "expired terminal approvals", run: authService.PurgeCLIAuthorizations},
 			{name: "idle quick connections", run: func(context.Context) (int, error) { return quickConnections.Sweep(cfg.SessionIdle), nil }},
 			{name: "asked passwords", run: func(context.Context) (int, error) { return askedPasswords.Sweep(openConnections(pool)), nil }},
 			{name: "old activity", run: activityLog.PurgeExpired},

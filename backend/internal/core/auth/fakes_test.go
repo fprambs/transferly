@@ -44,17 +44,22 @@ func (c *countingDeriver) count() int {
 	return c.calls
 }
 
-// fakeStore is an in-memory implementation of both stores with per-method failure injection.
+// fakeStore is an in-memory implementation of the user, session and approval stores with per-method failure injection.
 type fakeStore struct {
-	mu       sync.Mutex
-	users    map[uuid.UUID]auth.User
-	sessions map[uuid.UUID]auth.Session
-	fail     map[string]error
+	mu             sync.Mutex
+	users          map[uuid.UUID]auth.User
+	sessions       map[uuid.UUID]auth.Session
+	authorizations map[string]auth.CLIAuthorization
+	used           map[string]bool
+	fail           map[string]error
 }
 
 // newFakeStore returns an empty store.
 func newFakeStore() *fakeStore {
-	return &fakeStore{users: map[uuid.UUID]auth.User{}, sessions: map[uuid.UUID]auth.Session{}, fail: map[string]error{}}
+	return &fakeStore{
+		users: map[uuid.UUID]auth.User{}, sessions: map[uuid.UUID]auth.Session{},
+		authorizations: map[string]auth.CLIAuthorization{}, used: map[string]bool{}, fail: map[string]error{},
+	}
 }
 
 // failing makes the named method return errBoom.
@@ -291,9 +296,55 @@ func newHarness(t *testing.T, store *fakeStore) *harness {
 	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	deriver := &countingDeriver{inner: vault.NewKDF(2)}
 	hasher := auth.NewHasher(deriver, fastParams, rand.Reader)
-	config := auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour}
+	config := auth.Config{
+		IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour,
+		CLIIdleTimeout: 7 * 24 * time.Hour, CLIAbsoluteTimeout: 30 * 24 * time.Hour, CLILogin: true,
+	}
 	return &harness{
-		svc: auth.NewService(store, store, hasher, clock, rand.Reader, config), store: store, clock: clock,
+		svc: auth.NewService(store, store, store, hasher, clock, rand.Reader, config), store: store, clock: clock,
 		deriver: deriver, hasher: hasher, instance: []byte("0123456789abcdef0123456789abcdef"),
 	}
+}
+
+// CreateCLIAuthorization stores an approval by its code hash.
+func (f *fakeStore) CreateCLIAuthorization(_ context.Context, a auth.CLIAuthorization) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["CreateCLIAuthorization"]; err != nil {
+		return err
+	}
+	f.authorizations[string(a.CodeHash)] = a
+	return nil
+}
+
+// UseCLIAuthorization returns an unused approval and marks it used.
+func (f *fakeStore) UseCLIAuthorization(_ context.Context, codeHash []byte, _ time.Time) (auth.CLIAuthorization, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["UseCLIAuthorization"]; err != nil {
+		return auth.CLIAuthorization{}, err
+	}
+	a, ok := f.authorizations[string(codeHash)]
+	if !ok || f.used[string(codeHash)] {
+		return auth.CLIAuthorization{}, auth.ErrNotFound
+	}
+	f.used[string(codeHash)] = true
+	return a, nil
+}
+
+// DeleteExpiredCLIAuthorizations removes approvals that expired at or before now.
+func (f *fakeStore) DeleteExpiredCLIAuthorizations(_ context.Context, now time.Time) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["DeleteExpiredCLIAuthorizations"]; err != nil {
+		return 0, err
+	}
+	n := 0
+	for hash, a := range f.authorizations {
+		if !now.Before(a.ExpiresAt) {
+			delete(f.authorizations, hash)
+			n++
+		}
+	}
+	return n, nil
 }

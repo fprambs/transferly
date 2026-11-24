@@ -47,6 +47,15 @@ var (
 	ErrInvalidFileDoubleClick = errors.New("invalid file double click action")
 	// ErrMalformedHash means a stored password hash cannot be parsed.
 	ErrMalformedHash = errors.New("malformed password hash")
+	// ErrCLILoginDisabled means the instance turned off the sign-in of the terminal client (ADR-0029).
+	ErrCLILoginDisabled = errors.New("sign-in of the terminal client is turned off")
+	// ErrInvalidRedirect means the address to send the code to is not a loopback callback of the terminal client.
+	ErrInvalidRedirect = errors.New("invalid redirect address")
+	// ErrInvalidCLIRequest means the PKCE challenge, the client name or the host name of a sign-in request is not acceptable.
+	ErrInvalidCLIRequest = errors.New("invalid sign-in request of the terminal client")
+	// ErrInvalidGrant means a code cannot be exchanged: unknown, used, expired, for another redirect address, with a verifier that
+	// does not match, or of an account that is no longer active. It never says which.
+	ErrInvalidGrant = errors.New("invalid grant")
 )
 
 // User is an account.

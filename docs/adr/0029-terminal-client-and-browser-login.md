@@ -47,9 +47,11 @@ flow most exposed to phishing. Native apps are better served by the authorizatio
      `invalid_grant`.
    - Redirect addresses are only `http://127.0.0.1:<port>/callback` and `http://[::1]:<port>/callback`, any port, or none for the
      code to paste.
-3. **The token is a session of kind `cli`** in `user_sessions` (new column `kind`, `browser` by default, and a name). It reuses
-   everything a session has: per-session vault key ring (ADR-0004, ADR-0028), revocation, `LogoutAll` when an admin disables a
-   user or resets their second factor, and the events stream.
+3. **The token is a session of kind `cli`** in `user_sessions` (new column `kind`, `browser` by default, and the name and host the
+   client declared). It reuses everything a session has: per-session vault key ring (ADR-0004, ADR-0028), revocation, the end of
+   every session when an administrator disables the account, and the events stream. A code approved before the account was
+   disabled is refused at the exchange. Resetting the second factor does not end sessions, for terminal sessions as for browser
+   ones.
    - It travels only as `Authorization: Bearer`, never as a cookie; a browser session is never accepted as a bearer and the other
      way around.
    - Bearer requests are exempt from `X-CSRF-Token` since nothing sends them on their own; the origin guard stays as it is.

@@ -404,7 +404,7 @@ func TestStoreFailures(t *testing.T) {
 	hash, _ := old.Hash(ctx, testPassword)
 	id := uuid.New()
 	upgrade.store.users[id] = auth.User{ID: id, Email: testEmail, PasswordHash: hash}
-	entropyless := auth.NewService(upgrade.store, upgrade.store, auth.NewHasher(vault.NewKDF(1), fastParams, failingReader{}), upgrade.clock, rand.Reader,
+	entropyless := auth.NewService(upgrade.store, upgrade.store, upgrade.store, auth.NewHasher(vault.NewKDF(1), fastParams, failingReader{}), upgrade.clock, rand.Reader,
 		auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: time.Hour})
 	if _, _, err := entropyless.Login(ctx, testEmail, testPassword, auth.ClientInfo{}); !errors.Is(err, errBoom) {
 		t.Errorf("Login() with a hash upgrade lacking entropy = %v, want the entropy error", err)
@@ -436,7 +436,7 @@ func TestGenerationFailures(t *testing.T) {
 	store := newFakeStore()
 	deriver := &countingDeriver{inner: vault.NewKDF(1)}
 	hasher := auth.NewHasher(deriver, fastParams, rand.Reader)
-	noEntropy := auth.NewService(store, store, hasher, h.clock, failingReader{}, auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: time.Hour})
+	noEntropy := auth.NewService(store, store, store, hasher, h.clock, failingReader{}, auth.Config{IdleTimeout: time.Hour, AbsoluteTimeout: time.Hour})
 	if _, err := noEntropy.Setup(ctx, testEmail, testPassword); err != nil {
 		t.Fatal(err)
 	}

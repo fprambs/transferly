@@ -106,7 +106,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 
 	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	hasher := auth.NewHasher(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
-	service := auth.NewService(store, store, hasher, clock, rand.Reader, auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour})
+	service := auth.NewService(store, store, store, hasher, clock, rand.Reader, auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour, CLIIdleTimeout: 7 * 24 * time.Hour, CLIAbsoluteTimeout: 30 * 24 * time.Hour, CLILogin: true})
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
