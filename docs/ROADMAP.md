@@ -442,7 +442,7 @@ Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termi
 ### T0. Decisiones y spikes (3 a 4 días)
 
 - [ ] Aceptar el ADR-0029 (nombre del binario, duraciones de las sesiones de dispositivo, mismo tag que el servidor)
-- [ ] Spike: cliente Rust generado desde `openapi.yaml`. El contrato es OpenAPI **3.1** y `progenitor` solo lee 3.0: probar `progenitor` sobre una conversión a 3.0, `openapi-generator` y un cliente escrito a mano para las ~35 operaciones que usa la TUI; elegir uno con informe
+- [x] Spike: cliente Rust generado desde `openapi.yaml`. `progenitor` queda descartado (solo admite una respuesta de éxito por operación y el login tiene 200 y 202); `openapi-generator` (`rust`, reqwest) genera y compila el contrato 3.1 tal cual. El login, las subidas reanudables y el WebSocket van escritos a mano ([informe](spikes/rust-api-client.md))
 - [ ] Spike: subida en flujo desde disco con `reqwest` y progreso, y el WebSocket `/api/v1/ws` con `tokio-tungstenite` y cabecera `Authorization`
 - [ ] Spike: cargo-dist con los cinco targets y un instalador de prueba
 - [ ] Guías en `docs/guides/`: `ratatui.md`, `tokio.md`, `reqwest.md`, `cargo-dist.md`, `rust-tooling.md`
