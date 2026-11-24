@@ -441,10 +441,10 @@ Usar el Transferly self-hosteado desde la terminal, al estilo de termscp y termi
 
 ### T0. Decisiones y spikes (3 a 4 días)
 
-- [ ] Aceptar el ADR-0029 (nombre del binario, duraciones de las sesiones de dispositivo, mismo tag que el servidor)
+- [ ] Aceptar el ADR-0029. Decidido el 2026-11-24: el binario se llama `transferly-tui`. Faltan confirmar las duraciones de las sesiones de dispositivo y el mismo tag que el servidor
 - [x] Spike: cliente Rust generado desde `openapi.yaml`. `progenitor` queda descartado (solo admite una respuesta de éxito por operación y el login tiene 200 y 202); `openapi-generator` (`rust`, reqwest) genera y compila el contrato 3.1 tal cual. El login, las subidas reanudables y el WebSocket van escritos a mano ([informe](spikes/rust-api-client.md))
 - [x] Spike: subida en flujo desde disco con `reqwest` y progreso, y el WebSocket `/api/v1/ws` con `tokio-tungstenite`. 512 MiB cortados a la mitad y reanudados con el mismo `transferId`, descarga por rango y eventos, con 9 MiB de memoria en el cliente. Reanudar exige esperar a que el servidor dé por detenida la subida anterior ([informe](spikes/rust-streaming.md))
-- [ ] Spike: cargo-dist con los cinco targets y un instalador de prueba
+- [x] Spike: cargo-dist con los cinco targets y un instalador de prueba. Con el crate en `tui/` y la configuración en la raíz, `curl … | sh` instala y ejecuta el binario estático (526 KB) en Debian y Alpine limpios, en `~/.local/bin`; solo Linux `musl`; los tags `vX.Y.Z` del servidor disparan la release sin chocar con `ci.yml` ([informe](spikes/cargo-dist.md))
 - [ ] Guías en `docs/guides/`: `ratatui.md`, `tokio.md`, `reqwest.md`, `cargo-dist.md`, `rust-tooling.md`
 
 ### T1. Login por dispositivo en el servidor (1,5 a 2 semanas)

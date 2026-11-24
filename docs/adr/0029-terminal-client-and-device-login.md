@@ -43,8 +43,9 @@ less than that and needs it first.
    none, one profile per server.
 5. **One command to install.** Releases build the client for Linux (x86_64, aarch64, static musl), macOS (x86_64, arm64) and
    Windows (x86_64) with cargo-dist, which publishes archives, checksums and the installers
-   `curl -LsSf …/transferly-tui-installer.sh | sh` and `irm …/transferly-tui-installer.ps1 | iex`. The client has the same version
-   as the server and is released with the same tag; it reads the API version after login and warns when they differ.
+   `curl -LsSf …/transferly-tui-installer.sh | sh` and `irm …/transferly-tui-installer.ps1 | iex`, installing to `$XDG_BIN_HOME`
+   or `~/.local/bin` ([spike](../spikes/cargo-dist.md)). The client has the same version as the server and is released with the
+   same tag; it reads the API version after login and warns when they differ.
 
 ## Consequences
 
