@@ -502,6 +502,39 @@ Revisado contra el código el 2026-11-24. Solo el middleware `authenticate` (`tr
 
 - [ ] Login por el navegador (enlaces de aprobación preparados por un atacante, código pegado compartido, canje doble, caducidad, PKCE, solo redirecciones loopback), almacenamiento del token, bearer en registros, revocación inmediata en HTTP y WebSocket, rutas locales hostiles en descargas (`../`, absolutas), dependencias (`cargo audit`, `cargo deny`), firma de los binarios
 
+### T7. Mouse, UI/UX al estilo termscp y termirs, y gestión desde la terminal (pedido del 2026-11-25)
+
+Antes de programar, como en T2: maquetas con ratatui en `docs/design/terminal-client-mockups.md` y capturas para aprobar. Referencias: termscp (barra de estado por panel y fila de atajos abajo) y termirs (formularios centrados con campos enmarcados y la lista de conexiones como tabla).
+
+- [ ] **Mouse activado por defecto**, desactivable en `/config` ("Mouse: sí/no", en `config.toml`): clic da el foco y selecciona, doble clic abre carpeta o sitio, rueda desplaza; clic en las opciones de `/config`, listas, botones de confirmación y modales; clic en las teclas de la barra inferior como botones; clic derecho con menú contextual (abrir, copiar, renombrar, borrar, detalles); arrastrar entre paneles copia (con T4). Como la captura del mouse impide seleccionar texto, la ayuda dice "Shift + arrastrar para copiar", y el enlace de aprobación sigue copiándose con `c`
+- [ ] **Barras como termscp**: bajo cada panel una línea con el estado clicable (`Orden: Nombre ↑`, `Ocultos: no`, `Filtro: …`, `Navegación sincronizada: no`), que cambia con clic o con su tecla; abajo de todo una fila fija de atajos del panel con foco (`F1 Ayuda · Tab Panel · Espacio Transferir · Enter Abrir · F3 Ver · F4 Editar · F5 Copiar · F6 Renombrar · F7 Carpeta · F8 Borrar`), con las teclas resaltadas, que se acorta en terminales angostas
+- [ ] **Gestión de sitios desde la terminal, como termirs**: `N` nuevo sitio, `E` editar, `D` borrar (con confirmación), duplicar y mover a una colección, en un formulario centrado que se dibuja desde el esquema del conector (`GET /connectors`, los mismos campos y validación que la web: host, puerto, usuario, contraseña o clave, carpeta inicial, color, avanzado); los secretos van al vault (pide desbloquear) y "Probar conexión" antes de guardar; colecciones nuevas y renombrar. Vista "Sitios" como tabla (nombre, host, puerto, usuario, conector, último uso) con búsqueda
+- [ ] **Importar**: `~/.ssh/config` (Host, HostName, Port, User, IdentityFile, ProxyJump → salto) y el XML de FileZilla (el servidor ya lo importa, `fzimport`), con vista previa antes de crear
+- [ ] **Progreso visible** (con T4): cada subida, descarga o copia entre sitios con barra (`━` lleno contra `─`), porcentaje, velocidad y tiempo restante; una ventana flotante en primer plano mientras dura (minimizable a la barra de estado con `Esc`, y el panel de transferencias con `Ctrl+E`), y aviso al terminar; notificación del escritorio para las largas (desactivable)
+- [ ] **Ver y editar archivos**: `F3` ver (texto con desplazamiento; imágenes y PDF se abren en la web o en la app del sistema), `F4` editar con `$EDITOR` (descarga a un temporal, abre el editor, sube al guardar si cambió y avisa si cambió en el servidor mientras tanto)
+- [ ] **Marcadores y recientes**: los marcadores de carpetas de la web (`/bookmarks`, ya existen) y los últimos sitios y carpetas abiertos, en la paleta `Ctrl+K` y en la lista de `o`
+- [ ] **Operaciones del servidor que la web ya tiene**: checksum, tamaño de carpetas, comprimir y extraer (herramientas SSH, 5.7), conexión rápida (`Ctrl+O`, `/quick-connections`), y terminal SSH integrada en una pestaña para los sitios que la permiten (5.7c, por WebSocket)
+- [ ] **Navegación sincronizada** (`Ctrl+Y`) y búsqueda de archivos por nombre en la carpeta y sus subcarpetas
+
+Comparación con termscp y termirs, para decidir alcance:
+
+| Función | Transferly hoy | En la terminal |
+|---|---|---|
+| SFTP, FTP/FTPS, S3, GCS, WebDAV | Sí, más Azure y Google Drive | Sí, todo lo del servidor (T3) |
+| SCP, SMB, Kube | No | Fuera; SCP solo si hace falta (5.7) |
+| Contraseña, clave y keyboard-interactive | Sí | Sí (T3.2) |
+| Contraseñas cifradas | En el vault del servidor | El token en el llavero del sistema |
+| Verificación de clave del servidor | Sí, por workspace | Sí (T3.2) |
+| Marcadores y recientes | Marcadores sí | T7 |
+| Crear y editar conexiones | Sí, en la web | T7 |
+| Importar `~/.ssh/config` | No (sí FileZilla) | T7 |
+| Ver y editar con el editor propio | Vista previa en la web | T7 |
+| Terminal integrada | Sí (5.7c) | T7, opcional |
+| Barras de progreso | Sí, en la web | T4 y T7 |
+| Notificaciones de escritorio | No | T7 |
+| Sincronizar cambios locales con el servidor | No | Pendiente de decidir |
+| Reenvío de puertos (termirs) | No | Fuera: Transferly es una pasarela web y reenviar puertos por el servidor necesitaría su propio ADR de seguridad |
+
 ## Pendientes al final: diferenciadores (anotados el 2026-09-26)
 
 Tres funciones que distinguen a Transferly de un cliente FTP clásico. Se hacen después de las fases 3 a 5, porque se apoyan en ellas (permisos por rol, auditoría, tokens de API) y no deben adelantarse.
