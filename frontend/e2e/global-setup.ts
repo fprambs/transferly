@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { request, type FullConfig } from '@playwright/test'
 
 /** Account the browser tests sign in with; it is created on first use. */
-const account = { email: 'e2e@example.com', password: 'a long e2e password' }
+export const account = { email: 'e2e@example.com', password: 'a long e2e password' }
 
 /** Master password of the test account's vault. */
 const masterPassword = 'a long e2e master password'
