@@ -505,6 +505,7 @@ mod tests {
         let refused = |code: &str| ApiError::Refused {
             status: 400,
             code: code.to_owned(),
+            params: std::collections::HashMap::new(),
         };
         assert!(explain(&refused("cli_login_disabled")).contains("turned off"));
         assert!(explain(&refused("http_404")).contains("too old"));

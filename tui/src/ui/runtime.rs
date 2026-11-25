@@ -286,6 +286,7 @@ fn failure(error: ApiError) -> CallError {
     CallError {
         code: error.code().map(str::to_owned),
         message: error.to_string(),
+        params: error.params(),
     }
 }
 
@@ -318,6 +319,17 @@ async fn perform(session: &Session, call: Call) -> Reply {
                 .await
                 .map_err(failure),
         ),
+        Call::Trust {
+            workspace,
+            side,
+            key,
+        } => Reply::Trusted {
+            side,
+            outcome: api
+                .trust_key(&workspace.to_string(), &key)
+                .await
+                .map_err(failure),
+        },
         Call::Files {
             workspace,
             site,
@@ -408,6 +420,7 @@ fn disk(error: &std::io::Error) -> CallError {
     CallError {
         code: None,
         message: error.to_string(),
+        ..Default::default()
     }
 }
 
@@ -445,6 +458,7 @@ fn local(side: Side, op: Op) -> Reply {
                 .ok_or(CallError {
                     code: None,
                     message: "no home folder".to_owned(),
+                    ..Default::default()
                 }),
         },
         Op::List(path) => Reply::Listed {
@@ -461,6 +475,7 @@ fn local(side: Side, op: Op) -> Reply {
                 Err(CallError {
                     code: Some("already_exists".to_owned()),
                     message: format!("{to} exists"),
+                    ..Default::default()
                 })
             } else {
                 std::fs::rename(&from, &to).map_err(|error| disk(&error))
@@ -829,6 +844,29 @@ mod tests {
         assert!(
             matches!(failed, Reply::Changed { outcome: Err(CallError { code: Some(ref code), .. }), .. } if code == "not_found")
         );
+        let key = crate::api::HostKey {
+            host: "h".to_owned(),
+            port: 22,
+            key_type: "t".to_owned(),
+            fingerprint: "f".to_owned(),
+            mode: None,
+        };
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        let trust = Call::Trust {
+            workspace: uuid::Uuid::nil(),
+            side,
+            key,
+        };
+        assert!(matches!(
+            perform(&session, trust).await,
+            Reply::Trusted {
+                outcome: Ok(()),
+                ..
+            }
+        ));
         let session = Session {
             server: Url::parse(&server.uri()).expect("url"),
             token: "t".to_owned(),

@@ -98,6 +98,7 @@ fn refused(code: &str) -> CallError {
     CallError {
         code: Some(code.to_owned()),
         message: format!("refused: {code}"),
+        ..Default::default()
     }
 }
 
@@ -853,6 +854,7 @@ fn works_with_the_explorer() {
     let missing = CallError {
         code: Some("not_found".to_owned()),
         message: "gone".to_owned(),
+        ..Default::default()
     };
     home.reply(
         Reply::Listed {
@@ -866,6 +868,7 @@ fn works_with_the_explorer() {
     let odd = CallError {
         code: Some("odd_code".to_owned()),
         message: "something odd".to_owned(),
+        ..Default::default()
     };
     home.key(key(KeyCode::Char('r')), &mut look);
     home.reply(
@@ -929,6 +932,7 @@ fn works_with_the_explorer() {
     let disk = CallError {
         code: None,
         message: "permission denied (os error 13)".to_owned(),
+        ..Default::default()
     };
     home.reply(
         Reply::Listed {
@@ -1051,6 +1055,176 @@ fn lays_out_the_explorer() {
     nothing(
         &home.reply(Reply::Unlocked(Ok(())), &mut look),
         "the site is gone",
+    );
+}
+
+/// A server whose key is not trusted yet asks to trust it, showing the site, the server and the fingerprint; `y` trusts it and the
+/// panel tries again. A key that changed shows the ones trusted until now and asks whether to add or replace; Esc gives up.
+#[test]
+fn trusts_server_keys() {
+    use std::collections::HashMap;
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    let mut params = HashMap::new();
+    params.insert("keyType".to_owned(), serde_json::json!("ssh-ed25519"));
+    params.insert("fingerprint".to_owned(), serde_json::json!("SHA256:new"));
+    let unknown = CallError {
+        code: Some("host_key_unknown".to_owned()),
+        message: "x".to_owned(),
+        params: params.clone(),
+    };
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Err(unknown),
+        },
+        &mut look,
+    );
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.contains("Trust this server?")
+            && text.contains("home-nas.example.com:22")
+            && text.contains("SHA256:new"),
+        "{text}"
+    );
+    nothing(
+        &home.key(key(KeyCode::Char('a')), &mut look),
+        "add is for keys that changed",
+    );
+    let key_of = |mode| crate::api::HostKey {
+        host: "home-nas.example.com".to_owned(),
+        port: 22,
+        key_type: "ssh-ed25519".to_owned(),
+        fingerprint: "SHA256:new".to_owned(),
+        mode,
+    };
+    let trust = |mode| {
+        vec![Ask::Call(Call::Trust {
+            workspace: id(1),
+            side: Side::Right,
+            key: key_of(mode),
+        })]
+    };
+    assert_eq!(home.key(key(KeyCode::Char('y')), &mut look), trust(None));
+    let again = home.reply(
+        Reply::Trusted {
+            side: Side::Right,
+            outcome: Ok(()),
+        },
+        &mut look,
+    );
+    assert_eq!(
+        again,
+        vec![Ask::Call(Call::Files {
+            workspace: id(1),
+            site: id(22),
+            side: Side::Right,
+            op: Op::Home
+        })]
+    );
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Ok("/".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/".to_owned(),
+            outcome: Ok(vec![]),
+        },
+        &mut look,
+    );
+
+    params.insert("trusted".to_owned(), serde_json::json!(["SHA256:old"]));
+    let changed = CallError {
+        code: Some("host_key_changed".to_owned()),
+        message: "x".to_owned(),
+        params,
+    };
+    home.key(key(KeyCode::Char('r')), &mut look);
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/".to_owned(),
+            outcome: Err(changed.clone()),
+        },
+        &mut look,
+    );
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.contains("The key of this server changed") && text.contains("SHA256:old"),
+        "{text}"
+    );
+    nothing(
+        &home.key(key(KeyCode::Char('y')), &mut look),
+        "a changed key is added or replaced",
+    );
+    assert_eq!(
+        home.key(key(KeyCode::Char('a')), &mut look),
+        trust(Some(crate::api::TrustMode::Add))
+    );
+    let refused = home.reply(
+        Reply::Trusted {
+            side: Side::Right,
+            outcome: Err(refused("forbidden")),
+        },
+        &mut look,
+    );
+    nothing(&refused, "");
+    assert!(draw(&home, &look, 120, 30).contains("Your role in this"));
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/".to_owned(),
+            outcome: Err(changed.clone()),
+        },
+        &mut look,
+    );
+    assert_eq!(
+        home.key(key(KeyCode::Char('r')), &mut look),
+        trust(Some(crate::api::TrustMode::Replace))
+    );
+    assert_eq!(
+        home.reply(
+            Reply::Trusted {
+                side: Side::Right,
+                outcome: Ok(())
+            },
+            &mut look
+        ),
+        vec![Ask::Call(Call::Files {
+            workspace: id(1),
+            site: id(22),
+            side: Side::Right,
+            op: Op::List("/".to_owned())
+        })]
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/".to_owned(),
+            outcome: Err(changed.clone()),
+        },
+        &mut look,
+    );
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    assert!(home.overlay().is_none());
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home".to_owned(),
+            outcome: Err(changed),
+        },
+        &mut look,
+    );
+    assert!(
+        home.overlay().is_none(),
+        "the local disk has no keys to trust"
     );
 }
 

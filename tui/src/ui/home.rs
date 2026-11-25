@@ -20,6 +20,7 @@ use super::input::Input;
 use super::look::Look;
 use super::theme::{self, Palette};
 use super::widgets::{centered, error_line, field, highlight, panel, popup};
+use crate::api::{HostKey, TrustMode};
 use crate::config::{Colors, EnterOnFile};
 use crate::i18n::Language;
 
@@ -88,6 +89,15 @@ pub enum Call {
         /// The new theme, if it changes.
         theme: Option<String>,
     },
+    /// Trust the key of a server and try the panel again.
+    Trust {
+        /// The workspace of the site.
+        workspace: Uuid,
+        /// The panel to try again.
+        side: Side,
+        /// The key.
+        key: HostKey,
+    },
     /// Work with the files of a site in a panel.
     Files {
         /// The workspace of the site.
@@ -111,12 +121,14 @@ pub enum Side {
 }
 
 /// Why a call failed: the stable code of a refusal, or none when the server could not be reached, and what happened.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CallError {
     /// The stable code, such as `vault_locked` or `http_404`.
     pub code: Option<String>,
     /// What happened, in words.
     pub message: String,
+    /// What the refusal says about itself, such as the fingerprint of a key, by name.
+    pub params: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// The answer of the server to a call.
@@ -156,6 +168,13 @@ pub enum Reply {
         path: String,
         /// Its entries.
         outcome: Result<Vec<Entry>, CallError>,
+    },
+    /// The key of a server was trusted, or why not.
+    Trusted {
+        /// The panel to try again.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
     },
     /// A change of the files of a panel ended.
     Changed {
@@ -240,6 +259,17 @@ pub enum Overlay {
     },
     /// Every key of the screen.
     Help,
+    /// The key of a server to trust, the first time or because it changed.
+    HostKey {
+        /// The panel that connects.
+        side: Side,
+        /// The name of the site.
+        site: String,
+        /// The key the server shows.
+        key: HostKey,
+        /// The fingerprints trusted until now, when it changed.
+        trusted: Option<Vec<String>>,
+    },
     /// The master password of the vault.
     Vault {
         /// The password being typed.
@@ -473,6 +503,15 @@ impl Home {
                 self.panel_mut(side).listed(&path, outcome);
                 asks
             }
+            Reply::Trusted { side, outcome } => {
+                let (outcome, mut asks) = self.file_outcome(side, outcome, look);
+                let more = match outcome {
+                    Ok(()) => self.panel_mut(side).retry(),
+                    Err(reason) => self.panel_mut(side).changed(Err(reason)),
+                };
+                asks.extend(self.panel_asks(side, more));
+                asks
+            }
             Reply::Changed { side, outcome } => {
                 let (outcome, mut asks) = self.file_outcome(side, outcome, look);
                 let more = self.panel_mut(side).changed(outcome);
@@ -626,8 +665,53 @@ impl Home {
                 self.ask_vault(site);
                 (m.get("errors.vault_locked"), Vec::new())
             }
+            Some(code @ ("host_key_unknown" | "host_key_changed")) => {
+                self.ask_trust(side, error, code == "host_key_changed");
+                (explain(error, look), Vec::new())
+            }
             _ => (explain(error, look), Vec::new()),
         }
+    }
+
+    /// Asks to trust the key a server showed, with the host and port of the site of the panel.
+    fn ask_trust(&mut self, side: Side, error: &CallError, changed: bool) {
+        let site = self.panel(side).source().and_then(Source::site);
+        let Some(site) = self.sites.iter().find(|known| Some(known.id) == site) else {
+            return;
+        };
+        let text = |name: &str| {
+            error
+                .params
+                .get(name)
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let setting = |name: &str| site.config.get(name).cloned().unwrap_or_default();
+        let key = HostKey {
+            host: setting("host"),
+            port: setting("port").parse().unwrap_or(22),
+            key_type: text("keyType"),
+            fingerprint: text("fingerprint"),
+            mode: None,
+        };
+        let trusted = changed.then(|| {
+            error
+                .params
+                .get("trusted")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(serde_json::Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        });
+        self.overlay = Some(Overlay::HostKey {
+            side,
+            site: site.name.clone(),
+            key,
+            trusted,
+        });
     }
 
     /// Asks for the master password, to open a site afterwards.
@@ -857,6 +941,38 @@ impl Home {
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
             Overlay::Help => Vec::new(),
+            Overlay::HostKey {
+                side,
+                site,
+                key: mut shown,
+                trusted,
+            } => {
+                shown.mode = match (key.code, &trusted) {
+                    (KeyCode::Char('y') | KeyCode::Enter, None) => None,
+                    (KeyCode::Char('a'), Some(_)) => Some(TrustMode::Add),
+                    (KeyCode::Char('r'), Some(_)) => Some(TrustMode::Replace),
+                    (KeyCode::Char('n') | KeyCode::Esc, _) => return Vec::new(),
+                    _ => {
+                        self.overlay = Some(Overlay::HostKey {
+                            side,
+                            site,
+                            key: shown,
+                            trusted,
+                        });
+                        return Vec::new();
+                    }
+                };
+                self.workspace
+                    .map(|workspace| {
+                        Ask::Call(Call::Trust {
+                            workspace,
+                            side,
+                            key: shown,
+                        })
+                    })
+                    .into_iter()
+                    .collect()
+            }
             Overlay::Commands { input, selected } => self.commands_key(key, input, selected, look),
             Overlay::Settings { selected } => self.settings_key(key, selected, look),
             Overlay::Choose {
@@ -1298,6 +1414,9 @@ impl Home {
                         self.render_choose(frame, *what, *selected, look);
                     }
                     Some(Overlay::Help) => render_help(frame, look),
+                    Some(Overlay::HostKey {
+                        site, key, trusted, ..
+                    }) => render_host_key(frame, site, key, trusted.as_deref(), look),
                     Some(Overlay::Vault {
                         input,
                         busy,
@@ -1785,4 +1904,64 @@ fn explain(error: &CallError, look: &Look) -> String {
     } else {
         text
     }
+}
+
+/// The key of a server to trust: the site, the server, the type and fingerprint of the key, and when it changed the fingerprints
+/// trusted until now, in the danger color.
+fn render_host_key(
+    frame: &mut Frame,
+    site: &str,
+    key: &HostKey,
+    trusted: Option<&[String]>,
+    look: &Look,
+) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let rows = trusted.map_or(0, <[String]>::len);
+    let height = u16::try_from(rows)
+        .unwrap_or(0)
+        .saturating_add(if trusted.is_some() { 13 } else { 11 });
+    let area = centered(frame.area(), 78, height);
+    let (title, keys, intro) = if trusted.is_some() {
+        (
+            "hostKey.changedTitle",
+            "hostKey.changedKeys",
+            "hostKey.changedIntro",
+        )
+    } else {
+        ("hostKey.title", "hostKey.keys", "hostKey.intro")
+    };
+    let inside = popup(frame, area, &m.get(title), &m.get(keys), palette);
+    let intro = m.fill(intro, &[("site", site)]);
+    let mut lines = vec![
+        if trusted.is_some() {
+            error_line(&intro, palette)
+        } else {
+            Line::from(intro)
+        },
+        Line::default(),
+        Line::from(vec![
+            Span::raw(format!("{:<14}", m.get("hostKey.server"))).fg(palette.muted),
+            Span::raw(format!("{}:{}", key.host, key.port)),
+        ]),
+        Line::from(vec![
+            Span::raw(format!("{:<14}", m.get("hostKey.type"))).fg(palette.muted),
+            Span::raw(key.key_type.clone()),
+        ]),
+        Line::from(vec![
+            Span::raw(format!("{:<14}", m.get("hostKey.fingerprint"))).fg(palette.muted),
+            Span::raw(key.fingerprint.clone()).bold(),
+        ]),
+    ];
+    if let Some(trusted) = trusted {
+        lines.push(Line::default());
+        lines.push(Line::from(m.get("hostKey.trusted")).fg(palette.muted));
+        lines.extend(
+            trusted
+                .iter()
+                .map(|fingerprint| Line::from(format!("  {fingerprint}"))),
+        );
+    }
+    lines.push(Line::default());
+    lines.push(Line::from(m.get("hostKey.check")).fg(palette.muted));
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
 }

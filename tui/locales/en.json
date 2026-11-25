@@ -177,5 +177,18 @@
     "auth_failed": "The server refused the credentials of the site.",
     "forbidden": "Your role in this workspace does not allow that.",
     "rate_limited": "Too many attempts. Wait a moment and try again."
+  },
+  "hostKey": {
+    "title": "Trust this server?",
+    "changedTitle": "The key of this server changed",
+    "intro": "First connection to {site}. Trust its key only if the fingerprint is the one of the server:",
+    "changedIntro": "The key of {site} is not the one trusted. If nobody changed the server, someone may be in the middle.",
+    "server": "Server",
+    "type": "Key type",
+    "fingerprint": "Fingerprint",
+    "trusted": "Trusted until now:",
+    "check": "Ask the administrator of the server for its fingerprint, or compare it with the one in the web.",
+    "keys": "y trust · n cancel",
+    "changedKeys": "a trust it too · r replace · Esc cancel"
   }
 }

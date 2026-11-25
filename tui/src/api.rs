@@ -1,12 +1,14 @@
 //! The API of a Transferly server, as the terminal client uses it (docs/guides/reqwest.md): one HTTP client, the bearer token on every
 //! request, no redirects, timeouts that never cut a long transfer, and the stable code of every refusal.
 
+use std::collections::HashMap;
 use std::time::Duration;
 
 use reqwest::{Client, Method, RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
+use transferly_client::models::host_key_input::Mode;
 use transferly_client::models::{
-    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, HomeFolder,
+    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, HomeFolder, HostKeyInput,
     MasterPasswordRequest, PathInput, Preferences, Problem, RemoteEntry, RenameInput, SessionInfo,
     SetupStatus, Site, User, VaultStatus, Version, Workspace,
 };
@@ -30,6 +32,8 @@ pub enum ApiError {
         status: u16,
         /// Stable code of the problem, or `http_<status>` when the answer had none.
         code: String,
+        /// What the problem says about itself, such as the fingerprint of a key, by name.
+        params: HashMap<String, serde_json::Value>,
     },
     /// The server answered something that is not what Transferly answers.
     #[error("the server does not answer as a Transferly server: {0}")]
@@ -45,6 +49,39 @@ impl ApiError {
             _ => None,
         }
     }
+
+    /// What a refusal says about itself, by name; empty for anything else.
+    #[must_use]
+    pub fn params(&self) -> HashMap<String, serde_json::Value> {
+        match self {
+            Self::Refused { params, .. } => params.clone(),
+            _ => HashMap::new(),
+        }
+    }
+}
+
+/// How a key joins the keys already trusted for a server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrustMode {
+    /// Next to the others, for several servers behind one name.
+    Add,
+    /// Instead of the others, for a server whose key changed.
+    Replace,
+}
+
+/// The key of a server a person saw and confirmed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostKey {
+    /// The host of the server.
+    pub host: String,
+    /// Its port.
+    pub port: u16,
+    /// The type of the key, such as `ssh-ed25519`.
+    pub key_type: String,
+    /// Its fingerprint.
+    pub fingerprint: String,
+    /// How it joins the keys already trusted, when one of its type is.
+    pub mode: Option<TrustMode>,
 }
 
 /// A Transferly server, signed in to or not.
@@ -358,6 +395,35 @@ impl Api {
         .await
     }
 
+    /// Trusts the key of a server in a workspace, adding it next to or replacing a different key of the same type when `mode` says so.
+    ///
+    /// # Errors
+    ///
+    /// A different key is trusted and no mode was given (`host_key_changed`), the role may not trust keys, or the server cannot be reached.
+    pub async fn trust_key(&self, workspace: &str, key: &HostKey) -> Result<(), ApiError> {
+        let mut body = HostKeyInput::new(
+            key.host.clone(),
+            i32::from(key.port),
+            key.key_type.clone(),
+            key.fingerprint.clone(),
+        );
+        body.mode = key.mode.map(|mode| {
+            if mode == TrustMode::Add {
+                Mode::Add
+            } else {
+                Mode::Replace
+            }
+        });
+        Self::empty(
+            self.request(
+                Method::POST,
+                &format!("/api/v1/workspaces/{workspace}/known-hosts"),
+            )
+            .json(&body),
+        )
+        .await
+    }
+
     /// Closes the connections of this session to a site.
     ///
     /// # Errors
@@ -379,13 +445,14 @@ impl Api {
 
 /// The refusal of a status and its body: the stable code of a problem document, or `http_<status>` without one.
 fn refusal(status: StatusCode, body: &[u8]) -> ApiError {
-    let code = serde_json::from_slice::<Problem>(body).map_or_else(
-        |_| format!("http_{}", status.as_u16()),
-        |problem| problem.code,
+    let (code, params) = serde_json::from_slice::<Problem>(body).map_or_else(
+        |_| (format!("http_{}", status.as_u16()), HashMap::new()),
+        |problem| (problem.code, problem.params.unwrap_or_default()),
     );
     ApiError::Refused {
         status: status.as_u16(),
         code,
+        params,
     }
 }
 
@@ -431,7 +498,7 @@ mod tests {
         ));
         let missing = MockServer::start().await;
         assert!(
-            matches!(api(&missing).probe().await, Err(ApiError::Refused { status: 404, ref code }) if code == "http_404")
+            matches!(api(&missing).probe().await, Err(ApiError::Refused { status: 404, ref code, .. }) if code == "http_404")
         );
     }
 
@@ -643,6 +710,25 @@ mod tests {
             Some("not_found")
         );
         api.disconnect("w", "s").await.expect("disconnected");
+        Mock::given(method("POST")).and(path("/api/v1/workspaces/w/known-hosts")).and(body_json(serde_json::json!({"host": "h", "port": 22, "keyType": "t", "fingerprint": "f", "mode": "add"}))).respond_with(ResponseTemplate::new(201)).mount(&server).await;
+        Mock::given(method("POST")).and(path("/api/v1/workspaces/w/known-hosts")).and(body_json(serde_json::json!({"host": "h", "port": 22, "keyType": "t", "fingerprint": "f", "mode": "replace"}))).respond_with(ResponseTemplate::new(201)).mount(&server).await;
+        Mock::given(method("POST")).and(path("/api/v1/workspaces/w/known-hosts")).respond_with(ResponseTemplate::new(409).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 409, "code": "host_key_changed", "params": {"trusted": ["old"]}}))).mount(&server).await;
+        let key = |mode| HostKey {
+            host: "h".to_owned(),
+            port: 22,
+            key_type: "t".to_owned(),
+            fingerprint: "f".to_owned(),
+            mode,
+        };
+        api.trust_key("w", &key(Some(TrustMode::Add)))
+            .await
+            .expect("added");
+        api.trust_key("w", &key(Some(TrustMode::Replace)))
+            .await
+            .expect("replaced");
+        let refused = api.trust_key("w", &key(None)).await.expect_err("changed");
+        assert_eq!(refused.params()["trusted"], serde_json::json!(["old"]));
+        assert!(ApiError::Unexpected("x".to_owned()).params().is_empty());
     }
 
     /// An answer cut in the middle of its body is a network error, when decoding a call and when signing out.

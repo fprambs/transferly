@@ -278,6 +278,16 @@ impl Panel {
         }
     }
 
+    /// Tries again what failed: the folder in view, or the home folder when none was listed yet.
+    pub fn retry(&mut self) -> Vec<PanelAsk> {
+        if !self.path.is_empty() {
+            return self.go(self.path.clone());
+        }
+        self.loading = true;
+        self.error = None;
+        vec![PanelAsk::Op(Op::Home)]
+    }
+
     /// A change of the files ended: the folder is listed again, or the reason is shown.
     pub fn changed(&mut self, outcome: Result<(), String>) -> Vec<PanelAsk> {
         match outcome {

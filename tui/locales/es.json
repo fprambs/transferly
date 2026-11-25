@@ -177,5 +177,18 @@
     "auth_failed": "El servidor rechazó las credenciales del sitio.",
     "forbidden": "Tu rol en este workspace no lo permite.",
     "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo."
+  },
+  "hostKey": {
+    "title": "¿Confiar en este servidor?",
+    "changedTitle": "La clave de este servidor cambió",
+    "intro": "Primera conexión a {site}. Confía en su clave solo si la huella es la del servidor:",
+    "changedIntro": "La clave de {site} no es la de confianza. Si nadie cambió el servidor, alguien podría estar en medio.",
+    "server": "Servidor",
+    "type": "Tipo de clave",
+    "fingerprint": "Huella",
+    "trusted": "De confianza hasta ahora:",
+    "check": "Pide la huella al administrador del servidor, o compárala con la de la web.",
+    "keys": "y confiar · n cancelar",
+    "changedKeys": "a confiar también · r reemplazar · Esc cancelar"
   }
 }
