@@ -60,3 +60,9 @@ hooks:
 
 gen:
 	$(TOOLS) ./scripts/generate.sh
+
+# Draws the screens of the design of the terminal client with ratatui into docs/design/terminal-client-mockups.md.
+.PHONY: tui-mockups
+tui-mockups:
+	docker run --rm -v $(CURDIR):/repo -v transferly-tui-cargo:/usr/local/cargo/registry -v transferly-tui-target:/target -e CARGO_TARGET_DIR=/target \
+		-w /repo/tui/mockups rust:1.100-bookworm sh -c 'cargo run -q --release --locked -- /repo/docs/design/terminal-client-mockups.md && chown $(shell id -u):$(shell id -g) /repo/docs/design/terminal-client-mockups.md Cargo.lock'

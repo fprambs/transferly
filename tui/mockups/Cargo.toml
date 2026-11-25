@@ -1,0 +1,9 @@
+[package]
+name = "transferly-tui-mockups"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Draws the screens of docs/design/terminal-client.md with ratatui and writes them as text (make tui-mockups)."
+
+[dependencies]
+ratatui = "0.30.2"
