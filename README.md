@@ -225,6 +225,8 @@ Variables principales del despliegue con Docker Compose:
 | `TRANSFERLY_ALLOWED_NETWORKS` | Redes privadas que los sitios pueden alcanzar, separadas por coma | ninguna |
 | `TRANSFERLY_TRUSTED_PROXIES` | Proxies de confianza, para conocer la IP real del cliente | ninguno en el binario; Compose confía solo en Caddy (`172.30.252.3`) |
 | `TRANSFERLY_GOOGLE_CLIENT_ID`, `TRANSFERLY_GOOGLE_CLIENT_SECRET` | Cliente OAuth registrado en Google Cloud, para los sitios de Google Drive ([guía](docs/guides/google.md)) | ninguno |
+| `TRANSFERLY_CLI_LOGIN` | Permite iniciar sesión desde la terminal (`transferly-tui`) aprobándolo en el navegador ([ADR-0029](docs/adr/0029-terminal-client-and-browser-login.md)); `false` lo apaga | `true` |
+| `TRANSFERLY_CLI_SESSION_IDLE`, `TRANSFERLY_CLI_SESSION_MAX` | Cuánto dura una sesión de terminal sin uso y como máximo, en horas de Go (no admite días) | `168h` (7 días) y `720h` (30 días) |
 
 Las redes permitidas y los límites también se cambian en caliente desde el panel de administración.
 

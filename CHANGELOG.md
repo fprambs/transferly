@@ -4,6 +4,36 @@ Every release of Transferly, newest first. Versions follow [Semantic Versioning]
 a minor version may change behavior or the API. Each release is an annotated tag `vX.Y.Z` on `main`, made with `scripts/release.sh`
 (see [docs/guides/releases.md](docs/guides/releases.md)).
 
+## [Unreleased]
+
+The server side of the terminal client, `transferly-tui` ([ADR-0029](docs/adr/0029-terminal-client-and-browser-login.md)); the
+client itself comes later.
+
+### Added
+
+- Sign-in of the terminal client through the browser: the client opens `/cli/authorize`, the person approves with their password, and
+  the single-use code goes back to the terminal through a loopback callback (`127.0.0.1` or `[::1]`), or is shown to paste when the
+  terminal has no browser. The code is bound to a PKCE S256 challenge and lives 5 minutes.
+- Terminal sessions, carried as `Authorization: Bearer`, accepted by every protected endpoint and the event stream, with their own
+  lifetimes: `TRANSFERLY_CLI_SESSION_IDLE` (`168h`) and `TRANSFERLY_CLI_SESSION_MAX` (`720h`). `TRANSFERLY_CLI_LOGIN=false` turns the
+  sign-in off.
+- Security lists the terminal sessions of the account, with their computer, last use and address, and ends one at once.
+- The login screen goes back to the page it was sent from, only for pages of the application.
+- API: `POST /cli/authorizations`, `POST /cli/token`, `GET /me/sessions`, `DELETE /me/sessions/{sessionId}`, and the `bearerAuth`
+  scheme.
+
+### Security
+
+- A terminal token is never accepted as a cookie nor a browser cookie as a bearer token; a request with both is refused.
+- Approving asks for the password again, so a stolen browser cookie cannot start a terminal session, and a terminal session cannot
+  approve another.
+- Codes, tokens and verifiers are stored as hashes or not at all, and never reach the log.
+
+### Upgrade notes
+
+- Migration 38 adds the kind, name and host of sessions and the table of approvals; existing sessions stay signed in as browser
+  sessions. Migrating down ends every terminal session first.
+
 ## [1.0.0] - 2026-11-13
 
 The first stable release of Transferly, a web file transfer client for SFTP, FTP and FTPS, S3, Google Cloud Storage and Drive, Azure
