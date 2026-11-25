@@ -463,7 +463,7 @@ Revisado contra el código el 2026-11-24. Solo el middleware `authenticate` (`tr
 
 ### T2. Base de la TUI (1 a 1,5 semanas)
 
-- [ ] `tui/` como crate (`transferly-tui`): `clap`, `tokio`, `ratatui` + `crossterm`, `reqwest` con rustls, cliente elegido en T0
+- [x] **T2.1 Base.** Imagen `docker/rust.Dockerfile` (Rust 1.100, clippy, rustfmt, `llvm-tools`, musl, `cargo-nextest`, `cargo-llvm-cov`, `cargo-deny`), aparte de la de Go y Node, como servicio `rust` de `compose.dev.yaml`; `make tui-lint`, `tui-test`, `tui-cov` (100 % de líneas, regiones y funciones, sin el cliente generado ni `main.rs`) y `tui-deny` (licencias compatibles con Apache-2.0, solo crates.io, RustSec, sin OpenSSL ni `native-tls`). Workspace `tui/` con el binario `transferly-tui` (versión del servidor, sin `unsafe`, documentación obligatoria, clippy pedantic) y `tui/client`, generado por `make gen` con `scripts/generate-tui-client.sh`, que lo apunta a reqwest 0.13 sin TLS propio (el generador traía reqwest 0.12 con OpenSSL); el contrato declara su licencia, Apache-2.0
 - [ ] Perfiles por servidor en `~/.config/transferly/config.toml`; token en el llavero del sistema (`keyring`) o archivo `0600`
 - [ ] Login dentro de la interfaz, como Claude Code: sin sesión guardada, `transferly-tui` pide la URL del servidor, comprueba que es un Transferly, escucha en `127.0.0.1` con un puerto libre, abre el navegador en `/cli/authorize` con el reto PKCE y el `state`, y entra al recibir el código. Sin navegador (por SSH) o si no puede escuchar, muestra la URL (y un QR) y un campo para pegar el código
 - [ ] Comandos `login <url>`, `logout` y `status` para scripts, con el mismo flujo

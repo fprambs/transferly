@@ -59,6 +59,7 @@ hooks:
 .PHONY: gen
 
 gen:
+	./scripts/generate-tui-client.sh
 	$(TOOLS) ./scripts/generate.sh
 
 # Draws the screens of the design of the terminal client with ratatui into docs/design/terminal-client-mockups.md, and photographs
@@ -72,3 +73,21 @@ tui-mockups:
 		&& cp /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf /out/ && chown $(shell id -u):$(shell id -g) /out/*.ttf'
 	docker run --rm -u $(shell id -u):$(shell id -g) -e HOME=/tmp -v $(CURDIR):/repo -w /repo/tui/mockups \
 		mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f node screenshot.cjs pages /repo/docs/design/screens
+
+# The terminal client (tui/), in the Rust image of compose.dev.yaml; see docs/guides/rust-tooling.md.
+RUST := $(COMPOSE) run --rm --no-deps -T rust
+# Code left out of coverage: the generated client and the entry point, as generated code and cmd/ are in Go.
+TUI_COVERAGE_IGNORE := '(tui/client/|tui/src/main\.rs)'
+
+.PHONY: tui-lint tui-test tui-cov tui-deny
+tui-lint:
+	$(RUST) sh -c 'cargo fmt -p transferly-tui -- --check && cargo clippy -p transferly-tui --all-targets --all-features -- -D warnings'
+
+tui-test:
+	$(RUST) sh -c 'cargo nextest run -p transferly-tui && cargo test -p transferly-tui --doc'
+
+tui-cov:
+	$(RUST) cargo llvm-cov nextest -p transferly-tui --ignore-filename-regex $(TUI_COVERAGE_IGNORE) --fail-under-lines 100 --fail-under-regions 100 --fail-under-functions 100
+
+tui-deny:
+	$(RUST) cargo deny check

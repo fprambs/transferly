@@ -1,0 +1,27 @@
+# The terminal client of Transferly (ADR-0029). Its version is the version of the server; scripts/release.sh sets both.
+[workspace]
+members = ["client"]
+exclude = ["mockups", "spikes"]
+resolver = "3"
+
+[package]
+name = "transferly-tui"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.100"
+license = "Apache-2.0"
+description = "Transferly from the terminal: browse your sites and move files between them and your disk."
+repository = "https://github.com/fprambs/transferly"
+publish = false
+
+[dependencies]
+clap = { version = "4.6.10", features = ["derive"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage,coverage_nightly)"] }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

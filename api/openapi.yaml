@@ -3,6 +3,9 @@ info:
   title: Transferly API
   version: 0.1.0
   description: HTTP API of the Transferly file transfer client.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
 servers:
   - url: /
 security:

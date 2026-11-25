@@ -1,0 +1,42 @@
+# Dependency policy of the terminal client (cargo deny check, make tui-deny); see docs/guides/rust-tooling.md.
+
+[graph]
+all-features = false
+
+[advisories]
+# Every RustSec advisory fails the check unless listed here with its reason.
+ignore = []
+
+[licenses]
+# Licenses compatible with distributing an Apache-2.0 binary.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CDLA-Permissive-2.0",
+    "OpenSSL",
+]
+confidence-threshold = 0.9
+
+[bans]
+# Two versions of a crate are a warning, except the TLS and HTTP stacks, which must be one.
+multiple-versions = "warn"
+deny = [
+    { name = "openssl" },
+    { name = "openssl-sys" },
+    { name = "native-tls" },
+]
+
+[[bans.features]]
+name = "reqwest"
+deny = ["default-tls", "native-tls"]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

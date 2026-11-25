@@ -28,6 +28,21 @@ services:
       postgres:
         condition: service_healthy
 
+  # Rust toolchain of the terminal client (tui/), apart from the Go and Node tools; see docker/rust.Dockerfile.
+  rust:
+    profiles: ["tools"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    build:
+      context: .
+      dockerfile: docker/rust.Dockerfile
+    image: transferly-dev-rust
+    working_dir: /workspace/tui
+    environment:
+      INSTA_UPDATE: "no"
+    volumes:
+      - .:/workspace
+      - rust-cache:/cache
+
   backend:
     <<: *tools
     working_dir: /workspace/backend
@@ -94,4 +109,5 @@ services:
 
 volumes:
   cache:
+  rust-cache:
   pgdata:
