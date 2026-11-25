@@ -670,3 +670,31 @@ The explorer in each theme of the web, read from `tui/themes.json`; the theme is
 ### GitHub Light
 
 ![GitHub Light](screens/theme-github-light.png)
+
+## The application
+
+Screens of `transferly-tui` itself, drawn by its interface after the events that lead to them, not mockups.
+
+### app-server
+
+The first screen: the address of the server, with the profiles used before; ↓ chose one.
+
+![app-server](screens/app-server.png)
+
+### app-approval
+
+The browser opened the approval page; the terminal waits on 127.0.0.1.
+
+![app-approval](screens/app-approval.png)
+
+### app-paste
+
+Over SSH, without a browser: the code shown by the approval page is pasted, in Spanish.
+
+![app-paste](screens/app-paste.png)
+
+### app-signed-in
+
+Signed in: the interface takes the language (Spanish) and the theme (Nord) of the account.
+
+![app-signed-in](screens/app-signed-in.png)

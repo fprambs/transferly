@@ -4,11 +4,14 @@
 
 use std::fmt::Write as _;
 
+mod html;
+mod real;
+
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Cell, Clear, LineGauge, Paragraph, Row, Table, TableState, Tabs, Wrap};
 use ratatui::Frame;
@@ -137,7 +140,7 @@ fn main() {
             screen.name, screen.about, screen.width, screen.height, screen.name, text(&buffer)
         );
         if let Some(dir) = &pages {
-            std::fs::write(format!("{dir}/{slug}.html"), html(&buffer)).expect("writing a page");
+            std::fs::write(format!("{dir}/{slug}.html"), html::page(&buffer, defaults())).expect("writing a page");
         }
     }
     doc.push_str("\n## Themes\n\nThe explorer in each theme of the web, read from `tui/themes.json`; the theme is the one of the account, shared with the web.\n");
@@ -147,7 +150,14 @@ fn main() {
         let buffer = draw(&gallery);
         let _ = write!(doc, "\n### {}\n\n![{}](screens/theme-{}.png)\n", theme.name, theme.name, theme.id);
         if let Some(dir) = &pages {
-            std::fs::write(format!("{dir}/theme-{}.html", theme.id), html(&buffer)).expect("writing a page");
+            std::fs::write(format!("{dir}/theme-{}.html", theme.id), html::page(&buffer, defaults())).expect("writing a page");
+        }
+    }
+    doc.push_str("\n## The application\n\nScreens of `transferly-tui` itself, drawn by its interface after the events that lead to them, not mockups.\n");
+    for shot in real::shots() {
+        let _ = write!(doc, "\n### {}\n\n{}\n\n![{}](screens/{}.png)\n", shot.slug, shot.about, shot.slug, shot.slug);
+        if let Some(dir) = &pages {
+            std::fs::write(format!("{dir}/{}.html", shot.slug), html::page(&shot.buffer, shot.defaults)).expect("writing a page");
         }
     }
     std::fs::write(&out, doc).expect("writing the mockups");
@@ -597,67 +607,6 @@ fn log(frame: &mut Frame) {
     });
 }
 
-/// The CSS color of a cell color, or the given default for the terminal's own color.
-fn css(color: Color, default: Color) -> String {
-    match color {
-        Color::Rgb(r, g, b) => format!("#{r:02x}{g:02x}{b:02x}"),
-        Color::Reset => css(default, theme::text()),
-        _ => css(theme::text(), theme::text()),
-    }
-}
-
-/// A buffer as an HTML page of styled cells in a monospaced font, for a screenshot.
-fn html(buffer: &Buffer) -> String {
-    let mut body = String::new();
-    for y in 0..buffer.area.height {
-        let mut row = String::new();
-        let mut open: Option<String> = None;
-        for x in 0..buffer.area.width {
-            let cell = &buffer[(x, y)];
-            let mut fg = cell.fg;
-            let mut bg = cell.bg;
-            if cell.modifier.contains(Modifier::REVERSED) {
-                std::mem::swap(&mut fg, &mut bg);
-            }
-            if cell.modifier.contains(Modifier::DIM) && fg == Color::Reset {
-                fg = theme::muted();
-            }
-            let mut style = format!("color:{};background:{}", css(fg, theme::text()), css(bg, theme::bg()));
-            if cell.modifier.contains(Modifier::BOLD) {
-                style.push_str(";font-weight:700");
-            }
-            if cell.modifier.contains(Modifier::UNDERLINED) {
-                style.push_str(";text-decoration:underline");
-            }
-            if open.as_deref() != Some(style.as_str()) {
-                if open.is_some() {
-                    row.push_str("</span>");
-                }
-                let _ = write!(row, "<span style=\"{style}\">");
-                open = Some(style);
-            }
-            for ch in cell.symbol().chars() {
-                match ch {
-                    '<' => row.push_str("&lt;"),
-                    '>' => row.push_str("&gt;"),
-                    '&' => row.push_str("&amp;"),
-                    _ => row.push(ch),
-                }
-            }
-        }
-        if open.is_some() {
-            row.push_str("</span>");
-        }
-        body.push_str(&row);
-        body.push('\n');
-    }
-    format!(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>@font-face{{font-family:Mockup;src:url(DejaVuSansMono.ttf)}}@font-face{{font-family:Mockup;font-weight:700;src:url(DejaVuSansMono-Bold.ttf)}}html,body{{margin:0;background:{bg}}}pre{{margin:0;padding:12px;font:15px/1.17 Mockup,monospace;color:{fg};display:inline-block}}</style></head><body><pre id=\"screen\">{body}</pre></body></html>",
-        bg = css(theme::bg(), theme::bg()),
-        fg = css(theme::text(), theme::text()),
-    )
-}
-
 /// The command line of `/`: it takes the place of the status bar, with the commands that match above it, as in Claude Code.
 fn commands(frame: &mut Frame) {
     explorer(frame);
@@ -728,4 +677,9 @@ fn config(frame: &mut Frame) {
             .wrap(Wrap { trim: true }),
         note,
     );
+}
+
+/// The colors of cells without their own color, from the theme the mockups wear.
+fn defaults() -> html::Defaults {
+    html::Defaults { fg: theme::text(), bg: theme::bg(), muted: theme::muted() }
 }
