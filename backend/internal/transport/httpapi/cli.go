@@ -60,6 +60,46 @@ func (s *server) ExchangeCliCode(ctx context.Context, request ExchangeCliCodeReq
 	return ExchangeCliCode200JSONResponse{Token: token, ExpiresAt: principal.Session.ExpiresAt, User: userDTO(principal.User)}, nil
 }
 
+// CreateCliLink registers a request of the terminal client under a short link to the approval page. Attempts are limited per client
+// address, with the exchanges of codes.
+func (s *server) CreateCliLink(ctx context.Context, request CreateCliLinkRequestObject) (CreateCliLinkResponseObject, error) {
+	client := clientFrom(ctx)
+	if ok, wait := s.deps.Limits.CLIToken.Allow("cli-link:ip:" + client.IP); !ok {
+		return CreateCliLink429ApplicationProblemPlusJSONResponse{tooManyAttempts(wait)}, nil
+	}
+	body := request.Body
+	link, err := s.deps.Auth.CreateCLILink(ctx, auth.CLIRequest{
+		CodeChallenge: body.CodeChallenge, RedirectURI: deref(body.RedirectUri), ClientName: body.ClientName, ClientHost: deref(body.ClientHost),
+	}, deref(body.State), client)
+	switch {
+	case errors.Is(err, auth.ErrCLILoginDisabled):
+		return CreateCliLink403ApplicationProblemPlusJSONResponse(problemBody(403, "cli_login_disabled", nil)), nil
+	case errors.Is(err, auth.ErrInvalidRedirect):
+		return CreateCliLink400ApplicationProblemPlusJSONResponse(problemBody(400, "invalid_redirect", nil)), nil
+	case errors.Is(err, auth.ErrInvalidCLIRequest):
+		return CreateCliLink400ApplicationProblemPlusJSONResponse(problemBody(400, "invalid_cli_request", nil)), nil
+	case err != nil:
+		return nil, err
+	}
+	code := auth.FormatLinkCode(link.Code)
+	return CreateCliLink201JSONResponse{Code: code, Path: "/cli/a/" + code, ExpiresAt: link.ExpiresAt}, nil
+}
+
+// GetCliLink returns the request of the terminal client behind a short link, for the approval page to show.
+func (s *server) GetCliLink(ctx context.Context, request GetCliLinkRequestObject) (GetCliLinkResponseObject, error) {
+	link, err := s.deps.Auth.CLILinkRequest(ctx, request.Code)
+	if errors.Is(err, auth.ErrNotFound) {
+		return GetCliLink404ApplicationProblemPlusJSONResponse(problemBody(404, "cli_link_not_found", nil)), nil
+	} else if err != nil {
+		return nil, err
+	}
+	req := link.Request
+	return GetCliLink200JSONResponse{
+		CodeChallenge: req.CodeChallenge, ClientName: req.ClientName, ClientHost: optional(req.ClientHost),
+		RedirectUri: optional(req.RedirectURI), State: optional(link.State),
+	}, nil
+}
+
 // ListCliSessions lists the sessions of the terminal client of the signed-in account, marking the one making the request.
 func (s *server) ListCliSessions(ctx context.Context, _ ListCliSessionsRequestObject) (ListCliSessionsResponseObject, error) {
 	p, _ := principalFrom(ctx)

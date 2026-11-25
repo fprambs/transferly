@@ -9,3 +9,14 @@ RETURNING id, user_id, code_hash, code_challenge, redirect_uri, client_name, cli
 
 -- name: DeleteExpiredCLIAuthorizations :execrows
 DELETE FROM cli_authorizations WHERE expires_at <= $1;
+
+-- name: InsertCLILink :exec
+INSERT INTO cli_links (code, code_challenge, redirect_uri, state, client_name, client_host, ip, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+
+-- name: CLILink :one
+SELECT code, code_challenge, redirect_uri, state, client_name, client_host, ip, created_at, expires_at
+FROM cli_links WHERE code = sqlc.arg(code) AND expires_at > sqlc.arg(now);
+
+-- name: DeleteExpiredCLILinks :execrows
+DELETE FROM cli_links WHERE expires_at <= $1;

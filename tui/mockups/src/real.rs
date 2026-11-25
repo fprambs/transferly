@@ -10,7 +10,7 @@ use transferly_tui::config::Profile;
 use transferly_tui::i18n::Language;
 use transferly_tui::login::Answer;
 use transferly_tui::config::Settings;
-use transferly_tui::ui::app::{App, Event, Setup};
+use transferly_tui::ui::app::{App, Effect, Event, Setup};
 use transferly_tui::ui::home::Reply;
 use transferly_tui::ui::theme::ColorMode;
 
@@ -82,6 +82,14 @@ fn uuid(text: String) -> uuid::Uuid {
     text.parse().expect("an identifier")
 }
 
+/// The short link the server answers for the request the interface asked about.
+fn shortened(effects: &[Effect], code: &str) -> Event {
+    let [Effect::Shorten { state, redirect, .. }] = effects else {
+        panic!("the interface asks for the address of the approval page: {effects:?}")
+    };
+    Event::Shortened { state: state.clone(), redirect: redirect.clone(), url: format!("https://files.acme.com/cli/a/{code}") }
+}
+
 /// Draws the interface as it stands.
 fn shot(slug: &'static str, about: &'static str, app: &App) -> Shot {
     let mut terminal = Terminal::new(TestBackend::new(100, 28)).expect("backend");
@@ -100,7 +108,8 @@ pub fn shots() -> Vec<Shot> {
 
     english.handle(key(KeyCode::Enter));
     english.handle(Event::Probed(Ok(())));
-    english.handle(Event::Listening(Ok("http://127.0.0.1:49152/callback".to_owned())));
+    let effects = english.handle(Event::Listening(Ok("http://127.0.0.1:49152/callback".to_owned())));
+    english.handle(shortened(&effects, "K7P2-9QXM"));
     english.handle(Event::BrowserOpened(true));
     for _ in 0..3 {
         english.handle(Event::Tick);
@@ -109,7 +118,8 @@ pub fn shots() -> Vec<Shot> {
 
     let mut spanish = app(Language::Spanish, false);
     spanish.handle(key(KeyCode::Enter));
-    spanish.handle(Event::Probed(Ok(())));
+    let effects = spanish.handle(Event::Probed(Ok(())));
+    spanish.handle(shortened(&effects, "W4HN-3RTD"));
     spanish.handle(Event::Paste("rsA7h63aXQetjzVD7pKsfA1yzQggA868KGK49ScbGr8".to_owned()));
     shots.push(shot("app-paste", "Over SSH, without a browser: the code shown by the approval page is pasted, in Spanish.", &spanish));
 

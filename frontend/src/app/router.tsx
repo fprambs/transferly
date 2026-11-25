@@ -19,7 +19,7 @@ import { homePath } from '@/features/sites/start-path'
 import { AppShell } from '@/features/shell/AppShell'
 import { AuthScreen } from '@/features/auth/AuthScreen'
 import { returnPath } from '@/features/auth/return-path'
-import { CliAuthorizePage } from '@/features/cli/CliAuthorizePage'
+import { CliAuthorizePage, CliLinkPage } from '@/features/cli/CliAuthorizePage'
 import { cliAuthorizeSearch } from '@/features/cli/request'
 import type { Api } from '@/lib/api/use-api'
 import type { Transport } from '@/lib/transport'
@@ -152,8 +152,21 @@ const cliAuthorizeRoute = createRoute({
   component: CliAuthorizePage,
 })
 
+/** A short link to the approval page, /cli/a/<code>: the same page, with the request the terminal registered under the code. */
+const cliLinkRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cli/a/$code',
+  beforeLoad: async ({ context, location }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQuery(context.api, context.transport))
+    if (session === null) {
+      throw redirect({ to: '/login', search: { redirect: location.href } })
+    }
+  },
+  component: CliLinkPage,
+})
+
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute, cliAuthorizeRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute, cliAuthorizeRoute, cliLinkRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

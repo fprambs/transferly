@@ -6,8 +6,8 @@ use std::time::Duration;
 use reqwest::{Client, Method, RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use transferly_client::models::{
-    CliToken, CliTokenRequest, Collection, MasterPasswordRequest, Preferences, Problem,
-    SessionInfo, SetupStatus, Site, User, VaultStatus, Version, Workspace,
+    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, MasterPasswordRequest,
+    Preferences, Problem, SessionInfo, SetupStatus, Site, User, VaultStatus, Version, Workspace,
 };
 use url::Url;
 
@@ -237,6 +237,26 @@ impl Api {
             return Ok(());
         }
         Err(refusal(status, &response.bytes().await?))
+    }
+
+    /// Registers a sign-in request under a short link to the approval page, /cli/a/<code>, which fits on one line.
+    ///
+    /// # Errors
+    ///
+    /// The server has no short links (`http_404`), refuses the request, or cannot be reached.
+    pub async fn link(
+        &self,
+        challenge: &str,
+        state: &str,
+        redirect: Option<&str>,
+        name: &str,
+        host: &str,
+    ) -> Result<CliLink, ApiError> {
+        let mut body = CliLinkInput::new(challenge.to_owned(), name.to_owned());
+        body.state = Some(state.to_owned());
+        body.redirect_uri = redirect.map(str::to_owned);
+        body.client_host = Some(host.to_owned());
+        Self::send(self.request(Method::POST, "/api/v1/cli/links").json(&body)).await
     }
 
     /// Ends the session of the token.

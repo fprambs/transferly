@@ -106,20 +106,34 @@ fn signs_in_through_the_browser() {
     let effects = app.handle(Event::Listening(Ok(
         "http://127.0.0.1:5000/callback".to_owned()
     )));
-    let Effect::OpenBrowser(address) = &effects[0] else {
-        panic!("{effects:?}")
-    };
     assert!(
-        address.contains(&format!("state={state}"))
-            && address.contains("redirect_uri=")
-            && address.contains("client_host=laptop")
+        matches!(&effects[..], [Effect::Shorten { state: asked, redirect: Some(redirect), host, .. }] if asked == state && redirect.ends_with(":5000/callback") && host == "laptop"),
+        "{effects:?}"
     );
-    assert!(screen_text(&app).contains("Open the address below in your browser"));
+    assert_eq!(
+        app.handle(key(KeyCode::Char('o'))),
+        Vec::<Effect>::new(),
+        "no address yet"
+    );
+    let address = "https://files.example.com/cli/a/K7P2-9QXM".to_owned();
+    let shortened = Event::Shortened {
+        state: state.clone(),
+        redirect: Some("http://127.0.0.1:5000/callback".to_owned()),
+        url: address.clone(),
+    };
+    assert_eq!(
+        app.handle(shortened),
+        vec![Effect::OpenBrowser(address.clone())]
+    );
+    let text = screen_text(&app);
+    assert!(
+        text.contains("Open this address in your browser") && text.contains("/cli/a/K7P2-9QXM")
+    );
     app.handle(Event::BrowserOpened(true));
     app.handle(Event::Tick);
     let text = screen_text(&app);
     assert!(
-        text.contains("Your browser opened the address below")
+        text.contains("Your browser opened this address")
             && text.contains("Waiting for the approval")
     );
 
@@ -167,11 +181,24 @@ fn signs_in_with_a_pasted_code() {
     let mut app = App::new(setup_with(vec![], false));
     type_text(&mut app, "files.example.com");
     app.handle(key(KeyCode::Enter));
-    assert_eq!(app.handle(Event::Probed(Ok(()))), Vec::<Effect>::new());
-    let Screen::Paste { url, .. } = app.screen() else {
-        panic!("{:?}", app.screen())
+    let effects = app.handle(Event::Probed(Ok(())));
+    let [
+        Effect::Shorten {
+            state,
+            redirect: None,
+            ..
+        },
+    ] = effects.as_slice()
+    else {
+        panic!("{effects:?}")
     };
-    assert!(!url.contains("redirect_uri"));
+    let shortened = Event::Shortened {
+        state: state.clone(),
+        redirect: None,
+        url: "https://files.example.com/cli/a/ABCD-EFGH".to_owned(),
+    };
+    assert_eq!(app.handle(shortened), Vec::<Effect>::new());
+    assert!(screen_text(&app).contains("https://files.example.com/cli/a/ABCD-EFGH"));
     assert!(screen_text(&app).contains("Then paste the code the page shows."));
     assert!(
         app.handle(key(KeyCode::Enter)).is_empty(),
@@ -212,10 +239,23 @@ fn signs_in_with_a_pasted_code() {
     app.handle(Event::Listening(Ok(
         "http://127.0.0.1:5000/callback".to_owned()
     )));
-    assert_eq!(
-        app.handle(key(KeyCode::Char('p'))),
-        vec![Effect::StopListening]
+    let effects = app.handle(key(KeyCode::Char('p')));
+    assert!(
+        matches!(
+            effects.as_slice(),
+            [
+                Effect::StopListening,
+                Effect::Shorten { redirect: None, .. }
+            ]
+        ),
+        "{effects:?}"
     );
+    let stale = Event::Shortened {
+        state: "old".to_owned(),
+        redirect: None,
+        url: "x".to_owned(),
+    };
+    assert_eq!(app.handle(stale), Vec::<Effect>::new());
     assert!(matches!(app.screen(), Screen::Paste { .. }));
     app.handle(Event::BrowserOpened(true));
     assert!(
@@ -631,44 +671,41 @@ pub(super) fn draw_on(
     }
 }
 
-/// The address to approve is drawn across the bottom of the screen from its first column, with nothing around it, so selecting it
-/// with the mouse copies the address and line breaks only; the screen to paste a code shows it the same way.
+/// The address of another request, or one that arrives once the approval was left, changes nothing.
 #[test]
-fn draws_the_address_to_copy() {
+fn ignores_addresses_of_other_requests() {
     let mut app = App::new(setup_with(vec![], true));
     type_text(&mut app, "files.example.com");
     app.handle(key(KeyCode::Enter));
     app.handle(Event::Probed(Ok(())));
-    app.handle(Event::Listening(Ok(
+    let redirect = Some("http://127.0.0.1:5000/callback".to_owned());
+    let effects = app.handle(Event::Listening(Ok(
         "http://127.0.0.1:5000/callback".to_owned()
     )));
-    let mut url = String::new();
-    if let Screen::Approval { url: shown, .. } = app.screen() {
-        url.clone_from(shown);
-    }
-    for (screen, label) in [(screen_text(&app), "The address: c copies it whole"), {
-        app.handle(key(KeyCode::Char('p')));
-        (screen_text(&app), "The address, to select with the mouse")
-    }] {
-        let rows: Vec<&str> = screen.lines().collect();
-        let at = rows
-            .iter()
-            .position(|row| row.starts_with(label))
-            .expect("the label of the address");
-        let copied: String = rows[at + 1..].concat();
-        assert!(
-            copied.starts_with("https://files.example.com/cli/authorize?code_challenge="),
-            "{copied}"
-        );
-        assert!(
-            copied.contains("client_name=transferly-tui") && !copied.contains([' ', '│']),
-            "{copied}"
-        );
-    }
-    assert!(
-        screen_text(&app)
-            .lines()
-            .any(|row| url.starts_with(row) && row.len() > 80)
+    let [Effect::Shorten { state, .. }] = effects.as_slice() else {
+        panic!("{effects:?}")
+    };
+    let state = state.clone();
+    let url = "https://files.example.com/cli/a/K7P2-9QXM".to_owned();
+    let other = Event::Shortened {
+        state: "old".to_owned(),
+        redirect: redirect.clone(),
+        url: url.clone(),
+    };
+    assert_eq!(app.handle(other), Vec::<Effect>::new());
+    let pasted = Event::Shortened {
+        state: state.clone(),
+        redirect: None,
+        url: url.clone(),
+    };
+    assert_eq!(app.handle(pasted), Vec::<Effect>::new());
+    app.handle(key(KeyCode::Esc));
+    assert_eq!(
+        app.handle(Event::Shortened {
+            state,
+            redirect,
+            url
+        }),
+        Vec::<Effect>::new()
     );
-    assert!(url.contains("redirect_uri="));
 }

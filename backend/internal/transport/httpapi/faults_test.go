@@ -85,6 +85,22 @@ func (f *flakyStore) CreateCLIAuthorization(ctx context.Context, a auth.CLIAutho
 	return f.Store.CreateCLIAuthorization(ctx, a)
 }
 
+// CreateCLILink fails when configured to.
+func (f *flakyStore) CreateCLILink(ctx context.Context, l auth.CLILink) error {
+	if f.failCLI {
+		return errInjected
+	}
+	return f.Store.CreateCLILink(ctx, l)
+}
+
+// CLILink fails when configured to.
+func (f *flakyStore) CLILink(ctx context.Context, code string, now time.Time) (auth.CLILink, error) {
+	if f.failCLI {
+		return auth.CLILink{}, errInjected
+	}
+	return f.Store.CLILink(ctx, code, now)
+}
+
 // UseCLIAuthorization fails when configured to.
 func (f *flakyStore) UseCLIAuthorization(ctx context.Context, codeHash []byte, at time.Time) (auth.CLIAuthorization, error) {
 	if f.failCLI {

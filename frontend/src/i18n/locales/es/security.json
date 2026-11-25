@@ -122,6 +122,7 @@
     "copied": "Copiado",
     "deniedTitle": "Inicio de sesión rechazado",
     "deniedBody": "La terminal no inició sesión. Puedes cerrar esta página.",
+    "loading": "Cargando la solicitud de inicio de sesión…",
     "invalidTitle": "Este enlace de inicio de sesión no es válido",
     "invalidBody": "Vuelve a iniciar sesión desde tu terminal y abre el enlace que muestra."
   },

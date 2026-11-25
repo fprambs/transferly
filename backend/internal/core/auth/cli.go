@@ -30,6 +30,14 @@ const (
 	minVerifierLength, maxVerifierLength = 43, 128
 	// maxClientNameRunes and maxClientHostRunes bound what the client declares about itself.
 	maxClientNameRunes, maxClientHostRunes = 64, 253
+	// cliLinkLifetime is how long a short link opens the approval page.
+	cliLinkLifetime = 10 * time.Minute
+	// cliLinkAlphabet holds the characters of a short link: digits and capitals without the lookalikes 0, 1, I, L and O.
+	cliLinkAlphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+	// cliLinkLength is how many characters a short link has; 31^8 is about 8.5 * 10^11.
+	cliLinkLength = 8
+	// maxStateLength bounds the state the terminal client checks on its callback.
+	maxStateLength = 128
 )
 
 // CLIRequest is what the terminal client asks for when the person approves it in the browser (ADR-0029).
@@ -85,6 +93,66 @@ func (s *Service) ApproveCLI(ctx context.Context, user User, password string, re
 	return code, nil
 }
 
+// CreateCLILink registers a request of the terminal client under a short code for /cli/a/<code>, valid for 10 minutes. client is
+// the terminal client. The request is checked as an approval checks it, and the state must be printable without spaces.
+func (s *Service) CreateCLILink(ctx context.Context, req CLIRequest, state string, client ClientInfo) (CLILink, error) {
+	if !s.config.CLILogin {
+		return CLILink{}, ErrCLILoginDisabled
+	}
+	if err := validateCLIRequest(req); err != nil {
+		return CLILink{}, err
+	}
+	if len(state) > maxStateLength || strings.IndexFunc(state, func(r rune) bool { return !unicode.IsPrint(r) || unicode.IsSpace(r) }) >= 0 {
+		return CLILink{}, ErrInvalidCLIRequest
+	}
+	code, err := s.linkCode()
+	if err != nil {
+		return CLILink{}, fmt.Errorf("reading link code: %w", err)
+	}
+	now := s.clock.Now()
+	req.ClientName, req.ClientHost = strings.TrimSpace(req.ClientName), strings.TrimSpace(req.ClientHost)
+	link := CLILink{Code: code, Request: req, State: state, IP: client.IP, CreatedAt: now, ExpiresAt: now.Add(cliLinkLifetime)}
+	if err := s.cli.CreateCLILink(ctx, link); err != nil {
+		return CLILink{}, err
+	}
+	return link, nil
+}
+
+// CLILinkRequest returns the request behind a short code, as typed: case, dashes and spaces do not matter. An unknown or expired
+// code is [ErrNotFound].
+func (s *Service) CLILinkRequest(ctx context.Context, code string) (CLILink, error) {
+	code = strings.ToUpper(strings.NewReplacer("-", "", " ", "").Replace(code))
+	if len(code) != cliLinkLength || strings.Trim(code, cliLinkAlphabet) != "" {
+		return CLILink{}, ErrNotFound
+	}
+	return s.cli.CLILink(ctx, code, s.clock.Now())
+}
+
+// FormatLinkCode shows a short code in two groups of four, such as K7P2-9QXM.
+func FormatLinkCode(code string) string {
+	if len(code) != cliLinkLength {
+		return code
+	}
+	return code[:cliLinkLength/2] + "-" + code[cliLinkLength/2:]
+}
+
+// linkCode returns cliLinkLength random characters of cliLinkAlphabet, without bias: bytes past the largest multiple of the alphabet
+// are drawn again.
+func (s *Service) linkCode() (string, error) {
+	limit := byte(256 / len(cliLinkAlphabet) * len(cliLinkAlphabet))
+	code := make([]byte, 0, cliLinkLength)
+	raw := make([]byte, 1)
+	for len(code) < cliLinkLength {
+		if _, err := io.ReadFull(s.random, raw); err != nil {
+			return "", err
+		}
+		if raw[0] < limit {
+			code = append(code, cliLinkAlphabet[int(raw[0])%len(cliLinkAlphabet)])
+		}
+	}
+	return string(code), nil
+}
+
 // ExchangeCLI turns an approved code into a session of the terminal client and returns its token and principal. client is the
 // terminal client. Every reason to refuse is [ErrInvalidGrant], and a code is spent by the first exchange, valid or not.
 func (s *Service) ExchangeCLI(ctx context.Context, ex CLIExchange, client ClientInfo) (string, Principal, error) {
@@ -133,9 +201,15 @@ func (s *Service) RevokeSession(ctx context.Context, userID, id uuid.UUID) error
 	return nil
 }
 
-// PurgeCLIAuthorizations deletes approvals whose code expired and returns how many were removed.
+// PurgeCLIAuthorizations deletes approvals whose code expired and short links that expired, and returns how many were removed.
 func (s *Service) PurgeCLIAuthorizations(ctx context.Context) (int, error) {
-	return s.cli.DeleteExpiredCLIAuthorizations(ctx, s.clock.Now())
+	now := s.clock.Now()
+	approvals, err := s.cli.DeleteExpiredCLIAuthorizations(ctx, now)
+	if err != nil {
+		return approvals, err
+	}
+	links, err := s.cli.DeleteExpiredCLILinks(ctx, now)
+	return approvals + links, err
 }
 
 // randomToken returns tokenLength random bytes in base64url without padding.

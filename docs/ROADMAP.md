@@ -407,6 +407,7 @@ Casos vistos con un gateway SFTP corporativo: tamaños listados que no coinciden
 ## Interfaz congelada con una conexión lenta (reportado el 2026-11-25)
 
 - [ ] Al navegar el sitio `sftp-toxiproxy` (SFTP a través de toxiproxy, `testenv`) en la web, la interfaz completa se quedó congelada un buen rato, sin indicador de carga, hasta que la carpeta abrió. Nada debería bloquear la página mientras un listado tarda: se esperaba un estado de carga en el panel y el resto usable (y poder cancelar). Reproducir en el stack aislado con latencia de toxiproxy, medir dónde se bloquea (hilo principal del navegador con un render pesado, una petición que serializa las demás, o el backend reteniendo la conexión de la sesión) y añadir un test de regresión. Revisar lo mismo en la TUI cuando T3 liste carpetas: el runtime ya hace las llamadas en tareas aparte, así que la interfaz debe seguir respondiendo
+- [ ] Test intermitente `TestManager_OnChange` (`internal/core/connections`): falló una vez en `make unit` el 2026-11-25 ("after closing with a borrowed connection = [true false]") y no se reprodujo en 900 corridas con `-race` y 1, 2 y 8 núcleos; probablemente el aviso de cambio llega en otra goroutine y el test lee antes. Revisarlo antes del PR a `main`
 
 ## Fase 5: Escala e integraciones
 

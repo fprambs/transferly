@@ -50,6 +50,7 @@ type fakeStore struct {
 	users          map[uuid.UUID]auth.User
 	sessions       map[uuid.UUID]auth.Session
 	authorizations map[string]auth.CLIAuthorization
+	links          map[string]auth.CLILink
 	used           map[string]bool
 	fail           map[string]error
 }
@@ -58,7 +59,7 @@ type fakeStore struct {
 func newFakeStore() *fakeStore {
 	return &fakeStore{
 		users: map[uuid.UUID]auth.User{}, sessions: map[uuid.UUID]auth.Session{},
-		authorizations: map[string]auth.CLIAuthorization{}, used: map[string]bool{}, fail: map[string]error{},
+		authorizations: map[string]auth.CLIAuthorization{}, links: map[string]auth.CLILink{}, used: map[string]bool{}, fail: map[string]error{},
 	}
 }
 
@@ -343,6 +344,45 @@ func (f *fakeStore) DeleteExpiredCLIAuthorizations(_ context.Context, now time.T
 	for hash, a := range f.authorizations {
 		if !now.Before(a.ExpiresAt) {
 			delete(f.authorizations, hash)
+			n++
+		}
+	}
+	return n, nil
+}
+
+// CreateCLILink stores a short link by its code.
+func (f *fakeStore) CreateCLILink(_ context.Context, l auth.CLILink) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["CreateCLILink"]; err != nil {
+		return err
+	}
+	f.links[l.Code] = l
+	return nil
+}
+
+// CLILink returns a short link that has not expired at now.
+func (f *fakeStore) CLILink(_ context.Context, code string, now time.Time) (auth.CLILink, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	l, ok := f.links[code]
+	if !ok || !now.Before(l.ExpiresAt) {
+		return auth.CLILink{}, auth.ErrNotFound
+	}
+	return l, nil
+}
+
+// DeleteExpiredCLILinks removes short links that expired at or before now.
+func (f *fakeStore) DeleteExpiredCLILinks(_ context.Context, now time.Time) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["DeleteExpiredCLILinks"]; err != nil {
+		return 0, err
+	}
+	n := 0
+	for code, l := range f.links {
+		if !now.Before(l.ExpiresAt) {
+			delete(f.links, code)
 			n++
 		}
 	}

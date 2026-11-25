@@ -73,6 +73,7 @@ func RunAuth(t *testing.T, newStore AuthFactory) {
 		{"listing and revoking the sessions of a user", testUserSessions},
 		{"an approval of the terminal client is used once", testCLIAuthorizations},
 		{"concurrent exchanges of one code produce exactly one winner", testCLIAuthorizationRace},
+		{"a short link of the terminal client is found by its code until it expires", testCLILinks},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) { tt.run(t, newStore(t)) })
@@ -476,5 +477,37 @@ func testCLIAuthorizationRace(t *testing.T, s AuthStore) {
 	}
 	if winners != 1 {
 		t.Errorf("%d exchanges got the approval, want exactly 1", winners)
+	}
+}
+
+// testCLILinks checks the round trip of a short link, that it is not found once expired or under another code, the purge of
+// expired links, and that a code is stored once.
+func testCLILinks(t *testing.T, s AuthStore) {
+	ctx := t.Context()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	link := auth.CLILink{
+		Code: "K7P29QXM", State: "st", IP: "10.0.0.9", CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute),
+		Request: auth.CLIRequest{CodeChallenge: "challenge", RedirectURI: "http://127.0.0.1:5/callback", ClientName: "transferly-tui", ClientHost: "laptop"},
+	}
+	if err := s.CreateCLILink(ctx, link); err != nil {
+		t.Fatalf("CreateCLILink() = %v", err)
+	}
+	if got, err := s.CLILink(ctx, "K7P29QXM", now.Add(time.Minute)); err != nil || got != link {
+		t.Errorf("CLILink() = %+v, %v, want %+v", got, err, link)
+	}
+	if _, err := s.CLILink(ctx, "K7P29QXM", now.Add(10*time.Minute)); !errors.Is(err, auth.ErrNotFound) {
+		t.Errorf("CLILink(expired) = %v, want ErrNotFound", err)
+	}
+	if _, err := s.CLILink(ctx, "OTHER234", now); !errors.Is(err, auth.ErrNotFound) {
+		t.Errorf("CLILink(unknown) = %v, want ErrNotFound", err)
+	}
+	if err := s.CreateCLILink(ctx, link); err == nil {
+		t.Error("CreateCLILink() twice with one code succeeded")
+	}
+	if n, err := s.DeleteExpiredCLILinks(ctx, now.Add(9*time.Minute)); err != nil || n != 0 {
+		t.Errorf("DeleteExpiredCLILinks(before expiry) = %d, %v, want 0", n, err)
+	}
+	if n, err := s.DeleteExpiredCLILinks(ctx, now.Add(10*time.Minute)); err != nil || n != 1 {
+		t.Errorf("DeleteExpiredCLILinks(at expiry) = %d, %v, want 1", n, err)
 	}
 }

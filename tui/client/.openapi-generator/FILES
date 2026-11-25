@@ -17,6 +17,9 @@ src/models/change_master_password_request.rs
 src/models/checksum.rs
 src/models/cli_approval.rs
 src/models/cli_approval_code.rs
+src/models/cli_link.rs
+src/models/cli_link_input.rs
+src/models/cli_link_request.rs
 src/models/cli_session.rs
 src/models/cli_token.rs
 src/models/cli_token_request.rs

@@ -33,6 +33,8 @@ export type MfaChallenge = Schemas['MfaChallenge']
 export type SecurityStatus = Schemas['SecurityStatus']
 /** A sign-in of the terminal client the person approves in the browser (ADR-0029), with the account password. */
 export type CliApproval = Schemas['CliApproval']
+/** The request of the terminal client behind a short link, /cli/a/<code>, as the approval page shows it. */
+export type CliLinkRequest = Schemas['CliLinkRequest']
 /** A session of the terminal client of the account. */
 export type CliSession = Schemas['CliSession']
 /** The secret and address of an authenticator app being set up. */
@@ -214,6 +216,7 @@ export function createApi(transport: Transport) {
       disableTotp: (password: string) => transport.request<void>({ method: 'POST', path: `${root}/me/totp/disable`, body: { password } }),
       regenerateRecoveryCodes: (password: string) => transport.request<{ codes: string[] }>({ method: 'POST', path: `${root}/me/recovery-codes`, body: { password } }),
       approveCli: (approval: CliApproval) => transport.request<{ code: string }>({ method: 'POST', path: `${root}/cli/authorizations`, body: approval }),
+      cliLink: (code: string) => transport.request<CliLinkRequest>({ method: 'GET', path: `${root}/cli/links/${encodeURIComponent(code)}` }),
       cliSessions: () => transport.request<CliSession[]>({ method: 'GET', path: `${root}/me/sessions` }),
       revokeSession: (sessionId: string) => transport.request<void>({ method: 'DELETE', path: `${root}/me/sessions/${sessionId}` }),
       logout: () => transport.request<void>({ method: 'POST', path: `${root}/auth/logout` }),

@@ -5283,6 +5283,69 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /api/v1/cli/links:
+    post:
+      operationId: createCliLink
+      security: []
+      summary: Register a request of the terminal client under a short link
+      description: >-
+        The terminal client shows /cli/a/<code> instead of the long address of /cli/authorize, so it fits on one line and can be typed
+        on another device. The link expires in 10 minutes and grants nothing by itself. The request is checked as an approval checks
+        it. Rate limited per client address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliLinkInput"
+      responses:
+        "201":
+          description: The short link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliLink"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/cli/links/{code}:
+    get:
+      operationId: getCliLink
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      summary: The request of the terminal client behind a short link
+      description: Case, dashes and spaces of the code do not matter. An unknown or expired code is cli_link_not_found.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request, as /cli/authorize would read it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliLinkRequest"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /api/v1/me/sessions:
     get:
       operationId: listCliSessions
@@ -6827,6 +6890,55 @@ components:
         code:
           type: string
           description: Single-use code for the terminal client; valid for 5 minutes. Never share it.
+    CliLinkInput:
+      type: object
+      additionalProperties: false
+      required: [codeChallenge, clientName]
+      properties:
+        codeChallenge:
+          type: string
+          description: PKCE S256 challenge, base64url of the SHA-256 of the verifier without padding (43 characters).
+        redirectUri:
+          type: string
+          description: http://127.0.0.1:<port>/callback or http://[::1]:<port>/callback; left out or empty when the person pastes the code.
+        state:
+          type: string
+          description: Value the terminal client checks on its callback, up to 128 printable characters without spaces.
+        clientName:
+          type: string
+          description: Name the client declares, 1 to 64 printable characters.
+        clientHost:
+          type: string
+          description: Host name the client declares it runs on, up to 253 printable characters.
+    CliLink:
+      type: object
+      required: [code, path, expiresAt]
+      properties:
+        code:
+          type: string
+          description: The code, in two groups of four characters, such as K7P2-9QXM.
+        path:
+          type: string
+          description: Path of the approval page for the code on this server, such as /cli/a/K7P2-9QXM.
+        expiresAt:
+          type: string
+          format: date-time
+    CliLinkRequest:
+      type: object
+      required: [codeChallenge, clientName]
+      properties:
+        codeChallenge:
+          type: string
+        redirectUri:
+          type: string
+          description: Left out when the person pastes the code.
+        state:
+          type: string
+          description: Left out when the client sent none.
+        clientName:
+          type: string
+        clientHost:
+          type: string
     CliTokenRequest:
       type: object
       additionalProperties: false

@@ -95,27 +95,6 @@ pub fn field(
     }
 }
 
-/// How many rows an address takes at a width, with its label above it.
-#[must_use]
-pub fn address_rows(url: &str, width: u16) -> u16 {
-    let width = usize::from(width.max(1));
-    u16::try_from(url.chars().count().div_ceil(width) + 1).unwrap_or(u16::MAX)
-}
-
-/// A long address to copy with the mouse: its label, then the address cut at the width of the area, from its first column and with
-/// nothing around it, so a selection copies only the address and line breaks, which browsers drop when it is pasted.
-pub fn address(frame: &mut Frame, area: Rect, label: &str, url: &str, palette: &Palette) {
-    let width = usize::from(area.width.max(1));
-    let chars: Vec<char> = url.chars().collect();
-    let mut lines = vec![Line::from(label.to_owned()).fg(palette.muted)];
-    lines.extend(
-        chars
-            .chunks(width)
-            .map(|piece| Line::from(piece.iter().collect::<String>()).fg(palette.info)),
-    );
-    frame.render_widget(Paragraph::new(lines), area);
-}
-
 /// A popup over the screen: the area cleared, a focused panel with its title and its keys at the bottom; returns its inside.
 pub fn popup(frame: &mut Frame, area: Rect, title: &str, keys: &str, palette: &Palette) -> Rect {
     let block = panel(title, true, palette)

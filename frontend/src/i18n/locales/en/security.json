@@ -122,6 +122,7 @@
     "copied": "Copied",
     "deniedTitle": "Sign-in denied",
     "deniedBody": "The terminal was not signed in. You can close this page.",
+    "loading": "Loading the sign-in request…",
     "invalidTitle": "This sign-in link is not valid",
     "invalidBody": "Start the sign-in again from your terminal, and open the link it shows."
   },

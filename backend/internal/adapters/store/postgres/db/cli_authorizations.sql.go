@@ -12,12 +12,51 @@ import (
 	"github.com/google/uuid"
 )
 
+const cLILink = `-- name: CLILink :one
+SELECT code, code_challenge, redirect_uri, state, client_name, client_host, ip, created_at, expires_at
+FROM cli_links WHERE code = $1 AND expires_at > $2
+`
+
+type CLILinkParams struct {
+	Code string
+	Now  time.Time
+}
+
+func (q *Queries) CLILink(ctx context.Context, arg CLILinkParams) (CliLink, error) {
+	row := q.db.QueryRow(ctx, cLILink, arg.Code, arg.Now)
+	var i CliLink
+	err := row.Scan(
+		&i.Code,
+		&i.CodeChallenge,
+		&i.RedirectUri,
+		&i.State,
+		&i.ClientName,
+		&i.ClientHost,
+		&i.Ip,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
 const deleteExpiredCLIAuthorizations = `-- name: DeleteExpiredCLIAuthorizations :execrows
 DELETE FROM cli_authorizations WHERE expires_at <= $1
 `
 
 func (q *Queries) DeleteExpiredCLIAuthorizations(ctx context.Context, expiresAt time.Time) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredCLIAuthorizations, expiresAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredCLILinks = `-- name: DeleteExpiredCLILinks :execrows
+DELETE FROM cli_links WHERE expires_at <= $1
+`
+
+func (q *Queries) DeleteExpiredCLILinks(ctx context.Context, expiresAt time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredCLILinks, expiresAt)
 	if err != nil {
 		return 0, err
 	}
@@ -49,6 +88,38 @@ func (q *Queries) InsertCLIAuthorization(ctx context.Context, arg InsertCLIAutho
 		arg.CodeHash,
 		arg.CodeChallenge,
 		arg.RedirectUri,
+		arg.ClientName,
+		arg.ClientHost,
+		arg.Ip,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const insertCLILink = `-- name: InsertCLILink :exec
+INSERT INTO cli_links (code, code_challenge, redirect_uri, state, client_name, client_host, ip, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+type InsertCLILinkParams struct {
+	Code          string
+	CodeChallenge string
+	RedirectUri   string
+	State         string
+	ClientName    string
+	ClientHost    string
+	Ip            string
+	CreatedAt     time.Time
+	ExpiresAt     time.Time
+}
+
+func (q *Queries) InsertCLILink(ctx context.Context, arg InsertCLILinkParams) error {
+	_, err := q.db.Exec(ctx, insertCLILink,
+		arg.Code,
+		arg.CodeChallenge,
+		arg.RedirectUri,
+		arg.State,
 		arg.ClientName,
 		arg.ClientHost,
 		arg.Ip,

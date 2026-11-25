@@ -36,7 +36,10 @@ being an OAuth server:
 
 1. The client makes a PKCE verifier, its S256 challenge and a state, listens on `http://127.0.0.1:<free port>/callback` (or `[::1]`),
    and opens `/cli/authorize?code_challenge=…&code_challenge_method=S256&redirect_uri=…&state=…&client_name=…&client_host=…` in the
-   browser. Without a browser or a listener it leaves `redirect_uri` out and shows the address to open elsewhere.
+   browser. Without a browser or a listener it leaves `redirect_uri` out and shows the address to open elsewhere. The address shown
+   and opened is a short link: `POST /api/v1/cli/links` registers the same parameters for 10 minutes under 8 characters without
+   lookalikes, and `/cli/a/<code>` loads them (`GET /api/v1/cli/links/{code}`, with a session) into the same page. Servers
+   without it answer 404 and the client opens the full address.
 2. The page needs a browser session (it sends visitors to `/login?redirect=…` and back), shows what the client declares about itself,
    warns to approve only a sign-in the person started, and asks for the password again: a stolen cookie cannot mint a long session.
 3. `POST /api/v1/cli/authorizations` stores the SHA-256 of a 256-bit single-use code with the challenge, the redirect address and the

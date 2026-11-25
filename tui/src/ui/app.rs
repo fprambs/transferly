@@ -13,10 +13,10 @@ use super::home::{Ask, Home, Reply, Session};
 use super::input::Input;
 use super::look::Look;
 use super::theme::{ColorMode, Palette};
-use super::widgets::{address, address_rows, background, card, error_line, field, highlight};
+use super::widgets::{background, card, error_line, field, highlight};
 use crate::config::{self, Profile, Settings};
 use crate::i18n::{Language, Messages};
-use crate::login::{self, Answer, Pkce};
+use crate::login::{Answer, Pkce};
 
 /// Frames of the spinner that shows something is waiting.
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -45,6 +45,15 @@ pub enum Event {
     Probed(Result<(), String>),
     /// The listener on 127.0.0.1 started, with its redirect address, or could not.
     Listening(Result<String, String>),
+    /// The address of the approval page of a request: a short link, or the full address on an older server.
+    Shortened {
+        /// The state of the request.
+        state: String,
+        /// The redirect of the request, if it has one.
+        redirect: Option<String>,
+        /// The address.
+        url: String,
+    },
     /// The browser opened the approval page, or not.
     BrowserOpened(bool),
     /// The browser answered through the listener, or waiting failed.
@@ -84,6 +93,19 @@ pub enum Effect {
     },
     /// Stop the listener.
     StopListening,
+    /// Get the address of the approval page of a request, a short link when the server has them.
+    Shorten {
+        /// The server.
+        server: Url,
+        /// The PKCE challenge.
+        challenge: String,
+        /// The state the callback returns.
+        state: String,
+        /// The redirect to the listener, or none to paste the code.
+        redirect: Option<String>,
+        /// The name of this computer.
+        host: String,
+    },
     /// Open an address in the browser.
     OpenBrowser(String),
     /// Copy text to the clipboard of the terminal.
@@ -300,16 +322,49 @@ impl App {
     }
 
     /// Shows the screen to paste the code, with the approval address without a redirect.
-    fn show_paste(&mut self) {
-        let server = self.probed_server();
-        let url = login::authorize_url(&server, &self.pkce, None, &self.host).to_string();
+    fn show_paste(&mut self) -> Effect {
         self.redirect = None;
         self.screen = Screen::Paste {
-            url,
+            url: String::new(),
             input: Input::default(),
             exchanging: false,
             error: None,
         };
+        self.shorten()
+    }
+
+    /// Asks the server for the address of the approval page of the current request, short when it can be.
+    fn shorten(&self) -> Effect {
+        Effect::Shorten {
+            server: self.probed_server(),
+            challenge: self.pkce.challenge.clone(),
+            state: self.pkce.state.clone(),
+            redirect: self.redirect.clone(),
+            host: self.host.clone(),
+        }
+    }
+
+    /// The address of the approval page arrived: the screen of the same request shows it, and the approval opens it in the browser.
+    fn shortened(
+        &mut self,
+        state: &str,
+        redirect: Option<&String>,
+        address: String,
+    ) -> Vec<Effect> {
+        if state != self.pkce.state || redirect != self.redirect.as_ref() {
+            return Vec::new();
+        }
+        match &mut self.screen {
+            Screen::Approval { url, .. } => {
+                url.clone_from(&address);
+                vec![Effect::OpenBrowser(address)]
+            }
+            Screen::Paste { url, .. } => {
+                *url = address;
+                Vec::new()
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// The message of a failed sign-in.
@@ -352,6 +407,11 @@ impl App {
             }
             Event::Probed(outcome) => self.probed(outcome.is_ok()),
             Event::Listening(outcome) => self.listening(outcome),
+            Event::Shortened {
+                state,
+                redirect,
+                url,
+            } => self.shortened(&state, redirect.as_ref(), url),
             Event::BrowserOpened(opened) => {
                 match &mut self.screen {
                     Screen::Approval { opened: shown, .. } => *shown = opened,
@@ -471,31 +531,22 @@ impl App {
                 state: self.pkce.state.clone(),
             }];
         }
-        self.show_paste();
-        Vec::new()
+        vec![self.show_paste()]
     }
 
     /// The listener started, so the browser opens the approval page; without a listener the code is pasted.
     fn listening(&mut self, outcome: Result<String, String>) -> Vec<Effect> {
         let Ok(redirect) = outcome else {
-            self.show_paste();
-            return Vec::new();
+            return vec![self.show_paste()];
         };
-        let url = login::authorize_url(
-            &self.probed_server(),
-            &self.pkce,
-            Some(&redirect),
-            &self.host,
-        )
-        .to_string();
         self.redirect = Some(redirect);
         self.screen = Screen::Approval {
-            url: url.clone(),
+            url: String::new(),
             opened: false,
             notice: None,
             exchanging: false,
         };
-        vec![Effect::OpenBrowser(url)]
+        vec![self.shorten()]
     }
 
     /// The browser answered: an approval is exchanged, a denial or a failed wait goes back to the server.
@@ -590,15 +641,12 @@ impl App {
                 ..
             } => match key.code {
                 _ if *exchanging => Vec::new(),
-                KeyCode::Char('o') => vec![Effect::OpenBrowser(url.clone())],
-                KeyCode::Char('c') => {
+                KeyCode::Char('o') if !url.is_empty() => vec![Effect::OpenBrowser(url.clone())],
+                KeyCode::Char('c') if !url.is_empty() => {
                     *notice = Some(self.look.messages.get("approval.copied"));
                     vec![Effect::Copy(url.clone())]
                 }
-                KeyCode::Char('p') => {
-                    self.show_paste();
-                    vec![Effect::StopListening]
-                }
+                KeyCode::Char('p') => vec![Effect::StopListening, self.show_paste()],
                 KeyCode::Esc => {
                     self.back_to_server(None);
                     vec![Effect::StopListening]
@@ -686,22 +734,6 @@ impl App {
         )
     }
 
-    /// Draws an address across the bottom of the screen, to copy with the mouse, and returns the rest of the screen.
-    fn with_address(&self, frame: &mut Frame, url: &str, label: &str) -> ratatui::layout::Rect {
-        let area = frame.area();
-        let rows = address_rows(url, area.width);
-        let [rest, bottom] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(rows)]).areas(area);
-        address(
-            frame,
-            bottom,
-            &self.look.messages.get(label),
-            url,
-            &self.look.palette,
-        );
-        rest
-    }
-
     /// The frame of the spinner.
     fn spinner(&self) -> &'static str {
         SPINNER[self.spinner]
@@ -775,8 +807,7 @@ impl App {
         exchanging: bool,
     ) {
         let (m, palette) = (&self.look.messages, &self.look.palette);
-        let screen = self.with_address(frame, url, "approval.address");
-        let inside = self.card(frame, screen, "approval");
+        let inside = self.card(frame, frame.area(), "approval");
         let intro = m.fill(
             if opened {
                 "approval.opened"
@@ -792,6 +823,8 @@ impl App {
         });
         let mut lines = vec![
             Line::from(intro),
+            Line::default(),
+            Line::from(url.to_owned()).fg(palette.info).bold(),
             Line::default(),
             Line::from(format!("{} {waiting}", self.spinner())).bold(),
             Line::default(),
@@ -813,8 +846,7 @@ impl App {
         error: Option<&str>,
     ) {
         let (m, palette) = (&self.look.messages, &self.look.palette);
-        let screen = self.with_address(frame, url, "paste.address");
-        let inside = self.card(frame, screen, "paste");
+        let inside = self.card(frame, frame.area(), "paste");
         let [text, code, note] = Layout::vertical([
             Constraint::Length(6),
             Constraint::Length(3),
@@ -823,6 +855,7 @@ impl App {
         .areas(inside);
         let lines = vec![
             Line::from(m.get("paste.intro")),
+            Line::from(url.to_owned()).fg(palette.info).bold(),
             Line::from(m.get("paste.then")),
         ];
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), text);

@@ -1821,6 +1821,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cli/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a request of the terminal client under a short link
+         * @description The terminal client shows /cli/a/<code> instead of the long address of /cli/authorize, so it fits on one line and can be typed on another device. The link expires in 10 minutes and grants nothing by itself. The request is checked as an approval checks it. Rate limited per client address.
+         */
+        post: operations["createCliLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cli/links/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The request of the terminal client behind a short link
+         * @description Case, dashes and spaces of the code do not matter. An unknown or expired code is cli_link_not_found.
+         */
+        get: operations["getCliLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/sessions": {
         parameters: {
             query?: never;
@@ -2735,6 +2775,35 @@ export interface components {
         CliApprovalCode: {
             /** @description Single-use code for the terminal client; valid for 5 minutes. Never share it. */
             code: string;
+        };
+        CliLinkInput: {
+            /** @description PKCE S256 challenge, base64url of the SHA-256 of the verifier without padding (43 characters). */
+            codeChallenge: string;
+            /** @description http://127.0.0.1:<port>/callback or http://[::1]:<port>/callback; left out or empty when the person pastes the code. */
+            redirectUri?: string;
+            /** @description Value the terminal client checks on its callback, up to 128 printable characters without spaces. */
+            state?: string;
+            /** @description Name the client declares, 1 to 64 printable characters. */
+            clientName: string;
+            /** @description Host name the client declares it runs on, up to 253 printable characters. */
+            clientHost?: string;
+        };
+        CliLink: {
+            /** @description The code, in two groups of four characters, such as K7P2-9QXM. */
+            code: string;
+            /** @description Path of the approval page for the code on this server, such as /cli/a/K7P2-9QXM. */
+            path: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CliLinkRequest: {
+            codeChallenge: string;
+            /** @description Left out when the person pastes the code. */
+            redirectUri?: string;
+            /** @description Left out when the client sent none. */
+            state?: string;
+            clientName: string;
+            clientHost?: string;
         };
         CliTokenRequest: {
             code: string;
@@ -9900,6 +9969,80 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
+        };
+    };
+    createCliLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CliLinkInput"];
+            };
+        };
+        responses: {
+            /** @description The short link. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliLink"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getCliLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request, as /cli/authorize would read it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CliLinkRequest"];
+                };
+            };
+            /** @description An error. The stable code tells the client what happened. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listCliSessions: {

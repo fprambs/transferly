@@ -84,7 +84,7 @@ pub async fn login(ctx: &mut Context<'_>, server: &str, paste: bool) -> ExitCode
             Err(code) => return code,
         }
     } else {
-        let url = login::authorize_url(&origin, &pkce, None, &ctx.host);
+        let url = login::approval_url(&origin, &pkce, None, &ctx.host).await;
         say!(
             ctx,
             "Open this address on any device, sign in and approve:\n\n  {url}\n\nThen paste the code the page shows:"
@@ -138,7 +138,7 @@ async fn approve_in_browser(
         }
     };
     let redirect = listener.redirect_uri().to_owned();
-    let url = login::authorize_url(origin, pkce, Some(&redirect), &ctx.host);
+    let url = login::approval_url(origin, pkce, Some(&redirect), &ctx.host).await;
     say!(ctx, "Approve this sign-in in your browser:\n\n  {url}\n");
     if !(ctx.open_browser)(url.as_str()) {
         say!(ctx, "The browser did not open; open the address yourself.");

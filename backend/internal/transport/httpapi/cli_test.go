@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -199,6 +200,7 @@ func TestCLILimitsAndSwitch(t *testing.T) {
 	cookie, csrf = off.setup()
 	expectProblem(t, off.approveCli(cookie, csrf, approval(nil)), 403, "cli_login_disabled")
 	expectProblem(t, off.exchangeCli("any", cliVerifier), 403, "cli_login_disabled")
+	expectProblem(t, off.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(nil)}), 403, "cli_login_disabled")
 }
 
 // TestCLIFailures verifies that failures of the store are 500 problems without details.
@@ -211,9 +213,69 @@ func TestCLIFailures(t *testing.T) {
 		"exchange": b.exchangeCli("any", cliVerifier),
 		"list":     b.do(request{method: http.MethodGet, path: "/api/v1/me/sessions", cookie: cookie}),
 		"revoke":   b.do(request{method: http.MethodDelete, path: "/api/v1/me/sessions/" + uuid.NewString(), cookie: cookie, headers: map[string]string{"X-CSRF-Token": csrf}}),
+		"link":     b.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(nil)}),
+		"follow":   b.do(request{method: http.MethodGet, path: "/api/v1/cli/links/ABCD-EFGH", cookie: cookie}),
 	} {
 		if r.Status != http.StatusInternalServerError {
 			t.Errorf("%s with a failing store = %d %s, want 500", name, r.Status, r.Body)
 		}
 	}
+}
+
+// link is the body of a valid request for a short link with a loopback redirect and a state, changed by the given function.
+func link(change func(map[string]string)) map[string]string {
+	body := map[string]string{"codeChallenge": cliChallenge(), "redirectUri": cliRedirect, "state": "st", "clientName": "transferly-tui", "clientHost": "laptop"}
+	if change != nil {
+		change(body)
+	}
+	return body
+}
+
+// TestCLILinks verifies the short links to the approval page (ADR-0029).
+//
+// Scenarios:
+//   - anyone may register a request and gets its code in two groups of four and the path of the page, valid for 10 minutes
+//   - a malformed redirect or request is refused as an approval refuses it
+//   - reading the request needs a session; it is found whatever the case of the code, without a redirect or state when it had none,
+//     and an unknown code is cli_link_not_found
+//   - registering is limited per client address
+func TestCLILinks(t *testing.T) {
+	t.Parallel()
+	a := newAPI(t)
+	cookie, _ := a.setup()
+
+	made := a.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(nil)})
+	var created httpapi.CliLink
+	mustDecode(t, made.Body, &created)
+	if made.Status != http.StatusCreated || len(created.Code) != 9 || created.Code[4] != '-' || created.Path != "/cli/a/"+created.Code ||
+		!created.ExpiresAt.Equal(a.clock.Now().Add(10*time.Minute)) {
+		t.Fatalf("create = %d %s", made.Status, made.Body)
+	}
+	expectProblem(t, a.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(func(b map[string]string) { b["redirectUri"] = "http://localhost/callback" })}), 400, "invalid_redirect")
+	expectProblem(t, a.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(func(b map[string]string) { b["state"] = "a b" })}), 400, "invalid_cli_request")
+
+	path := "/api/v1/cli/links/" + strings.ToLower(created.Code)
+	expectProblem(t, a.do(request{method: http.MethodGet, path: path}), 401, "unauthenticated")
+	got := a.do(request{method: http.MethodGet, path: path, cookie: cookie})
+	var shown httpapi.CliLinkRequest
+	mustDecode(t, got.Body, &shown)
+	if got.Status != http.StatusOK || shown.ClientHost == nil || shown.RedirectUri == nil || shown.State == nil || shown.CodeChallenge != cliChallenge() || shown.ClientName != "transferly-tui" ||
+		*shown.ClientHost != "laptop" || *shown.RedirectUri != cliRedirect || *shown.State != "st" {
+		t.Errorf("read = %d %s", got.Status, got.Body)
+	}
+	pasted := a.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(func(b map[string]string) { delete(b, "redirectUri"); delete(b, "state"); delete(b, "clientHost") })})
+	mustDecode(t, pasted.Body, &created)
+	got = a.do(request{method: http.MethodGet, path: "/api/v1/cli/links/" + created.Code, cookie: cookie})
+	shown = httpapi.CliLinkRequest{}
+	mustDecode(t, got.Body, &shown)
+	if shown.RedirectUri != nil || shown.State != nil || shown.ClientHost != nil {
+		t.Errorf("read without redirect = %s, want them left out", got.Body)
+	}
+	expectProblem(t, a.do(request{method: http.MethodGet, path: "/api/v1/cli/links/ABCD-EFGH", cookie: cookie}), 404, "cli_link_not_found")
+
+	var last reply
+	for range 6 {
+		last = a.do(request{method: http.MethodPost, path: "/api/v1/cli/links", body: link(nil)})
+	}
+	expectProblem(t, last, 429, "rate_limited")
 }

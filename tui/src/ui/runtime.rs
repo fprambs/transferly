@@ -18,7 +18,7 @@ use super::home::{Call, CallError, Reply, Session};
 use crate::api::Api;
 use crate::api::ApiError;
 use crate::config::Config;
-use crate::login::Listener;
+use crate::login::{self, Listener, Pkce};
 use crate::secrets::TokenStore;
 
 /// The events of the terminal, or of a test, the loop reads.
@@ -95,6 +95,32 @@ pub async fn run(
                     });
                 }
                 Effect::Copy(text) => (ports.copy)(&text),
+                Effect::Shorten {
+                    server,
+                    challenge,
+                    state,
+                    redirect,
+                    host,
+                } => {
+                    let results = results.clone();
+                    tokio::spawn(async move {
+                        let pkce = Pkce {
+                            verifier: String::new(),
+                            challenge,
+                            state: state.clone(),
+                        };
+                        let url = login::approval_url(&server, &pkce, redirect.as_deref(), &host)
+                            .await
+                            .to_string();
+                        let _ = results
+                            .send(Event::Shortened {
+                                state,
+                                redirect,
+                                url,
+                            })
+                            .await;
+                    });
+                }
                 Effect::Exchange {
                     server,
                     code,

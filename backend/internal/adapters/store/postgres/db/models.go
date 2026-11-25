@@ -48,6 +48,18 @@ type CliAuthorization struct {
 	UsedAt        *time.Time
 }
 
+type CliLink struct {
+	Code          string
+	CodeChallenge string
+	RedirectUri   string
+	State         string
+	ClientName    string
+	ClientHost    string
+	Ip            string
+	CreatedAt     time.Time
+	ExpiresAt     time.Time
+}
+
 type ConnectorSetting struct {
 	Type      string
 	Enabled   bool

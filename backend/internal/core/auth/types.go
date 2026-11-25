@@ -236,4 +236,27 @@ type CLIAuthorizationStore interface {
 	UseCLIAuthorization(ctx context.Context, codeHash []byte, at time.Time) (CLIAuthorization, error)
 	// DeleteExpiredCLIAuthorizations removes approvals that expired at or before now, returning the count.
 	DeleteExpiredCLIAuthorizations(ctx context.Context, now time.Time) (int, error)
+	// CreateCLILink stores a short link to a request.
+	CreateCLILink(ctx context.Context, l CLILink) error
+	// CLILink returns the link with the given code while it has not expired at now; an unknown or expired one is [ErrNotFound].
+	CLILink(ctx context.Context, code string, now time.Time) (CLILink, error)
+	// DeleteExpiredCLILinks removes links that expired at or before now, returning the count.
+	DeleteExpiredCLILinks(ctx context.Context, now time.Time) (int, error)
+}
+
+// CLILink is a short link to the approval page for a request of the terminal client (ADR-0029): /cli/a/<code> fits on one line of a
+// terminal and can be typed on another device. It grants nothing by itself: the page still needs a browser session and the password.
+type CLILink struct {
+	// Code is the 8 characters of the link, without the dash it is shown with.
+	Code string
+	// Request is what the terminal client asks for.
+	Request CLIRequest
+	// State is the value the terminal client checks on its callback.
+	State string
+	// IP is the address of the client that registered it.
+	IP string
+	// CreatedAt is when it was registered, in UTC.
+	CreatedAt time.Time
+	// ExpiresAt is when it stops opening the page, in UTC.
+	ExpiresAt time.Time
 }

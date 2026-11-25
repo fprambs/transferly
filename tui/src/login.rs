@@ -12,6 +12,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use url::Url;
 
+use crate::api::Api;
+
 /// Name the client gives itself on the approval page.
 pub const CLIENT_NAME: &str = "transferly-tui";
 
@@ -79,6 +81,18 @@ pub fn authorize_url(server: &Url, pkce: &Pkce, redirect_uri: Option<&str>, host
         }
     }
     url
+}
+
+/// The address of the approval page: a short link the server registers, /cli/a/<code>, or the full address of /cli/authorize on a
+/// server without short links or that refuses one. A link that would leave the server is not used.
+pub async fn approval_url(server: &Url, pkce: &Pkce, redirect: Option<&str>, host: &str) -> Url {
+    let link = Api::new(server.clone())
+        .link(&pkce.challenge, &pkce.state, redirect, CLIENT_NAME, host)
+        .await;
+    link.ok()
+        .and_then(|link| server.join(&link.path).ok())
+        .filter(|url| url.origin() == server.origin())
+        .unwrap_or_else(|| authorize_url(server, pkce, redirect, host))
 }
 
 /// What the browser handed back.
@@ -377,5 +391,51 @@ mod tests {
             !cfg!(all(unix, not(target_os = "macos")))
         );
         assert_ne!(host_name(), "");
+    }
+
+    /// The approval page is the short link the server registers for the request; a server without short links, or one that answers a
+    /// link off its own origin, gets the full address of /cli/authorize instead.
+    #[tokio::test]
+    async fn prefers_short_links() {
+        use wiremock::matchers::{body_partial_json, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let pkce = Pkce::new();
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/cli/links"))
+            .and(body_partial_json(serde_json::json!({"codeChallenge": pkce.challenge, "state": pkce.state, "redirectUri": "http://127.0.0.1:5/callback", "clientName": CLIENT_NAME, "clientHost": "laptop"})))
+            .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({"code": "K7P2-9QXM", "path": "/cli/a/K7P2-9QXM", "expiresAt": "2026-11-25T00:10:00Z"})))
+            .mount(&server)
+            .await;
+        let origin = Url::parse(&server.uri()).expect("url");
+        let short = approval_url(
+            &origin,
+            &pkce,
+            Some("http://127.0.0.1:5/callback"),
+            "laptop",
+        )
+        .await;
+        assert_eq!(short.as_str(), format!("{}/cli/a/K7P2-9QXM", server.uri()));
+
+        let old = approval_url(&origin, &pkce, None, "laptop").await;
+        assert_eq!(
+            old,
+            authorize_url(&origin, &pkce, None, "laptop"),
+            "no link for this request: the full address"
+        );
+
+        let leaving = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({"code": "X", "path": "https://evil.example.com/x", "expiresAt": "2026-11-25T00:10:00Z"})))
+            .mount(&leaving)
+            .await;
+        let origin = Url::parse(&leaving.uri()).expect("url");
+        assert!(
+            approval_url(&origin, &pkce, None, "laptop")
+                .await
+                .as_str()
+                .contains("/cli/authorize?")
+        );
     }
 }

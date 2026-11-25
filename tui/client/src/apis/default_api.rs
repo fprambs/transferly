@@ -174,6 +174,16 @@ pub enum CreateBookmarkError {
     UnknownValue(serde_json::Value),
 }
 
+/// struct for typed errors of method [`create_cli_link`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CreateCliLinkError {
+    Status400(models::Problem),
+    Status403(models::Problem),
+    Status429(models::Problem),
+    UnknownValue(serde_json::Value),
+}
+
 /// struct for typed errors of method [`create_collection`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -467,6 +477,14 @@ pub enum GetChecksumError {
     Status409(models::Problem),
     Status422(models::Problem),
     Status502(models::Problem),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`get_cli_link`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetCliLinkError {
+    Status404(models::Problem),
     UnknownValue(serde_json::Value),
 }
 
@@ -1843,6 +1861,44 @@ pub async fn create_bookmark(configuration: &configuration::Configuration, works
     }
 }
 
+/// The terminal client shows /cli/a/<code> instead of the long address of /cli/authorize, so it fits on one line and can be typed on another device. The link expires in 10 minutes and grants nothing by itself. The request is checked as an approval checks it. Rate limited per client address.
+pub async fn create_cli_link(configuration: &configuration::Configuration, cli_link_input: models::CliLinkInput) -> Result<models::CliLink, Error<CreateCliLinkError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_body_cli_link_input = cli_link_input;
+
+    let uri_str = format!("{}/api/v1/cli/links", configuration.base_path);
+    let mut req_builder = configuration.client.request(reqwest::Method::POST, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    req_builder = req_builder.json(&p_body_cli_link_input);
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::CliLink`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::CliLink`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<CreateCliLinkError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
 /// At the top level, or inside another collection. Collections nest up to eight levels.
 pub async fn create_collection(configuration: &configuration::Configuration, workspace_id: &str, collection_input: models::CollectionInput, x_csrf_token: Option<&str>) -> Result<models::Collection, Error<CreateCollectionError>> {
     // add a prefix to parameters to efficiently prevent name collisions
@@ -2807,6 +2863,46 @@ pub async fn get_checksum(configuration: &configuration::Configuration, workspac
     } else {
         let content = resp.text().await?;
         let entity: Option<GetChecksumError> = serde_json::from_str(&content).ok();
+        Err(Error::ResponseError(ResponseContent { status, content, entity }))
+    }
+}
+
+/// Case, dashes and spaces of the code do not matter. An unknown or expired code is cli_link_not_found.
+pub async fn get_cli_link(configuration: &configuration::Configuration, code: &str) -> Result<models::CliLinkRequest, Error<GetCliLinkError>> {
+    // add a prefix to parameters to efficiently prevent name collisions
+    let p_path_code = code;
+
+    let uri_str = format!("{}/api/v1/cli/links/{code}", configuration.base_path, code=crate::apis::urlencode(p_path_code));
+    let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
+
+    if let Some(ref user_agent) = configuration.user_agent {
+        req_builder = req_builder.header(reqwest::header::USER_AGENT, user_agent.clone());
+    }
+    if let Some(ref token) = configuration.bearer_access_token {
+        req_builder = req_builder.bearer_auth(token.to_owned());
+    };
+
+    let req = req_builder.build()?;
+    let resp = configuration.client.execute(req).await?;
+
+    let status = resp.status();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream");
+    let content_type = super::ContentType::from(content_type);
+
+    if !status.is_client_error() && !status.is_server_error() {
+        let content = resp.text().await?;
+        match content_type {
+            ContentType::Json => serde_json::from_str(&content).map_err(Error::from),
+            ContentType::Text => return Err(Error::from(serde_json::Error::custom("Received `text/plain` content type response that cannot be converted to `models::CliLinkRequest`"))),
+            ContentType::Unsupported(unknown_type) => return Err(Error::from(serde_json::Error::custom(format!("Received `{unknown_type}` content type response that cannot be converted to `models::CliLinkRequest`")))),
+        }
+    } else {
+        let content = resp.text().await?;
+        let entity: Option<GetCliLinkError> = serde_json::from_str(&content).ok();
         Err(Error::ResponseError(ResponseContent { status, content, entity }))
     }
 }

@@ -104,6 +104,7 @@ describe('createApi', () => {
       path: '/api/v1/cli/authorizations',
       body: { codeChallenge: 'c', clientName: 'transferly-tui', password: 'pw' },
     },
+    { name: 'auth.cliLink', call: (a) => a.auth.cliLink('K7P2-9QXM'), method: 'GET', path: '/api/v1/cli/links/K7P2-9QXM' },
     { name: 'auth.cliSessions', call: (a) => a.auth.cliSessions(), method: 'GET', path: '/api/v1/me/sessions' },
     { name: 'auth.revokeSession', call: (a) => a.auth.revokeSession('s1'), method: 'DELETE', path: '/api/v1/me/sessions/s1' },
     { name: 'auth.me', call: (a) => a.auth.me(), method: 'GET', path: '/api/v1/me' },

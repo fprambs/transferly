@@ -257,6 +257,10 @@
       "cause": "The request carried both the session cookie and a bearer token, and the server accepts only one.",
       "next": "Send the bearer token alone from the terminal client, or sign in again in the browser."
     },
+    "cli_link_not_found": {
+      "cause": "The sign-in link is wrong or expired; links last 10 minutes.",
+      "next": "Start the sign-in again from the terminal and open the link it shows."
+    },
     "cli_login_disabled": {
       "cause": "Signing in from the terminal client is turned off on this server.",
       "next": "Ask the administrator of the server to turn it on (TRANSFERLY_CLI_LOGIN)."

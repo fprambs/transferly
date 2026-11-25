@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { adminSession, mockSession, mockSetupRequired, mockWorkspaceData, problem } from '@/test/handlers'
@@ -43,6 +43,8 @@ function mockApproval(reply: () => Response): unknown[] {
  * - a wrong password explains itself, with the guidance of its code, and clears the field
  * - denying sends the refusal back to the terminal, or says the terminal was not signed in when there is nowhere to send it
  * - a visitor signs in first and comes back to the same request; the page speaks Spanish
+ * - a short link loads its request from the server and is approved the same way; an unknown or expired one is not valid, and a visitor
+ *   signs in first
  */
 describe('CliAuthorizePage', () => {
   beforeEach(() => {
@@ -150,5 +152,44 @@ describe('CliAuthorizePage', () => {
     await renderApp({ path: page(), language: 'es' })
     expect(await screen.findByRole('heading', { name: '¿Iniciar sesión desde la terminal?' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Aprobar' })).toBeInTheDocument()
+  })
+
+  it('loads the request of a short link and hands the code back to the terminal', async () => {
+    let asked = ''
+    server.use(
+      http.get('/api/v1/cli/links/:code', async ({ params }) => {
+        asked = String(params.code)
+        await delay(100)
+        return HttpResponse.json({ codeChallenge: challenge, redirectUri: 'http://127.0.0.1:49152/callback', state: 'st', clientName: 'transferly-tui', clientHost: 'laptop' })
+      }),
+    )
+    const received = mockApproval(() => HttpResponse.json({ code: 'the-code' }, { status: 201 }))
+    const user = userEvent.setup()
+    await renderApp({ path: '/cli/a/K7P2-9QXM' })
+
+    expect(await screen.findByRole('heading', { name: 'Loading the sign-in request…' })).toBeInTheDocument()
+    expect(await screen.findByText(`transferly-tui on laptop asks to use your account ${adminSession.user.email}.`)).toBeInTheDocument()
+    expect(asked).toBe('K7P2-9QXM')
+    await user.type(screen.getByLabelText('Your password'), 'correct horse battery')
+    await user.click(screen.getByRole('button', { name: 'Approve' }))
+    await screen.findByText('Going back to your terminal. You can close this page.')
+    expect(received).toEqual([
+      { codeChallenge: challenge, redirectUri: 'http://127.0.0.1:49152/callback', clientName: 'transferly-tui', clientHost: 'laptop', password: 'correct horse battery' },
+    ])
+    expect(leaveTo).toHaveBeenCalledWith('http://127.0.0.1:49152/callback?code=the-code&state=st')
+  })
+
+  it('says an unknown or expired short link is not valid', async () => {
+    server.use(http.get('/api/v1/cli/links/:code', () => problem(404, 'cli_link_not_found')))
+    await renderApp({ path: '/cli/a/ABCD-EFGH' })
+    expect(await screen.findByRole('heading', { name: 'This sign-in link is not valid' })).toBeInTheDocument()
+  })
+
+  it('sends a visitor of a short link to sign in first', async () => {
+    mockSession(null)
+    mockSetupRequired(false)
+    const { history } = await renderApp({ path: '/cli/a/K7P2-9QXM' })
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(history.location.href).toContain(encodeURIComponent('/cli/a/K7P2-9QXM'))
   })
 })

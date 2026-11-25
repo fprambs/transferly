@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,6 +18,9 @@ import { callbackUrl, isWellFormed, leaveTo, type CliAuthorizeRequest } from './
 
 /** The route of the page, to read its search parameters. */
 const route = getRouteApi('/cli/authorize')
+
+/** The route of a short link, to read its code. */
+const linkRoute = getRouteApi('/cli/a/$code')
 
 /** What the page shows once the person decided. */
 type Outcome = { kind: 'deciding' } | { kind: 'returning' } | { kind: 'code'; code: string } | { kind: 'denied' }
@@ -169,14 +173,39 @@ function Approval({ request }: { request: CliAuthorizeRequest }) {
  * password again, and hands the single-use code back to the terminal through its loopback address, or shows it to paste.
  */
 export function CliAuthorizePage() {
+  return <Checked request={route.useSearch()} />
+}
+
+/**
+ * The approval page of a short link, /cli/a/<code>, which the terminal shows because it fits on one line and can be typed on another
+ * device: the request is loaded from the server and shown as /cli/authorize shows it. An unknown or expired link is not valid.
+ */
+export function CliLinkPage() {
   const { t } = useTranslation('security')
-  const request = route.useSearch()
-  if (!isWellFormed(request)) {
-    return (
-      <Card title={t(($) => $.cli.invalidTitle)}>
-        <p className="text-sm text-muted-foreground">{t(($) => $.cli.invalidBody)}</p>
-      </Card>
-    )
+  const api = useApi()
+  const { code } = linkRoute.useParams()
+  const link = useQuery({ queryKey: ['cli-link', code], queryFn: () => api.auth.cliLink(code), retry: false, staleTime: Infinity })
+  if (link.isPending) {
+    return <Card title={t(($) => $.cli.loading)} />
   }
-  return <Approval request={request} />
+  if (link.isError) {
+    return <Invalid />
+  }
+  const { codeChallenge, redirectUri, state, clientName, clientHost } = link.data
+  return <Checked request={{ code_challenge: codeChallenge, redirect_uri: redirectUri, state, client_name: clientName, client_host: clientHost }} />
+}
+
+/** A request that is well formed is shown to approve; any other says the link is not valid. */
+function Checked({ request }: { request: CliAuthorizeRequest }) {
+  return isWellFormed(request) ? <Approval request={request} /> : <Invalid />
+}
+
+/** Says the sign-in link is not valid and how to get a new one. */
+function Invalid() {
+  const { t } = useTranslation('security')
+  return (
+    <Card title={t(($) => $.cli.invalidTitle)}>
+      <p className="text-sm text-muted-foreground">{t(($) => $.cli.invalidBody)}</p>
+    </Card>
+  )
 }

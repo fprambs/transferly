@@ -47,6 +47,12 @@ flow most exposed to phishing. Native apps are better served by the authorizatio
      `invalid_grant`.
    - Redirect addresses are only `http://127.0.0.1:<port>/callback` and `http://[::1]:<port>/callback`, any port, or none for the
      code to paste.
+   - **Short links** (added on 2026-11-25): the address of `/cli/authorize` is about 200 characters, which wraps inside the
+     interface, breaks when copied with the mouse and cannot be typed on a phone. The client first registers its request with
+     `POST /api/v1/cli/links` (anonymous, rate limited, checked as an approval checks it) and shows `<server>/cli/a/K7P2-9QXM`:
+     8 characters without lookalikes, stored in `cli_links` for 10 minutes. The code points to a request and grants nothing: the
+     page loads it with `GET /api/v1/cli/links/{code}`, which needs a session, and approving still asks for the password. A
+     server without short links answers 404 and the client falls back to the full address; a link off the server is not used.
 3. **The token is a session of kind `cli`** in `user_sessions` (new column `kind`, `browser` by default, and the name and host the
    client declared). It reuses everything a session has: per-session vault key ring (ADR-0004, ADR-0028), revocation, the end of
    every session when an administrator disables the account, and the events stream. A code approved before the account was

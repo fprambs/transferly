@@ -16,8 +16,11 @@ const baseURL = process.env.TRANSFERLY_E2E_URL as string
 
 /** What the terminal client keeps while the person approves it: its PKCE verifier and challenge, and its state. */
 interface Pkce {
+  /** The secret sent only with the exchange. */
   verifier: string
+  /** The S256 challenge of the verifier, sent to the approval page. */
   challenge: string
+  /** The value the callback must return unchanged. */
   state: string
 }
 

@@ -34,3 +34,29 @@ func (s *Store) DeleteExpiredCLIAuthorizations(ctx context.Context, now time.Tim
 	n, err := s.queries.DeleteExpiredCLIAuthorizations(ctx, now)
 	return int(n), err
 }
+
+// CreateCLILink implements [auth.CLIAuthorizationStore].
+func (s *Store) CreateCLILink(ctx context.Context, l auth.CLILink) error {
+	return s.queries.InsertCLILink(ctx, db.InsertCLILinkParams{
+		Code: l.Code, CodeChallenge: l.Request.CodeChallenge, RedirectUri: l.Request.RedirectURI, State: l.State,
+		ClientName: l.Request.ClientName, ClientHost: l.Request.ClientHost, Ip: l.IP, CreatedAt: l.CreatedAt, ExpiresAt: l.ExpiresAt,
+	})
+}
+
+// CLILink implements [auth.CLIAuthorizationStore].
+func (s *Store) CLILink(ctx context.Context, code string, now time.Time) (auth.CLILink, error) {
+	r, err := s.queries.CLILink(ctx, db.CLILinkParams{Code: code, Now: now})
+	if err != nil {
+		return auth.CLILink{}, notFound(err)
+	}
+	return auth.CLILink{
+		Code: r.Code, State: r.State, IP: r.Ip, CreatedAt: r.CreatedAt.UTC(), ExpiresAt: r.ExpiresAt.UTC(),
+		Request: auth.CLIRequest{CodeChallenge: r.CodeChallenge, RedirectURI: r.RedirectUri, ClientName: r.ClientName, ClientHost: r.ClientHost},
+	}, nil
+}
+
+// DeleteExpiredCLILinks implements [auth.CLIAuthorizationStore].
+func (s *Store) DeleteExpiredCLILinks(ctx context.Context, now time.Time) (int, error) {
+	n, err := s.queries.DeleteExpiredCLILinks(ctx, now)
+	return int(n), err
+}
