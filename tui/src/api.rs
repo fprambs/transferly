@@ -10,7 +10,7 @@ use transferly_client::models::host_key_input::Mode;
 use transferly_client::models::{
     CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, HomeFolder, HostKeyInput,
     MasterPasswordRequest, PathInput, Preferences, Problem, RemoteEntry, RenameInput, SessionInfo,
-    SetupStatus, Site, User, VaultStatus, Version, Workspace,
+    SetupStatus, Site, SiteCredentialRequest, User, VaultStatus, Version, Workspace,
 };
 use url::Url;
 
@@ -424,6 +424,25 @@ impl Api {
         .await
     }
 
+    /// Gives the password of a site that asks for it when connecting, held by the server in memory for this session only.
+    ///
+    /// # Errors
+    ///
+    /// The site does not ask for a password, or the server cannot be reached.
+    pub async fn set_credential(
+        &self,
+        workspace: &str,
+        site: &str,
+        password: &str,
+    ) -> Result<(), ApiError> {
+        let body = SiteCredentialRequest::new(password.to_owned(), false);
+        Self::empty(
+            self.request(Method::PUT, &Self::files(workspace, site, "credential"))
+                .json(&body),
+        )
+        .await
+    }
+
     /// Closes the connections of this session to a site.
     ///
     /// # Errors
@@ -726,6 +745,15 @@ mod tests {
         api.trust_key("w", &key(Some(TrustMode::Replace)))
             .await
             .expect("replaced");
+        Mock::given(method("PUT"))
+            .and(path(format!("{base}/credential")))
+            .and(body_json(
+                serde_json::json!({"password": "p", "remember": false}),
+            ))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        api.set_credential("w", "s", "p").await.expect("given");
         let refused = api.trust_key("w", &key(None)).await.expect_err("changed");
         assert_eq!(refused.params()["trusted"], serde_json::json!(["old"]));
         assert!(ApiError::Unexpected("x".to_owned()).params().is_empty());

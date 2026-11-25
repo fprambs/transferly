@@ -781,6 +781,11 @@ fn shows_help_and_quits() {
     );
     assert_eq!(home.key(key(KeyCode::F(10)), &mut look), vec![Ask::Quit]);
     home.say("kept".to_owned(), false);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.paste("ignored by a panel that is not typing");
+    home.key(key(KeyCode::Char('?')), &mut look);
+    home.paste("ignored by the help");
+    home.key(key(KeyCode::Esc), &mut look);
     assert!(draw(&home, &look, 120, 30).contains("kept"));
     home.paste("nowhere");
 }
@@ -1226,6 +1231,83 @@ fn trusts_server_keys() {
         home.overlay().is_none(),
         "the local disk has no keys to trust"
     );
+}
+
+/// A site that asks for its password when connecting shows a hidden field; Enter gives it to the server and the panel tries again,
+/// an empty field waits, Esc gives up, and a refusal is said in the panel.
+#[test]
+fn asks_for_passwords() {
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Err(refused("credentials_required")),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 120, 30).contains("Password of home-nas"));
+    nothing(
+        &home.key(key(KeyCode::Enter), &mut look),
+        "an empty password",
+    );
+    home.paste("se");
+    type_text(&mut home, &mut look, "cret");
+    assert!(draw(&home, &look, 120, 30).contains("••••••"));
+    let given = home.key(key(KeyCode::Enter), &mut look);
+    assert_eq!(
+        given,
+        vec![Ask::Call(Call::Credential {
+            workspace: id(1),
+            site: id(22),
+            side: Side::Right,
+            password: "secret".to_owned()
+        })]
+    );
+    let again = home.reply(
+        Reply::Credentialed {
+            side: Side::Right,
+            outcome: Ok(()),
+        },
+        &mut look,
+    );
+    assert_eq!(
+        again,
+        vec![Ask::Call(Call::Files {
+            workspace: id(1),
+            site: id(22),
+            side: Side::Right,
+            op: Op::Home
+        })]
+    );
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Err(refused("credentials_required")),
+        },
+        &mut look,
+    );
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    assert!(home.overlay().is_none());
+    home.reply(
+        Reply::Credentialed {
+            side: Side::Right,
+            outcome: Err(refused("auth_failed")),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 120, 30).contains("The server refused"));
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/".to_owned(),
+            outcome: Err(refused("credentials_required")),
+        },
+        &mut look,
+    );
+    assert!(home.overlay().is_none(), "the local disk asks for nothing");
 }
 
 /// The interface around the main screen: a kept session starts on it, its replies reach it, and what it asks becomes effects; signing

@@ -176,7 +176,8 @@
     "connection_failed": "No se pudo llegar al servidor.",
     "auth_failed": "El servidor rechazó las credenciales del sitio.",
     "forbidden": "Tu rol en este workspace no lo permite.",
-    "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo."
+    "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+    "credentials_required": "Este sitio pide su contraseña."
   },
   "hostKey": {
     "title": "¿Confiar en este servidor?",
@@ -190,5 +191,11 @@
     "check": "Pide la huella al administrador del servidor, o compárala con la de la web.",
     "keys": "y confiar · n cancelar",
     "changedKeys": "a confiar también · r reemplazar · Esc cancelar"
+  },
+  "password": {
+    "title": "Contraseña de {site}",
+    "intro": "Este sitio pide su contraseña al conectar. Se guarda en memoria solo durante esta sesión.",
+    "field": "Contraseña",
+    "keys": "Enter conectar · Esc cancelar"
   }
 }

@@ -89,6 +89,17 @@ pub enum Call {
         /// The new theme, if it changes.
         theme: Option<String>,
     },
+    /// Give the password of a site that asks for it, and try the panel again.
+    Credential {
+        /// The workspace of the site.
+        workspace: Uuid,
+        /// The site.
+        site: Uuid,
+        /// The panel to try again.
+        side: Side,
+        /// The password.
+        password: String,
+    },
     /// Trust the key of a server and try the panel again.
     Trust {
         /// The workspace of the site.
@@ -168,6 +179,13 @@ pub enum Reply {
         path: String,
         /// Its entries.
         outcome: Result<Vec<Entry>, CallError>,
+    },
+    /// The password of a site was given, or why not.
+    Credentialed {
+        /// The panel to try again.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
     },
     /// The key of a server was trusted, or why not.
     Trusted {
@@ -259,6 +277,17 @@ pub enum Overlay {
     },
     /// Every key of the screen.
     Help,
+    /// The password of a site that asks for it when connecting.
+    Password {
+        /// The panel that connects.
+        side: Side,
+        /// The site.
+        site: Uuid,
+        /// Its name.
+        name: String,
+        /// The password being typed.
+        input: Input,
+    },
     /// The key of a server to trust, the first time or because it changed.
     HostKey {
         /// The panel that connects.
@@ -444,10 +473,18 @@ impl Home {
 
     /// Puts pasted text into the field being typed in: the command line or the master password.
     pub fn paste(&mut self, text: &str) {
-        if let Some(Overlay::Commands { input, .. } | Overlay::Vault { input, .. }) =
-            &mut self.overlay
-        {
-            input.insert(text);
+        match &mut self.overlay {
+            Some(
+                Overlay::Commands { input, .. }
+                | Overlay::Vault { input, .. }
+                | Overlay::Password { input, .. },
+            ) => input.insert(text),
+            Some(_) => {}
+            None => {
+                if let Some(side) = self.focused_side() {
+                    self.panel_mut(side).paste(text);
+                }
+            }
         }
     }
 
@@ -503,7 +540,7 @@ impl Home {
                 self.panel_mut(side).listed(&path, outcome);
                 asks
             }
-            Reply::Trusted { side, outcome } => {
+            Reply::Trusted { side, outcome } | Reply::Credentialed { side, outcome } => {
                 let (outcome, mut asks) = self.file_outcome(side, outcome, look);
                 let more = match outcome {
                     Ok(()) => self.panel_mut(side).retry(),
@@ -664,6 +701,18 @@ impl Home {
                 self.last = side;
                 self.ask_vault(site);
                 (m.get("errors.vault_locked"), Vec::new())
+            }
+            Some("credentials_required") => {
+                let site = self.panel(side).source().and_then(Source::site);
+                if let Some(site) = self.sites.iter().find(|known| Some(known.id) == site) {
+                    self.overlay = Some(Overlay::Password {
+                        side,
+                        site: site.id,
+                        name: site.name.clone(),
+                        input: Input::default(),
+                    });
+                }
+                (explain(error, look), Vec::new())
             }
             Some(code @ ("host_key_unknown" | "host_key_changed")) => {
                 self.ask_trust(side, error, code == "host_key_changed");
@@ -941,38 +990,44 @@ impl Home {
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
             Overlay::Help => Vec::new(),
+            Overlay::Password {
+                side,
+                site,
+                name,
+                mut input,
+            } => match key.code {
+                KeyCode::Esc => Vec::new(),
+                KeyCode::Enter if !input.value().is_empty() => {
+                    let password = input.value().to_owned();
+                    self.workspace
+                        .map(|workspace| {
+                            Ask::Call(Call::Credential {
+                                workspace,
+                                site,
+                                side,
+                                password,
+                            })
+                        })
+                        .into_iter()
+                        .collect()
+                }
+                _ => {
+                    input.handle(key);
+                    self.overlay = Some(Overlay::Password {
+                        side,
+                        site,
+                        name,
+                        input,
+                    });
+                    Vec::new()
+                }
+            },
             Overlay::HostKey {
                 side,
                 site,
-                key: mut shown,
+                key: shown,
                 trusted,
-            } => {
-                shown.mode = match (key.code, &trusted) {
-                    (KeyCode::Char('y') | KeyCode::Enter, None) => None,
-                    (KeyCode::Char('a'), Some(_)) => Some(TrustMode::Add),
-                    (KeyCode::Char('r'), Some(_)) => Some(TrustMode::Replace),
-                    (KeyCode::Char('n') | KeyCode::Esc, _) => return Vec::new(),
-                    _ => {
-                        self.overlay = Some(Overlay::HostKey {
-                            side,
-                            site,
-                            key: shown,
-                            trusted,
-                        });
-                        return Vec::new();
-                    }
-                };
-                self.workspace
-                    .map(|workspace| {
-                        Ask::Call(Call::Trust {
-                            workspace,
-                            side,
-                            key: shown,
-                        })
-                    })
-                    .into_iter()
-                    .collect()
-            }
+            } => self.host_key_key(key, side, site, shown, trusted),
             Overlay::Commands { input, selected } => self.commands_key(key, input, selected, look),
             Overlay::Settings { selected } => self.settings_key(key, selected, look),
             Overlay::Choose {
@@ -1020,6 +1075,42 @@ impl Home {
                 }
             }
         }
+    }
+
+    /// Handles a key on the key of a server to trust: `y` trusts a new key, `a` adds and `r` replaces a key that changed, Esc gives up.
+    fn host_key_key(
+        &mut self,
+        key: KeyEvent,
+        side: Side,
+        site: String,
+        mut shown: HostKey,
+        trusted: Option<Vec<String>>,
+    ) -> Vec<Ask> {
+        shown.mode = match (key.code, &trusted) {
+            (KeyCode::Char('y') | KeyCode::Enter, None) => None,
+            (KeyCode::Char('a'), Some(_)) => Some(TrustMode::Add),
+            (KeyCode::Char('r'), Some(_)) => Some(TrustMode::Replace),
+            (KeyCode::Char('n') | KeyCode::Esc, _) => return Vec::new(),
+            _ => {
+                self.overlay = Some(Overlay::HostKey {
+                    side,
+                    site,
+                    key: shown,
+                    trusted,
+                });
+                return Vec::new();
+            }
+        };
+        self.workspace
+            .map(|workspace| {
+                Ask::Call(Call::Trust {
+                    workspace,
+                    side,
+                    key: shown,
+                })
+            })
+            .into_iter()
+            .collect()
     }
 
     /// The commands whose name starts with what is typed before a space.
@@ -1414,6 +1505,9 @@ impl Home {
                         self.render_choose(frame, *what, *selected, look);
                     }
                     Some(Overlay::Help) => render_help(frame, look),
+                    Some(Overlay::Password { name, input, .. }) => {
+                        render_password(frame, name, input, look);
+                    }
                     Some(Overlay::HostKey {
                         site, key, trusted, ..
                     }) => render_host_key(frame, site, key, trusted.as_deref(), look),
@@ -1964,4 +2058,31 @@ fn render_host_key(
     lines.push(Line::default());
     lines.push(Line::from(m.get("hostKey.check")).fg(palette.muted));
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
+}
+
+/// The password of a site that asks for it when connecting, typed hidden.
+fn render_password(frame: &mut Frame, name: &str, input: &Input, look: &Look) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let area = centered(frame.area(), 66, 10);
+    let inside = popup(
+        frame,
+        area,
+        &m.fill("password.title", &[("site", name)]),
+        &m.get("password.keys"),
+        palette,
+    );
+    let [text, field_area] =
+        Layout::vertical([Constraint::Length(3), Constraint::Length(3)]).areas(inside);
+    frame.render_widget(
+        Paragraph::new(m.get("password.intro")).wrap(Wrap { trim: true }),
+        text,
+    );
+    field(
+        frame,
+        field_area,
+        palette,
+        &m.get("password.field"),
+        &input.masked(),
+        true,
+    );
 }

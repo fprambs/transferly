@@ -176,7 +176,8 @@
     "connection_failed": "The server could not be reached.",
     "auth_failed": "The server refused the credentials of the site.",
     "forbidden": "Your role in this workspace does not allow that.",
-    "rate_limited": "Too many attempts. Wait a moment and try again."
+    "rate_limited": "Too many attempts. Wait a moment and try again.",
+    "credentials_required": "This site asks for its password."
   },
   "hostKey": {
     "title": "Trust this server?",
@@ -190,5 +191,11 @@
     "check": "Ask the administrator of the server for its fingerprint, or compare it with the one in the web.",
     "keys": "y trust · n cancel",
     "changedKeys": "a trust it too · r replace · Esc cancel"
+  },
+  "password": {
+    "title": "Password of {site}",
+    "intro": "This site asks for its password when connecting. It is kept in memory for this session only.",
+    "field": "Password",
+    "keys": "Enter connect · Esc cancel"
   }
 }

@@ -293,7 +293,8 @@ fn marks_and_filters() {
 
     panel.key(key(KeyCode::Char('f')));
     assert!(panel.captures());
-    for c in "TXT".chars() {
+    panel.paste("T");
+    for c in "XT".chars() {
         panel.key(key(KeyCode::Char(c)));
     }
     assert!(draw(&panel, 80, 14).contains("Filter: TXT▏"));
@@ -321,7 +322,8 @@ fn creates_renames_and_goes() {
     assert!(panel.captures());
     assert!(draw(&panel, 80, 14).contains("New folder"));
     assert_eq!(panel.key(key(KeyCode::Enter)), Vec::new(), "an empty name");
-    for c in "new".chars() {
+    panel.paste("n");
+    for c in "ew".chars() {
         panel.key(key(KeyCode::Char(c)));
     }
     assert_eq!(

@@ -431,6 +431,17 @@ impl Panel {
         self.browse_key(key)
     }
 
+    /// Puts pasted text into the field of a form, or into the filter being typed.
+    pub fn paste(&mut self, text: &str) {
+        match &mut self.form {
+            Some(Form::Mkdir(input) | Form::Rename { input, .. } | Form::Goto(input)) => {
+                input.insert(text);
+            }
+            None if self.filtering => self.filter.insert(text),
+            None => {}
+        }
+    }
+
     /// Handles a key while typing the filter: Enter keeps it, Esc clears it.
     fn filter_key(&mut self, key: KeyEvent) {
         match key.code {

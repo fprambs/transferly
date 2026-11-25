@@ -319,6 +319,18 @@ async fn perform(session: &Session, call: Call) -> Reply {
                 .await
                 .map_err(failure),
         ),
+        Call::Credential {
+            workspace,
+            site,
+            side,
+            password,
+        } => Reply::Credentialed {
+            side,
+            outcome: api
+                .set_credential(&workspace.to_string(), &site.to_string(), &password)
+                .await
+                .map_err(failure),
+        },
         Call::Trust {
             workspace,
             side,
@@ -855,6 +867,16 @@ mod tests {
             server: Url::parse(&server.uri()).expect("url"),
             token: "t".to_owned(),
         };
+        let credential = Call::Credential {
+            workspace: uuid::Uuid::nil(),
+            site: uuid::Uuid::nil(),
+            side,
+            password: "p".to_owned(),
+        };
+        assert!(matches!(
+            perform(&session, credential).await,
+            Reply::Credentialed { .. }
+        ));
         let trust = Call::Trust {
             workspace: uuid::Uuid::nil(),
             side,
