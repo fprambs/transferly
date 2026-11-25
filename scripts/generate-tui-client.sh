@@ -15,3 +15,4 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/tui/client:/client" alpine:3.22 
     -e "s|^reqwest = .*|reqwest = { version = \"0.13.5\", default-features = false, features = [\"json\", \"multipart\", \"stream\", \"query\", \"form\"] }|" \
     -e "/^\[features\]/,\$d" \
     /client/Cargo.toml'
+printf "\n# Generated code is not held to the lints of the terminal client.\n[lints.clippy]\nall = \"allow\"\n" >> tui/client/Cargo.toml

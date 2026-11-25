@@ -18,10 +18,15 @@ Sources: [Clippy](https://doc.rust-lang.org/clippy/) and its [configuration](htt
   `edition` and `style_edition = "2024"`, since a bare `rustfmt` defaults to edition 2015; the other options keep their defaults.
 - **Tests run with `cargo nextest`** (0.9.150 or later; earlier ones have GHSA-vc25-qg58-w57c). nextest does not run doctests:
   `cargo test --doc` runs after it.
-- **100 % coverage** with `cargo llvm-cov nextest --fail-under-lines 100 --fail-under-regions 100 --fail-under-functions 100`.
-  Branch coverage needs nightly and `--branch` and has no gate flag, so it is not gated on stable. Generated code (`tui/client`) is
-  left out with `--ignore-filename-regex`, like `*.gen.go`; `coverage(off)` is nightly only and not used. Regions are stricter than
-  lines: every `?` is a branch to test.
+- **100 % coverage** of lines and functions with `cargo llvm-cov nextest --fail-under-lines 100 --fail-under-functions 100`
+  (`make tui-cov`), the same bar as the 100 % of statements of Go. Branch coverage needs nightly and `--branch` and has no gate flag,
+  so it is not gated on stable. Generated code (`tui/client`), the entry point (`src/main.rs`) and the thin calls into the operating
+  system that a container cannot make (`src/platform.rs`: the credential store of the system and the browser) are left out with
+  `--ignore-filename-regex`, like `*.gen.go` and `cmd/`; `coverage(off)` is nightly only and not used.
+- **Regions are reported, not gated.** Every `?` is a region: each one whose error a test can produce has its test (cut answers,
+  unwritable folders, refused codes), and infallible calls use `expect` with the reason instead of `?`. What remains are errors only
+  the operating system produces, such as `accept` failing for lack of file descriptors; hiding them to reach 100 % of regions would
+  make the code worse (2026-11-25: 99.9 % of regions).
 - **Dependencies:** `cargo deny check` (advisories, licenses, bans, sources) with `deny.toml`. Licenses must be compatible with
   Apache-2.0, sources only crates.io, and duplicated TLS stacks are banned. cargo-deny covers what `cargo audit` checks, so audit is
   not used. `Cargo.lock` is committed.

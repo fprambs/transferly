@@ -20,6 +20,8 @@ allow = [
     "Zlib",
     "CDLA-Permissive-2.0",
     "OpenSSL",
+    # File-level copyleft, compatible with an Apache-2.0 binary as long as the files stay unmodified (option-ext, through directories).
+    "MPL-2.0",
 ]
 confidence-threshold = 0.9
 

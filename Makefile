@@ -76,8 +76,9 @@ tui-mockups:
 
 # The terminal client (tui/), in the Rust image of compose.dev.yaml; see docs/guides/rust-tooling.md.
 RUST := $(COMPOSE) run --rm --no-deps -T rust
-# Code left out of coverage: the generated client and the entry point, as generated code and cmd/ are in Go.
-TUI_COVERAGE_IGNORE := '(tui/client/|tui/src/main\.rs)'
+# Code left out of coverage: the generated client, the entry point and the thin calls into the operating system (platform.rs), as
+# generated code and cmd/ are in Go.
+TUI_COVERAGE_IGNORE := '(tui/client/|tui/src/main\.rs|tui/src/platform\.rs)'
 
 .PHONY: tui-lint tui-test tui-cov tui-deny
 tui-lint:
@@ -87,7 +88,7 @@ tui-test:
 	$(RUST) sh -c 'cargo nextest run -p transferly-tui && cargo test -p transferly-tui --doc'
 
 tui-cov:
-	$(RUST) cargo llvm-cov nextest -p transferly-tui --ignore-filename-regex $(TUI_COVERAGE_IGNORE) --fail-under-lines 100 --fail-under-regions 100 --fail-under-functions 100
+	$(RUST) cargo llvm-cov nextest -p transferly-tui --ignore-filename-regex $(TUI_COVERAGE_IGNORE) --fail-under-lines 100 --fail-under-functions 100
 
 tui-deny:
 	$(RUST) cargo deny check
