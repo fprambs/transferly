@@ -2,7 +2,8 @@
 
 The interface of `transferly-tui` ([ADR-0029](../adr/0029-terminal-client-and-browser-login.md)) before it is built. The screens are
 drawn with ratatui itself by `tui/mockups`, so what is shown here is what the library renders: see
-[terminal-client-mockups.md](terminal-client-mockups.md), regenerated with `make tui-mockups`.
+[terminal-client-mockups.md](terminal-client-mockups.md), with a screenshot of each in the colors of the Transferly Dark theme
+(`screens/`), regenerated with `make tui-mockups`.
 
 ## Sources
 
