@@ -19,6 +19,15 @@ impl Input {
         }
     }
 
+    /// The same field with every character hidden, for a password.
+    #[must_use]
+    pub fn masked(&self) -> Self {
+        Self {
+            value: "•".repeat(self.value.chars().count()),
+            cursor: self.cursor,
+        }
+    }
+
     /// The text.
     #[must_use]
     pub fn value(&self) -> &str {

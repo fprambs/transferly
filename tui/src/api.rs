@@ -5,7 +5,10 @@ use std::time::Duration;
 
 use reqwest::{Client, Method, RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
-use transferly_client::models::{CliToken, CliTokenRequest, Problem, SessionInfo, SetupStatus};
+use transferly_client::models::{
+    CliToken, CliTokenRequest, Collection, MasterPasswordRequest, Preferences, Problem,
+    SessionInfo, SetupStatus, Site, User, VaultStatus, Version, Workspace,
+};
 use url::Url;
 
 /// How long connecting to the server may take.
@@ -143,21 +146,106 @@ impl Api {
         Self::send(self.request(Method::GET, "/api/v1/me")).await
     }
 
+    /// The version of the server.
+    ///
+    /// # Errors
+    ///
+    /// The server cannot be reached or answers something else.
+    pub async fn version(&self) -> Result<Version, ApiError> {
+        Self::send(self.request(Method::GET, "/api/v1/version")).await
+    }
+
+    /// The workspaces of the account: the personal one and its teams.
+    ///
+    /// # Errors
+    ///
+    /// The session ended or the server cannot be reached.
+    pub async fn workspaces(&self) -> Result<Vec<Workspace>, ApiError> {
+        Self::send(self.request(Method::GET, "/api/v1/workspaces")).await
+    }
+
+    /// The collections of a workspace.
+    ///
+    /// # Errors
+    ///
+    /// The workspace is not the account's, the session ended or the server cannot be reached.
+    pub async fn collections(&self, workspace: &str) -> Result<Vec<Collection>, ApiError> {
+        Self::send(self.request(
+            Method::GET,
+            &format!("/api/v1/workspaces/{workspace}/collections"),
+        ))
+        .await
+    }
+
+    /// The sites of a workspace.
+    ///
+    /// # Errors
+    ///
+    /// The workspace is not the account's, the session ended or the server cannot be reached.
+    pub async fn sites(&self, workspace: &str) -> Result<Vec<Site>, ApiError> {
+        Self::send(self.request(
+            Method::GET,
+            &format!("/api/v1/workspaces/{workspace}/sites"),
+        ))
+        .await
+    }
+
+    /// Whether the vault of the account exists and is unlocked in this session.
+    ///
+    /// # Errors
+    ///
+    /// The session ended or the server cannot be reached.
+    pub async fn vault(&self) -> Result<VaultStatus, ApiError> {
+        Self::send(self.request(Method::GET, "/api/v1/vault")).await
+    }
+
+    /// Unlocks the vault of the account for this session.
+    ///
+    /// # Errors
+    ///
+    /// The master password is wrong (`invalid_master_password`), too many attempts (`rate_limited`), or the server cannot be reached.
+    pub async fn unlock_vault(&self, master_password: &str) -> Result<(), ApiError> {
+        let body = MasterPasswordRequest::new(master_password.to_owned());
+        Self::empty(
+            self.request(Method::POST, "/api/v1/vault/unlock")
+                .json(&body),
+        )
+        .await
+    }
+
+    /// Changes the language or the theme of the account, which the web shares, and returns the account as it stands.
+    ///
+    /// # Errors
+    ///
+    /// A value is not valid, the session ended or the server cannot be reached.
+    pub async fn update_preferences(
+        &self,
+        locale: Option<&str>,
+        theme: Option<&str>,
+    ) -> Result<User, ApiError> {
+        let mut body = Preferences::new();
+        body.locale = locale.map(str::to_owned);
+        body.theme = theme.map(str::to_owned);
+        Self::send(self.request(Method::PATCH, "/api/v1/me").json(&body)).await
+    }
+
+    /// Sends a request whose answer has no body.
+    async fn empty(request: RequestBuilder) -> Result<(), ApiError> {
+        let response = request.send().await?;
+        let status = response.status();
+        if status.is_success() {
+            return Ok(());
+        }
+        Err(refusal(status, &response.bytes().await?))
+    }
+
     /// Ends the session of the token.
     ///
     /// # Errors
     ///
     /// The server refuses or cannot be reached.
     pub async fn logout(&self) -> Result<(), ApiError> {
-        let response = self
-            .request(Method::POST, "/api/v1/auth/logout")
-            .send()
-            .await?;
-        let status = response.status();
-        if status.is_success() {
-            return Ok(());
-        }
-        Err(refusal(status, &response.bytes().await?))
+        Self::empty(self.request(Method::POST, "/api/v1/auth/logout")).await
     }
 }
 
@@ -284,6 +372,86 @@ mod tests {
             Some("unauthenticated")
         );
         assert_eq!(stale.base().as_str(), format!("{}/", server.uri()));
+    }
+
+    /// The calls of the main screen: workspaces, collections and sites, the vault, unlocking it, and the preferences of the account.
+    #[tokio::test]
+    async fn reads_the_workspace() {
+        let server = MockServer::start().await;
+        let workspace = "01a20f66-e85c-71b3-9c42-2987ff8c4ad0";
+        let answers = [
+            (
+                "GET",
+                "/api/v1/workspaces".to_owned(),
+                200,
+                serde_json::json!([{"id": workspace, "name": "Personal", "kind": "personal", "role": "owner", "createdAt": "2026-01-01T00:00:00Z"}]),
+            ),
+            (
+                "GET",
+                format!("/api/v1/workspaces/{workspace}/collections"),
+                200,
+                serde_json::json!([{"id": "01a20f66-e85c-71b3-9c42-2987ff8c4ad1", "name": "Clients"}]),
+            ),
+            (
+                "GET",
+                format!("/api/v1/workspaces/{workspace}/sites"),
+                200,
+                serde_json::json!([{"id": "01a20f66-e85c-71b3-9c42-2987ff8c4ad2", "name": "acme", "connector": "sftp", "config": {"host": "sftp.acme.com"}, "speedLimitBps": 0, "secrets": ["password"], "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z"}]),
+            ),
+            (
+                "GET",
+                "/api/v1/version".to_owned(),
+                200,
+                serde_json::json!({"version": "1.4.0"}),
+            ),
+            (
+                "GET",
+                "/api/v1/vault".to_owned(),
+                200,
+                serde_json::json!({"initialized": true, "unlocked": false}),
+            ),
+            ("PATCH", "/api/v1/me".to_owned(), 200, user()),
+        ];
+        for (verb, route, status, body) in answers {
+            Mock::given(method(verb))
+                .and(path(route))
+                .respond_with(ResponseTemplate::new(status).set_body_json(body))
+                .mount(&server)
+                .await;
+        }
+        Mock::given(method("POST"))
+            .and(path("/api/v1/vault/unlock"))
+            .and(body_json(serde_json::json!({"masterPassword": "right"})))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST")).and(path("/api/v1/vault/unlock")).respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({"type": "about:blank", "title": "Bad Request", "status": 400, "code": "invalid_master_password"}))).mount(&server).await;
+
+        let api = api(&server).with_token("t");
+        let workspaces = api.workspaces().await.expect("workspaces");
+        assert_eq!(workspaces[0].name, "Personal");
+        assert_eq!(
+            api.collections(workspace).await.expect("collections")[0].name,
+            "Clients"
+        );
+        assert_eq!(
+            api.sites(workspace).await.expect("sites")[0].config["host"],
+            "sftp.acme.com"
+        );
+        assert!(!api.vault().await.expect("vault").unlocked);
+        assert_eq!(api.version().await.expect("version").version, "1.4.0");
+        api.unlock_vault("right").await.expect("unlocked");
+        assert_eq!(
+            api.unlock_vault("wrong").await.expect_err("refused").code(),
+            Some("invalid_master_password")
+        );
+        assert_eq!(
+            api.update_preferences(Some("es"), None)
+                .await
+                .expect("updated")
+                .email,
+            "ana@example.com"
+        );
     }
 
     /// An answer cut in the middle of its body is a network error, when decoding a call and when signing out.

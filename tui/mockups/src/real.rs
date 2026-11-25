@@ -9,7 +9,9 @@ use ratatui::style::Color;
 use transferly_tui::config::Profile;
 use transferly_tui::i18n::Language;
 use transferly_tui::login::Answer;
+use transferly_tui::config::Settings;
 use transferly_tui::ui::app::{App, Event, Setup};
+use transferly_tui::ui::home::Reply;
 use transferly_tui::ui::theme::ColorMode;
 
 use crate::html;
@@ -38,11 +40,46 @@ fn app(language: Language, browser: bool) -> App {
         language,
         mode: ColorMode::TrueColor,
         theme: "transferly-dark".to_owned(),
+        settings: Settings::default(),
         profiles: vec![profile("https://files.acme.com", "ana@acme.com"), profile("https://transferly.lan", "admin@home.lan")],
         host: "laptop".to_owned(),
         browser_possible: browser,
         signed_in: None,
     })
+}
+
+/// The replies that load the main screen: the account, two workspaces, the tree of the personal one and a locked vault.
+fn load(app: &mut App) {
+    let id = |n: u8| format!("00000000-0000-0000-0000-0000000000{n:02}");
+    let site = |n: u8, name: &str, collection: Option<u8>, connector: &str, host: &str| {
+        serde_json::json!({"id": id(n), "collectionId": collection.map(id), "name": name, "connector": connector, "config": {"host": host},
+            "speedLimitBps": 0, "secrets": ["password"], "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z"})
+    };
+    let workspaces = serde_json::json!([
+        {"id": id(1), "name": "Personal", "kind": "personal", "role": "owner", "createdAt": "2026-01-01T00:00:00Z"},
+        {"id": id(2), "name": "Acme team", "kind": "team", "role": "editor", "createdAt": "2026-01-01T00:00:00Z"}
+    ]);
+    let collections = serde_json::json!([
+        {"id": id(10), "name": "Clients"}, {"id": id(11), "name": "Acme", "parentId": id(10)}, {"id": id(12), "name": "Home"}
+    ]);
+    let sites = serde_json::json!([
+        site(20, "acme-prod", Some(11), "sftp", "sftp.acme.com"), site(21, "acme-staging", Some(11), "sftp", "staging.acme.com"),
+        site(22, "globex-ftp", Some(10), "ftps", "ftp.globex.com"), site(23, "nas", Some(12), "sftp", "nas.home.lan"),
+        site(24, "backups", None, "sftp", "backup.example.net")
+    ]);
+    let user = serde_json::json!({"id": id(99), "email": "ana@acme.com", "role": "user", "locale": "en", "timezone": "America/Santiago",
+        "theme": "transferly-dark", "fileDoubleClick": "download"});
+    app.handle(Event::Replied(Reply::Me(Ok(parse(user)))));
+    app.handle(Event::Replied(Reply::Version(Ok(transferly_tui::ui::home::VERSION.to_owned()))));
+    app.handle(Event::Replied(Reply::Workspaces(Ok(parse(workspaces)))));
+    app.handle(Event::Replied(Reply::Vault(Ok(parse(serde_json::json!({"initialized": true, "unlocked": true}))))));
+    let workspace = uuid(id(1));
+    app.handle(Event::Replied(Reply::Tree { workspace, outcome: Ok((parse(collections), parse(sites))) }));
+}
+
+/// An identifier from its text.
+fn uuid(text: String) -> uuid::Uuid {
+    text.parse().expect("an identifier")
 }
 
 /// Draws the interface as it stands.
@@ -77,7 +114,48 @@ pub fn shots() -> Vec<Shot> {
     shots.push(shot("app-paste", "Over SSH, without a browser: the code shown by the approval page is pasted, in Spanish.", &spanish));
 
     english.handle(Event::Answered(Ok(Answer::Approved("code".to_owned()))));
-    english.handle(Event::SignedIn { server: "https://files.acme.com".to_owned(), email: "ana@acme.com".to_owned(), locale: "es".to_owned(), theme: "nord".to_owned() });
-    shots.push(shot("app-signed-in", "Signed in: the interface takes the language (Spanish) and the theme (Nord) of the account.", &english));
+    english.handle(Event::SignedIn {
+        server: "https://files.acme.com".to_owned(),
+        email: "ana@acme.com".to_owned(),
+        locale: "en".to_owned(),
+        theme: "transferly-dark".to_owned(),
+        token: "t".to_owned(),
+    });
+    load(&mut english);
+    for code in [KeyCode::Down, KeyCode::Down, KeyCode::Enter] {
+        english.handle(key(code));
+    }
+    shots.push(shot("app-main", "The main screen: the sites of the workspace as a tree, the site opened, and the status bar.", &english));
+
+    english.handle(key(KeyCode::Char('/')));
+    shots.push(shot("app-commands", "/ opens the command line with the commands that match, as in Claude Code.", &english));
+    english.handle(Event::Paste("config".to_owned()));
+    english.handle(key(KeyCode::Enter));
+    shots.push(shot("app-config", "/config: the settings of the account and of this computer, changed in place with ← →.", &english));
+    english.handle(key(KeyCode::Down));
+    english.handle(key(KeyCode::Enter));
+    for _ in 0..4 {
+        english.handle(key(KeyCode::Down));
+    }
+    shots.push(shot("app-theme", "Choosing a theme wears it while moving: here Nord; Enter keeps it in the account.", &english));
+    english.handle(key(KeyCode::Esc));
+
+    let locked = serde_json::json!({"initialized": true, "unlocked": false});
+    english.handle(Event::Replied(Reply::Vault(Ok(parse(locked)))));
+    english.handle(key(KeyCode::BackTab));
+    english.handle(key(KeyCode::Down));
+    english.handle(key(KeyCode::Enter));
+    for _ in 0..6 {
+        english.handle(key(KeyCode::Char('x')));
+    }
+    shots.push(shot("app-vault", "A site whose credentials are in the locked vault asks for the master password first.", &english));
+    english.handle(key(KeyCode::Esc));
+    english.handle(key(KeyCode::Char('?')));
+    shots.push(shot("app-help", "? shows every key of the screen.", &english));
     shots
+}
+
+/// A model of the API from its JSON.
+fn parse<T: serde::de::DeserializeOwned>(value: serde_json::Value) -> T {
+    serde_json::from_value(value).expect("a model")
 }

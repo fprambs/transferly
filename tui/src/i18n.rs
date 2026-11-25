@@ -144,11 +144,8 @@ mod tests {
         assert_eq!(spanish.language(), Language::Spanish);
         assert_eq!(spanish.get("server.title"), "Iniciar sesión");
         assert_eq!(
-            spanish.fill(
-                "signed.body",
-                &[("server", "https://x"), ("email", "ana@x")]
-            ),
-            "Sesión iniciada en https://x como ana@x."
+            spanish.fill("main.versions", &[("server", "1.4.0"), ("client", "1.3.0")]),
+            "servidor 1.4.0, cliente 1.3.0: actualiza el que va atrás"
         );
         assert_eq!(spanish.get("server.nothing"), "server.nothing");
         assert_eq!(spanish.get("server"), "server");

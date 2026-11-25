@@ -2,16 +2,18 @@
 //! text fields ([`input`]) and drawing pieces ([`widgets`]). Only `platform.rs` touches the real terminal.
 
 pub mod app;
+pub mod home;
 pub mod input;
+pub mod look;
 pub mod runtime;
 pub mod theme;
 pub mod widgets;
 
 use crossterm::event::Event as TerminalEvent;
 
-use self::app::{Event, Setup};
+use self::app::{Event, Kept, Setup};
 use self::theme::ColorMode;
-use crate::config::Config;
+use crate::config::{Colors, Config};
 use crate::i18n::Language;
 use crate::login;
 use crate::secrets::TokenStore;
@@ -39,21 +41,23 @@ pub fn setup(
     env: impl Fn(&str) -> Option<String>,
     host: String,
 ) -> Setup {
-    let signed_in = config
-        .current
-        .as_ref()
-        .filter(|server| matches!(tokens.get(server), Ok(Some(_))))
-        .map(|server| {
-            let account = config
-                .profile(server)
-                .and_then(|profile| profile.account.clone())
-                .unwrap_or_default();
-            (server.clone(), account)
-        });
+    let signed_in = config.current.as_ref().and_then(|server| {
+        let token = tokens.get(server).ok().flatten()?;
+        let email = config
+            .profile(server)
+            .and_then(|profile| profile.account.clone())
+            .unwrap_or_default();
+        Some(Kept {
+            server: server.clone(),
+            email,
+            token,
+        })
+    });
     Setup {
         language: Language::from_env(&env),
-        mode: ColorMode::detect(&env, config.settings.colors),
+        mode: ColorMode::detect(&env, Colors::Theme),
         theme: DEFAULT_THEME.to_owned(),
+        settings: config.settings.clone(),
         profiles: config.profiles.clone(),
         host,
         browser_possible: login::can_open_browser(&env),
@@ -63,3 +67,6 @@ pub fn setup(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod home_tests;

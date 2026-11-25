@@ -4,15 +4,17 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Modifier, Style, Stylize};
+use ratatui::style::{Modifier, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
 use url::Url;
 
+use super::home::{Ask, Home, Reply, Session};
 use super::input::Input;
-use super::theme::{self, ColorMode, Palette};
-use super::widgets::{background, card, error_line, field};
-use crate::config::{self, Profile};
+use super::look::Look;
+use super::theme::{ColorMode, Palette};
+use super::widgets::{background, card, error_line, field, highlight};
+use crate::config::{self, Profile, Settings};
 use crate::i18n::{Language, Messages};
 use crate::login::{self, Answer, Pkce};
 
@@ -31,7 +33,7 @@ pub enum Failure {
 }
 
 /// What happens to the interface.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// A key was pressed.
     Key(KeyEvent),
@@ -57,7 +59,15 @@ pub enum Event {
         locale: String,
         /// Theme of the account.
         theme: String,
+        /// Token of the session.
+        token: String,
     },
+    /// The server answered a call.
+    Replied(Reply),
+    /// Signing out ended, or why it failed.
+    LoggedOut(Result<(), String>),
+    /// The settings of this computer were kept, or why not.
+    Saved(Result<(), String>),
     /// Signing in failed.
     SignInFailed(Failure),
 }
@@ -89,12 +99,18 @@ pub enum Effect {
         /// The redirect of the approval, if it had one.
         redirect: Option<String>,
     },
+    /// Call the server in a session.
+    Call(Session, super::home::Call),
+    /// End a session on its server and forget its token.
+    Logout(Session),
+    /// Keep the settings of this computer.
+    SaveSettings(Settings),
     /// Leave the interface.
     Quit,
 }
 
 /// The screen the interface shows.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
     /// The address of the server, with the profiles used before.
     Server {
@@ -129,13 +145,19 @@ pub enum Screen {
         /// What went wrong last.
         error: Option<String>,
     },
-    /// Signed in.
-    Signed {
-        /// Origin of the server.
-        server: String,
-        /// Email of the account.
-        email: String,
-    },
+    /// Signed in: the main screen.
+    Main(Box<Home>),
+}
+
+/// A session kept on this computer: the server, the account and the token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Kept {
+    /// Origin of the server.
+    pub server: String,
+    /// Email of the account.
+    pub email: String,
+    /// Token of the session.
+    pub token: String,
 }
 
 /// What the interface starts with.
@@ -146,22 +168,22 @@ pub struct Setup {
     pub mode: ColorMode,
     /// The theme to wear before the account says which.
     pub theme: String,
+    /// The settings of this computer.
+    pub settings: Settings,
     /// The servers signed in to before.
     pub profiles: Vec<Profile>,
     /// The name of this computer.
     pub host: String,
     /// Whether a browser can open here.
     pub browser_possible: bool,
-    /// The server and account already signed in to, if any.
-    pub signed_in: Option<(String, String)>,
+    /// The session kept for the current server, if any.
+    pub signed_in: Option<Kept>,
 }
 
 /// The interface.
 pub struct App {
     screen: Screen,
-    messages: Messages,
-    mode: ColorMode,
-    palette: Palette,
+    look: Look,
     profiles: Vec<Profile>,
     host: String,
     browser_possible: bool,
@@ -169,31 +191,28 @@ pub struct App {
     pkce: Pkce,
     redirect: Option<String>,
     spinner: usize,
+    pending: Vec<Effect>,
 }
 
 impl App {
-    /// The interface on its first screen: signed in, or asking for the server with the last one used filled in.
+    /// The interface on its first screen: the main screen of a kept session, or asking for the server with the last one used filled
+    /// in.
     #[must_use]
     pub fn new(setup: Setup) -> Self {
-        let screen = match setup.signed_in {
-            Some((server, email)) => Screen::Signed { server, email },
-            None => Screen::Server {
-                input: Input::with(
-                    setup
-                        .profiles
-                        .first()
-                        .map_or("", |profile| profile.server.as_str()),
-                ),
-                selected: None,
-                checking: false,
-                error: None,
-            },
+        let screen = Screen::Server {
+            input: Input::with(
+                setup
+                    .profiles
+                    .first()
+                    .map_or("", |profile| profile.server.as_str()),
+            ),
+            selected: None,
+            checking: false,
+            error: None,
         };
-        Self {
+        let mut app = Self {
             screen,
-            messages: Messages::new(setup.language),
-            mode: setup.mode,
-            palette: Palette::new(&theme::find(&setup.theme), setup.mode),
+            look: Look::new(setup.language, &setup.theme, setup.mode, setup.settings),
             profiles: setup.profiles,
             host: setup.host,
             browser_possible: setup.browser_possible,
@@ -201,7 +220,55 @@ impl App {
             pkce: Pkce::new(),
             redirect: None,
             spinner: 0,
+            pending: Vec::new(),
+        };
+        if let Some(kept) = setup.signed_in {
+            app.pending = app.enter(&kept.server, &kept.email, kept.token);
         }
+        app
+    }
+
+    /// What the interface must do as it starts, such as loading the main screen of a kept session.
+    pub fn start(&mut self) -> Vec<Effect> {
+        std::mem::take(&mut self.pending)
+    }
+
+    /// Opens the main screen of a session.
+    fn enter(&mut self, server: &str, email: &str, token: String) -> Vec<Effect> {
+        let Ok(url) = Url::parse(server) else {
+            self.back_to_server(None);
+            return Vec::new();
+        };
+        self.server = Some(url.clone());
+        let session = Session { server: url, token };
+        let (home, asks) = Home::new(session.clone(), email);
+        self.screen = Screen::Main(Box::new(home));
+        self.asks(&session, asks)
+    }
+
+    /// What the runtime must do for what the main screen asks.
+    fn asks(&mut self, session: &Session, asks: Vec<Ask>) -> Vec<Effect> {
+        let mut effects = Vec::new();
+        for ask in asks {
+            match ask {
+                Ask::Call(call) => effects.push(Effect::Call(session.clone(), call)),
+                Ask::Browse(url) => effects.push(Effect::OpenBrowser(url)),
+                Ask::Save => effects.push(Effect::SaveSettings(self.look.settings.clone())),
+                Ask::Logout => effects.push(Effect::Logout(session.clone())),
+                Ask::Leave(message) => {
+                    self.back_to_server(message);
+                    return effects;
+                }
+                Ask::Quit => effects.push(Effect::Quit),
+            }
+        }
+        effects
+    }
+
+    /// How the interface looks and speaks.
+    #[must_use]
+    pub fn look(&self) -> &Look {
+        &self.look
     }
 
     /// The screen shown.
@@ -213,13 +280,13 @@ impl App {
     /// The messages in the language shown.
     #[must_use]
     pub fn messages(&self) -> &Messages {
-        &self.messages
+        &self.look.messages
     }
 
     /// The colors the interface paints with.
     #[must_use]
     pub fn palette(&self) -> &Palette {
-        &self.palette
+        &self.look.palette
     }
 
     /// Goes back to asking for the server, with the server tried last and what went wrong.
@@ -251,12 +318,14 @@ impl App {
             Failure::Refused(code)
                 if ["invalid_grant", "cli_login_disabled", "http_404"].contains(&code.as_str()) =>
             {
-                self.messages.get(&format!("exchange.{code}"))
+                self.look.messages.get(&format!("exchange.{code}"))
             }
-            Failure::Refused(reason) | Failure::Unreachable(reason) => {
-                self.messages.fill("exchange.other", &[("reason", reason)])
-            }
+            Failure::Refused(reason) | Failure::Unreachable(reason) => self
+                .look
+                .messages
+                .fill("exchange.other", &[("reason", reason)]),
             Failure::NotKept(reason) => self
+                .look
                 .messages
                 .fill("exchange.notKept", &[("reason", reason)]),
         }
@@ -284,8 +353,12 @@ impl App {
             Event::Probed(outcome) => self.probed(outcome.is_ok()),
             Event::Listening(outcome) => self.listening(outcome),
             Event::BrowserOpened(opened) => {
-                if let Screen::Approval { opened: shown, .. } = &mut self.screen {
-                    *shown = opened;
+                match &mut self.screen {
+                    Screen::Approval { opened: shown, .. } => *shown = opened,
+                    Screen::Main(home) if !opened => {
+                        home.say(self.look.messages.get("main.noBrowser"), true);
+                    }
+                    _ => {}
                 }
                 Vec::new()
             }
@@ -295,10 +368,30 @@ impl App {
                 email,
                 locale,
                 theme,
+                token,
             } => {
-                self.messages = Messages::new(Language::from_tag(&locale));
-                self.palette = Palette::new(&theme::find(&theme), self.mode);
-                self.screen = Screen::Signed { server, email };
+                self.look.speak(&locale);
+                self.look.wear(&theme);
+                self.enter(&server, &email, token)
+            }
+            Event::Replied(reply) => match &mut self.screen {
+                Screen::Main(home) => {
+                    let session = home.session().clone();
+                    let asks = home.reply(reply, &mut self.look);
+                    self.asks(&session, asks)
+                }
+                _ => Vec::new(),
+            },
+            Event::LoggedOut(outcome) => self.logged_out(outcome),
+            Event::Saved(outcome) => {
+                if let (Err(reason), Screen::Main(home)) = (outcome, &mut self.screen) {
+                    home.say(
+                        self.look
+                            .messages
+                            .fill("main.notSaved", &[("reason", &reason)]),
+                        true,
+                    );
+                }
                 Vec::new()
             }
             Event::SignInFailed(failure) => {
@@ -306,6 +399,29 @@ impl App {
                 Vec::new()
             }
         }
+    }
+
+    /// Signing out ended: back to the address of the server, or the reason on the status bar.
+    fn logged_out(&mut self, outcome: Result<(), String>) -> Vec<Effect> {
+        match (outcome, &mut self.screen) {
+            (Ok(()), _) => {
+                let message = self
+                    .look
+                    .messages
+                    .fill("main.signedOut", &[("server", &self.server_text())]);
+                self.back_to_server(Some(message));
+            }
+            (Err(reason), Screen::Main(home)) => {
+                home.say(
+                    self.look
+                        .messages
+                        .fill("main.notSignedOut", &[("reason", &reason)]),
+                    true,
+                );
+            }
+            (Err(_), _) => {}
+        }
+        Vec::new()
     }
 
     /// The server tried last, as its origin.
@@ -334,7 +450,8 @@ impl App {
                 *selected = None;
             }
             Screen::Paste { input, .. } => input.insert(text),
-            Screen::Approval { .. } | Screen::Signed { .. } => {}
+            Screen::Main(home) => home.paste(text),
+            Screen::Approval { .. } => {}
         }
     }
 
@@ -342,6 +459,7 @@ impl App {
     fn probed(&mut self, reachable: bool) -> Vec<Effect> {
         if !reachable {
             let error = self
+                .look
                 .messages
                 .fill("server.unreachable", &[("server", &self.server_text())]);
             self.back_to_server(Some(error));
@@ -394,8 +512,9 @@ impl App {
                     redirect: self.redirect.clone(),
                 }];
             }
-            Ok(Answer::Denied) => self.messages.get("approval.denied"),
+            Ok(Answer::Denied) => self.look.messages.get("approval.denied"),
             Err(reason) => self
+                .look
                 .messages
                 .fill("approval.failed", &[("reason", &reason)]),
         };
@@ -453,7 +572,7 @@ impl App {
                                 self.server = Some(server.clone());
                                 return vec![Effect::Probe(server)];
                             }
-                            Err(_) => *error = Some(self.messages.get("server.invalid")),
+                            Err(_) => *error = Some(self.look.messages.get("server.invalid")),
                         }
                     }
                     _ => {
@@ -473,7 +592,7 @@ impl App {
                 _ if *exchanging => Vec::new(),
                 KeyCode::Char('o') => vec![Effect::OpenBrowser(url.clone())],
                 KeyCode::Char('c') => {
-                    *notice = Some(self.messages.get("approval.copied"));
+                    *notice = Some(self.look.messages.get("approval.copied"));
                     vec![Effect::Copy(url.clone())]
                 }
                 KeyCode::Char('p') => {
@@ -514,16 +633,17 @@ impl App {
                 }
                 Vec::new()
             }
-            Screen::Signed { .. } => match key.code {
-                KeyCode::Char('q') => vec![Effect::Quit],
-                _ => Vec::new(),
-            },
+            Screen::Main(home) => {
+                let session = home.session().clone();
+                let asks = home.key(key, &mut self.look);
+                self.asks(&session, asks)
+            }
         }
     }
 
     /// Draws the current screen.
     pub fn render(&self, frame: &mut Frame) {
-        background(frame, &self.palette);
+        background(frame, &self.look.palette);
         match &self.screen {
             Screen::Server {
                 input,
@@ -543,26 +663,17 @@ impl App {
                 exchanging,
                 error,
             } => self.render_paste(frame, url, input, *exchanging, error.as_deref()),
-            Screen::Signed { server, email } => {
-                let inside = self.card(frame, "signed");
-                let m = &self.messages;
-                let lines = vec![
-                    Line::from(m.fill("signed.body", &[("server", server), ("email", email)])),
-                    Line::default(),
-                    Line::from(m.get("signed.next")).fg(self.palette.muted),
-                ];
-                frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inside);
-            }
+            Screen::Main(home) => home.render(frame, &self.look, self.spinner()),
         }
     }
 
     /// The card of a sign-in screen, with the title and keys of its messages; returns its inside.
     fn card(&self, frame: &mut Frame, screen: &str) -> ratatui::layout::Rect {
-        let m = &self.messages;
+        let m = &self.look.messages;
         let (name, tagline) = (m.get("app.name"), m.get("app.tagline"));
         card(
             frame,
-            &self.palette,
+            &self.look.palette,
             (&name, &tagline),
             &m.get(&format!("{screen}.title")),
             &m.get(&format!("{screen}.keys")),
@@ -583,7 +694,7 @@ impl App {
         checking: bool,
         error: Option<&str>,
     ) {
-        let (m, palette) = (&self.messages, &self.palette);
+        let (m, palette) = (&self.look.messages, &self.look.palette);
         let inside = self.card(frame, "server");
         let [address, status, list] = Layout::vertical([
             Constraint::Length(3),
@@ -624,7 +735,7 @@ impl App {
                 profile.account.as_deref().unwrap_or("")
             ));
             lines.push(if selected == Some(index) {
-                selected_line(line, palette)
+                highlight(line, palette)
             } else {
                 line
             });
@@ -641,7 +752,7 @@ impl App {
         notice: Option<&str>,
         exchanging: bool,
     ) {
-        let (m, palette) = (&self.messages, &self.palette);
+        let (m, palette) = (&self.look.messages, &self.look.palette);
         let inside = self.card(frame, "approval");
         let intro = m.fill(
             if opened {
@@ -682,7 +793,7 @@ impl App {
         exchanging: bool,
         error: Option<&str>,
     ) {
-        let (m, palette) = (&self.messages, &self.palette);
+        let (m, palette) = (&self.look.messages, &self.look.palette);
         let inside = self.card(frame, "paste");
         let [text, code, note] = Layout::vertical([
             Constraint::Length(6),
@@ -715,17 +826,4 @@ impl App {
         }
         frame.render_widget(Paragraph::new(notes).wrap(Wrap { trim: true }), note);
     }
-}
-
-/// A line marked as the selected one: on the raised background and bold, or reversed when there is no color.
-fn selected_line(line: Line<'static>, palette: &Palette) -> Line<'static> {
-    let style = if palette.plain {
-        Style::new().add_modifier(Modifier::REVERSED)
-    } else {
-        Style::new()
-            .bg(palette.raised)
-            .fg(palette.accent_text)
-            .add_modifier(Modifier::BOLD)
-    };
-    line.style(style)
 }

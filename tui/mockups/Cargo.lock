@@ -3408,6 +3408,7 @@ dependencies = [
  "toml",
  "transferly-client",
  "url",
+ "uuid",
  "webbrowser",
  "windows-native-keyring-store",
  "zbus-secret-service-keyring-store",
@@ -3421,7 +3422,9 @@ dependencies = [
  "ratatui",
  "serde",
  "serde_json",
+ "transferly-client",
  "transferly-tui",
+ "uuid",
 ]
 
 [[package]]

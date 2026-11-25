@@ -5,7 +5,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Margin, Position, Rect};
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, BorderType, Paragraph};
+use ratatui::widgets::{Block, BorderType, Clear, Paragraph};
 
 use super::input::Input;
 use super::theme::Palette;
@@ -92,6 +92,31 @@ pub fn field(
         let column = u16::try_from(input.cursor() - skip).unwrap_or(u16::MAX);
         frame.set_cursor_position(Position::new(inside.x.saturating_add(column), inside.y));
     }
+}
+
+/// A popup over the screen: the area cleared, a focused panel with its title and its keys at the bottom; returns its inside.
+pub fn popup(frame: &mut Frame, area: Rect, title: &str, keys: &str, palette: &Palette) -> Rect {
+    let block = panel(title, true, palette)
+        .title_bottom(Line::from(format!(" {keys} ")).right_aligned())
+        .style(Style::new().bg(palette.surface).fg(palette.text));
+    let inside = block.inner(area).inner(Margin::new(1, 0));
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+    inside
+}
+
+/// A line marked as the selected one: on the raised background and bold, or reversed when there is no color.
+#[must_use]
+pub fn highlight(line: Line<'static>, palette: &Palette) -> Line<'static> {
+    let style = if palette.plain {
+        Style::new().add_modifier(Modifier::REVERSED)
+    } else {
+        Style::new()
+            .bg(palette.raised)
+            .fg(palette.accent_text)
+            .add_modifier(Modifier::BOLD)
+    };
+    line.style(style)
 }
 
 /// A line in the danger color, for what went wrong.

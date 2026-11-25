@@ -3454,6 +3454,7 @@ dependencies = [
  "toml",
  "transferly-client",
  "url",
+ "uuid",
  "webbrowser",
  "windows-native-keyring-store",
  "wiremock",

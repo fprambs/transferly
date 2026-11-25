@@ -693,8 +693,38 @@ Over SSH, without a browser: the code shown by the approval page is pasted, in S
 
 ![app-paste](screens/app-paste.png)
 
-### app-signed-in
+### app-main
 
-Signed in: the interface takes the language (Spanish) and the theme (Nord) of the account.
+The main screen: the sites of the workspace as a tree, the site opened, and the status bar.
 
-![app-signed-in](screens/app-signed-in.png)
+![app-main](screens/app-main.png)
+
+### app-commands
+
+/ opens the command line with the commands that match, as in Claude Code.
+
+![app-commands](screens/app-commands.png)
+
+### app-config
+
+/config: the settings of the account and of this computer, changed in place with ← →.
+
+![app-config](screens/app-config.png)
+
+### app-theme
+
+Choosing a theme wears it while moving: here Nord; Enter keeps it in the account.
+
+![app-theme](screens/app-theme.png)
+
+### app-vault
+
+A site whose credentials are in the locked vault asks for the master password first.
+
+![app-vault](screens/app-vault.png)
+
+### app-help
+
+? shows every key of the screen.
+
+![app-help](screens/app-help.png)

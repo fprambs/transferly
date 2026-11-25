@@ -14,7 +14,9 @@ use tokio::task::JoinHandle;
 use url::Url;
 
 use super::app::{App, Effect, Event, Failure};
+use super::home::{Call, CallError, Reply, Session};
 use crate::api::Api;
+use crate::api::ApiError;
 use crate::config::Config;
 use crate::login::Listener;
 use crate::secrets::TokenStore;
@@ -48,6 +50,10 @@ pub struct Ports {
 /// # Errors
 ///
 /// Drawing on the terminal fails.
+#[allow(
+    clippy::too_many_lines,
+    reason = "one arm per effect, each a few lines"
+)]
 pub async fn run(
     app: &mut App,
     ports: &Ports,
@@ -57,17 +63,9 @@ pub async fn run(
     let (results, mut finished) = mpsc::channel(RESULTS);
     let mut listener: Option<JoinHandle<()>> = None;
     let mut clock = tokio::time::interval(ports.tick);
+    let mut effects = app.start();
     loop {
-        draw(app)?;
-        let event = tokio::select! {
-            next = input.next() => match next {
-                Some(event) => event,
-                None => break,
-            },
-            Some(event) = finished.recv() => event,
-            _ = clock.tick() => Event::Tick,
-        };
-        for effect in app.handle(event) {
+        for effect in effects.drain(..) {
             match effect {
                 Effect::Quit => {
                     stop(&mut listener);
@@ -86,10 +84,7 @@ pub async fn run(
                 Effect::Probe(server) => {
                     let results = results.clone();
                     tokio::spawn(async move {
-                        let outcome = Api::new(server)
-                            .probe()
-                            .await
-                            .map_err(|error| error.to_string());
+                        let outcome = Api::new(server).probe().await.map_err(said);
                         let _ = results.send(Event::Probed(outcome)).await;
                     });
                 }
@@ -124,8 +119,43 @@ pub async fn run(
                         let _ = results.send(event).await;
                     });
                 }
+                Effect::Call(session, call) => {
+                    let results = results.clone();
+                    tokio::spawn(async move {
+                        let reply = perform(&session, call).await;
+                        let _ = results.send(Event::Replied(reply)).await;
+                    });
+                }
+                Effect::Logout(session) => {
+                    let (results, tokens, config_path) = (
+                        results.clone(),
+                        ports.tokens.clone(),
+                        ports.config_path.clone(),
+                    );
+                    tokio::spawn(async move {
+                        let outcome = logout(&session, tokens, config_path).await;
+                        let _ = results.send(Event::LoggedOut(outcome)).await;
+                    });
+                }
+                Effect::SaveSettings(settings) => {
+                    let (results, config_path) = (results.clone(), ports.config_path.clone());
+                    tokio::task::spawn_blocking(move || {
+                        let _ = results
+                            .blocking_send(Event::Saved(save_settings(&config_path, settings)));
+                    });
+                }
             }
         }
+        draw(app)?;
+        let event = tokio::select! {
+            next = input.next() => match next {
+                Some(event) => event,
+                None => break,
+            },
+            Some(event) = finished.recv() => event,
+            _ = clock.tick() => Event::Tick,
+        };
+        effects = app.handle(event);
     }
     stop(&mut listener);
     Ok(())
@@ -145,10 +175,7 @@ async fn listen(address: String, state: String, wait: Duration, results: mpsc::S
             let _ = results
                 .send(Event::Listening(Ok(listener.redirect_uri().to_owned())))
                 .await;
-            let answer = listener
-                .wait(&state, wait)
-                .await
-                .map_err(|error| error.to_string());
+            let answer = listener.wait(&state, wait).await.map_err(said);
             let _ = results.send(Event::Answered(answer)).await;
         }
         Err(error) => {
@@ -198,7 +225,93 @@ async fn exchange(
         email: token.user.email,
         locale: token.user.locale,
         theme: token.user.theme,
+        token: token.token,
     }
+}
+
+/// Keeps the settings of this computer in the configuration file.
+fn save_settings(
+    config_path: &std::path::Path,
+    settings: crate::config::Settings,
+) -> Result<(), String> {
+    let mut config = Config::load(config_path).map_err(said)?;
+    config.settings = settings;
+    config.save(config_path).map_err(said)
+}
+
+/// What went wrong, in words.
+fn said(error: impl std::fmt::Display) -> String {
+    error.to_string()
+}
+
+/// Why a call failed, as the interface reads it.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "it is passed to map_err, which gives the error by value"
+)]
+fn failure(error: ApiError) -> CallError {
+    CallError {
+        code: error.code().map(str::to_owned),
+        message: error.to_string(),
+    }
+}
+
+/// Makes a call of the main screen in a session.
+async fn perform(session: &Session, call: Call) -> Reply {
+    let api = Api::new(session.server.clone()).with_token(&session.token);
+    match call {
+        Call::Me => Reply::Me(api.me().await.map(|me| me.user).map_err(failure)),
+        Call::Version => Reply::Version(
+            api.version()
+                .await
+                .map(|version| version.version)
+                .map_err(failure),
+        ),
+        Call::Workspaces => Reply::Workspaces(api.workspaces().await.map_err(failure)),
+        Call::Tree(workspace) => {
+            let id = workspace.to_string();
+            let outcome = match tokio::try_join!(api.collections(&id), api.sites(&id)) {
+                Ok(tree) => Ok(tree),
+                Err(error) => Err(failure(error)),
+            };
+            Reply::Tree { workspace, outcome }
+        }
+        Call::Vault => Reply::Vault(api.vault().await.map_err(failure)),
+        Call::Unlock(password) => {
+            Reply::Unlocked(api.unlock_vault(&password).await.map_err(failure))
+        }
+        Call::Preferences { locale, theme } => Reply::Preferences(
+            api.update_preferences(locale.as_deref(), theme.as_deref())
+                .await
+                .map_err(failure),
+        ),
+    }
+}
+
+/// Ends the session on its server, forgets its token and leaves the server current no more; a session the server already ended is
+/// forgotten too.
+async fn logout(
+    session: &Session,
+    tokens: Arc<dyn TokenStore>,
+    config_path: PathBuf,
+) -> Result<(), String> {
+    let api = Api::new(session.server.clone()).with_token(&session.token);
+    match api.logout().await {
+        Ok(()) => {}
+        Err(error) if error.code() == Some("unauthenticated") => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    let origin = session.server.origin().ascii_serialization();
+    tokio::task::spawn_blocking(move || {
+        tokens.delete(&origin).map_err(said)?;
+        let mut config = Config::load(&config_path).map_err(said)?;
+        if config.current.as_deref() == Some(origin.as_str()) {
+            config.current = None;
+        }
+        config.save(&config_path).map_err(said)
+    })
+    .await
+    .expect("the task forgetting the token")
 }
 
 #[cfg(test)]
@@ -327,5 +440,88 @@ mod tests {
         let mut nothing = None;
         stop(&mut nothing);
         assert!(nothing.is_none());
+    }
+
+    /// The calls of the main screen read the server, and a refusal comes back with its code; a tree fails when either half does.
+    #[tokio::test]
+    async fn performs_calls() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/vault/unlock"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        assert_eq!(
+            perform(&session, Call::Unlock("m".to_owned())).await,
+            Reply::Unlocked(Ok(()))
+        );
+        let workspace = uuid::Uuid::nil();
+        let reply = perform(&session, Call::Tree(workspace)).await;
+        assert!(
+            matches!(reply, Reply::Tree { outcome: Err(CallError { code: Some(ref code), .. }), .. } if code == "http_404"),
+            "a tree the server does not have"
+        );
+    }
+
+    /// Signing out forgets the token even when the server already ended the session, keeps another current server, and reports a
+    /// server that cannot be reached or a configuration that cannot be written; settings are kept or the reason is given.
+    #[tokio::test]
+    async fn signs_out_and_keeps_settings() {
+        let dir = tempfile::tempdir().expect("folder");
+        let tokens: Arc<dyn TokenStore> = Arc::from(secrets::open(
+            dir.path(),
+            Ok(keyring_core::mock::Store::new().expect("mock")),
+        ));
+        let config_path = dir.path().join(crate::config::FILE_NAME);
+        let ended = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/auth/logout"))
+            .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 401, "code": "unauthenticated"})))
+            .mount(&ended)
+            .await;
+        let session = Session {
+            server: Url::parse(&ended.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        let mut config = Config::default();
+        config.signed_in("https://other.example.com", "ana@example.com");
+        config.save(&config_path).expect("config");
+        tokens.set(&ended.uri(), "t").expect("token");
+        logout(&session, tokens.clone(), config_path.clone())
+            .await
+            .expect("signed out");
+        assert_eq!(tokens.get(&ended.uri()).expect("tokens"), None);
+        assert_eq!(
+            Config::load(&config_path)
+                .expect("config")
+                .current
+                .as_deref(),
+            Some("https://other.example.com")
+        );
+
+        let down = Session {
+            server: Url::parse("http://127.0.0.1:9").expect("url"),
+            token: "t".to_owned(),
+        };
+        assert!(
+            logout(&down, tokens.clone(), config_path.clone())
+                .await
+                .is_err()
+        );
+        std::fs::write(&config_path, "not = [toml").expect("a broken configuration");
+        assert!(
+            logout(&session, tokens.clone(), config_path.clone())
+                .await
+                .is_err()
+        );
+
+        assert!(save_settings(&config_path, crate::config::Settings::default()).is_err());
+        std::fs::remove_file(&config_path).expect("removed");
+        save_settings(&config_path, crate::config::Settings::default()).expect("kept");
+        assert!(config_path.exists());
     }
 }

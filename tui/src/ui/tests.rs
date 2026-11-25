@@ -10,11 +10,11 @@ use ratatui::style::Color;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::app::{App, Effect, Event, Failure, Screen, Setup};
+use super::app::{App, Effect, Event, Failure, Kept, Screen, Setup};
 use super::runtime::{self, Ports};
 use super::theme::ColorMode;
 use super::*;
-use crate::config::Profile;
+use crate::config::{Profile, Settings};
 use crate::i18n::Language;
 use crate::login::Answer;
 use crate::secrets;
@@ -37,10 +37,20 @@ fn setup_with(profiles: Vec<Profile>, browser_possible: bool) -> Setup {
         language: Language::English,
         mode: ColorMode::TrueColor,
         theme: DEFAULT_THEME.to_owned(),
+        settings: Settings::default(),
         profiles,
         host: "laptop".to_owned(),
         browser_possible,
         signed_in: None,
+    }
+}
+
+/// The session kept for files.example.com, with the token `t`.
+fn kept(email: &str) -> Kept {
+    Kept {
+        server: "https://files.example.com".to_owned(),
+        email: email.to_owned(),
+        token: "t".to_owned(),
     }
 }
 
@@ -141,20 +151,12 @@ fn signs_in_through_the_browser() {
         email: "ana@example.com".into(),
         locale: "es".into(),
         theme: "nord".into(),
+        token: "t".into(),
     });
-    assert_eq!(
-        app.screen(),
-        &Screen::Signed {
-            server: "https://files.example.com".into(),
-            email: "ana@example.com".into()
-        }
-    );
+    assert!(matches!(app.screen(), Screen::Main(home) if home.session().token == "t"));
     assert_eq!(app.messages().language(), Language::Spanish);
     assert_eq!(app.palette().accent, Color::Rgb(0x88, 0xc0, 0xd0));
-    assert!(
-        screen_text(&app)
-            .contains("Sesión iniciada en https://files.example.com como ana@example.com.")
-    );
+    assert!(screen_text(&app).contains("Disco local"));
     assert_eq!(app.handle(key(KeyCode::Char('x'))), Vec::<Effect>::new());
     assert_eq!(app.handle(key(KeyCode::Char('q'))), vec![Effect::Quit]);
 }
@@ -358,15 +360,10 @@ fn quits_and_ignores_releases() {
     assert_eq!(app.handle(key(KeyCode::Esc)), vec![Effect::Quit]);
 
     let mut signed = setup_with(vec![], true);
-    signed.signed_in = Some((
-        "https://files.example.com".to_owned(),
-        "ana@example.com".to_owned(),
-    ));
+    signed.signed_in = Some(kept("ana@example.com"));
     signed.mode = ColorMode::Plain;
     let mut app = App::new(signed);
-    assert!(
-        screen_text(&app).contains("Signed in to https://files.example.com as ana@example.com.")
-    );
+    assert!(screen_text(&app).contains("files.example.com · ana@example.com"));
     app.handle(Event::Paste("ignored".to_owned()));
 
     let mut plain = setup_with(vec![profile("https://a.example.com")], true);
@@ -414,17 +411,11 @@ fn sets_up_from_this_computer() {
     );
     tokens.set("https://files.example.com", "t").expect("token");
     let with_token = setup(&config, tokens.as_ref(), env, "laptop".to_owned());
-    assert_eq!(
-        with_token.signed_in,
-        Some((
-            "https://files.example.com".to_owned(),
-            "ana@example.com".to_owned()
-        ))
-    );
+    assert_eq!(with_token.signed_in, Some(kept("ana@example.com")));
     config.profiles.clear();
     assert_eq!(
         setup(&config, tokens.as_ref(), env, "laptop".to_owned()).signed_in,
-        Some(("https://files.example.com".to_owned(), String::new()))
+        Some(kept(""))
     );
 }
 
@@ -435,7 +426,7 @@ fn user() -> serde_json::Value {
 }
 
 /// Ports over a folder, the given tokens and browser, recording what was copied.
-fn ports(
+pub(super) fn ports(
     dir: &std::path::Path,
     tokens: Arc<dyn secrets::TokenStore>,
     browser: Arc<dyn Fn(&str) -> bool + Send + Sync>,
@@ -520,13 +511,7 @@ async fn runs_the_sign_in_end_to_end() {
     .await
     .expect("the sign-in finished")
     .expect("drawing");
-    assert_eq!(
-        app.screen(),
-        &Screen::Signed {
-            server: server.uri(),
-            email: "ana@example.com".into()
-        }
-    );
+    assert!(matches!(app.screen(), Screen::Main(home) if home.session().token == "t"));
     assert_eq!(
         tokens.get(&server.uri()).expect("token").as_deref(),
         Some("t")
@@ -553,7 +538,7 @@ async fn runs_the_sign_in_end_to_end() {
 }
 
 /// Events with a pause before each, as a stream.
-fn paced(events: Vec<(u64, Event)>) -> runtime::Events<'static> {
+pub(super) fn paced(events: Vec<(u64, Event)>) -> runtime::Events<'static> {
     Box::pin(futures::stream::unfold(
         events.into_iter(),
         |mut events| async move {
@@ -635,7 +620,9 @@ fn exchanges_a_late_approval() {
 }
 
 /// Draws the interface on a test backend, which never fails.
-fn draw_on(terminal: &mut Terminal<TestBackend>) -> impl FnMut(&App) -> std::io::Result<()> + '_ {
+pub(super) fn draw_on(
+    terminal: &mut Terminal<TestBackend>,
+) -> impl FnMut(&App) -> std::io::Result<()> + '_ {
     move |app: &App| {
         terminal
             .draw(|frame| app.render(frame))

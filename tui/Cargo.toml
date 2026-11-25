@@ -33,6 +33,7 @@ tokio = { version = "1.54.1", features = ["full"] }
 toml = "1.2.3"
 transferly-client = { version = "0.0.0", path = "client" }
 url = "2.5.9"
+uuid = "1.29.3"
 webbrowser = "1.2.7"
 
 [lints.rust]

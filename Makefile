@@ -69,8 +69,8 @@ tui-mockups:
 	mkdir -p tui/mockups/pages
 	docker run --rm -v $(CURDIR):/repo -v transferly-tui-cargo:/usr/local/cargo/registry -v transferly-tui-target:/target -e CARGO_TARGET_DIR=/target \
 		-w /repo/tui/mockups rust:1.100-bookworm sh -c 'cargo run -q --release --locked -- /repo/docs/design/terminal-client-mockups.md /repo/tui/mockups/pages && chown -R $(shell id -u):$(shell id -g) /repo/docs/design/terminal-client-mockups.md /repo/tui/mockups/pages Cargo.lock'
-	docker run --rm -v $(CURDIR)/tui/mockups/pages:/out debian:bookworm-slim sh -c 'apt-get -qq update >/dev/null && apt-get -qq install -y fonts-dejavu-core >/dev/null \
-		&& cp /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf /out/ && chown $(shell id -u):$(shell id -g) /out/*.ttf'
+	docker run --rm -v $(CURDIR)/tui/mockups/pages:/out debian:bookworm-slim sh -c 'test -f /out/DejaVuSansMono-Bold.ttf || { apt-get -qq update >/dev/null && apt-get -qq install -y fonts-dejavu-core >/dev/null \
+		&& cp /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf /out/ && chown $(shell id -u):$(shell id -g) /out/*.ttf; }'
 	docker run --rm -u $(shell id -u):$(shell id -g) -e HOME=/tmp -v $(CURDIR):/repo -w /repo/tui/mockups \
 		mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f node screenshot.cjs pages /repo/docs/design/screens
 
