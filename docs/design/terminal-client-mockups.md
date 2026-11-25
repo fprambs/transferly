@@ -32,7 +32,7 @@ The main screen: tabs, sites, two panels, the transfer queue and the status bar.
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -42,7 +42,7 @@ The main screen: tabs, sites, two panels, the transfer queue and the status bar.
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Explorer on a narrow terminal
@@ -75,7 +75,7 @@ Below 100 columns: the sites panel hides and only the focused panel shows; Tab s
 │                                                                              │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
- ana@files.acme.com · unlocked · F5 copy · / filter · ? help
+ ana@files.acme.com · unlocked · F5 copy · / commands · ? help
 ```
 
 ## Server
@@ -219,7 +219,7 @@ A site needs the vault: the master password, then the action runs again. 120 × 
 │                      ││     ╰─────────────────────────────── Enter unlock · Esc cancel ╯                             │
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -229,7 +229,7 @@ A site needs the vault: the master password, then the action runs again. 120 × 
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Host key
@@ -262,7 +262,7 @@ A question of the server: trust the key of a host seen for the first time. 120 �
 │                     │                                                                          │                     │
 │                     │                                                                          │                     │
 │                     ╰───────────────────────────────────────── y trust · n refuse · Esc cancel ╯                     │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -272,7 +272,7 @@ A question of the server: trust the key of a host seen for the first time. 120 �
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Copy with existing files
@@ -305,7 +305,7 @@ F5 with a selection: where it goes and what to do with files that exist. 120 × 
 │                      ││                                                                      │                       │
 │                      ││                                                                      │                       │
 │                      │╰───────────────────────────────── Enter copy · ↑↓ choose · Esc cancel ╯                       │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -315,7 +315,7 @@ F5 with a selection: where it goes and what to do with files that exist. 120 × 
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Delete
@@ -348,7 +348,7 @@ Delete, in red, naming what goes. 120 × 34.
 │                      ││   │                                                              │                           │
 │                      ││   ╰───────────────────────────────────────── y delete · n cancel ╯                           │
 │                      ││                                              ││                                              │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -358,7 +358,7 @@ Delete, in red, naming what goes. 120 × 34.
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Help
@@ -375,23 +375,23 @@ Delete, in red, naming what goes. 120 × 34.
 │      prod-╭ Keys ────────────────────────────────────────────────────────────────────────────────────────╮11-23 22:05│
 │▾ Staging  │Everywhere                                      Files                                         │09-30 10:44│
 │      stagi│  ? F1            this help                       ↑↓ j k          move                        │11-01 08:15│
-│▸ Customers│  Ctrl+K          command palette                 Enter → l       open the folder             │11-24 18:30│
-│  backups (│  Ctrl+B          sites panel                     Backspace ← h   up one level                │           │
-│  drive (Go│  Ctrl+E          transfers and log               Space Ins       mark                        │           │
-│  nas (WebD│  Ctrl+O          quick connection                Ctrl+A Esc      mark all, clear             │           │
-│           │  Tab Shift+Tab   next, previous panel            F5 c            copy to the other panel     │           │
-│           │  Alt+1…9         go to a tab                     F7 n            new folder                  │           │
-│           │  Ctrl+T Ctrl+W   new tab, close tab              F2              rename                      │           │
-│           │  Ctrl+C          cancel, then quit               Del F8          delete                      │           │
-│           │  q F10           quit                            / Ctrl+F        filter                      │           │
-│           │                                                  i               details                     │           │
-│           │Transfers                                         . s r           hidden, sort, refresh       │           │
-│           │  p               pause or resume                 Ctrl+G Ctrl+Y   go to path, sync browsing   │           │
-│           │  x Del           cancel                          o Ctrl+D        open a site here, disconnect│           │
+│▸ Customers│  /               commands: /config, /theme…      Enter → l       open the folder             │11-24 18:30│
+│  backups (│  Ctrl+K          command palette                 Backspace ← h   up one level                │           │
+│  drive (Go│  Ctrl+B          sites panel                     Space Ins       mark                        │           │
+│  nas (WebD│  Ctrl+E          transfers and log               Ctrl+A Esc      mark all, clear             │           │
+│           │  Ctrl+O          quick connection                F5 c            copy to the other panel     │           │
+│           │  Tab Shift+Tab   next, previous panel            F7 n            new folder                  │           │
+│           │  Alt+1…9         go to a tab                     F2              rename                      │           │
+│           │  Ctrl+T Ctrl+W   new tab, close tab              Del F8          delete                      │           │
+│           │  Ctrl+C          cancel, then quit               f Ctrl+F        filter                      │           │
+│           │  q F10           quit                            i               details                     │           │
+│           │                                                  . s r           hidden, sort, refresh       │           │
+│           │Transfers                                         Ctrl+G Ctrl+Y   go to path, sync browsing   │           │
+│           │  p               pause or resume                 o Ctrl+D        open a site here, disconnect│           │
+│           │  x Del           cancel                                                                      │           │
 │           │  + -             priority                                                                    │           │
 │           │                                                                                              │           │
-│           │                                                                                              │           │
-╰ / filter ─│                                                                                              │───────────╯
+╰ f filter ─│                                                                                              │───────────╯
 ╭ Transfers │                                                                                              │───────────╮
 │↑ site-v2.t│                                                                                              │MiB/s  0:02│
 │↑ assets.zi│                                                                                              │MiB/s  0:18│
@@ -401,7 +401,7 @@ Delete, in red, naming what goes. 120 × 34.
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Palette
@@ -434,7 +434,7 @@ Ctrl+K finds actions, sites and folders by name. 120 × 34.
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -444,7 +444,93 @@ Ctrl+K finds actions, sites and folders by name. 120 × 34.
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
+```
+
+## Commands
+
+/ opens the command line at the bottom, with the commands that match, as in Claude Code. 120 × 34.
+
+![Commands](screens/commands.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                       transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ───────────────────────────────────────╮╭ prod-web · SFTP ─────────────────────────────╮
+│▾ Production          ││    Name                      Size Modified   ││    Name                      Size Modified   │
+│    ● prod-web        ││    ../                                       ││    ../                                       │
+│      prod-db         ││    releases/                      11-20 09:12││    current/                       11-23 22:05│
+│▾ Staging             ││› ✓ site-v2.tar.gz        48.2 MiB 11-24 18:40││    shared/                        09-30 10:44│
+│      staging         ││  ✓ assets.zip           212.7 MiB 11-24 18:41││›   site-v1.tar.gz        47.9 MiB 11-01 08:15│
+│▸ Customers           ││    notes.md               4.1 KiB 11-22 11:03││    deploy.log            88.0 KiB 11-24 18:30│
+│  backups (S3)        ││    .env.example             312 B 10-02 16:20││                                              │
+│  drive (Google)      ││                                              ││                                              │
+│  nas (WebDAV)        ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+│                      ││                                              ││                                              │
+╭──────────────────────────────────────────────────────────────╮       ││                                              │
+│ /config     settings: language, theme, keys of files, updates│       ││                                              │
+│ /theme      wear another theme, shared with the web          │       ││                                              │
+│ /language   English or Español, shared with the web          │───────╯╰ /var/www ────────────────────────────────────╯
+│ /workspace  change the workspace                             │───────────────────────────────────────────────────────╮
+│ /server     switch to another server or add one              │━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
+│ /sessions   terminal sessions of this account                │───────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
+│ /web        open this folder in the browser                  │───────────────────            queued                  │
+│ /update     install the new release                          │                                                       │
+│ /keys       every key of the screen                          │                                                       │
+│ /logout     sign this terminal out                           │                                                       │
+│ /quit       close transferly-tui                             │                                                       │
+╰──────────── ↑↓ choose · Tab complete · Enter run · Esc close ╯─────────────────── p pause · x cancel · Enter details ╯
+ › /con▏
+```
+
+## Settings
+
+/config: language and theme of the account, shared with the web, and settings of this computer. 120 × 34.
+
+![Settings](screens/settings.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                       transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ───────────────────────────────────────╮╭ prod-web · SFTP ─────────────────────────────╮
+│▾ Production          ││    Name                      Size Modified   ││    Name                      Size Modified   │
+│    ● prod-web        ││    ../                                       ││    ../                                       │
+│      prod-db         ││    releases/                      11-20 09:12││    current/                       11-23 22:05│
+│▾ Staging             ││› ✓ site-v2.tar.gz        48.2 MiB 11-24 18:40││    shared/                        09-30 10:44│
+│      staging         ││  ✓ assets.zip           212.7 MiB 11-24 18:41││›   site-v1.tar.gz        47.9 MiB 11-01 08:15│
+│▸ Customers           ││    notes.md               4.1 KiB 11-22 11:03││    deploy.log            88.0 KiB 11-24 18:30│
+│  backups (S3) ╭ Settings · /config ──────────────────────────────────────────────────────────────────╮               │
+│  drive (Google│› Language                             ‹ Español ›                account, web too    │               │
+│  nas (WebDAV) │  Theme                                Transferly Dark            account, web too    │               │
+│               │  Colors                               the theme's                this computer       │               │
+│               │  Time zone                            America/Santiago           account, web too    │               │
+│               │  Enter on a file                      copy to the other panel    this computer       │               │
+│               │  Hidden files                         hidden                     this computer       │               │
+│               │  Ask before quitting with transfers   yes                        this computer       │               │
+│               │  Check for updates                    once a day                 this computer       │               │
+│               │                                                                                      │               │
+│               │                                                                                      │               │
+│               │                                                                                      │               │
+│               │                                                                                      │               │
+│               │                                                                                      │               │
+│               │                                                                                      │               │
+╰ f filter ─────│The language, the theme and the time zone are those of your account: changing them    │───────────────╯
+╭ Transfers 3 │ │here changes them in the web too.                                                     │───────────────╮
+│↑ site-v2.tar.g╰─────────────────────────────────────────────────── ↑↓ choose · ←→ change · Esc close ╯1.2 MiB/s  0:02│
+│↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
+│⇄ backups:/db/2026-11-24.sql.gz → nas:/archive      0% ───────────────────────────            queued                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Error
@@ -477,7 +563,7 @@ A guided error: message, probable cause, what to do and the stable code. 120 × 
 │                     │                                                                          │                     │
 │                     ╰─────────────────────────────────────────── Enter close · c copy the code ╯                     │
 │                      ││                                              ││                                              │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers 3 │ Log ───────────────────────────────────────────────────────────────────────────────────────────────────╮
 │↑ site-v2.tar.gz → prod-web:/var/www               62% ━━━━━━━━━━━━━━━━───────────   29.9 / 48.2 MiB  11.2 MiB/s  0:02│
 │↑ assets.zip → prod-web:/var/www                    8% ━━─────────────────────────  17.0 / 212.7 MiB  10.8 MiB/s  0:18│
@@ -487,7 +573,7 @@ A guided error: message, probable cause, what to do and the stable code. 120 × 
 │                                                                                                                      │
 │                                                                                                                      │
 ╰────────────────────────────────────────────────────────────────────────────────── p pause · x cancel · Enter details ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
 ## Log
@@ -520,7 +606,7 @@ The bottom panel on its log tab, following the connection. 120 × 34.
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
 │                      ││                                              ││                                              │
-╰ / filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ───────╯╰ /var/www ────────────────────────────────────╯
 ╭ Transfers │ Log · prod-web ──────────────────────────────────────────────────────────────────────────────────────────╮
 │18:40:02  resolving files.acme.com                                                                                    │
 │18:40:02  connecting to 203.0.113.24:22                                                                               │
@@ -530,5 +616,57 @@ The bottom panel on its log tab, following the connection. 120 × 34.
 │18:40:11  upload site-v2.tar.gz started                                                                               │
 │18:40:14  ● following                                                                                                 │
 ╰───────────────────────────────────────────────────────────────────────────────────────────────── [ ] tabs · f follow ╯
- ana@files.acme.com · Acme Web · vault unlocked         F5 copy · F7 folder · F2 rename · Del delete · / filter  ? help
+ ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
+
+## Themes
+
+The explorer in each theme of the web, read from `tui/themes.json`; the theme is the one of the account, shared with the web.
+
+### Transferly Dark
+
+![Transferly Dark](screens/theme-transferly-dark.png)
+
+### Transferly Light
+
+![Transferly Light](screens/theme-transferly-light.png)
+
+### Monokai
+
+![Monokai](screens/theme-monokai.png)
+
+### Dracula
+
+![Dracula](screens/theme-dracula.png)
+
+### Nord
+
+![Nord](screens/theme-nord.png)
+
+### One Dark
+
+![One Dark](screens/theme-one-dark.png)
+
+### Tokyo Night
+
+![Tokyo Night](screens/theme-tokyo-night.png)
+
+### Gruvbox Dark
+
+![Gruvbox Dark](screens/theme-gruvbox-dark.png)
+
+### Solarized Dark
+
+![Solarized Dark](screens/theme-solarized-dark.png)
+
+### GitHub Dark
+
+![GitHub Dark](screens/theme-github-dark.png)
+
+### Solarized Light
+
+![Solarized Light](screens/theme-solarized-light.png)
+
+### GitHub Light
+
+![GitHub Light](screens/theme-github-light.png)

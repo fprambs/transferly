@@ -13,36 +13,83 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Cell, Clear, LineGauge, Paragraph, Row, Table, TableState, Tabs, Wrap};
 use ratatui::Frame;
 
-/// The colors of the Transferly Dark theme of the web (frontend/src/lib/theme/themes.ts).
+/// The themes of the web (tui/themes.json, exported from frontend/src/lib/theme/themes.ts by make gen) and the one the screens wear.
 mod theme {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
     use ratatui::style::Color;
+    use serde::Deserialize;
+
+    /// A theme as the web defines it: its identifier, name and colors by token.
+    #[derive(Clone, Deserialize)]
+    pub struct Theme {
+        /// Identifier, such as transferly-dark.
+        pub id: String,
+        /// Name shown in the settings.
+        pub name: String,
+        /// Colors by token, as #rrggbb.
+        pub tokens: HashMap<String, String>,
+    }
+
+    /// The file of themes.
+    #[derive(Deserialize)]
+    struct File {
+        themes: Vec<Theme>,
+    }
+
+    /// Every theme of the web, in its order.
+    pub fn all() -> Vec<Theme> {
+        let file: File = serde_json::from_str(include_str!("../../themes.json")).expect("tui/themes.json");
+        file.themes
+    }
+
+    thread_local! {
+        /// The theme the screens are drawn in.
+        static CURRENT: RefCell<Option<Theme>> = const { RefCell::new(None) };
+    }
+
+    /// Makes the screens wear a theme.
+    pub fn wear(theme: &Theme) {
+        CURRENT.with(|current| *current.borrow_mut() = Some(theme.clone()));
+    }
+
+    /// The color of a token of the current theme.
+    fn token(name: &str) -> Color {
+        CURRENT.with(|current| {
+            let current = current.borrow();
+            let hex = current.as_ref().and_then(|theme| theme.tokens.get(name)).expect("a theme with every token");
+            let value = u32::from_str_radix(hex.trim_start_matches('#'), 16).expect("a #rrggbb color");
+            Color::Rgb((value >> 16) as u8, (value >> 8) as u8, value as u8)
+        })
+    }
 
     /// Background of the screen.
-    pub const BG: Color = Color::Rgb(0x12, 0x12, 0x12);
+    pub fn bg() -> Color { token("bg") }
     /// Background of bars and popups.
-    pub const SURFACE: Color = Color::Rgb(0x1a, 0x1f, 0x22);
+    pub fn surface() -> Color { token("surface") }
     /// Background of the selected row.
-    pub const RAISED: Color = Color::Rgb(0x23, 0x2a, 0x2e);
+    pub fn raised() -> Color { token("raised") }
     /// Borders of panels without the focus.
-    pub const LINE: Color = Color::Rgb(0x2e, 0x37, 0x3c);
+    pub fn line() -> Color { token("line") }
     /// Text.
-    pub const TEXT: Color = Color::Rgb(0xe0, 0xf2, 0xf1);
+    pub fn text() -> Color { token("text") }
     /// Secondary text.
-    pub const MUTED: Color = Color::Rgb(0xa3, 0xb1, 0xb5);
+    pub fn muted() -> Color { token("muted") }
     /// Faint text, such as headers.
-    pub const FAINT: Color = Color::Rgb(0x8a, 0x97, 0x9c);
+    pub fn faint() -> Color { token("faint") }
     /// Accent: the focus, progress and the selected tab.
-    pub const ACCENT: Color = Color::Rgb(0xff, 0x98, 0x00);
+    pub fn accent() -> Color { token("accent") }
     /// Text in the accent color.
-    pub const ACCENT_TEXT: Color = Color::Rgb(0xff, 0xa7, 0x26);
+    pub fn accent_text() -> Color { token("accentText") }
     /// Text on the accent color.
-    pub const INK: Color = Color::Rgb(0x12, 0x12, 0x12);
+    pub fn ink() -> Color { token("ink") }
     /// Success.
-    pub const OK: Color = Color::Rgb(0x66, 0xbb, 0x6a);
+    pub fn ok() -> Color { token("ok") }
     /// Danger.
-    pub const DANGER: Color = Color::Rgb(0xff, 0x79, 0x61);
+    pub fn danger() -> Color { token("danger") }
     /// Folders and links.
-    pub const INFO: Color = Color::Rgb(0x64, 0xa0, 0xf0);
+    pub fn info() -> Color { token("info") }
 }
 
 /// A screen of the design: its name, what it shows, its size and how to draw it.
@@ -70,6 +117,8 @@ fn main() {
         Screen { name: "Delete", about: "Delete, in red, naming what goes.", width: 120, height: 34, draw: delete },
         Screen { name: "Help", about: "? lists every key of the screen, with a filter.", width: 120, height: 34, draw: help },
         Screen { name: "Palette", about: "Ctrl+K finds actions, sites and folders by name.", width: 120, height: 34, draw: palette },
+        Screen { name: "Commands", about: "/ opens the command line at the bottom, with the commands that match, as in Claude Code.", width: 120, height: 34, draw: commands },
+        Screen { name: "Settings", about: "/config: language and theme of the account, shared with the web, and settings of this computer.", width: 120, height: 34, draw: config },
         Screen { name: "Error", about: "A guided error: message, probable cause, what to do and the stable code.", width: 120, height: 34, draw: error },
         Screen { name: "Log", about: "The bottom panel on its log tab, following the connection.", width: 120, height: 34, draw: log },
     ];
@@ -77,6 +126,8 @@ fn main() {
         "# Mockups of the terminal client\n\nGenerated by `tui/mockups` (`make tui-mockups`) with ratatui 0.30; do not edit by hand. The data is made up. \
          See [the design](terminal-client.md) for the keys and the reasons.\n",
     );
+    let themes = theme::all();
+    theme::wear(&themes[0]);
     for screen in screens {
         let buffer = draw(&screen);
         let slug = screen.name.to_lowercase().replace(' ', "-");
@@ -89,6 +140,16 @@ fn main() {
             std::fs::write(format!("{dir}/{slug}.html"), html(&buffer)).expect("writing a page");
         }
     }
+    doc.push_str("\n## Themes\n\nThe explorer in each theme of the web, read from `tui/themes.json`; the theme is the one of the account, shared with the web.\n");
+    let gallery = Screen { name: "", about: "", width: 120, height: 34, draw: explorer };
+    for theme in &themes {
+        theme::wear(theme);
+        let buffer = draw(&gallery);
+        let _ = write!(doc, "\n### {}\n\n![{}](screens/theme-{}.png)\n", theme.name, theme.name, theme.id);
+        if let Some(dir) = &pages {
+            std::fs::write(format!("{dir}/theme-{}.html", theme.id), html(&buffer)).expect("writing a page");
+        }
+    }
     std::fs::write(&out, doc).expect("writing the mockups");
 }
 
@@ -97,7 +158,7 @@ fn draw(screen: &Screen) -> Buffer {
     let mut terminal = Terminal::new(TestBackend::new(screen.width, screen.height)).expect("test backend");
     terminal
         .draw(|frame| {
-            frame.render_widget(Block::new().style(Style::new().bg(theme::BG).fg(theme::TEXT)), frame.area());
+            frame.render_widget(Block::new().style(Style::new().bg(theme::bg()).fg(theme::text())), frame.area());
             (screen.draw)(frame);
         })
         .expect("drawing");
@@ -120,9 +181,9 @@ fn panel(title: &str, focused: bool) -> Block<'static> {
     let title = Line::from(format!(" {title} "));
     let block = Block::bordered().border_type(BorderType::Rounded);
     if focused {
-        block.border_style(Style::new().fg(theme::ACCENT)).title(title.fg(theme::ACCENT_TEXT).bold())
+        block.border_style(Style::new().fg(theme::accent())).title(title.fg(theme::accent_text()).bold())
     } else {
-        block.border_style(Style::new().fg(theme::LINE)).title(title.fg(theme::MUTED))
+        block.border_style(Style::new().fg(theme::line())).title(title.fg(theme::muted()))
     }
 }
 
@@ -135,7 +196,7 @@ fn centered(area: Rect, width: u16, height: u16) -> Rect {
 
 /// Clears a centered rectangle and draws a popup block on it, returning the inner area.
 fn popup(frame: &mut Frame, width: u16, height: u16, title: &str, keys: &str) -> Rect {
-    popup_in(frame, width, height, title, keys, theme::ACCENT)
+    popup_in(frame, width, height, title, keys, theme::accent())
 }
 
 /// A popup whose border and title have the given color, such as the danger color of confirmations that destroy.
@@ -147,7 +208,7 @@ fn popup_in(frame: &mut Frame, width: u16, height: u16, title: &str, keys: &str,
         .border_style(Style::new().fg(color))
         .title(Line::from(format!(" {title} ")).fg(color).bold())
         .title_bottom(Line::from(format!(" {keys} ")).right_aligned())
-        .style(Style::new().bg(theme::SURFACE));
+        .style(Style::new().bg(theme::surface()));
     let inner = block.inner(area);
     frame.render_widget(block, area);
     inner
@@ -156,13 +217,13 @@ fn popup_in(frame: &mut Frame, width: u16, height: u16, title: &str, keys: &str,
 /// The tab bar with the version on the right.
 fn tabs(frame: &mut Frame, area: Rect) {
     let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(44)]).areas(area);
-    frame.render_widget(Tabs::new(vec![" 1 prod-web ", " 2 backups ", " 3 local "]).select(0).divider("│").style(Style::new().fg(theme::MUTED)).highlight_style(Style::new().fg(theme::INK).bg(theme::ACCENT).bold()), left);
-    frame.render_widget(Line::from(vec![Span::from("transferly-tui 1.4.0 ").dim(), Span::from("→ 1.5.0 · U to update ").fg(theme::ACCENT_TEXT).bold()]).right_aligned(), right);
+    frame.render_widget(Tabs::new(vec![" 1 prod-web ", " 2 backups ", " 3 local "]).select(0).divider("│").style(Style::new().fg(theme::muted())).highlight_style(Style::new().fg(theme::ink()).bg(theme::accent()).bold()), left);
+    frame.render_widget(Line::from(vec![Span::from("transferly-tui 1.4.0 ").dim(), Span::from("→ 1.5.0 · U to update ").fg(theme::accent_text()).bold()]).right_aligned(), right);
 }
 
 /// The status bar: where the session is, then the keys of the focused panel.
 fn status(frame: &mut Frame, area: Rect, keys: &str) {
-    frame.render_widget(Block::new().style(Style::new().bg(theme::SURFACE).fg(theme::MUTED)), area);
+    frame.render_widget(Block::new().style(Style::new().bg(theme::surface()).fg(theme::muted())), area);
     let keys = format!("{keys}  ? help ");
     let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(keys.chars().count() as u16)]).spacing(2).areas(area);
     frame.render_widget(Line::from(" ana@files.acme.com · Acme Web · vault unlocked"), left);
@@ -173,7 +234,7 @@ fn status(frame: &mut Frame, area: Rect, keys: &str) {
 fn sites(frame: &mut Frame, area: Rect, focused: bool) {
     let lines = vec![
         Line::from("▾ Production"),
-        Line::from(vec![Span::from("    "), Span::from("●").fg(theme::OK), Span::from(" prod-web")]),
+        Line::from(vec![Span::from("    "), Span::from("●").fg(theme::ok()), Span::from(" prod-web")]),
         Line::from("      prod-db"),
         Line::from("▾ Staging"),
         Line::from("      staging"),
@@ -182,7 +243,7 @@ fn sites(frame: &mut Frame, area: Rect, focused: bool) {
         Line::from("  drive (Google)"),
         Line::from("  nas (WebDAV)"),
     ];
-    frame.render_widget(Paragraph::new(lines).block(panel("Sites · Acme Web", focused).title_bottom(" / filter ")), area);
+    frame.render_widget(Paragraph::new(lines).block(panel("Sites · Acme Web", focused).title_bottom(" f filter ")), area);
 }
 
 /// An explorer panel: a table of entries with marks, sizes and dates, its site as title and its path at the bottom.
@@ -190,14 +251,14 @@ fn explorer_panel(frame: &mut Frame, area: Rect, title: &str, path: &str, rows: 
     let rows: Vec<Row> = rows
         .iter()
         .map(|(mark, name, size, date)| {
-            let name_cell = if name.ends_with('/') { Cell::from(*name).fg(theme::INFO).bold() } else { Cell::from(*name) };
-            let row = Row::new(vec![Cell::from(*mark), name_cell, Cell::from(Line::from(*size).right_aligned()), Cell::from(Line::from(*date).fg(theme::MUTED))]);
-            if *mark == "✓" { row.fg(theme::ACCENT_TEXT) } else { row }
+            let name_cell = if name.ends_with('/') { Cell::from(*name).fg(theme::info()).bold() } else { Cell::from(*name) };
+            let row = Row::new(vec![Cell::from(*mark), name_cell, Cell::from(Line::from(*size).right_aligned()), Cell::from(Line::from(*date).fg(theme::muted()))]);
+            if *mark == "✓" { row.fg(theme::accent_text()) } else { row }
         })
         .collect();
     let table = Table::new(rows, [Constraint::Length(1), Constraint::Fill(1), Constraint::Length(9), Constraint::Length(11)])
-        .header(Row::new(vec!["", "Name", "     Size", "Modified"]).fg(theme::FAINT))
-        .row_highlight_style(if focused { Style::new().bg(theme::RAISED).bold() } else { Style::new().bg(theme::LINE) })
+        .header(Row::new(vec!["", "Name", "     Size", "Modified"]).fg(theme::faint()))
+        .row_highlight_style(if focused { Style::new().bg(theme::raised()).bold() } else { Style::new().bg(theme::line()) })
         .highlight_symbol("› ")
         .block(panel(title, focused).title_bottom(Line::from(format!(" {path} "))));
     let mut state = TableState::new().with_selected(Some(selected));
@@ -249,7 +310,7 @@ fn transfers(frame: &mut Frame, area: Rect, focused: bool) {
         .spacing(1)
         .areas(*row);
         frame.render_widget(Line::from(*name), n);
-        frame.render_widget(LineGauge::default().filled_symbol("━").unfilled_symbol("─").filled_style(Style::new().fg(theme::ACCENT)).unfilled_style(Style::new().fg(theme::LINE)).ratio(*ratio).label(format!("{:>3}%", (ratio * 100.0) as u8)), g);
+        frame.render_widget(LineGauge::default().filled_symbol("━").unfilled_symbol("─").filled_style(Style::new().fg(theme::accent())).unfilled_style(Style::new().fg(theme::line())).ratio(*ratio).label(format!("{:>3}%", (ratio * 100.0) as u8)), g);
         frame.render_widget(Line::from(*done).right_aligned(), d);
         frame.render_widget(Line::from(*speed).right_aligned(), s);
         frame.render_widget(Line::from(*left).right_aligned(), l);
@@ -270,19 +331,19 @@ fn explorer_with(frame: &mut Frame, bottom: fn(&mut Frame, Rect)) {
     explorer_panel(frame, left, "Local", "~/projects/site · 2 marked, 260.9 MiB", &local_rows(), 2, false);
     explorer_panel(frame, right, "prod-web · SFTP", "/var/www", &remote_rows(), 3, true);
     bottom(frame, lower);
-    status(frame, bar, "F5 copy · F7 folder · F2 rename · Del delete · / filter");
+    status(frame, bar, "F5 copy · F7 folder · Del delete · f filter · / commands");
 }
 
 /// The main screen on a narrow terminal.
 fn narrow(frame: &mut Frame) {
     let [top, body, lower, bar] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1), Constraint::Length(5), Constraint::Length(1)]).areas(frame.area());
-    frame.render_widget(Tabs::new(vec![" 1 prod-web ", " 2 backups "]).select(0).divider("│").style(Style::new().fg(theme::MUTED)).highlight_style(Style::new().fg(theme::INK).bg(theme::ACCENT).bold()), top);
+    frame.render_widget(Tabs::new(vec![" 1 prod-web ", " 2 backups "]).select(0).divider("│").style(Style::new().fg(theme::muted())).highlight_style(Style::new().fg(theme::ink()).bg(theme::accent()).bold()), top);
     explorer_panel(frame, body, "prod-web · SFTP  (Tab: Local)", "/var/www", &remote_rows(), 3, true);
     let block = panel("Transfers 3 │ Log", false);
     let inner = block.inner(lower);
     frame.render_widget(block, lower);
-    frame.render_widget(LineGauge::default().filled_symbol("━").unfilled_symbol("─").filled_style(Style::new().fg(theme::ACCENT)).unfilled_style(Style::new().fg(theme::LINE)).ratio(0.62).label("↑ site-v2.tar.gz  62%"), inner);
-    frame.render_widget(Line::from(" ana@files.acme.com · unlocked · F5 copy · / filter · ? help"), bar);
+    frame.render_widget(LineGauge::default().filled_symbol("━").unfilled_symbol("─").filled_style(Style::new().fg(theme::accent())).unfilled_style(Style::new().fg(theme::line())).ratio(0.62).label("↑ site-v2.tar.gz  62%"), inner);
+    frame.render_widget(Line::from(" ana@files.acme.com · unlocked · F5 copy · / commands · ? help"), bar);
 }
 
 /// The card of the sign-in screens: the name of the application above a bordered form.
@@ -394,7 +455,7 @@ fn copy(frame: &mut Frame) {
             Line::from(vec![Span::from("to  "), Span::from("prod-web:/var/www").bold()]),
             Line::from(""),
             Line::from("When a file exists there:"),
-            Line::from("  › Stop and ask again").bg(theme::RAISED).fg(theme::ACCENT_TEXT).bold(),
+            Line::from("  › Stop and ask again").bg(theme::raised()).fg(theme::accent_text()).bold(),
             Line::from("    Replace it"),
             Line::from("    Skip it"),
             Line::from("    Keep the newer"),
@@ -407,15 +468,15 @@ fn copy(frame: &mut Frame) {
 /// The confirmation of a delete.
 fn delete(frame: &mut Frame) {
     explorer(frame);
-    let inner = popup_in(frame, 64, 10, "Delete from prod-web", "y delete · n cancel", theme::DANGER);
+    let inner = popup_in(frame, 64, 10, "Delete from prod-web", "y delete · n cancel", theme::danger());
     frame.render_widget(
         Paragraph::new(vec![
-            Line::from("⚠  Delete these 2 entries?").bold().fg(theme::DANGER),
+            Line::from("⚠  Delete these 2 entries?").bold().fg(theme::danger()),
             Line::from(""),
             Line::from("   /var/www/site-v1.tar.gz"),
             Line::from("   /var/www/deploy.log"),
             Line::from(""),
-            Line::from("This cannot be undone.").fg(theme::DANGER),
+            Line::from("This cannot be undone.").fg(theme::danger()),
             Line::from("         [ y Delete ]        [ n Cancel ]").bold(),
         ]),
         inner,
@@ -434,6 +495,7 @@ fn help(frame: &mut Frame) {
         Paragraph::new(column(&[
             ("Everywhere", ""),
             ("? F1", "this help"),
+            ("/", "commands: /config, /theme…"),
             ("Ctrl+K", "command palette"),
             ("Ctrl+B", "sites panel"),
             ("Ctrl+E", "transfers and log"),
@@ -463,7 +525,7 @@ fn help(frame: &mut Frame) {
             ("F7 n", "new folder"),
             ("F2", "rename"),
             ("Del F8", "delete"),
-            ("/ Ctrl+F", "filter"),
+            ("f Ctrl+F", "filter"),
             ("i", "details"),
             (". s r", "hidden, sort, refresh"),
             ("Ctrl+G Ctrl+Y", "go to path, sync browsing"),
@@ -486,7 +548,7 @@ fn palette(frame: &mut Frame) {
     frame.render_widget(Line::from("› back▏"), input);
     frame.render_widget(
         Paragraph::new(vec![
-            Line::from(" Site      backups (S3)                                 Enter").bg(theme::RAISED).fg(theme::ACCENT_TEXT).bold(),
+            Line::from(" Site      backups (S3)                                 Enter").bg(theme::raised()).fg(theme::accent_text()).bold(),
             Line::from(" Site      backups-old (SFTP)                           Enter"),
             Line::from(" Folder    prod-web:/var/backups                        Enter"),
             Line::from(" Action    Go back up one level                     Backspace"),
@@ -500,10 +562,10 @@ fn palette(frame: &mut Frame) {
 /// A guided error.
 fn error(frame: &mut Frame) {
     explorer(frame);
-    let inner = popup_in(frame, 76, 11, "Could not connect to prod-db", "Enter close · c copy the code", theme::DANGER);
+    let inner = popup_in(frame, 76, 11, "Could not connect to prod-db", "Enter close · c copy the code", theme::danger());
     frame.render_widget(
         Paragraph::new(vec![
-            Line::from("The server refused the user name or the password.").bold().fg(theme::DANGER),
+            Line::from("The server refused the user name or the password.").bold().fg(theme::danger()),
             Line::from(""),
             Line::from(vec![Span::from("Probable cause  ").dim(), Span::from("the password saved for prod-db changed on the server.")]),
             Line::from(vec![Span::from("What to do      ").dim(), Span::from("update the password of the site in the web, then retry.")]),
@@ -539,8 +601,8 @@ fn log(frame: &mut Frame) {
 fn css(color: Color, default: Color) -> String {
     match color {
         Color::Rgb(r, g, b) => format!("#{r:02x}{g:02x}{b:02x}"),
-        Color::Reset => css(default, theme::TEXT),
-        _ => css(theme::TEXT, theme::TEXT),
+        Color::Reset => css(default, theme::text()),
+        _ => css(theme::text(), theme::text()),
     }
 }
 
@@ -558,9 +620,9 @@ fn html(buffer: &Buffer) -> String {
                 std::mem::swap(&mut fg, &mut bg);
             }
             if cell.modifier.contains(Modifier::DIM) && fg == Color::Reset {
-                fg = theme::MUTED;
+                fg = theme::muted();
             }
-            let mut style = format!("color:{};background:{}", css(fg, theme::TEXT), css(bg, theme::BG));
+            let mut style = format!("color:{};background:{}", css(fg, theme::text()), css(bg, theme::bg()));
             if cell.modifier.contains(Modifier::BOLD) {
                 style.push_str(";font-weight:700");
             }
@@ -591,7 +653,79 @@ fn html(buffer: &Buffer) -> String {
     }
     format!(
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>@font-face{{font-family:Mockup;src:url(DejaVuSansMono.ttf)}}@font-face{{font-family:Mockup;font-weight:700;src:url(DejaVuSansMono-Bold.ttf)}}html,body{{margin:0;background:{bg}}}pre{{margin:0;padding:12px;font:15px/1.17 Mockup,monospace;color:{fg};display:inline-block}}</style></head><body><pre id=\"screen\">{body}</pre></body></html>",
-        bg = css(theme::BG, theme::BG),
-        fg = css(theme::TEXT, theme::TEXT),
+        bg = css(theme::bg(), theme::bg()),
+        fg = css(theme::text(), theme::text()),
     )
+}
+
+/// The command line of `/`: it takes the place of the status bar, with the commands that match above it, as in Claude Code.
+fn commands(frame: &mut Frame) {
+    explorer(frame);
+    let area = frame.area();
+    let items = [
+        ("/config", "settings: language, theme, keys of files, updates"),
+        ("/theme", "wear another theme, shared with the web"),
+        ("/language", "English or Español, shared with the web"),
+        ("/workspace", "change the workspace"),
+        ("/server", "switch to another server or add one"),
+        ("/sessions", "terminal sessions of this account"),
+        ("/web", "open this folder in the browser"),
+        ("/update", "install the new release"),
+        ("/keys", "every key of the screen"),
+        ("/logout", "sign this terminal out"),
+        ("/quit", "close transferly-tui"),
+    ];
+    let height = items.len() as u16 + 2;
+    let list = Rect::new(area.x, area.height - 1 - height, 64, height);
+    frame.render_widget(Clear, list);
+    let block = Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(Style::new().fg(theme::accent()))
+        .title_bottom(Line::from(" ↑↓ choose · Tab complete · Enter run · Esc close ").right_aligned())
+        .style(Style::new().bg(theme::surface()));
+    let inner = block.inner(list);
+    frame.render_widget(block, list);
+    let lines: Vec<Line> = items
+        .iter()
+        .enumerate()
+        .map(|(index, (name, about))| {
+            let line = Line::from(vec![Span::from(format!(" {name:<12}")).bold(), Span::from(*about).fg(theme::muted())]);
+            if index == 0 { line.bg(theme::raised()).fg(theme::accent_text()) } else { line }
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), inner);
+    let input = Rect::new(area.x, area.height - 1, area.width, 1);
+    frame.render_widget(Clear, input);
+    frame.render_widget(Block::new().style(Style::new().bg(theme::surface())), input);
+    frame.render_widget(Line::from(vec![Span::from(" › ").fg(theme::accent_text()).bold(), Span::from("/con▏")]), input);
+}
+
+/// The settings of /config: each with its value, and whether it belongs to the account, shared with the web, or to this computer.
+fn config(frame: &mut Frame) {
+    explorer(frame);
+    let inner = popup(frame, 88, 18, "Settings · /config", "↑↓ choose · ←→ change · Esc close");
+    let rows = [
+        ("Language", "‹ Español ›", "account, web too"),
+        ("Theme", "Transferly Dark", "account, web too"),
+        ("Colors", "the theme's", "this computer"),
+        ("Time zone", "America/Santiago", "account, web too"),
+        ("Enter on a file", "copy to the other panel", "this computer"),
+        ("Hidden files", "hidden", "this computer"),
+        ("Ask before quitting with transfers", "yes", "this computer"),
+        ("Check for updates", "once a day", "this computer"),
+    ];
+    let table = Table::new(
+        rows.iter().map(|(name, value, scope)| Row::new(vec![Cell::from(*name), Cell::from(*value).fg(theme::accent_text()), Cell::from(*scope).fg(theme::muted())])),
+        [Constraint::Length(36), Constraint::Length(26), Constraint::Fill(1)],
+    )
+    .row_highlight_style(Style::new().bg(theme::raised()).bold())
+    .highlight_symbol("› ");
+    let [list, note] = Layout::vertical([Constraint::Fill(1), Constraint::Length(2)]).areas(inner);
+    frame.render_stateful_widget(table, list, &mut TableState::new().with_selected(Some(0)));
+    frame.render_widget(
+        Paragraph::new("The language, the theme and the time zone are those of your account: changing them here changes them in the web too.")
+            .fg(theme::muted())
+            .wrap(Wrap { trim: true }),
+        note,
+    );
 }

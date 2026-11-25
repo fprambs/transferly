@@ -472,6 +472,7 @@ Revisado contra el código el 2026-11-24. Solo el middleware `authenticate` (`tr
 - [ ] Compatibilidad: tras el login lee `GET /version` y avisa si la versión minor difiere; una acción cuyo endpoint responde `404` se explica ("necesita un servidor más nuevo") y se desactiva; un servidor sin `/cli/token` se detecta en la pantalla de login y se dice que hay que actualizarlo
 - [ ] Selector de workspace y árbol de sitios con colecciones; conexión rápida
 - [ ] i18n inglés y español; errores con su código y la guía del catálogo del frontend
+- [ ] Diseño aprobado el 2026-11-24 ([diseño](design/terminal-client.md), [maquetas](design/terminal-client-mockups.md)): los mismos atajos que la web donde la terminal puede enviarlos, `/` abre la línea de comandos al estilo Claude Code (`/config`, `/theme`, `/language`, `/workspace`, `/server`, `/sessions`, `/web`, `/update`, `/keys`, `/logout`, `/quit`) y filtrar pasa a `f` y `Ctrl+F`; `/config` cambia en el sitio el idioma, el tema y la zona horaria de la cuenta (compartidos con la web por `PATCH /me`) y los ajustes de este equipo (`~/.config/transferly/config.toml`); los doce temas de la web en `tui/themes.json`, exportado por `make gen` desde `themes.ts`
 
 ### T3. Explorador de doble panel (1,5 a 2 semanas)
 

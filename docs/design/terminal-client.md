@@ -27,8 +27,10 @@ drawn with ratatui itself by `tui/mockups`, so what is shown here is what the li
    may freeze the terminal, `Ctrl+Z` suspends, and `Ctrl+Shift+letter` or `Ctrl+Tab` cannot be told apart. None of them is used.
 5. **Nothing destructive without a confirmation** that names what it will do; `Esc` always backs out of a popup.
 6. **The server does the work.** The client shows what the API says; long operations show progress and can be cancelled.
-7. **Same language and look as the web**: English and Spanish, the colors of the Transferly theme on the terminal's own background,
-   and plain text when `NO_COLOR` is set.
+7. **Same language and look as the web**: English and Spanish, and the twelve themes of the web with their exact colors; the
+   language, the theme and the time zone are those of the account, so changing them in one changes them in the other.
+8. **Commands and settings as in Claude Code**: `/` opens a command line at the bottom with the commands that match, and `/config`
+   lists the settings to change in place.
 
 ## Layout
 
@@ -65,6 +67,7 @@ Keys are written as the status bar and the help show them. A letter key acts onl
 | Key | Action | Web |
 |---|---|---|
 | `?`, `F1` | Help with every key of the screen | `?` |
+| `/` | Command line: `/config`, `/theme`, `/language`… | |
 | `Ctrl+K`, `Ctrl+P` | Command palette: actions, sites, folders by name | `Mod+K` |
 | `Ctrl+B` | Show or hide the sites panel | `Mod+B` |
 | `Ctrl+E` | Show or hide the transfers and log panel | panels menu |
@@ -93,7 +96,7 @@ Keys are written as the status bar and the help show them. A letter key acts onl
 | `F7`, `n` | New folder | toolbar |
 | `F2` | Rename | `F2` |
 | `Delete`, `F8` | Delete, after a confirmation | `Delete` |
-| `/`, `Ctrl+F` | Filter while typing; `Enter` keeps it, `Esc` clears it | `/`, `Mod+F` |
+| `f`, `Ctrl+F` | Filter while typing; `Enter` keeps it, `Esc` clears it | `Mod+F` (`/` in the web) |
 | `i` | Details of the entry: size, dates, permissions, checksum on demand | details panel |
 | `.` | Show or hide hidden files | |
 | `s` | Sort by name, size or date, ascending or descending | column headers |
@@ -114,7 +117,7 @@ file exists at the destination the confirmation asks what to do: fail, overwrite
 | `→`, `l`, `←`, `h` | Open or close a collection |
 | `Enter` | Open the site in the focused explorer panel |
 | `t` | Open the site in a new tab |
-| `/` | Filter the sites by name or host |
+| `f`, `Ctrl+F` | Filter the sites by name or host |
 | `w` | Change the workspace |
 
 ### Transfers and log panel
@@ -136,6 +139,47 @@ file exists at the destination the confirmation asks what to do: fail, overwrite
 underlined letter of a button presses it (`y` yes, `n` no). Text fields edit with `←`, `→`, `Home`, `End`, `Backspace`, `Delete`,
 `Ctrl+U` (clear) and `Ctrl+W` (delete a word), and paste with the terminal's own paste.
 
+## Commands
+
+`/` replaces the status bar with a command line, as Claude Code does: the commands that match what is typed are listed above it with
+what they do, `↑ ↓` choose, `Tab` completes, `Enter` runs and `Esc` closes. A command can take its value right away, such as
+`/theme nord` or `/language es`; without it, it opens its list.
+
+| Command | Does |
+|---|---|
+| `/config` | The settings, below |
+| `/theme [name]` | Wear another theme, with a live preview while choosing; it is the theme of the account |
+| `/language [en\|es]` | Change the language; it is the language of the account |
+| `/workspace [name]` | Change the workspace |
+| `/server` | Switch to another server profile, or add one (signing in through the browser) |
+| `/sessions` | The terminal sessions of the account, to end one |
+| `/web` | Open the folder of the focused panel in the browser |
+| `/update` | Install the new release, as `U` does |
+| `/keys` | Every key of the screen, as `?` does |
+| `/logout` | Sign this terminal out and forget its token |
+| `/quit` | Close the client, as `q` does |
+
+This is why `/` is not the filter key here as it is in the web: filtering is `f` or `Ctrl+F`, and `Ctrl+F` works in both.
+
+## Settings
+
+`/config` lists every setting with its value and where it lives; `↑ ↓` choose, `← →` change the value in place, `Enter` opens a list
+when there are many values, `Esc` closes. Changes apply at once.
+
+| Setting | Values | Lives in |
+|---|---|---|
+| Language | English, Español | the account (`PATCH /me`), shared with the web |
+| Theme | the twelve themes of the web | the account, shared with the web |
+| Time zone | IANA time zones | the account, shared with the web |
+| Colors | the theme's, or the terminal's own palette | this computer |
+| Enter on a file | copy to the other panel (with a confirmation), or show its details | this computer |
+| Hidden files | shown, hidden | this computer |
+| Ask before quitting with transfers | yes, no | this computer |
+| Check for updates | once a day, never | this computer |
+
+Settings of this computer live in `~/.config/transferly/config.toml` with the profiles of the servers; the account settings follow the
+account to every computer and to the web.
+
 ## Screens
 
 1. **Server**: started with no profile, the client asks for the address of the server, with the profiles used before below it.
@@ -151,6 +195,8 @@ underlined letter of a button presses it (`y` yes, `n` no). Text fields edit wit
 8. **Help**: every key of the screen, grouped as above, with a filter.
 9. **Palette**: one field, fuzzy matches of actions, sites and recent folders, each with its key.
 10. **Errors**: the message, the probable cause and what to do, and the stable code, as the guided errors of the web.
+11. **Commands**: the command line of `/` with the matching commands.
+12. **Settings**: `/config`.
 
 ## Visual language
 
@@ -159,8 +205,11 @@ underlined letter of a button presses it (`y` yes, `n` no). Text fields edit wit
 - Sizes right aligned in binary units (`1.4 MiB`), dates as `2026-11-24 18:40` in the time zone of the account.
 - Transfers: an arrow for the direction (`↑` upload, `↓` download, `⇄` copy between sites), a line gauge, speed and time left; failed
   ones in the danger color with their code.
-- Colors from the Transferly dark and light themes, picked from the terminal's background; 16-color fallback; `NO_COLOR` turns them
-  off and the marks and focus stay readable without color.
+- The twelve themes of the web, read from `tui/themes.json`, which `make gen` exports from `frontend/src/lib/theme/themes.ts`, so a
+  color changed in the web reaches the terminal and CI catches a stale copy. The theme is the one of the account.
+- Colors in truecolor when the terminal says so (`COLORTERM`), the nearest of 256 otherwise; "the terminal's own palette" uses the
+  16 colors of the terminal instead; `NO_COLOR` turns colors off, and the marks, the focus and progress stay readable without them
+  (`✓`, bold titles, `━` against `─`).
 
 ## Out of the first version
 
