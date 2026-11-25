@@ -332,8 +332,13 @@ pub enum Overlay {
         /// The theme worn before previewing, to go back to.
         worn: String,
     },
-    /// Every key of the screen.
-    Help,
+    /// Every key of the screen, with a filter and how far it is scrolled.
+    Help {
+        /// What is typed to filter the keys.
+        filter: Input,
+        /// The first row shown.
+        scroll: usize,
+    },
     /// The questions of a server while a site connects, with the answers being typed and the one with the focus.
     Prompt {
         /// The questions.
@@ -553,6 +558,10 @@ impl Home {
                 | Overlay::Password { input, .. },
             ) => input.insert(text),
             Some(Overlay::Prompt { answers, focus, .. }) => answers[*focus].insert(text),
+            Some(Overlay::Help { filter, scroll }) => {
+                filter.insert(text);
+                *scroll = 0;
+            }
             Some(_) => {}
             None => {
                 if let Some(side) = self.focused_side() {
@@ -937,7 +946,12 @@ impl Home {
         }
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
         match key.code {
-            KeyCode::Char('?') | KeyCode::F(1) => self.overlay = Some(Overlay::Help),
+            KeyCode::Char('?') | KeyCode::F(1) => {
+                self.overlay = Some(Overlay::Help {
+                    filter: Input::default(),
+                    scroll: 0,
+                });
+            }
             KeyCode::Char('/') => {
                 self.notice = None;
                 self.overlay = Some(Overlay::Commands {
@@ -1115,7 +1129,10 @@ impl Home {
     /// Handles a key on what is shown over the screen.
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
-            Overlay::Help => Vec::new(),
+            Overlay::Help { filter, scroll } => {
+                self.help_key(key, filter, scroll, look);
+                Vec::new()
+            }
             Overlay::Prompt {
                 prompt,
                 site,
@@ -1207,6 +1224,26 @@ impl Home {
                 }
             }
         }
+    }
+
+    /// Handles a key on the help: typing filters the keys, the arrows and pages scroll, Esc clears the filter and then closes, F1 closes.
+    fn help_key(&mut self, key: KeyEvent, mut filter: Input, mut scroll: usize, look: &Look) {
+        let last = help_lines(filter.value(), look).len().saturating_sub(1);
+        match key.code {
+            KeyCode::F(1) => return,
+            KeyCode::Esc | KeyCode::Char('?') if filter.value().is_empty() => return,
+            KeyCode::Esc => filter = Input::default(),
+            KeyCode::Down => scroll = (scroll + 1).min(last),
+            KeyCode::Up => scroll = scroll.saturating_sub(1),
+            KeyCode::PageDown => scroll = (scroll + 10).min(last),
+            KeyCode::PageUp => scroll = scroll.saturating_sub(10),
+            _ => {
+                if filter.handle(key) {
+                    scroll = 0;
+                }
+            }
+        }
+        self.overlay = Some(Overlay::Help { filter, scroll });
     }
 
     /// Handles a key on the questions of a server: Tab and the arrows move between answers, Enter goes to the next one and sends them
@@ -1386,7 +1423,10 @@ impl Home {
                 self.session.server.origin().ascii_serialization()
             ))],
             "keys" => {
-                self.overlay = Some(Overlay::Help);
+                self.overlay = Some(Overlay::Help {
+                    filter: Input::default(),
+                    scroll: 0,
+                });
                 Vec::new()
             }
             "logout" => {
@@ -1680,7 +1720,9 @@ impl Home {
                     Some(Overlay::Choose { what, selected, .. }) => {
                         self.render_choose(frame, *what, *selected, look);
                     }
-                    Some(Overlay::Help) => render_help(frame, look),
+                    Some(Overlay::Help { filter, scroll }) => {
+                        render_help(frame, filter, *scroll, look);
+                    }
                     Some(Overlay::Prompt {
                         prompt,
                         site,
@@ -2096,14 +2138,14 @@ fn active(palette: &Palette) -> Style {
 }
 
 /// The keys of the help, grouped as the design groups them: the message of each group and its keys with the message of their action.
-const HELP: [(&str, &[(&str, &str)]); 4] = [
+const HELP: [(&str, &[(&str, &str)]); 6] = [
     (
         "help.everywhere",
         &[
             ("?  F1", "help.help"),
             ("/", "help.commands"),
+            ("Tab  Shift+Tab", "help.focus"),
             ("Ctrl+B", "help.sites"),
-            ("Tab", "help.focus"),
             ("Ctrl+E", "help.log"),
             ("q  F10  Ctrl+C", "help.quit"),
         ],
@@ -2121,12 +2163,31 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
     (
         "help.explorer",
         &[
-            ("Enter ← Backspace", "help.openUp"),
-            ("Space  Ctrl+A", "help.mark"),
-            ("n  F2  Del", "help.manage"),
-            ("f  .  s  S", "help.filterKeys"),
-            ("r  Ctrl+G", "help.refresh"),
-            ("o  Ctrl+D", "help.show"),
+            ("↑ ↓  j k", "help.move"),
+            ("PgUp PgDn  g G", "help.page"),
+            ("Enter  →  l", "help.enter"),
+            ("Backspace  ←  h", "help.up"),
+            ("Space  Insert", "help.mark"),
+            ("Ctrl+A", "help.markAll"),
+            ("Esc", "help.clear"),
+            ("n  F7", "help.mkdir"),
+            ("F2", "help.rename"),
+            ("Delete  F8", "help.delete"),
+            ("f  Ctrl+F", "help.filter"),
+            (".", "help.hidden"),
+            ("s  S", "help.sort"),
+            ("r", "help.refresh"),
+            ("Ctrl+G", "help.goto"),
+            ("o", "help.show"),
+            ("Ctrl+D", "help.disconnect"),
+        ],
+    ),
+    (
+        "help.commandLine",
+        &[
+            ("↑ ↓", "help.choose"),
+            ("Tab", "help.complete"),
+            ("Enter", "help.run"),
         ],
     ),
     (
@@ -2135,19 +2196,56 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
             ("Enter", "help.confirm"),
             ("Esc", "help.back"),
             ("← →", "help.change"),
+            ("y  n", "help.yesNo"),
+        ],
+    ),
+    (
+        "help.fields",
+        &[
+            ("← → Home End", "help.cursor"),
+            ("Backspace  Delete", "help.erase"),
+            ("Ctrl+U  Ctrl+W", "help.clearWord"),
+            ("Shift+Ctrl+V", "help.paste"),
         ],
     ),
 ];
 
-/// Every key of the screen.
-fn render_help(frame: &mut Frame, look: &Look) {
+/// The lines of the help: each group with the keys whose key or action contains the filter, ignoring case; groups without any are left
+/// out.
+fn help_lines(filter: &str, look: &Look) -> Vec<Line<'static>> {
     let (m, palette) = (&look.messages, &look.palette);
-    let rows: usize = HELP.iter().map(|(_, keys)| keys.len() + 2).sum();
-    let area = centered(
-        frame.area(),
-        70,
-        u16::try_from(rows).unwrap_or(u16::MAX).saturating_add(2),
-    );
+    let wanted = filter.to_lowercase();
+    let mut lines = Vec::new();
+    for (group, keys) in HELP {
+        let rows: Vec<Line> = keys
+            .iter()
+            .map(|(key, action)| (*key, m.get(action)))
+            .filter(|(key, action)| {
+                wanted.is_empty()
+                    || key.to_lowercase().contains(&wanted)
+                    || action.to_lowercase().contains(&wanted)
+            })
+            .map(|(key, action)| {
+                Line::from(vec![
+                    Span::raw(format!("  {key:<20}")).bold(),
+                    Span::raw(action),
+                ])
+            })
+            .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        lines.push(Line::from(m.get(group)).fg(palette.accent_text).bold());
+        lines.extend(rows);
+        lines.push(Line::default());
+    }
+    lines
+}
+
+/// Every key of the screen, grouped, with the filter on top and the rows below it scrolled.
+fn render_help(frame: &mut Frame, filter: &Input, scroll: usize, look: &Look) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let area = centered(frame.area(), 74, frame.area().height.saturating_sub(4));
     let inside = popup(
         frame,
         area,
@@ -2155,18 +2253,28 @@ fn render_help(frame: &mut Frame, look: &Look) {
         &m.get("help.keys"),
         palette,
     );
-    let mut lines = Vec::new();
-    for (group, keys) in HELP {
-        lines.push(Line::from(m.get(group)).fg(palette.accent_text).bold());
-        for (key, action) in keys {
-            lines.push(Line::from(vec![
-                Span::raw(format!("  {key:<18}")).bold(),
-                Span::raw(m.get(action)),
-            ]));
-        }
-        lines.push(Line::default());
+    let [top, rows] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(inside);
+    field(
+        frame,
+        top,
+        palette,
+        &m.get("help.filterField"),
+        filter,
+        true,
+    );
+    let lines = help_lines(filter.value(), look);
+    if lines.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(m.get("help.nothing")).fg(palette.muted)),
+            rows,
+        );
+        return;
     }
-    frame.render_widget(Paragraph::new(lines), inside);
+    let skip = scroll.min(lines.len().saturating_sub(usize::from(rows.height)));
+    frame.render_widget(
+        Paragraph::new(lines.into_iter().skip(skip).collect::<Vec<_>>()),
+        rows,
+    );
 }
 
 /// A failure in words: the message of its stable code when the catalog has one, or what happened.

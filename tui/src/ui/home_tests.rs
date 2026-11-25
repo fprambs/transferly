@@ -548,7 +548,7 @@ fn runs_commands() {
         command(&mut home, &mut look, line);
         let shown = match home.overlay() {
             Some(Overlay::Settings { .. }) => "Settings",
-            Some(Overlay::Help) => "Help",
+            Some(Overlay::Help { .. }) => "Help",
             Some(Overlay::Choose {
                 what: Choice::Theme,
                 ..
@@ -760,22 +760,61 @@ fn changes_settings() {
     assert!(home.overlay().is_none());
 }
 
-/// `?` and F1 show every key and any key closes them; q and F10 quit.
+/// `?` and F1 show every key grouped; typing filters them, the arrows and pages scroll, Esc clears the filter and then closes, `?` closes
+/// when nothing is typed and F1 always; q and F10 quit.
 #[test]
 fn shows_help_and_quits() {
     let mut look = look();
     let mut home = loaded(&mut look, None);
-    for open in [KeyCode::Char('?'), KeyCode::F(1)] {
-        home.key(key(open), &mut look);
-        let text = draw(&home, &look, 120, 30);
-        assert!(
-            text.contains("Everywhere")
-                && text.contains("Ctrl+B")
-                && text.contains("open the site")
-        );
-        nothing(&home.key(key(KeyCode::Char('q')), &mut look), "");
-        assert!(home.overlay().is_none());
+    home.key(key(KeyCode::Char('?')), &mut look);
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.contains("Everywhere") && text.contains("Ctrl+B") && text.contains("open the site"),
+        "{text}"
+    );
+    for scroll in [
+        KeyCode::PageDown,
+        KeyCode::Down,
+        KeyCode::Down,
+        KeyCode::Up,
+        KeyCode::PageUp,
+    ] {
+        home.key(key(scroll), &mut look);
     }
+    for _ in 0..8 {
+        home.key(key(KeyCode::PageDown), &mut look);
+    }
+    assert!(
+        draw(&home, &look, 120, 30).contains("Text fields"),
+        "scrolled to the end"
+    );
+    type_text(&mut home, &mut look, "renam");
+    home.paste("e");
+    let text = draw(&home, &look, 120, 30);
+    assert!(text.contains("F2") && !text.contains("Ctrl+B"), "{text}");
+    home.key(key(KeyCode::Char('?')), &mut look);
+    assert!(draw(&home, &look, 120, 30).contains("No key matches."));
+    home.key(key(KeyCode::Esc), &mut look);
+    assert!(
+        draw(&home, &look, 120, 30).contains("Ctrl+B"),
+        "the filter cleared"
+    );
+    home.key(key(KeyCode::Esc), &mut look);
+    assert!(home.overlay().is_none());
+    home.key(key(KeyCode::F(1)), &mut look);
+    nothing(
+        &home.key(key(KeyCode::Char('q')), &mut look),
+        "typed into the filter",
+    );
+    home.key(key(KeyCode::F(5)), &mut look);
+    home.key(key(KeyCode::F(1)), &mut look);
+    assert!(home.overlay().is_none());
+    home.key(key(KeyCode::Char('?')), &mut look);
+    home.key(key(KeyCode::Char('?')), &mut look);
+    assert!(home.overlay().is_none());
+    command(&mut home, &mut look, "config");
+    home.paste("ignored by the settings");
+    home.key(key(KeyCode::Esc), &mut look);
     assert_eq!(
         home.key(key(KeyCode::Char('q')), &mut look),
         vec![Ask::Quit]
