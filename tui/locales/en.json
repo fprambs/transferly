@@ -145,7 +145,8 @@
     "manage": "new folder, rename, delete",
     "filterKeys": "filter, hidden files, sort, reverse",
     "refresh": "refresh, go to a path",
-    "show": "show the local disk or a site, disconnect"
+    "show": "show the local disk or a site, disconnect",
+    "log": "connection log"
   },
   "explorer": {
     "empty": "Empty panel",
@@ -197,5 +198,14 @@
     "intro": "This site asks for its password when connecting. It is kept in memory for this session only.",
     "field": "Password",
     "keys": "Enter connect · Esc cancel"
+  },
+  "prompt": {
+    "title": "{site} asks",
+    "intro": "The server asks before letting this account in.",
+    "keys": "Tab next · Enter send · Esc refuse"
+  },
+  "log": {
+    "title": "Connection log",
+    "empty": "Nothing yet: the steps of connections to sites show here."
   }
 }

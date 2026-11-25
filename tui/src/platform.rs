@@ -71,6 +71,7 @@ pub fn interface(dir: &std::path::Path) -> std::io::Result<()> {
         listen_on: crate::login::LOOPBACK.to_owned(),
         wait: crate::commands::BROWSER_WAIT,
         tick: std::time::Duration::from_millis(120),
+        retry: std::time::Duration::from_secs(2),
     };
     let runtime = tokio::runtime::Runtime::new()?;
     let mut terminal = ratatui::try_init()?;

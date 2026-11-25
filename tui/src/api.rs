@@ -9,8 +9,9 @@ use serde::de::DeserializeOwned;
 use transferly_client::models::host_key_input::Mode;
 use transferly_client::models::{
     CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, HomeFolder, HostKeyInput,
-    MasterPasswordRequest, PathInput, Preferences, Problem, RemoteEntry, RenameInput, SessionInfo,
-    SetupStatus, Site, SiteCredentialRequest, User, VaultStatus, Version, Workspace,
+    MasterPasswordRequest, PathInput, Preferences, Problem, PromptAnswers, RemoteEntry,
+    RenameInput, SessionInfo, SetupStatus, Site, SiteCredentialRequest, User, VaultStatus, Version,
+    Workspace,
 };
 use url::Url;
 
@@ -443,6 +444,29 @@ impl Api {
         .await
     }
 
+    /// Hands the answers to the questions of a server, one per question, to the connection that waits.
+    ///
+    /// # Errors
+    ///
+    /// The prompt no longer waits (`prompt_not_found`), the number of answers differs (`invalid_answers`), or the server cannot be reached.
+    pub async fn answer_prompt(&self, id: &str, answers: Vec<String>) -> Result<(), ApiError> {
+        let body = PromptAnswers::new(answers);
+        Self::empty(
+            self.request(Method::POST, &format!("/api/v1/prompts/{id}"))
+                .json(&body),
+        )
+        .await
+    }
+
+    /// Refuses to answer the questions of a server; the connection that waits fails.
+    ///
+    /// # Errors
+    ///
+    /// The prompt no longer waits, or the server cannot be reached.
+    pub async fn cancel_prompt(&self, id: &str) -> Result<(), ApiError> {
+        Self::empty(self.request(Method::DELETE, &format!("/api/v1/prompts/{id}"))).await
+    }
+
     /// Closes the connections of this session to a site.
     ///
     /// # Errors
@@ -669,6 +693,7 @@ mod tests {
     }
 
     /// The calls of the explorer: list a folder, find the home folder, create, rename and delete, and disconnect.
+    #[allow(clippy::too_many_lines, reason = "one call of each operation")]
     #[tokio::test]
     async fn works_with_files() {
         use wiremock::matchers::query_param;
@@ -754,6 +779,21 @@ mod tests {
             .mount(&server)
             .await;
         api.set_credential("w", "s", "p").await.expect("given");
+        Mock::given(method("POST"))
+            .and(path("/api/v1/prompts/p"))
+            .and(body_json(serde_json::json!({"answers": ["a"]})))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        Mock::given(method("DELETE"))
+            .and(path("/api/v1/prompts/p"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        api.answer_prompt("p", vec!["a".to_owned()])
+            .await
+            .expect("answered");
+        api.cancel_prompt("p").await.expect("refused");
         let refused = api.trust_key("w", &key(None)).await.expect_err("changed");
         assert_eq!(refused.params()["trusted"], serde_json::json!(["old"]));
         assert!(ApiError::Unexpected("x".to_owned()).params().is_empty());

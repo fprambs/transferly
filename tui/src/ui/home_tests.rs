@@ -190,6 +190,7 @@ fn loads_a_session() {
                 side: Side::Left,
                 op: Op::Home
             }])
+            .chain([Ask::Stream])
             .collect::<Vec<_>>()
     );
     assert_eq!(home.session(), &session());
@@ -1310,6 +1311,115 @@ fn asks_for_passwords() {
     assert!(home.overlay().is_none(), "the local disk asks for nothing");
 }
 
+/// What a server asks while a site of a panel connects is shown to answer, hidden unless the server allows showing it; Tab and the
+/// arrows move, Enter sends from the last answer, Esc refuses; a prompt that closes elsewhere closes here; prompts of sites no panel
+/// shows, or while something else is on the screen, are left to the client that connects. The log keeps the latest steps.
+#[test]
+fn answers_servers_and_logs() {
+    use super::home::{LogLine, Prompt};
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    let prompt = |number: u8, site: u8| Prompt {
+        id: id(number),
+        workspace: id(1),
+        site: id(site),
+        name: "Login".to_owned(),
+        instruction: String::new(),
+        questions: vec![("User:".to_owned(), true), ("Code:".to_owned(), false)],
+    };
+    home.reply(Reply::Prompt(prompt(50, 20)), &mut look);
+    assert!(home.overlay().is_none(), "a site no panel shows");
+    home.reply(Reply::Prompt(prompt(50, 22)), &mut look);
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.contains("home-nas asks") && text.contains("Login") && text.contains("Code:"),
+        "{text}"
+    );
+    type_text(&mut home, &mut look, "ana");
+    home.key(key(KeyCode::Tab), &mut look);
+    home.paste("12");
+    type_text(&mut home, &mut look, "34");
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.contains("ana") && text.contains("••••") && !text.contains("1234"),
+        "{text}"
+    );
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.reply(Reply::Prompt(prompt(51, 22)), &mut look);
+    let sent = home.key(key(KeyCode::Enter), &mut look);
+    assert_eq!(
+        sent,
+        vec![Ask::Call(Call::Answer {
+            id: id(50),
+            answers: vec!["ana".to_owned(), "1234".to_owned()]
+        })]
+    );
+    assert!(home.overlay().is_none());
+    home.reply(Reply::Answered(Err(refused("prompt_not_found"))), &mut look);
+    assert_eq!(home.notice().map(|n| n.error), Some(true));
+    home.reply(Reply::Answered(Ok(())), &mut look);
+
+    let mut bare = prompt(52, 22);
+    bare.name = String::new();
+    let mut silent = prompt(54, 22);
+    silent.questions.clear();
+    assert_eq!(
+        home.reply(Reply::Prompt(silent), &mut look),
+        vec![Ask::Call(Call::Answer {
+            id: id(54),
+            answers: vec![]
+        })]
+    );
+    home.reply(Reply::Prompt(bare), &mut look);
+    assert!(draw(&home, &look, 120, 30).contains("The server asks before"));
+    home.reply(Reply::PromptClosed(id(99)), &mut look);
+    assert!(home.overlay().is_some(), "another prompt closed");
+    home.key(key(KeyCode::Enter), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Esc), &mut look),
+        vec![Ask::Call(Call::CancelPrompt(id(52)))]
+    );
+    home.reply(Reply::Prompt(prompt(53, 22)), &mut look);
+    home.reply(Reply::PromptClosed(id(53)), &mut look);
+    assert!(home.overlay().is_none());
+
+    home.key(ctrl('e'), &mut look);
+    assert!(draw(&home, &look, 140, 40).contains("Nothing yet"));
+    let line = |step: &str, level: &str| LogLine {
+        site: id(22),
+        time: Some(jiff::Timestamp::from_second(0).expect("a time")),
+        level: level.to_owned(),
+        step: step.to_owned(),
+        params: vec![("host".to_owned(), "nas".to_owned())],
+    };
+    for n in 0..501 {
+        home.reply(Reply::Log(line(&format!("step{n}"), "info")), &mut look);
+    }
+    home.reply(Reply::Log(line("warned", "warn")), &mut look);
+    home.reply(Reply::Log(line("failed", "error")), &mut look);
+    home.reply(
+        Reply::Log(LogLine {
+            site: id(99),
+            time: None,
+            ..line("other", "info")
+        }),
+        &mut look,
+    );
+    let text = draw(&home, &look, 140, 40);
+    assert!(
+        text.contains("Connection log")
+            && text.contains("21:00:00 home-nas")
+            && text.contains("failed host=nas")
+            && text.contains("other"),
+        "{text}"
+    );
+    home.key(ctrl('e'), &mut look);
+    assert!(!draw(&home, &look, 140, 40).contains("Connection log"));
+}
+
 /// The interface around the main screen: a kept session starts on it, its replies reach it, and what it asks becomes effects; signing
 /// out, keeping the settings and opening the browser report back on it.
 mod interface {
@@ -1396,6 +1506,7 @@ mod interface {
                     side: Side::Left,
                     op: Op::Home
                 }])
+                .chain([Effect::Stream(session.clone())])
                 .collect::<Vec<_>>()
         );
         nothing(&app.start(), "");
@@ -1474,7 +1585,7 @@ mod interface {
         )))));
         assert!(text(&app).contains("The session ended. Sign in again."));
         let mut app = App::new(kept("https://files.example.com"));
-        nothing(&run(&mut app, "server"), "");
+        assert_eq!(run(&mut app, "server"), vec![Effect::StopStream]);
         assert!(text(&app).contains("https://files.example.com"));
         assert!(matches!(
             App::new(kept("not an address")).screen(),

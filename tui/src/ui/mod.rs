@@ -7,6 +7,7 @@ pub mod home;
 pub mod input;
 pub mod look;
 pub mod runtime;
+pub mod stream;
 pub mod theme;
 pub mod widgets;
 

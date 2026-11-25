@@ -480,6 +480,7 @@ pub(super) fn ports(
         listen_on: crate::login::LOOPBACK.to_owned(),
         wait: Duration::from_secs(5),
         tick: Duration::from_millis(10),
+        retry: Duration::from_millis(50),
     }
 }
 

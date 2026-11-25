@@ -52,6 +52,12 @@ const SETTINGS: [&str; 8] = [
     "checkUpdates",
 ];
 
+/// How many steps of connections the log keeps.
+const LOG_LINES: usize = 500;
+
+/// How many rows the log panel takes.
+const LOG_ROWS: u16 = 9;
+
 /// The width of the sites panel.
 const SITES_WIDTH: u16 = 28;
 
@@ -100,6 +106,15 @@ pub enum Call {
         /// The password.
         password: String,
     },
+    /// Hand the answers of a prompt to the connection that waits.
+    Answer {
+        /// The prompt.
+        id: Uuid,
+        /// The answers, one per question, in order.
+        answers: Vec<String>,
+    },
+    /// Refuse to answer a prompt; the connection fails.
+    CancelPrompt(Uuid),
     /// Trust the key of a server and try the panel again.
     Trust {
         /// The workspace of the site.
@@ -120,6 +135,38 @@ pub enum Call {
         /// What to do.
         op: Op,
     },
+}
+
+/// What a server asks while a site connects, such as a verification code (ADR-0016).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Prompt {
+    /// Identifies the prompt when answering it.
+    pub id: Uuid,
+    /// The workspace of the site.
+    pub workspace: Uuid,
+    /// The site that connects.
+    pub site: Uuid,
+    /// The title the server gives the questions, maybe empty.
+    pub name: String,
+    /// The explanation of the server, maybe empty.
+    pub instruction: String,
+    /// The questions, each with whether its answer may be shown while typed.
+    pub questions: Vec<(String, bool)>,
+}
+
+/// A step of a connection to a site (ADR-0011).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogLine {
+    /// The site.
+    pub site: Uuid,
+    /// When it happened.
+    pub time: Option<jiff::Timestamp>,
+    /// `info`, `warn` or `error`.
+    pub level: String,
+    /// The step, such as `connecting` or `authenticated`.
+    pub step: String,
+    /// What the step says, by name, such as the host.
+    pub params: Vec<(String, String)>,
 }
 
 /// A panel of the explorer.
@@ -164,6 +211,14 @@ pub enum Reply {
     Unlocked(Result<(), CallError>),
     /// The account after changing its preferences.
     Preferences(Result<User, CallError>),
+    /// A server asks questions while a site connects.
+    Prompt(Prompt),
+    /// A prompt no longer waits, answered or not.
+    PromptClosed(Uuid),
+    /// A step of a connection to a site.
+    Log(LogLine),
+    /// The answers of a prompt were handed over, or why not.
+    Answered(Result<(), CallError>),
     /// The home folder of what a panel shows.
     Homed {
         /// The panel.
@@ -208,6 +263,8 @@ pub enum Reply {
 pub enum Ask {
     /// Call the server.
     Call(Call),
+    /// Listen to the event stream of the session.
+    Stream,
     /// Work with the files of the local disk in a panel.
     Local {
         /// The panel that asked.
@@ -277,6 +334,17 @@ pub enum Overlay {
     },
     /// Every key of the screen.
     Help,
+    /// The questions of a server while a site connects, with the answers being typed and the one with the focus.
+    Prompt {
+        /// The questions.
+        prompt: Prompt,
+        /// The name of the site.
+        site: String,
+        /// The answers being typed.
+        answers: Vec<Input>,
+        /// The answer with the focus.
+        focus: usize,
+    },
     /// The password of a site that asks for it when connecting.
     Password {
         /// The panel that connects.
@@ -362,6 +430,8 @@ pub struct Home {
     left: Panel,
     right: Panel,
     last: Side,
+    log: std::collections::VecDeque<LogLine>,
+    log_shown: bool,
     sites_shown: bool,
     focus: Focus,
     overlay: Option<Overlay>,
@@ -390,6 +460,8 @@ impl Home {
             left: Panel::new(hidden),
             right: Panel::new(hidden),
             last: Side::Right,
+            log: std::collections::VecDeque::new(),
+            log_shown: false,
             sites_shown: true,
             focus: Focus::Sites,
             overlay: None,
@@ -404,6 +476,7 @@ impl Home {
             side: Side::Left,
             op,
         });
+        asks.push(Ask::Stream);
         (home, asks)
     }
 
@@ -479,6 +552,7 @@ impl Home {
                 | Overlay::Vault { input, .. }
                 | Overlay::Password { input, .. },
             ) => input.insert(text),
+            Some(Overlay::Prompt { answers, focus, .. }) => answers[*focus].insert(text),
             Some(_) => {}
             None => {
                 if let Some(side) = self.focused_side() {
@@ -523,6 +597,27 @@ impl Home {
                 look.wear(&self.theme);
                 look.speak(&self.locale);
                 self.trouble(&error, look)
+            }
+            Reply::Prompt(prompt) => self.prompted(prompt),
+            Reply::PromptClosed(id) => {
+                if matches!(&self.overlay, Some(Overlay::Prompt { prompt, .. }) if prompt.id == id)
+                {
+                    self.overlay = None;
+                }
+                Vec::new()
+            }
+            Reply::Log(line) => {
+                if self.log.len() == LOG_LINES {
+                    self.log.pop_front();
+                }
+                self.log.push_back(line);
+                Vec::new()
+            }
+            Reply::Answered(outcome) => {
+                if let Err(error) = outcome {
+                    self.say(explain(&error, look), true);
+                }
+                Vec::new()
             }
             Reply::Homed { side, outcome } => {
                 let outcome = self.file_outcome(side, outcome, look);
@@ -763,6 +858,36 @@ impl Home {
         });
     }
 
+    /// A server asks questions while a site of a panel connects: they are shown to answer, unless something else is on the screen or the
+    /// site is not one of the panels (another client of the account connects).
+    fn prompted(&mut self, prompt: Prompt) -> Vec<Ask> {
+        let shown = [Side::Left, Side::Right]
+            .iter()
+            .any(|side| self.panel(*side).source().and_then(Source::site) == Some(prompt.site));
+        let Some(site) = self
+            .sites
+            .iter()
+            .find(|site| site.id == prompt.site)
+            .filter(|_| shown && self.overlay.is_none())
+        else {
+            return Vec::new();
+        };
+        if prompt.questions.is_empty() {
+            return vec![Ask::Call(Call::Answer {
+                id: prompt.id,
+                answers: Vec::new(),
+            })];
+        }
+        let answers = vec![Input::default(); prompt.questions.len()];
+        self.overlay = Some(Overlay::Prompt {
+            site: site.name.clone(),
+            prompt,
+            answers,
+            focus: 0,
+        });
+        Vec::new()
+    }
+
     /// Asks for the master password, to open a site afterwards.
     fn ask_vault(&mut self, site: Option<Uuid>) {
         self.overlay = Some(Overlay::Vault {
@@ -829,6 +954,7 @@ impl Home {
                     self.focus = Self::focus_of(self.last);
                 }
             }
+            KeyCode::Char('e') if control => self.log_shown = !self.log_shown,
             KeyCode::Tab => self.cycle(true),
             KeyCode::BackTab => self.cycle(false),
             _ => {
@@ -990,6 +1116,12 @@ impl Home {
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
             Overlay::Help => Vec::new(),
+            Overlay::Prompt {
+                prompt,
+                site,
+                answers,
+                focus,
+            } => self.prompt_key(key, prompt, site, answers, focus),
             Overlay::Password {
                 side,
                 site,
@@ -1075,6 +1207,44 @@ impl Home {
                 }
             }
         }
+    }
+
+    /// Handles a key on the questions of a server: Tab and the arrows move between answers, Enter goes to the next one and sends them
+    /// from the last, Esc refuses to answer.
+    fn prompt_key(
+        &mut self,
+        key: KeyEvent,
+        prompt: Prompt,
+        site: String,
+        mut answers: Vec<Input>,
+        mut focus: usize,
+    ) -> Vec<Ask> {
+        let last = answers.len().saturating_sub(1);
+        match key.code {
+            KeyCode::Esc => return vec![Ask::Call(Call::CancelPrompt(prompt.id))],
+            KeyCode::Enter if focus >= last => {
+                let answers = answers
+                    .iter()
+                    .map(|input| input.value().to_owned())
+                    .collect();
+                return vec![Ask::Call(Call::Answer {
+                    id: prompt.id,
+                    answers,
+                })];
+            }
+            KeyCode::Enter | KeyCode::Tab | KeyCode::Down => focus = (focus + 1).min(last),
+            KeyCode::BackTab | KeyCode::Up => focus = focus.saturating_sub(1),
+            _ => {
+                answers[focus].handle(key);
+            }
+        }
+        self.overlay = Some(Overlay::Prompt {
+            prompt,
+            site,
+            answers,
+            focus,
+        });
+        Vec::new()
     }
 
     /// Handles a key on the key of a server to trust: `y` trusts a new key, `a` adds and `r` replaces a key that changed, Esc gives up.
@@ -1467,6 +1637,9 @@ impl Home {
             Constraint::Length(1),
         ])
         .areas(area);
+        let log_rows = if self.log_shown { LOG_ROWS } else { 0 };
+        let [body, log_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(log_rows)]).areas(body);
         self.render_tabs(frame, top, look);
         let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
         if area.width >= NARROW {
@@ -1491,6 +1664,9 @@ impl Home {
                 Focus::Right => self.right.render(frame, body, look, true, &zone),
             }
         }
+        if self.log_shown {
+            render_log(frame, log_area, &self.log, &self.sites, &zone, look);
+        }
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
                 Self::render_commands(frame, status, input, *selected, look);
@@ -1505,6 +1681,12 @@ impl Home {
                         self.render_choose(frame, *what, *selected, look);
                     }
                     Some(Overlay::Help) => render_help(frame, look),
+                    Some(Overlay::Prompt {
+                        prompt,
+                        site,
+                        answers,
+                        focus,
+                    }) => render_prompt(frame, prompt, site, answers, *focus, look),
                     Some(Overlay::Password { name, input, .. }) => {
                         render_password(frame, name, input, look);
                     }
@@ -1922,6 +2104,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
             ("/", "help.commands"),
             ("Ctrl+B", "help.sites"),
             ("Tab", "help.focus"),
+            ("Ctrl+E", "help.log"),
             ("q  F10  Ctrl+C", "help.quit"),
         ],
     ),
@@ -2085,4 +2268,97 @@ fn render_password(frame: &mut Frame, name: &str, input: &Input, look: &Look) {
         &input.masked(),
         true,
     );
+}
+
+/// The questions of a server while a site connects: the site, the title and explanation of the server, and a field per question, hidden
+/// unless the server says its answer may be shown.
+fn render_prompt(
+    frame: &mut Frame,
+    prompt: &Prompt,
+    site: &str,
+    answers: &[Input],
+    focus: usize,
+    look: &Look,
+) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let fields = u16::try_from(answers.len()).unwrap_or(4).saturating_mul(3);
+    let area = centered(frame.area(), 70, fields.saturating_add(7));
+    let inside = popup(
+        frame,
+        area,
+        &m.fill("prompt.title", &[("site", site)]),
+        &m.get("prompt.keys"),
+        palette,
+    );
+    let [text, rest] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(inside);
+    let mut intro = Vec::new();
+    for part in [&prompt.name, &prompt.instruction] {
+        if !part.is_empty() {
+            intro.push(Line::from(part.clone()));
+        }
+    }
+    if intro.is_empty() {
+        intro.push(Line::from(m.get("prompt.intro")).fg(palette.muted));
+    }
+    frame.render_widget(Paragraph::new(intro).wrap(Wrap { trim: true }), text);
+    let rows = Layout::vertical(answers.iter().map(|_| Constraint::Length(3))).split(rest);
+    for (at, ((question, echo), input)) in prompt.questions.iter().zip(answers).enumerate() {
+        let shown = if *echo { input.clone() } else { input.masked() };
+        field(frame, rows[at], palette, question, &shown, at == focus);
+    }
+}
+
+/// The log of connections: the latest steps of the connections to sites, with the time, the site and what happened, warnings and errors
+/// in their colors.
+fn render_log(
+    frame: &mut Frame,
+    area: Rect,
+    log: &std::collections::VecDeque<LogLine>,
+    sites: &[Site],
+    zone: &jiff::tz::TimeZone,
+    look: &Look,
+) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let block = panel(&m.get("log.title"), false, palette);
+    let inside = block.inner(area);
+    frame.render_widget(block, area);
+    if log.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(m.get("log.empty")).fg(palette.muted)),
+            inside,
+        );
+        return;
+    }
+    let height = usize::from(inside.height);
+    let lines: Vec<Line> = log
+        .iter()
+        .skip(log.len().saturating_sub(height))
+        .map(|line| {
+            let time = line.time.map_or_else(String::new, |at| {
+                at.to_zoned_datetime(zone.clone())
+                    .strftime("%H:%M:%S")
+                    .to_string()
+            });
+            let site = sites
+                .iter()
+                .find(|site| site.id == line.site)
+                .map_or("", |site| site.name.as_str());
+            let params: Vec<String> = line
+                .params
+                .iter()
+                .map(|(name, value)| format!("{name}={value}"))
+                .collect();
+            let text = Line::from(format!(
+                "{time} {site:<16} {} {}",
+                line.step,
+                params.join(" ")
+            ));
+            match line.level.as_str() {
+                "error" => error_line(&text.to_string(), palette),
+                "warn" => text.fg(palette.warn),
+                _ => text,
+            }
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), inside);
 }

@@ -145,7 +145,8 @@
     "manage": "carpeta nueva, renombrar, borrar",
     "filterKeys": "filtrar, ocultos, ordenar, invertir",
     "refresh": "actualizar, ir a una ruta",
-    "show": "mostrar el disco local o un sitio, desconectar"
+    "show": "mostrar el disco local o un sitio, desconectar",
+    "log": "registro de conexión"
   },
   "explorer": {
     "empty": "Panel vacío",
@@ -197,5 +198,14 @@
     "intro": "Este sitio pide su contraseña al conectar. Se guarda en memoria solo durante esta sesión.",
     "field": "Contraseña",
     "keys": "Enter conectar · Esc cancelar"
+  },
+  "prompt": {
+    "title": "{site} pregunta",
+    "intro": "El servidor pregunta antes de dejar entrar a esta cuenta.",
+    "keys": "Tab siguiente · Enter enviar · Esc rechazar"
+  },
+  "log": {
+    "title": "Registro de conexión",
+    "empty": "Nada todavía: aquí se ven los pasos de las conexiones a los sitios."
   }
 }

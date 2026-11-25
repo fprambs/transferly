@@ -125,6 +125,10 @@ pub enum Effect {
     Call(Session, super::home::Call),
     /// End a session on its server and forget its token.
     Logout(Session),
+    /// Listen to the event stream of a session, in place of any other.
+    Stream(Session),
+    /// Stop listening to the event stream.
+    StopStream,
     /// Work with the files of the local disk for a panel.
     Local {
         /// The panel.
@@ -282,11 +286,13 @@ impl App {
             match ask {
                 Ask::Call(call) => effects.push(Effect::Call(session.clone(), call)),
                 Ask::Local { side, op } => effects.push(Effect::Local { side, op }),
+                Ask::Stream => effects.push(Effect::Stream(session.clone())),
                 Ask::Browse(url) => effects.push(Effect::OpenBrowser(url)),
                 Ask::Save => effects.push(Effect::SaveSettings(self.look.settings.clone())),
                 Ask::Logout => effects.push(Effect::Logout(session.clone())),
                 Ask::Leave(message) => {
                     self.back_to_server(message);
+                    effects.push(Effect::StopStream);
                     return effects;
                 }
                 Ask::Quit => effects.push(Effect::Quit),
@@ -478,6 +484,7 @@ impl App {
                     .messages
                     .fill("main.signedOut", &[("server", &self.server_text())]);
                 self.back_to_server(Some(message));
+                return vec![Effect::StopStream];
             }
             (Err(reason), Screen::Main(home)) => {
                 home.say(

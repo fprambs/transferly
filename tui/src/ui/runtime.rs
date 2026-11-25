@@ -44,6 +44,8 @@ pub struct Ports {
     pub wait: Duration,
     /// How often the clock ticks, for the spinner.
     pub tick: Duration,
+    /// The first pause before connecting the event stream again.
+    pub retry: Duration,
 }
 
 /// Runs the interface until it quits or its input ends.
@@ -63,6 +65,7 @@ pub async fn run(
 ) -> io::Result<()> {
     let (results, mut finished) = mpsc::channel(RESULTS);
     let mut listener: Option<JoinHandle<()>> = None;
+    let mut stream: Option<JoinHandle<()>> = None;
     let mut clock = tokio::time::interval(ports.tick);
     let mut effects = app.start();
     loop {
@@ -70,6 +73,7 @@ pub async fn run(
             match effect {
                 Effect::Quit => {
                     stop(&mut listener);
+                    stop(&mut stream);
                     return Ok(());
                 }
                 Effect::StopListening => stop(&mut listener),
@@ -153,6 +157,15 @@ pub async fn run(
                         let _ = results.send(Event::Replied(reply)).await;
                     });
                 }
+                Effect::Stream(session) => {
+                    stop(&mut stream);
+                    stream = Some(tokio::spawn(super::stream::listen(
+                        session,
+                        results.clone(),
+                        ports.retry,
+                    )));
+                }
+                Effect::StopStream => stop(&mut stream),
                 Effect::Local { side, op } => {
                     let results = results.clone();
                     tokio::task::spawn_blocking(move || {
@@ -190,6 +203,7 @@ pub async fn run(
         };
         effects = app.handle(event);
     }
+    stop(&mut stream);
     stop(&mut listener);
     Ok(())
 }
@@ -331,6 +345,14 @@ async fn perform(session: &Session, call: Call) -> Reply {
                 .await
                 .map_err(failure),
         },
+        Call::Answer { id, answers } => Reply::Answered(
+            api.answer_prompt(&id.to_string(), answers)
+                .await
+                .map_err(failure),
+        ),
+        Call::CancelPrompt(id) => {
+            Reply::Answered(api.cancel_prompt(&id.to_string()).await.map_err(failure))
+        }
         Call::Trust {
             workspace,
             side,
@@ -867,6 +889,18 @@ mod tests {
             server: Url::parse(&server.uri()).expect("url"),
             token: "t".to_owned(),
         };
+        let answer = Call::Answer {
+            id: uuid::Uuid::nil(),
+            answers: vec![],
+        };
+        assert!(matches!(
+            perform(&session, answer).await,
+            Reply::Answered(_)
+        ));
+        assert!(matches!(
+            perform(&session, Call::CancelPrompt(uuid::Uuid::nil())).await,
+            Reply::Answered(_)
+        ));
         let credential = Call::Credential {
             workspace: uuid::Uuid::nil(),
             site: uuid::Uuid::nil(),
