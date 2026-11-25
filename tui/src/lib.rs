@@ -3,9 +3,11 @@
 pub mod api;
 pub mod commands;
 pub mod config;
+pub mod i18n;
 pub mod login;
 pub mod platform;
 pub mod secrets;
+pub mod ui;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -44,20 +46,28 @@ pub enum Command {
 
 /// Runs the command line and returns the exit status.
 pub fn run(cli: &Cli) -> ExitCode {
-    run_in(cli, config::default_dir())
+    run_in(cli, config::default_dir(), platform::interface)
 }
 
-/// Runs the command line with the given configuration folder, or none when the system has no folder for it.
-fn run_in(cli: &Cli, dir: Option<PathBuf>) -> ExitCode {
+/// Runs the command line with the given configuration folder, or none when the system has no folder for it, opening the interface
+/// with the given function when there is no command.
+fn run_in(
+    cli: &Cli,
+    dir: Option<PathBuf>,
+    interface: fn(&std::path::Path) -> std::io::Result<()>,
+) -> ExitCode {
     let Some(dir) = dir else {
         eprintln!("transferly-tui: this system has no configuration folder for the user.");
         return ExitCode::FAILURE;
     };
     let Some(command) = &cli.command else {
-        println!(
-            "The interface of transferly-tui comes next; for now use: transferly-tui login <server>, status or logout."
-        );
-        return ExitCode::SUCCESS;
+        return match interface(&dir) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("transferly-tui: the terminal could not be used: {error}");
+                ExitCode::FAILURE
+            }
+        };
     };
     let runtime = tokio::runtime::Runtime::new().expect("the async runtime");
     let mut stdout = std::io::stdout();
@@ -86,12 +96,37 @@ fn run_in(cli: &Cli, dir: Option<PathBuf>) -> ExitCode {
 mod tests {
     use super::*;
 
-    /// Without a command the client says what it can do; without a configuration folder it refuses.
+    /// Stands in for a terminal that cannot be set up.
+    fn no_terminal(_: &std::path::Path) -> std::io::Result<()> {
+        Err(std::io::Error::other("not a terminal"))
+    }
+
+    /// Stands in for an interface that ran and was closed.
+    #[allow(
+        clippy::unnecessary_wraps,
+        reason = "it stands in for platform::interface, which returns a Result"
+    )]
+    fn closed_interface(_: &std::path::Path) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    /// Without a command the interface opens; a terminal that cannot be used, or no configuration folder, fails.
     #[test]
     fn runs_without_a_command() {
         let cli = Cli::try_parse_from(["transferly-tui"]).expect("no arguments");
-        assert_eq!(run(&cli), ExitCode::SUCCESS);
-        assert_eq!(run_in(&cli, None), ExitCode::FAILURE);
+        let dir = tempfile::tempdir().expect("folder");
+        assert_eq!(
+            run_in(&cli, Some(dir.path().to_path_buf()), closed_interface),
+            ExitCode::SUCCESS
+        );
+        assert_eq!(
+            run_in(&cli, Some(dir.path().to_path_buf()), no_terminal),
+            ExitCode::FAILURE
+        );
+        assert_eq!(run_in(&cli, None, no_terminal), ExitCode::FAILURE);
+        let status = Cli::try_parse_from(["transferly-tui", "--version"]);
+        assert!(status.is_err(), "--version prints and exits through clap");
+        let _ = run(&Cli::try_parse_from(["transferly-tui", "status"]).expect("status"));
     }
 
     /// The commands parse and run against the configuration folder; with nothing signed in, status and logout say so.
@@ -104,7 +139,7 @@ mod tests {
         ] {
             let cli = Cli::try_parse_from(args).expect("command");
             assert_eq!(
-                run_in(&cli, Some(dir.path().to_path_buf())),
+                run_in(&cli, Some(dir.path().to_path_buf()), no_terminal),
                 ExitCode::FAILURE
             );
         }
@@ -115,7 +150,7 @@ mod tests {
             Some(Command::Login { paste: true, .. })
         ));
         assert_eq!(
-            run_in(&cli, Some(dir.path().to_path_buf())),
+            run_in(&cli, Some(dir.path().to_path_buf()), no_terminal),
             ExitCode::from(2)
         );
     }

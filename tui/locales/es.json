@@ -1,0 +1,47 @@
+{
+  "app": {
+    "name": "Transferly",
+    "tagline": "transferencias de archivos desde la terminal"
+  },
+  "server": {
+    "title": "Iniciar sesión",
+    "field": "Dirección del servidor",
+    "used": "Usados antes",
+    "keys": "Enter continuar · ↓ perfiles · Esc salir",
+    "checking": "Comprobando {server}…",
+    "invalid": "Eso no es la dirección de un servidor, como files.example.com.",
+    "unreachable": "{server} no es un servidor de Transferly, o no se puede alcanzar."
+  },
+  "approval": {
+    "title": "Aprueba en tu navegador",
+    "opened": "Tu navegador abrió esta dirección. Inicia sesión ahí y aprueba transferly-tui en {host}.",
+    "notOpened": "Abre esta dirección en tu navegador, inicia sesión ahí y aprueba transferly-tui en {host}.",
+    "waiting": "Esperando la aprobación…",
+    "noBrowser": "¿No hay navegador aquí? Pulsa p y pega el código que muestra la página.",
+    "copied": "Se copió la dirección.",
+    "keys": "o abrir otra vez · c copiar · p pegar un código · Esc volver",
+    "denied": "El inicio de sesión se rechazó en el navegador.",
+    "failed": "El inicio de sesión falló: {reason}"
+  },
+  "paste": {
+    "title": "Pega el código",
+    "intro": "Abre esta dirección en cualquier dispositivo, inicia sesión y aprueba:",
+    "then": "Luego pega el código que muestra la página.",
+    "field": "Código",
+    "note": "El código sirve una vez, durante 5 minutos.",
+    "keys": "Enter iniciar sesión · Esc volver"
+  },
+  "exchange": {
+    "invalid_grant": "El código ya no es válido: sirve una vez, durante 5 minutos. Vuelve a iniciar sesión.",
+    "cli_login_disabled": "Este servidor tiene desactivado el inicio de sesión desde la terminal; pregunta a quien lo administra.",
+    "http_404": "Este servidor es demasiado viejo para iniciar sesión desde la terminal: actualízalo.",
+    "other": "El inicio de sesión falló: {reason}",
+    "notKept": "Iniciaste sesión, pero no se pudo guardar el token: {reason}"
+  },
+  "signed": {
+    "title": "Sesión iniciada",
+    "body": "Sesión iniciada en {server} como {email}.",
+    "next": "El explorador viene a continuación.",
+    "keys": "q salir"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "app": {
+    "name": "Transferly",
+    "tagline": "file transfers from the terminal"
+  },
+  "server": {
+    "title": "Sign in",
+    "field": "Server address",
+    "used": "Used before",
+    "keys": "Enter continue · ↓ profiles · Esc quit",
+    "checking": "Checking {server}…",
+    "invalid": "That is not the address of a server, such as files.example.com.",
+    "unreachable": "{server} is not a Transferly server, or it cannot be reached."
+  },
+  "approval": {
+    "title": "Approve in your browser",
+    "opened": "Your browser opened this address. Sign in there and approve transferly-tui on {host}.",
+    "notOpened": "Open this address in your browser, sign in there and approve transferly-tui on {host}.",
+    "waiting": "Waiting for the approval…",
+    "noBrowser": "No browser here? Press p and paste the code the page shows.",
+    "copied": "The address was copied.",
+    "keys": "o open again · c copy · p paste a code · Esc back",
+    "denied": "The sign-in was denied in the browser.",
+    "failed": "The sign-in failed: {reason}"
+  },
+  "paste": {
+    "title": "Paste the code",
+    "intro": "Open this address on any device, sign in and approve:",
+    "then": "Then paste the code the page shows.",
+    "field": "Code",
+    "note": "The code works once, for 5 minutes.",
+    "keys": "Enter sign in · Esc back"
+  },
+  "exchange": {
+    "invalid_grant": "The code is not valid any more: it works once, for 5 minutes. Sign in again.",
+    "cli_login_disabled": "This server has signing in from the terminal turned off; ask its administrator.",
+    "http_404": "This server is too old to sign in from the terminal: update it.",
+    "other": "The sign-in failed: {reason}",
+    "notKept": "Signed in, but the token could not be kept: {reason}"
+  },
+  "signed": {
+    "title": "Signed in",
+    "body": "Signed in to {server} as {email}.",
+    "next": "The explorer comes next.",
+    "keys": "q quit"
+  }
+}
