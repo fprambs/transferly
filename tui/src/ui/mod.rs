@@ -2,6 +2,7 @@
 //! text fields ([`input`]) and drawing pieces ([`widgets`]). Only `platform.rs` touches the real terminal.
 
 pub mod app;
+pub mod explorer;
 pub mod home;
 pub mod input;
 pub mod look;
@@ -70,3 +71,6 @@ mod tests;
 
 #[cfg(test)]
 mod home_tests;
+
+#[cfg(test)]
+mod explorer_tests;

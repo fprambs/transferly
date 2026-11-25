@@ -6,8 +6,9 @@ use std::time::Duration;
 use reqwest::{Client, Method, RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use transferly_client::models::{
-    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, MasterPasswordRequest,
-    Preferences, Problem, SessionInfo, SetupStatus, Site, User, VaultStatus, Version, Workspace,
+    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, HomeFolder,
+    MasterPasswordRequest, PathInput, Preferences, Problem, RemoteEntry, RenameInput, SessionInfo,
+    SetupStatus, Site, User, VaultStatus, Version, Workspace,
 };
 use url::Url;
 
@@ -259,6 +260,113 @@ impl Api {
         Self::send(self.request(Method::POST, "/api/v1/cli/links").json(&body)).await
     }
 
+    /// The path of the files of a site.
+    fn files(workspace: &str, site: &str, rest: &str) -> String {
+        format!("/api/v1/workspaces/{workspace}/sites/{site}/{rest}")
+    }
+
+    /// The entries of a folder of a site, connecting to it if needed.
+    ///
+    /// # Errors
+    ///
+    /// The folder does not exist, the vault is locked (`vault_locked`), the server key is not trusted (`host_key_unknown`), the server
+    /// cannot be reached, or the session ended.
+    pub async fn list(
+        &self,
+        workspace: &str,
+        site: &str,
+        path: &str,
+    ) -> Result<Vec<RemoteEntry>, ApiError> {
+        Self::send(
+            self.request(Method::GET, &Self::files(workspace, site, "files"))
+                .query(&[("path", path)]),
+        )
+        .await
+    }
+
+    /// The folder a connection to a site starts in.
+    ///
+    /// # Errors
+    ///
+    /// As listing a folder.
+    pub async fn home(&self, workspace: &str, site: &str) -> Result<HomeFolder, ApiError> {
+        Self::send(self.request(Method::GET, &Self::files(workspace, site, "files/home"))).await
+    }
+
+    /// Creates a folder on a site.
+    ///
+    /// # Errors
+    ///
+    /// It exists, the parent does not, the account may not write, or as listing a folder.
+    pub async fn mkdir(
+        &self,
+        workspace: &str,
+        site: &str,
+        path: &str,
+    ) -> Result<RemoteEntry, ApiError> {
+        let body = PathInput::new(path.to_owned());
+        Self::send(
+            self.request(
+                Method::POST,
+                &Self::files(workspace, site, "files/directories"),
+            )
+            .json(&body),
+        )
+        .await
+    }
+
+    /// Renames or moves an entry of a site; an existing destination is never replaced.
+    ///
+    /// # Errors
+    ///
+    /// The destination exists, the source does not, the account may not write, or as listing a folder.
+    pub async fn rename(
+        &self,
+        workspace: &str,
+        site: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<RemoteEntry, ApiError> {
+        let body = RenameInput::new(from.to_owned(), to.to_owned());
+        Self::send(
+            self.request(Method::POST, &Self::files(workspace, site, "files/rename"))
+                .json(&body),
+        )
+        .await
+    }
+
+    /// Deletes an entry of a site, a folder with everything in it when `recursive`.
+    ///
+    /// # Errors
+    ///
+    /// It does not exist, a folder is not empty without `recursive`, the account may not write, or as listing a folder.
+    pub async fn delete(
+        &self,
+        workspace: &str,
+        site: &str,
+        path: &str,
+        recursive: bool,
+    ) -> Result<(), ApiError> {
+        let query = [
+            ("path", path),
+            ("recursive", if recursive { "true" } else { "false" }),
+        ];
+        Self::empty(
+            self.request(Method::DELETE, &Self::files(workspace, site, "files"))
+                .query(&query),
+        )
+        .await
+    }
+
+    /// Closes the connections of this session to a site.
+    ///
+    /// # Errors
+    ///
+    /// The session ended or the server cannot be reached.
+    pub async fn disconnect(&self, workspace: &str, site: &str) -> Result<(), ApiError> {
+        Self::empty(self.request(Method::DELETE, &Self::files(workspace, site, "connection"))).await
+    }
+
     /// Ends the session of the token.
     ///
     /// # Errors
@@ -472,6 +580,69 @@ mod tests {
                 .email,
             "ana@example.com"
         );
+    }
+
+    /// The calls of the explorer: list a folder, find the home folder, create, rename and delete, and disconnect.
+    #[tokio::test]
+    async fn works_with_files() {
+        use wiremock::matchers::query_param;
+        let server = MockServer::start().await;
+        let base = "/api/v1/workspaces/w/sites/s";
+        let entry = serde_json::json!({"name": "a", "path": "/a", "type": "directory", "size": 0, "mode": "drwxr-xr-x", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"});
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files")))
+            .and(query_param("path", "/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([entry])))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files/home")))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"path": "/home/ana"})),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(format!("{base}/files/directories")))
+            .and(body_json(serde_json::json!({"path": "/a"})))
+            .respond_with(ResponseTemplate::new(201).set_body_json(&entry))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(format!("{base}/files/rename")))
+            .and(body_json(serde_json::json!({"from": "/a", "to": "/b"})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&entry))
+            .mount(&server)
+            .await;
+        Mock::given(method("DELETE"))
+            .and(path(format!("{base}/files")))
+            .and(query_param("recursive", "true"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        Mock::given(method("DELETE")).and(path(format!("{base}/files"))).and(query_param("recursive", "false")).respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 404, "code": "not_found"}))).mount(&server).await;
+        Mock::given(method("DELETE"))
+            .and(path(format!("{base}/connection")))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        let api = api(&server).with_token("t");
+        assert_eq!(api.list("w", "s", "/").await.expect("list")[0].name, "a");
+        assert_eq!(api.home("w", "s").await.expect("home").path, "/home/ana");
+        assert_eq!(api.mkdir("w", "s", "/a").await.expect("mkdir").path, "/a");
+        assert_eq!(
+            api.rename("w", "s", "/a", "/b").await.expect("rename").name,
+            "a"
+        );
+        api.delete("w", "s", "/a", true).await.expect("deleted");
+        assert_eq!(
+            api.delete("w", "s", "/a", false)
+                .await
+                .expect_err("refused")
+                .code(),
+            Some("not_found")
+        );
+        api.disconnect("w", "s").await.expect("disconnected");
     }
 
     /// An answer cut in the middle of its body is a network error, when decoding a call and when signing out.

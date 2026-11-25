@@ -15,6 +15,7 @@ use transferly_client::models::{Collection, Site, User, VaultStatus, Workspace, 
 use url::Url;
 use uuid::Uuid;
 
+use super::explorer::{Entry, Op, Panel, PanelAsk, Source};
 use super::input::Input;
 use super::look::Look;
 use super::theme::{self, Palette};
@@ -87,6 +88,26 @@ pub enum Call {
         /// The new theme, if it changes.
         theme: Option<String>,
     },
+    /// Work with the files of a site in a panel.
+    Files {
+        /// The workspace of the site.
+        workspace: Uuid,
+        /// The site.
+        site: Uuid,
+        /// The panel that asked.
+        side: Side,
+        /// What to do.
+        op: Op,
+    },
+}
+
+/// A panel of the explorer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    /// The left panel, which starts on the local disk.
+    Left,
+    /// The right panel, where sites open.
+    Right,
 }
 
 /// Why a call failed: the stable code of a refusal, or none when the server could not be reached, and what happened.
@@ -120,6 +141,29 @@ pub enum Reply {
     Unlocked(Result<(), CallError>),
     /// The account after changing its preferences.
     Preferences(Result<User, CallError>),
+    /// The home folder of what a panel shows.
+    Homed {
+        /// The panel.
+        side: Side,
+        /// The folder.
+        outcome: Result<String, CallError>,
+    },
+    /// The entries of a folder of a panel.
+    Listed {
+        /// The panel.
+        side: Side,
+        /// The folder.
+        path: String,
+        /// Its entries.
+        outcome: Result<Vec<Entry>, CallError>,
+    },
+    /// A change of the files of a panel ended.
+    Changed {
+        /// The panel.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
+    },
 }
 
 /// What the main screen asks of the interface.
@@ -127,6 +171,13 @@ pub enum Reply {
 pub enum Ask {
     /// Call the server.
     Call(Call),
+    /// Work with the files of the local disk in a panel.
+    Local {
+        /// The panel that asked.
+        side: Side,
+        /// What to do.
+        op: Op,
+    },
     /// Open an address in the browser.
     Browse(String),
     /// Keep the settings of this computer.
@@ -144,8 +195,10 @@ pub enum Ask {
 pub enum Focus {
     /// The sites of the workspace.
     Sites,
-    /// The explorer.
-    Explorer,
+    /// The left panel of the explorer.
+    Left,
+    /// The right panel of the explorer.
+    Right,
 }
 
 /// What a list chooses.
@@ -157,6 +210,8 @@ pub enum Choice {
     Language,
     /// A workspace.
     Workspace,
+    /// What a panel shows: the local disk or a site.
+    Source(Side),
 }
 
 /// What is shown over the screen.
@@ -245,7 +300,9 @@ pub struct Home {
     cursor: usize,
     loading: bool,
     vault: Option<VaultStatus>,
-    opened: Option<Uuid>,
+    left: Panel,
+    right: Panel,
+    last: Side,
     sites_shown: bool,
     focus: Focus,
     overlay: Option<Overlay>,
@@ -255,8 +312,8 @@ pub struct Home {
 impl Home {
     /// The main screen of a session, loading the account, the version of the server, the workspaces and the vault.
     #[must_use]
-    pub fn new(session: Session, email: &str) -> (Self, Vec<Ask>) {
-        let home = Self {
+    pub fn new(session: Session, email: &str, hidden: bool) -> (Self, Vec<Ask>) {
+        let mut home = Self {
             session,
             email: email.to_owned(),
             locale: String::new(),
@@ -271,16 +328,23 @@ impl Home {
             cursor: 0,
             loading: true,
             vault: None,
-            opened: None,
+            left: Panel::new(hidden),
+            right: Panel::new(hidden),
+            last: Side::Right,
             sites_shown: true,
             focus: Focus::Sites,
             overlay: None,
             notice: None,
         };
-        let asks = [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
+        let mut asks: Vec<Ask> = [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
             .into_iter()
             .map(Ask::Call)
             .collect();
+        let op = home.left.open(Source::Local);
+        asks.push(Ask::Local {
+            side: Side::Left,
+            op,
+        });
         (home, asks)
     }
 
@@ -305,8 +369,29 @@ impl Home {
     /// The site open in the explorer.
     #[must_use]
     pub fn opened(&self) -> Option<&Site> {
-        self.opened
-            .and_then(|id| self.sites.iter().find(|site| site.id == id))
+        [&self.right, &self.left]
+            .into_iter()
+            .find_map(|panel| match panel.source() {
+                Some(Source::Site { id, .. }) => self.sites.iter().find(|site| site.id == *id),
+                _ => None,
+            })
+    }
+
+    /// A panel of the explorer.
+    #[must_use]
+    pub fn panel(&self, side: Side) -> &Panel {
+        match side {
+            Side::Left => &self.left,
+            Side::Right => &self.right,
+        }
+    }
+
+    /// A panel of the explorer, to change.
+    fn panel_mut(&mut self, side: Side) -> &mut Panel {
+        match side {
+            Side::Left => &mut self.left,
+            Side::Right => &mut self.right,
+        }
     }
 
     /// The workspace shown.
@@ -372,6 +457,28 @@ impl Home {
                 look.speak(&self.locale);
                 self.trouble(&error, look)
             }
+            Reply::Homed { side, outcome } => {
+                let outcome = self.file_outcome(side, outcome, look);
+                let (text, mut asks) = outcome;
+                let more = self.panel_mut(side).homed(text);
+                asks.extend(self.panel_asks(side, more));
+                asks
+            }
+            Reply::Listed {
+                side,
+                path,
+                outcome,
+            } => {
+                let (outcome, asks) = self.file_outcome(side, outcome, look);
+                self.panel_mut(side).listed(&path, outcome);
+                asks
+            }
+            Reply::Changed { side, outcome } => {
+                let (outcome, mut asks) = self.file_outcome(side, outcome, look);
+                let more = self.panel_mut(side).changed(outcome);
+                asks.extend(self.panel_asks(side, more));
+                asks
+            }
             Reply::Me(Err(error))
             | Reply::Version(Err(error))
             | Reply::Workspaces(Err(error))
@@ -417,7 +524,11 @@ impl Home {
         self.sites.clear();
         self.closed.clear();
         self.cursor = 0;
-        self.opened = None;
+        for side in [Side::Left, Side::Right] {
+            if matches!(self.panel(side).source(), Some(Source::Site { .. })) {
+                self.panel_mut(side).close();
+            }
+        }
         self.loading = true;
         vec![Ask::Call(Call::Tree(id))]
     }
@@ -441,7 +552,7 @@ impl Home {
                 });
                 self.say(look.messages.get("vault.unlocked"), false);
                 if let Some(site) = site {
-                    self.opened = Some(site);
+                    return self.open_site(site, self.last);
                 }
             }
             Err(failure) => {
@@ -462,6 +573,10 @@ impl Home {
         match error.code.as_deref() {
             Some("unauthenticated") => vec![Ask::Leave(Some(m.get("main.ended")))],
             Some("vault_locked") => {
+                self.vault = Some(VaultStatus {
+                    initialized: true,
+                    unlocked: false,
+                });
                 self.ask_vault(None);
                 Vec::new()
             }
@@ -473,6 +588,45 @@ impl Home {
                 self.say(error.message.clone(), true);
                 Vec::new()
             }
+        }
+    }
+
+    /// The outcome of a call on the files of a panel, with its failure in words: an ended session goes back to signing in, and a locked
+    /// vault asks for its password and opens the site again once unlocked.
+    fn file_outcome<T>(
+        &mut self,
+        side: Side,
+        outcome: Result<T, CallError>,
+        look: &Look,
+    ) -> (Result<T, String>, Vec<Ask>) {
+        let mut asks = Vec::new();
+        let outcome = outcome.map_err(|error| {
+            let (text, more) = self.file_failure(side, &error, look);
+            asks = more;
+            text
+        });
+        (outcome, asks)
+    }
+
+    /// A failure on the files of a panel in words, with what the main screen must do about it.
+    fn file_failure(&mut self, side: Side, error: &CallError, look: &Look) -> (String, Vec<Ask>) {
+        let m = &look.messages;
+        match error.code.as_deref() {
+            Some("unauthenticated") => (
+                m.get("main.ended"),
+                vec![Ask::Leave(Some(m.get("main.ended")))],
+            ),
+            Some("vault_locked") => {
+                let site = self.panel(side).source().and_then(Source::site);
+                self.vault = Some(VaultStatus {
+                    initialized: true,
+                    unlocked: false,
+                });
+                self.last = side;
+                self.ask_vault(site);
+                (m.get("errors.vault_locked"), Vec::new())
+            }
+            _ => (explain(error, look), Vec::new()),
         }
     }
 
@@ -517,6 +671,12 @@ impl Home {
         if let Some(overlay) = self.overlay.take() {
             return self.overlay_key(key, overlay, look);
         }
+        if let Some(side) = self
+            .focused_side()
+            .filter(|side| self.panel(*side).captures())
+        {
+            return self.explorer_key(side, key);
+        }
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
         match key.code {
             KeyCode::Char('?') | KeyCode::F(1) => self.overlay = Some(Overlay::Help),
@@ -530,22 +690,105 @@ impl Home {
             KeyCode::Char('q') | KeyCode::F(10) => return vec![Ask::Quit],
             KeyCode::Char('b') if control => {
                 self.sites_shown = !self.sites_shown;
-                self.focus = if self.sites_shown {
-                    Focus::Sites
-                } else {
-                    Focus::Explorer
+                if self.sites_shown {
+                    self.focus = Focus::Sites;
+                } else if self.focus == Focus::Sites {
+                    self.focus = Self::focus_of(self.last);
+                }
+            }
+            KeyCode::Tab => self.cycle(true),
+            KeyCode::BackTab => self.cycle(false),
+            _ => {
+                return match self.focused_side() {
+                    None => self.sites_key(key, look),
+                    Some(side) => self.explorer_key(side, key),
                 };
             }
-            KeyCode::Tab | KeyCode::BackTab if self.sites_shown => {
-                self.focus = match self.focus {
-                    Focus::Sites => Focus::Explorer,
-                    Focus::Explorer => Focus::Sites,
-                };
-            }
-            _ if self.focus == Focus::Sites => return self.sites_key(key, look),
-            _ => {}
         }
         Vec::new()
+    }
+
+    /// The focus of a panel of the explorer.
+    fn focus_of(side: Side) -> Focus {
+        match side {
+            Side::Left => Focus::Left,
+            Side::Right => Focus::Right,
+        }
+    }
+
+    /// The panel of the explorer with the focus, if one has it.
+    fn focused_side(&self) -> Option<Side> {
+        match self.focus {
+            Focus::Left => Some(Side::Left),
+            Focus::Right => Some(Side::Right),
+            Focus::Sites => None,
+        }
+    }
+
+    /// Moves the focus to the next or previous panel: the sites, when shown, then the left and the right panel.
+    fn cycle(&mut self, forward: bool) {
+        let mut order = vec![Focus::Left, Focus::Right];
+        if self.sites_shown {
+            order.insert(0, Focus::Sites);
+        }
+        let at = order
+            .iter()
+            .position(|focus| *focus == self.focus)
+            .unwrap_or(0);
+        let next = if forward {
+            (at + 1) % order.len()
+        } else {
+            (at + order.len() - 1) % order.len()
+        };
+        self.focus = order[next];
+        if let Some(side) = self.focused_side() {
+            self.last = side;
+        }
+    }
+
+    /// Handles a key on the focused panel of the explorer.
+    fn explorer_key(&mut self, side: Side, key: KeyEvent) -> Vec<Ask> {
+        let asks = self.panel_mut(side).key(key);
+        self.panel_asks(side, asks)
+    }
+
+    /// What the main screen does for what a panel asks: its files go to the local disk or to the server, and choosing what it shows
+    /// opens the list of sources.
+    fn panel_asks(&mut self, side: Side, asks: Vec<PanelAsk>) -> Vec<Ask> {
+        let mut out = Vec::new();
+        for ask in asks {
+            match ask {
+                PanelAsk::Choose => {
+                    let worn = String::new();
+                    self.overlay = Some(Overlay::Choose {
+                        what: Choice::Source(side),
+                        selected: 0,
+                        worn,
+                    });
+                }
+                PanelAsk::Op(Op::Disconnect) => {
+                    out.extend(self.files(side, Op::Disconnect));
+                    self.panel_mut(side).close();
+                }
+                PanelAsk::Op(op) => out.extend(self.files(side, op)),
+            }
+        }
+        out
+    }
+
+    /// Where an operation on the files of a panel goes: the local disk, or the site it shows in the workspace.
+    fn files(&self, side: Side, op: Op) -> Option<Ask> {
+        let source = self.panel(side).source()?;
+        let Some(site) = source.site() else {
+            return Some(Ask::Local { side, op });
+        };
+        let workspace = self.workspace?;
+        Some(Ask::Call(Call::Files {
+            workspace,
+            site,
+            side,
+            op,
+        }))
     }
 
     /// Handles a key on the sites panel.
@@ -574,7 +817,8 @@ impl Home {
                         }
                     }
                     Some(Row::Site { index, .. }) if key.code == KeyCode::Enter => {
-                        self.open(*index);
+                        let id = self.sites[*index].id;
+                        return self.open_site(id, self.last);
                     }
                     _ => {}
                 }
@@ -584,19 +828,29 @@ impl Home {
         Vec::new()
     }
 
-    /// Opens a site in the explorer, first asking for the master password when its credentials are in a locked vault.
-    fn open(&mut self, index: usize) {
-        let site = &self.sites[index];
+    /// Opens a site in a panel of the explorer and gives it the focus, first asking for the master password when its credentials are in
+    /// a locked vault.
+    fn open_site(&mut self, id: Uuid, side: Side) -> Vec<Ask> {
+        let Some(site) = self.sites.iter().find(|site| site.id == id) else {
+            return Vec::new();
+        };
         let locked = self
             .vault
             .as_ref()
             .is_some_and(|vault| vault.initialized && !vault.unlocked);
         if locked && !site.secrets.is_empty() {
+            self.last = side;
             self.ask_vault(Some(site.id));
-            return;
+            return Vec::new();
         }
-        self.opened = Some(site.id);
-        self.focus = Focus::Explorer;
+        let source = Source::Site {
+            id,
+            name: site.name.clone(),
+        };
+        self.last = side;
+        self.focus = Self::focus_of(side);
+        let op = self.panel_mut(side).open(source);
+        self.files(side, op).into_iter().collect()
     }
 
     /// Handles a key on what is shown over the screen.
@@ -803,7 +1057,21 @@ impl Home {
                     .position(|workspace| Some(workspace.id) == self.workspace)
                     .unwrap_or(0),
             ),
+            Choice::Source(side) => {
+                let mut names = vec![look.messages.get("main.local")];
+                names.extend(self.sites.iter().map(|site| site.name.clone()));
+                (names, self.source_index(side))
+            }
         }
+    }
+
+    /// The row of the list of sources that a panel shows: the local disk first, then the sites.
+    fn source_index(&self, side: Side) -> usize {
+        let site = self.panel(side).source().and_then(Source::site);
+        self.sites
+            .iter()
+            .position(|known| Some(known.id) == site)
+            .map_or(0, |at| at + 1)
     }
 
     /// Opens a list on the value in use.
@@ -846,6 +1114,13 @@ impl Home {
                         look,
                     ),
                     Choice::Workspace => self.show_workspace(self.workspaces[selected].id),
+                    Choice::Source(side) if selected == 0 => {
+                        self.focus = Self::focus_of(side);
+                        self.last = side;
+                        let op = self.panel_mut(side).open(Source::Local);
+                        self.files(side, op).into_iter().collect()
+                    }
+                    Choice::Source(side) => self.open_site(self.sites[selected - 1].id, side),
                 };
             }
             KeyCode::Down | KeyCode::Char('j') => selected = (selected + 1).min(last),
@@ -986,17 +1261,28 @@ impl Home {
         ])
         .areas(area);
         self.render_tabs(frame, top, look);
-        let both = self.sites_shown && area.width >= NARROW;
-        if both {
-            let [sites, explorer] =
-                Layout::horizontal([Constraint::Length(SITES_WIDTH), Constraint::Fill(1)])
-                    .areas(body);
-            self.render_sites(frame, sites, look, spinner);
-            self.render_explorer(frame, explorer, look);
-        } else if self.focus == Focus::Sites && self.sites_shown {
-            self.render_sites(frame, body, look, spinner);
+        let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+        if area.width >= NARROW {
+            let sites_width = if self.sites_shown { SITES_WIDTH } else { 0 };
+            let [sites, left, right] = Layout::horizontal([
+                Constraint::Length(sites_width),
+                Constraint::Fill(1),
+                Constraint::Fill(1),
+            ])
+            .areas(body);
+            if self.sites_shown {
+                self.render_sites(frame, sites, look, spinner);
+            }
+            self.left
+                .render(frame, left, look, self.focus == Focus::Left, &zone);
+            self.right
+                .render(frame, right, look, self.focus == Focus::Right, &zone);
         } else {
-            self.render_explorer(frame, body, look);
+            match self.focus {
+                Focus::Sites => self.render_sites(frame, body, look, spinner),
+                Focus::Left => self.left.render(frame, body, look, true, &zone),
+                Focus::Right => self.right.render(frame, body, look, true, &zone),
+            }
         }
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
@@ -1099,7 +1385,7 @@ impl Home {
                     ),
                     Row::Site { index, depth } => {
                         let site = &self.sites[index];
-                        let dot = if Some(site.id) == self.opened {
+                        let dot = if [Side::Left, Side::Right].iter().any(|side| matches!(self.panel(*side).source(), Some(Source::Site { id, .. }) if *id == site.id)) {
                             "●"
                         } else {
                             "·"
@@ -1120,28 +1406,6 @@ impl Home {
             })
             .collect();
         frame.render_widget(Paragraph::new(lines), inside);
-    }
-
-    /// The explorer: the site open, which the explorer of files will show in the next version.
-    fn render_explorer(&self, frame: &mut Frame, area: Rect, look: &Look) {
-        let (m, palette) = (&look.messages, &look.palette);
-        let site = self.opened();
-        let title = site.map_or_else(|| m.get("main.local"), |site| site.name.clone());
-        let block = panel(&title, self.focus == Focus::Explorer, palette);
-        let inside = block.inner(area);
-        frame.render_widget(block, area);
-        let mut lines = Vec::new();
-        if let Some(site) = site {
-            let host = site.config.get("host").map_or("", String::as_str);
-            lines.push(Line::from(site.name.clone()).bold());
-            lines.push(Line::from(format!("{} · {host}", site.connector)).fg(palette.muted));
-            lines.push(Line::default());
-        } else {
-            lines.push(Line::from(m.get("main.pickSite")).fg(palette.muted));
-            lines.push(Line::default());
-        }
-        lines.push(Line::from(m.get("main.explorerSoon")).fg(palette.muted));
-        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inside);
     }
 
     /// The status bar: the server, the account, the workspace, the vault and a notice, with the keys of the focused panel on the right.
@@ -1193,7 +1457,7 @@ impl Home {
         }
         let keys = m.get(match self.focus {
             Focus::Sites => "main.keysSites",
-            Focus::Explorer => "main.keysExplorer",
+            Focus::Left | Focus::Right => "main.keysExplorer",
         });
         let used: usize = spans.iter().map(Span::width).sum();
         let room = usize::from(area.width).saturating_sub(used + 2);
@@ -1338,11 +1602,13 @@ impl Home {
                 .workspaces
                 .iter()
                 .position(|workspace| Some(workspace.id) == self.workspace),
+            Choice::Source(side) => Some(self.source_index(side)),
         };
         let title = m.get(match what {
             Choice::Theme => "choose.theme",
             Choice::Language => "choose.language",
             Choice::Workspace => "choose.workspace",
+            Choice::Source(_) => "choose.source",
         });
         let height = u16::try_from(names.len())
             .unwrap_or(u16::MAX)
@@ -1435,7 +1701,7 @@ fn active(palette: &Palette) -> Style {
 }
 
 /// The keys of the help, grouped as the design groups them: the message of each group and its keys with the message of their action.
-const HELP: [(&str, &[(&str, &str)]); 3] = [
+const HELP: [(&str, &[(&str, &str)]); 4] = [
     (
         "help.everywhere",
         &[
@@ -1454,6 +1720,17 @@ const HELP: [(&str, &[(&str, &str)]); 3] = [
             ("→ l  ← h", "help.collections"),
             ("Enter", "help.open"),
             ("w", "help.workspace"),
+        ],
+    ),
+    (
+        "help.explorer",
+        &[
+            ("Enter ← Backspace", "help.openUp"),
+            ("Space  Ctrl+A", "help.mark"),
+            ("n  F2  Del", "help.manage"),
+            ("f  .  s  S", "help.filterKeys"),
+            ("r  Ctrl+G", "help.refresh"),
+            ("o  Ctrl+D", "help.show"),
         ],
     ),
     (
@@ -1494,4 +1771,18 @@ fn render_help(frame: &mut Frame, look: &Look) {
         lines.push(Line::default());
     }
     frame.render_widget(Paragraph::new(lines), inside);
+}
+
+/// A failure in words: the message of its stable code when the catalog has one, or what happened.
+fn explain(error: &CallError, look: &Look) -> String {
+    let Some(code) = &error.code else {
+        return error.message.clone();
+    };
+    let key = format!("errors.{code}");
+    let text = look.messages.get(&key);
+    if text == key {
+        error.message.clone()
+    } else {
+        text
+    }
 }

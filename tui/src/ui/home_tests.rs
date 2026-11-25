@@ -14,7 +14,10 @@ use url::Url;
 use uuid::Uuid;
 
 use super::DEFAULT_THEME;
-use super::home::{Ask, Call, CallError, Choice, Focus, Home, Overlay, Reply, Session, VERSION};
+use super::explorer::Op;
+use super::home::{
+    Ask, Call, CallError, Choice, Focus, Home, Overlay, Reply, Session, Side, VERSION,
+};
 use super::look::Look;
 use super::theme::ColorMode;
 use crate::config::{Colors, EnterOnFile, Settings};
@@ -102,7 +105,7 @@ fn refused(code: &str) -> CallError {
 ///
 /// The tree: Clients (with Acme inside, with acme-sftp inside it, and beta-ftp), then home-nas outside any collection.
 fn loaded(look: &mut Look, vault: Option<(bool, bool)>) -> Home {
-    let (mut home, _) = Home::new(session(), "ana@example.com");
+    let (mut home, _) = Home::new(session(), "ana@example.com", false);
     home.reply(Reply::Me(Ok(user("en", DEFAULT_THEME))), look);
     home.reply(
         Reply::Workspaces(Ok(vec![
@@ -176,10 +179,17 @@ fn command(home: &mut Home, look: &mut Look, line: &str) -> Vec<Ask> {
 #[test]
 fn loads_a_session() {
     let mut look = look();
-    let (mut home, asks) = Home::new(session(), "ana@example.com");
+    let (mut home, asks) = Home::new(session(), "ana@example.com", false);
     assert_eq!(
         asks,
-        [Call::Me, Call::Version, Call::Workspaces, Call::Vault].map(Ask::Call)
+        [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
+            .map(Ask::Call)
+            .into_iter()
+            .chain([Ask::Local {
+                side: Side::Left,
+                op: Op::Home
+            }])
+            .collect::<Vec<_>>()
     );
     assert_eq!(home.session(), &session());
     assert!(draw(&home, &look, 120, 30).contains("* Loading…"));
@@ -269,7 +279,7 @@ fn explains_failed_calls() {
         },
         &mut look,
     );
-    assert!(!draw(&home, &look, 120, 30).contains("Loading"));
+    assert!(!draw(&home, &look, 120, 30).contains("* Loading"));
 
     look.wear("nord");
     look.speak("es");
@@ -303,13 +313,9 @@ fn browses_the_sites() {
     home.key(key(KeyCode::Down), &mut look);
     home.key(key(KeyCode::Enter), &mut look);
     assert_eq!(home.opened().map(|s| s.name.as_str()), Some("home-nas"));
-    assert_eq!(home.focus(), Focus::Explorer);
+    assert_eq!(home.focus(), Focus::Right);
     let text = draw(&home, &look, 120, 30);
-    assert!(
-        text.contains("● home-nas")
-            && text.contains("sftp · home-nas.example.com")
-            && text.contains(" 1 home-nas ")
-    );
+    assert!(text.contains("● home-nas") && text.contains(" 1 home-nas "));
 
     home.key(key(KeyCode::Tab), &mut look);
     home.key(key(KeyCode::Char('g')), &mut look);
@@ -335,11 +341,20 @@ fn browses_the_sites() {
     assert_eq!(home.opened().map(|s| s.name.as_str()), Some("acme-sftp"));
 
     home.key(key(KeyCode::BackTab), &mut look);
+    assert_eq!(home.focus(), Focus::Left);
+    home.key(key(KeyCode::BackTab), &mut look);
     assert_eq!(home.focus(), Focus::Sites);
     home.key(ctrl('b'), &mut look);
-    assert_eq!(home.focus(), Focus::Explorer);
+    assert_eq!(home.focus(), Focus::Left, "the last panel of the explorer");
     nothing(&home.key(key(KeyCode::Tab), &mut look), "");
-    assert_eq!(home.focus(), Focus::Explorer);
+    assert_eq!(home.focus(), Focus::Right);
+    home.key(key(KeyCode::BackTab), &mut look);
+    home.key(key(KeyCode::BackTab), &mut look);
+    assert_eq!(
+        home.focus(),
+        Focus::Right,
+        "without the sites, the two panels"
+    );
     nothing(&home.key(key(KeyCode::Char('j')), &mut look), "");
     home.key(ctrl('b'), &mut look);
     assert_eq!(home.focus(), Focus::Sites);
@@ -361,14 +376,10 @@ fn fits_the_window() {
     let mut home = loaded(&mut look, Some((false, false)));
     assert!(draw(&home, &look, 50, 20).contains("Make the window"));
     let narrow = draw(&home, &look, 80, 20);
-    assert!(
-        narrow.contains("Clients")
-            && !narrow.contains("Choose a site")
-            && narrow.contains("no vault")
-    );
+    assert!(narrow.contains("Clients") && narrow.contains("no vault"));
     home.key(key(KeyCode::Tab), &mut look);
     let narrow = draw(&home, &look, 80, 20);
-    assert!(!narrow.contains("Clients") && narrow.contains("Choose a site"));
+    assert!(!narrow.contains("Clients") && narrow.contains("Local disk"));
     home.key(key(KeyCode::Tab), &mut look);
     home.key(key(KeyCode::Char('G')), &mut look);
     let short = draw(&home, &look, 100, 16);
@@ -630,7 +641,7 @@ fn chooses_from_lists() {
         vec![Ask::Call(Call::Tree(id(2)))]
     );
 
-    let (mut empty, _) = Home::new(session(), "ana@example.com");
+    let (mut empty, _) = Home::new(session(), "ana@example.com", false);
     command(&mut empty, &mut look, "workspace");
     nothing(
         &empty.key(key(KeyCode::Enter), &mut look),
@@ -773,6 +784,276 @@ fn shows_help_and_quits() {
     home.paste("nowhere");
 }
 
+/// The two panels of the explorer: a site opens on the right in its home folder, keys reach the focused panel, its operations go to
+/// the server with the workspace and to the local disk, replies reach the panel that asked, and `o` chooses what a panel shows.
+#[test]
+fn works_with_the_explorer() {
+    use super::explorer::Entry;
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('G')), &mut look);
+    let opened = home.key(key(KeyCode::Enter), &mut look);
+    let files = |op: Op| {
+        Ask::Call(Call::Files {
+            workspace: id(1),
+            site: id(22),
+            side: Side::Right,
+            op,
+        })
+    };
+    assert_eq!(opened, vec![files(Op::Home)]);
+    assert_eq!(home.focus(), Focus::Right);
+    let listed = home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Ok("/srv".to_owned()),
+        },
+        &mut look,
+    );
+    assert_eq!(listed, vec![files(Op::List("/srv".to_owned()))]);
+    let entries = vec![Entry {
+        name: "a.txt".to_owned(),
+        kind: super::explorer::Kind::File,
+        size: 1,
+        modified: None,
+    }];
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Ok(entries),
+        },
+        &mut look,
+    );
+    assert_eq!(home.panel(Side::Right).path(), "/srv");
+    let text = draw(&home, &look, 140, 30);
+    assert!(
+        text.contains("● home-nas") && text.contains("a.txt") && text.contains("/srv"),
+        "{text}"
+    );
+    home.key(key(KeyCode::Char('n')), &mut look);
+    nothing(
+        &home.key(key(KeyCode::Char('q')), &mut look),
+        "the form takes the keys",
+    );
+    assert_eq!(
+        home.key(key(KeyCode::Enter), &mut look),
+        vec![files(Op::Mkdir("/srv/q".to_owned()))]
+    );
+    assert_eq!(
+        home.reply(
+            Reply::Changed {
+                side: Side::Right,
+                outcome: Ok(())
+            },
+            &mut look
+        ),
+        vec![files(Op::List("/srv".to_owned()))]
+    );
+    let missing = CallError {
+        code: Some("not_found".to_owned()),
+        message: "gone".to_owned(),
+    };
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Err(missing),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 140, 30).contains("It does not exist any more."));
+    let odd = CallError {
+        code: Some("odd_code".to_owned()),
+        message: "something odd".to_owned(),
+    };
+    home.key(key(KeyCode::Char('r')), &mut look);
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Err(odd),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 140, 30).contains("something odd"));
+    home.reply(
+        Reply::Changed {
+            side: Side::Right,
+            outcome: Err(refused("permission_denied")),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 140, 30).contains("does not let this account"));
+    let ended = home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Err(refused("unauthenticated")),
+        },
+        &mut look,
+    );
+    assert_eq!(
+        ended,
+        vec![Ask::Leave(Some(
+            "The session ended. Sign in again.".to_owned()
+        ))]
+    );
+
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Err(refused("vault_locked")),
+        },
+        &mut look,
+    );
+    assert!(
+        matches!(home.overlay(), Some(Overlay::Vault { site: Some(site), .. }) if *site == id(22))
+    );
+    home.key(key(KeyCode::Esc), &mut look);
+
+    let left = home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/home/ana".to_owned()),
+        },
+        &mut look,
+    );
+    assert_eq!(
+        left,
+        vec![Ask::Local {
+            side: Side::Left,
+            op: Op::List("/home/ana".to_owned())
+        }]
+    );
+    let disk = CallError {
+        code: None,
+        message: "permission denied (os error 13)".to_owned(),
+    };
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home/ana".to_owned(),
+            outcome: Err(disk),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 140, 30).contains("os error 13"));
+
+    assert_eq!(home.key(ctrl('d'), &mut look), vec![files(Op::Disconnect)]);
+    assert!(home.panel(Side::Right).source().is_none());
+    home.key(key(KeyCode::Char('o')), &mut look);
+    let text = draw(&home, &look, 140, 30);
+    assert!(
+        text.contains("Show in this panel")
+            && text.contains("✓ Local disk")
+            && text.contains("acme-sftp"),
+        "{text}"
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    nothing(
+        &home.key(key(KeyCode::Enter), &mut look),
+        "a site with credentials in a locked vault asks first",
+    );
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Enter), &mut look),
+        vec![Ask::Local {
+            side: Side::Right,
+            op: Op::Home
+        }]
+    );
+    nothing(
+        &home.key(key(KeyCode::Char('j')), &mut look),
+        "a panel listing its home folder",
+    );
+    home.key(key(KeyCode::BackTab), &mut look);
+    assert_eq!(home.focus(), Focus::Left);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Enter), &mut look),
+        vec![Ask::Call(Call::Files {
+            workspace: id(1),
+            site: id(22),
+            side: Side::Left,
+            op: Op::Home
+        })]
+    );
+    assert!(
+        draw(&home, &look, 80, 20).contains("home-nas"),
+        "a narrow window shows the focused panel"
+    );
+    home.key(key(KeyCode::BackTab), &mut look);
+    assert!(draw(&home, &look, 80, 20).contains("Clients"));
+    command(&mut home, &mut look, "workspace team");
+    assert!(
+        home.panel(Side::Left).source().is_none(),
+        "the sites of another workspace close"
+    );
+    assert_eq!(
+        home.panel(Side::Right).source(),
+        Some(&super::explorer::Source::Local)
+    );
+}
+
+/// The layout follows the focus and the sites panel: hidden on a wide window it leaves the two panels, a narrow window shows the
+/// focused panel; `o` on a site marks it; a site that left the workspace while the vault was asked for does not open.
+#[test]
+fn lays_out_the_explorer() {
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, false)));
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(ctrl('b'), &mut look);
+    assert_eq!(
+        home.focus(),
+        Focus::Left,
+        "hiding the sites keeps the panel with the focus"
+    );
+    assert!(!draw(&home, &look, 140, 30).contains("Clients"));
+    home.key(key(KeyCode::Tab), &mut look);
+    assert!(draw(&home, &look, 80, 20).contains("Empty panel"));
+    home.key(ctrl('b'), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(Reply::Unlocked(Ok(())), &mut look);
+    home.reply(
+        Reply::Vault(Ok(VaultStatus {
+            initialized: true,
+            unlocked: false,
+        })),
+        &mut look,
+    );
+    assert_eq!(home.focus(), Focus::Right);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    assert!(draw(&home, &look, 140, 30).contains("✓ acme-sftp"));
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    assert!(matches!(
+        home.overlay(),
+        Some(Overlay::Vault { site: Some(_), .. })
+    ));
+    home.reply(
+        Reply::Tree {
+            workspace: id(1),
+            outcome: Ok((vec![], vec![])),
+        },
+        &mut look,
+    );
+    nothing(
+        &home.reply(Reply::Unlocked(Ok(())), &mut look),
+        "the site is gone",
+    );
+}
+
 /// The interface around the main screen: a kept session starts on it, its replies reach it, and what it asks becomes effects; signing
 /// out, keeping the settings and opening the browser report back on it.
 mod interface {
@@ -854,6 +1135,12 @@ mod interface {
             app.start(),
             [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
                 .map(|call| Effect::Call(session.clone(), call))
+                .into_iter()
+                .chain([Effect::Local {
+                    side: Side::Left,
+                    op: Op::Home
+                }])
+                .collect::<Vec<_>>()
         );
         nothing(&app.start(), "");
         app.handle(Event::Replied(Reply::Me(Ok(user("es", "nord")))));

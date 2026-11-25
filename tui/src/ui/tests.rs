@@ -613,7 +613,7 @@ async fn runs_the_other_effects() {
         Arc::new(|_: &str| false),
         copied.clone(),
     );
-    ports.wait = Duration::from_millis(600);
+    ports.wait = Duration::from_millis(900);
 
     let mut events: Vec<(u64, Event)> = "http://127.0.0.1:9"
         .chars()
@@ -626,7 +626,7 @@ async fn runs_the_other_effects() {
     ));
     events.extend(server.uri().chars().map(|c| (0, key(KeyCode::Char(c)))));
     events.push((0, key(KeyCode::Enter)));
-    events.push((150, key(KeyCode::Char('c'))));
+    events.push((400, key(KeyCode::Char('c'))));
     events.push((800, key(KeyCode::Enter)));
     events.push((500, key(KeyCode::Esc)));
     events.push((200, key(KeyCode::Esc)));

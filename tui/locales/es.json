@@ -47,8 +47,6 @@
     "sites": "Sitios",
     "noSites": "Este workspace aún no tiene sitios. Agrégalos en la web.",
     "local": "Disco local",
-    "pickSite": "Elige un sitio a la izquierda y pulsa Enter.",
-    "explorerSoon": "Aquí se verán los archivos del sitio: el explorador aún no está listo.",
     "vaultNone": "sin vault",
     "vaultOpen": "vault desbloqueado",
     "vaultLocked": "vault bloqueado",
@@ -61,7 +59,7 @@
     "notSignedOut": "No se pudo cerrar la sesión: {reason}",
     "notSaved": "No se pudieron guardar los ajustes: {reason}",
     "keysSites": "Enter abrir · w workspace · / comandos · ? ayuda · q salir",
-    "keysExplorer": "Tab sitios · / comandos · ? ayuda · q salir"
+    "keysExplorer": "Enter abrir · Espacio marcar · n carpeta · F2 renombrar · Supr borrar · f filtrar · o mostrar · ? ayuda"
   },
   "commands": {
     "title": "Comandos",
@@ -108,7 +106,8 @@
     "theme": "Tema",
     "language": "Idioma",
     "workspace": "Workspace",
-    "keys": "↑↓ elegir · Enter usar · Esc volver"
+    "keys": "↑↓ elegir · Enter usar · Esc volver",
+    "source": "Mostrar en este panel"
   },
   "vault": {
     "title": "Desbloquear el vault",
@@ -139,6 +138,44 @@
     "workspace": "cambiar de workspace",
     "confirm": "confirmar",
     "back": "cancelar, volver",
-    "change": "cambiar un ajuste"
+    "change": "cambiar un ajuste",
+    "explorer": "Paneles del explorador",
+    "openUp": "abrir la carpeta, subir",
+    "mark": "marcar y bajar",
+    "manage": "carpeta nueva, renombrar, borrar",
+    "filterKeys": "filtrar, ocultos, ordenar, invertir",
+    "refresh": "actualizar, ir a una ruta",
+    "show": "mostrar el disco local o un sitio, desconectar"
+  },
+  "explorer": {
+    "empty": "Panel vacío",
+    "choose": "Pulsa o para mostrar aquí el disco local o un sitio.",
+    "nothing": "Esta carpeta está vacía.",
+    "filter": "Filtro:",
+    "mkdirTitle": "Nueva carpeta",
+    "renameTitle": "Renombrar",
+    "gotoTitle": "Ir a",
+    "name": "Nombre",
+    "newName": "Nombre nuevo",
+    "path": "Ruta",
+    "formKeys": "Enter aceptar · Esc cancelar",
+    "deleteTitle": "Borrar",
+    "deleteBody": "¿Borrar {count} elementos? Las carpetas se borran con todo su contenido.",
+    "more": "y {count} más",
+    "undone": "Esto no se puede deshacer.",
+    "deleteKeys": "y borrar · n cancelar"
+  },
+  "errors": {
+    "vault_locked": "El vault está bloqueado: desbloquéalo para abrir el sitio.",
+    "host_key_unknown": "La clave de este servidor aún no es de confianza.",
+    "host_key_changed": "La clave de este servidor cambió desde que se confió en ella.",
+    "not_found": "Ya no existe.",
+    "already_exists": "Ya existe algo con ese nombre.",
+    "permission_denied": "El servidor no le permite eso a esta cuenta.",
+    "directory_not_empty": "La carpeta no está vacía.",
+    "connection_failed": "No se pudo llegar al servidor.",
+    "auth_failed": "El servidor rechazó las credenciales del sitio.",
+    "forbidden": "Tu rol en este workspace no lo permite.",
+    "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo."
   }
 }

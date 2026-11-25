@@ -125,6 +125,13 @@ pub enum Effect {
     Call(Session, super::home::Call),
     /// End a session on its server and forget its token.
     Logout(Session),
+    /// Work with the files of the local disk for a panel.
+    Local {
+        /// The panel.
+        side: super::home::Side,
+        /// What to do.
+        op: super::explorer::Op,
+    },
     /// Keep the settings of this computer.
     SaveSettings(Settings),
     /// Leave the interface.
@@ -263,7 +270,7 @@ impl App {
         };
         self.server = Some(url.clone());
         let session = Session { server: url, token };
-        let (home, asks) = Home::new(session.clone(), email);
+        let (home, asks) = Home::new(session.clone(), email, self.look.settings.hidden_files);
         self.screen = Screen::Main(Box::new(home));
         self.asks(&session, asks)
     }
@@ -274,6 +281,7 @@ impl App {
         for ask in asks {
             match ask {
                 Ask::Call(call) => effects.push(Effect::Call(session.clone(), call)),
+                Ask::Local { side, op } => effects.push(Effect::Local { side, op }),
                 Ask::Browse(url) => effects.push(Effect::OpenBrowser(url)),
                 Ask::Save => effects.push(Effect::SaveSettings(self.look.settings.clone())),
                 Ask::Logout => effects.push(Effect::Logout(session.clone())),

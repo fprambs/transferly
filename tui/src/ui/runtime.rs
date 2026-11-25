@@ -14,7 +14,8 @@ use tokio::task::JoinHandle;
 use url::Url;
 
 use super::app::{App, Effect, Event, Failure};
-use super::home::{Call, CallError, Reply, Session};
+use super::explorer::{Entry, Kind, Op};
+use super::home::{Call, CallError, Reply, Session, Side};
 use crate::api::Api;
 use crate::api::ApiError;
 use crate::config::Config;
@@ -150,6 +151,12 @@ pub async fn run(
                     tokio::spawn(async move {
                         let reply = perform(&session, call).await;
                         let _ = results.send(Event::Replied(reply)).await;
+                    });
+                }
+                Effect::Local { side, op } => {
+                    let results = results.clone();
+                    tokio::task::spawn_blocking(move || {
+                        let _ = results.blocking_send(Event::Replied(local(side, op)));
                     });
                 }
                 Effect::Logout(session) => {
@@ -311,6 +318,172 @@ async fn perform(session: &Session, call: Call) -> Reply {
                 .await
                 .map_err(failure),
         ),
+        Call::Files {
+            workspace,
+            site,
+            side,
+            op,
+        } => remote(&api, &workspace.to_string(), &site.to_string(), side, op).await,
+    }
+}
+
+/// An entry of a site as the explorer shows it.
+fn entry(remote: transferly_client::models::RemoteEntry) -> Entry {
+    use transferly_client::models::remote_entry::Type;
+    Entry {
+        name: remote.name,
+        kind: match remote.r#type {
+            Type::Directory => Kind::Folder,
+            Type::File => Kind::File,
+            Type::Symlink => Kind::Link,
+            Type::Other => Kind::Other,
+        },
+        size: u64::try_from(remote.size).unwrap_or(0),
+        modified: remote.modified_at.parse().ok(),
+    }
+}
+
+/// Works with the files of a site for a panel.
+async fn remote(api: &Api, workspace: &str, site: &str, side: Side, op: Op) -> Reply {
+    match op {
+        Op::Home => Reply::Homed {
+            side,
+            outcome: api
+                .home(workspace, site)
+                .await
+                .map(|home| home.path)
+                .map_err(failure),
+        },
+        Op::List(path) => {
+            let outcome = api
+                .list(workspace, site, &path)
+                .await
+                .map(|entries| entries.into_iter().map(entry).collect())
+                .map_err(failure);
+            Reply::Listed {
+                side,
+                path,
+                outcome,
+            }
+        }
+        Op::Mkdir(path) => Reply::Changed {
+            side,
+            outcome: api
+                .mkdir(workspace, site, &path)
+                .await
+                .map(|_| ())
+                .map_err(failure),
+        },
+        Op::Rename { from, to } => Reply::Changed {
+            side,
+            outcome: api
+                .rename(workspace, site, &from, &to)
+                .await
+                .map(|_| ())
+                .map_err(failure),
+        },
+        Op::Delete(paths) => {
+            for (path, folder) in paths {
+                if let Err(error) = api.delete(workspace, site, &path, folder).await {
+                    return Reply::Changed {
+                        side,
+                        outcome: Err(failure(error)),
+                    };
+                }
+            }
+            Reply::Changed {
+                side,
+                outcome: Ok(()),
+            }
+        }
+        Op::Disconnect => Reply::Changed {
+            side,
+            outcome: api.disconnect(workspace, site).await.map_err(failure),
+        },
+    }
+}
+
+/// A failure of the local disk, which has no stable code.
+fn disk(error: &std::io::Error) -> CallError {
+    CallError {
+        code: None,
+        message: error.to_string(),
+    }
+}
+
+/// The entries of a folder of the local disk; an entry whose details cannot be read is shown without them.
+fn read_folder(path: &str) -> std::io::Result<Vec<Entry>> {
+    let mut entries = Vec::new();
+    for item in std::fs::read_dir(path)? {
+        let item = item?;
+        let meta = item.metadata().ok();
+        let kind = match item.file_type() {
+            Ok(kind) if kind.is_symlink() => Kind::Link,
+            Ok(kind) if kind.is_dir() => Kind::Folder,
+            Ok(kind) if kind.is_file() => Kind::File,
+            _ => Kind::Other,
+        };
+        entries.push(Entry {
+            name: item.file_name().to_string_lossy().into_owned(),
+            kind,
+            size: meta.as_ref().map_or(0, std::fs::Metadata::len),
+            modified: meta
+                .and_then(|meta| meta.modified().ok())
+                .and_then(|at| jiff::Timestamp::try_from(at).ok()),
+        });
+    }
+    Ok(entries)
+}
+
+/// Works with the files of the local disk for a panel; the home folder is the one of the user.
+fn local(side: Side, op: Op) -> Reply {
+    match op {
+        Op::Home => Reply::Homed {
+            side,
+            outcome: directories::BaseDirs::new()
+                .map(|dirs| dirs.home_dir().to_string_lossy().into_owned())
+                .ok_or(CallError {
+                    code: None,
+                    message: "no home folder".to_owned(),
+                }),
+        },
+        Op::List(path) => Reply::Listed {
+            side,
+            outcome: read_folder(&path).map_err(|error| disk(&error)),
+            path,
+        },
+        Op::Mkdir(path) => Reply::Changed {
+            side,
+            outcome: std::fs::create_dir(&path).map_err(|error| disk(&error)),
+        },
+        Op::Rename { from, to } => {
+            let outcome = if std::path::Path::new(&to).exists() {
+                Err(CallError {
+                    code: Some("already_exists".to_owned()),
+                    message: format!("{to} exists"),
+                })
+            } else {
+                std::fs::rename(&from, &to).map_err(|error| disk(&error))
+            };
+            Reply::Changed { side, outcome }
+        }
+        Op::Delete(paths) => {
+            let outcome = paths.iter().try_for_each(|(path, folder)| {
+                if *folder {
+                    std::fs::remove_dir_all(path)
+                } else {
+                    std::fs::remove_file(path)
+                }
+            });
+            Reply::Changed {
+                side,
+                outcome: outcome.map_err(|error| disk(&error)),
+            }
+        }
+        Op::Disconnect => Reply::Changed {
+            side,
+            outcome: Ok(()),
+        },
     }
 }
 
@@ -549,5 +722,243 @@ mod tests {
         std::fs::remove_file(&config_path).expect("removed");
         save_settings(&config_path, crate::config::Settings::default()).expect("kept");
         assert!(config_path.exists());
+    }
+
+    /// The files of a site: every operation reaches the server, entries come back as the explorer shows them, and the first failed
+    /// deletion stops the others.
+    #[allow(clippy::too_many_lines, reason = "one call of each operation")]
+    #[tokio::test]
+    async fn works_with_remote_files() {
+        use wiremock::matchers::query_param;
+        let server = MockServer::start().await;
+        let base = "/api/v1/workspaces/w/sites/s";
+        let entries = serde_json::json!([
+            {"name": "d", "path": "/d", "type": "directory", "size": 0, "mode": "", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"},
+            {"name": "f", "path": "/f", "type": "file", "size": 5, "mode": "", "modifiedAt": "bad", "modifiedPrecision": "second"},
+            {"name": "l", "path": "/l", "type": "symlink", "size": -1, "mode": "", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"},
+            {"name": "o", "path": "/o", "type": "other", "size": 0, "mode": "", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"}
+        ]);
+        let entry = entries[0].clone();
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(entries))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files/home")))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"path": "/"})),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(entry))
+            .mount(&server)
+            .await;
+        Mock::given(method("DELETE")).and(path(format!("{base}/files"))).and(query_param("path", "/bad")).respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 404, "code": "not_found"}))).mount(&server).await;
+        Mock::given(method("DELETE"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        let api = Api::new(Url::parse(&server.uri()).expect("url")).with_token("t");
+        let side = Side::Right;
+        assert_eq!(
+            remote(&api, "w", "s", side, Op::Home).await,
+            Reply::Homed {
+                side,
+                outcome: Ok("/".to_owned())
+            }
+        );
+        #[rustfmt::skip]
+        let Reply::Listed { outcome: Ok(listed), .. } = remote(&api, "w", "s", side, Op::List("/".to_owned())).await else { panic!("a listing") };
+        let kinds: Vec<(Kind, u64, bool)> = listed
+            .iter()
+            .map(|entry| (entry.kind, entry.size, entry.modified.is_some()))
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                (Kind::Folder, 0, true),
+                (Kind::File, 5, false),
+                (Kind::Link, 0, true),
+                (Kind::Other, 0, true)
+            ]
+        );
+        let done = Reply::Changed {
+            side,
+            outcome: Ok(()),
+        };
+        assert_eq!(
+            remote(&api, "w", "s", side, Op::Mkdir("/d".to_owned())).await,
+            done
+        );
+        assert_eq!(
+            remote(
+                &api,
+                "w",
+                "s",
+                side,
+                Op::Rename {
+                    from: "/d".to_owned(),
+                    to: "/e".to_owned()
+                }
+            )
+            .await,
+            done
+        );
+        assert_eq!(
+            remote(
+                &api,
+                "w",
+                "s",
+                side,
+                Op::Delete(vec![("/d".to_owned(), true)])
+            )
+            .await,
+            done
+        );
+        assert_eq!(remote(&api, "w", "s", side, Op::Disconnect).await, done);
+        let failed = remote(
+            &api,
+            "w",
+            "s",
+            side,
+            Op::Delete(vec![("/bad".to_owned(), false), ("/d".to_owned(), false)]),
+        )
+        .await;
+        assert!(
+            matches!(failed, Reply::Changed { outcome: Err(CallError { code: Some(ref code), .. }), .. } if code == "not_found")
+        );
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        let call = Call::Files {
+            workspace: uuid::Uuid::nil(),
+            site: uuid::Uuid::nil(),
+            side,
+            op: Op::Disconnect,
+        };
+        assert!(matches!(
+            perform(&session, call).await,
+            Reply::Changed { .. }
+        ));
+    }
+
+    /// The files of the local disk: the home folder, listing with the kind, size and date of each entry, creating, renaming without
+    /// replacing, deleting files and folders with what they hold, and the failures of the disk.
+    #[allow(clippy::too_many_lines, reason = "one call of each operation")]
+    #[test]
+    fn works_with_local_files() {
+        let dir = tempfile::tempdir().expect("folder");
+        let root = dir.path().to_string_lossy().into_owned();
+        let at = |name: &str| dir.path().join(name).to_string_lossy().into_owned();
+        let side = Side::Left;
+        assert!(matches!(
+            local(side, Op::Home),
+            Reply::Homed { outcome: Ok(_), .. }
+        ));
+        let done = Reply::Changed {
+            side,
+            outcome: Ok(()),
+        };
+        assert_eq!(local(side, Op::Mkdir(at("d"))), done);
+        std::fs::write(dir.path().join("d").join("inside"), "x").expect("a file");
+        std::fs::write(dir.path().join("f"), "12345").expect("a file");
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(dir.path().join("f"), dir.path().join("l")).expect("a link");
+            let _socket =
+                std::os::unix::net::UnixListener::bind(dir.path().join("s")).expect("a socket");
+        }
+        #[rustfmt::skip]
+        let Reply::Listed { outcome: Ok(mut listed), .. } = local(side, Op::List(root.clone())) else { panic!("a listing") };
+        listed.sort_by(|a, b| a.name.cmp(&b.name));
+        let found: Vec<(&str, Kind, u64)> = listed
+            .iter()
+            .map(|entry| {
+                (
+                    entry.name.as_str(),
+                    entry.kind,
+                    if entry.kind == Kind::File {
+                        entry.size
+                    } else {
+                        0
+                    },
+                )
+            })
+            .collect();
+        assert!(
+            found.contains(&("d", Kind::Folder, 0)) && found.contains(&("f", Kind::File, 5)),
+            "{found:?}"
+        );
+        #[cfg(unix)]
+        assert!(
+            found.contains(&("l", Kind::Link, 0)) && found.contains(&("s", Kind::Other, 0)),
+            "{found:?}"
+        );
+        assert!(listed.iter().all(|entry| entry.modified.is_some()));
+        assert!(matches!(
+            local(side, Op::List(at("missing"))),
+            Reply::Listed {
+                outcome: Err(CallError { code: None, .. }),
+                ..
+            }
+        ));
+        assert!(matches!(
+            local(
+                side,
+                Op::Rename {
+                    from: at("f"),
+                    to: at("d")
+                }
+            ),
+            Reply::Changed {
+                outcome: Err(CallError { code: Some(_), .. }),
+                ..
+            }
+        ));
+        assert_eq!(
+            local(
+                side,
+                Op::Rename {
+                    from: at("f"),
+                    to: at("g")
+                }
+            ),
+            done
+        );
+        assert!(matches!(
+            local(
+                side,
+                Op::Rename {
+                    from: at("f"),
+                    to: at("h")
+                }
+            ),
+            Reply::Changed {
+                outcome: Err(_),
+                ..
+            }
+        ));
+        assert_eq!(
+            local(side, Op::Delete(vec![(at("d"), true), (at("g"), false)])),
+            done
+        );
+        assert!(matches!(
+            local(side, Op::Delete(vec![(at("g"), false)])),
+            Reply::Changed {
+                outcome: Err(_),
+                ..
+            }
+        ));
+        assert!(matches!(
+            local(side, Op::Mkdir(at("missing/deeper"))),
+            Reply::Changed {
+                outcome: Err(_),
+                ..
+            }
+        ));
+        assert_eq!(local(side, Op::Disconnect), done);
     }
 }

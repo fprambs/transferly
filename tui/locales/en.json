@@ -47,8 +47,6 @@
     "sites": "Sites",
     "noSites": "No sites in this workspace yet. Add them in the web.",
     "local": "Local disk",
-    "pickSite": "Choose a site on the left and press Enter.",
-    "explorerSoon": "The files of the site will show here: the explorer is not ready yet.",
     "vaultNone": "no vault",
     "vaultOpen": "vault unlocked",
     "vaultLocked": "vault locked",
@@ -61,7 +59,7 @@
     "notSignedOut": "Could not sign out: {reason}",
     "notSaved": "The settings could not be kept: {reason}",
     "keysSites": "Enter open · w workspace · / commands · ? help · q quit",
-    "keysExplorer": "Tab sites · / commands · ? help · q quit"
+    "keysExplorer": "Enter open · Space mark · n folder · F2 rename · Del delete · f filter · o show · ? help"
   },
   "commands": {
     "title": "Commands",
@@ -108,7 +106,8 @@
     "theme": "Theme",
     "language": "Language",
     "workspace": "Workspace",
-    "keys": "↑↓ choose · Enter keep · Esc back"
+    "keys": "↑↓ choose · Enter keep · Esc back",
+    "source": "Show in this panel"
   },
   "vault": {
     "title": "Unlock the vault",
@@ -139,6 +138,44 @@
     "workspace": "change the workspace",
     "confirm": "confirm",
     "back": "cancel, go back",
-    "change": "change a setting"
+    "change": "change a setting",
+    "explorer": "Explorer panels",
+    "openUp": "open the folder, go up",
+    "mark": "mark and move down",
+    "manage": "new folder, rename, delete",
+    "filterKeys": "filter, hidden files, sort, reverse",
+    "refresh": "refresh, go to a path",
+    "show": "show the local disk or a site, disconnect"
+  },
+  "explorer": {
+    "empty": "Empty panel",
+    "choose": "Press o to show the local disk or a site here.",
+    "nothing": "This folder is empty.",
+    "filter": "Filter:",
+    "mkdirTitle": "New folder",
+    "renameTitle": "Rename",
+    "gotoTitle": "Go to",
+    "name": "Name",
+    "newName": "New name",
+    "path": "Path",
+    "formKeys": "Enter accept · Esc cancel",
+    "deleteTitle": "Delete",
+    "deleteBody": "Delete {count} entries? Folders go with everything in them.",
+    "more": "and {count} more",
+    "undone": "This cannot be undone.",
+    "deleteKeys": "y delete · n cancel"
+  },
+  "errors": {
+    "vault_locked": "The vault is locked: unlock it to open the site.",
+    "host_key_unknown": "The key of this server is not trusted yet.",
+    "host_key_changed": "The key of this server changed since it was trusted.",
+    "not_found": "It does not exist any more.",
+    "already_exists": "Something with that name already exists.",
+    "permission_denied": "The server does not let this account do that.",
+    "directory_not_empty": "The folder is not empty.",
+    "connection_failed": "The server could not be reached.",
+    "auth_failed": "The server refused the credentials of the site.",
+    "forbidden": "Your role in this workspace does not allow that.",
+    "rate_limited": "Too many attempts. Wait a moment and try again."
   }
 }
