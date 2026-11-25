@@ -15,6 +15,7 @@ function request(changes: Partial<CliAuthorizeRequest> = {}): CliAuthorizeReques
  *
  * Scenarios:
  * - search values the router read as numbers or booleans become text, and malformed ones become empty
+ * - spaces and line breaks copied with an address cut over several lines are dropped from the challenge, the state and the redirect
  * - only http loopback callbacks on 127.0.0.1 or [::1] with a port and nothing else count as the address of the terminal
  * - a request needs an S256 challenge of 43 base64url characters, a client name, and no redirect or a loopback callback
  * - the callback carries the answer and the state; without a state it carries the answer only
@@ -29,6 +30,15 @@ describe('cli request', () => {
       client_host: 'true',
     })
     expect(cliAuthorizeSearch.parse({ code_challenge: { x: 1 }, client_name: ['a'], redirect_uri: null })).toEqual({ code_challenge: '', client_name: '', redirect_uri: undefined })
+    expect(
+      cliAuthorizeSearch.parse({
+        code_challenge: `${challenge.slice(0, 20)}\n  ${challenge.slice(20)}`,
+        state: 'ab \r\ncd',
+        redirect_uri: 'http://127.0.0.1:49152/ callback',
+        client_name: 'transferly-tui',
+        client_host: 'my laptop',
+      }),
+    ).toEqual({ code_challenge: challenge, state: 'abcd', redirect_uri: 'http://127.0.0.1:49152/callback', client_name: 'transferly-tui', client_host: 'my laptop' })
   })
 
   it.each(['http://127.0.0.1:49152/callback', 'http://[::1]:1/callback'])('accepts the callback %s', (address) => {

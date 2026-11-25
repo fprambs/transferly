@@ -14,21 +14,23 @@
   },
   "approval": {
     "title": "Approve in your browser",
-    "opened": "Your browser opened this address. Sign in there and approve transferly-tui on {host}.",
-    "notOpened": "Open this address in your browser, sign in there and approve transferly-tui on {host}.",
+    "opened": "Your browser opened the address below. Sign in there and approve transferly-tui on {host}.",
+    "notOpened": "Open the address below in your browser, sign in there and approve transferly-tui on {host}.",
     "waiting": "Waiting for the approval…",
     "noBrowser": "No browser here? Press p and paste the code the page shows.",
     "copied": "The address was copied.",
+    "address": "The address: c copies it whole, or select it with the mouse",
     "keys": "o open again · c copy · p paste a code · Esc back",
     "denied": "The sign-in was denied in the browser.",
     "failed": "The sign-in failed: {reason}"
   },
   "paste": {
     "title": "Paste the code",
-    "intro": "Open this address on any device, sign in and approve:",
+    "intro": "Open the address below on any device, sign in and approve.",
     "then": "Then paste the code the page shows.",
     "field": "Code",
     "note": "The code works once, for 5 minutes.",
+    "address": "The address, to select with the mouse",
     "keys": "Enter sign in · Esc back"
   },
   "exchange": {

@@ -114,12 +114,12 @@ fn signs_in_through_the_browser() {
             && address.contains("redirect_uri=")
             && address.contains("client_host=laptop")
     );
-    assert!(screen_text(&app).contains("Open this address in your browser"));
+    assert!(screen_text(&app).contains("Open the address below in your browser"));
     app.handle(Event::BrowserOpened(true));
     app.handle(Event::Tick);
     let text = screen_text(&app);
     assert!(
-        text.contains("Your browser opened this address")
+        text.contains("Your browser opened the address below")
             && text.contains("Waiting for the approval")
     );
 
@@ -629,4 +629,46 @@ pub(super) fn draw_on(
             .expect("a test backend");
         Ok(())
     }
+}
+
+/// The address to approve is drawn across the bottom of the screen from its first column, with nothing around it, so selecting it
+/// with the mouse copies the address and line breaks only; the screen to paste a code shows it the same way.
+#[test]
+fn draws_the_address_to_copy() {
+    let mut app = App::new(setup_with(vec![], true));
+    type_text(&mut app, "files.example.com");
+    app.handle(key(KeyCode::Enter));
+    app.handle(Event::Probed(Ok(())));
+    app.handle(Event::Listening(Ok(
+        "http://127.0.0.1:5000/callback".to_owned()
+    )));
+    let mut url = String::new();
+    if let Screen::Approval { url: shown, .. } = app.screen() {
+        url.clone_from(shown);
+    }
+    for (screen, label) in [(screen_text(&app), "The address: c copies it whole"), {
+        app.handle(key(KeyCode::Char('p')));
+        (screen_text(&app), "The address, to select with the mouse")
+    }] {
+        let rows: Vec<&str> = screen.lines().collect();
+        let at = rows
+            .iter()
+            .position(|row| row.starts_with(label))
+            .expect("the label of the address");
+        let copied: String = rows[at + 1..].concat();
+        assert!(
+            copied.starts_with("https://files.example.com/cli/authorize?code_challenge="),
+            "{copied}"
+        );
+        assert!(
+            copied.contains("client_name=transferly-tui") && !copied.contains([' ', '│']),
+            "{copied}"
+        );
+    }
+    assert!(
+        screen_text(&app)
+            .lines()
+            .any(|row| url.starts_with(row) && row.len() > 80)
+    );
+    assert!(url.contains("redirect_uri="));
 }

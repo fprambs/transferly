@@ -4,7 +4,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Modifier, Stylize};
+use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
 use url::Url;
@@ -13,7 +13,7 @@ use super::home::{Ask, Home, Reply, Session};
 use super::input::Input;
 use super::look::Look;
 use super::theme::{ColorMode, Palette};
-use super::widgets::{background, card, error_line, field, highlight};
+use super::widgets::{address, address_rows, background, card, error_line, field, highlight};
 use crate::config::{self, Profile, Settings};
 use crate::i18n::{Language, Messages};
 use crate::login::{self, Answer, Pkce};
@@ -668,16 +668,38 @@ impl App {
     }
 
     /// The card of a sign-in screen, with the title and keys of its messages; returns its inside.
-    fn card(&self, frame: &mut Frame, screen: &str) -> ratatui::layout::Rect {
+    fn card(
+        &self,
+        frame: &mut Frame,
+        area: ratatui::layout::Rect,
+        screen: &str,
+    ) -> ratatui::layout::Rect {
         let m = &self.look.messages;
         let (name, tagline) = (m.get("app.name"), m.get("app.tagline"));
         card(
             frame,
+            area,
             &self.look.palette,
             (&name, &tagline),
             &m.get(&format!("{screen}.title")),
             &m.get(&format!("{screen}.keys")),
         )
+    }
+
+    /// Draws an address across the bottom of the screen, to copy with the mouse, and returns the rest of the screen.
+    fn with_address(&self, frame: &mut Frame, url: &str, label: &str) -> ratatui::layout::Rect {
+        let area = frame.area();
+        let rows = address_rows(url, area.width);
+        let [rest, bottom] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(rows)]).areas(area);
+        address(
+            frame,
+            bottom,
+            &self.look.messages.get(label),
+            url,
+            &self.look.palette,
+        );
+        rest
     }
 
     /// The frame of the spinner.
@@ -695,7 +717,7 @@ impl App {
         error: Option<&str>,
     ) {
         let (m, palette) = (&self.look.messages, &self.look.palette);
-        let inside = self.card(frame, "server");
+        let inside = self.card(frame, frame.area(), "server");
         let [address, status, list] = Layout::vertical([
             Constraint::Length(3),
             Constraint::Length(2),
@@ -753,7 +775,8 @@ impl App {
         exchanging: bool,
     ) {
         let (m, palette) = (&self.look.messages, &self.look.palette);
-        let inside = self.card(frame, "approval");
+        let screen = self.with_address(frame, url, "approval.address");
+        let inside = self.card(frame, screen, "approval");
         let intro = m.fill(
             if opened {
                 "approval.opened"
@@ -769,10 +792,6 @@ impl App {
         });
         let mut lines = vec![
             Line::from(intro),
-            Line::default(),
-            Line::from(url.to_owned())
-                .fg(palette.info)
-                .add_modifier(Modifier::UNDERLINED),
             Line::default(),
             Line::from(format!("{} {waiting}", self.spinner())).bold(),
             Line::default(),
@@ -794,7 +813,8 @@ impl App {
         error: Option<&str>,
     ) {
         let (m, palette) = (&self.look.messages, &self.look.palette);
-        let inside = self.card(frame, "paste");
+        let screen = self.with_address(frame, url, "paste.address");
+        let inside = self.card(frame, screen, "paste");
         let [text, code, note] = Layout::vertical([
             Constraint::Length(6),
             Constraint::Length(3),
@@ -803,9 +823,6 @@ impl App {
         .areas(inside);
         let lines = vec![
             Line::from(m.get("paste.intro")),
-            Line::from(url.to_owned())
-                .fg(palette.info)
-                .add_modifier(Modifier::UNDERLINED),
             Line::from(m.get("paste.then")),
         ];
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), text);

@@ -7,15 +7,21 @@ const challengeLength = 43
 const text = z.preprocess((value) => (typeof value === 'number' || typeof value === 'boolean' ? String(value) : value), z.string())
 
 /**
+ * Text that never holds whitespace, such as a challenge, a state or an address: spaces and line breaks a person copied from a terminal
+ * along with a long address cut over several lines are dropped, so the request still reads as it was sent.
+ */
+const compact = text.transform((value) => value.replace(/\s+/g, ''))
+
+/**
  * Search parameters of the approval page, named as in OAuth 2.0 (ADR-0029): the PKCE challenge and its method, the loopback address
  * to send the answer to, the state the terminal client checks, and what the client declares about itself. Malformed values become
  * empty, so the page can say the request is not valid instead of failing.
  */
 export const cliAuthorizeSearch = z.object({
-  code_challenge: text.catch(''),
+  code_challenge: compact.catch(''),
   code_challenge_method: text.optional().catch(undefined),
-  redirect_uri: text.optional().catch(undefined),
-  state: text.optional().catch(undefined),
+  redirect_uri: compact.optional().catch(undefined),
+  state: compact.optional().catch(undefined),
   client_name: text.catch(''),
   client_host: text.optional().catch(undefined),
 })

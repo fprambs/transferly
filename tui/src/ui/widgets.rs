@@ -50,12 +50,13 @@ pub fn background(frame: &mut Frame, palette: &Palette) {
 /// The card of the sign-in screens: the name and tagline above a focused panel with its keys at the bottom; returns its inside.
 pub fn card(
     frame: &mut Frame,
+    area: Rect,
     palette: &Palette,
     heading: (&str, &str),
     title: &str,
     keys: &str,
 ) -> Rect {
-    let area = centered(frame.area(), 76, 22);
+    let area = centered(area, 76, 22);
     let [head, body] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(area);
     frame.render_widget(
         Paragraph::new(vec![
@@ -92,6 +93,27 @@ pub fn field(
         let column = u16::try_from(input.cursor() - skip).unwrap_or(u16::MAX);
         frame.set_cursor_position(Position::new(inside.x.saturating_add(column), inside.y));
     }
+}
+
+/// How many rows an address takes at a width, with its label above it.
+#[must_use]
+pub fn address_rows(url: &str, width: u16) -> u16 {
+    let width = usize::from(width.max(1));
+    u16::try_from(url.chars().count().div_ceil(width) + 1).unwrap_or(u16::MAX)
+}
+
+/// A long address to copy with the mouse: its label, then the address cut at the width of the area, from its first column and with
+/// nothing around it, so a selection copies only the address and line breaks, which browsers drop when it is pasted.
+pub fn address(frame: &mut Frame, area: Rect, label: &str, url: &str, palette: &Palette) {
+    let width = usize::from(area.width.max(1));
+    let chars: Vec<char> = url.chars().collect();
+    let mut lines = vec![Line::from(label.to_owned()).fg(palette.muted)];
+    lines.extend(
+        chars
+            .chunks(width)
+            .map(|piece| Line::from(piece.iter().collect::<String>()).fg(palette.info)),
+    );
+    frame.render_widget(Paragraph::new(lines), area);
 }
 
 /// A popup over the screen: the area cleared, a focused panel with its title and its keys at the bottom; returns its inside.
@@ -183,6 +205,7 @@ mod tests {
             background(frame, &palette);
             let inside = card(
                 frame,
+                frame.area(),
                 &palette,
                 ("Transferly", "tagline"),
                 "Sign in",

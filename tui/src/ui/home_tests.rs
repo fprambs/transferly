@@ -189,8 +189,8 @@ fn loads_a_session() {
         (look.messages.language(), look.theme.as_str()),
         (Language::Spanish, "nord")
     );
-    nothing(&
-        home.reply(Reply::Version(Ok("dev".to_owned())), &mut look),
+    nothing(
+        &home.reply(Reply::Version(Ok("dev".to_owned())), &mut look),
         "",
     );
     assert!(!draw(&home, &look, 120, 30).contains("dev,"));
@@ -390,8 +390,8 @@ fn fits_the_window() {
 fn unlocks_the_vault() {
     let mut look = look();
     let mut home = loaded(&mut look, Some((true, false)));
-    nothing(&
-        home.reply(Reply::Unlocked(Ok(())), &mut look),
+    nothing(
+        &home.reply(Reply::Unlocked(Ok(())), &mut look),
         "an answer nobody waits for",
     );
     home.key(key(KeyCode::Down), &mut look);
@@ -632,8 +632,8 @@ fn chooses_from_lists() {
 
     let (mut empty, _) = Home::new(session(), "ana@example.com");
     command(&mut empty, &mut look, "workspace");
-    nothing(&
-        empty.key(key(KeyCode::Enter), &mut look),
+    nothing(
+        &empty.key(key(KeyCode::Enter), &mut look),
         "nothing to choose",
     );
 }
