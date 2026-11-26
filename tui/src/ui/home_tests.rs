@@ -390,7 +390,7 @@ fn clicks_explorer_shortcuts() {
     nothing(&click(&mut home, &mut look, (160, 30), "F9  Menú"), "");
     assert!(draw(&home, &look, 160, 30).contains("Copiar la ruta"));
     home.key(key(KeyCode::Esc), &mut look);
-    nothing(&click(&mut home, &mut look, (160, 30), "F3  Ver"), "");
+    nothing(&click(&mut home, &mut look, (160, 30), "F4  Editar"), "");
     let text = draw(&home, &look, 160, 30);
     assert!(text.lines().nth(27).unwrap().contains(" · Próximamente."));
     assert_eq!(text.lines().nth(28).unwrap().trim(), "");
@@ -4435,4 +4435,240 @@ fn walks_the_rare_paths_of_the_site_table() {
     assert!(screen.contains("Pasted name"));
     assert!(!screen.contains("‹ None ›"));
     assert!(!screen.contains("‹ Top level ›"));
+}
+
+/// F3 requests the file under the local cursor, then opens a numbered searchable view.
+#[test]
+fn previews_local_text_and_ignores_stale_replies() {
+    use ratatui::layout::{Position, Rect};
+    use ratatui::style::Modifier;
+
+    use super::mouse::MouseKind;
+
+    let mut look = Look::new(
+        Language::English,
+        DEFAULT_THEME,
+        ColorMode::Plain,
+        Settings::default(),
+    );
+    let (mut home, _) = Home::new(session(), "ana@example.com", false);
+    home.key(key(KeyCode::Tab), &mut look);
+    list_preview_file(&mut home, &mut look, Side::Left, "notes.txt");
+    nothing(
+        &home.key(key(KeyCode::F(3)), &mut look),
+        "on the parent row",
+    );
+    home.key(key(KeyCode::End), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::F(3)), &mut look),
+        vec![Ask::Call(Call::Preview {
+            request: 1,
+            remote: None,
+            path: std::path::Path::new("/preview")
+                .join("notes.txt")
+                .to_string_lossy()
+                .into_owned(),
+        })]
+    );
+    assert!(draw(&home, &look, 100, 12).contains("Loading preview"));
+    nothing(&home.key(key(KeyCode::Down), &mut look), "");
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    nothing(
+        &home.reply(Reply::Preview(1, Ok((vec![], false))), &mut look),
+        "",
+    );
+    home.key(key(KeyCode::F(3)), &mut look);
+    nothing(
+        &home.reply(Reply::Preview(1, Err(refused("not_found"))), &mut look),
+        "",
+    );
+    let bytes = format!("first\nmatch twice match\n{}final\n", "middle\n".repeat(20));
+    nothing(
+        &home.reply(Reply::Preview(2, Ok((bytes.into_bytes(), true))), &mut look),
+        "",
+    );
+    let screen = draw(&home, &look, 100, 12);
+    assert!(screen.contains("notes.txt · Text · 42 B"));
+    assert!(screen.contains("   1  first"));
+    assert!(screen.contains("Showing the first 4 MiB"));
+
+    for kind in [MouseKind::Left, MouseKind::Down, MouseKind::Up] {
+        let (asks, selected) = home.mouse(
+            Rect::new(0, 0, 100, 12),
+            Position::new(2, 3),
+            kind,
+            false,
+            &mut look,
+        );
+        nothing(&asks, "");
+        assert!(!selected);
+    }
+    for code in [KeyCode::PageDown, KeyCode::PageUp, KeyCode::End] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+    assert!(draw(&home, &look, 100, 12).contains("final"));
+    for code in [
+        KeyCode::Home,
+        KeyCode::Right,
+        KeyCode::Left,
+        KeyCode::Char('n'),
+        KeyCode::Char('/'),
+    ] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+    home.paste("match");
+    nothing(&home.key(key(KeyCode::Left), &mut look), "");
+    assert!(draw(&home, &look, 100, 12).contains("Enter Find"));
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+    assert!(draw(&home, &look, 100, 12).contains("match (1/2)"));
+    nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
+    let screen = draw(&home, &look, 100, 12);
+    assert!(screen.contains("match (2/2)"));
+    let mut terminal = Terminal::new(TestBackend::new(100, 12)).expect("backend");
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .expect("draw");
+    let point = pointer(&screen, "match twice match");
+    let matched = &terminal.backend().buffer()[(point.x, point.y)];
+    assert!(matched.modifier.contains(Modifier::REVERSED));
+    nothing(&home.key(key(KeyCode::Char('/')), &mut look), "");
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    nothing(&home.key(key(KeyCode::Char('/')), &mut look), "");
+    nothing(&home.key(ctrl('u'), &mut look), "");
+    home.paste("absent");
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+    assert!(draw(&home, &look, 100, 12).contains("absent (0/0)"));
+    nothing(&home.key(key(KeyCode::Char('q')), &mut look), "");
+    assert!(!draw(&home, &look, 100, 20).contains("Showing the first"));
+}
+
+/// The right panel opens tables and web-only previews and explains failures.
+#[test]
+fn previews_remote_tables_and_web_only_files() {
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    list_preview_file(&mut home, &mut look, Side::Right, "data.csv");
+    home.key(key(KeyCode::End), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::F(3)), &mut look),
+        vec![Ask::Call(Call::Preview {
+            request: 1,
+            remote: Some((id(1), id(22))),
+            path: "/preview/data.csv".to_owned(),
+        })]
+    );
+    let bytes = "Name;City;Amount\n\"A; B\";Bogotá;10\nCarla"
+        .as_bytes()
+        .to_vec();
+    nothing(
+        &home.reply(Reply::Preview(1, Ok((bytes, false))), &mut look),
+        "",
+    );
+    home.paste("ignored");
+    assert!(draw(&home, &look, 60, 16).contains("Na"));
+    let screen = draw(&home, &look, 80, 12);
+    assert!(screen.contains("Name"));
+    assert!(screen.contains("City"));
+    assert!(screen.contains("A; B"));
+    nothing(&home.key(key(KeyCode::Right), &mut look), "");
+    assert!(!draw(&home, &look, 80, 12).contains("Name"));
+    for code in [KeyCode::Left, KeyCode::End, KeyCode::Esc] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+
+    list_preview_file(&mut home, &mut look, Side::Right, "workbook.xlsx");
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::F(3)), &mut look);
+    let workbook = include_bytes!("../../../testenv/preview-samples/office/workbook.xlsx");
+    nothing(
+        &home.reply(Reply::Preview(2, Ok((workbook.to_vec(), false))), &mut look),
+        "",
+    );
+    let screen = draw(&home, &look, 100, 15);
+    assert!(screen.contains("Sales by person"));
+    assert!(screen.contains("4471.5"));
+    assert!(screen.contains("Sales  Notes  Big"));
+    for code in [KeyCode::Tab, KeyCode::Char(']')] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+    assert!(draw(&home, &look, 100, 15).contains("Square"));
+    assert!(draw(&home, &look, 12, 15).contains("Big"));
+    nothing(
+        &home.key(KeyEvent::new(KeyCode::Tab, KeyModifiers::SHIFT), &mut look),
+        "",
+    );
+    assert!(draw(&home, &look, 100, 15).contains("Formulas show"));
+    for code in [KeyCode::BackTab, KeyCode::Char('['), KeyCode::Esc] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+    home.key(key(KeyCode::F(3)), &mut look);
+    nothing(
+        &home.reply(
+            Reply::Preview(3, Ok((b"broken".to_vec(), false))),
+            &mut look,
+        ),
+        "",
+    );
+    assert_eq!(
+        home.notice().expect("error").text,
+        "The workbook could not be read."
+    );
+    home.key(key(KeyCode::F(3)), &mut look);
+    nothing(
+        &home.reply(Reply::Preview(4, Err(refused("not_found"))), &mut look),
+        "",
+    );
+    assert!(home.notice().expect("server error").error);
+
+    list_preview_file(&mut home, &mut look, Side::Right, "report.pdf");
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::F(3)), &mut look);
+    look.speak("es");
+    nothing(
+        &home.reply(Reply::Preview(5, Ok((b"%PDF-".to_vec(), false))), &mut look),
+        "",
+    );
+    assert!(draw(&home, &look, 100, 12).contains("Pulsa w para abrir"));
+    nothing(&home.key(key(KeyCode::Right), &mut look), "");
+    assert_eq!(
+        home.key(key(KeyCode::Char('w')), &mut look),
+        vec![Ask::Browse("https://files.example.com/".to_owned())]
+    );
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    list_preview_file(&mut home, &mut look, Side::Right, "empty.csv");
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::F(3)), &mut look);
+    nothing(
+        &home.reply(Reply::Preview(6, Ok((Vec::new(), false))), &mut look),
+        "",
+    );
+    assert!(draw(&home, &look, 100, 12).contains("empty.csv · CSV"));
+}
+
+/// Replaces a panel listing with one file for a preview test.
+fn list_preview_file(home: &mut Home, look: &mut Look, side: Side, name: &str) {
+    use super::explorer::{Entry, Kind};
+
+    home.reply(
+        Reply::Homed {
+            side,
+            outcome: Ok("/preview".to_owned()),
+        },
+        look,
+    );
+    home.reply(
+        Reply::Listed {
+            side,
+            path: "/preview".to_owned(),
+            outcome: Ok(vec![Entry {
+                name: name.to_owned(),
+                kind: Kind::File,
+                size: 42,
+                modified: None,
+            }]),
+        },
+        look,
+    );
 }

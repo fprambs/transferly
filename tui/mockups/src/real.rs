@@ -12,7 +12,7 @@ use transferly_tui::login::Answer;
 use transferly_tui::config::Settings;
 use transferly_tui::ui::app::{App, Effect, Event, Kept, Setup};
 use transferly_tui::ui::explorer::{Entry, Kind};
-use transferly_tui::ui::home::{Reply, Side};
+use transferly_tui::ui::home::{Call, Reply, Side};
 use transferly_tui::ui::theme::ColorMode;
 
 use crate::html;
@@ -208,6 +208,59 @@ pub fn shots() -> Vec<Shot> {
         132,
         34,
     ));
+
+    with_menu.handle(key(KeyCode::Esc));
+    let workbook = include_bytes!("../../../testenv/preview-samples/office/workbook.xlsx");
+    let previews = [
+        (
+            "app-preview-csv",
+            "ventas.csv",
+            "F3 shows a delimited file with aligned columns and numbered rows.",
+            b"Date;Customer;Product;Units;State\n2026-11-01;Acme;Widgets;1240;paid\n2026-11-02;Globex;Bolts;88;due".as_slice(),
+        ),
+        (
+            "app-preview-spreadsheet",
+            "workbook.xlsx",
+            "F3 shows a workbook with tabs for its sheets.",
+            workbook.as_slice(),
+        ),
+        (
+            "app-preview-text",
+            "deploy.sh",
+            "F3 shows numbered text with highlighted search matches.",
+            b"#!/usr/bin/env bash\nset -euo pipefail\n\nrsync -a build/ release/\nrsync -a release/ current/".as_slice(),
+        ),
+    ];
+    for (slug, name, about, bytes) in previews {
+        with_menu.handle(Event::Replied(Reply::Homed {
+            side: Side::Right,
+            outcome: Ok(remote_path.to_owned()),
+        }));
+        with_menu.handle(Event::Replied(Reply::Listed {
+            side: Side::Right,
+            path: remote_path.to_owned(),
+            outcome: Ok(vec![Entry {
+                name: name.to_owned(),
+                kind: Kind::File,
+                size: bytes.len() as u64,
+                modified: None,
+            }]),
+        }));
+        with_menu.handle(key(KeyCode::End));
+        let effects = with_menu.handle(key(KeyCode::F(3)));
+        let [Effect::Call(_, Call::Preview { request, .. })] = effects.as_slice() else {
+            panic!("the interface asks to preview the file: {effects:?}");
+        };
+        with_menu.handle(Event::Replied(Reply::Preview(*request, Ok((bytes.to_vec(), false)))));
+        if name == "deploy.sh" {
+            with_menu.handle(key(KeyCode::Char('/')));
+            with_menu.handle(Event::Paste("rsync".to_owned()));
+            with_menu.handle(key(KeyCode::Enter));
+            with_menu.handle(key(KeyCode::Char('n')));
+        }
+        shots.push(shot_at(slug, about, &with_menu, 132, 34));
+        with_menu.handle(key(KeyCode::Esc));
+    }
 
     let mut site_manager = app(Language::English, true);
     site_manager.handle(Event::SignedIn {

@@ -1104,6 +1104,24 @@ The explorer context menu beside an entry, with each action and its shortcut.
 
 ![app-context-menu](screens/app-context-menu.png)
 
+### app-preview-csv
+
+F3 shows a delimited file with aligned columns and numbered rows.
+
+![app-preview-csv](screens/app-preview-csv.png)
+
+### app-preview-spreadsheet
+
+F3 shows a workbook with tabs for its sheets.
+
+![app-preview-spreadsheet](screens/app-preview-spreadsheet.png)
+
+### app-preview-text
+
+F3 shows numbered text with highlighted search matches.
+
+![app-preview-text](screens/app-preview-text.png)
+
 ### app-sites
 
 The site table with collection paths and search.

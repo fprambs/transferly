@@ -384,7 +384,28 @@
   "errorNext": {
     "invalid_path": "Rename it on the server with another tool to remove characters such as tabs or line breaks."
   },
+  "preview": {
+    "file": "File",
+    "text": "Text",
+    "json": "JSON",
+    "csv": "CSV",
+    "tsv": "TSV",
+    "workbook": "Spreadsheet",
+    "image": "Image",
+    "pdf": "PDF",
+    "binary": "Binary",
+    "loading": "Loading preview…",
+    "unavailable": "This file cannot be drawn here. Press w to open the web app.",
+    "cut": "Showing the first 4 MiB",
+    "close": "Esc / q Close",
+    "webKeys": "w Open web · Esc / q Close",
+    "textKeys": "↑↓ ←→ PgUp PgDn Home End Scroll · / Search · n Next · Esc / q Close",
+    "tableKeys": "↑↓ ←→ PgUp PgDn Home End Scroll · Esc / q Close",
+    "sheetKeys": "Tab / Shift+Tab / [ ] Sheet · ↑↓ ←→ PgUp PgDn Home End Scroll · Esc / q Close",
+    "searchKeys": "Enter Find · Esc Cancel"
+  },
   "errors": {
+    "preview_unreadable": "The workbook could not be read.",
     "invalid_path": "The name has an invalid character.",
     "vault_locked": "The vault is locked: unlock it to open the site.",
     "host_key_unknown": "The key of this server is not trusted yet.",

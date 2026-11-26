@@ -9,13 +9,14 @@ use std::time::Duration;
 use futures::{Stream, StreamExt};
 use std::io;
 use std::pin::Pin;
+use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use url::Url;
 
 use super::app::{App, Effect, Event, Failure};
 use super::explorer::{Entry, Kind, ListingTicket, Op};
-use super::home::{Call, CallError, Reply, Session, Side};
+use super::home::{Call, CallError, PREVIEW_LIMIT, Reply, Session, Side};
 use super::transfers::{Direction, Job};
 use crate::api::Api;
 use crate::api::ApiError;
@@ -356,11 +357,42 @@ fn failure(error: ApiError) -> CallError {
     }
 }
 
+/// Reads a file prefix from disk and checks the size on the open file.
+async fn local_prefix(path: &str) -> Result<(Vec<u8>, bool), CallError> {
+    let file = tokio::fs::File::open(path).await.map_err(io_failure)?;
+    let size = file.metadata().await.map_err(io_failure)?.len();
+    let mut bytes = Vec::new();
+    file.take(PREVIEW_LIMIT.get() as u64)
+        .read_to_end(&mut bytes)
+        .await
+        .map_err(io_failure)?;
+    Ok((bytes, size > PREVIEW_LIMIT.get() as u64))
+}
+
 /// Makes a call of the main screen in a session.
 #[allow(clippy::too_many_lines, reason = "one arm per call of the main screen")]
 async fn perform(session: &Session, call: Call) -> Reply {
     let api = Api::new(session.server.clone()).with_token(&session.token);
     match call {
+        Call::Preview {
+            request,
+            remote,
+            path,
+        } => {
+            let outcome = if let Some((workspace, site)) = remote {
+                api.file_prefix(
+                    &workspace.to_string(),
+                    &site.to_string(),
+                    &path,
+                    PREVIEW_LIMIT,
+                )
+                .await
+                .map_err(failure)
+            } else {
+                local_prefix(&path).await
+            };
+            Reply::Preview(request, outcome)
+        }
         Call::Connectors => Reply::Connectors(api.connectors().await.map_err(failure)),
         Call::Site(workspace, action) => Reply::Site(
             workspace,
@@ -1129,6 +1161,106 @@ mod tests {
         std::fs::remove_file(&config_path).expect("removed");
         save_settings(&config_path, crate::config::Settings::default()).expect("kept");
         assert!(config_path.exists());
+    }
+
+    /// Preview reads are bounded on disk and use an untracked Range on the server.
+    #[tokio::test]
+    #[rustfmt::skip]
+    async fn reads_preview_prefixes() {
+        use wiremock::matchers::{header, query_param};
+
+        let server = MockServer::start().await;
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("server"),
+            token: "t".to_owned(),
+        };
+        let workspace = uuid::Uuid::from_u128(1);
+        let site = uuid::Uuid::from_u128(2);
+        let endpoint = format!("/api/v1/workspaces/{workspace}/sites/{site}/files/content");
+        let limit = PREVIEW_LIMIT.get();
+        let prefix = vec![b'x'; limit];
+        let cases = [
+            (
+                "/large",
+                ResponseTemplate::new(206)
+                    .insert_header(
+                        "Content-Range",
+                        format!("bytes 0-{}/{}", limit - 1, limit + 1),
+                    )
+                    .set_body_bytes(prefix.clone()),
+                Ok((prefix.clone(), true)),
+            ),
+            (
+                "/small",
+                ResponseTemplate::new(206)
+                    .insert_header("Content-Range", "bytes 0-2/3")
+                    .set_body_bytes(b"a,b".to_vec()),
+                Ok((b"a,b".to_vec(), false)),
+            ),
+            (
+                "/empty",
+                ResponseTemplate::new(416).insert_header("Content-Range", "bytes */0"),
+                Ok((Vec::new(), false)),
+            ),
+            (
+                "/ignored",
+                ResponseTemplate::new(200).set_body_bytes(vec![b'x'; limit + 1]),
+                Ok((prefix, true)),
+            ),
+            (
+                "/missing",
+                ResponseTemplate::new(404).set_body_json(serde_json::json!({
+                    "type": "about:blank", "title": "missing", "status": 404, "code": "not_found"
+                })),
+                Err("not_found"),
+            ),
+        ];
+        for (filename, response, expected) in cases {
+            Mock::given(method("GET"))
+                .and(path(&endpoint))
+                .and(query_param("path", filename))
+                .and(header("Range", "bytes=0-4194303"))
+                .and(header("Authorization", "Bearer t"))
+                .respond_with(response)
+                .expect(1)
+                .mount(&server)
+                .await;
+            let reply = perform(
+                &session,
+                Call::Preview {
+                    request: 7,
+                    remote: Some((workspace, site)),
+                    path: filename.to_owned(),
+                },
+            )
+            .await;
+            let Reply::Preview(7, outcome) = reply else { panic!("expected the preview reply") };
+            let outcome = outcome.map_err(|error| error.code.unwrap_or_default());
+            assert_eq!(outcome, expected.map_err(str::to_owned), "{filename}");
+        }
+
+        let file = tempfile::NamedTempFile::new().expect("file");
+        let name = file.path().to_str().expect("path");
+        std::fs::write(name, b"local").expect("contents");
+        assert_eq!(
+            perform(
+                &session,
+                Call::Preview {
+                    request: 8,
+                    remote: None,
+                    path: name.to_owned(),
+                },
+            )
+            .await,
+            Reply::Preview(8, Ok((b"local".to_vec(), false)))
+        );
+        file.as_file()
+            .set_len((limit + 1) as u64)
+            .expect("large file");
+        let (bytes, cut) = local_prefix(name).await.expect("prefix");
+        assert_eq!(bytes.len(), limit);
+        assert!(cut);
+        assert!(local_prefix(&format!("{name}/missing")).await.is_err());
     }
 
     /// The files of a site: every operation reaches the server, entries come back as the explorer shows them, and the first failed

@@ -146,7 +146,7 @@ pub enum Effect {
         /// The redirect of the approval, if it had one.
         redirect: Option<String>,
     },
-    /// Call the server in a session.
+    /// Run a request from the main screen in a session.
     Call(Session, super::home::Call),
     /// End a session on its server and forget its token.
     Logout(Session),

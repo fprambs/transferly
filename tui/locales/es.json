@@ -384,7 +384,28 @@
   "errorNext": {
     "invalid_path": "Cambia el nombre en el servidor con otra herramienta para quitar caracteres como tabulaciones o saltos de línea."
   },
+  "preview": {
+    "file": "Archivo",
+    "text": "Texto",
+    "json": "JSON",
+    "csv": "CSV",
+    "tsv": "TSV",
+    "workbook": "Hoja de cálculo",
+    "image": "Imagen",
+    "pdf": "PDF",
+    "binary": "Binario",
+    "loading": "Cargando vista previa…",
+    "unavailable": "Este archivo no se puede mostrar aquí. Pulsa w para abrir la aplicación web.",
+    "cut": "Mostrando los primeros 4 MiB",
+    "close": "Esc / q Cerrar",
+    "webKeys": "w Abrir web · Esc / q Cerrar",
+    "textKeys": "↑↓ ←→ PgUp PgDn Home End Desplazar · / Buscar · n Siguiente · Esc / q Cerrar",
+    "tableKeys": "↑↓ ←→ PgUp PgDn Home End Desplazar · Esc / q Cerrar",
+    "sheetKeys": "Tab / Shift+Tab / [ ] Hoja · ↑↓ ←→ PgUp PgDn Home End Desplazar · Esc / q Cerrar",
+    "searchKeys": "Enter Buscar · Esc Cancelar"
+  },
   "errors": {
+    "preview_unreadable": "No se pudo leer el libro.",
     "invalid_path": "El nombre tiene un carácter inválido.",
     "vault_locked": "El vault está bloqueado: desbloquéalo para abrir el sitio.",
     "host_key_unknown": "La clave de este servidor aún no es de confianza.",

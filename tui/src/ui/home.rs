@@ -25,10 +25,13 @@ use super::widgets::{centered, error_line, field, highlight, panel, popup};
 
 mod context_menu;
 mod mouse;
+mod preview;
 mod sites;
+
 use crate::api::{HostKey, TrustMode};
 use crate::config::{Colors, EnterOnFile};
 use crate::i18n::Language;
+pub(super) use preview::PREVIEW_LIMIT;
 
 /// The version of this client.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -96,9 +99,18 @@ pub struct Session {
     pub token: String,
 }
 
-/// A call to the server.
+/// A request from the main screen.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Call {
+    /// Read a file prefix on the local disk or at a site.
+    Preview {
+        /// Identifies the preview waiting for this reply.
+        request: u64,
+        /// Workspace and site for a remote file.
+        remote: Option<(Uuid, Uuid)>,
+        /// The file to read.
+        path: String,
+    },
     /// The connector schemas for site forms.
     Connectors,
     /// Change or test a site in the given workspace.
@@ -254,6 +266,8 @@ pub struct CallError {
 /// The answer of the server to a call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reply {
+    /// A file prefix and whether any bytes remain.
+    Preview(u64, Result<(Vec<u8>, bool), CallError>),
     /// The connector schemas for site forms.
     Connectors(Result<Vec<transferly_client::models::Connector>, CallError>),
     /// The outcome of a site change or test in its workspace.
@@ -353,7 +367,7 @@ pub enum Reply {
 /// What the main screen asks of the interface.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ask {
-    /// Call the server.
+    /// Run a request in the current session.
     Call(Call),
     /// Listen to the event stream of the session.
     Stream,
@@ -576,6 +590,8 @@ pub struct Home {
     overlay: Option<Overlay>,
     notice: Option<Notice>,
     site_view: Option<sites::View>,
+    preview: Option<Box<preview::View>>,
+    preview_request: u64,
 }
 
 impl Home {
@@ -609,6 +625,8 @@ impl Home {
             overlay: None,
             notice: None,
             site_view: None,
+            preview: None,
+            preview_request: 0,
         };
         let mut asks: Vec<Ask> = [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
             .into_iter()
@@ -706,6 +724,10 @@ impl Home {
 
     /// Puts pasted text into the field being typed in: the command line or the master password.
     pub fn paste(&mut self, text: &str) {
+        if let Some(preview) = &mut self.preview {
+            preview.paste(text);
+            return;
+        }
         match &mut self.overlay {
             Some(
                 Overlay::Commands { input, .. }
@@ -734,6 +756,7 @@ impl Home {
     )]
     pub fn reply(&mut self, reply: Reply, look: &mut Look) -> Vec<Ask> {
         match reply {
+            Reply::Preview(request, outcome) => self.preview_reply(request, outcome, look),
             Reply::Connectors(outcome) => self.site_connectors(outcome, look),
             Reply::Site(workspace, outcome) => {
                 self.site_reply(workspace, outcome.as_ref().copied(), look)
@@ -1121,6 +1144,9 @@ impl Home {
 
     /// Handles a pressed key.
     pub fn key(&mut self, key: KeyEvent, look: &mut Look) -> Vec<Ask> {
+        if self.preview.is_some() {
+            return self.preview_key(key);
+        }
         if let Some(overlay) = self.overlay.take() {
             return self.overlay_key(key, overlay, look);
         }
@@ -1179,7 +1205,8 @@ impl Home {
                         self.ask_copy(side, look);
                         Vec::new()
                     }
-                    (_, Some(_)) if matches!(key.code, KeyCode::F(3 | 4)) => {
+                    (_, Some(side)) if key.code == KeyCode::F(3) => self.open_preview(side),
+                    (_, Some(_)) if key.code == KeyCode::F(4) => {
                         self.say(look.messages.get("main.comingSoon"), false);
                         Vec::new()
                     }
@@ -1673,10 +1700,7 @@ impl Home {
                 }
             }
             "server" => vec![Ask::Leave(None)],
-            "web" => vec![Ask::Browse(format!(
-                "{}/",
-                self.session.server.origin().ascii_serialization()
-            ))],
+            "web" => vec![self.web()],
             "sites" => self.show_site_view(),
             "transfers" => {
                 self.overlay = Some(Overlay::Transfers);
@@ -1695,6 +1719,14 @@ impl Home {
             }
             _ => vec![Ask::Quit],
         }
+    }
+
+    /// Opens the web application at the signed-in server.
+    fn web(&self) -> Ask {
+        Ask::Browse(format!(
+            "{}/",
+            self.session.server.origin().ascii_serialization()
+        ))
     }
 
     /// Says that nothing goes by a name.
@@ -1953,6 +1985,10 @@ impl Home {
         reason = "one arm per kind of reply, overlay or part of the screen"
     )]
     pub fn render(&self, frame: &mut Frame, look: &Look, spinner: &str) {
+        if let Some(preview) = &self.preview {
+            preview.render(frame, look, spinner);
+            return;
+        }
         let m = &look.messages;
         let area = frame.area();
         if area.width < 60 || area.height < 16 {

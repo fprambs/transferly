@@ -19,6 +19,12 @@ impl Home {
         double: bool,
         look: &mut Look,
     ) -> (Vec<Ask>, bool) {
+        if self.preview.is_some() {
+            let asks = kind
+                .wheel()
+                .map_or_else(Vec::new, |key| self.preview_key(key));
+            return (asks, false);
+        }
         if area.width < 60 || area.height < 16 {
             return (Vec::new(), false);
         }

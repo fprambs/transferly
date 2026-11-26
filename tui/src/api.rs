@@ -565,6 +565,55 @@ impl Api {
         Err(refusal(status, &response.bytes().await?))
     }
 
+    /// Reads at most the requested prefix of a file and reports whether any bytes remain.
+    ///
+    /// # Errors
+    ///
+    /// The download was refused or its response could not be read.
+    pub async fn file_prefix(
+        &self,
+        workspace: &str,
+        site: &str,
+        path: &str,
+        limit: std::num::NonZeroUsize,
+    ) -> Result<(Vec<u8>, bool), ApiError> {
+        let limit = limit.get();
+        let mut response = self
+            .request(Method::GET, &Self::files(workspace, site, "files/content"))
+            .query(&[("path", path)])
+            .header("Range", format!("bytes=0-{}", limit - 1))
+            .send()
+            .await?;
+        let status = response.status();
+        let range = response
+            .headers()
+            .get(reqwest::header::CONTENT_RANGE)
+            .and_then(|value| value.to_str().ok());
+        if status == StatusCode::RANGE_NOT_SATISFIABLE && range == Some("bytes */0") {
+            return Ok((Vec::new(), false));
+        }
+        if !status.is_success() {
+            return Err(refusal(status, &response.bytes().await?));
+        }
+        let total = if status == StatusCode::PARTIAL_CONTENT {
+            range
+                .and_then(|value| value.rsplit_once('/'))
+                .and_then(|(_, size)| size.parse::<u64>().ok())
+        } else {
+            response.content_length()
+        };
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            let remaining = limit - bytes.len();
+            bytes.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
+            if chunk.len() > remaining || (bytes.len() == limit && total.is_some()) {
+                return Ok((bytes, chunk.len() > remaining || total > Some(limit as u64)));
+            }
+        }
+        let cut = total > Some(bytes.len() as u64);
+        Ok((bytes, cut))
+    }
+
     /// Copies a file or folder from one site to another on the server, with a policy for what exists.
     ///
     /// # Errors
