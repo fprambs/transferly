@@ -170,7 +170,7 @@ impl Home {
             match key.code {
                 KeyCode::Esc => return Vec::new(),
                 KeyCode::Enter if selected.is_some() => {
-                    return self.open_site(selected.expect("a selected site"), self.last);
+                    return self.open_site(selected.expect("a selected site"));
                 }
                 KeyCode::Up | KeyCode::Char('k') => view.selected = view.selected.saturating_sub(1),
                 KeyCode::Down | KeyCode::Char('j') => view.selected = (view.selected + 1).min(end),
@@ -572,7 +572,7 @@ impl Home {
 
     /// Finds the table and shortcut areas, including the search and header rows.
     fn site_table_areas(&self, area: Rect) -> [Rect; 5] {
-        let [top, _, _, _, _, feedback, keys, _] = self.layout(area);
+        let [top, _, _, _, _, feedback, keys] = self.layout(area);
         let body = Rect::new(
             area.x,
             top.bottom(),

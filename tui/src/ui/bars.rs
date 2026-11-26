@@ -2,7 +2,7 @@
 
 use crossterm::event::KeyCode;
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
 
@@ -11,13 +11,24 @@ use super::look::Look;
 /// A row of controls whose text and hit targets use the same terminal cell widths.
 #[derive(Default)]
 pub(super) struct Bar {
-    items: Vec<(KeyCode, Line<'static>)>,
+    items: Vec<(Option<KeyCode>, Line<'static>)>,
 }
 
 impl Bar {
     /// Appends a control and its key.
     pub(super) fn push(&mut self, code: KeyCode, spans: Vec<Span<'static>>) {
-        self.items.push((code, Line::from(spans)));
+        self.items.push((Some(code), Line::from(spans)));
+    }
+
+    /// Appends a separator that has no mouse action.
+    pub(super) fn separate(&mut self, text: &'static str, look: &Look) {
+        self.items
+            .push((None, Line::from(Span::raw(text).fg(look.palette.faint))));
+    }
+
+    /// The number of terminal cells occupied by the controls and separators.
+    pub(super) fn width(&self) -> usize {
+        self.items.iter().map(|(_, item)| item.width()).sum()
     }
 
     /// Paints a value with the theme's active or raised background.
@@ -44,8 +55,8 @@ impl Bar {
         self.push(
             KeyCode::Char(code),
             vec![
-                Span::raw(format!(" {label} ")).fg(look.palette.muted),
-                Self::chip(format!(" {value} "), active, look),
+                Span::raw(format!("{label} ")).fg(look.palette.muted),
+                Self::chip(value.to_owned(), active, look),
             ],
         );
     }
@@ -58,6 +69,7 @@ impl Bar {
         look: &Look,
     ) -> Self {
         let mut bar = Self::default();
+        let separator = " │ ";
         for (item, &code) in labels.split(" · ").zip(codes) {
             let split = if item.starts_with("[ ] ") {
                 "[ ]".len()
@@ -65,18 +77,24 @@ impl Bar {
                 item.find(' ').unwrap_or(item.len())
             };
             let (label, action) = item.split_at(split);
+            let action = action.trim_start();
             let spans = vec![
-                Span::raw(format!(" {label} "))
+                Span::raw(format!("{label} "))
                     .fg(look.palette.ink)
                     .bg(look.palette.accent)
                     .bold(),
-                Span::raw(format!("{action}  ")).fg(look.palette.text),
+                Span::raw(format!(" {action}")).fg(look.palette.text),
             ];
-            let used = spans.iter().map(Span::width).sum::<usize>();
+            let separated = !bar.items.is_empty();
+            let separator_width = usize::from(separated) * Span::raw(separator).width();
+            let used = spans.iter().map(Span::width).sum::<usize>() + separator_width;
             if used > width {
                 break;
             }
             width -= used;
+            if separated {
+                bar.separate(separator, look);
+            }
             bar.push(code, spans);
         }
         bar
@@ -98,15 +116,10 @@ impl Bar {
         for (code, item) in &self.items {
             let width = item.width();
             if offset < width {
-                return Some(*code);
+                return *code;
             }
             offset -= width;
         }
         None
     }
-}
-
-/// Divides an explorer column into its panel and the row of settings directly below it.
-pub(super) fn explorer_areas(area: Rect) -> [Rect; 2] {
-    Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area)
 }

@@ -12,21 +12,24 @@ use super::{centered, explorer_panel, local_rows, panel, popup, remote_rows, sit
 /// A key and its action, as the bottom row of termscp shows them: the key on the accent, the action in plain text.
 fn key_row(keys: &[(&str, &str)]) -> Line<'static> {
     let mut spans = Vec::new();
-    for (key, action) in keys {
-        spans.push(Span::from(format!(" {key} ")).fg(theme::ink()).bg(theme::accent()).bold());
-        spans.push(Span::from(format!(" {action}  ")).fg(theme::text()));
+    for (index, (key, action)) in keys.iter().enumerate() {
+        if index > 0 {
+            spans.push(Span::raw(" │ ").fg(theme::muted()));
+        }
+        spans.push(Span::from(format!("{key} ")).fg(theme::ink()).bg(theme::accent()).bold());
+        spans.push(Span::from(format!(" {action}")).fg(theme::text()));
     }
     Line::from(spans)
 }
 
-/// A setting of a panel as termscp shows it under the panel: its name, and its value as a chip that a click or its key changes.
+/// A setting of a panel on the panel border: its name, and its value as a chip that a click or its key changes.
 fn chip(name: &str, value: &str, on: bool) -> Vec<Span<'static>> {
     let value = if on {
-        Span::from(format!(" {value} ")).fg(theme::ink()).bg(theme::accent())
+        Span::from(value.to_owned()).fg(theme::ink()).bg(theme::accent())
     } else {
-        Span::from(format!(" {value} ")).fg(theme::text()).bg(theme::raised())
+        Span::from(value.to_owned()).fg(theme::text()).bg(theme::raised())
     };
-    vec![Span::from(format!(" {name} ")).fg(theme::muted()), value]
+    vec![Span::from(format!("{name} ")).fg(theme::muted()), value]
 }
 
 /// The status line of the session, without the keys, which move to their own row.
@@ -35,32 +38,52 @@ fn session(frame: &mut Frame, area: Rect) {
     frame.render_widget(Line::from(" ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%"), area);
 }
 
-/// The explorer with the bars of termscp: a line of settings under each panel and a row of keys at the bottom, every part clickable.
+/// Draws the settings on the bottom border of an explorer panel.
+fn explorer_settings(frame: &mut Frame, area: Rect, sort: &str) {
+    let spans = [
+        chip("Sort", sort, true),
+        vec![Span::raw(" · ").fg(theme::muted())],
+        chip("Hidden", "no", false),
+        vec![Span::raw(" · ").fg(theme::muted())],
+        chip("Filter", "—", false),
+        vec![Span::raw(" ")],
+    ].concat();
+    frame.render_widget(
+        Line::from(spans).right_aligned().bg(theme::surface()),
+        Rect::new(area.x + 1, area.bottom() - 1, area.width - 2, 1),
+    );
+}
+
+/// The explorer with settings on the borders and a separate row of clickable shortcuts.
 pub fn bars(frame: &mut Frame) {
-    let [top, body, under, keys, bar] = Layout::vertical([
+    let [top, body, _, keys] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Fill(1),
         Constraint::Length(1),
         Constraint::Length(1),
-        Constraint::Length(1),
     ])
     .areas(frame.area());
-    tabs(frame, top);
+    frame.render_widget(
+        Line::from(" transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41% ")
+            .right_aligned()
+            .bg(theme::surface()),
+        top,
+    );
+    frame.render_widget(
+        Line::from(" 1 prod-web ").fg(theme::ink()).bg(theme::accent()).bold(),
+        Rect::new(top.x, top.y, 12, 1),
+    );
     let [side, left, right] = Layout::horizontal([Constraint::Length(24), Constraint::Fill(1), Constraint::Fill(1)]).areas(body);
     sites(frame, side, false);
-    explorer_panel(frame, left, "Local", "~/projects/site · 2 marked, 260.9 MiB", &local_rows(), 2, false);
+    explorer_panel(frame, left, "Local disk", "/home/ana", &local_rows(), 2, false);
     explorer_panel(frame, right, "prod-web · SFTP", "/var/www", &remote_rows(), 3, true);
-    let [_, left_bar, right_bar] = Layout::horizontal([Constraint::Length(24), Constraint::Fill(1), Constraint::Fill(1)]).areas(under);
-    let local: Vec<Span> = [chip("Sort", "Name ↑", true), chip("Hidden", "no", false), chip("Filter", "—", false)].concat();
-    let remote: Vec<Span> = [chip("Sort", "Date ↓", true), chip("Hidden", "no", false), chip("Sync", "off", false)].concat();
-    frame.render_widget(Line::from(local), left_bar);
-    frame.render_widget(Line::from(remote), right_bar);
+    explorer_settings(frame, left, "Name ↑");
+    explorer_settings(frame, right, "Date ↓");
     frame.render_widget(
         key_row(&[("F1", "Help"), ("Tab", "Panel"), ("Enter", "Open"), ("F3", "View"), ("F4", "Edit"), ("F5", "Copy"), ("F6", "Rename"), ("F7", "Folder"), ("F8", "Delete"), ("F9", "Menu"), ("F10", "Quit")])
             .style(Style::new().bg(theme::surface())),
         keys,
     );
-    session(frame, bar);
 }
 
 /// The menu of a right click on an entry, next to it: every action with its key, the danger ones in red.

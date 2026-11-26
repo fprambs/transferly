@@ -4,7 +4,7 @@ use ratatui::layout::Position;
 
 use super::{
     Ask, Focus, Home, KeyCode, Look, Overlay, Rect, SETTINGS, Side, Tab, choices_area,
-    commands_area, explorer_areas, host_key_area, panel, settings_area,
+    commands_area, host_key_area, panel, settings_area,
 };
 use crate::ui::mouse::{MouseKind, first_row, footer_key, key, row};
 use crate::ui::widgets::popup_inside;
@@ -30,13 +30,13 @@ impl Home {
             };
             return (asks, false);
         }
-        let [_, sites, left, right, bottom, _, keys, status] = self.layout(area);
+        let [_, sites, left, right, bottom, _, keys] = self.layout(area);
         if let Some(overlay) = self.overlay.as_ref() {
             if kind == MouseKind::Right {
                 return (Vec::new(), false);
             }
             return (
-                self.overlay_mouse(area, status, position, kind, overlay.clone(), look),
+                self.overlay_mouse(area, keys, position, kind, overlay.clone(), look),
                 false,
             );
         }
@@ -50,8 +50,6 @@ impl Home {
                 false,
             );
         }
-        let [left, left_settings] = explorer_areas(left);
-        let [right, right_settings] = explorer_areas(right);
         if let Some(side) = self
             .focused_side()
             .filter(|side| self.panel(*side).captures())
@@ -63,13 +61,11 @@ impl Home {
             let asks = action.map_or_else(Vec::new, |key| self.explorer_key(side, key, look));
             return (asks, false);
         }
-        for (target, side) in [(left_settings, Side::Left), (right_settings, Side::Right)] {
+        for (panel, side) in [(left, Side::Left), (right, Side::Right)] {
+            let (bar, target) = self.panel(side).settings_bar(panel, look);
             if kind == MouseKind::Left
                 && target.contains(position)
-                && let Some(code) = self
-                    .panel(side)
-                    .settings_bar(look)
-                    .key_at(position.x - target.x)
+                && let Some(code) = bar.key_at(position.x - target.x)
             {
                 self.focus = Self::focus_of(side);
                 self.last = side;
@@ -159,7 +155,7 @@ impl Home {
     fn overlay_mouse(
         &mut self,
         area: Rect,
-        status: Rect,
+        keys: Rect,
         position: Position,
         kind: MouseKind,
         overlay: Overlay,
@@ -183,7 +179,7 @@ impl Home {
         let action = match overlay {
             Overlay::Commands { input, .. } => {
                 let matches = Self::matches(&input);
-                if let Some(index) = hit(commands_area(status, matches.len()), 0, matches.len()) {
+                if let Some(index) = hit(commands_area(keys, matches.len()), 0, matches.len()) {
                     self.overlay = None;
                     return self.commands_key(key(KeyCode::Enter), input, index, look);
                 }

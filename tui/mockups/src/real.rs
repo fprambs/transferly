@@ -141,14 +141,25 @@ pub fn shots() -> Vec<Shot> {
     for code in [KeyCode::Down, KeyCode::Down, KeyCode::Enter] {
         english.handle(key(code));
     }
-    shots.push(shot("app-main", "The main screen: the sites of the workspace as a tree, the site opened, and the status bar.", &english));
+    shots.push(shot("app-main", "The main screen: the sites of the workspace as a tree, the site opened on the right, and session status at the top.", &english));
 
+    for (side, path) in [(Side::Left, "/home/ana"), (Side::Right, "/var/www")] {
+        english.handle(Event::Replied(Reply::Homed {
+            side,
+            outcome: Ok(path.to_owned()),
+        }));
+        english.handle(Event::Replied(Reply::Listed {
+            side,
+            path: path.to_owned(),
+            outcome: Ok(Vec::new()),
+        }));
+    }
     english.handle(key(KeyCode::Char('s')));
     english.handle(key(KeyCode::Char('s')));
     english.handle(key(KeyCode::Char('S')));
     shots.push(shot_at(
         "app-bars",
-        "The explorer settings, clickable shortcuts and session status.",
+        "Settings on the explorer borders, shortcuts at the bottom, and session status at the top.",
         &english,
         132,
         34,

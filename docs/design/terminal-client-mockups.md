@@ -626,8 +626,8 @@ T7: the bars of termscp: the settings of each panel under it and a row of keys a
 ![T7 Bars](screens/t7-bars.png)
 
 ```text
-  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
-╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+ 1 prod-web                            transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+╭ Sites · Acme Web ────╮╭ Local disk ────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
 │▾ Production          ││    Name                            Size Modified   ││    Name                            Size Modified   │
 │    ● prod-web        ││    ../                                             ││    ../                                             │
 │      prod-db         ││    releases/                            11-20 09:12││    current/                             11-23 22:05│
@@ -656,10 +656,10 @@ T7: the bars of termscp: the settings of each panel under it and a row of keys a
 │                      ││                                                    ││                                                    │
 │                      ││                                                    ││                                                    │
 │                      ││                                                    ││                                                    │
-╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ─────────────╯╰ /var/www ──────────────────────────────────────────╯
-                         Sort  Name ↑  Hidden  no  Filter  —                   Sort  Date ↓  Hidden  no  Sync  off
- F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
- ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+│                      ││                                                    ││                                                    │
+╰ f filter ────────────╯╰ /home/ana ──────Sort Name ↑ · Hidden no · Filter — ╯╰ /var/www ───────Sort Date ↓ · Hidden no · Filter — ╯
+
+F1  Help │ Tab  Panel │ Enter  Open │ F3  View │ F4  Edit │ F5  Copy │ F6  Rename │ F7  Folder │ F8  Delete │ F9  Menu │ F10  Quit
 ```
 
 ## T7 Context menu
@@ -669,8 +669,8 @@ T7: a right click on an entry opens its menu, each action with its key. 132 × 3
 ![T7 Context menu](screens/t7-context-menu.png)
 
 ```text
-  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
-╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+ 1 prod-web                            transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+╭ Sites · Acme Web ────╮╭ Local disk ────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
 │▾ Production          ││    Name                            Size Modified   ││    Name                            Size Modified   │
 │    ● prod-web        ││    ../                                             ││    ../                                             │
 │      prod-db         ││    releases/                            11-20 09:12││    current/                             11-23 22:05│
@@ -699,10 +699,10 @@ T7: a right click on an entry opens its menu, each action with its key. 132 × 3
 │                      ││                                                    ││                                                    │
 │                      ││                                                    ││                                                    │
 │                      ││                                                    ││                                                    │
-╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ─────────────╯╰ /var/www ──────────────────────────────────────────╯
-                         Sort  Name ↑  Hidden  no  Filter  —                   Sort  Date ↓  Hidden  no  Sync  off
- F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
- ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+│                      ││                                                    ││                                                    │
+╰ f filter ────────────╯╰ /home/ana ──────Sort Name ↑ · Hidden no · Filter — ╯╰ /var/www ───────Sort Date ↓ · Hidden no · Filter — ╯
+
+F1  Help │ Tab  Panel │ Enter  Open │ F3  View │ F4  Edit │ F5  Copy │ F6  Rename │ F7  Folder │ F8  Delete │ F9  Menu │ F10  Quit
 ```
 
 ## T7 Sites
@@ -744,7 +744,7 @@ T7: the sites as a table with search, as termirs lists its connections; N create
 │                                                                                                                                  │
 │                                                                                                                                  │
 ╰ Search: prod▏ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- Enter  Open   N  New   E  Edit   D  Delete   C  Duplicate   M  Move   /  Search   Ctrl+L  Import
+Enter  Open │ N  New │ E  Edit │ D  Delete │ C  Duplicate │ M  Move │ /  Search │ Ctrl+L  Import
  ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
 ```
 
@@ -793,7 +793,7 @@ T7: a new site in a form drawn from the schema of its connector, as termirs adds
 │                                                                                                                                  │
 │                                                                                                                                  │
 ╰ Search: prod▏ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- Enter  Open   N  New   E  Edit   D  Delete   C  Duplicate   M  Move   /  Search   Ctrl+L  Import
+Enter  Open │ N  New │ E  Edit │ D  Delete │ C  Duplicate │ M  Move │ /  Search │ Ctrl+L  Import
  ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
 ```
 
@@ -836,7 +836,7 @@ T7: importing ~/.ssh/config, with what each host becomes before anything is crea
 │                                                                                                                                  │
 │                                                                                                                                  │
 ╰ Search: prod▏ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
- Enter  Open   N  New   E  Edit   D  Delete   C  Duplicate   M  Move   /  Search   Ctrl+L  Import
+Enter  Open │ N  New │ E  Edit │ D  Delete │ C  Duplicate │ M  Move │ /  Search │ Ctrl+L  Import
  ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
 ```
 
@@ -847,8 +847,8 @@ T7: the window of transfers in front, with the total, a gauge per transfer, spee
 ![T7 Transfers](screens/t7-transfers.png)
 
 ```text
-  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
-╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+ 1 prod-web                            transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+╭ Sites · Acme Web ────╮╭ Local disk ────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
 │▾ Production          ││    Name                            Size Modified   ││    Name                            Size Modified   │
 │    ● prod-web        ││    ../                                             ││    ../                                             │
 │      prod-db         ││    releases/                            11-20 09:12││    current/                             11-23 22:05│
@@ -877,10 +877,10 @@ T7: the window of transfers in front, with the total, a gauge per transfer, spee
 │                      ││                                                    ││                                                    │
 │                      ││                                                    ││                                                    │
 │                      ││                                                    ││                                                    │
-╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ─────────────╯╰ /var/www ──────────────────────────────────────────╯
-                         Sort  Name ↑  Hidden  no  Filter  —                   Sort  Date ↓  Hidden  no  Sync  off
- F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
- ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+│                      ││                                                    ││                                                    │
+╰ f filter ────────────╯╰ /home/ana ──────Sort Name ↑ · Hidden no · Filter — ╯╰ /var/www ───────Sort Date ↓ · Hidden no · Filter — ╯
+
+F1  Help │ Tab  Panel │ Enter  Open │ F3  View │ F4  Edit │ F5  Copy │ F6  Rename │ F7  Folder │ F8  Delete │ F9  Menu │ F10  Quit
 ```
 
 ## T7 Preview CSV
@@ -890,8 +890,8 @@ T7: F3 on a CSV shows it as a table. 132 × 34.
 ![T7 Preview CSV](screens/t7-preview-csv.png)
 
 ```text
-  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
-╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+ 1 prod-web                            transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+╭ Sites · Acme Web ────╮╭ Local disk ────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
 │▾ ╭ ventas.csv · 1,204 rows · 6 columns · separator ; ─────────────────────────────────────────────────────────────────────────╮  │
 │  │       Date                Customer            Product             Units              Total               State             │  │
 │  │                                                                                                                            │05│
@@ -920,10 +920,10 @@ T7: F3 on a CSV shows it as a table. 132 × 34.
 │  │                                                                                                                            │  │
 │  │                                                                                                                            │  │
 │  │                                                                                                                            │  │
-╰ f│                                                                                                                            │──╯
-   ╰──────────────────────────────────────────────────────────────────────── ↑↓←→ move · / search · Enter copy cell · Esc close ╯
- F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
- ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+│  │                                                                                                                            │  │
+╰ f╰──────────────────────────────────────────────────────────────────────── ↑↓←→ move · / search · Enter copy cell · Esc close ╯— ╯
+
+F1  Help │ Tab  Panel │ Enter  Open │ F3  View │ F4  Edit │ F5  Copy │ F6  Rename │ F7  Folder │ F8  Delete │ F9  Menu │ F10  Quit
 ```
 
 ## T7 Preview spreadsheet
@@ -933,8 +933,8 @@ T7: F3 on an Excel file shows its sheets as tables, Tab to change sheet. 132 × 
 ![T7 Preview spreadsheet](screens/t7-preview-spreadsheet.png)
 
 ```text
-  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
-╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+ 1 prod-web                            transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+╭ Sites · Acme Web ────╮╭ Local disk ────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
 │▾ ╭ informe-noviembre.xlsx · Ventas · A1:F1204 ────────────────────────────────────────────────────────────────────────────────╮  │
 │  │       A · Date            B · Customer        C · Product         D · Units          E · Total           F · State         │  │
 │  │                                                                                                                            │05│
@@ -963,10 +963,10 @@ T7: F3 on an Excel file shows its sheets as tables, Tab to change sheet. 132 × 
 │  │                                                                                                                            │  │
 │  │                                                                                                                            │  │
 │  │                                                                                                                            │  │
-╰ f│ Ventas   Clientes    Resumen    · formulas show their value; the first 5,000 rows                                          │──╯
-   ╰────────────────────────────────────────────────────────────────────────────── Tab sheet · ↑↓←→ move · / search · Esc close ╯
- F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
- ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+│  │ Ventas   Clientes    Resumen    · formulas show their value; the first 5,000 rows                                          │  │
+╰ f╰────────────────────────────────────────────────────────────────────────────── Tab sheet · ↑↓←→ move · / search · Esc close ╯— ╯
+
+F1  Help │ Tab  Panel │ Enter  Open │ F3  View │ F4  Edit │ F5  Copy │ F6  Rename │ F7  Folder │ F8  Delete │ F9  Menu │ F10  Quit
 ```
 
 ## T7 Preview text
@@ -976,8 +976,8 @@ T7: F3 on a text or code file, with numbered lines and search. 132 × 34.
 ![T7 Preview text](screens/t7-preview-text.png)
 
 ```text
-  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
-╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+ 1 prod-web                            transferly-tui 1.4.0 · files.acme.com · ana@acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+╭ Sites · Acme Web ────╮╭ Local disk ────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
 │▾ ╭ deploy.sh · 2.1 KiB · UTF-8 ───────────────────────────────────────────────────────────────────────────────────────────────╮  │
 │  │   1  #!/usr/bin/env bash                                                                                                   │  │
 │  │   2  set -euo pipefail                                                                                                     │05│
@@ -1006,10 +1006,10 @@ T7: F3 on a text or code file, with numbered lines and search. 132 × 34.
 │  │                                                                                                                            │  │
 │  │                                                                                                                            │  │
 │  │                                                                                                                            │  │
-╰ f│                                                                                                                            │──╯
-   ╰─────────────────────────────────────────────────────── ↑↓ PgUp PgDn scroll · / search: rsync (2 of 3) · n next · Esc close ╯
- F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
- ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+│  │                                                                                                                            │  │
+╰ f╰─────────────────────────────────────────────────────── ↑↓ PgUp PgDn scroll · / search: rsync (2 of 3) · n next · Esc close ╯— ╯
+
+F1  Help │ Tab  Panel │ Enter  Open │ F3  View │ F4  Edit │ F5  Copy │ F6  Rename │ F7  Folder │ F8  Delete │ F9  Menu │ F10  Quit
 ```
 
 ## Themes
@@ -1088,13 +1088,13 @@ Over SSH, without a browser: the code shown by the approval page is pasted, in S
 
 ### app-main
 
-The main screen: the sites of the workspace as a tree, the site opened, and the status bar.
+The main screen: the sites of the workspace as a tree, the site opened on the right, and session status at the top.
 
 ![app-main](screens/app-main.png)
 
 ### app-bars
 
-The explorer settings, clickable shortcuts and session status.
+Settings on the explorer borders, shortcuts at the bottom, and session status at the top.
 
 ![app-bars](screens/app-bars.png)
 

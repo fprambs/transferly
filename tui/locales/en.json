@@ -285,7 +285,7 @@
     "language": "Language",
     "workspace": "Workspace",
     "keys": "↑↓ choose · Enter keep · Esc back",
-    "source": "Show in this panel"
+    "source": "Choose a site"
   },
   "vault": {
     "title": "Unlock the vault",
@@ -313,7 +313,7 @@
     "move": "move",
     "ends": "top, bottom",
     "collections": "open, close a collection",
-    "open": "open the site",
+    "openSite": "open the site in the right panel",
     "workspace": "change the workspace",
     "confirm": "confirm",
     "back": "cancel, go back",
@@ -321,7 +321,7 @@
     "explorer": "Explorer panels",
     "mark": "mark and move down",
     "refresh": "refresh",
-    "show": "show the local disk or a site",
+    "chooseSite": "choose a site (right panel)",
     "log": "connection log",
     "filterField": "Filter",
     "nothing": "No key matches.",
@@ -355,7 +355,7 @@
   },
   "explorer": {
     "empty": "Empty panel",
-    "choose": "Press o to show the local disk or a site here.",
+    "choose": "Choose a site on the left (Enter) to connect",
     "nothing": "This folder is empty.",
     "sort": "Sort",
     "sortDate": "Date",

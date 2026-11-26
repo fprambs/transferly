@@ -271,6 +271,15 @@ fn targets_visible_panels() {
     );
     assert_eq!(home.focus(), Focus::Left);
 
+    let point = pointer(&draw(&home, &look, 140, 30), "home-nas");
+    assert!(matches!(
+        home.mouse(wide, point, MouseKind::Left, true, &mut look)
+            .0
+            .as_slice(),
+        [Ask::Call(Call::Files { site, side: Side::Right, .. })] if *site == id(22)
+    ));
+    assert_eq!(home.focus(), Focus::Right);
+
     for (number, name) in [(70, "first-transfer"), (71, "second-transfer")] {
         home.queue_mut().start(
             Row::started(id(number), Direction::Copy, name, "nas", None),
@@ -368,8 +377,11 @@ fn clicks_explorer_shortcuts() {
     }
 
     let narrow = draw(&home, &look, 60, 20);
-    let shortcuts = narrow.lines().nth(18).expect("shortcut row");
-    assert!(shortcuts.ends_with("F4  Edit  "));
+    let shortcuts = narrow.lines().last().expect("shortcut row");
+    assert!(shortcuts.trim_end().ends_with("F4  Edit"));
+    assert!(shortcuts.contains("F1  Help │ Tab  Panel"));
+    assert_eq!(narrow.lines().nth(18).unwrap().trim(), "");
+    assert!(!narrow.lines().next().unwrap().contains("transferly-tui"));
     assert!(!shortcuts.contains("F5"));
 
     look.speak("es");
@@ -381,13 +393,14 @@ fn clicks_explorer_shortcuts() {
     nothing(&click(&mut home, &mut look, (160, 30), "F3  Ver"), "");
     let text = draw(&home, &look, 160, 30);
     assert!(text.lines().nth(27).unwrap().contains(" · Próximamente."));
-    assert_eq!(
-        text.lines().last().unwrap().trim(),
-        format!(
-            "files.example.com · ana@example.com · Personal · {}",
-            look.messages.get("main.vaultOpen")
-        ),
-    );
+    assert_eq!(text.lines().nth(28).unwrap().trim(), "");
+    let top = text.lines().next().unwrap().trim_end();
+    assert!(top.contains("transferly-tui"));
+    assert!(top.ends_with(&format!(
+        "files.example.com · ana@example.com · Personal · {}",
+        look.messages.get("main.vaultOpen")
+    )));
+    assert!(text.lines().last().unwrap().contains("F3  Ver"));
 }
 
 /// The mouse and keyboard menu run the existing actions, including their confirmations.
@@ -621,39 +634,56 @@ fn clicks_explorer_chips() {
     let mut home = loaded(&mut look, None);
     home.key(key(KeyCode::Char('G')), &mut look);
     home.key(key(KeyCode::Enter), &mut look);
-    let size = (132, 30);
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Ok("/srv".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Ok(Vec::new()),
+        },
+        &mut look,
+    );
+    let size = (150, 30);
     let initial = draw(&home, &look, size.0, size.1);
+    let border = initial.lines().nth(27).unwrap();
     assert_eq!(
-        initial
-            .matches("Sort  Name ↑  Hidden  no  Filter  —")
+        border
+            .matches("Sort Name ↑ · Hidden no · Filter — ╯")
             .count(),
         2
     );
-    nothing(&click(&mut home, &mut look, size, "Sort"), "");
-    assert_eq!(home.focus(), Focus::Right);
-    assert!(draw(&home, &look, size.0, size.1).contains("Sort  Size ↑"));
-    nothing(&click(&mut home, &mut look, size, "Size ↑"), "");
-    nothing(&click(&mut home, &mut look, size, "Date ↑"), "");
-    assert_eq!(
-        draw(&home, &look, size.0, size.1).matches("Name ↑").count(),
-        2
-    );
-    nothing(&click(&mut home, &mut look, size, "↑  Hidden"), "");
-    assert!(draw(&home, &look, size.0, size.1).contains("Sort  Name ↓"));
-    nothing(&click(&mut home, &mut look, size, "Hidden  no"), "");
-    assert!(draw(&home, &look, size.0, size.1).contains("Hidden  yes"));
+    assert!(border.contains("╰ /srv ─"));
 
     let narrow = (80, 20);
+    nothing(&click(&mut home, &mut look, narrow, "Sort"), "");
+    assert_eq!(home.focus(), Focus::Right);
+    assert!(draw(&home, &look, size.0, size.1).contains("Sort Size ↑"));
+    nothing(&click(&mut home, &mut look, size, "Size ↑"), "");
+    nothing(&click(&mut home, &mut look, size, "Date ↑"), "");
+    nothing(&click(&mut home, &mut look, narrow, "↑ · Hidden"), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Sort Name ↓"));
+    nothing(&click(&mut home, &mut look, narrow, "Hidden no"), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Hidden yes"));
+    nothing(&click(&mut home, &mut look, narrow, " · Filter"), "");
+    assert_eq!(home.focus(), Focus::Right);
+    assert!(!home.panel(Side::Right).captures());
+
     nothing(&click(&mut home, &mut look, narrow, "Tab  Panel"), "");
     assert_eq!(home.focus(), Focus::Sites);
     home.key(key(KeyCode::Tab), &mut look);
-    nothing(&click(&mut home, &mut look, narrow, "Filter  —"), "");
+    nothing(&click(&mut home, &mut look, narrow, "Filter —"), "");
     home.paste("data");
     nothing(&click(&mut home, &mut look, narrow, "Enter  Open"), "");
     assert!(!home.panel(Side::Left).captures());
     let text = draw(&home, &look, size.0, size.1);
-    assert!(text.contains("Name ↑  Hidden  no  Filter  data"));
-    assert!(text.contains("Name ↓  Hidden  yes  Filter  —"));
+    assert!(text.contains("Name ↑ · Hidden no · Filter data"));
+    assert!(text.contains("Name ↓ · Hidden yes · Filter —"));
 
     let mut terminal = Terminal::new(TestBackend::new(size.0, size.1)).expect("backend");
     terminal
@@ -661,7 +691,7 @@ fn clicks_explorer_chips() {
         .expect("draw");
     let buffer = terminal.backend().buffer();
     let name = pointer(&text, "Name ↓");
-    let hidden = pointer(&text, "no  Filter");
+    let hidden = pointer(&text, "no · Filter");
     let help = pointer(&text, "F1  Help");
     assert_eq!(buffer[(name.x, name.y)].bg, look.palette.accent);
     assert_eq!(buffer[(hidden.x, hidden.y)].bg, look.palette.raised);
@@ -674,7 +704,7 @@ fn clicks_explorer_chips() {
         Settings::default(),
     );
     let text = draw(&home, &plain, size.0, size.1);
-    assert!(text.contains("Orden  Nombre ↓  Ocultos  sí  Filtro  —"));
+    assert!(text.contains("Orden Nombre ↓ · Ocultos sí · Filtro —"));
     assert!(text.contains("F1  Ayuda"));
     terminal
         .draw(|frame| home.render(frame, &plain, "*"))
@@ -685,7 +715,7 @@ fn clicks_explorer_chips() {
     assert!(cell.modifier.contains(Modifier::BOLD));
 }
 
-/// Top and status text, panel borders and empty popup rows leave the current selection alone.
+/// Top bar text, panel borders and empty popup rows leave the current selection alone.
 #[test]
 fn ignores_clicks_outside_mouse_targets() {
     use ratatui::layout::{Position, Rect};
@@ -703,7 +733,7 @@ fn ignores_clicks_outside_mouse_targets() {
 
     let (asks, selected) = home.mouse(
         Rect::new(0, 0, size.0, size.1),
-        Position::new(size.0 - 1, size.1 - 2),
+        Position::new(size.0 - 1, size.1 - 1),
         MouseKind::Left,
         false,
         &mut look,
@@ -1440,7 +1470,7 @@ fn shows_help_and_quits() {
 }
 
 /// The two panels of the explorer: a site opens on the right in its home folder, keys reach the focused panel, its operations go to
-/// the server with the workspace and to the local disk, replies reach the panel that asked, and `o` chooses what a panel shows.
+/// the server with the workspace and to the local disk, replies reach the panel that asked, and `o` picks a site on the right.
 #[test]
 fn works_with_the_explorer() {
     use super::explorer::Entry;
@@ -1600,60 +1630,57 @@ fn works_with_the_explorer() {
 
     assert_eq!(home.key(ctrl('d'), &mut look), vec![files(Op::Disconnect)]);
     assert!(home.panel(Side::Right).source().is_none());
+    let text = draw(&home, &look, 140, 30);
+    assert!(text.contains("Choose a site on the left (Enter) to connect"));
+    look.speak("es");
+    assert!(
+        draw(&home, &look, 140, 30)
+            .contains("Elige un sitio a la izquierda (Enter) para conectarte")
+    );
+    look.speak("en");
+
     home.key(key(KeyCode::Char('o')), &mut look);
     let text = draw(&home, &look, 140, 30);
     assert!(
-        text.contains("Show in this panel")
-            && text.contains("✓ Local disk")
-            && text.contains("acme-sftp"),
+        text.contains("Choose a site") && text.contains("acme-sftp"),
         "{text}"
     );
-    home.key(key(KeyCode::Down), &mut look);
+    assert_eq!(text.matches("Local disk").count(), 2, "{text}");
     nothing(
         &home.key(key(KeyCode::Enter), &mut look),
         "a site with credentials in a locked vault asks first",
     );
+    assert!(matches!(home.overlay(), Some(Overlay::Vault { .. })));
     home.key(key(KeyCode::Esc), &mut look);
     home.key(key(KeyCode::Char('o')), &mut look);
-    assert_eq!(
-        home.key(key(KeyCode::Enter), &mut look),
-        vec![Ask::Local {
-            side: Side::Right,
-            op: Op::Home
-        }]
-    );
-    nothing(
-        &home.key(key(KeyCode::Char('j')), &mut look),
-        "a panel listing its home folder",
-    );
-    home.key(key(KeyCode::BackTab), &mut look);
-    assert_eq!(home.focus(), Focus::Left);
-    home.key(key(KeyCode::Char('o')), &mut look);
-    home.key(key(KeyCode::Down), &mut look);
-    home.key(key(KeyCode::Down), &mut look);
     home.key(key(KeyCode::Down), &mut look);
     assert_eq!(
         home.key(key(KeyCode::Enter), &mut look),
         vec![Ask::Call(Call::Files {
             workspace: id(1),
-            site: id(22),
-            side: Side::Left,
+            site: id(21),
+            side: Side::Right,
             op: Op::Home
         })]
     );
-    assert!(
-        draw(&home, &look, 80, 20).contains("home-nas"),
-        "a narrow window shows the focused panel"
-    );
+    home.key(key(KeyCode::BackTab), &mut look);
+    assert_eq!(home.focus(), Focus::Left);
+    nothing(&home.key(key(KeyCode::Char('o')), &mut look), "");
+    assert!(home.overlay().is_none());
+
     home.key(key(KeyCode::BackTab), &mut look);
     assert!(draw(&home, &look, 80, 20).contains("Clients"));
-    command(&mut home, &mut look, "workspace team");
-    assert!(
-        home.panel(Side::Left).source().is_none(),
-        "the sites of another workspace close"
-    );
+    home.key(key(KeyCode::End), &mut look);
     assert_eq!(
-        home.panel(Side::Right).source(),
+        home.key(key(KeyCode::Enter), &mut look),
+        vec![files(Op::Home)]
+    );
+    assert_eq!(home.focus(), Focus::Right);
+    assert!(draw(&home, &look, 80, 20).contains("home-nas"));
+    command(&mut home, &mut look, "workspace team");
+    assert!(home.panel(Side::Right).source().is_none());
+    assert_eq!(
+        home.panel(Side::Left).source(),
         Some(&super::explorer::Source::Local)
     );
 }
@@ -2176,7 +2203,13 @@ fn copies_between_panels() {
     assert!(docs.folder && docs.remote == "/srv/docs");
     assert!(draw(&home, &look, 140, 30).contains("Transfers (3 running)"));
     home.key(ctrl('e'), &mut look);
-    assert!(draw(&home, &look, 140, 30).contains("⇅ 3"));
+    assert!(
+        draw(&home, &look, 140, 30)
+            .lines()
+            .next()
+            .unwrap()
+            .contains("⇅ 3")
+    );
     home.key(key(KeyCode::Esc), &mut look);
     assert!(home.overlay().is_none());
     home.key(key(KeyCode::BackTab), &mut look);
@@ -2211,15 +2244,17 @@ fn copies_between_panels() {
     home.key(key(KeyCode::Char('c')), &mut look);
     nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
 
-    home.key(key(KeyCode::Char('o')), &mut look);
-    home.key(key(KeyCode::Down), &mut look);
-    home.key(key(KeyCode::Enter), &mut look);
+    home.panel_mut(Side::Right)
+        .open(super::explorer::Source::Site {
+            id: id(20),
+            name: "acme-sftp".to_owned(),
+        });
     home.key(key(KeyCode::BackTab), &mut look);
-    home.key(key(KeyCode::Char('o')), &mut look);
-    for _ in 0..3 {
-        home.key(key(KeyCode::Down), &mut look);
-    }
-    home.key(key(KeyCode::Enter), &mut look);
+    home.panel_mut(Side::Left)
+        .open(super::explorer::Source::Site {
+            id: id(22),
+            name: "home-nas".to_owned(),
+        });
     home.reply(
         Reply::Homed {
             side: Side::Left,
@@ -2245,15 +2280,11 @@ fn copies_between_panels() {
 
     home.key(key(KeyCode::Esc), &mut look);
     home.key(key(KeyCode::Tab), &mut look);
-    home.key(key(KeyCode::Char('o')), &mut look);
-    home.key(key(KeyCode::Up), &mut look);
-    home.key(key(KeyCode::Enter), &mut look);
+    home.panel_mut(Side::Right)
+        .open(super::explorer::Source::Local);
     home.key(key(KeyCode::BackTab), &mut look);
-    home.key(key(KeyCode::Char('o')), &mut look);
-    for _ in 0..3 {
-        home.key(key(KeyCode::Up), &mut look);
-    }
-    home.key(key(KeyCode::Enter), &mut look);
+    home.panel_mut(Side::Left)
+        .open(super::explorer::Source::Local);
     home.reply(
         Reply::Homed {
             side: Side::Left,
@@ -2541,7 +2572,6 @@ fn shows_transfers() {
     home.key(key(KeyCode::Tab), &mut look);
     home.key(key(KeyCode::Tab), &mut look);
     home.key(key(KeyCode::Char('o')), &mut look);
-    home.key(key(KeyCode::Down), &mut look);
     home.key(key(KeyCode::Down), &mut look);
     home.key(key(KeyCode::Enter), &mut look);
     home.key(key(KeyCode::BackTab), &mut look);
@@ -3308,7 +3338,9 @@ fn manages_sites_from_the_table() {
     let mut look = look();
     let mut home = loaded(&mut look, None);
     let size = (132, 34);
-    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    assert_eq!(home.focus(), Focus::Left);
+    command(&mut home, &mut look, "sites");
     let text = draw(&home, &look, size.0, size.1);
     assert!(text.contains("Sites · Personal (3)"));
     assert!(text.contains("Clients / Acme / acme-sftp"));

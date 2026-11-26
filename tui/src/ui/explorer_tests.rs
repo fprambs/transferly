@@ -229,8 +229,7 @@ fn moves_through_folders() {
 #[test]
 fn browses_the_local_disk() {
     let mut panel = Panel::new(true);
-    assert!(draw(&panel, 60, 10).contains("Press o to show the local disk or a site here."));
-    assert_eq!(panel.key(key(KeyCode::Char('o'))), vec![PanelAsk::Choose]);
+    assert!(draw(&panel, 60, 10).contains("Choose a site on the left (Enter) to connect"));
     assert_eq!(
         (
             Source::Local.site(),

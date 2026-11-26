@@ -7,7 +7,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Clear};
 
 use super::transfers::other;
-use super::{Ask, Home, KeyCode, Look, Overlay, Side, explorer_areas};
+use super::{Ask, Home, KeyCode, Look, Overlay, Side};
 use crate::ui::mouse::{key, row};
 use crate::ui::widgets::{error_line, highlight};
 
@@ -71,7 +71,7 @@ impl Home {
     fn context_menu_area(&self, area: Rect, look: &Look) -> Rect {
         let [_, _, left, right, ..] = self.layout(area);
         let side = self.last;
-        let [panel, _] = explorer_areas(if side == Side::Left { left } else { right });
+        let panel = if side == Side::Left { left } else { right };
         let cursor = self.panel(side).cursor_row(panel, look);
         let copy = Line::from(self.context_copy_label(look)).width();
         let width = u16::try_from((copy + 10).max(30))

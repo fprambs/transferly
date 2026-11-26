@@ -114,8 +114,6 @@ pub enum Op {
 pub enum PanelAsk {
     /// Do something with its files.
     Op(Op),
-    /// Choose what the panel shows.
-    Choose,
     /// Enter on a file: copy it to the other panel, or show its details, as the settings say.
     Activate(Entry),
 }
@@ -451,9 +449,6 @@ impl Panel {
             self.filter_key(key);
             return Vec::new();
         }
-        if key.code == KeyCode::Char('o') {
-            return vec![PanelAsk::Choose];
-        }
         if self.source.is_none() {
             return Vec::new();
         }
@@ -631,12 +626,23 @@ impl Panel {
     ) {
         let (m, palette) = (&look.messages, &look.palette);
         let title = self.title(look);
-        let mut block = panel(&title, focused, palette);
-        if !self.path.is_empty() {
-            block = block.title_bottom(Line::from(format!(" {} ", self.path)).fg(palette.muted));
-        }
+        let block = panel(&title, focused, palette);
         let inside = block.inner(area);
         frame.render_widget(block, area);
+        let (settings, controls) = self.settings_bar(area, look);
+        if !self.path.is_empty() {
+            let path = Rect::new(
+                area.x.saturating_add(1),
+                controls.y,
+                controls.x.saturating_sub(area.x.saturating_add(2)),
+                controls.height,
+            );
+            frame.render_widget(
+                Line::from(format!(" {} ", self.path)).fg(palette.muted),
+                path,
+            );
+        }
+        settings.render(frame, controls, look);
         if self.source.is_none() {
             frame.render_widget(
                 Paragraph::new(Line::from(m.get("explorer.choose")).fg(palette.muted))
@@ -675,28 +681,29 @@ impl Panel {
         rows.y + u16::try_from(offset).expect("the cursor is within the visible rows")
     }
 
-    /// The settings below this panel, with separate targets for the sort field and direction.
-    pub(super) fn settings_bar(&self, look: &Look) -> Bar {
+    /// The controls and their right-aligned area on the bottom border.
+    pub(super) fn settings_bar(&self, area: Rect, look: &Look) -> (Bar, Rect) {
         let messages = &look.messages;
         let sort = messages.get(match self.sort {
             Sort::Name => "explorer.name",
             Sort::Size => "details.size",
             Sort::Date => "explorer.sortDate",
         });
-        let arrow = if self.descending { "↓ " } else { "↑ " };
+        let arrow = if self.descending { " ↓" } else { " ↑" };
         let filter = self.filter.value();
         let mut bar = Bar::default();
         bar.push(
             KeyCode::Char('s'),
             vec![
                 Span::raw(format!(" {} ", messages.get("explorer.sort"))).fg(look.palette.muted),
-                Bar::chip(format!(" {sort} "), true, look),
+                Bar::chip(sort, true, look),
             ],
         );
         bar.push(
             KeyCode::Char('S'),
             vec![Bar::chip(arrow.to_owned(), true, look)],
         );
+        bar.separate(" · ", look);
         bar.setting(
             '.',
             &messages.get("explorer.hidden"),
@@ -708,6 +715,7 @@ impl Panel {
             self.hidden,
             look,
         );
+        bar.separate(" · ", look);
         bar.setting(
             'f',
             &messages.get("explorer.filterLabel"),
@@ -715,7 +723,20 @@ impl Panel {
             !filter.is_empty() || self.filtering,
             look,
         );
-        bar
+        bar.separate(" ", look);
+        let path_width = Line::from(self.path.as_str()).width() + 2;
+        let reserved = u16::try_from(path_width.min(usize::from(area.width / 4)))
+            .expect("the path fits in the terminal");
+        let width = u16::try_from(bar.width())
+            .unwrap_or(u16::MAX)
+            .min(area.width.saturating_sub(3 + reserved));
+        let controls = Rect::new(
+            area.right().saturating_sub(width + 1),
+            area.bottom().saturating_sub(1),
+            width,
+            area.height.min(1),
+        );
+        (bar, controls)
     }
 
     /// The file rows and the optional status line below them.

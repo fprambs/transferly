@@ -15,7 +15,7 @@ use transferly_client::models::{Collection, Site, User, VaultStatus, Workspace, 
 use url::Url;
 use uuid::Uuid;
 
-use super::bars::{Bar, explorer_areas};
+use super::bars::Bar;
 use super::explorer::{Entry, Op, Panel, PanelAsk, Source};
 use super::input::Input;
 use super::look::Look;
@@ -406,8 +406,8 @@ pub enum Choice {
     Language,
     /// A workspace.
     Workspace,
-    /// What a panel shows: the local disk or a site.
-    Source(Side),
+    /// The site to open in the remote panel.
+    Site,
 }
 
 /// What is shown over the screen.
@@ -657,7 +657,7 @@ impl Home {
     }
 
     /// A panel of the explorer, to change.
-    fn panel_mut(&mut self, side: Side) -> &mut Panel {
+    pub(super) fn panel_mut(&mut self, side: Side) -> &mut Panel {
         match side {
             Side::Left => &mut self.left,
             Side::Right => &mut self.right,
@@ -906,7 +906,7 @@ impl Home {
                 });
                 self.say(look.messages.get("vault.unlocked"), false);
                 if let Some(site) = site {
-                    return self.open_site(site, self.last);
+                    return self.open_site(site);
                 }
                 return self.resume_site_action();
             }
@@ -1224,6 +1224,9 @@ impl Home {
 
     /// Handles a key on the focused panel of the explorer.
     fn explorer_key(&mut self, side: Side, key: KeyEvent, look: &Look) -> Vec<Ask> {
+        if side == Side::Right && key.code == KeyCode::Char('o') && !self.right.captures() {
+            return self.choose(Choice::Site, look);
+        }
         let asks = self.panel_mut(side).key(key);
         self.panel_asks(side, asks, look)
     }
@@ -1240,21 +1243,12 @@ impl Home {
         }
     }
 
-    /// What the main screen does for what a panel asks: its files go to the local disk or to the server, and choosing what it shows
-    /// opens the list of sources.
+    /// Sends panel actions to the local disk or to the server.
     fn panel_asks(&mut self, side: Side, asks: Vec<PanelAsk>, look: &Look) -> Vec<Ask> {
         let mut out = Vec::new();
         for ask in asks {
             match ask {
                 PanelAsk::Activate(entry) => self.activate(side, entry, look),
-                PanelAsk::Choose => {
-                    let worn = String::new();
-                    self.overlay = Some(Overlay::Choose {
-                        what: Choice::Source(side),
-                        selected: 0,
-                        worn,
-                    });
-                }
                 PanelAsk::Op(Op::Disconnect) => {
                     out.extend(self.files(side, Op::Disconnect));
                     self.panel_mut(side).close();
@@ -1308,7 +1302,7 @@ impl Home {
                     }
                     Some(Row::Site { index, .. }) if key.code == KeyCode::Enter => {
                         let id = self.sites[*index].id;
-                        return self.open_site(id, self.last);
+                        return self.open_site(id);
                     }
                     _ => {}
                 }
@@ -1318,9 +1312,8 @@ impl Home {
         Vec::new()
     }
 
-    /// Opens a site in a panel of the explorer and gives it the focus, first asking for the master password when its credentials are in
-    /// a locked vault.
-    fn open_site(&mut self, id: Uuid, side: Side) -> Vec<Ask> {
+    /// Opens a site in the remote panel, asking for the master password first when its credentials are in a locked vault.
+    fn open_site(&mut self, id: Uuid) -> Vec<Ask> {
         let Some(site) = self.sites.iter().find(|site| site.id == id) else {
             return Vec::new();
         };
@@ -1329,7 +1322,6 @@ impl Home {
             .as_ref()
             .is_some_and(|vault| vault.initialized && !vault.unlocked);
         if locked && !site.secrets.is_empty() {
-            self.last = side;
             self.ask_vault(Some(site.id));
             return Vec::new();
         }
@@ -1337,10 +1329,10 @@ impl Home {
             id,
             name: site.name.clone(),
         };
-        self.last = side;
-        self.focus = Self::focus_of(side);
-        let op = self.panel_mut(side).open(source);
-        self.files(side, op).into_iter().collect()
+        self.last = Side::Right;
+        self.focus = Focus::Right;
+        let op = self.right.open(source);
+        self.files(Side::Right, op).into_iter().collect()
     }
 
     /// Handles a key on what is shown over the screen.
@@ -1725,21 +1717,17 @@ impl Home {
                     .position(|workspace| Some(workspace.id) == self.workspace)
                     .unwrap_or(0),
             ),
-            Choice::Source(side) => {
-                let mut names = vec![look.messages.get("main.local")];
-                names.extend(self.sites.iter().map(|site| site.name.clone()));
-                (names, self.source_index(side))
-            }
+            Choice::Site => (
+                self.sites.iter().map(|site| site.name.clone()).collect(),
+                self.site_index().unwrap_or(0),
+            ),
         }
     }
 
-    /// The row of the list of sources that a panel shows: the local disk first, then the sites.
-    fn source_index(&self, side: Side) -> usize {
-        let site = self.panel(side).source().and_then(Source::site);
-        self.sites
-            .iter()
-            .position(|known| Some(known.id) == site)
-            .map_or(0, |at| at + 1)
+    /// The row for the open site in the site picker.
+    fn site_index(&self) -> Option<usize> {
+        let site = self.right.source().and_then(Source::site);
+        self.sites.iter().position(|known| Some(known.id) == site)
     }
 
     /// Opens a list on the value in use.
@@ -1782,13 +1770,7 @@ impl Home {
                         look,
                     ),
                     Choice::Workspace => self.show_workspace(self.workspaces[selected].id),
-                    Choice::Source(side) if selected == 0 => {
-                        self.focus = Self::focus_of(side);
-                        self.last = side;
-                        let op = self.panel_mut(side).open(Source::Local);
-                        self.files(side, op).into_iter().collect()
-                    }
-                    Choice::Source(side) => self.open_site(self.sites[selected - 1].id, side),
+                    Choice::Site => self.open_site(self.sites[selected].id),
                 };
             }
             KeyCode::Down | KeyCode::Char('j') => selected = (selected + 1).min(last),
@@ -1915,10 +1897,10 @@ impl Home {
         (minor(server)? != minor(VERSION)?).then_some(server)
     }
 
-    /// The main screen areas, including the separate feedback, shortcuts and session rows.
-    fn layout(&self, area: Rect) -> [Rect; 8] {
+    /// The main screen areas, including feedback and the bottom shortcuts.
+    fn layout(&self, area: Rect) -> [Rect; 7] {
         let feedback_rows = u16::from(self.notice.is_some() || self.mismatched().is_some());
-        let [top, body, feedback, keys, status] = Layout::vertical([
+        let [top, body, feedback, _, keys] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Fill(1),
             Constraint::Length(feedback_rows),
@@ -1937,7 +1919,7 @@ impl Home {
                 Constraint::Fill(1),
             ])
             .areas(body);
-            [explorer_areas(sites)[0], left, right]
+            [sites, left, right]
         } else {
             match self.focus {
                 Focus::Sites => [body, Rect::ZERO, Rect::ZERO],
@@ -1945,7 +1927,7 @@ impl Home {
                 Focus::Right | Focus::Bottom => [Rect::ZERO, Rect::ZERO, body],
             }
         };
-        [top, sites, left, right, log_area, feedback, keys, status]
+        [top, sites, left, right, log_area, feedback, keys]
     }
 
     /// Draws the screen.
@@ -1963,7 +1945,7 @@ impl Home {
             frame.render_widget(text, centered(area, area.width, 3));
             return;
         }
-        let [top, sites, left, right, log_area, feedback, keys, status] = self.layout(area);
+        let [top, sites, left, right, log_area, feedback, keys] = self.layout(area);
         self.render_tabs(frame, top, look);
         let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
         if self.site_view.is_some() {
@@ -1973,106 +1955,88 @@ impl Home {
                 self.render_sites(frame, sites, look, spinner);
             }
             if !left.is_empty() {
-                let [panel, settings] = explorer_areas(left);
                 self.left
-                    .render(frame, panel, look, self.focus == Focus::Left, &zone);
-                self.left.settings_bar(look).render(frame, settings, look);
+                    .render(frame, left, look, self.focus == Focus::Left, &zone);
             }
             if !right.is_empty() {
-                let [panel, settings] = explorer_areas(right);
                 self.right
-                    .render(frame, panel, look, self.focus == Focus::Right, &zone);
-                self.right.settings_bar(look).render(frame, settings, look);
+                    .render(frame, right, look, self.focus == Focus::Right, &zone);
             }
             if !log_area.is_empty() {
                 self.render_bottom(frame, log_area, look, &zone);
             }
             self.render_feedback(frame, feedback, look);
-            self.shortcut_bar(keys, look).render(frame, keys, look);
+            if !matches!(self.overlay, Some(Overlay::Commands { .. })) {
+                self.shortcut_bar(keys, look).render(frame, keys, look);
+            }
         }
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
-                Self::render_commands(frame, status, input, *selected, look);
+                Self::render_commands(frame, keys, input, *selected, look);
             }
-            overlay => {
-                self.render_status(frame, status, look);
-                match overlay {
-                    Some(Overlay::Settings { selected }) => {
-                        self.render_settings(frame, *selected, look);
-                    }
-                    Some(Overlay::Choose { what, selected, .. }) => {
-                        self.render_choose(frame, *what, *selected, look);
-                    }
-                    Some(Overlay::Help { filter, scroll }) => {
-                        render_help(frame, filter, *scroll, look);
-                    }
-                    Some(Overlay::Copy {
-                        from,
-                        items,
-                        policy,
-                    }) => self.render_copy(frame, *from, items, *policy, look),
-                    Some(Overlay::ContextMenu { selected }) => {
-                        self.render_context_menu(frame, *selected, look);
-                    }
-                    Some(Overlay::Details { side, entry }) => {
-                        self.render_details(frame, *side, entry, look, &zone);
-                    }
-                    Some(Overlay::Transfers) => self.render_transfers(frame, look),
-                    Some(Overlay::Cancel(id)) => self.render_cancel(frame, *id, look),
-                    Some(Overlay::Prompt {
-                        prompt,
-                        site,
-                        answers,
-                        focus,
-                    }) => render_prompt(frame, prompt, site, answers, *focus, look),
-                    Some(Overlay::Password { name, input, .. }) => {
-                        render_password(frame, name, input, look);
-                    }
-                    Some(Overlay::HostKey {
-                        site, key, trusted, ..
-                    }) => render_host_key(frame, site, key, trusted.as_deref(), look),
-                    Some(Overlay::Vault {
-                        input,
-                        busy,
-                        error,
-                        site,
-                    }) => self.render_vault(
-                        frame,
-                        input,
-                        *busy,
-                        error.as_deref(),
-                        *site,
-                        look,
-                        spinner,
-                    ),
-                    _ => {}
-                }
+            Some(Overlay::Settings { selected }) => {
+                self.render_settings(frame, *selected, look);
             }
+            Some(Overlay::Choose { what, selected, .. }) => {
+                self.render_choose(frame, *what, *selected, look);
+            }
+            Some(Overlay::Help { filter, scroll }) => {
+                render_help(frame, filter, *scroll, look);
+            }
+            Some(Overlay::Copy {
+                from,
+                items,
+                policy,
+            }) => self.render_copy(frame, *from, items, *policy, look),
+            Some(Overlay::ContextMenu { selected }) => {
+                self.render_context_menu(frame, *selected, look);
+            }
+            Some(Overlay::Details { side, entry }) => {
+                self.render_details(frame, *side, entry, look, &zone);
+            }
+            Some(Overlay::Transfers) => self.render_transfers(frame, look),
+            Some(Overlay::Cancel(id)) => self.render_cancel(frame, *id, look),
+            Some(Overlay::Prompt {
+                prompt,
+                site,
+                answers,
+                focus,
+            }) => render_prompt(frame, prompt, site, answers, *focus, look),
+            Some(Overlay::Password { name, input, .. }) => {
+                render_password(frame, name, input, look);
+            }
+            Some(Overlay::HostKey {
+                site, key, trusted, ..
+            }) => render_host_key(frame, site, key, trusted.as_deref(), look),
+            Some(Overlay::Vault {
+                input,
+                busy,
+                error,
+                site,
+            }) => self.render_vault(frame, input, *busy, error.as_deref(), *site, look, spinner),
+            None => {}
         }
     }
 
-    /// The line of tabs: the one tab, with what its explorer shows, and the version on the right.
+    /// The open tab and the right-aligned session summary, with the version when it fits.
     fn render_tabs(&self, frame: &mut Frame, area: Rect, look: &Look) {
         let palette = &look.palette;
         let title = self
             .opened()
             .map_or_else(|| look.messages.get("main.local"), |site| site.name.clone());
         let tab = Span::styled(format!(" 1 {title} "), active(palette));
-        let version = format!("transferly-tui {VERSION} ");
-        let [left, right] = Layout::horizontal([
-            Constraint::Fill(1),
-            Constraint::Length(u16::try_from(version.chars().count()).unwrap_or(u16::MAX)),
-        ])
-        .areas(area);
-        frame.render_widget(
-            Paragraph::new(Line::from(tab)).style(Style::new().bg(palette.surface)),
-            left,
-        );
-        frame.render_widget(
-            Paragraph::new(Line::from(version).fg(palette.muted))
-                .style(Style::new().bg(palette.surface)),
-            right,
-        );
+        let version = Span::raw(format!("transferly-tui {VERSION} · ")).fg(palette.muted);
+        let mut session = Line::from(self.status_spans(look));
+        let width = usize::from(area.width);
+        let tab_width = tab.width().min(width / 2);
+        if tab_width + session.width() + version.width() <= width {
+            session.spans.insert(1, version);
+        }
+        let tab_width = u16::try_from(tab_width).expect("the tab fits in the terminal");
+        let [left, right] =
+            Layout::horizontal([Constraint::Length(tab_width), Constraint::Fill(1)]).areas(area);
+        frame.render_widget(Line::from(tab).bg(palette.surface), left);
+        frame.render_widget(session.right_aligned().bg(palette.surface), right);
     }
 
     /// The sites panel: the collections and sites of the workspace, with a dot on the open site.
@@ -2141,7 +2105,7 @@ impl Home {
         frame.render_widget(Paragraph::new(lines), inside);
     }
 
-    /// The styled session information in the status bar.
+    /// The styled session information in the top bar.
     fn status_spans(&self, look: &Look) -> Vec<Span<'static>> {
         let (m, palette) = (&look.messages, &look.palette);
         let vault = match &self.vault {
@@ -2177,6 +2141,7 @@ impl Home {
             spans.push(Span::raw(" · ").fg(palette.faint));
             spans.push(Span::raw(summary).fg(palette.accent_text).bold());
         }
+        spans.push(Span::raw(" "));
         spans
     }
 
@@ -2256,13 +2221,7 @@ impl Home {
         )
     }
 
-    /// The session status at the bottom of the screen.
-    fn render_status(&self, frame: &mut Frame, area: Rect, look: &Look) {
-        let line = Line::from(self.status_spans(look)).bg(look.palette.surface);
-        frame.render_widget(line, area);
-    }
-
-    /// The command line in place of the status bar, with the matching commands above it.
+    /// The command line in place of the shortcuts, with the matching commands above it.
     fn render_commands(frame: &mut Frame, area: Rect, input: &Input, selected: usize, look: &Look) {
         let (m, palette) = (&look.messages, &look.palette);
         let line = Line::from(vec![
@@ -2380,13 +2339,13 @@ impl Home {
                 .workspaces
                 .iter()
                 .position(|workspace| Some(workspace.id) == self.workspace),
-            Choice::Source(side) => Some(self.source_index(side)),
+            Choice::Site => self.site_index(),
         };
         let title = m.get(match what {
             Choice::Theme => "choose.theme",
             Choice::Language => "choose.language",
             Choice::Workspace => "choose.workspace",
-            Choice::Source(_) => "choose.source",
+            Choice::Site => "choose.source",
         });
         let area = choices_area(frame.area(), names.len());
         let inside = popup(frame, area, &title, &m.get("choose.keys"), palette);
@@ -2494,7 +2453,7 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
             ("↑ ↓  j k", "help.move"),
             ("g G  Home End", "help.ends"),
             ("→ l  ← h", "help.collections"),
-            ("Enter", "help.open"),
+            ("Enter", "help.openSite"),
             ("w", "help.workspace"),
             ("S", "siteView.title"),
         ],
@@ -2520,7 +2479,7 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
             ("s  S", "help.sort"),
             ("r", "help.refresh"),
             ("Ctrl+G", "help.goto"),
-            ("o", "help.show"),
+            ("o", "help.chooseSite"),
             ("Ctrl+D", "help.disconnect"),
         ],
     ),
@@ -2819,13 +2778,13 @@ fn settings_area(area: Rect) -> Rect {
     centered(area, 78, u16::try_from(SETTINGS.len()).unwrap_or(0) + 6)
 }
 
-/// The matching commands above the status bar.
-fn commands_area(status: Rect, count: usize) -> Rect {
+/// The matching commands above the command line.
+fn commands_area(keys: Rect, count: usize) -> Rect {
     let height = u16::try_from(count).unwrap_or(u16::MAX).saturating_add(2);
     Rect::new(
-        status.x,
-        status.y.saturating_sub(height),
-        66.min(status.width),
+        keys.x,
+        keys.y.saturating_sub(height),
+        66.min(keys.width),
         height,
     )
 }

@@ -285,7 +285,7 @@
     "language": "Idioma",
     "workspace": "Workspace",
     "keys": "↑↓ elegir · Enter usar · Esc volver",
-    "source": "Mostrar en este panel"
+    "source": "Elegir un sitio"
   },
   "vault": {
     "title": "Desbloquear el vault",
@@ -313,7 +313,7 @@
     "move": "moverse",
     "ends": "inicio, final",
     "collections": "abrir, cerrar una colección",
-    "open": "abrir el sitio",
+    "openSite": "abrir el sitio en el panel derecho",
     "workspace": "cambiar de workspace",
     "confirm": "confirmar",
     "back": "cancelar, volver",
@@ -321,7 +321,7 @@
     "explorer": "Paneles del explorador",
     "mark": "marcar y bajar",
     "refresh": "actualizar",
-    "show": "mostrar el disco local o un sitio",
+    "chooseSite": "elegir un sitio (panel derecho)",
     "log": "registro de conexión",
     "filterField": "Filtro",
     "nothing": "Ninguna tecla coincide.",
@@ -355,7 +355,7 @@
   },
   "explorer": {
     "empty": "Panel vacío",
-    "choose": "Pulsa o para mostrar aquí el disco local o un sitio.",
+    "choose": "Elige un sitio a la izquierda (Enter) para conectarte",
     "nothing": "Esta carpeta está vacía.",
     "sort": "Orden",
     "sortDate": "Fecha",
