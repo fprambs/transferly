@@ -52,6 +52,20 @@ const SETTINGS: [&str; 8] = [
     "checkUpdates",
 ];
 
+/// The policies for what exists at the destination of a copy, as the API names them.
+pub const POLICIES: [&str; 5] = ["fail", "overwrite", "skip", "newer", "rename"];
+
+/// The tab of the bottom panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tab {
+    /// The queue of transfers.
+    Transfers,
+    /// The log of connections.
+    Log,
+}
+
+mod transfers;
+
 /// How many steps of connections the log keeps.
 const LOG_LINES: usize = 500;
 
@@ -105,6 +119,39 @@ pub enum Call {
         side: Side,
         /// The password.
         password: String,
+    },
+    /// Copy a file or folder between two sites, on the server.
+    Copy {
+        /// The workspace of the sites.
+        workspace: Uuid,
+        /// The site to read from.
+        source: Uuid,
+        /// The path to read.
+        from: String,
+        /// The site to write to.
+        target: Uuid,
+        /// The full path to write, name included.
+        to: String,
+        /// What to do with what exists: `fail`, `overwrite`, `skip`, `newer` or `rename`.
+        policy: String,
+        /// The transfer, chosen by the client.
+        id: Uuid,
+        /// The panel to list again.
+        side: Side,
+    },
+    /// Pause, resume or cancel a transfer on the server.
+    TransferAction {
+        /// The transfer.
+        id: Uuid,
+        /// `pause`, `resume` or `cancel`.
+        action: String,
+    },
+    /// Change the place of a waiting transfer in the queue.
+    Priority {
+        /// The transfer.
+        id: Uuid,
+        /// From -1 (low) to 1 (high).
+        priority: i8,
     },
     /// Hand the answers of a prompt to the connection that waits.
     Answer {
@@ -217,6 +264,30 @@ pub enum Reply {
     PromptClosed(Uuid),
     /// A step of a connection to a site.
     Log(LogLine),
+    /// The transfers running when the stream connected.
+    Snapshot(Vec<super::transfers::Row>),
+    /// A transfer changed.
+    TransferState(super::transfers::Row),
+    /// Bytes moved by a transfer, at the instant they were told.
+    Progress {
+        /// The transfer.
+        id: Uuid,
+        /// Bytes moved.
+        done: u64,
+        /// Bytes to move, once known.
+        total: Option<u64>,
+        /// When the stream told it.
+        at: std::time::Instant,
+    },
+    /// A transfer this client moved ended, or why not; the panel it wrote to is listed again.
+    TransferEnded {
+        /// The transfer.
+        id: Uuid,
+        /// The panel to list again.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
+    },
     /// The answers of a prompt were handed over, or why not.
     Answered(Result<(), CallError>),
     /// The home folder of what a panel shows.
@@ -265,6 +336,10 @@ pub enum Ask {
     Call(Call),
     /// Listen to the event stream of the session.
     Stream,
+    /// Move the bytes of an upload or a download through this client, then list a panel again.
+    Transfer(super::transfers::Job, Side),
+    /// Stop moving the bytes of a transfer of this client.
+    Abort(Uuid),
     /// Work with the files of the local disk in a panel.
     Local {
         /// The panel that asked.
@@ -293,6 +368,8 @@ pub enum Focus {
     Left,
     /// The right panel of the explorer.
     Right,
+    /// The panel of transfers and of the log.
+    Bottom,
 }
 
 /// What a list chooses.
@@ -339,6 +416,19 @@ pub enum Overlay {
         /// The first row shown.
         scroll: usize,
     },
+    /// What to copy to the other panel, and what to do with what exists there.
+    Copy {
+        /// The panel copied from.
+        from: Side,
+        /// The entries.
+        items: Vec<Entry>,
+        /// The policy, by its place in [`POLICIES`].
+        policy: usize,
+    },
+    /// The transfers in front of the screen, while they run.
+    Transfers,
+    /// Whether to cancel a transfer.
+    Cancel(Uuid),
     /// The questions of a server while a site connects, with the answers being typed and the one with the focus.
     Prompt {
         /// The questions.
@@ -437,6 +527,8 @@ pub struct Home {
     last: Side,
     log: std::collections::VecDeque<LogLine>,
     log_shown: bool,
+    queue: super::transfers::Queue,
+    tab: Tab,
     sites_shown: bool,
     focus: Focus,
     overlay: Option<Overlay>,
@@ -467,6 +559,8 @@ impl Home {
             last: Side::Right,
             log: std::collections::VecDeque::new(),
             log_shown: false,
+            queue: super::transfers::Queue::default(),
+            tab: Tab::Transfers,
             sites_shown: true,
             focus: Focus::Sites,
             overlay: None,
@@ -538,6 +632,17 @@ impl Home {
             .and_then(|id| self.workspaces.iter().find(|workspace| workspace.id == id))
     }
 
+    /// The transfers of the account.
+    #[must_use]
+    pub fn queue(&self) -> &super::transfers::Queue {
+        &self.queue
+    }
+
+    /// The transfers of the account, to change.
+    pub fn queue_mut(&mut self) -> &mut super::transfers::Queue {
+        &mut self.queue
+    }
+
     /// The panel with the focus.
     #[must_use]
     pub fn focus(&self) -> Focus {
@@ -572,6 +677,10 @@ impl Home {
     }
 
     /// Handles a reply of the server.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per kind of reply, overlay or part of the screen"
+    )]
     pub fn reply(&mut self, reply: Reply, look: &mut Look) -> Vec<Ask> {
         match reply {
             Reply::Me(Ok(user)) | Reply::Preferences(Ok(user)) => {
@@ -621,6 +730,26 @@ impl Home {
                 }
                 self.log.push_back(line);
                 Vec::new()
+            }
+            Reply::Snapshot(rows) => {
+                self.queue.snapshot(rows);
+                Vec::new()
+            }
+            Reply::TransferState(row) => {
+                self.queue.put(row);
+                Vec::new()
+            }
+            Reply::Progress {
+                id,
+                done,
+                total,
+                at,
+            } => {
+                self.queue.progress(id, done, total, at);
+                Vec::new()
+            }
+            Reply::TransferEnded { id, side, outcome } => {
+                self.transfer_ended(id, side, outcome, look)
             }
             Reply::Answered(outcome) => {
                 if let Err(error) = outcome {
@@ -968,13 +1097,23 @@ impl Home {
                     self.focus = Self::focus_of(self.last);
                 }
             }
-            KeyCode::Char('e') if control => self.log_shown = !self.log_shown,
+            KeyCode::Char('e') if control => {
+                self.log_shown = !self.log_shown;
+                if !self.log_shown && self.focus == Focus::Bottom {
+                    self.focus = Self::focus_of(self.last);
+                }
+            }
             KeyCode::Tab => self.cycle(true),
             KeyCode::BackTab => self.cycle(false),
             _ => {
-                return match self.focused_side() {
-                    None => self.sites_key(key, look),
-                    Some(side) => self.explorer_key(side, key),
+                return match (self.focus, self.focused_side()) {
+                    (Focus::Bottom, _) => self.bottom_key(key),
+                    (_, Some(side)) if matches!(key.code, KeyCode::F(5) | KeyCode::Char('c')) => {
+                        self.ask_copy(side, look);
+                        Vec::new()
+                    }
+                    (_, Some(side)) => self.explorer_key(side, key),
+                    (_, None) => self.sites_key(key, look),
                 };
             }
         }
@@ -994,7 +1133,7 @@ impl Home {
         match self.focus {
             Focus::Left => Some(Side::Left),
             Focus::Right => Some(Side::Right),
-            Focus::Sites => None,
+            Focus::Sites | Focus::Bottom => None,
         }
     }
 
@@ -1003,6 +1142,9 @@ impl Home {
         let mut order = vec![Focus::Left, Focus::Right];
         if self.sites_shown {
             order.insert(0, Focus::Sites);
+        }
+        if self.log_shown {
+            order.push(Focus::Bottom);
         }
         let at = order
             .iter()
@@ -1127,8 +1269,26 @@ impl Home {
     }
 
     /// Handles a key on what is shown over the screen.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per kind of reply, overlay or part of the screen"
+    )]
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
+            Overlay::Copy {
+                from,
+                items,
+                policy,
+            } => self.copy_key(key, from, items, policy, look),
+            Overlay::Transfers => {
+                if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.log_shown = true;
+                    self.tab = Tab::Transfers;
+                    self.focus = Focus::Bottom;
+                }
+                Vec::new()
+            }
+            Overlay::Cancel(id) => self.cancel_key(key, id),
             Overlay::Help { filter, scroll } => {
                 self.help_key(key, filter, scroll, look);
                 Vec::new()
@@ -1661,6 +1821,10 @@ impl Home {
     }
 
     /// Draws the screen.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per kind of reply, overlay or part of the screen"
+    )]
     pub fn render(&self, frame: &mut Frame, look: &Look, spinner: &str) {
         let m = &look.messages;
         let area = frame.area();
@@ -1701,11 +1865,14 @@ impl Home {
             match self.focus {
                 Focus::Sites => self.render_sites(frame, body, look, spinner),
                 Focus::Left => self.left.render(frame, body, look, true, &zone),
-                Focus::Right => self.right.render(frame, body, look, true, &zone),
+                Focus::Right | Focus::Bottom => {
+                    self.right
+                        .render(frame, body, look, self.focus == Focus::Right, &zone);
+                }
             }
         }
         if self.log_shown {
-            render_log(frame, log_area, &self.log, &self.sites, &zone, look);
+            self.render_bottom(frame, log_area, look, &zone);
         }
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
@@ -1723,6 +1890,13 @@ impl Home {
                     Some(Overlay::Help { filter, scroll }) => {
                         render_help(frame, filter, *scroll, look);
                     }
+                    Some(Overlay::Copy {
+                        from,
+                        items,
+                        policy,
+                    }) => self.render_copy(frame, *from, items, *policy, look),
+                    Some(Overlay::Transfers) => self.render_transfers(frame, look),
+                    Some(Overlay::Cancel(id)) => self.render_cancel(frame, *id, look),
                     Some(Overlay::Prompt {
                         prompt,
                         site,
@@ -1877,6 +2051,10 @@ impl Home {
             }
             spans.push(Span::raw(part));
         }
+        if let Some(summary) = self.transfer_summary() {
+            spans.push(Span::raw(" · ").fg(palette.faint));
+            spans.push(Span::raw(summary).fg(palette.accent_text).bold());
+        }
         if let Some(server) = self.mismatched() {
             spans.push(Span::raw(" · ").fg(palette.faint));
             spans.push(
@@ -1895,6 +2073,7 @@ impl Home {
         let keys = m.get(match self.focus {
             Focus::Sites => "main.keysSites",
             Focus::Left | Focus::Right => "main.keysExplorer",
+            Focus::Bottom => "main.keysQueue",
         });
         let used: usize = spans.iter().map(Span::width).sum();
         let room = usize::from(area.width).saturating_sub(used + 2);
@@ -2418,16 +2597,17 @@ fn render_prompt(
 
 /// The log of connections: the latest steps of the connections to sites, with the time, the site and what happened, warnings and errors
 /// in their colors.
-fn render_log(
+pub(super) fn render_log(
     frame: &mut Frame,
     area: Rect,
     log: &std::collections::VecDeque<LogLine>,
     sites: &[Site],
     zone: &jiff::tz::TimeZone,
     look: &Look,
+    focused: bool,
 ) {
     let (m, palette) = (&look.messages, &look.palette);
-    let block = panel(&m.get("log.title"), false, palette);
+    let block = panel(&m.get("log.tabs"), focused, palette);
     let inside = block.inner(area);
     frame.render_widget(block, area);
     if log.is_empty() {

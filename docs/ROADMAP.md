@@ -484,11 +484,14 @@ Revisado contra el código el 2026-11-24. Solo el middleware `authenticate` (`tr
 
 ### T4. Transferencias (1,5 a 2 semanas)
 
-- [ ] Subir desde disco en flujo (`PUT files/content`), reanudar con `mode=resume&offset=`; descargar con `Range` y reanudar
+- [x] Subir desde disco en flujo (`PUT files/content`), reanudar con `mode=resume&offset=`; descargar con `Range` y reanudar
 - [ ] Carpetas completas en ambos sentidos; política ante archivos existentes (falla, sobrescribe, omite, más nuevo, renombra)
-- [ ] Copias entre sitios por el servidor (`POST /copies`)
-- [ ] Panel de cola con el progreso del WebSocket: pausar, reanudar, cancelar, prioridad; recarga tras reconectar
+- [x] Copias entre sitios por el servidor (`POST /copies`)
+- [x] Panel de cola con el progreso del WebSocket: pausar, reanudar, cancelar, prioridad; recarga tras reconectar
 - [ ] Integración con el stack de pruebas: login por el navegador (redirección a `127.0.0.1` y código pegado), subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv`
+- [x] Progreso visible: cada transferencia con barra (`━` contra `─`), porcentaje, velocidad y tiempo restante; ventana flotante en primer plano mientras dura, que `Esc` minimiza a la barra de estado; el panel inferior (`Ctrl+E`) con pestañas Transferencias y Registro (`[` `]`); las fallidas en rojo con su código y guía
+- [x] Teclas: `F5`/`c` copia lo marcado (o lo del cursor) al otro panel tras una confirmación que nombra el destino y la política ante archivos existentes (← → la cambian); en la cola `p` pausa o reanuda, `x`/`Supr` cancela con confirmación, `R` reanuda una subida interrumpida de este cliente, `+` `-` prioridad, `Enter` detalles
+- [ ] Orden: un archivo en cada sentido, luego reanudar, la cola con sus barras, carpetas y archivos existentes, copias entre sitios e integración con `testenv`; arrastrar con el mouse y notificaciones de escritorio quedan en T7
 
 ### T5. Instalación con un comando (1 semana)
 

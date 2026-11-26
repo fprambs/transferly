@@ -16,11 +16,13 @@ use url::Url;
 use super::app::{App, Effect, Event, Failure};
 use super::explorer::{Entry, Kind, Op};
 use super::home::{Call, CallError, Reply, Session, Side};
+use super::transfers::{Direction, Job};
 use crate::api::Api;
 use crate::api::ApiError;
 use crate::config::Config;
 use crate::login::{self, Listener, Pkce};
 use crate::secrets::TokenStore;
+use transferly_client::models::CopyInput;
 
 /// The events of the terminal, or of a test, the loop reads.
 pub type Events<'a> = Pin<Box<dyn Stream<Item = Event> + 'a>>;
@@ -66,6 +68,8 @@ pub async fn run(
     let (results, mut finished) = mpsc::channel(RESULTS);
     let mut listener: Option<JoinHandle<()>> = None;
     let mut stream: Option<JoinHandle<()>> = None;
+    let mut moving: std::collections::HashMap<uuid::Uuid, JoinHandle<()>> =
+        std::collections::HashMap::new();
     let mut clock = tokio::time::interval(ports.tick);
     let mut effects = app.start();
     loop {
@@ -166,6 +170,22 @@ pub async fn run(
                     )));
                 }
                 Effect::StopStream => stop(&mut stream),
+                Effect::Transfer(session, job, side) => {
+                    let (results, id) = (results.clone(), job.id);
+                    moving.retain(|_, task| !task.is_finished());
+                    moving.insert(
+                        id,
+                        tokio::spawn(async move {
+                            let outcome = move_bytes(&session, &job).await;
+                            let _ = results
+                                .send(Event::Replied(Reply::TransferEnded { id, side, outcome }))
+                                .await;
+                        }),
+                    );
+                }
+                Effect::Abort(id) => {
+                    moving.remove(&id).inspect(JoinHandle::abort);
+                }
                 Effect::Local { side, op } => {
                     let results = results.clone();
                     tokio::task::spawn_blocking(move || {
@@ -345,6 +365,38 @@ async fn perform(session: &Session, call: Call) -> Reply {
                 .await
                 .map_err(failure),
         },
+        Call::Copy {
+            workspace,
+            source,
+            from,
+            target,
+            to,
+            policy,
+            id,
+            side,
+        } => {
+            let mut body = CopyInput::new(source, from, target, to);
+            body.policy = serde_json::from_value(serde_json::Value::String(policy)).ok();
+            body.transfer_id = Some(id);
+            match api.copy(&workspace.to_string(), &body).await {
+                Ok(row) => Reply::TransferState(row),
+                Err(error) => Reply::TransferEnded {
+                    id,
+                    side,
+                    outcome: Err(failure(error)),
+                },
+            }
+        }
+        Call::TransferAction { id, action } => Reply::Answered(
+            api.transfer_action(&id.to_string(), &action)
+                .await
+                .map_err(failure),
+        ),
+        Call::Priority { id, priority } => Reply::Answered(
+            api.transfer_priority(&id.to_string(), i32::from(priority))
+                .await
+                .map_err(failure),
+        ),
         Call::Answer { id, answers } => Reply::Answered(
             api.answer_prompt(&id.to_string(), answers)
                 .await
@@ -534,6 +586,93 @@ fn local(side: Side, op: Op) -> Reply {
             outcome: Ok(()),
         },
     }
+}
+
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "it is passed to map_err, which gives the error by value"
+)]
+/// A failure of the disk, from an error taken by value.
+fn io_failure(error: std::io::Error) -> CallError {
+    disk(&error)
+}
+
+/// Moves the bytes of an upload or a download through this client. An upload is read from the disk as it is sent, from where the server
+/// staged it when resuming; a download is written to `<file>.transferly-part`, continued from its end when resuming, and renamed to the
+/// file once complete, so a file never shows half written; `create` refuses a file that exists.
+async fn move_bytes(session: &Session, job: &Job) -> Result<(), CallError> {
+    use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+    let api = Api::new(session.server.clone()).with_token(&session.token);
+    let (workspace, site, id) = (
+        job.workspace.to_string(),
+        job.site.to_string(),
+        job.id.to_string(),
+    );
+    if job.direction == Direction::Upload {
+        let mut file = tokio::fs::File::open(&job.local)
+            .await
+            .map_err(io_failure)?;
+        let size = file.metadata().await.map_err(io_failure)?.len();
+        file.seek(std::io::SeekFrom::Start(job.from))
+            .await
+            .map_err(io_failure)?;
+        return api
+            .upload(
+                &workspace,
+                &site,
+                &job.remote,
+                file,
+                size,
+                &job.mode,
+                job.from,
+                &id,
+            )
+            .await
+            .map(|_| ())
+            .map_err(failure);
+    }
+    if job.mode == "create" && tokio::fs::try_exists(&job.local).await.unwrap_or(false) {
+        return Err(CallError {
+            code: Some("already_exists".to_owned()),
+            message: job.local.display().to_string(),
+            ..Default::default()
+        });
+    }
+    let part = PathBuf::from(format!("{}.transferly-part", job.local.display()));
+    let staged = if job.mode == "resume" {
+        tokio::fs::metadata(&part)
+            .await
+            .map_or(0, |meta| meta.len())
+    } else {
+        0
+    };
+    let response = api
+        .download(&workspace, &site, &job.remote, &id, staged)
+        .await
+        .map_err(failure)?;
+    let from = if response.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+        staged
+    } else {
+        0
+    };
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(from > 0)
+        .truncate(from == 0)
+        .open(&part)
+        .await
+        .map_err(io_failure)?;
+    let mut body = response.bytes_stream();
+    while let Some(chunk) = body.next().await {
+        file.write_all(&chunk.map_err(ApiError::Network).map_err(failure)?)
+            .await
+            .map_err(io_failure)?;
+    }
+    file.flush().await.map_err(io_failure)?;
+    tokio::fs::rename(&part, &job.local)
+        .await
+        .map_err(io_failure)
 }
 
 /// Ends the session on its server, forgets its token and leaves the server current no more; a session the server already ended is
@@ -1054,5 +1193,231 @@ mod tests {
             }
         ));
         assert_eq!(local(side, Op::Disconnect), done);
+    }
+
+    /// Uploads read the file from where the server staged it, downloads write a partial file renamed at the end and continue it when
+    /// resuming (from the start when the server ignores the range), `create` refuses a file that exists, and failures of the disk, the
+    /// network and the server come back; copies, actions and priorities reach the server.
+    #[tokio::test]
+    #[allow(clippy::too_many_lines, reason = "each way of moving bytes")]
+    async fn moves_bytes() {
+        use wiremock::matchers::{body_bytes, header, query_param};
+        let server = MockServer::start().await;
+        let base = "/api/v1/workspaces/00000000-0000-0000-0000-000000000000/sites/00000000-0000-0000-0000-000000000000";
+        let entry = serde_json::json!({"name": "a", "path": "/a", "type": "file", "size": 3, "mode": "", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"});
+        Mock::given(method("PUT"))
+            .and(path(format!("{base}/files/content")))
+            .and(query_param("offset", "2"))
+            .and(body_bytes(b"cdef".to_vec()))
+            .respond_with(ResponseTemplate::new(201).set_body_json(&entry))
+            .mount(&server)
+            .await;
+        Mock::given(method("PUT"))
+            .and(path(format!("{base}/files/content")))
+            .and(query_param("mode", "create"))
+            .and(body_bytes(b"abcdef".to_vec()))
+            .respond_with(ResponseTemplate::new(201).set_body_json(&entry))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files/content")))
+            .and(header("Range", "bytes=3-"))
+            .respond_with(ResponseTemplate::new(206).set_body_bytes(b"def".to_vec()))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET")).and(path(format!("{base}/files/content"))).and(query_param("path", "/missing")).respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 404, "code": "not_found"}))).mount(&server).await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files/content")))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"abcdef".to_vec()))
+            .mount(&server)
+            .await;
+        let dir = tempfile::tempdir().expect("folder");
+        let file = dir.path().join("up.bin");
+        std::fs::write(&file, "abcdef").expect("a file");
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        let job = |direction, local: std::path::PathBuf, remote: &str, mode: &str, from| Job {
+            id: uuid::Uuid::nil(),
+            direction,
+            workspace: uuid::Uuid::nil(),
+            site: uuid::Uuid::nil(),
+            local,
+            remote: remote.to_owned(),
+            mode: mode.to_owned(),
+            from,
+            side: Side::Left,
+        };
+        move_bytes(
+            &session,
+            &job(Direction::Upload, file.clone(), "/up.bin", "create", 0),
+        )
+        .await
+        .expect("uploaded");
+        move_bytes(
+            &session,
+            &job(Direction::Upload, file.clone(), "/up.bin", "resume", 2),
+        )
+        .await
+        .expect("resumed");
+        assert!(
+            move_bytes(
+                &session,
+                &job(
+                    Direction::Upload,
+                    dir.path().join("none"),
+                    "/x",
+                    "create",
+                    0
+                )
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            move_bytes(
+                &session,
+                &job(Direction::Upload, file.clone(), "/x", "overwrite", 0)
+            )
+            .await
+            .is_err(),
+            "refused by the server"
+        );
+
+        let down = dir.path().join("down.bin");
+        move_bytes(
+            &session,
+            &job(Direction::Download, down.clone(), "/d", "create", 0),
+        )
+        .await
+        .expect("downloaded");
+        assert_eq!(std::fs::read(&down).expect("the file"), b"abcdef");
+        let refused = move_bytes(
+            &session,
+            &job(Direction::Download, down.clone(), "/d", "create", 0),
+        )
+        .await
+        .expect_err("it exists");
+        assert_eq!(refused.code.as_deref(), Some("already_exists"));
+        std::fs::write(dir.path().join("down.bin.transferly-part"), "abc").expect("a part");
+        move_bytes(
+            &session,
+            &job(Direction::Download, down.clone(), "/d", "resume", 0),
+        )
+        .await
+        .expect("continued");
+        assert_eq!(std::fs::read(&down).expect("the file"), b"abcdef");
+        move_bytes(
+            &session,
+            &job(Direction::Download, down.clone(), "/d", "resume", 0),
+        )
+        .await
+        .expect("from the start without a part");
+        assert!(
+            move_bytes(
+                &session,
+                &job(
+                    Direction::Download,
+                    dir.path().join("m"),
+                    "/missing",
+                    "overwrite",
+                    0
+                )
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            move_bytes(
+                &session,
+                &job(
+                    Direction::Download,
+                    dir.path().join("no").join("x"),
+                    "/d",
+                    "overwrite",
+                    0
+                )
+            )
+            .await
+            .is_err(),
+            "a folder that does not exist"
+        );
+
+        let copy = serde_json::json!({"id": uuid::Uuid::nil(), "workspaceId": uuid::Uuid::nil(), "siteName": "s", "direction": "copy", "path": "/a", "name": "a", "status": "queued", "bytesDone": 0, "attempts": 0, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z"});
+        Mock::given(method("POST"))
+            .and(path(
+                "/api/v1/workspaces/00000000-0000-0000-0000-000000000001/copies",
+            ))
+            .respond_with(ResponseTemplate::new(202).set_body_json(copy))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(
+                "/api/v1/workspaces/00000000-0000-0000-0000-000000000002/copies",
+            ))
+            .respond_with(ResponseTemplate::new(202).set_body_json(serde_json::json!({})))
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(
+                "/api/v1/transfers/00000000-0000-0000-0000-000000000000/pause",
+            ))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        Mock::given(method("PATCH"))
+            .and(path(
+                "/api/v1/transfers/00000000-0000-0000-0000-000000000000",
+            ))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        let call = |workspace: u128| Call::Copy {
+            workspace: uuid::Uuid::from_u128(workspace),
+            source: uuid::Uuid::nil(),
+            from: "/a".to_owned(),
+            target: uuid::Uuid::nil(),
+            to: "/b".to_owned(),
+            policy: "rename".to_owned(),
+            id: uuid::Uuid::nil(),
+            side: Side::Left,
+        };
+        assert!(
+            matches!(perform(&session, call(1)).await, Reply::TransferState(row) if row.name == "a")
+        );
+        assert!(
+            matches!(
+                perform(&session, call(2)).await,
+                Reply::TransferEnded {
+                    outcome: Err(_),
+                    ..
+                }
+            ),
+            "an answer without a transfer"
+        );
+        assert!(matches!(
+            perform(&session, call(3)).await,
+            Reply::TransferEnded {
+                outcome: Err(_),
+                ..
+            }
+        ));
+        let action = Call::TransferAction {
+            id: uuid::Uuid::nil(),
+            action: "pause".to_owned(),
+        };
+        assert_eq!(perform(&session, action).await, Reply::Answered(Ok(())));
+        assert_eq!(
+            perform(
+                &session,
+                Call::Priority {
+                    id: uuid::Uuid::nil(),
+                    priority: 1
+                }
+            )
+            .await,
+            Reply::Answered(Ok(()))
+        );
     }
 }

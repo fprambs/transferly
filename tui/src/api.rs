@@ -8,10 +8,10 @@ use reqwest::{Client, Method, RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use transferly_client::models::host_key_input::Mode;
 use transferly_client::models::{
-    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, HomeFolder, HostKeyInput,
-    MasterPasswordRequest, PathInput, Preferences, Problem, PromptAnswers, RemoteEntry,
-    RenameInput, SessionInfo, SetupStatus, Site, SiteCredentialRequest, User, VaultStatus, Version,
-    Workspace,
+    CliLink, CliLinkInput, CliToken, CliTokenRequest, Collection, CopyInput, HomeFolder,
+    HostKeyInput, MasterPasswordRequest, PathInput, Preferences, Problem, PromptAnswers,
+    RemoteEntry, RenameInput, SessionInfo, SetupStatus, Site, SiteCredentialRequest, User,
+    VaultStatus, Version, Workspace,
 };
 use url::Url;
 
@@ -465,6 +465,115 @@ impl Api {
     /// The prompt no longer waits, or the server cannot be reached.
     pub async fn cancel_prompt(&self, id: &str) -> Result<(), ApiError> {
         Self::empty(self.request(Method::DELETE, &format!("/api/v1/prompts/{id}"))).await
+    }
+
+    /// Uploads a file from the disk as it is read, from `offset` when resuming, under a transfer the client names to follow and
+    /// resume it. `mode` is `create`, `overwrite` or `resume`.
+    ///
+    /// # Errors
+    ///
+    /// The file exists and `mode` is `create`, the account may not write, the connection drops, or as listing a folder.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the parameters of the upload, as the API names them"
+    )]
+    pub async fn upload(
+        &self,
+        workspace: &str,
+        site: &str,
+        path: &str,
+        file: tokio::fs::File,
+        size: u64,
+        mode: &str,
+        offset: u64,
+        transfer: &str,
+    ) -> Result<RemoteEntry, ApiError> {
+        let query = [
+            ("path", path.to_owned()),
+            ("mode", mode.to_owned()),
+            ("offset", offset.to_string()),
+            ("transferId", transfer.to_owned()),
+            ("size", size.to_string()),
+        ];
+        let request = self
+            .request(Method::PUT, &Self::files(workspace, site, "files/content"))
+            .query(&query)
+            .header("Content-Type", "application/octet-stream");
+        Self::send(request.body(reqwest::Body::from(file))).await
+    }
+
+    /// Starts downloading a file, from byte `from` when resuming; the answer carries the bytes to read as they arrive.
+    ///
+    /// # Errors
+    ///
+    /// The file does not exist, the range is past its end, or as listing a folder.
+    pub async fn download(
+        &self,
+        workspace: &str,
+        site: &str,
+        path: &str,
+        transfer: &str,
+        from: u64,
+    ) -> Result<reqwest::Response, ApiError> {
+        let mut request = self
+            .request(Method::GET, &Self::files(workspace, site, "files/content"))
+            .query(&[("path", path), ("transferId", transfer)]);
+        if from > 0 {
+            request = request.header("Range", format!("bytes={from}-"));
+        }
+        let response = request.send().await?;
+        let status = response.status();
+        if status.is_success() {
+            return Ok(response);
+        }
+        Err(refusal(status, &response.bytes().await?))
+    }
+
+    /// Copies a file or folder from one site to another on the server, with a policy for what exists.
+    ///
+    /// # Errors
+    ///
+    /// A site is not of the workspace, the account may not write, or the server cannot be reached.
+    pub async fn copy(
+        &self,
+        workspace: &str,
+        body: &CopyInput,
+    ) -> Result<crate::ui::transfers::Row, ApiError> {
+        Self::send(
+            self.request(
+                Method::POST,
+                &format!("/api/v1/workspaces/{workspace}/copies"),
+            )
+            .json(body),
+        )
+        .await
+    }
+
+    /// Pauses, resumes or cancels a transfer: `action` is `pause`, `resume` or `cancel`.
+    ///
+    /// # Errors
+    ///
+    /// The transfer is not of the account or cannot do that now, or the server cannot be reached.
+    pub async fn transfer_action(&self, transfer: &str, action: &str) -> Result<(), ApiError> {
+        Self::empty(self.request(
+            Method::POST,
+            &format!("/api/v1/transfers/{transfer}/{action}"),
+        ))
+        .await
+    }
+
+    /// Changes the place of a waiting transfer in the queue, from -1 (low) to 1 (high).
+    ///
+    /// # Errors
+    ///
+    /// The transfer is not of the account or no longer waits, or the server cannot be reached.
+    pub async fn transfer_priority(&self, transfer: &str, priority: i32) -> Result<(), ApiError> {
+        let body = serde_json::json!({"priority": priority});
+        Self::empty(
+            self.request(Method::PATCH, &format!("/api/v1/transfers/{transfer}"))
+                .json(&body),
+        )
+        .await
     }
 
     /// Closes the connections of this session to a site.

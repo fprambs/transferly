@@ -1426,6 +1426,11 @@ fn answers_servers_and_logs() {
     assert!(home.overlay().is_none());
 
     home.key(ctrl('e'), &mut look);
+    assert!(draw(&home, &look, 140, 40).contains("No transfers yet"));
+    while home.focus() != Focus::Bottom {
+        home.key(key(KeyCode::Tab), &mut look);
+    }
+    home.key(key(KeyCode::Char(']')), &mut look);
     assert!(draw(&home, &look, 140, 40).contains("Nothing yet"));
     let line = |step: &str, level: &str| LogLine {
         site: id(22),
@@ -1449,14 +1454,490 @@ fn answers_servers_and_logs() {
     );
     let text = draw(&home, &look, 140, 40);
     assert!(
-        text.contains("Connection log")
+        text.contains("Transfers [Log]")
             && text.contains("21:00:00 home-nas")
             && text.contains("failed host=nas")
             && text.contains("other"),
         "{text}"
     );
     home.key(ctrl('e'), &mut look);
-    assert!(!draw(&home, &look, 140, 40).contains("Connection log"));
+    assert!(!draw(&home, &look, 140, 40).contains("Transfers [Log]"));
+}
+
+/// `c` and `F5` copy what a panel selects to the other after a confirmation with the policy for what exists: uploads and downloads go
+/// through this client and copies between sites to the server; what the policy leaves, and folders between this computer and a site,
+/// are left out and said; the window of transfers shows them, and the status bar sums them up.
+#[test]
+fn copies_between_panels() {
+    use super::explorer::{Entry, Kind};
+    use super::transfers::{Direction, Job, Row};
+    let file = |name: &str, seconds: i64| Entry {
+        name: name.to_owned(),
+        kind: Kind::File,
+        size: 10,
+        modified: Some(jiff::Timestamp::from_second(seconds).expect("a time")),
+    };
+    let folder = Entry {
+        name: "docs".to_owned(),
+        kind: Kind::Folder,
+        size: 0,
+        modified: None,
+    };
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Tab), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/home/ana".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home/ana".to_owned(),
+            outcome: Ok(vec![file("a.txt", 50), file("b.txt", 0), folder.clone()]),
+        },
+        &mut look,
+    );
+    home.key(ctrl('a'), &mut look);
+    home.key(key(KeyCode::F(5)), &mut look);
+    assert!(draw(&home, &look, 140, 30).contains("The other panel shows nothing"));
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Ok("/srv".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Ok(vec![file("a.txt", 10), file("b (1).txt", 0)]),
+        },
+        &mut look,
+    );
+
+    home.key(key(KeyCode::BackTab), &mut look);
+    home.key(key(KeyCode::Char('c')), &mut look);
+    let text = draw(&home, &look, 140, 30);
+    assert!(
+        text.contains("Copy 3 entries to /srv:")
+            && text.contains("docs/")
+            && text.contains("stop with an error"),
+        "{text}"
+    );
+    for policy in [
+        KeyCode::Right,
+        KeyCode::Right,
+        KeyCode::Right,
+        KeyCode::Left,
+        KeyCode::Char('l'),
+        KeyCode::Char('x'),
+    ] {
+        home.key(key(policy), &mut look);
+    }
+    assert!(draw(&home, &look, 140, 30).contains("replace it if older"));
+    let asks = home.key(key(KeyCode::Enter), &mut look);
+    let [
+        Ask::Transfer(newer, Side::Right),
+        Ask::Transfer(fresh, Side::Right),
+    ] = asks.as_slice()
+    else {
+        panic!("{asks:?}")
+    };
+    assert_eq!(
+        (newer.remote.as_str(), newer.mode.as_str(), newer.direction),
+        ("/srv/a.txt", "overwrite", Direction::Upload)
+    );
+    assert_eq!(
+        (fresh.remote.as_str(), fresh.mode.as_str()),
+        ("/srv/b.txt", "create")
+    );
+    assert!(draw(&home, &look, 140, 30).contains("Transfers (2 running)"));
+    assert_eq!(
+        home.notice().map(|n| n.text.contains("1 left out")),
+        Some(true)
+    );
+    home.key(ctrl('e'), &mut look);
+    assert!(draw(&home, &look, 140, 30).contains("⇅ 2"));
+    home.key(key(KeyCode::Esc), &mut look);
+    assert!(home.overlay().is_none());
+    home.key(key(KeyCode::BackTab), &mut look);
+    assert_eq!(home.focus(), Focus::Right);
+    home.key(ctrl('a'), &mut look);
+    home.key(key(KeyCode::Char('c')), &mut look);
+    for _ in 0..4 {
+        home.key(key(KeyCode::Right), &mut look);
+    }
+    let asks = home.key(key(KeyCode::Char('y')), &mut look);
+    let [
+        Ask::Transfer(first, Side::Left),
+        Ask::Transfer(second, Side::Left),
+    ] = asks.as_slice()
+    else {
+        panic!("{asks:?}")
+    };
+    assert_eq!(
+        (first.local.to_string_lossy().into_owned(), first.direction),
+        ("/home/ana/a (1).txt".to_owned(), Direction::Download)
+    );
+    assert_eq!(second.local.to_string_lossy(), "/home/ana/b (1).txt");
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Char('c')), &mut look);
+    home.key(key(KeyCode::Right), &mut look);
+    home.key(key(KeyCode::Right), &mut look);
+    nothing(
+        &home.key(key(KeyCode::Enter), &mut look),
+        "everything exists and is left",
+    );
+    home.key(key(KeyCode::Char('c')), &mut look);
+    nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
+
+    home.key(key(KeyCode::Char('o')), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.key(key(KeyCode::BackTab), &mut look);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    for _ in 0..3 {
+        home.key(key(KeyCode::Down), &mut look);
+    }
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/".to_owned(),
+            outcome: Ok(vec![folder]),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Char('c')), &mut look);
+    let asks = home.key(key(KeyCode::Enter), &mut look);
+    assert!(
+        matches!(asks.as_slice(), [Ask::Call(Call::Copy { from, to, policy, side: Side::Right, .. })] if from == "/docs" && to == "/docs" && policy == "fail"),
+        "{asks:?}"
+    );
+
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.key(key(KeyCode::BackTab), &mut look);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    for _ in 0..3 {
+        home.key(key(KeyCode::Up), &mut look);
+    }
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/home/ana".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home/ana".to_owned(),
+            outcome: Ok(vec![file("a.txt", 0)]),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Char('c')), &mut look);
+    assert!(
+        home.notice()
+            .is_some_and(|n| n.text.starts_with("Both panels show the local disk"))
+    );
+    let _ = (Job::clone, Row::clone);
+}
+
+/// The queue in the bottom panel: `[` `]` switch tabs, the arrows move, `p` pauses a transfer that waits or a copy, cuts one of this
+/// client that runs and resumes one that was cut, `x` cancels after asking, `R` resumes, `+` `-` reorder; a transfer of this client that
+/// ends lists its panel again, and one that fails is marked with its reason.
+#[test]
+fn manages_the_queue() {
+    use super::transfers::{Direction, Job, Row, Status};
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    let at = |n: u8| id(60 + n);
+    let job = |n: u8, direction| Job {
+        id: at(n),
+        direction,
+        workspace: id(1),
+        site: id(22),
+        local: "/l".into(),
+        remote: "/r".into(),
+        mode: "create".to_owned(),
+        from: 0,
+        side: if direction == Direction::Upload {
+            Side::Right
+        } else {
+            Side::Left
+        },
+    };
+    let state = |n: u8, direction: &str, status: &str| -> Row {
+        serde_json::from_value(serde_json::json!({"id": at(n), "direction": direction, "name": format!("t{n}"), "status": status, "bytesDone": 5, "totalBytes": 10, "errorCode": if status == "failed" { Some("disk_full") } else { None }})).expect("a row")
+    };
+    home.key(ctrl('e'), &mut look);
+    while home.focus() != Focus::Bottom {
+        home.key(key(KeyCode::Tab), &mut look);
+    }
+    assert!(draw(&home, &look, 140, 30).contains("No transfers yet"));
+    nothing(
+        &home.key(key(KeyCode::Char('p')), &mut look),
+        "an empty queue",
+    );
+    home.reply(
+        Reply::Snapshot(vec![
+            state(1, "copy", "queued"),
+            state(2, "upload", "running"),
+            state(3, "download", "interrupted"),
+            state(4, "upload", "failed"),
+        ]),
+        &mut look,
+    );
+    home.reply(
+        Reply::TransferState(state(5, "upload", "queued")),
+        &mut look,
+    );
+    home.reply(
+        Reply::Progress {
+            id: at(2),
+            done: 7,
+            total: None,
+            at: std::time::Instant::now(),
+        },
+        &mut look,
+    );
+    let text = draw(&home, &look, 140, 30);
+    assert!(
+        text.contains("t5")
+            && text.contains("disk_full")
+            && text.contains("cut: R resumes")
+            && text.contains("⇅ 3"),
+        "{text}"
+    );
+    let action = |n: u8, action: &str| {
+        vec![Ask::Call(Call::TransferAction {
+            id: at(n),
+            action: action.to_owned(),
+        })]
+    };
+    assert_eq!(
+        home.key(key(KeyCode::Char('p')), &mut look),
+        action(5, "pause")
+    );
+    assert_eq!(
+        home.key(key(KeyCode::Char('+')), &mut look),
+        vec![Ask::Call(Call::Priority {
+            id: at(5),
+            priority: 1
+        })]
+    );
+    assert_eq!(
+        home.key(key(KeyCode::Char('-')), &mut look),
+        vec![Ask::Call(Call::Priority {
+            id: at(5),
+            priority: -1
+        })]
+    );
+    home.key(key(KeyCode::Char('x')), &mut look);
+    assert!(draw(&home, &look, 140, 30).contains("Cancel t5?"));
+    nothing(
+        &home.key(key(KeyCode::Char('z')), &mut look),
+        "waits for an answer",
+    );
+    assert_eq!(
+        home.key(key(KeyCode::Char('y')), &mut look),
+        [vec![Ask::Abort(at(5))], action(5, "cancel")].concat()
+    );
+    home.key(key(KeyCode::Char('x')), &mut look);
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    home.key(key(KeyCode::Delete), &mut look);
+    assert!(home.overlay().is_some(), "Delete asks too");
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Char('p')), &mut look),
+        action(1, "pause")
+    );
+    home.key(key(KeyCode::Char('j')), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Char('p')), &mut look),
+        vec![Ask::Abort(at(2))]
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Char('R')), &mut look),
+        action(3, "resume"),
+        "a transfer this client did not start"
+    );
+    home.queue_mut().start(
+        state(3, "download", "interrupted"),
+        Some(job(3, Direction::Download)),
+    );
+    let resumed = home.key(key(KeyCode::Char('R')), &mut look);
+    assert!(
+        matches!(resumed.as_slice(), [Ask::Transfer(job, Side::Left)] if job.mode == "resume" && job.from == 0),
+        "{resumed:?}"
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    home.queue_mut().start(
+        state(4, "upload", "failed"),
+        Some(job(4, Direction::Upload)),
+    );
+    home.queue_mut().cursor = 4;
+    let resumed = home.key(key(KeyCode::Char('p')), &mut look);
+    assert!(
+        matches!(resumed.as_slice(), [Ask::Transfer(job, Side::Right)] if job.from == 5),
+        "{resumed:?}"
+    );
+    nothing(&home.key(key(KeyCode::Char('z')), &mut look), "");
+    home.key(key(KeyCode::Char('k')), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+
+    let ended = home.reply(
+        Reply::TransferEnded {
+            id: at(4),
+            side: Side::Right,
+            outcome: Err(CallError {
+                code: None,
+                message: "reset".to_owned(),
+                ..Default::default()
+            }),
+        },
+        &mut look,
+    );
+    nothing(&ended, "");
+    assert_eq!(
+        home.queue()
+            .rows()
+            .iter()
+            .find(|row| row.id == at(4))
+            .map(|row| row.status),
+        Some(Status::Interrupted)
+    );
+    home.reply(
+        Reply::TransferEnded {
+            id: at(9),
+            side: Side::Right,
+            outcome: Err(refused("permission_denied")),
+        },
+        &mut look,
+    );
+    assert!(draw(&home, &look, 140, 30).contains("does not let"));
+    home.reply(
+        Reply::TransferEnded {
+            id: at(4),
+            side: Side::Left,
+            outcome: Ok(()),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Char(']')), &mut look);
+    nothing(&home.key(key(KeyCode::Char('j')), &mut look), "the log tab");
+    home.key(key(KeyCode::Char('[')), &mut look);
+    assert!(
+        draw(&home, &look, 80, 20).contains("t5"),
+        "a narrow window shows the explorer"
+    );
+    home.key(ctrl('e'), &mut look);
+    assert_ne!(home.focus(), Focus::Bottom);
+}
+
+/// The window of transfers and the queue name what they show: more entries than fit are counted, transfers without a size show only
+/// how many run, finished ones say so, a failure marks the transfer, and `x` on one that ended does nothing.
+#[test]
+fn shows_transfers() {
+    use super::explorer::{Entry, Kind};
+    use super::transfers::{Direction, Row};
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.queue_mut().start(
+        Row::started(id(70), Direction::Copy, "big", "nas", None),
+        None,
+    );
+    assert!(draw(&home, &look, 140, 30).contains("⇅ 1 "));
+    let done: Row = serde_json::from_value(serde_json::json!({"id": id(71), "direction": "upload", "name": "ok.bin", "status": "done", "bytesDone": 3, "totalBytes": 3})).expect("a row");
+    home.reply(Reply::TransferState(done), &mut look);
+    home.reply(
+        Reply::TransferEnded {
+            id: id(70),
+            side: Side::Right,
+            outcome: Err(refused("disk_full")),
+        },
+        &mut look,
+    );
+    home.key(ctrl('e'), &mut look);
+    while home.focus() != Focus::Bottom {
+        home.key(key(KeyCode::Tab), &mut look);
+    }
+    let text = draw(&home, &look, 140, 30);
+    assert!(
+        text.contains("done") && text.contains("disk_full"),
+        "{text}"
+    );
+    nothing(
+        &home.key(key(KeyCode::Char('x')), &mut look),
+        "a transfer that ended",
+    );
+    let canceled: Row = serde_json::from_value(serde_json::json!({"id": id(72), "direction": "copy", "name": "gone", "status": "canceled"})).expect("a row");
+    home.reply(Reply::TransferState(canceled), &mut look);
+    assert!(draw(&home, &look, 140, 30).contains("canceled"));
+    assert!(home.overlay().is_none());
+
+    home.key(key(KeyCode::Tab), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/home/ana".to_owned()),
+        },
+        &mut look,
+    );
+    let files: Vec<Entry> = (0..8)
+        .map(|n| Entry {
+            name: format!("f{n}"),
+            kind: Kind::File,
+            size: 1,
+            modified: None,
+        })
+        .collect();
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home/ana".to_owned(),
+            outcome: Ok(files),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Char('o')), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.key(key(KeyCode::BackTab), &mut look);
+    assert_eq!(home.focus(), Focus::Left);
+    home.key(ctrl('a'), &mut look);
+    home.key(key(KeyCode::Char('c')), &mut look);
+    assert!(draw(&home, &look, 140, 40).contains("and 2 more"));
 }
 
 /// The interface around the main screen: a kept session starts on it, its replies reach it, and what it asks becomes effects; signing
@@ -1751,6 +2232,146 @@ mod interface {
         assert_eq!(
             (config.settings.colors, config.current),
             (Colors::Terminal, None)
+        );
+    }
+
+    /// The loop copies a file of this computer to a site, lists the site again once it is there, and cancels an upload that is still
+    /// running, which stops moving its bytes.
+    #[tokio::test]
+    async fn copies_through_the_loop() {
+        use wiremock::matchers::{path_regex, query_param};
+        let server = MockServer::start().await;
+        let ws = id(1).to_string();
+        let base = format!("/api/v1/workspaces/{ws}/sites/{}", id(20));
+        let entry = serde_json::json!({"name": "a.txt", "path": "/srv/a.txt", "type": "file", "size": 1, "mode": "", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"});
+        let answers = [
+            (
+                "GET",
+                "/api/v1/me".to_owned(),
+                serde_json::json!({"user": user("en", DEFAULT_THEME), "csrfToken": "c"}),
+            ),
+            (
+                "GET",
+                "/api/v1/version".to_owned(),
+                serde_json::json!({"version": VERSION}),
+            ),
+            (
+                "GET",
+                "/api/v1/workspaces".to_owned(),
+                serde_json::json!([workspace(1, "Personal", "personal")]),
+            ),
+            (
+                "GET",
+                format!("/api/v1/workspaces/{ws}/collections"),
+                serde_json::json!([]),
+            ),
+            (
+                "GET",
+                format!("/api/v1/workspaces/{ws}/sites"),
+                serde_json::json!([site(20, "acme", None, false)]),
+            ),
+            (
+                "GET",
+                "/api/v1/vault".to_owned(),
+                serde_json::json!({"initialized": true, "unlocked": true}),
+            ),
+            (
+                "GET",
+                format!("{base}/files/home"),
+                serde_json::json!({"path": "/srv"}),
+            ),
+            ("GET", format!("{base}/files"), serde_json::json!([])),
+        ];
+        for (verb, route, body) in answers {
+            Mock::given(method(verb))
+                .and(path(route))
+                .respond_with(ResponseTemplate::new(200).set_body_json(body))
+                .mount(&server)
+                .await;
+        }
+        let uploads = format!("{base}/files/content");
+        Mock::given(method("PUT"))
+            .and(path(uploads.clone()))
+            .and(query_param("path", "/srv/a.txt"))
+            .respond_with(ResponseTemplate::new(201).set_body_json(&entry))
+            .mount(&server)
+            .await;
+        Mock::given(method("PUT"))
+            .and(path(uploads))
+            .respond_with(
+                ResponseTemplate::new(201)
+                    .set_body_json(&entry)
+                    .set_delay(Duration::from_secs(20)),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path_regex("^/api/v1/transfers/.*/cancel$"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+
+        let dir = tempfile::tempdir().expect("folder");
+        let files = tempfile::tempdir().expect("files");
+        std::fs::write(files.path().join("a.txt"), "a").expect("a file");
+        std::fs::write(files.path().join("b.txt"), "b").expect("a file");
+        let tokens: Arc<dyn TokenStore> = Arc::from(secrets::open(
+            dir.path(),
+            Ok(keyring_core::mock::Store::new().expect("mock")),
+        ));
+        let ports = ports(
+            dir.path(),
+            tokens,
+            Arc::new(|_: &str| true),
+            Arc::new(Mutex::new(Vec::new())),
+        );
+        let folder = files.path().to_string_lossy().into_owned();
+        let mut events = vec![
+            (
+                800,
+                Event::Replied(Reply::Homed {
+                    side: Side::Left,
+                    outcome: Ok(folder),
+                }),
+            ),
+            (600, press(KeyCode::Enter)),
+        ];
+        events.extend([
+            (600, press(KeyCode::Tab)),
+            (0, press(KeyCode::Tab)),
+            (0, press(KeyCode::Down)),
+            (0, press(KeyCode::Char('c'))),
+            (0, press(KeyCode::Enter)),
+        ]);
+        events.extend([
+            (800, press(KeyCode::Esc)),
+            (0, press(KeyCode::Down)),
+            (0, press(KeyCode::Char('c'))),
+            (0, press(KeyCode::Enter)),
+        ]);
+        events.extend([
+            (500, Event::Key(ctrl('e'))),
+            (0, press(KeyCode::Char('x'))),
+            (0, press(KeyCode::Char('y'))),
+            (600, Event::Key(ctrl('c'))),
+        ]);
+        let mut app = App::new(kept(&server.uri()));
+        let mut terminal = Terminal::new(TestBackend::new(140, 30)).expect("backend");
+        tokio::time::timeout(
+            Duration::from_secs(12),
+            runtime::run(&mut app, &ports, paced(events), &mut draw_on(&mut terminal)),
+        )
+        .await
+        .expect("the loop ended before the slow upload")
+        .expect("drawing");
+        let rows = home(&app).queue().rows().to_vec();
+        assert_eq!(rows.len(), 2, "{rows:?}");
+        let received = server.received_requests().await.expect("requests");
+        assert!(
+            received
+                .iter()
+                .any(|request| request.url.path().ends_with("/cancel")),
+            "the cancel reached the server"
         );
     }
 }

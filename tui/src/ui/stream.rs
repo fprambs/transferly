@@ -17,6 +17,7 @@ use uuid::Uuid;
 
 use super::app::Event;
 use super::home::{LogLine, Prompt, Reply, Session};
+use super::transfers::Row;
 
 /// The longest pause between two attempts to connect.
 const MOST_PAUSE: Duration = Duration::from_secs(30);
@@ -49,6 +50,22 @@ struct PromptData {
     #[serde(default)]
     instruction: String,
     questions: Vec<Question>,
+}
+
+/// The payload of the first message: the transfers running when the stream connects.
+#[derive(Deserialize)]
+struct SnapshotData {
+    transfers: Vec<Row>,
+}
+
+/// The payload of `transfer.progress`.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProgressData {
+    id: Uuid,
+    bytes_done: u64,
+    #[serde(default)]
+    total_bytes: Option<u64>,
 }
 
 /// The payload of `connection.prompt_closed`.
@@ -88,6 +105,22 @@ pub fn reply(text: &str) -> Option<Reply> {
                     .map(|question| (question.text, question.echo))
                     .collect(),
             }))
+        }
+        "snapshot" => {
+            let data: SnapshotData = serde_json::from_value(message.data).ok()?;
+            Some(Reply::Snapshot(data.transfers))
+        }
+        "transfer.state" => serde_json::from_value::<Row>(message.data)
+            .ok()
+            .map(Reply::TransferState),
+        "transfer.progress" => {
+            let data: ProgressData = serde_json::from_value(message.data).ok()?;
+            Some(Reply::Progress {
+                id: data.id,
+                done: data.bytes_done,
+                total: data.total_bytes,
+                at: std::time::Instant::now(),
+            })
         }
         "connection.prompt_closed" => serde_json::from_value::<ClosedData>(message.data)
             .ok()
@@ -212,8 +245,28 @@ mod tests {
                 true
             )
         );
+        let snapshot = r#"{"type":"snapshot","data":{"transfers":[{"id":"00000000-0000-0000-0000-000000000001","direction":"copy","name":"a","status":"running"}]}}"#;
+        assert!(matches!(reply(snapshot), Some(Reply::Snapshot(rows)) if rows.len() == 1));
+        assert!(matches!(
+            reply(
+                r#"{"type":"transfer.state","data":{"id":"00000000-0000-0000-0000-000000000001","direction":"upload","name":"a","status":"done"}}"#
+            ),
+            Some(Reply::TransferState(_))
+        ));
+        assert!(matches!(
+            reply(
+                r#"{"type":"transfer.progress","data":{"id":"00000000-0000-0000-0000-000000000001","bytesDone":5,"totalBytes":9}}"#
+            ),
+            Some(Reply::Progress {
+                done: 5,
+                total: Some(9),
+                ..
+            })
+        ));
+        assert_eq!(reply(r#"{"type":"snapshot","data":{}}"#), None);
         for other in [
             r#"{"type":"transfer.progress","data":{}}"#,
+            r#"{"type":"connection.state","data":{}}"#,
             "not json",
             r#"{"type":"connection.prompt","data":{}}"#,
             r#"{"type":"connection.log","data":{}}"#,

@@ -208,6 +208,30 @@ impl Panel {
         self.form.is_some() || self.confirm.is_some() || self.filtering
     }
 
+    /// Clears the marks.
+    pub fn clear_marks(&mut self) {
+        self.marks.clear();
+    }
+
+    /// The entries of the folder listed.
+    #[must_use]
+    pub fn entries(&self) -> &[Entry] {
+        &self.entries
+    }
+
+    /// What an action works on: the marked entries, or the one under the cursor.
+    #[must_use]
+    pub fn selection(&self) -> Vec<Entry> {
+        if self.marks.is_empty() {
+            return self.current().into_iter().collect();
+        }
+        self.entries
+            .iter()
+            .filter(|entry| self.marks.contains(&entry.name))
+            .cloned()
+            .collect()
+    }
+
     /// The names of the marked entries.
     #[must_use]
     pub fn marked(&self) -> Vec<String> {
@@ -306,7 +330,8 @@ impl Panel {
     }
 
     /// The path of an entry of the folder.
-    fn join(&self, name: &str) -> String {
+    #[must_use]
+    pub fn join(&self, name: &str) -> String {
         if self.local() {
             std::path::Path::new(&self.path)
                 .join(name)

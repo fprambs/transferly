@@ -59,7 +59,8 @@
     "notSignedOut": "Could not sign out: {reason}",
     "notSaved": "The settings could not be kept: {reason}",
     "keysSites": "Enter open · w workspace · / commands · ? help · q quit",
-    "keysExplorer": "Enter open · Space mark · n folder · F2 rename · Del delete · f filter · o show · ? help"
+    "keysExplorer": "Enter open · Space mark · n folder · F2 rename · Del delete · f filter · o show · ? help",
+    "keysQueue": "p pause · x cancel · R resume · [ ] tabs · ? help"
   },
   "commands": {
     "title": "Commands",
@@ -228,6 +229,40 @@
   },
   "log": {
     "title": "Connection log",
-    "empty": "Nothing yet: the steps of connections to sites show here."
+    "empty": "Nothing yet: the steps of connections to sites show here.",
+    "tabs": "Transfers [Log]"
+  },
+  "copy": {
+    "title": "Copy",
+    "keys": "Enter copy · ← → if it exists · Esc cancel",
+    "body": "Copy {count} entries to {target}:",
+    "exists": "If it exists:",
+    "nothing": "Nothing to copy here.",
+    "noTarget": "The other panel shows nothing: press o there to choose where to copy.",
+    "localToLocal": "Both panels show the local disk: copy between this computer and a site, or between sites.",
+    "skipped": "{count} left out: they exist, or folders between this computer and a site come in the next version.",
+    "policy": {
+      "fail": "stop with an error",
+      "overwrite": "replace it",
+      "skip": "leave it",
+      "newer": "replace it if older",
+      "rename": "keep both"
+    }
+  },
+  "transfers": {
+    "title": "Transfers ({count} running)",
+    "keys": "Esc hide · Ctrl+E queue",
+    "tabs": "[Transfers] Log",
+    "empty": "No transfers yet: F5 or c copies to the other panel.",
+    "queueKeys": "p pause · x cancel · R resume · + - priority · [ ] tabs",
+    "queued": "waiting",
+    "paused": "paused",
+    "running": "running",
+    "done": "done",
+    "failed": "failed",
+    "canceled": "canceled",
+    "interrupted": "cut: R resumes",
+    "cancelTitle": "Cancel",
+    "cancelBody": "Cancel {name}? What was moved stays as it is."
   }
 }

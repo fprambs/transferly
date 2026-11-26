@@ -129,6 +129,10 @@ pub enum Effect {
     Stream(Session),
     /// Stop listening to the event stream.
     StopStream,
+    /// Move the bytes of an upload or a download, then list a panel again.
+    Transfer(Session, super::transfers::Job, super::home::Side),
+    /// Stop moving the bytes of a transfer.
+    Abort(uuid::Uuid),
     /// Work with the files of the local disk for a panel.
     Local {
         /// The panel.
@@ -287,6 +291,10 @@ impl App {
                 Ask::Call(call) => effects.push(Effect::Call(session.clone(), call)),
                 Ask::Local { side, op } => effects.push(Effect::Local { side, op }),
                 Ask::Stream => effects.push(Effect::Stream(session.clone())),
+                Ask::Transfer(job, side) => {
+                    effects.push(Effect::Transfer(session.clone(), job, side));
+                }
+                Ask::Abort(id) => effects.push(Effect::Abort(id)),
                 Ask::Browse(url) => effects.push(Effect::OpenBrowser(url)),
                 Ask::Save => effects.push(Effect::SaveSettings(self.look.settings.clone())),
                 Ask::Logout => effects.push(Effect::Logout(session.clone())),

@@ -59,7 +59,8 @@
     "notSignedOut": "No se pudo cerrar la sesión: {reason}",
     "notSaved": "No se pudieron guardar los ajustes: {reason}",
     "keysSites": "Enter abrir · w workspace · / comandos · ? ayuda · q salir",
-    "keysExplorer": "Enter abrir · Espacio marcar · n carpeta · F2 renombrar · Supr borrar · f filtrar · o mostrar · ? ayuda"
+    "keysExplorer": "Enter abrir · Espacio marcar · n carpeta · F2 renombrar · Supr borrar · f filtrar · o mostrar · ? ayuda",
+    "keysQueue": "p pausar · x cancelar · R reanudar · [ ] pestañas · ? ayuda"
   },
   "commands": {
     "title": "Comandos",
@@ -228,6 +229,40 @@
   },
   "log": {
     "title": "Registro de conexión",
-    "empty": "Nada todavía: aquí se ven los pasos de las conexiones a los sitios."
+    "empty": "Nada todavía: aquí se ven los pasos de las conexiones a los sitios.",
+    "tabs": "Transferencias [Registro]"
+  },
+  "copy": {
+    "title": "Copiar",
+    "keys": "Enter copiar · ← → si existe · Esc cancelar",
+    "body": "Copiar {count} elementos a {target}:",
+    "exists": "Si existe:",
+    "nothing": "Aquí no hay nada que copiar.",
+    "noTarget": "El otro panel no muestra nada: pulsa o ahí para elegir adónde copiar.",
+    "localToLocal": "Ambos paneles muestran el disco local: copia entre este equipo y un sitio, o entre sitios.",
+    "skipped": "{count} sin copiar: ya existen, o son carpetas entre este equipo y un sitio, que llegan en la próxima versión.",
+    "policy": {
+      "fail": "detenerse con un error",
+      "overwrite": "reemplazarlo",
+      "skip": "dejarlo",
+      "newer": "reemplazarlo si es más antiguo",
+      "rename": "conservar ambos"
+    }
+  },
+  "transfers": {
+    "title": "Transferencias ({count} en curso)",
+    "keys": "Esc ocultar · Ctrl+E cola",
+    "tabs": "[Transferencias] Registro",
+    "empty": "Aún no hay transferencias: F5 o c copia al otro panel.",
+    "queueKeys": "p pausar · x cancelar · R reanudar · + - prioridad · [ ] pestañas",
+    "queued": "esperando",
+    "paused": "en pausa",
+    "running": "en curso",
+    "done": "lista",
+    "failed": "falló",
+    "canceled": "cancelada",
+    "interrupted": "cortada: R reanuda",
+    "cancelTitle": "Cancelar",
+    "cancelBody": "¿Cancelar {name}? Lo que ya se movió queda como está."
   }
 }

@@ -37,7 +37,7 @@ tokio-tungstenite = { version = "0.30.0", default-features = false, features = [
 toml = "1.2.3"
 transferly-client = { version = "0.0.0", path = "client" }
 url = "2.5.9"
-uuid = "1.29.3"
+uuid = { version = "1.29.3", features = ["v4"] }
 webbrowser = "1.2.7"
 
 [lints.rust]

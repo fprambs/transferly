@@ -9,6 +9,7 @@ pub mod look;
 pub mod runtime;
 pub mod stream;
 pub mod theme;
+pub mod transfers;
 pub mod widgets;
 
 use crossterm::event::Event as TerminalEvent;
