@@ -14,7 +14,7 @@ use tokio::task::JoinHandle;
 use url::Url;
 
 use super::app::{App, Effect, Event, Failure};
-use super::explorer::{Entry, Kind, Op};
+use super::explorer::{Entry, Kind, ListingTicket, Op};
 use super::home::{Call, CallError, Reply, Session, Side};
 use super::transfers::{Direction, Job};
 use crate::api::Api;
@@ -159,9 +159,17 @@ pub async fn run(
                 }
                 Effect::Call(session, call) => {
                     let results = results.clone();
+                    let ticket = match &call {
+                        Call::Files {
+                            side,
+                            op: Op::List(_),
+                            ..
+                        } => listing_ticket(app, *side),
+                        _ => None,
+                    };
                     tokio::spawn(async move {
                         let reply = perform(&session, call).await;
-                        let _ = results.send(Event::Replied(reply)).await;
+                        let _ = results.send(reply_event(reply, ticket)).await;
                     });
                 }
                 Effect::Stream(session) => {
@@ -191,8 +199,12 @@ pub async fn run(
                 }
                 Effect::Local { side, op } => {
                     let results = results.clone();
+                    let ticket = match op {
+                        Op::List(_) => listing_ticket(app, side),
+                        _ => None,
+                    };
                     tokio::task::spawn_blocking(move || {
-                        let _ = results.blocking_send(Event::Replied(local(side, op)));
+                        let _ = results.blocking_send(reply_event(local(side, op), ticket));
                     });
                 }
                 Effect::Logout(session) => {
@@ -229,6 +241,23 @@ pub async fn run(
     stop(&mut stream);
     stop(&mut listener);
     Ok(())
+}
+
+/// Associates a listing with its requesting panel.
+fn listing_ticket(app: &App, side: Side) -> Option<(Side, ListingTicket)> {
+    app.listing_ticket(side).map(|ticket| (side, ticket))
+}
+
+/// Keeps the request identity with a listing reply until the interface handles it.
+fn reply_event(reply: Reply, ticket: Option<(Side, ListingTicket)>) -> Event {
+    match ticket {
+        Some((side, ticket)) => Event::ListingReply {
+            side,
+            ticket,
+            reply,
+        },
+        None => Event::Replied(reply),
+    }
 }
 
 /// Stops the listener, if one is waiting.

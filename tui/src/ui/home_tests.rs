@@ -3206,6 +3206,142 @@ mod interface {
         ));
     }
 
+    /// A slow listing blocks its panel, ages on ticks, and discards cancelled replies even after retrying the same path.
+    #[test]
+    fn blocks_and_cancels_a_slow_listing() {
+        use std::time::Instant;
+
+        use crate::ui::explorer::{Entry, Kind};
+        use crate::ui::mouse::MouseKind;
+
+        let mut app = App::new(kept("https://files.example.com"));
+        app.handle(Event::Replied(Reply::Workspaces(Ok(vec![workspace(
+            1, "Personal", "personal",
+        )]))));
+        app.handle(Event::Replied(Reply::Tree {
+            workspace: id(1),
+            outcome: Ok((Vec::new(), vec![site(22, "home-nas", None, false)])),
+        }));
+        app.handle(press(KeyCode::Enter));
+        let entry = |name: &str, kind| Entry {
+            name: name.to_owned(),
+            kind,
+            size: 1,
+            modified: None,
+        };
+        for (side, path, entries) in [
+            (Side::Left, "/local", vec![entry("local.txt", Kind::File)]),
+            (
+                Side::Right,
+                "/",
+                vec![entry("docs", Kind::Folder), entry("remote.txt", Kind::File)],
+            ),
+        ] {
+            app.handle(Event::Replied(Reply::Homed {
+                side,
+                outcome: Ok(path.to_owned()),
+            }));
+            app.handle(Event::Replied(Reply::Listed {
+                side,
+                path: path.to_owned(),
+                outcome: Ok(entries),
+            }));
+        }
+        assert_eq!(home(&app).focus(), Focus::Right);
+        app.handle(press(KeyCode::Enter));
+        let side = Side::Right;
+        let cancelled = app.listing_ticket(side).expect("pending listing");
+        let first = text(&app);
+        assert!(first.contains("⠋ Loading /docs…") && !first.contains("Esc to cancel"));
+        app.handle(Event::Tick);
+        assert!(text(&app).contains("⠙ Loading /docs…"));
+        for _ in 1..24 {
+            app.handle(Event::Tick);
+        }
+        assert!(!text(&app).contains("Esc to cancel"));
+        app.handle(Event::Tick);
+        assert!(text(&app).contains("Esc to cancel"));
+        for _ in 0..10 {
+            app.handle(Event::Tick);
+        }
+        assert!(text(&app).contains("⠴ Loading /docs…"));
+
+        for code in [KeyCode::Down, KeyCode::Enter, KeyCode::F(5), KeyCode::F(9)] {
+            nothing(&app.handle(press(code)), "");
+        }
+        nothing(&app.handle(Event::Key(ctrl('c'))), "");
+        nothing(&app.handle(Event::Paste("ignored".to_owned())), "");
+        let remote = pointer(&text(&app), "remote.txt");
+        let at = Instant::now();
+        for kind in [
+            MouseKind::Left,
+            MouseKind::Left,
+            MouseKind::Right,
+            MouseKind::Down,
+        ] {
+            nothing(
+                &app.handle(Event::Mouse {
+                    kind,
+                    column: remote.x,
+                    row: remote.y,
+                    at,
+                }),
+                "",
+            );
+        }
+        assert!(home(&app).overlay().is_none());
+        assert_eq!(home(&app).panel(side).selection()[0].name, "docs");
+
+        nothing(&app.handle(press(KeyCode::BackTab)), "");
+        assert_eq!(home(&app).focus(), Focus::Left);
+        nothing(&app.handle(press(KeyCode::Down)), "");
+        assert_eq!(
+            home(&app).panel(Side::Left).selection()[0].name,
+            "local.txt"
+        );
+        nothing(&app.handle(press(KeyCode::Tab)), "");
+        assert_eq!(home(&app).focus(), Focus::Right);
+        assert!(text(&app).contains("Esc to cancel"));
+
+        let reply = |ticket, outcome| Event::ListingReply {
+            side,
+            ticket,
+            reply: Reply::Listed {
+                side,
+                path: "/docs".to_owned(),
+                outcome,
+            },
+        };
+        nothing(&app.handle(press(KeyCode::Esc)), "");
+        let restored = text(&app);
+        assert!(restored.contains("remote.txt") && !restored.contains("Loading /docs…"));
+        assert_eq!(home(&app).panel(side).path(), "/");
+        nothing(&app.handle(reply(cancelled.clone(), Ok(vec![]))), "");
+        assert_eq!(home(&app).panel(side).path(), "/");
+
+        app.handle(press(KeyCode::Enter));
+        let current = app.listing_ticket(side).expect("new listing");
+        assert!(text(&app).contains("⠋ Loading /docs…"));
+        nothing(
+            &app.handle(reply(cancelled, Err(refused("vault_locked")))),
+            "",
+        );
+        assert!(home(&app).overlay().is_none());
+        assert!(text(&app).contains("Loading /docs…"));
+        nothing(
+            &app.handle(reply(
+                current.clone(),
+                Ok(vec![entry("arrived.txt", Kind::File)]),
+            )),
+            "",
+        );
+        assert!(text(&app).contains("arrived.txt"));
+        assert_eq!(home(&app).panel(side).path(), "/docs");
+
+        assert_eq!(run(&mut app, "server"), vec![Effect::StopStream]);
+        nothing(&app.handle(reply(current, Ok(vec![]))), "");
+    }
+
     /// A kept session opens the main screen and loads it; its replies change it and its asks become effects.
     #[test]
     fn drives_the_main_screen() {

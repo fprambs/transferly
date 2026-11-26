@@ -354,6 +354,8 @@
     "transfers": "ver las transferencias"
   },
   "explorer": {
+    "loadingPath": "Cargando {path}…",
+    "cancelLoading": "Esc para cancelar",
     "empty": "Panel vacío",
     "choose": "Elige un sitio a la izquierda (Enter) para conectarte",
     "nothing": "Esta carpeta está vacía.",

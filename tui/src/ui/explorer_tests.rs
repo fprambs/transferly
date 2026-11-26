@@ -87,6 +87,43 @@ fn draw(panel: &Panel, width: u16, height: u16) -> String {
         .collect()
 }
 
+/// The listing dims the retained rows and shows its translated path and hint with colors disabled.
+#[test]
+fn draws_listing_with_no_color() {
+    use ratatui::style::Modifier;
+
+    let mut panel = site_panel();
+    panel.key(key(KeyCode::Char('r')));
+    for _ in 0..25 {
+        panel.tick();
+    }
+    let look = Look::new(
+        Language::Spanish,
+        DEFAULT_THEME,
+        ColorMode::Plain,
+        Settings::default(),
+    );
+    let mut terminal = Terminal::new(TestBackend::new(80, 15)).expect("backend");
+    terminal
+        .draw(|frame| panel.render(frame, frame.area(), &look, true, &TimeZone::UTC))
+        .expect("draw");
+    let buffer = terminal.backend().buffer();
+    assert!(buffer[(3, 2)].modifier.contains(Modifier::DIM));
+    assert_eq!(buffer[(3, 2)].symbol(), "B");
+    let text = buffer
+        .content()
+        .iter()
+        .map(ratatui::buffer::Cell::symbol)
+        .collect::<String>();
+    assert!(text.contains("Cargando /upload…"));
+    assert!(text.contains("Esc para cancelar"));
+    let row = 6;
+    let spinner = (0..80)
+        .find(|column| buffer[(*column, row)].symbol() == "⠴")
+        .expect("spinner inside the panel");
+    assert!(!buffer[(spinner, row)].modifier.contains(Modifier::DIM));
+}
+
 /// Control characters are visible in the explorer, while activation and paths use the original name.
 #[test]
 fn draws_control_characters_in_filenames() {
@@ -232,6 +269,7 @@ fn moves_through_folders() {
         panel.key(key(KeyCode::Char('h'))),
         vec![PanelAsk::Op(Op::List("/".to_owned()))]
     );
+    panel.key(key(KeyCode::Esc));
     panel.key(key(KeyCode::PageDown));
     panel.key(key(KeyCode::PageUp));
     panel.key(key(KeyCode::End));
@@ -241,7 +279,7 @@ fn moves_through_folders() {
         panel.key(key(KeyCode::Char('r'))),
         vec![PanelAsk::Op(Op::List("/upload".to_owned()))]
     );
-    assert!(draw(&panel, 80, 14).contains("Loading…"));
+    assert!(draw(&panel, 80, 14).contains("Loading /upload…"));
 }
 
 /// The local disk joins and goes up with the paths of the system; its home folder may fail to be found.

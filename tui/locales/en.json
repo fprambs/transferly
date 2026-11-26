@@ -354,6 +354,8 @@
     "transfers": "show the transfers"
   },
   "explorer": {
+    "loadingPath": "Loading {path}…",
+    "cancelLoading": "Esc to cancel",
     "empty": "Empty panel",
     "choose": "Choose a site on the left (Enter) to connect",
     "nothing": "This folder is empty.",

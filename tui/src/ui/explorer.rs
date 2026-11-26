@@ -4,17 +4,19 @@
 //! returns what to do with the files, which the main screen sends to the disk or to the server.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Position, Rect};
-use ratatui::style::{Modifier, Stylize};
+use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use uuid::Uuid;
 
+use super::app::SPINNER;
 use super::bars::Bar;
 use super::input::Input;
 use super::look::Look;
@@ -23,6 +25,9 @@ use super::widgets::{centered, error_line, field, highlight, panel, popup, visib
 
 /// How many rows Page Up and Page Down move.
 const PAGE: usize = 10;
+
+/// At 120 ms per tick, the cancellation hint appears after about three seconds.
+const CANCEL_AFTER: usize = 25;
 
 /// What a panel shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,6 +148,26 @@ enum Row<'a> {
     Entry(&'a Entry),
 }
 
+/// Identifies one listing, including when the same path is requested again.
+#[derive(Debug, Clone)]
+pub struct ListingTicket(Arc<()>);
+
+impl PartialEq for ListingTicket {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for ListingTicket {}
+
+/// A folder being listed and the time its loading box has been visible.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Pending {
+    path: String,
+    ticks: usize,
+    ticket: ListingTicket,
+}
+
 /// A panel of the explorer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(
@@ -152,7 +177,7 @@ enum Row<'a> {
 pub struct Panel {
     source: Option<Source>,
     path: String,
-    pending: Option<String>,
+    pending: Option<Pending>,
     select: Option<String>,
     entries: Vec<Entry>,
     cursor: usize,
@@ -207,7 +232,27 @@ impl Panel {
     /// Whether a form, a confirmation or the filter takes the keys.
     #[must_use]
     pub fn captures(&self) -> bool {
-        self.form.is_some() || self.confirm.is_some() || self.filtering
+        !self.listing() && (self.form.is_some() || self.confirm.is_some() || self.filtering)
+    }
+
+    /// Whether a folder listing is pending.
+    pub(super) fn listing(&self) -> bool {
+        self.pending.is_some()
+    }
+
+    /// The identity of the pending listing, for matching its reply.
+    pub(super) fn listing_ticket(&self) -> Option<ListingTicket> {
+        self.pending.as_ref().map(|pending| pending.ticket.clone())
+    }
+
+    /// Advances the spinner and the delay before showing the cancellation hint.
+    pub(super) fn tick(&mut self) {
+        if let Some(pending) = &mut self.pending {
+            pending.ticks += 1;
+            if pending.ticks == CANCEL_AFTER + SPINNER.len() {
+                pending.ticks = CANCEL_AFTER;
+            }
+        }
     }
 
     /// Clears the marks.
@@ -259,7 +304,11 @@ impl Panel {
 
     /// Lists a folder, keeping the current one in view until it arrives.
     fn go(&mut self, path: String) -> Vec<PanelAsk> {
-        self.pending = Some(path.clone());
+        self.pending = Some(Pending {
+            path: path.clone(),
+            ticks: 0,
+            ticket: ListingTicket(Arc::new(())),
+        });
         self.loading = true;
         self.error = None;
         vec![PanelAsk::Op(Op::List(path))]
@@ -279,7 +328,7 @@ impl Panel {
 
     /// A folder was listed, or why not; an answer for a folder no longer asked for is dropped.
     pub fn listed(&mut self, path: &str, outcome: Result<Vec<Entry>, String>) {
-        if self.pending.as_deref() != Some(path) {
+        if self.pending.as_ref().map(|pending| pending.path.as_str()) != Some(path) {
             return;
         }
         self.pending = None;
@@ -428,6 +477,23 @@ impl Panel {
 
     /// Handles a pressed key.
     pub fn key(&mut self, key: KeyEvent) -> Vec<PanelAsk> {
+        if self.listing() {
+            if key.code == KeyCode::Char('d')
+                && key.modifiers.contains(KeyModifiers::CONTROL)
+                && !self.local()
+            {
+                self.pending = None;
+                self.select = None;
+                self.loading = false;
+                return vec![PanelAsk::Op(Op::Disconnect)];
+            }
+            if key.code == KeyCode::Esc {
+                self.pending = None;
+                self.select = None;
+                self.loading = false;
+            }
+            return Vec::new();
+        }
         if let Some(form) = self.form.take() {
             return self.form_key(key, form);
         }
@@ -457,6 +523,9 @@ impl Panel {
 
     /// Puts pasted text into the field of a form, or into the filter being typed.
     pub fn paste(&mut self, text: &str) {
+        if self.listing() {
+            return;
+        }
         match &mut self.form {
             Some(Form::Mkdir(input) | Form::Rename { input, .. } | Form::Goto(input)) => {
                 input.insert(text);
@@ -615,7 +684,7 @@ impl Panel {
         }
     }
 
-    /// Draws the panel: the source as its title, the folder at the bottom, the rows, and over them a form or a confirmation.
+    /// Draws the source, path, and rows, with a loading box, form, or confirmation when active.
     pub fn render(
         &self,
         frame: &mut Frame,
@@ -657,12 +726,37 @@ impl Panel {
         if let Some(line) = status {
             frame.render_widget(Paragraph::new(line), status_area);
         }
+        if let Some(pending) = &self.pending {
+            Self::render_loading(frame, inside, look, pending);
+            return;
+        }
         if let Some(form) = &self.form {
             render_form(frame, area, form, look);
         }
         if let Some(paths) = &self.confirm {
             render_confirm(frame, area, paths, look);
         }
+    }
+
+    /// Draws the progress box above the dimmed file list.
+    fn render_loading(frame: &mut Frame, area: Rect, look: &Look, pending: &Pending) {
+        let path = visible_name(&pending.path);
+        let message = look
+            .messages
+            .fill("explorer.loadingPath", &[("path", &path)]);
+        let spinner = SPINNER[pending.ticks % SPINNER.len()];
+        let line = Line::from(format!("{spinner} {message}")).bold().centered();
+        let hint = look.messages.get("explorer.cancelLoading");
+        let width = line.width().max(Line::from(hint.as_str()).width()) + 4;
+        let hint = if pending.ticks >= CANCEL_AFTER {
+            hint.as_str()
+        } else {
+            ""
+        };
+        let width = u16::try_from(width).unwrap_or(u16::MAX).min(60);
+        let area = centered(area, width, 5);
+        let inside = popup(frame, area, "", hint, &look.palette);
+        frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inside);
     }
 
     /// The title of this panel, also used to name it as a copy destination.
@@ -741,15 +835,15 @@ impl Panel {
 
     /// The file rows and the optional status line below them.
     fn rows_layout(&self, inside: Rect) -> [Rect; 2] {
-        let status = self.error.is_some()
-            || self.filtering
-            || !self.filter.value().is_empty()
-            || self.loading;
+        let status = self.error.is_some() || self.filtering || !self.filter.value().is_empty();
         Layout::vertical([Constraint::Fill(1), Constraint::Length(u16::from(status))]).areas(inside)
     }
 
     /// Selects the visible file row under the pointer within this panel.
     pub(super) fn select_at(&mut self, area: Rect, position: Position, look: &Look) -> bool {
+        if self.listing() {
+            return false;
+        }
         let inside = panel("", false, &look.palette).inner(area);
         let [rows, _] = self.rows_layout(inside);
         if let Some(index) = row(
@@ -780,7 +874,7 @@ impl Panel {
         )
     }
 
-    /// The line under the rows: the filter being typed or kept, what went wrong, or that the folder is being listed.
+    /// The line under the rows: the filter being typed or kept, or what went wrong.
     fn status_line(&self, look: &Look) -> Option<Line<'static>> {
         let (m, palette) = (&look.messages, &look.palette);
         if let Some(reason) = &self.error {
@@ -793,9 +887,6 @@ impl Panel {
                 Span::raw(format!(" {}{cursor}", self.filter.value())),
             ]));
         }
-        if self.loading {
-            return Some(Line::from(m.get("main.loading")).fg(palette.muted));
-        }
         None
     }
 
@@ -803,13 +894,21 @@ impl Panel {
     fn render_rows(&self, frame: &mut Frame, area: Rect, look: &Look, zone: &TimeZone) {
         let palette = &look.palette;
         let rows = self.rows();
+        let style = if self.listing() {
+            Style::new().add_modifier(Modifier::DIM)
+        } else {
+            Style::new()
+        };
         if rows.is_empty() {
-            let text = look.messages.get(if self.loading {
+            let text = look.messages.get(if self.loading && !self.listing() {
                 "main.loading"
             } else {
                 "explorer.nothing"
             });
-            frame.render_widget(Paragraph::new(Line::from(text).fg(palette.muted)), area);
+            frame.render_widget(
+                Paragraph::new(Line::from(text).fg(palette.muted)).style(style),
+                area,
+            );
             return;
         }
         let height = usize::from(area.height.max(1));
@@ -869,7 +968,7 @@ impl Panel {
                 }
             })
             .collect();
-        frame.render_widget(Paragraph::new(lines), area);
+        frame.render_widget(Paragraph::new(lines).style(style), area);
     }
 }
 

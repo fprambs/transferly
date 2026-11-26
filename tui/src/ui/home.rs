@@ -687,6 +687,12 @@ impl Home {
         &mut self.queue
     }
 
+    /// Advances listing animations on both panels.
+    pub(super) fn tick(&mut self) {
+        self.left.tick();
+        self.right.tick();
+    }
+
     /// The panel with the focus.
     #[must_use]
     pub fn focus(&self) -> Focus {
@@ -1121,6 +1127,12 @@ impl Home {
         if self.site_view.is_some() {
             return self.site_view_key(key, look);
         }
+        if let Some(side) = self.focused_listing()
+            && !matches!(key.code, KeyCode::Tab | KeyCode::BackTab)
+        {
+            self.panel_mut(side).key(key);
+            return Vec::new();
+        }
         if let Some(side) = self
             .focused_side()
             .filter(|side| self.panel(*side).captures())
@@ -1201,6 +1213,13 @@ impl Home {
             Focus::Right => Some(Side::Right),
             Focus::Sites | Focus::Bottom => None,
         }
+    }
+
+    /// The focused explorer panel if its listing is taking input.
+    pub(super) fn focused_listing(&self) -> Option<Side> {
+        self.focused_side().filter(|side| {
+            self.overlay.is_none() && self.site_view.is_none() && self.panel(*side).listing()
+        })
     }
 
     /// Moves the focus to the next or previous panel: the sites, when shown, then the left and the right panel.

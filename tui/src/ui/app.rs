@@ -12,7 +12,8 @@ use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
 use url::Url;
 
-use super::home::{Ask, CallError, Home, Reply, Session, explain};
+use super::explorer::ListingTicket;
+use super::home::{Ask, CallError, Home, Reply, Session, Side, explain};
 use super::input::Input;
 use super::look::Look;
 use super::mouse::MouseKind;
@@ -23,7 +24,7 @@ use crate::i18n::{Language, Messages};
 use crate::login::{Answer, Pkce};
 
 /// Frames of the spinner that shows something is waiting.
-const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+pub(super) const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 /// Why signing in failed, as the runtime reports it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +89,15 @@ pub enum Event {
     },
     /// The server answered a call.
     Replied(Reply),
+    /// A folder listing ended, with the ticket of the request that started it.
+    ListingReply {
+        /// The panel that requested the listing.
+        side: Side,
+        /// The identity of that listing.
+        ticket: ListingTicket,
+        /// The result to give the panel if it is still waiting.
+        reply: Reply,
+    },
     /// Signing out ended, or why it failed.
     LoggedOut(Result<(), CallError>),
     /// The settings of this computer were kept, or why not.
@@ -344,6 +354,14 @@ impl App {
         &self.screen
     }
 
+    /// The ticket to attach to a listing reply from this panel.
+    pub(super) fn listing_ticket(&self, side: Side) -> Option<ListingTicket> {
+        match &self.screen {
+            Screen::Main(home) => home.panel(side).listing_ticket(),
+            _ => None,
+        }
+    }
+
     /// The messages in the language shown.
     #[must_use]
     pub fn messages(&self) -> &Messages {
@@ -450,7 +468,11 @@ impl App {
             Event::Key(key) if key.kind != KeyEventKind::Press => Vec::new(),
             Event::Key(key)
                 if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && key.code == KeyCode::Char('c') =>
+                    && key.code == KeyCode::Char('c')
+                    && !matches!(
+                        &self.screen,
+                        Screen::Main(home) if home.focused_listing().is_some()
+                    ) =>
             {
                 vec![Effect::StopListening, Effect::Quit]
             }
@@ -461,6 +483,9 @@ impl App {
             }
             Event::Tick => {
                 self.spinner = (self.spinner + 1) % SPINNER.len();
+                if let Screen::Main(home) = &mut self.screen {
+                    home.tick();
+                }
                 Vec::new()
             }
             Event::Probed(outcome) => self.probed(outcome.is_ok()),
@@ -492,7 +517,12 @@ impl App {
                 self.look.wear(&theme);
                 self.enter(&server, &email, token)
             }
-            Event::Replied(reply) => match &mut self.screen {
+            Event::ListingReply { side, ticket, .. }
+                if self.listing_ticket(side).as_ref() != Some(&ticket) =>
+            {
+                Vec::new()
+            }
+            Event::Replied(reply) | Event::ListingReply { reply, .. } => match &mut self.screen {
                 Screen::Main(home) => {
                     let session = home.session().clone();
                     let asks = home.reply(reply, &mut self.look);
