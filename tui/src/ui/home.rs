@@ -1966,13 +1966,11 @@ impl Home {
                 self.render_bottom(frame, log_area, look, &zone);
             }
             self.render_feedback(frame, feedback, look);
-            if !matches!(self.overlay, Some(Overlay::Commands { .. })) {
-                self.shortcut_bar(keys, look).render(frame, keys, look);
-            }
+            self.shortcut_bar(keys, look).render(frame, keys, look);
         }
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
-                Self::render_commands(frame, keys, input, *selected, look);
+                Self::render_commands(frame, input, *selected, look);
             }
             Some(Overlay::Settings { selected }) => {
                 self.render_settings(frame, *selected, look);
@@ -2222,30 +2220,23 @@ impl Home {
     }
 
     /// The command line in place of the shortcuts, with the matching commands above it.
-    fn render_commands(frame: &mut Frame, area: Rect, input: &Input, selected: usize, look: &Look) {
+    fn render_commands(frame: &mut Frame, input: &Input, selected: usize, look: &Look) {
         let (m, palette) = (&look.messages, &look.palette);
-        let line = Line::from(vec![
-            Span::raw("/").fg(palette.accent).bold(),
-            Span::raw(input.value().to_owned()),
-        ]);
-        frame.render_widget(
-            Paragraph::new(line).style(Style::new().bg(palette.surface)),
-            area,
-        );
-        let column = u16::try_from(input.cursor() + 1).unwrap_or(u16::MAX);
-        frame.set_cursor_position((area.x.saturating_add(column), area.y));
         let matches = Self::matches(input);
-        if matches.is_empty() {
-            return;
-        }
-        let list = commands_area(area, matches.len());
         let inside = popup(
             frame,
-            list,
+            commands_area(frame.area(), matches.len()),
             &m.get("commands.title"),
             &m.get("commands.hint"),
             palette,
         );
+        let line = Line::from(vec![
+            Span::raw("/").fg(palette.accent).bold(),
+            Span::raw(input.value().to_owned()),
+        ]);
+        frame.render_widget(Paragraph::new(line), inside);
+        let column = u16::try_from(input.cursor() + 1).unwrap_or(u16::MAX);
+        frame.set_cursor_position((inside.x.saturating_add(column), inside.y));
         let lines: Vec<Line> = matches
             .iter()
             .enumerate()
@@ -2261,7 +2252,7 @@ impl Home {
                 }
             })
             .collect();
-        frame.render_widget(Paragraph::new(lines), inside);
+        frame.render_widget(Paragraph::new(lines), commands_list(inside));
     }
 
     /// The settings with their values and where each lives.
@@ -2770,14 +2761,19 @@ fn settings_area(area: Rect) -> Rect {
     centered(area, 78, u16::try_from(SETTINGS.len()).unwrap_or(0) + 6)
 }
 
-/// The matching commands above the command line.
-fn commands_area(keys: Rect, count: usize) -> Rect {
-    let height = u16::try_from(count).unwrap_or(u16::MAX).saturating_add(2);
+/// The popup of commands in the middle of the screen: the line being typed, a blank line and the matching commands.
+fn commands_area(screen: Rect, count: usize) -> Rect {
+    let height = u16::try_from(count).unwrap_or(u16::MAX).saturating_add(4);
+    centered(screen, 66, height)
+}
+
+/// The rows of the commands under the line being typed and a blank line.
+fn commands_list(inside: Rect) -> Rect {
     Rect::new(
-        keys.x,
-        keys.y.saturating_sub(height),
-        66.min(keys.width),
-        height,
+        inside.x,
+        inside.y.saturating_add(2),
+        inside.width,
+        inside.height.saturating_sub(2),
     )
 }
 

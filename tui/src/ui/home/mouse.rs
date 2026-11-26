@@ -4,7 +4,7 @@ use ratatui::layout::Position;
 
 use super::{
     Ask, Focus, Home, KeyCode, Look, Overlay, Rect, SETTINGS, Side, Tab, choices_area,
-    commands_area, host_key_area, panel, settings_area,
+    commands_area, commands_list, host_key_area, panel, settings_area,
 };
 use crate::ui::mouse::{MouseKind, first_row, footer_key, key, row};
 use crate::ui::widgets::popup_inside;
@@ -36,7 +36,7 @@ impl Home {
                 return (Vec::new(), false);
             }
             return (
-                self.overlay_mouse(area, keys, position, kind, overlay.clone(), look),
+                self.overlay_mouse(area, position, kind, overlay.clone(), look),
                 false,
             );
         }
@@ -155,7 +155,6 @@ impl Home {
     fn overlay_mouse(
         &mut self,
         area: Rect,
-        keys: Rect,
         position: Position,
         kind: MouseKind,
         overlay: Overlay,
@@ -179,7 +178,8 @@ impl Home {
         let action = match overlay {
             Overlay::Commands { input, .. } => {
                 let matches = Self::matches(&input);
-                if let Some(index) = hit(commands_area(keys, matches.len()), 0, matches.len()) {
+                let inside = popup_inside(commands_area(area, matches.len()), &look.palette);
+                if let Some(index) = row(commands_list(inside), position, 0, matches.len()) {
                     self.overlay = None;
                     return self.commands_key(key(KeyCode::Enter), input, index, look);
                 }
