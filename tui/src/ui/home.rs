@@ -15,6 +15,7 @@ use transferly_client::models::{Collection, Site, User, VaultStatus, Workspace, 
 use url::Url;
 use uuid::Uuid;
 
+use super::bars::{Bar, explorer_areas};
 use super::explorer::{Entry, Op, Panel, PanelAsk, Source};
 use super::input::Input;
 use super::look::Look;
@@ -663,7 +664,7 @@ impl Home {
         self.focus
     }
 
-    /// Says something on the status bar.
+    /// Shows feedback above the shortcuts.
     pub fn say(&mut self, text: String, error: bool) {
         self.notice = Some(Notice { text, error });
     }
@@ -1125,6 +1126,10 @@ impl Home {
                     (Focus::Bottom, _) => self.bottom_key(key),
                     (_, Some(side)) if matches!(key.code, KeyCode::F(5) | KeyCode::Char('c')) => {
                         self.ask_copy(side, look);
+                        Vec::new()
+                    }
+                    (_, Some(_)) if matches!(key.code, KeyCode::F(3 | 4 | 9)) => {
+                        self.say(look.messages.get("main.comingSoon"), false);
                         Vec::new()
                     }
                     (_, Some(side)) => self.explorer_key(side, key, look),
@@ -1857,11 +1862,14 @@ impl Home {
         (minor(server)? != minor(VERSION)?).then_some(server)
     }
 
-    /// The top bar, sites, left and right panels, bottom panel and status bar.
-    fn layout(&self, area: Rect) -> [Rect; 6] {
-        let [top, body, status] = Layout::vertical([
+    /// The main screen areas, including the separate feedback, shortcuts and session rows.
+    fn layout(&self, area: Rect) -> [Rect; 8] {
+        let feedback_rows = u16::from(self.notice.is_some() || self.mismatched().is_some());
+        let [top, body, feedback, keys, status] = Layout::vertical([
             Constraint::Length(1),
             Constraint::Fill(1),
+            Constraint::Length(feedback_rows),
+            Constraint::Length(1),
             Constraint::Length(1),
         ])
         .areas(area);
@@ -1870,12 +1878,13 @@ impl Home {
             Layout::vertical([Constraint::Fill(1), Constraint::Length(log_rows)]).areas(body);
         let [sites, left, right] = if area.width >= NARROW {
             let sites_width = if self.sites_shown { SITES_WIDTH } else { 0 };
-            Layout::horizontal([
+            let [sites, left, right] = Layout::horizontal([
                 Constraint::Length(sites_width),
                 Constraint::Fill(1),
                 Constraint::Fill(1),
             ])
-            .areas(body)
+            .areas(body);
+            [explorer_areas(sites)[0], left, right]
         } else {
             match self.focus {
                 Focus::Sites => [body, Rect::ZERO, Rect::ZERO],
@@ -1883,7 +1892,7 @@ impl Home {
                 Focus::Right | Focus::Bottom => [Rect::ZERO, Rect::ZERO, body],
             }
         };
-        [top, sites, left, right, log_area, status]
+        [top, sites, left, right, log_area, feedback, keys, status]
     }
 
     /// Draws the screen.
@@ -1901,23 +1910,29 @@ impl Home {
             frame.render_widget(text, centered(area, area.width, 3));
             return;
         }
-        let [top, sites, left, right, log_area, status] = self.layout(area);
+        let [top, sites, left, right, log_area, feedback, keys, status] = self.layout(area);
         self.render_tabs(frame, top, look);
         let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
         if !sites.is_empty() {
             self.render_sites(frame, sites, look, spinner);
         }
         if !left.is_empty() {
+            let [panel, settings] = explorer_areas(left);
             self.left
-                .render(frame, left, look, self.focus == Focus::Left, &zone);
+                .render(frame, panel, look, self.focus == Focus::Left, &zone);
+            self.left.settings_bar(look).render(frame, settings, look);
         }
         if !right.is_empty() {
+            let [panel, settings] = explorer_areas(right);
             self.right
-                .render(frame, right, look, self.focus == Focus::Right, &zone);
+                .render(frame, panel, look, self.focus == Focus::Right, &zone);
+            self.right.settings_bar(look).render(frame, settings, look);
         }
         if !log_area.is_empty() {
             self.render_bottom(frame, log_area, look, &zone);
         }
+        self.render_feedback(frame, feedback, look);
+        self.shortcut_bar(keys, look).render(frame, keys, look);
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
                 Self::render_commands(frame, status, input, *selected, look);
@@ -2102,57 +2117,89 @@ impl Home {
             spans.push(Span::raw(" · ").fg(palette.faint));
             spans.push(Span::raw(summary).fg(palette.accent_text).bold());
         }
+        spans
+    }
+
+    /// Shows version warnings and action feedback above the shortcuts.
+    fn render_feedback(&self, frame: &mut Frame, area: Rect, look: &Look) {
+        if area.is_empty() {
+            return;
+        }
+        let (m, palette) = (&look.messages, &look.palette);
+        let mut spans = vec![Span::raw(" ")];
         if let Some(server) = self.mismatched() {
-            spans.push(Span::raw(" · ").fg(palette.faint));
             spans.push(
                 Span::raw(m.fill("main.versions", &[("server", server), ("client", VERSION)]))
                     .fg(palette.warn),
             );
         }
         if let Some(notice) = &self.notice {
-            spans.push(Span::raw(" · ").fg(palette.faint));
+            if spans.len() > 1 {
+                spans.push(Span::raw(" · ").fg(palette.faint));
+            }
             spans.push(if notice.error {
                 Span::styled(notice.text.clone(), error_line("", palette).style)
             } else {
                 Span::raw(notice.text.clone()).fg(palette.ok)
             });
         }
-        spans
+        frame.render_widget(Line::from(spans).bg(palette.surface), area);
     }
 
-    /// The status bar's session and key areas, with the keys omitted when space runs out.
-    fn status_layout(&self, area: Rect, look: &Look, used: usize) -> ([Rect; 2], String) {
-        let keys = look.messages.get(match self.focus {
-            Focus::Sites => "main.keysSites",
-            Focus::Left | Focus::Right => "main.keysExplorer",
-            Focus::Bottom => "main.keysQueue",
-        });
-        let room = usize::from(area.width).saturating_sub(used + 2);
-        let keys = if keys.chars().count() <= room {
-            keys
-        } else {
-            String::new()
+    /// The clickable keys of the focused panel, in display order.
+    fn shortcut_bar(&self, area: Rect, look: &Look) -> Bar {
+        let queue_codes = [
+            KeyCode::Char('p'),
+            KeyCode::Char('x'),
+            KeyCode::Char('R'),
+            if self.tab == Tab::Log {
+                KeyCode::Char('[')
+            } else {
+                KeyCode::Char(']')
+            },
+            KeyCode::F(1),
+        ];
+        let (labels, codes): (_, &[_]) = match self.focus {
+            Focus::Sites => (
+                "main.keysSites",
+                &[
+                    KeyCode::Enter,
+                    KeyCode::Char('w'),
+                    KeyCode::Char('/'),
+                    KeyCode::F(1),
+                    KeyCode::Char('q'),
+                ],
+            ),
+            Focus::Left | Focus::Right => (
+                "main.keysExplorer",
+                &[
+                    KeyCode::F(1),
+                    KeyCode::Tab,
+                    KeyCode::Enter,
+                    KeyCode::F(3),
+                    KeyCode::F(4),
+                    KeyCode::F(5),
+                    KeyCode::F(6),
+                    KeyCode::F(7),
+                    KeyCode::F(8),
+                    KeyCode::F(9),
+                    KeyCode::F(10),
+                ],
+            ),
+            Focus::Bottom => ("main.keysQueue", &queue_codes),
         };
-        let areas = Layout::horizontal([
-            Constraint::Fill(1),
-            Constraint::Length(u16::try_from(keys.chars().count() + 1).unwrap_or(u16::MAX)),
-        ])
-        .areas(area);
-        (areas, keys)
+        Bar::shortcuts(
+            &look.messages.get(labels),
+            codes,
+            usize::from(area.width),
+            look,
+        )
     }
 
-    /// The session status and the keys of the focused panel.
+    /// The session status at the bottom of the screen.
     fn render_status(&self, frame: &mut Frame, area: Rect, look: &Look) {
-        let palette = &look.palette;
-        let spans = self.status_spans(look);
-        let used = spans.iter().map(Span::width).sum();
-        let ([left, right], keys) = self.status_layout(area, look, used);
-        let bar = Style::new().bg(palette.surface);
-        frame.render_widget(Paragraph::new(Line::from(spans)).style(bar), left);
-        frame.render_widget(
-            Paragraph::new(Line::from(keys).fg(palette.muted)).style(bar),
-            right,
-        );
+        let line = Line::from(self.status_spans(look)).bg(look.palette.surface);
+        frame.render_widget(line, area);
     }
 
     /// The command line in place of the status bar, with the matching commands above it.
@@ -2402,7 +2449,7 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
             ("Ctrl+A", "help.markAll"),
             ("Esc", "help.clear"),
             ("n  F7", "help.mkdir"),
-            ("F2", "help.rename"),
+            ("F2  F6", "help.rename"),
             ("Delete  F8", "help.delete"),
             ("f  Ctrl+F", "help.filter"),
             (".", "help.hidden"),

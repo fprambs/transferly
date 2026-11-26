@@ -92,7 +92,12 @@ fn shortened(effects: &[Effect], code: &str) -> Event {
 
 /// Draws the interface as it stands.
 fn shot(slug: &'static str, about: &'static str, app: &App) -> Shot {
-    let mut terminal = Terminal::new(TestBackend::new(100, 28)).expect("backend");
+    shot_at(slug, about, app, 100, 28)
+}
+
+/// Draws the interface at the size of the corresponding design.
+fn shot_at(slug: &'static str, about: &'static str, app: &App, width: u16, height: u16) -> Shot {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).expect("backend");
     terminal.draw(|frame| app.render(frame)).expect("draw");
     let palette = app.palette();
     let defaults = html::Defaults { fg: palette.text, bg: palette.bg, muted: if palette.muted == Color::Reset { Color::Reset } else { palette.muted } };
@@ -136,6 +141,17 @@ pub fn shots() -> Vec<Shot> {
         english.handle(key(code));
     }
     shots.push(shot("app-main", "The main screen: the sites of the workspace as a tree, the site opened, and the status bar.", &english));
+
+    english.handle(key(KeyCode::Char('s')));
+    english.handle(key(KeyCode::Char('s')));
+    english.handle(key(KeyCode::Char('S')));
+    shots.push(shot_at(
+        "app-bars",
+        "The explorer settings, clickable shortcuts and session status.",
+        &english,
+        132,
+        34,
+    ));
 
     english.handle(key(KeyCode::Char('/')));
     shots.push(shot("app-commands", "/ opens the command line with the commands that match, as in Claude Code.", &english));

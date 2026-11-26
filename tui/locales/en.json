@@ -59,7 +59,8 @@
     "notSignedOut": "Could not sign out: {reason}",
     "notSaved": "The settings could not be kept: {reason}",
     "keysSites": "Enter open · w workspace · / commands · ? help · q quit",
-    "keysExplorer": "Enter open · Space mark · n folder · F2 rename · Del delete · f filter · o show · ? help",
+    "comingSoon": "Coming soon.",
+    "keysExplorer": "F1 Help · Tab Panel · Enter Open · F3 View · F4 Edit · F5 Copy · F6 Rename · F7 Folder · F8 Delete · F9 Menu · F10 Quit",
     "keysQueue": "p pause · x cancel · R resume · [ ] tabs · ? help"
   },
   "commands": {
@@ -179,6 +180,10 @@
     "empty": "Empty panel",
     "choose": "Press o to show the local disk or a site here.",
     "nothing": "This folder is empty.",
+    "sort": "Sort",
+    "sortDate": "Date",
+    "hidden": "Hidden",
+    "filterLabel": "Filter",
     "filter": "Filter:",
     "mkdirTitle": "New folder",
     "renameTitle": "Rename",

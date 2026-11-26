@@ -59,7 +59,8 @@
     "notSignedOut": "No se pudo cerrar la sesión: {reason}",
     "notSaved": "No se pudieron guardar los ajustes: {reason}",
     "keysSites": "Enter abrir · w workspace · / comandos · ? ayuda · q salir",
-    "keysExplorer": "Enter abrir · Espacio marcar · n carpeta · F2 renombrar · Supr borrar · f filtrar · o mostrar · ? ayuda",
+    "comingSoon": "Próximamente.",
+    "keysExplorer": "F1 Ayuda · Tab Panel · Enter Abrir · F3 Ver · F4 Editar · F5 Copiar · F6 Renombrar · F7 Carpeta · F8 Borrar · F9 Menú · F10 Salir",
     "keysQueue": "p pausar · x cancelar · R reanudar · [ ] pestañas · ? ayuda"
   },
   "commands": {
@@ -179,6 +180,10 @@
     "empty": "Panel vacío",
     "choose": "Pulsa o para mostrar aquí el disco local o un sitio.",
     "nothing": "Esta carpeta está vacía.",
+    "sort": "Orden",
+    "sortDate": "Fecha",
+    "hidden": "Ocultos",
+    "filterLabel": "Filtro",
     "filter": "Filtro:",
     "mkdirTitle": "Nueva carpeta",
     "renameTitle": "Renombrar",

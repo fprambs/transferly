@@ -15,6 +15,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use uuid::Uuid;
 
+use super::bars::Bar;
 use super::input::Input;
 use super::look::Look;
 use super::mouse::{first_row, footer_key, row};
@@ -564,7 +565,7 @@ impl Panel {
             KeyCode::Esc if !self.marks.is_empty() => self.marks.clear(),
             KeyCode::Esc => self.filter = Input::default(),
             KeyCode::F(7) | KeyCode::Char('n') => self.form = Some(Form::Mkdir(Input::default())),
-            KeyCode::F(2) => {
+            KeyCode::F(2 | 6) => {
                 if let Some(entry) = self.current() {
                     self.form = Some(Form::Rename {
                         input: Input::with(&entry.name),
@@ -660,6 +661,49 @@ impl Panel {
         if let Some(paths) = &self.confirm {
             render_confirm(frame, area, paths, look);
         }
+    }
+
+    /// The settings below this panel, with separate targets for the sort field and direction.
+    pub(super) fn settings_bar(&self, look: &Look) -> Bar {
+        let messages = &look.messages;
+        let sort = messages.get(match self.sort {
+            Sort::Name => "explorer.name",
+            Sort::Size => "details.size",
+            Sort::Date => "explorer.sortDate",
+        });
+        let arrow = if self.descending { "↓ " } else { "↑ " };
+        let filter = self.filter.value();
+        let mut bar = Bar::default();
+        bar.push(
+            KeyCode::Char('s'),
+            vec![
+                Span::raw(format!(" {} ", messages.get("explorer.sort"))).fg(look.palette.muted),
+                Bar::chip(format!(" {sort} "), true, look),
+            ],
+        );
+        bar.push(
+            KeyCode::Char('S'),
+            vec![Bar::chip(arrow.to_owned(), true, look)],
+        );
+        bar.setting(
+            '.',
+            &messages.get("explorer.hidden"),
+            &messages.get(if self.hidden {
+                "settings.yes"
+            } else {
+                "settings.no"
+            }),
+            self.hidden,
+            look,
+        );
+        bar.setting(
+            'f',
+            &messages.get("explorer.filterLabel"),
+            if filter.is_empty() { "—" } else { filter },
+            !filter.is_empty() || self.filtering,
+            look,
+        );
+        bar
     }
 
     /// The file rows and the optional status line below them.

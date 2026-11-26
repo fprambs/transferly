@@ -258,7 +258,7 @@ fn targets_visible_panels() {
             )
             .1
     );
-    nothing(&click(&mut home, &mut look, (140, 30), "? help"), "");
+    nothing(&click(&mut home, &mut look, (140, 30), "?  help"), "");
     assert!(matches!(home.overlay(), Some(Overlay::Help { .. })));
     home.mouse(wide, point, MouseKind::Down, false, &mut look);
     home.key(key(KeyCode::Esc), &mut look);
@@ -293,41 +293,180 @@ fn targets_visible_panels() {
     assert_eq!(home.focus(), Focus::Bottom);
 }
 
-/// The explorer shortcut opens its source chooser and the queue shortcut switches between tabs.
+/// The bottom panel shortcut switches between its queue and log tabs.
 #[test]
-fn clicks_explorer_and_queue_shortcuts() {
+fn clicks_queue_shortcuts() {
     let mut look = look();
     let mut home = loaded(&mut look, None);
     let size = (180, 30);
     home.key(key(KeyCode::Tab), &mut look);
-    nothing(&click(&mut home, &mut look, size, "o show"), "");
-    assert!(matches!(
-        home.overlay(),
-        Some(Overlay::Choose {
-            what: Choice::Source(Side::Left),
-            ..
-        })
-    ));
-    home.key(key(KeyCode::Esc), &mut look);
-
     home.key(ctrl('e'), &mut look);
     home.key(key(KeyCode::Tab), &mut look);
     home.key(key(KeyCode::Tab), &mut look);
     assert_eq!(home.focus(), Focus::Bottom);
     assert!(draw(&home, &look, size.0, size.1).contains("[Transfers] Log"));
-    nothing(&click(&mut home, &mut look, size, "[ ] tabs"), "");
+    nothing(&click(&mut home, &mut look, size, "[ ]  tabs"), "");
     assert!(draw(&home, &look, size.0, size.1).contains("Transfers [Log]"));
     nothing(&click(&mut home, &mut look, size, "Nothing yet:"), "");
     assert!(home.queue().current().is_none());
-    nothing(&click(&mut home, &mut look, size, "[ ] tabs"), "");
+    nothing(&click(&mut home, &mut look, size, "[ ]  tabs"), "");
     assert!(draw(&home, &look, size.0, size.1).contains("[Transfers] Log"));
     nothing(&click(&mut home, &mut look, size, "No transfers yet"), "");
     assert!(home.queue().current().is_none());
 }
 
+/// Each explorer shortcut dispatches the same action as its key.
+#[test]
+fn clicks_explorer_shortcuts() {
+    use super::explorer::{Entry, Kind};
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Tab), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/work".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/work".to_owned(),
+            outcome: Ok(vec![Entry {
+                name: "notes.txt".to_owned(),
+                kind: Kind::File,
+                size: 1,
+                modified: None,
+            }]),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::End), &mut look);
+    for (label, code) in [
+        ("F1  Help", KeyCode::F(1)),
+        ("Tab  Panel", KeyCode::Tab),
+        ("Enter  Open", KeyCode::Enter),
+        ("F3  View", KeyCode::F(3)),
+        ("F4  Edit", KeyCode::F(4)),
+        ("F5  Copy", KeyCode::F(5)),
+        ("F6  Rename", KeyCode::F(6)),
+        ("F7  Folder", KeyCode::F(7)),
+        ("F8  Delete", KeyCode::F(8)),
+        ("F9  Menu", KeyCode::F(9)),
+        ("F10  Quit", KeyCode::F(10)),
+    ] {
+        let mut clicked = home.clone();
+        let mut pressed = home.clone();
+        assert_eq!(
+            click(&mut clicked, &mut look, (170, 30), label),
+            pressed.key(key(code), &mut look),
+            "{label}",
+        );
+        assert_eq!(clicked, pressed, "{label}");
+    }
+
+    let narrow = draw(&home, &look, 60, 20);
+    let shortcuts = narrow.lines().nth(18).expect("shortcut row");
+    assert!(shortcuts.ends_with("F4  Edit  "));
+    assert!(!shortcuts.contains("F5"));
+
+    look.speak("es");
+    assert!(draw(&home, &look, 160, 30).contains("F6  Renombrar"));
+    home.reply(Reply::Version(Ok("v99.1.0".to_owned())), &mut look);
+    nothing(&click(&mut home, &mut look, (160, 30), "F9  Menú"), "");
+    let text = draw(&home, &look, 160, 30);
+    assert!(text.lines().nth(27).unwrap().contains(" · Próximamente."));
+    assert_eq!(
+        text.lines().last().unwrap().trim(),
+        format!(
+            "files.example.com · ana@example.com · Personal · {}",
+            look.messages.get("main.vaultOpen")
+        ),
+    );
+}
+
+/// Chips follow their explorer, use the theme and stay readable in plain mode.
+#[test]
+fn clicks_explorer_chips() {
+    use ratatui::style::{Color, Modifier};
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    let size = (132, 30);
+    let initial = draw(&home, &look, size.0, size.1);
+    assert_eq!(
+        initial
+            .matches("Sort  Name ↑  Hidden  no  Filter  —")
+            .count(),
+        2
+    );
+    nothing(&click(&mut home, &mut look, size, "Sort"), "");
+    assert_eq!(home.focus(), Focus::Right);
+    assert!(draw(&home, &look, size.0, size.1).contains("Sort  Size ↑"));
+    nothing(&click(&mut home, &mut look, size, "Size ↑"), "");
+    nothing(&click(&mut home, &mut look, size, "Date ↑"), "");
+    assert_eq!(
+        draw(&home, &look, size.0, size.1).matches("Name ↑").count(),
+        2
+    );
+    nothing(&click(&mut home, &mut look, size, "↑  Hidden"), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Sort  Name ↓"));
+    nothing(&click(&mut home, &mut look, size, "Hidden  no"), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Hidden  yes"));
+
+    let narrow = (80, 20);
+    nothing(&click(&mut home, &mut look, narrow, "Tab  Panel"), "");
+    assert_eq!(home.focus(), Focus::Sites);
+    home.key(key(KeyCode::Tab), &mut look);
+    nothing(&click(&mut home, &mut look, narrow, "Filter  —"), "");
+    home.paste("data");
+    nothing(&click(&mut home, &mut look, narrow, "Enter  Open"), "");
+    assert!(!home.panel(Side::Left).captures());
+    let text = draw(&home, &look, size.0, size.1);
+    assert!(text.contains("Name ↑  Hidden  no  Filter  data"));
+    assert!(text.contains("Name ↓  Hidden  yes  Filter  —"));
+
+    let mut terminal = Terminal::new(TestBackend::new(size.0, size.1)).expect("backend");
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .expect("draw");
+    let buffer = terminal.backend().buffer();
+    let name = pointer(&text, "Name ↓");
+    let hidden = pointer(&text, "no  Filter");
+    let help = pointer(&text, "F1  Help");
+    assert_eq!(buffer[(name.x, name.y)].bg, look.palette.accent);
+    assert_eq!(buffer[(hidden.x, hidden.y)].bg, look.palette.raised);
+    assert_eq!(buffer[(help.x, help.y)].bg, look.palette.accent);
+
+    let plain = Look::new(
+        Language::Spanish,
+        DEFAULT_THEME,
+        ColorMode::Plain,
+        Settings::default(),
+    );
+    let text = draw(&home, &plain, size.0, size.1);
+    assert!(text.contains("Orden  Nombre ↓  Ocultos  sí  Filtro  —"));
+    assert!(text.contains("F1  Ayuda"));
+    terminal
+        .draw(|frame| home.render(frame, &plain, "*"))
+        .expect("draw");
+    let name = pointer(&text, "Nombre ↓");
+    let cell = &terminal.backend().buffer()[(name.x, name.y)];
+    assert_eq!(cell.bg, Color::Reset);
+    assert!(cell.modifier.contains(Modifier::BOLD));
+}
+
 /// Top and status text, panel borders and empty popup rows leave the current selection alone.
 #[test]
 fn ignores_clicks_outside_mouse_targets() {
+    use ratatui::layout::{Position, Rect};
+
+    use super::mouse::MouseKind;
+
     let mut look = look();
     let mut home = loaded(&mut look, None);
     let size = (140, 30);
@@ -336,6 +475,16 @@ fn ignores_clicks_outside_mouse_targets() {
         assert_eq!(home.focus(), Focus::Sites);
         assert!(home.overlay().is_none());
     }
+
+    let (asks, selected) = home.mouse(
+        Rect::new(0, 0, size.0, size.1),
+        Position::new(size.0 - 1, size.1 - 2),
+        MouseKind::Left,
+        false,
+        &mut look,
+    );
+    nothing(&asks, "empty shortcut space");
+    assert!(!selected && home.overlay().is_none());
 
     home.key(key(KeyCode::Char('/')), &mut look);
     let commands = home.overlay().cloned();

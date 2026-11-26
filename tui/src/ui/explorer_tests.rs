@@ -358,7 +358,8 @@ fn creates_renames_and_goes() {
     assert_eq!(panel.key(key(KeyCode::Enter)), Vec::new(), "an empty name");
     assert!(panel.captures(), "the form stays open");
     panel.key(key(KeyCode::Esc));
-    panel.key(key(KeyCode::F(2)));
+    panel.key(key(KeyCode::F(6)));
+    assert!(draw(&panel, 80, 14).contains("Rename"));
     panel.key(key(KeyCode::Char('2')));
     assert_eq!(
         panel.key(key(KeyCode::Enter)),

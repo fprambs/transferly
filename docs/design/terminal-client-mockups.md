@@ -1092,6 +1092,12 @@ The main screen: the sites of the workspace as a tree, the site opened, and the 
 
 ![app-main](screens/app-main.png)
 
+### app-bars
+
+The explorer settings, clickable shortcuts and session status.
+
+![app-bars](screens/app-bars.png)
+
 ### app-commands
 
 / opens the command line with the commands that match, as in Claude Code.

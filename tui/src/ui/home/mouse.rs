@@ -3,10 +3,10 @@
 use ratatui::layout::Position;
 
 use super::{
-    Ask, Focus, Home, KeyCode, Look, Overlay, Rect, SETTINGS, Side, Span, Tab, choices_area,
-    commands_area, host_key_area, panel, settings_area,
+    Ask, Focus, Home, KeyCode, Look, Overlay, Rect, SETTINGS, Side, Tab, choices_area,
+    commands_area, explorer_areas, host_key_area, panel, settings_area,
 };
-use crate::ui::mouse::{MouseKind, first_row, footer_key, key, label_key, row};
+use crate::ui::mouse::{MouseKind, first_row, footer_key, key, row};
 use crate::ui::widgets::popup_inside;
 
 impl Home {
@@ -22,13 +22,22 @@ impl Home {
         if area.width < 60 || area.height < 16 || kind == MouseKind::Right {
             return (Vec::new(), false);
         }
-        let [_, sites, left, right, bottom, status] = self.layout(area);
+        let [_, sites, left, right, bottom, _, keys, status] = self.layout(area);
         if let Some(overlay) = self.overlay.as_ref() {
             return (
                 self.overlay_mouse(area, status, position, kind, overlay.clone(), look),
                 false,
             );
         }
+        if kind == MouseKind::Left && keys.contains(position) {
+            let action = self.shortcut_bar(keys, look).key_at(position.x - keys.x);
+            return (
+                action.map_or_else(Vec::new, |code| self.key(key(code), look)),
+                false,
+            );
+        }
+        let [left, left_settings] = explorer_areas(left);
+        let [right, right_settings] = explorer_areas(right);
         if let Some(side) = self
             .focused_side()
             .filter(|side| self.panel(*side).captures())
@@ -40,8 +49,18 @@ impl Home {
             let asks = action.map_or_else(Vec::new, |key| self.explorer_key(side, key, look));
             return (asks, false);
         }
-        if kind == MouseKind::Left && status.contains(position) {
-            return (self.status_mouse(status, position, look), false);
+        for (target, side) in [(left_settings, Side::Left), (right_settings, Side::Right)] {
+            if kind == MouseKind::Left
+                && target.contains(position)
+                && let Some(code) = self
+                    .panel(side)
+                    .settings_bar(look)
+                    .key_at(position.x - target.x)
+            {
+                self.focus = Self::focus_of(side);
+                self.last = side;
+                return (self.key(key(code), look), false);
+            }
         }
         for (target, focus) in [
             (sites, Focus::Sites),
@@ -54,47 +73,6 @@ impl Home {
             }
         }
         (Vec::new(), false)
-    }
-
-    /// Runs a visible shortcut on the status bar.
-    fn status_mouse(&mut self, area: Rect, position: Position, look: &mut Look) -> Vec<Ask> {
-        let used = self.status_spans(look).iter().map(Span::width).sum();
-        let ([_, keys_area], labels) = self.status_layout(area, look, used);
-        if !keys_area.contains(position) {
-            return Vec::new();
-        }
-        let codes: &[_] = match self.focus {
-            Focus::Sites => &[
-                KeyCode::Enter,
-                KeyCode::Char('w'),
-                KeyCode::Char('/'),
-                KeyCode::F(1),
-                KeyCode::Char('q'),
-            ],
-            Focus::Left | Focus::Right => &[
-                KeyCode::Enter,
-                KeyCode::Char(' '),
-                KeyCode::Char('n'),
-                KeyCode::F(2),
-                KeyCode::Delete,
-                KeyCode::Char('f'),
-                KeyCode::Char('o'),
-                KeyCode::F(1),
-            ],
-            Focus::Bottom => &[
-                KeyCode::Char('p'),
-                KeyCode::Char('x'),
-                KeyCode::Char('R'),
-                if self.tab == Tab::Log {
-                    KeyCode::Char('[')
-                } else {
-                    KeyCode::Char(']')
-                },
-                KeyCode::F(1),
-            ],
-        };
-        label_key(position.x, usize::from(keys_area.x), &labels, codes)
-            .map_or_else(Vec::new, |action| self.key(action, look))
     }
 
     /// Focuses the visible panel and applies a wheel step or selects the pointed row.
