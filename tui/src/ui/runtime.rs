@@ -328,9 +328,20 @@ fn failure(error: ApiError) -> CallError {
 }
 
 /// Makes a call of the main screen in a session.
+#[allow(clippy::too_many_lines, reason = "one arm per call of the main screen")]
 async fn perform(session: &Session, call: Call) -> Reply {
     let api = Api::new(session.server.clone()).with_token(&session.token);
     match call {
+        Call::Connectors => Reply::Connectors(api.connectors().await.map_err(failure)),
+        Call::Site(workspace, action) => Reply::Site(
+            workspace,
+            api.site_action(workspace, &action).await.map_err(failure),
+        ),
+        Call::TrustDraft(workspace, key) => Reply::DraftTrusted(
+            api.trust_key(&workspace.to_string(), &key)
+                .await
+                .map_err(failure),
+        ),
         Call::Me => Reply::Me(api.me().await.map(|me| me.user).map_err(failure)),
         Call::Version => Reply::Version(
             api.version()
@@ -977,6 +988,56 @@ mod tests {
             matches!(reply, Reply::Tree { outcome: Err(CallError { code: Some(ref code), .. }), .. } if code == "http_404"),
             "a tree the server does not have"
         );
+    }
+
+    /// Connector, site and draft-trust requests return the replies the site view waits for.
+    #[tokio::test]
+    async fn performs_site_calls() {
+        let server = MockServer::start().await;
+        let workspace = uuid::Uuid::from_u128(1);
+        let site = uuid::Uuid::from_u128(2);
+        let base = format!("/api/v1/workspaces/{workspace}");
+        for (verb, url, status) in [
+            ("GET", "/api/v1/connectors".to_owned(), 200),
+            ("DELETE", format!("{base}/sites/{site}"), 204),
+            ("POST", format!("{base}/known-hosts"), 201),
+        ] {
+            let response = if status == 200 {
+                ResponseTemplate::new(status).set_body_json(serde_json::json!([]))
+            } else {
+                ResponseTemplate::new(status)
+            };
+            Mock::given(method(verb))
+                .and(path(url))
+                .respond_with(response)
+                .expect(1)
+                .mount(&server)
+                .await;
+        }
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        let key = crate::api::HostKey {
+            host: "example.net".to_owned(),
+            port: 22,
+            key_type: "ssh-ed25519".to_owned(),
+            fingerprint: "SHA256:key".to_owned(),
+            mode: None,
+        };
+        for (call, reply) in [
+            (Call::Connectors, Reply::Connectors(Ok(Vec::new()))),
+            (
+                Call::Site(workspace, crate::api::SiteAction::Delete(site)),
+                Reply::Site(workspace, Ok(())),
+            ),
+            (
+                Call::TrustDraft(workspace, key),
+                Reply::DraftTrusted(Ok(())),
+            ),
+        ] {
+            assert_eq!(perform(&session, call).await, reply);
+        }
     }
 
     /// Signing out forgets the token even when the server already ended the session, keeps another current server, and reports a

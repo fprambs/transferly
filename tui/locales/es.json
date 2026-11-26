@@ -64,6 +64,7 @@
     "keysQueue": "p pausar · x cancelar · R reanudar · [ ] pestañas · ? ayuda"
   },
   "commands": {
+    "sites": "ver y administrar sitios",
     "title": "Comandos",
     "hint": "↑↓ elegir · Tab completar · Enter ejecutar · Esc cerrar",
     "unknown": "No existe el comando /{name}.",
@@ -78,6 +79,179 @@
     "logout": "cerrar la sesión de esta terminal",
     "quit": "cerrar transferly-tui",
     "transfers": "las transferencias, al frente"
+  },
+  "siteView": {
+    "title": "Sitios",
+    "name": "Nombre",
+    "host": "Servidor",
+    "port": "Puerto",
+    "user": "Usuario",
+    "kind": "Tipo",
+    "search": "Buscar: {query}",
+    "keys": "Enter Abrir · N Nuevo · E Editar · D Borrar · C Duplicar · M Mover · / Buscar · Esc Volver",
+    "empty": "No hay sitios que coincidan.",
+    "new": "Nuevo sitio",
+    "edit": "Editar sitio",
+    "delete": "Borrar sitio",
+    "duplicate": "Duplicar sitio",
+    "move": "Mover a una colección",
+    "moveKeys": "Enter mover · Esc cancelar",
+    "deleteNamed": "¿Borrar {site} y sus credenciales guardadas?",
+    "deleteKeys": "Enter borrar · Esc cancelar",
+    "copyName": "Copia de {site}",
+    "root": "Nivel superior",
+    "directory": "Directorio inicial",
+    "collection": "Colección",
+    "color": "Color",
+    "speed": "Límite de velocidad (bytes/s)",
+    "speedError": "Ingresa un número entero no negativo.",
+    "loading": "Cargando los esquemas de los conectores…",
+    "noConnector": "No hay un esquema disponible para este sitio.",
+    "cancel": "Esc cancelar",
+    "formKeys": "Tab siguiente · Ctrl+T probar · Enter guardar · Esc cancelar",
+    "working": "Esperando al servidor…",
+    "connected": "Conexión correcta.",
+    "pasteKey": "Pega el contenido de la clave privada.",
+    "keep": "Guardado en tu bóveda",
+    "oauth": "Conecta la cuenta en la aplicación web.",
+    "jumpKey": "Verifica la clave del servidor en la aplicación web antes de probar este sitio.",
+    "vaultSetup": "Configura tu bóveda en la aplicación web para guardar credenciales.",
+    "reason": {
+      "boolean": "Elige sí o no.",
+      "choice": "Elige una de las opciones.",
+      "connect": "Conecta la cuenta primero.",
+      "host": "Escribe un nombre de host o una dirección, sin esquema, puerto ni ruta.",
+      "length": "Usa como máximo {max} caracteres.",
+      "number": "Escribe un número entero.",
+      "range": "Escribe un número entre {min} y {max}.",
+      "required": "Completa este campo.",
+      "secret": "Este ajuste es un secreto y se envía aparte.",
+      "timezone": "Elige una zona horaria de la lista.",
+      "unknown": "Este ajuste no es parte de este tipo de servidor."
+    },
+    "field": {
+      "access_key_id": "ID de clave de acceso",
+      "account": "Cuenta",
+      "account_email": "Cuenta",
+      "account_key": "Clave de la cuenta",
+      "auth": "Modo de acceso",
+      "bucket": "Bucket",
+      "charset": "Juego de caracteres de los nombres",
+      "connections": "Conexiones simultáneas",
+      "container": "Contenedor",
+      "encryption": "Cifrado",
+      "host": "Servidor",
+      "inexact_sizes": "Los tamaños no coinciden con los bytes",
+      "jump_auth": "Modo de acceso del salto",
+      "jump_host": "Host del salto",
+      "jump_passphrase": "Frase de la clave del salto",
+      "jump_password": "Contraseña del salto",
+      "jump_port": "Puerto del salto",
+      "jump_private_key": "Clave privada del salto",
+      "jump_username": "Usuario del salto",
+      "list_timezone": "Zona horaria del servidor",
+      "passphrase": "Frase de la clave",
+      "password": "Contraseña",
+      "path": "Ruta",
+      "port": "Puerto",
+      "private_key": "Clave privada",
+      "proxy_host": "Host del proxy",
+      "proxy_kind": "Proxy",
+      "proxy_password": "Contraseña del proxy",
+      "proxy_port": "Puerto del proxy",
+      "proxy_username": "Usuario del proxy",
+      "refresh_token": "Cuenta de Google",
+      "region": "Región",
+      "sas_token": "Token SAS",
+      "secret_access_key": "Clave de acceso secreta",
+      "share": "Recurso compartido",
+      "shared_drive": "Unidad compartida",
+      "sudo": "Usar sudo",
+      "sudo_password": "Contraseña de sudo",
+      "sudo_user": "Ejecutar como",
+      "terminal": "Permitir la terminal",
+      "tls": "Usar HTTPS",
+      "username": "Usuario"
+    },
+    "group": {
+      "advanced": "Avanzado",
+      "charset": "Codificación",
+      "proxy": "Proxy",
+      "jump": "Salto SSH"
+    },
+    "choice": {
+      "auth": {
+        "access_key": "Clave de acceso",
+        "account": "Cuenta",
+        "account_key": "Clave de la cuenta",
+        "anonymous": "Anónimo",
+        "ask": "Preguntar la contraseña",
+        "interactive": "Interactivo",
+        "key": "Archivo de clave",
+        "password": "Normal",
+        "sas": "Token SAS"
+      },
+      "charset": {
+        "big5": "Big5 (chino tradicional)",
+        "euc-jp": "EUC-JP (japonés)",
+        "euc-kr": "EUC-KR (coreano)",
+        "gbk": "GBK (chino simplificado)",
+        "iso-8859-1": "ISO-8859-1 (Europa occidental)",
+        "iso-8859-15": "ISO-8859-15 (Europa occidental con euro)",
+        "iso-8859-2": "ISO-8859-2 (Europa central)",
+        "koi8-r": "KOI8-R (cirílico)",
+        "shift_jis": "Shift_JIS (japonés)",
+        "utf-8": "UTF-8",
+        "windows-1250": "Windows-1250 (Europa central)",
+        "windows-1251": "Windows-1251 (cirílico)",
+        "windows-1252": "Windows-1252 (Europa occidental)"
+      },
+      "encryption": {
+        "explicit": "Requiere FTP explícito sobre TLS",
+        "implicit": "Requiere FTP implícito sobre TLS",
+        "optional": "Usar FTP explícito sobre TLS si está disponible",
+        "plain": "Usar sólo FTP plano (inseguro)"
+      },
+      "jump_auth": {
+        "key": "Archivo de clave",
+        "password": "Normal"
+      },
+      "proxy_kind": {
+        "http": "HTTP",
+        "socks5": "SOCKS5"
+      },
+      "tls": {
+        "true": "Sí",
+        "false": "No"
+      },
+      "sudo": {
+        "true": "Sí",
+        "false": "No"
+      },
+      "terminal": {
+        "true": "Sí",
+        "false": "No"
+      },
+      "inexact_sizes": {
+        "true": "Sí",
+        "false": "No"
+      },
+      "path_style": {
+        "true": "Sí",
+        "false": "No"
+      },
+      "color": {
+        "none": "Ninguno",
+        "red": "Rojo",
+        "orange": "Naranja",
+        "yellow": "Amarillo",
+        "green": "Verde",
+        "teal": "Turquesa",
+        "blue": "Azul",
+        "violet": "Violeta",
+        "pink": "Rosa"
+      }
+    }
   },
   "settings": {
     "title": "Ajustes",

@@ -64,6 +64,7 @@
     "keysQueue": "p pause · x cancel · R resume · [ ] tabs · ? help"
   },
   "commands": {
+    "sites": "browse and manage sites",
     "title": "Commands",
     "hint": "↑↓ choose · Tab complete · Enter run · Esc close",
     "unknown": "There is no command /{name}.",
@@ -78,6 +79,179 @@
     "logout": "sign this terminal out",
     "quit": "close transferly-tui",
     "transfers": "the transfers, in front"
+  },
+  "siteView": {
+    "title": "Sites",
+    "name": "Name",
+    "host": "Host",
+    "port": "Port",
+    "user": "User",
+    "kind": "Kind",
+    "search": "Search: {query}",
+    "keys": "Enter Open · N New · E Edit · D Delete · C Duplicate · M Move · / Search · Esc Back",
+    "empty": "No sites match.",
+    "new": "New site",
+    "edit": "Edit site",
+    "delete": "Delete site",
+    "duplicate": "Duplicate site",
+    "move": "Move to a collection",
+    "moveKeys": "Enter move · Esc cancel",
+    "deleteNamed": "Delete {site} and its stored credentials?",
+    "deleteKeys": "Enter delete · Esc cancel",
+    "copyName": "{site} copy",
+    "root": "Top level",
+    "directory": "Start in",
+    "collection": "Collection",
+    "color": "Color",
+    "speed": "Speed limit (bytes/s)",
+    "speedError": "Enter a nonnegative whole number.",
+    "loading": "Loading connector schemas…",
+    "noConnector": "No schema is available for this site.",
+    "cancel": "Esc cancel",
+    "formKeys": "Tab next · Ctrl+T test · Enter save · Esc cancel",
+    "working": "Waiting for the server…",
+    "connected": "Connection succeeded.",
+    "pasteKey": "Paste the contents of the private key.",
+    "keep": "Stored in your vault",
+    "oauth": "Connect the account in the web app.",
+    "jumpKey": "Verify the host key in the web app before testing this site.",
+    "vaultSetup": "Set up your vault in the web app to save credentials.",
+    "reason": {
+      "boolean": "Choose yes or no.",
+      "choice": "Choose one of the options.",
+      "connect": "Connect the account first.",
+      "host": "Enter a host name or address, without scheme, port or path.",
+      "length": "Use at most {max} characters.",
+      "number": "Enter a whole number.",
+      "range": "Enter a number between {min} and {max}.",
+      "required": "Fill in this field.",
+      "secret": "This setting is a secret and is sent apart.",
+      "timezone": "Choose a time zone of the list.",
+      "unknown": "This setting is not part of this kind of server."
+    },
+    "field": {
+      "access_key_id": "Access key ID",
+      "account": "Account",
+      "account_email": "Account",
+      "account_key": "Account key",
+      "auth": "Logon type",
+      "bucket": "Bucket",
+      "charset": "Character set of file names",
+      "connections": "Simultaneous connections",
+      "container": "Container",
+      "encryption": "Encryption",
+      "host": "Host",
+      "inexact_sizes": "Sizes do not match the bytes",
+      "jump_auth": "Jump host logon type",
+      "jump_host": "Jump host",
+      "jump_passphrase": "Jump host key passphrase",
+      "jump_password": "Jump host password",
+      "jump_port": "Jump port",
+      "jump_private_key": "Jump host private key",
+      "jump_username": "Jump username",
+      "list_timezone": "Server time zone",
+      "passphrase": "Key passphrase",
+      "password": "Password",
+      "path": "Path",
+      "port": "Port",
+      "private_key": "Private key",
+      "proxy_host": "Proxy host",
+      "proxy_kind": "Proxy",
+      "proxy_password": "Proxy password",
+      "proxy_port": "Proxy port",
+      "proxy_username": "Proxy username",
+      "refresh_token": "Google account",
+      "region": "Region",
+      "sas_token": "SAS token",
+      "secret_access_key": "Secret access key",
+      "share": "Share",
+      "shared_drive": "Shared drive",
+      "sudo": "Use sudo",
+      "sudo_password": "Sudo password",
+      "sudo_user": "Run as",
+      "terminal": "Allow the terminal",
+      "tls": "Use HTTPS",
+      "username": "Username"
+    },
+    "group": {
+      "advanced": "Advanced",
+      "charset": "Charset",
+      "proxy": "Proxy",
+      "jump": "SSH jump host"
+    },
+    "choice": {
+      "auth": {
+        "access_key": "Access key",
+        "account": "Account",
+        "account_key": "Account key",
+        "anonymous": "Anonymous",
+        "ask": "Ask for password",
+        "interactive": "Interactive",
+        "key": "Key file",
+        "password": "Normal",
+        "sas": "SAS token"
+      },
+      "charset": {
+        "big5": "Big5 (Traditional Chinese)",
+        "euc-jp": "EUC-JP (Japanese)",
+        "euc-kr": "EUC-KR (Korean)",
+        "gbk": "GBK (Simplified Chinese)",
+        "iso-8859-1": "ISO-8859-1 (Western European)",
+        "iso-8859-15": "ISO-8859-15 (Western European with euro)",
+        "iso-8859-2": "ISO-8859-2 (Central European)",
+        "koi8-r": "KOI8-R (Cyrillic)",
+        "shift_jis": "Shift_JIS (Japanese)",
+        "utf-8": "UTF-8",
+        "windows-1250": "Windows-1250 (Central European)",
+        "windows-1251": "Windows-1251 (Cyrillic)",
+        "windows-1252": "Windows-1252 (Western European)"
+      },
+      "encryption": {
+        "explicit": "Require explicit FTP over TLS",
+        "implicit": "Require implicit FTP over TLS",
+        "optional": "Use explicit FTP over TLS if available",
+        "plain": "Only use plain FTP (insecure)"
+      },
+      "jump_auth": {
+        "key": "Key file",
+        "password": "Normal"
+      },
+      "proxy_kind": {
+        "http": "HTTP",
+        "socks5": "SOCKS5"
+      },
+      "tls": {
+        "true": "Yes",
+        "false": "No"
+      },
+      "sudo": {
+        "true": "Yes",
+        "false": "No"
+      },
+      "terminal": {
+        "true": "Yes",
+        "false": "No"
+      },
+      "inexact_sizes": {
+        "true": "Yes",
+        "false": "No"
+      },
+      "path_style": {
+        "true": "Yes",
+        "false": "No"
+      },
+      "color": {
+        "none": "None",
+        "red": "Red",
+        "orange": "Orange",
+        "yellow": "Yellow",
+        "green": "Green",
+        "teal": "Teal",
+        "blue": "Blue",
+        "violet": "Violet",
+        "pink": "Pink"
+      }
+    }
   },
   "settings": {
     "title": "Settings",

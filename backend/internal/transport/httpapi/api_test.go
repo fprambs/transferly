@@ -744,7 +744,7 @@ const unknownProbeHost = "1.1.1.1"
 func (c memConnector) Probe(_ context.Context, _ connections.Key, _ string, s site.Site, secrets map[site.SecretKind][]byte) (remotefs.RemoteFS, error) {
 	switch s.Setting(connectors.FieldHost) {
 	case unknownProbeHost:
-		return nil, &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:draft"}
+		return nil, &remotefs.HostKeyError{Host: unknownProbeHost, Port: 22, Type: "ssh-ed25519", Fingerprint: "SHA256:draft"}
 	case failingProbeHost:
 		return nil, errors.New("boom: internal detail")
 	}

@@ -1104,6 +1104,18 @@ The explorer context menu beside an entry, with each action and its shortcut.
 
 ![app-context-menu](screens/app-context-menu.png)
 
+### app-sites
+
+The site table with collection paths and search.
+
+![app-sites](screens/app-sites.png)
+
+### app-new-site
+
+The new site form drawn from the connector schema.
+
+![app-new-site](screens/app-new-site.png)
+
 ### app-commands
 
 / opens the command line with the commands that match, as in Claude Code.

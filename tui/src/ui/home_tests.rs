@@ -3293,3 +3293,709 @@ mod interface {
         );
     }
 }
+
+/// The real connector schemas, shared with the web form tests.
+fn site_catalog() -> Vec<transferly_client::models::Connector> {
+    serde_json::from_str(include_str!("../../../frontend/src/test/connectors.json"))
+        .expect("connector catalog")
+}
+
+/// The table routes search, navigation, clicking, opening and deletion through the existing explorer and tree.
+#[test]
+fn manages_sites_from_the_table() {
+    use crate::api::SiteAction;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 34);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    let text = draw(&home, &look, size.0, size.1);
+    assert!(text.contains("Sites · Personal (3)"));
+    assert!(text.contains("Clients / Acme / acme-sftp"));
+    assert!(text.contains("home-nas.example.com"));
+    assert!(!text.contains("Last used"));
+
+    click(&mut home, &mut look, size, "Search:");
+    home.paste("BETA-FTP");
+    home.key(key(KeyCode::Enter), &mut look);
+    let text = draw(&home, &look, size.0, size.1);
+    assert!(text.contains("Sites · Personal (1)"));
+    assert!(!text.contains("home-nas"));
+    home.key(key(KeyCode::Char('D')), &mut look);
+    assert!(
+        draw(&home, &look, size.0, size.1).contains("Delete beta-ftp and its stored credentials?")
+    );
+    click(&mut home, &mut look, size, "Esc cancel");
+    assert!(!draw(&home, &look, size.0, size.1).contains("Delete beta-ftp"));
+    home.key(key(KeyCode::Char('D')), &mut look);
+    assert_eq!(
+        click(&mut home, &mut look, size, "Enter delete"),
+        vec![Ask::Call(Call::Site(id(1), SiteAction::Delete(id(21))))],
+    );
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+    assert_eq!(
+        home.reply(Reply::Site(id(1), Ok(())), &mut look),
+        vec![Ask::Call(Call::Tree(id(1)))],
+    );
+    assert!(draw(&home, &look, size.0, size.1).contains("No sites match."));
+    home.key(key(KeyCode::Char('/')), &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    click(&mut home, &mut look, size, "home-nas.example.com");
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::Files { site, side: Side::Right, .. })] if *site == id(22)
+    ));
+
+    command(&mut home, &mut look, "sites");
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::Char('M')), &mut look);
+    click(&mut home, &mut look, size, "Clients / Acme");
+    assert_eq!(
+        click(&mut home, &mut look, size, "Enter move"),
+        vec![Ask::Call(Call::Site(
+            id(1),
+            SiteAction::Move(id(22), serde_json::json!({"collectionId": id(11)}))
+        ))],
+    );
+    home.reply(Reply::Site(id(1), Err(refused("forbidden"))), &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    assert_eq!(home.focus(), Focus::Right);
+}
+
+/// A draft preserves typed secrets across a vault unlock, focuses a refused field and tests again after trusting the host.
+#[test]
+fn fills_tests_and_saves_a_site_draft() {
+    use crate::api::SiteAction;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, false)));
+    let size = (132, 42);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Char('N')), &mut look),
+        vec![Ask::Call(Call::Connectors)]
+    );
+    assert!(draw(&home, &look, size.0, size.1).contains("Loading connector schemas"));
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("New site · SFTP"));
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Fill in this field."));
+    click(&mut home, &mut look, size, " Name ");
+    home.paste("Example");
+    click(&mut home, &mut look, size, " Host ");
+    home.paste("draft.example.net");
+    click(&mut home, &mut look, size, " Username ");
+    home.paste("deploy");
+    click(&mut home, &mut look, size, " Password ");
+    home.paste("test password");
+    assert!(!draw(&home, &look, size.0, size.1).contains("test password"));
+    nothing(&home.key(ctrl('t'), &mut look), "");
+    assert!(matches!(home.overlay(), Some(Overlay::Vault { .. })));
+    home.paste("master password");
+    assert_eq!(
+        home.key(key(KeyCode::Enter), &mut look),
+        vec![Ask::Call(Call::Unlock("master password".to_owned()))]
+    );
+    let test = home.reply(Reply::Unlocked(Ok(())), &mut look);
+    let [Ask::Call(Call::Site(workspace, SiteAction::Test(body)))] = test.as_slice() else {
+        panic!("expected draft test");
+    };
+    assert_eq!(*workspace, id(1));
+    assert_eq!(body["site"]["config"]["port"], "22");
+    assert_eq!(body["site"]["config"]["host"], "draft.example.net");
+    assert!(body["site"]["config"].get("password").is_none());
+    assert_eq!(body["site"]["secrets"]["password"], "test password");
+
+    let mut issue = refused("invalid_config");
+    issue.params.insert("field".to_owned(), "host".into());
+    issue.params.insert("reason".to_owned(), "host".into());
+    home.reply(Reply::Site(id(1), Err(issue)), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("Enter a host name or address"));
+    assert_eq!(home.key(ctrl('t'), &mut look), test);
+    let mut issue = refused("host_key_unknown");
+    issue
+        .params
+        .insert("keyType".to_owned(), "ssh-ed25519".into());
+    issue
+        .params
+        .insert("fingerprint".to_owned(), "SHA256:draft".into());
+    home.reply(Reply::Site(id(1), Err(issue)), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("SHA256:draft"));
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::TrustDraft(workspace, key))] if *workspace == id(1) && key.host == "draft.example.net" && key.port == 22
+    ));
+    assert_eq!(home.reply(Reply::DraftTrusted(Ok(())), &mut look), test);
+    home.reply(Reply::Site(id(1), Ok(())), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("Connection succeeded."));
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::Site(_, SiteAction::Create(body)))] if body["name"] == "Example"
+    ));
+}
+
+/// Editing keeps stored secrets, while a duplicate explicitly refers to its source.
+#[test]
+fn edits_and_duplicates_a_site() {
+    use crate::api::SiteAction;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    assert!(draw(&home, &look, 132, 42).contains("Stored in your vault"));
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::Site(_, SiteAction::Edit(site, body)))]
+            if *site == id(20) && body["name"] == "acme-sftp" && body.get("secrets").is_none()
+    ));
+    home.reply(Reply::Site(id(1), Ok(())), &mut look);
+    home.key(key(KeyCode::Char('C')), &mut look);
+    assert!(draw(&home, &look, 132, 42).contains("Duplicate site · SFTP"));
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::Site(_, SiteAction::Create(body)))] if body["secretsFrom"] == id(20).to_string()
+    ));
+}
+
+/// Connector choices recompute dependent defaults and show the right authentication fields.
+#[test]
+fn site_form_follows_connector_choices() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 42);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('N')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+
+    home.key(key(KeyCode::Left), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("New site · FTP / FTPS"));
+    click(&mut home, &mut look, size, " Encryption ");
+    home.key(key(KeyCode::Right), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("990"));
+    click(&mut home, &mut look, size, " Kind ──");
+    home.key(key(KeyCode::Right), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("New site · SFTP"));
+    click(&mut home, &mut look, size, " Name ");
+    home.paste("Keys");
+    click(&mut home, &mut look, size, " Host ");
+    home.paste("files.example.net");
+    click(&mut home, &mut look, size, " Logon type ");
+    home.key(key(KeyCode::Left), &mut look);
+    let screen = draw(&home, &look, size.0, size.1);
+    assert!(screen.contains("anonymous"));
+    assert!(!screen.contains(" Password "));
+    home.key(key(KeyCode::Left), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.paste("deploy");
+    home.key(key(KeyCode::Tab), &mut look);
+    home.paste("BEGIN KEY\r\nexample line\nEND KEY\n");
+    assert!(draw(&home, &look, size.0, size.1).contains("Paste the contents"));
+    home.key(key(KeyCode::BackTab), &mut look);
+
+    let asks = home.key(ctrl('t'), &mut look);
+    assert!(matches!(
+        asks.as_slice(),
+        [Ask::Call(Call::Site(_, crate::api::SiteAction::Test(body)))]
+            if body["site"]["secrets"]["private_key"] == "BEGIN KEY\nexample line\nEND KEY\n"
+                && body["site"]["config"]["username"] == "deploy"
+    ));
+    home.key(key(KeyCode::Esc), &mut look);
+    home.reply(Reply::Site(id(1), Ok(())), &mut look);
+    assert!(!draw(&home, &look, size.0, size.1).contains("New site · SFTP"));
+    home.key(key(KeyCode::Esc), &mut look);
+    assert_eq!(home.focus(), Focus::Sites);
+}
+
+/// A draft trusts the peer actually reported by the server, even when there is a jump host.
+#[test]
+fn site_test_trusts_the_reported_peer() {
+    use crate::api::TrustMode;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    let draft = home.key(ctrl('t'), &mut look);
+    let mut refused_key = refused("host_key_changed");
+    refused_key.params.extend([
+        ("host".to_owned(), "jump.example.net".into()),
+        ("port".to_owned(), 2222.into()),
+        ("keyType".to_owned(), "ssh-ed25519".into()),
+        ("fingerprint".to_owned(), "SHA256:new".into()),
+        ("trusted".to_owned(), serde_json::json!(["SHA256:old"])),
+    ]);
+    home.reply(Reply::Site(id(1), Err(refused_key.clone())), &mut look);
+    assert!(draw(&home, &look, 132, 42).contains("jump.example.net:2222"));
+    home.key(key(KeyCode::Esc), &mut look);
+    assert_eq!(home.key(ctrl('t'), &mut look), draft);
+    home.reply(Reply::Site(id(1), Err(refused_key)), &mut look);
+    assert!(matches!(
+        home.key(key(KeyCode::Char('a')), &mut look).as_slice(),
+        [Ask::Call(Call::TrustDraft(_, key))]
+            if key.host == "jump.example.net" && key.port == 2222 && key.mode == Some(TrustMode::Add)
+    ));
+    home.reply(Reply::DraftTrusted(Err(refused("forbidden"))), &mut look);
+    assert!(draw(&home, &look, 132, 42).contains("Your role in this workspace"));
+}
+
+/// The server can require vault unlock after the draft has been started.
+#[test]
+fn site_form_handles_an_expired_vault_session() {
+    use crate::api::SiteAction;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('C')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    let save = home.key(key(KeyCode::Enter), &mut look);
+    assert!(matches!(
+        save.as_slice(),
+        [Ask::Call(Call::Site(_, SiteAction::Create(_)))]
+    ));
+    home.reply(Reply::Site(id(1), Err(refused("vault_locked"))), &mut look);
+    assert!(matches!(home.overlay(), Some(Overlay::Vault { .. })));
+    home.key(key(KeyCode::Esc), &mut look);
+    assert!(home.overlay().is_none());
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+    home.paste("vault password");
+    home.key(key(KeyCode::Enter), &mut look);
+    assert_eq!(home.reply(Reply::Unlocked(Ok(())), &mut look), save);
+    assert_eq!(
+        home.reply(Reply::Site(id(1), Ok(())), &mut look),
+        vec![Ask::Call(Call::Tree(id(1)))],
+    );
+    home.key(key(KeyCode::Esc), &mut look);
+    assert_eq!(home.focus(), Focus::Sites);
+}
+
+/// Exercises search input, keyboard and mouse selection, and deletion of an open site.
+#[test]
+fn navigates_the_site_table_and_deletes_an_open_site() {
+    use ratatui::layout::{Position, Rect};
+
+    use super::mouse::MouseKind;
+    use crate::api::SiteAction;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 42);
+    let area = Rect::new(0, 0, size.0, size.1);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    nothing(&click(&mut home, &mut look, size, "/  Search"), "");
+    nothing(&home.key(key(KeyCode::Char('z')), &mut look), "");
+    nothing(&home.key(key(KeyCode::F(1)), &mut look), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Search: z"));
+    home.key(key(KeyCode::Esc), &mut look);
+    for code in [
+        KeyCode::End,
+        KeyCode::Home,
+        KeyCode::Down,
+        KeyCode::Up,
+        KeyCode::F(1),
+    ] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+    assert_eq!(
+        home.mouse(area, Position::new(0, 0), MouseKind::Left, false, &mut look),
+        (Vec::new(), false),
+    );
+
+    let screen = draw(&home, &look, size.0, size.1);
+    let point = pointer(&screen, "home-nas.example.com");
+    nothing(
+        &home.mouse(area, point, MouseKind::Down, false, &mut look).0,
+        "",
+    );
+    assert!(matches!(
+        home.mouse(area, point, MouseKind::Left, true, &mut look).0.as_slice(),
+        [Ask::Call(Call::Files { site, side: Side::Right, .. })] if *site == id(22)
+    ));
+
+    command(&mut home, &mut look, "sites");
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::Char('M')), &mut look);
+    for code in [KeyCode::Down, KeyCode::Up, KeyCode::F(1), KeyCode::Esc] {
+        nothing(&home.key(key(code), &mut look), "");
+    }
+    home.key(key(KeyCode::Char('D')), &mut look);
+    nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
+    assert!(!draw(&home, &look, size.0, size.1).contains("Delete home-nas and"));
+    home.key(key(KeyCode::Char('D')), &mut look);
+    assert_eq!(
+        home.key(key(KeyCode::Char('y')), &mut look),
+        vec![Ask::Call(Call::Site(id(1), SiteAction::Delete(id(22))))],
+    );
+    nothing(&click(&mut home, &mut look, size, "Esc cancel"), "");
+    nothing(&home.reply(Reply::Site(id(2), Ok(())), &mut look), "");
+    assert_eq!(
+        home.reply(Reply::Site(id(1), Ok(())), &mut look),
+        vec![Ask::Call(Call::Tree(id(1)))],
+    );
+    assert!(home.panel(Side::Right).source().is_none());
+    home.key(key(KeyCode::Char('D')), &mut look);
+    home.reply(
+        Reply::Tree {
+            workspace: id(1),
+            outcome: Ok((Vec::new(), Vec::new())),
+        },
+        &mut look,
+    );
+    let screen = draw(&home, &look, size.0, size.1);
+    assert!(screen.contains("No sites match."));
+    assert!(!screen.contains("stored credentials?"));
+}
+
+/// Checks catalog failure, fallback to FTP, and replies after a draft or table was dismissed.
+#[test]
+fn handles_missing_and_delayed_site_catalogs() {
+    use ratatui::layout::Rect;
+
+    use super::mouse::MouseKind;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 50);
+    nothing(
+        &home.reply(Reply::Connectors(Ok(site_catalog())), &mut look),
+        "",
+    );
+    nothing(&home.reply(Reply::Site(id(1), Ok(())), &mut look), "");
+    nothing(&home.reply(Reply::DraftTrusted(Ok(())), &mut look), "");
+    home.key(key(KeyCode::Char('S')), &mut look);
+    nothing(&home.reply(Reply::DraftTrusted(Ok(())), &mut look), "");
+
+    assert_eq!(
+        click(&mut home, &mut look, size, "N  New"),
+        vec![Ask::Call(Call::Connectors)],
+    );
+    let point = pointer(
+        &draw(&home, &look, size.0, size.1),
+        "Loading connector schemas",
+    );
+    let area = Rect::new(0, 0, size.0, size.1);
+    for kind in [MouseKind::Down, MouseKind::Left] {
+        nothing(&home.mouse(area, point, kind, false, &mut look).0, "");
+    }
+    nothing(&home.key(key(KeyCode::Tab), &mut look), "");
+    nothing(
+        &home.reply(Reply::Connectors(Err(refused("forbidden"))), &mut look),
+        "",
+    );
+    assert!(draw(&home, &look, size.0, size.1).contains("refused: forbidden"));
+
+    home.key(key(KeyCode::Char('N')), &mut look);
+    nothing(
+        &home.reply(Reply::Connectors(Err(refused("vault_locked"))), &mut look),
+        "",
+    );
+    assert!(matches!(home.overlay(), Some(Overlay::Vault { .. })));
+    nothing(&home.reply(Reply::Unlocked(Ok(())), &mut look), "");
+
+    home.key(key(KeyCode::Char('N')), &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    let mut catalog = site_catalog();
+    catalog.retain(|connector| connector.r#type == "ftp");
+    home.reply(Reply::Connectors(Ok(catalog)), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("No schema is available"));
+    home.key(key(KeyCode::Char('N')), &mut look);
+    home.key(key(KeyCode::Right), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("New site · FTP / FTPS"));
+    let screen = draw(&home, &look, size.0, 70);
+    assert!(screen.contains("Charset / Character set"));
+    assert!(screen.contains("Proxy / Proxy"));
+}
+
+/// Round-trips saved metadata and validates text, choice input and form footer clicks.
+#[test]
+fn edits_site_metadata_and_validates_the_speed_limit() {
+    use crate::api::SiteAction;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 80);
+    let saved = serde_json::from_value(serde_json::json!({
+        "id": id(20), "collectionId": id(11), "name": "Archive", "connector": "sftp",
+        "config": {"host": "files.example.net"}, "speedLimitBps": 42, "remoteDir": "/archive",
+        "color": "blue", "secrets": [], "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-01T00:00:00Z"
+    }))
+    .expect("saved site");
+    home.reply(
+        Reply::Tree {
+            workspace: id(1),
+            outcome: Ok((
+                vec![collection(11, "Archive collection", None)],
+                vec![saved],
+            )),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    let screen = draw(&home, &look, size.0, size.1);
+    assert!(screen.contains("‹ Archive collection ›"));
+    assert!(screen.contains("‹ Blue ›"));
+    assert!(screen.contains("/archive"));
+    assert!(screen.contains("SSH jump host / Jump host"));
+    nothing(&click(&mut home, &mut look, size, "Edit site · SFTP"), "");
+    home.paste("ignored kind");
+    home.key(key(KeyCode::Right), &mut look);
+    click(&mut home, &mut look, size, " Collection ──");
+    home.paste("ignored collection");
+    home.key(key(KeyCode::Char('x')), &mut look);
+    click(&mut home, &mut look, size, " Speed limit (bytes/s) ");
+    home.key(ctrl('u'), &mut look);
+    home.paste("-1");
+    nothing(&click(&mut home, &mut look, size, "Enter save"), "");
+    let message = "Enter a nonnegative whole number.";
+    assert!(draw(&home, &look, size.0, size.1).contains(message));
+    nothing(&click(&mut home, &mut look, size, message), "");
+    home.key(ctrl('u'), &mut look);
+    home.key(key(KeyCode::Char('9')), &mut look);
+    let asks = click(&mut home, &mut look, size, "Ctrl+T test");
+    assert!(matches!(
+        asks.as_slice(),
+        [Ask::Call(Call::Site(_, SiteAction::Test(body)))]
+            if body["siteId"] == id(20).to_string()
+                && body["site"]["speedLimitBps"] == 9
+                && body["site"]["remoteDir"] == "/archive"
+                && body["site"]["collectionId"] == id(11).to_string()
+                && body["site"]["color"] == "blue"
+    ));
+}
+
+/// OAuth credentials must be connected in the web app before the site can be saved.
+#[test]
+fn refuses_an_unconnected_site_account() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 42);
+    let mut catalog = site_catalog();
+    catalog.retain_mut(|connector| {
+        connector.enabled = connector.r#type == "gdrive";
+        connector.enabled
+    });
+
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('N')), &mut look);
+    home.reply(Reply::Connectors(Ok(catalog)), &mut look);
+    click(&mut home, &mut look, size, " Name ──");
+    home.paste("Drive");
+    assert!(draw(&home, &look, size.0, size.1).contains("Connect the account in the web app."));
+    click(&mut home, &mut look, size, " Google account ");
+    nothing(&home.key(key(KeyCode::Char('x')), &mut look), "");
+    home.paste("ignored token");
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+    let screen = draw(&home, &look, size.0, size.1);
+    assert!(screen.contains("Connect the account first."));
+    assert!(!screen.contains("ignored token"));
+}
+
+/// A site action waits for a workspace and gives setup guidance when the vault is uninitialized.
+#[test]
+fn requires_a_workspace_and_vault_for_site_credentials() {
+    let mut look = look();
+    let (mut home, _) = Home::new(session(), "ana@example.com", false);
+    let size = (132, 42);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('N')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    click(&mut home, &mut look, size, " Name ──");
+    home.paste("Example");
+    nothing(&home.key(key(KeyCode::Enter), &mut look), "");
+
+    let mut home = loaded(&mut look, Some((false, false)));
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    nothing(&home.key(ctrl('t'), &mut look), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Set up your vault"));
+    assert!(home.overlay().is_none());
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::Site(_, crate::api::SiteAction::Edit(..)))]
+    ));
+    nothing(
+        &home.reply(Reply::Site(id(1), Err(refused("vault_locked"))), &mut look),
+        "",
+    );
+    assert!(draw(&home, &look, size.0, size.1).contains("Set up your vault"));
+    assert!(home.overlay().is_none());
+}
+
+/// Validation replies focus visible settings and preserve a form-level error for other failures.
+#[test]
+fn shows_field_and_operation_errors_for_site_drafts() {
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    let size = (132, 42);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    for (field, reason, message) in [
+        (None, "required", "refused: invalid_config"),
+        (Some("private_key"), "required", "refused: invalid_config"),
+        (Some("username"), "length", "Use at most 255 characters."),
+        (Some("port"), "unrecognized", "Choose one of the options."),
+    ] {
+        assert!(matches!(
+            home.key(ctrl('t'), &mut look).as_slice(),
+            [Ask::Call(Call::Site(_, crate::api::SiteAction::Test(_)))]
+        ));
+        assert!(draw(&home, &look, size.0, size.1).contains("Waiting for the server"));
+        let mut error = refused("invalid_config");
+        if let Some(field) = field {
+            error.params.insert("field".to_owned(), field.into());
+        }
+        error.params.insert("reason".to_owned(), reason.into());
+        nothing(&home.reply(Reply::Site(id(1), Err(error)), &mut look), "");
+        assert!(draw(&home, &look, size.0, size.1).contains(message));
+    }
+}
+
+/// Jump-host tests require a reported peer and propagate authentication failure when trusting it.
+#[test]
+fn handles_incomplete_site_host_keys_and_expired_trust() {
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    let size = (132, 80);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('E')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+
+    let mut error = refused("host_key_unknown");
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(Reply::Site(id(1), Err(error.clone())), &mut look);
+    assert!(home.overlay().is_none());
+    home.key(ctrl('t'), &mut look);
+    home.reply(Reply::Site(id(1), Err(error.clone())), &mut look);
+    assert!(home.overlay().is_none());
+
+    click(&mut home, &mut look, size, " SSH jump host / Jump host ");
+    home.paste("bastion.example.net");
+    error.params.extend([
+        ("keyType".to_owned(), "ssh-ed25519".into()),
+        ("fingerprint".to_owned(), "SHA256:jump".into()),
+    ]);
+    home.key(ctrl('t'), &mut look);
+    home.reply(Reply::Site(id(1), Err(error.clone())), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("Verify the host key in the web app"));
+
+    error.params.extend([
+        ("host".to_owned(), "bastion.example.net".into()),
+        ("port".to_owned(), 2222.into()),
+    ]);
+    home.key(ctrl('t'), &mut look);
+    home.reply(Reply::Site(id(1), Err(error)), &mut look);
+    assert!(matches!(
+        home.key(key(KeyCode::Enter), &mut look).as_slice(),
+        [Ask::Call(Call::TrustDraft(_, key))] if key.host == "bastion.example.net" && key.port == 2222
+    ));
+    assert!(matches!(
+        home.reply(
+            Reply::DraftTrusted(Err(refused("unauthenticated"))),
+            &mut look
+        )
+        .as_slice(),
+        [Ask::Leave(Some(_))]
+    ));
+}
+
+/// A legacy key refusal without a peer cannot be trusted when the target host is blank.
+#[test]
+fn ignores_a_site_key_with_no_target_host() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 42);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    home.key(key(KeyCode::Char('N')), &mut look);
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    click(&mut home, &mut look, size, " Name ──");
+    home.paste("New target");
+    assert!(matches!(
+        home.key(ctrl('t'), &mut look).as_slice(),
+        [Ask::Call(Call::Site(_, crate::api::SiteAction::Test(_)))]
+    ));
+    let mut error = refused("host_key_unknown");
+    error.params.extend([
+        ("keyType".to_owned(), "ssh-ed25519".into()),
+        ("fingerprint".to_owned(), "SHA256:target".into()),
+    ]);
+    nothing(&home.reply(Reply::Site(id(1), Err(error)), &mut look), "");
+    assert!(home.overlay().is_none());
+    assert!(draw(&home, &look, size.0, size.1).contains("The key of this server is not trusted"));
+}
+
+/// The rarer paths of the site table: lowercase keys, keys without a site, a late catalog error, pasting into the form, the wheel
+/// while searching, clicks below the rows, a site without a collection and the choices of collections.
+#[test]
+fn walks_the_rare_paths_of_the_site_table() {
+    use super::mouse::MouseKind;
+    use ratatui::layout::{Position, Rect};
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (132, 60);
+    home.key(key(KeyCode::Char('S')), &mut look);
+    nothing(&home.key(ctrl('x'), &mut look), "");
+    nothing(
+        &home.reply(Reply::Connectors(Err(CallError::default())), &mut look),
+        "",
+    );
+    home.key(key(KeyCode::Char('/')), &mut look);
+    let bounds = Rect::new(0, 0, size.0, size.1);
+    let (asks, _) = home.mouse(
+        bounds,
+        Position::new(40, 10),
+        MouseKind::Down,
+        false,
+        &mut look,
+    );
+    nothing(&asks, "the wheel waits while searching");
+    home.key(key(KeyCode::Esc), &mut look);
+    home.paste("nowhere to go");
+    let (asks, selected) = home.mouse(
+        bounds,
+        Position::new(40, 40),
+        MouseKind::Left,
+        false,
+        &mut look,
+    );
+    nothing(&asks, "below the last row");
+    let (asks, _) = home.mouse(
+        bounds,
+        Position::new(5, 4),
+        MouseKind::Right,
+        false,
+        &mut look,
+    );
+    nothing(&asks, "a right click on the table");
+    assert!(!selected);
+
+    home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
+    home.key(key(KeyCode::Home), &mut look);
+    home.key(key(KeyCode::Char('m')), &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::Char('e')), &mut look);
+    assert!(draw(&home, &look, size.0, size.1).contains("‹ Top level ›"));
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Char('n')), &mut look);
+    click(&mut home, &mut look, size, " Name ──");
+    home.paste("Pasted name");
+    click(&mut home, &mut look, size, " Collection ──");
+    home.key(key(KeyCode::Right), &mut look);
+    click(&mut home, &mut look, size, " Color ──");
+    home.key(key(KeyCode::Right), &mut look);
+    let screen = draw(&home, &look, size.0, size.1);
+    assert!(screen.contains("Pasted name"));
+    assert!(!screen.contains("‹ None ›"));
+    assert!(!screen.contains("‹ Top level ›"));
+}

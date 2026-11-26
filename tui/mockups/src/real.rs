@@ -198,6 +198,35 @@ pub fn shots() -> Vec<Shot> {
         34,
     ));
 
+    let mut site_manager = app(Language::English, true);
+    site_manager.handle(Event::SignedIn {
+        server: "https://files.acme.com".to_owned(),
+        email: "ana@acme.com".to_owned(),
+        locale: "en".to_owned(),
+        theme: "transferly-dark".to_owned(),
+        token: "t".to_owned(),
+    });
+    load(&mut site_manager);
+    site_manager.handle(key(KeyCode::Char('S')));
+    shots.push(shot_at(
+        "app-sites",
+        "The site table with collection paths and search.",
+        &site_manager,
+        132,
+        34,
+    ));
+    site_manager.handle(key(KeyCode::Char('N')));
+    let catalog = serde_json::from_str(include_str!("../../../frontend/src/test/connectors.json"))
+        .expect("connector catalog");
+    site_manager.handle(Event::Replied(Reply::Connectors(Ok(catalog))));
+    shots.push(shot_at(
+        "app-new-site",
+        "The new site form drawn from the connector schema.",
+        &site_manager,
+        132,
+        40,
+    ));
+
     english.handle(key(KeyCode::Char('/')));
     shots.push(shot("app-commands", "/ opens the command line with the commands that match, as in Claude Code.", &english));
     english.handle(Event::Paste("config".to_owned()));

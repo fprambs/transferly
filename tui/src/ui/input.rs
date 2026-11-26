@@ -50,7 +50,20 @@ impl Input {
 
     /// Inserts text at the cursor, without line breaks, as typing or pasting does.
     pub fn insert(&mut self, text: &str) {
-        let clean: String = text.chars().filter(|c| !c.is_control()).collect();
+        self.insert_with_newlines(text, false);
+    }
+
+    /// Pastes a private key, preserving its line breaks.
+    pub(super) fn insert_multiline(&mut self, text: &str) {
+        self.insert_with_newlines(text, true);
+    }
+
+    /// Inserts sanitized text at the cursor.
+    fn insert_with_newlines(&mut self, text: &str, newlines: bool) {
+        let clean: String = text
+            .chars()
+            .filter(|c| !c.is_control() || (newlines && *c == '\n'))
+            .collect();
         let at = self.offset(self.cursor);
         self.value.insert_str(at, &clean);
         self.cursor += clean.chars().count();

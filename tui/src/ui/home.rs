@@ -25,6 +25,7 @@ use super::widgets::{centered, error_line, field, highlight, panel, popup};
 
 mod context_menu;
 mod mouse;
+mod sites;
 use crate::api::{HostKey, TrustMode};
 use crate::config::{Colors, EnterOnFile};
 use crate::i18n::Language;
@@ -33,13 +34,14 @@ use crate::i18n::Language;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The commands of the command line, in the order they are listed.
-pub const COMMANDS: [&str; 10] = [
+pub const COMMANDS: [&str; 11] = [
     "config",
     "theme",
     "language",
     "workspace",
     "server",
     "web",
+    "sites",
     "transfers",
     "keys",
     "logout",
@@ -97,6 +99,12 @@ pub struct Session {
 /// A call to the server.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Call {
+    /// The connector schemas for site forms.
+    Connectors,
+    /// Change or test a site in the given workspace.
+    Site(Uuid, crate::api::SiteAction),
+    /// Trust a host key from a draft connection test.
+    TrustDraft(Uuid, HostKey),
     /// The account.
     Me,
     /// The version of the server.
@@ -246,6 +254,12 @@ pub struct CallError {
 /// The answer of the server to a call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reply {
+    /// The connector schemas for site forms.
+    Connectors(Result<Vec<transferly_client::models::Connector>, CallError>),
+    /// The outcome of a site change or test in its workspace.
+    Site(Uuid, Result<(), CallError>),
+    /// The outcome of trusting a host from a draft test.
+    DraftTrusted(Result<(), CallError>),
     /// The account.
     Me(Result<User, CallError>),
     /// The version of the server.
@@ -556,6 +570,7 @@ pub struct Home {
     focus: Focus,
     overlay: Option<Overlay>,
     notice: Option<Notice>,
+    site_view: Option<sites::View>,
 }
 
 impl Home {
@@ -588,6 +603,7 @@ impl Home {
             focus: Focus::Sites,
             overlay: None,
             notice: None,
+            site_view: None,
         };
         let mut asks: Vec<Ask> = [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
             .into_iter()
@@ -691,6 +707,7 @@ impl Home {
                 *scroll = 0;
             }
             Some(_) => {}
+            None if self.site_view.is_some() => self.paste_site_view(text),
             None => {
                 if let Some(side) = self.focused_side() {
                     self.panel_mut(side).paste(text);
@@ -706,6 +723,11 @@ impl Home {
     )]
     pub fn reply(&mut self, reply: Reply, look: &mut Look) -> Vec<Ask> {
         match reply {
+            Reply::Connectors(outcome) => self.site_connectors(outcome, look),
+            Reply::Site(workspace, outcome) => {
+                self.site_reply(workspace, outcome.as_ref().copied(), look)
+            }
+            Reply::DraftTrusted(outcome) => self.draft_trusted(outcome.as_ref().copied(), look),
             Reply::Me(Ok(user)) | Reply::Preferences(Ok(user)) => {
                 self.account(&user, look);
                 Vec::new()
@@ -886,6 +908,7 @@ impl Home {
                 if let Some(site) = site {
                     return self.open_site(site, self.last);
                 }
+                return self.resume_site_action();
             }
             Err(failure) => {
                 *error = Some(match failure.code.as_deref() {
@@ -1090,6 +1113,9 @@ impl Home {
         if let Some(overlay) = self.overlay.take() {
             return self.overlay_key(key, overlay, look);
         }
+        if self.site_view.is_some() {
+            return self.site_view_key(key, look);
+        }
         if let Some(side) = self
             .focused_side()
             .filter(|side| self.panel(*side).captures())
@@ -1263,6 +1289,7 @@ impl Home {
             KeyCode::Up | KeyCode::Char('k') => self.cursor = self.cursor.saturating_sub(1),
             KeyCode::Home | KeyCode::Char('g') => self.cursor = 0,
             KeyCode::End | KeyCode::Char('G') => self.cursor = last,
+            KeyCode::Char('S') => return self.show_site_view(),
             KeyCode::Char('w') => return self.choose(Choice::Workspace, look),
             KeyCode::Right | KeyCode::Char('l' | 'h') | KeyCode::Left | KeyCode::Enter => {
                 match rows.get(self.cursor) {
@@ -1410,7 +1437,10 @@ impl Home {
                     return Vec::new();
                 }
                 match key.code {
-                    KeyCode::Esc => Vec::new(),
+                    KeyCode::Esc => {
+                        self.cancel_site_action();
+                        Vec::new()
+                    }
                     KeyCode::Enter if !input.value().is_empty() => {
                         let password = input.value().to_owned();
                         self.overlay = Some(Overlay::Vault {
@@ -1507,7 +1537,10 @@ impl Home {
             (KeyCode::Char('y') | KeyCode::Enter, None) => None,
             (KeyCode::Char('a'), Some(_)) => Some(TrustMode::Add),
             (KeyCode::Char('r'), Some(_)) => Some(TrustMode::Replace),
-            (KeyCode::Char('n') | KeyCode::Esc, _) => return Vec::new(),
+            (KeyCode::Char('n') | KeyCode::Esc, _) => {
+                self.cancel_site_action();
+                return Vec::new();
+            }
             _ => {
                 self.overlay = Some(Overlay::HostKey {
                     side,
@@ -1518,6 +1551,9 @@ impl Home {
                 return Vec::new();
             }
         };
+        if let Some(ask) = self.trust_draft(&shown) {
+            return vec![ask];
+        }
         self.workspace
             .map(|workspace| {
                 Ask::Call(Call::Trust {
@@ -1632,6 +1668,7 @@ impl Home {
                 "{}/",
                 self.session.server.origin().ascii_serialization()
             ))],
+            "sites" => self.show_site_view(),
             "transfers" => {
                 self.overlay = Some(Overlay::Transfers);
                 Vec::new()
@@ -1929,26 +1966,30 @@ impl Home {
         let [top, sites, left, right, log_area, feedback, keys, status] = self.layout(area);
         self.render_tabs(frame, top, look);
         let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
-        if !sites.is_empty() {
-            self.render_sites(frame, sites, look, spinner);
+        if self.site_view.is_some() {
+            self.render_site_view(frame, look);
+        } else {
+            if !sites.is_empty() {
+                self.render_sites(frame, sites, look, spinner);
+            }
+            if !left.is_empty() {
+                let [panel, settings] = explorer_areas(left);
+                self.left
+                    .render(frame, panel, look, self.focus == Focus::Left, &zone);
+                self.left.settings_bar(look).render(frame, settings, look);
+            }
+            if !right.is_empty() {
+                let [panel, settings] = explorer_areas(right);
+                self.right
+                    .render(frame, panel, look, self.focus == Focus::Right, &zone);
+                self.right.settings_bar(look).render(frame, settings, look);
+            }
+            if !log_area.is_empty() {
+                self.render_bottom(frame, log_area, look, &zone);
+            }
+            self.render_feedback(frame, feedback, look);
+            self.shortcut_bar(keys, look).render(frame, keys, look);
         }
-        if !left.is_empty() {
-            let [panel, settings] = explorer_areas(left);
-            self.left
-                .render(frame, panel, look, self.focus == Focus::Left, &zone);
-            self.left.settings_bar(look).render(frame, settings, look);
-        }
-        if !right.is_empty() {
-            let [panel, settings] = explorer_areas(right);
-            self.right
-                .render(frame, panel, look, self.focus == Focus::Right, &zone);
-            self.right.settings_bar(look).render(frame, settings, look);
-        }
-        if !log_area.is_empty() {
-            self.render_bottom(frame, log_area, look, &zone);
-        }
-        self.render_feedback(frame, feedback, look);
-        self.shortcut_bar(keys, look).render(frame, keys, look);
         match &self.overlay {
             Some(Overlay::Commands { input, selected }) => {
                 Self::render_commands(frame, status, input, *selected, look);
@@ -2455,6 +2496,7 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
             ("→ l  ← h", "help.collections"),
             ("Enter", "help.open"),
             ("w", "help.workspace"),
+            ("S", "siteView.title"),
         ],
     ),
     (

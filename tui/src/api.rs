@@ -229,6 +229,42 @@ impl Api {
         .await
     }
 
+    /// Reads the catalog used to build site forms.
+    ///
+    /// # Errors
+    ///
+    /// The session ended or the server cannot be reached.
+    pub async fn connectors(&self) -> Result<Vec<transferly_client::models::Connector>, ApiError> {
+        Self::send(self.request(Method::GET, "/api/v1/connectors")).await
+    }
+
+    /// Runs a site operation in a workspace.
+    ///
+    /// # Errors
+    ///
+    /// The server refuses the operation or cannot be reached.
+    pub async fn site_action(
+        &self,
+        workspace: uuid::Uuid,
+        action: &SiteAction,
+    ) -> Result<(), ApiError> {
+        let (method, suffix, body) = match action {
+            SiteAction::Create(body) => (Method::POST, String::new(), Some(body)),
+            SiteAction::Edit(site, body) => (Method::PUT, format!("/{site}"), Some(body)),
+            SiteAction::Delete(site) => (Method::DELETE, format!("/{site}"), None),
+            SiteAction::Move(site, body) => (Method::POST, format!("/{site}/move"), Some(body)),
+            SiteAction::Test(body) => (Method::POST, "/test".to_owned(), Some(body)),
+        };
+        let mut request = self.request(
+            method,
+            &format!("/api/v1/workspaces/{workspace}/sites{suffix}"),
+        );
+        if let Some(body) = body {
+            request = request.json(body);
+        }
+        Self::empty(request).await
+    }
+
     /// Whether the vault of the account exists and is unlocked in this session.
     ///
     /// # Errors
@@ -595,6 +631,21 @@ impl Api {
     }
 }
 
+/// Changes a saved site or tests a draft without saving it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SiteAction {
+    /// Creates a site from its input.
+    Create(serde_json::Value),
+    /// Updates the identified site with its input.
+    Edit(uuid::Uuid, serde_json::Value),
+    /// Deletes the identified site.
+    Delete(uuid::Uuid),
+    /// Changes the collection of the identified site.
+    Move(uuid::Uuid, serde_json::Value),
+    /// Tests the draft and its supplied or stored secrets.
+    Test(serde_json::Value),
+}
+
 /// The refusal of a status and its body: the stable code of a problem document, or `http_<status>` without one.
 fn refusal(status: StatusCode, body: &[u8]) -> ApiError {
     let (code, params) = serde_json::from_slice::<Problem>(body).map_or_else(
@@ -624,6 +675,87 @@ mod tests {
     /// The API of a mock server.
     fn api(server: &MockServer) -> Api {
         Api::new(Url::parse(&server.uri()).expect("mock address"))
+    }
+
+    /// Site requests send the bearer token, the contract's paths and the write-only inputs.
+    #[tokio::test]
+    async fn manages_a_workspace_site() {
+        use serde_json::json;
+        use uuid::Uuid;
+
+        let server = MockServer::start().await;
+        let workspace = Uuid::from_u128(1);
+        let site = Uuid::from_u128(2);
+        let base = format!("/api/v1/workspaces/{workspace}/sites");
+        let item = format!("{base}/{site}");
+        let draft =
+            json!({"name": "files", "connector": "sftp", "config": {"host": "files.example.net"}});
+        let copy =
+            json!({"name": "files copy", "connector": "sftp", "config": {}, "secretsFrom": site});
+        let tested = json!({"siteId": site, "site": draft});
+        let moved = json!({"collectionId": Uuid::from_u128(3)});
+        Mock::given(method("GET"))
+            .and(path("/api/v1/connectors"))
+            .and(header("Authorization", "Bearer token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!([{
+                "type": "sftp", "name": "SFTP", "icon": "sftp", "maturity": "stable",
+                "capabilities": {"folders": true, "permissions": true, "setTimes": true,
+                    "resume": true, "rename": true, "serverCopy": true},
+                "fields": [], "enabledByDefault": true, "enabled": true
+            }])))
+            .expect(1)
+            .mount(&server)
+            .await;
+        for (verb, url, body, status) in [
+            ("POST", base, copy.clone(), 201),
+            ("PUT", item.clone(), draft.clone(), 200),
+            ("POST", format!("{item}/move"), moved.clone(), 200),
+            (
+                "POST",
+                format!("/api/v1/workspaces/{workspace}/sites/test"),
+                tested.clone(),
+                422,
+            ),
+        ] {
+            let response = ResponseTemplate::new(status).set_body_json(json!({
+                "type": "about:blank", "title": "Invalid field", "status": 422,
+                "code": "invalid_config", "params": {"field": "host", "reason": "host"}
+            }));
+            Mock::given(method(verb))
+                .and(path(url))
+                .and(header("Authorization", "Bearer token"))
+                .and(body_json(body))
+                .respond_with(response)
+                .expect(1)
+                .mount(&server)
+                .await;
+        }
+        Mock::given(method("DELETE"))
+            .and(path(item))
+            .and(header("Authorization", "Bearer token"))
+            .respond_with(ResponseTemplate::new(204))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let api = api(&server).with_token("token");
+        let connectors = api.connectors().await.expect("catalog");
+        assert_eq!(connectors[0].r#type, "sftp");
+        for action in [
+            SiteAction::Create(copy),
+            SiteAction::Edit(site, draft),
+            SiteAction::Move(site, moved),
+            SiteAction::Delete(site),
+        ] {
+            api.site_action(workspace, &action)
+                .await
+                .expect("site action");
+        }
+        let error = api
+            .site_action(workspace, &SiteAction::Test(tested))
+            .await
+            .expect_err("test refusal");
+        assert_eq!(error.code(), Some("invalid_config"));
+        assert_eq!(error.params()["field"], "host");
     }
 
     /// Probing accepts a Transferly server and refuses one that answers otherwise.

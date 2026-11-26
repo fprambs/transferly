@@ -40,6 +40,9 @@ impl Home {
                 false,
             );
         }
+        if self.site_view.is_some() {
+            return self.site_view_mouse(area, position, kind, double, look);
+        }
         if kind == MouseKind::Left && keys.contains(position) {
             let action = self.shortcut_bar(keys, look).key_at(position.x - keys.x);
             return (
