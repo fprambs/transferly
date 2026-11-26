@@ -13,7 +13,7 @@ Transferly is a self-hosted web file manager (Go backend, React frontend, OpenAP
   - `make tui-lint` (rustfmt + clippy pedantic with `-D warnings`), `make tui-test`, `make tui-cov` (**100 % of lines and functions**,
     regions reported), `make tui-deny` (licenses compatible with Apache-2.0, no OpenSSL or native-tls).
   - Backend: 100 % statement coverage (`scripts/coverage-go.sh`); frontend: 100 % with Vitest, TSDoc on every declaration.
-- **Commits** in English, Conventional Commits, body explaining why; end with the attribution lines the human asks for.
+- **Commits** in English, Conventional Commits, body explaining why. Commit as the git user already configured in this repository (`git config user.name`); do not change the author, and add no `Co-Authored-By`, `Signed-off-by` or any other trailer, nor mentions of an agent or tool, in commits or pull requests.
 - **User-visible text** in English and Spanish: `tui/locales/en.json` and `es.json` must have the same keys (a test checks it).
 - **Never share personal data** of the user with external services.
 
