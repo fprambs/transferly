@@ -18,8 +18,11 @@ use uuid::Uuid;
 use super::explorer::{Entry, Op, Panel, PanelAsk, Source};
 use super::input::Input;
 use super::look::Look;
+use super::mouse::first_row;
 use super::theme::{self, Palette};
 use super::widgets::{centered, error_line, field, highlight, panel, popup};
+
+mod mouse;
 use crate::api::{HostKey, TrustMode};
 use crate::config::{Colors, EnterOnFile};
 use crate::i18n::Language;
@@ -42,7 +45,7 @@ pub const COMMANDS: [&str; 10] = [
 ];
 
 /// The rows of `/config`, in order.
-const SETTINGS: [&str; 8] = [
+const SETTINGS: [&str; 9] = [
     "language",
     "theme",
     "timezone",
@@ -51,6 +54,7 @@ const SETTINGS: [&str; 8] = [
     "hiddenFiles",
     "confirmQuit",
     "checkUpdates",
+    "mouse",
 ];
 
 /// The policies for what exists at the destination of a copy, as the API names them.
@@ -352,6 +356,8 @@ pub enum Ask {
     Browse(String),
     /// Keep the settings of this computer.
     Save,
+    /// Change terminal mouse capture.
+    Mouse(bool),
     /// Sign this terminal out.
     Logout,
     /// Go back to the address of the server, with what to say there.
@@ -1830,6 +1836,10 @@ impl Home {
             }
             "hiddenFiles" => settings.hidden_files = !settings.hidden_files,
             "confirmQuit" => settings.confirm_quit = !settings.confirm_quit,
+            "mouse" => {
+                settings.mouse = !settings.mouse;
+                return vec![Ask::Mouse(settings.mouse), Ask::Save];
+            }
             _ => settings.check_updates = !settings.check_updates,
         }
         vec![Ask::Save]
@@ -1847,6 +1857,35 @@ impl Home {
         (minor(server)? != minor(VERSION)?).then_some(server)
     }
 
+    /// The top bar, sites, left and right panels, bottom panel and status bar.
+    fn layout(&self, area: Rect) -> [Rect; 6] {
+        let [top, body, status] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ])
+        .areas(area);
+        let log_rows = if self.log_shown { LOG_ROWS } else { 0 };
+        let [body, log_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(log_rows)]).areas(body);
+        let [sites, left, right] = if area.width >= NARROW {
+            let sites_width = if self.sites_shown { SITES_WIDTH } else { 0 };
+            Layout::horizontal([
+                Constraint::Length(sites_width),
+                Constraint::Fill(1),
+                Constraint::Fill(1),
+            ])
+            .areas(body)
+        } else {
+            match self.focus {
+                Focus::Sites => [body, Rect::ZERO, Rect::ZERO],
+                Focus::Left => [Rect::ZERO, body, Rect::ZERO],
+                Focus::Right | Focus::Bottom => [Rect::ZERO, Rect::ZERO, body],
+            }
+        };
+        [top, sites, left, right, log_area, status]
+    }
+
     /// Draws the screen.
     #[allow(
         clippy::too_many_lines,
@@ -1862,43 +1901,21 @@ impl Home {
             frame.render_widget(text, centered(area, area.width, 3));
             return;
         }
-        let [top, body, status] = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Fill(1),
-            Constraint::Length(1),
-        ])
-        .areas(area);
-        let log_rows = if self.log_shown { LOG_ROWS } else { 0 };
-        let [body, log_area] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(log_rows)]).areas(body);
+        let [top, sites, left, right, log_area, status] = self.layout(area);
         self.render_tabs(frame, top, look);
         let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
-        if area.width >= NARROW {
-            let sites_width = if self.sites_shown { SITES_WIDTH } else { 0 };
-            let [sites, left, right] = Layout::horizontal([
-                Constraint::Length(sites_width),
-                Constraint::Fill(1),
-                Constraint::Fill(1),
-            ])
-            .areas(body);
-            if self.sites_shown {
-                self.render_sites(frame, sites, look, spinner);
-            }
+        if !sites.is_empty() {
+            self.render_sites(frame, sites, look, spinner);
+        }
+        if !left.is_empty() {
             self.left
                 .render(frame, left, look, self.focus == Focus::Left, &zone);
+        }
+        if !right.is_empty() {
             self.right
                 .render(frame, right, look, self.focus == Focus::Right, &zone);
-        } else {
-            match self.focus {
-                Focus::Sites => self.render_sites(frame, body, look, spinner),
-                Focus::Left => self.left.render(frame, body, look, true, &zone),
-                Focus::Right | Focus::Bottom => {
-                    self.right
-                        .render(frame, body, look, self.focus == Focus::Right, &zone);
-                }
-            }
         }
-        if self.log_shown {
+        if !log_area.is_empty() {
             self.render_bottom(frame, log_area, look, &zone);
         }
         match &self.overlay {
@@ -2009,7 +2026,7 @@ impl Home {
             return;
         }
         let height = usize::from(inside.height.max(1));
-        let skip = self.cursor.saturating_sub(height - 1);
+        let skip = first_row(inside, self.cursor);
         let width = usize::from(inside.width);
         let lines: Vec<Line> = rows
             .iter()
@@ -2049,8 +2066,8 @@ impl Home {
         frame.render_widget(Paragraph::new(lines), inside);
     }
 
-    /// The status bar: the server, the account, the workspace, the vault and a notice, with the keys of the focused panel on the right.
-    fn render_status(&self, frame: &mut Frame, area: Rect, look: &Look) {
+    /// The styled session information in the status bar.
+    fn status_spans(&self, look: &Look) -> Vec<Span<'static>> {
         let (m, palette) = (&look.messages, &look.palette);
         let vault = match &self.vault {
             Some(VaultStatus {
@@ -2100,23 +2117,36 @@ impl Home {
                 Span::raw(notice.text.clone()).fg(palette.ok)
             });
         }
-        let keys = m.get(match self.focus {
+        spans
+    }
+
+    /// The status bar's session and key areas, with the keys omitted when space runs out.
+    fn status_layout(&self, area: Rect, look: &Look, used: usize) -> ([Rect; 2], String) {
+        let keys = look.messages.get(match self.focus {
             Focus::Sites => "main.keysSites",
             Focus::Left | Focus::Right => "main.keysExplorer",
             Focus::Bottom => "main.keysQueue",
         });
-        let used: usize = spans.iter().map(Span::width).sum();
         let room = usize::from(area.width).saturating_sub(used + 2);
         let keys = if keys.chars().count() <= room {
             keys
         } else {
             String::new()
         };
-        let [left, right] = Layout::horizontal([
+        let areas = Layout::horizontal([
             Constraint::Fill(1),
             Constraint::Length(u16::try_from(keys.chars().count() + 1).unwrap_or(u16::MAX)),
         ])
         .areas(area);
+        (areas, keys)
+    }
+
+    /// The session status and the keys of the focused panel.
+    fn render_status(&self, frame: &mut Frame, area: Rect, look: &Look) {
+        let palette = &look.palette;
+        let spans = self.status_spans(look);
+        let used = spans.iter().map(Span::width).sum();
+        let ([left, right], keys) = self.status_layout(area, look, used);
         let bar = Style::new().bg(palette.surface);
         frame.render_widget(Paragraph::new(Line::from(spans)).style(bar), left);
         frame.render_widget(
@@ -2142,9 +2172,7 @@ impl Home {
         if matches.is_empty() {
             return;
         }
-        let height = u16::try_from(matches.len()).unwrap_or(u16::MAX) + 2;
-        let width = 66.min(area.width);
-        let list = Rect::new(area.x, area.y.saturating_sub(height), width, height);
+        let list = commands_area(area, matches.len());
         let inside = popup(
             frame,
             list,
@@ -2173,11 +2201,7 @@ impl Home {
     /// The settings with their values and where each lives.
     fn render_settings(&self, frame: &mut Frame, selected: usize, look: &Look) {
         let (m, palette) = (&look.messages, &look.palette);
-        let area = centered(
-            frame.area(),
-            78,
-            u16::try_from(SETTINGS.len()).unwrap_or(0) + 6,
-        );
+        let area = settings_area(frame.area());
         let inside = popup(
             frame,
             area,
@@ -2210,6 +2234,7 @@ impl Home {
                     "settings.hidden"
                 }),
                 "confirmQuit" => yes_no(settings.confirm_quit),
+                "mouse" => yes_no(settings.mouse),
                 _ => m.get(if settings.check_updates {
                     "settings.daily"
                 } else {
@@ -2234,7 +2259,7 @@ impl Home {
         }
         lines.push(Line::default());
         lines.push(Line::from(m.get("settings.note")).fg(palette.muted));
-        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
+        frame.render_widget(Paragraph::new(lines), inside);
     }
 
     /// A list to choose a theme, a language or a workspace, with a check on the one in use.
@@ -2256,14 +2281,10 @@ impl Home {
             Choice::Workspace => "choose.workspace",
             Choice::Source(_) => "choose.source",
         });
-        let height = u16::try_from(names.len())
-            .unwrap_or(u16::MAX)
-            .saturating_add(2)
-            .min(18);
-        let area = centered(frame.area(), 44, height);
+        let area = choices_area(frame.area(), names.len());
         let inside = popup(frame, area, &title, &m.get("choose.keys"), palette);
         let visible = usize::from(inside.height.max(1));
-        let skip = selected.saturating_sub(visible - 1);
+        let skip = first_row(inside, selected);
         let lines: Vec<Line> = names
             .iter()
             .enumerate()
@@ -2426,6 +2447,10 @@ fn help_lines(filter: &str, look: &Look) -> Vec<Line<'static>> {
     let (m, palette) = (&look.messages, &look.palette);
     let wanted = filter.to_lowercase();
     let mut lines = Vec::new();
+    let selection = m.get("help.mouseSelection");
+    if selection.to_lowercase().contains(&wanted) {
+        lines.push(Line::from(selection));
+    }
     for (group, keys) in HELP {
         let rows: Vec<Line> = keys
             .iter()
@@ -2511,11 +2536,7 @@ fn render_host_key(
     look: &Look,
 ) {
     let (m, palette) = (&look.messages, &look.palette);
-    let rows = trusted.map_or(0, <[String]>::len);
-    let height = u16::try_from(rows)
-        .unwrap_or(0)
-        .saturating_add(if trusted.is_some() { 13 } else { 11 });
-    let area = centered(frame.area(), 78, height);
+    let area = host_key_area(frame.area(), trusted);
     let (title, keys, intro) = if trusted.is_some() {
         (
             "hostKey.changedTitle",
@@ -2680,4 +2701,38 @@ pub(super) fn render_log(
         })
         .collect();
     frame.render_widget(Paragraph::new(lines), inside);
+}
+
+/// The popup for settings local to the terminal and settings from the account.
+fn settings_area(area: Rect) -> Rect {
+    centered(area, 78, u16::try_from(SETTINGS.len()).unwrap_or(0) + 6)
+}
+
+/// The matching commands above the status bar.
+fn commands_area(status: Rect, count: usize) -> Rect {
+    let height = u16::try_from(count).unwrap_or(u16::MAX).saturating_add(2);
+    Rect::new(
+        status.x,
+        status.y.saturating_sub(height),
+        66.min(status.width),
+        height,
+    )
+}
+
+/// The popup for a list of choices.
+fn choices_area(area: Rect, count: usize) -> Rect {
+    let height = u16::try_from(count)
+        .unwrap_or(u16::MAX)
+        .saturating_add(2)
+        .min(18);
+    centered(area, 44, height)
+}
+
+/// The host-key popup, with room for any keys already trusted.
+fn host_key_area(area: Rect, trusted: Option<&[String]>) -> Rect {
+    let rows = trusted.map_or(0, <[String]>::len);
+    let height = u16::try_from(rows)
+        .unwrap_or(0)
+        .saturating_add(if trusted.is_some() { 13 } else { 11 });
+    centered(area, 78, height)
 }

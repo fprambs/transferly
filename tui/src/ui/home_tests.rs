@@ -161,6 +161,226 @@ fn draw(home: &Home, look: &Look, width: u16, height: u16) -> String {
         .collect()
 }
 
+/// Locates the last occurrence of text in a rendered screen in terminal cells.
+fn pointer(text: &str, label: &str) -> ratatui::layout::Position {
+    let byte = text.rfind(label).expect("visible label");
+    let prefix = &text[..byte];
+    let line = prefix.rsplit('\n').next().expect("current line");
+    let row = prefix.split('\n').count() - 1;
+    let column = ratatui::text::Line::from(line).width();
+    ratatui::layout::Position::new(u16::try_from(column).unwrap(), u16::try_from(row).unwrap())
+}
+
+/// Clicks text visible in the main screen at the chosen terminal size.
+fn click(home: &mut Home, look: &mut Look, size: (u16, u16), label: &str) -> Vec<Ask> {
+    use super::mouse::MouseKind;
+    use ratatui::layout::Rect;
+
+    let point = pointer(&draw(home, look, size.0, size.1), label);
+    home.mouse(
+        Rect::new(0, 0, size.0, size.1),
+        point,
+        MouseKind::Left,
+        false,
+        look,
+    )
+    .0
+}
+
+/// Settings, command matches and chooser rows respond to clicks, and help explains text selection.
+#[test]
+fn clicks_list_popups() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    home.key(key(KeyCode::Char('/')), &mut look);
+    nothing(&click(&mut home, &mut look, (120, 30), "/config"), "");
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.lines()
+            .any(|line| line.contains("Mouse") && line.contains("yes"))
+    );
+    assert_eq!(
+        click(&mut home, &mut look, (120, 30), "Mouse"),
+        vec![Ask::Mouse(false), Ask::Save]
+    );
+    look.speak("es");
+    let text = draw(&home, &look, 120, 30);
+    assert!(
+        text.lines()
+            .any(|line| line.contains("Mouse") && line.contains("no"))
+    );
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::F(1)), &mut look);
+    assert!(draw(&home, &look, 120, 30).contains("Shift + arrastrar para seleccionar texto"));
+    home.key(key(KeyCode::Esc), &mut look);
+    look.speak("en");
+    home.key(key(KeyCode::F(1)), &mut look);
+    assert!(draw(&home, &look, 120, 30).contains("Shift + drag to select text"));
+    home.key(key(KeyCode::Esc), &mut look);
+    command(&mut home, &mut look, "workspace");
+    assert_eq!(
+        click(&mut home, &mut look, (120, 30), "Team"),
+        vec![Ask::Call(Call::Tree(id(2)))]
+    );
+}
+
+/// The wheel and clicks follow visible panels at wide and narrow terminal sizes.
+#[test]
+fn targets_visible_panels() {
+    use ratatui::layout::{Position, Rect};
+
+    use super::mouse::MouseKind;
+    use super::transfers::{Direction, Row};
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let wide = Rect::new(0, 0, 140, 30);
+    let narrow = Rect::new(0, 0, 80, 20);
+    let point = pointer(&draw(&home, &look, 80, 20), "home-nas");
+    assert!(
+        home.mouse(narrow, point, MouseKind::Left, false, &mut look)
+            .1
+    );
+    assert_eq!(home.focus(), Focus::Sites);
+    assert!(
+        !home
+            .mouse(narrow, point, MouseKind::Right, false, &mut look)
+            .1
+    );
+    assert!(
+        !home
+            .mouse(
+                Rect::new(0, 0, 40, 12),
+                point,
+                MouseKind::Left,
+                false,
+                &mut look
+            )
+            .1
+    );
+    nothing(&click(&mut home, &mut look, (140, 30), "? help"), "");
+    assert!(matches!(home.overlay(), Some(Overlay::Help { .. })));
+    home.mouse(wide, point, MouseKind::Down, false, &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    home.mouse(
+        wide,
+        Position::new(30, 3),
+        MouseKind::Left,
+        false,
+        &mut look,
+    );
+    assert_eq!(home.focus(), Focus::Left);
+
+    for (number, name) in [(70, "first-transfer"), (71, "second-transfer")] {
+        home.queue_mut().start(
+            Row::started(id(number), Direction::Copy, name, "nas", None),
+            None,
+        );
+    }
+    home.key(key(KeyCode::Char('T')), &mut look);
+    click(&mut home, &mut look, (140, 30), "second-transfer");
+    assert_eq!(
+        home.queue().current().expect("transfer").name,
+        "second-transfer"
+    );
+    home.mouse(wide, point, MouseKind::Down, false, &mut look);
+    home.key(ctrl('e'), &mut look);
+    click(&mut home, &mut look, (140, 30), "first-transfer");
+    assert_eq!(
+        home.queue().current().expect("transfer").name,
+        "first-transfer"
+    );
+    assert_eq!(home.focus(), Focus::Bottom);
+}
+
+/// The explorer shortcut opens its source chooser and the queue shortcut switches between tabs.
+#[test]
+fn clicks_explorer_and_queue_shortcuts() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (180, 30);
+    home.key(key(KeyCode::Tab), &mut look);
+    nothing(&click(&mut home, &mut look, size, "o show"), "");
+    assert!(matches!(
+        home.overlay(),
+        Some(Overlay::Choose {
+            what: Choice::Source(Side::Left),
+            ..
+        })
+    ));
+    home.key(key(KeyCode::Esc), &mut look);
+
+    home.key(ctrl('e'), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.key(key(KeyCode::Tab), &mut look);
+    assert_eq!(home.focus(), Focus::Bottom);
+    assert!(draw(&home, &look, size.0, size.1).contains("[Transfers] Log"));
+    nothing(&click(&mut home, &mut look, size, "[ ] tabs"), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("Transfers [Log]"));
+    nothing(&click(&mut home, &mut look, size, "Nothing yet:"), "");
+    assert!(home.queue().current().is_none());
+    nothing(&click(&mut home, &mut look, size, "[ ] tabs"), "");
+    assert!(draw(&home, &look, size.0, size.1).contains("[Transfers] Log"));
+    nothing(&click(&mut home, &mut look, size, "No transfers yet"), "");
+    assert!(home.queue().current().is_none());
+}
+
+/// Top and status text, panel borders and empty popup rows leave the current selection alone.
+#[test]
+fn ignores_clicks_outside_mouse_targets() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let size = (140, 30);
+    for label in ["1 Local disk", "ana@example.com", "╭ Personal"] {
+        nothing(&click(&mut home, &mut look, size, label), label);
+        assert_eq!(home.focus(), Focus::Sites);
+        assert!(home.overlay().is_none());
+    }
+
+    home.key(key(KeyCode::Char('/')), &mut look);
+    let commands = home.overlay().cloned();
+    nothing(&click(&mut home, &mut look, size, "1 Local disk"), "");
+    assert_eq!(home.overlay(), commands.as_ref());
+    home.key(key(KeyCode::Esc), &mut look);
+
+    home.key(key(KeyCode::Char('T')), &mut look);
+    nothing(&click(&mut home, &mut look, size, "No transfers yet"), "");
+    assert_eq!(home.overlay(), Some(&Overlay::Transfers));
+    assert!(home.queue().current().is_none());
+}
+
+/// Clicking and scrolling over the vault prompt leave it open and preserve the typed password.
+#[test]
+fn ignores_mouse_input_on_the_vault_prompt() {
+    use ratatui::layout::Rect;
+
+    use super::mouse::MouseKind;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, false)));
+    let size = (140, 30);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.paste("secret");
+    let vault = home.overlay().cloned();
+    let label = "Unlock the vault";
+    nothing(&click(&mut home, &mut look, size, label), "");
+    assert_eq!(home.overlay(), vault.as_ref());
+
+    let point = pointer(&draw(&home, &look, size.0, size.1), label);
+    let (asks, selected) = home.mouse(
+        Rect::new(0, 0, size.0, size.1),
+        point,
+        MouseKind::Down,
+        false,
+        &mut look,
+    );
+    nothing(&asks, "scrolling over the prompt");
+    assert!(!selected);
+    assert_eq!(home.overlay(), vault.as_ref());
+}
+
 /// Types text, one key per character.
 fn type_text(home: &mut Home, look: &mut Look, text: &str) {
     for c in text.chars() {
@@ -729,6 +949,7 @@ fn changes_settings() {
     home.key(key(KeyCode::Down), &mut look);
     home.key(key(KeyCode::Char('k')), &mut look);
     home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
     home.key(key(KeyCode::Char('x')), &mut look);
     assert_eq!(
         look.settings,
@@ -737,7 +958,8 @@ fn changes_settings() {
             enter_on_file: EnterOnFile::Details,
             hidden_files: true,
             confirm_quit: false,
-            check_updates: false
+            check_updates: false,
+            mouse: true,
         }
     );
     assert_eq!(look.mode(), ColorMode::Terminal);
@@ -1152,7 +1374,10 @@ fn trusts_server_keys() {
             key: key_of(mode),
         })]
     };
-    assert_eq!(home.key(key(KeyCode::Char('y')), &mut look), trust(None));
+    assert_eq!(
+        click(&mut home, &mut look, (120, 30), "y trust"),
+        trust(None)
+    );
     let again = home.reply(
         Reply::Trusted {
             side: Side::Right,
@@ -1231,7 +1456,7 @@ fn trusts_server_keys() {
         &mut look,
     );
     assert_eq!(
-        home.key(key(KeyCode::Char('r')), &mut look),
+        click(&mut home, &mut look, (120, 30), "r replace"),
         trust(Some(crate::api::TrustMode::Replace))
     );
     assert_eq!(
@@ -1764,7 +1989,7 @@ fn manages_the_queue() {
         "waits for an answer",
     );
     assert_eq!(
-        home.key(key(KeyCode::Char('y')), &mut look),
+        click(&mut home, &mut look, (140, 30), "y delete"),
         [vec![Ask::Abort(at(5))], action(5, "cancel")].concat()
     );
     home.key(key(KeyCode::Char('x')), &mut look);
@@ -2013,7 +2238,10 @@ fn enters_files() {
     assert!(
         matches!(home.overlay(), Some(Overlay::Copy { items, .. }) if items.len() == 1 && items[0].name == "x.bin")
     );
-    home.key(key(KeyCode::Esc), &mut look);
+    nothing(
+        &click(&mut home, &mut look, (140, 30), "Esc cancel"),
+        "click cancels the copy",
+    );
     command(&mut home, &mut look, "config");
     for _ in 0..4 {
         home.key(key(KeyCode::Down), &mut look);
@@ -2137,6 +2365,156 @@ mod interface {
             Screen::Main(home) => home,
             _ => panic!("not the main screen"),
         }
+    }
+
+    /// Disabling capture emits a terminal effect, keeps the setting and ignores queued clicks.
+    #[test]
+    fn disables_mouse_in_settings() {
+        use crate::ui::mouse::MouseKind;
+
+        let mut setup = kept("https://files.example.com");
+        setup.signed_in = None;
+        let click = Event::Mouse {
+            kind: MouseKind::Left,
+            column: 1,
+            row: 1,
+            at: std::time::Instant::now(),
+        };
+        nothing(
+            &App::new(setup).handle(click.clone()),
+            "on the server screen",
+        );
+
+        let mut app = App::new(kept("https://files.example.com"));
+        run(&mut app, "config");
+        for _ in 0..8 {
+            app.handle(press(KeyCode::Down));
+        }
+        assert!(matches!(
+            app.handle(press(KeyCode::Enter)).as_slice(),
+            [Effect::Mouse(false), Effect::SaveSettings(settings)] if !settings.mouse
+        ));
+        nothing(&app.handle(click), "disabled mouse");
+        assert!(matches!(
+            app.handle(press(KeyCode::Enter)).as_slice(),
+            [Effect::Mouse(true), Effect::SaveSettings(settings)] if settings.mouse
+        ));
+    }
+
+    /// Timed clicks open the site, the wheel moves the targeted explorer, and a file opens its Enter action.
+    #[test]
+    fn opens_rows_with_the_mouse() {
+        use std::time::{Duration, Instant};
+
+        use crate::ui::explorer::{Entry, Kind};
+        use crate::ui::mouse::MouseKind;
+
+        let mut app = App::new(kept("https://files.example.com"));
+        app.handle(Event::Replied(Reply::Workspaces(Ok(vec![workspace(
+            1, "Personal", "personal",
+        )]))));
+        app.handle(Event::Replied(Reply::Tree {
+            workspace: id(1),
+            outcome: Ok((Vec::new(), vec![site(22, "home-nas", None, false)])),
+        }));
+        let at = Instant::now();
+        let mouse = |label, app: &App, kind, elapsed| {
+            let point = pointer(&text(app), label);
+            Event::Mouse {
+                kind,
+                column: point.x,
+                row: point.y,
+                at: at + Duration::from_millis(elapsed),
+            }
+        };
+        let first = mouse("home-nas", &app, MouseKind::Left, 0);
+        nothing(&app.handle(first), "single click");
+        let late = mouse("home-nas", &app, MouseKind::Left, 500);
+        nothing(&app.handle(late), "past the double-click interval");
+        let second = mouse("home-nas", &app, MouseKind::Left, 550);
+        assert!(matches!(
+            app.handle(second).as_slice(),
+            [Effect::Call(
+                _,
+                Call::Files {
+                    side: Side::Right,
+                    op: Op::Home,
+                    ..
+                }
+            )]
+        ));
+        app.handle(Event::Replied(Reply::Homed {
+            side: Side::Right,
+            outcome: Ok("/".to_owned()),
+        }));
+        app.handle(Event::Replied(Reply::Listed {
+            side: Side::Right,
+            path: "/".to_owned(),
+            outcome: Ok(vec![
+                Entry {
+                    name: "Documents".to_owned(),
+                    kind: Kind::Folder,
+                    size: 0,
+                    modified: None,
+                },
+                Entry {
+                    name: "notes.txt".to_owned(),
+                    kind: Kind::File,
+                    size: 10,
+                    modified: None,
+                },
+            ]),
+        }));
+        app.handle(press(KeyCode::Tab));
+        let scroll = mouse("Documents", &app, MouseKind::Down, 600);
+        nothing(&app.handle(scroll), "wheel only moves the cursor");
+        assert_eq!(home(&app).focus(), Focus::Right);
+        assert_eq!(
+            home(&app).panel(Side::Right).selection()[0].name,
+            "notes.txt"
+        );
+        let scroll = mouse("Documents", &app, MouseKind::Up, 610);
+        nothing(&app.handle(scroll), "wheel up selects the folder");
+
+        run(&mut app, "config");
+        for _ in 0..4 {
+            app.handle(press(KeyCode::Down));
+        }
+        app.handle(press(KeyCode::Enter));
+        app.handle(press(KeyCode::Esc));
+
+        let single = mouse("notes.txt", &app, MouseKind::Left, 650);
+        nothing(&app.handle(single), "single file click");
+        let double = mouse("notes.txt", &app, MouseKind::Left, 700);
+        nothing(&app.handle(double), "details are local state");
+        assert!(matches!(
+            home(&app).overlay(),
+            Some(Overlay::Details { .. })
+        ));
+        app.handle(press(KeyCode::Esc));
+
+        app.handle(press(KeyCode::Delete));
+        let cancel = mouse("n cancel", &app, MouseKind::Left, 750);
+        nothing(&app.handle(cancel), "cancelling never deletes");
+        app.handle(press(KeyCode::Delete));
+        let erase = mouse("y delete", &app, MouseKind::Left, 800);
+        assert!(matches!(
+            app.handle(erase).as_slice(),
+            [Effect::Call(
+                _,
+                Call::Files {
+                    op: Op::Delete(_),
+                    ..
+                }
+            )]
+        ));
+        let first = mouse("Documents", &app, MouseKind::Left, 850);
+        nothing(&app.handle(first), "single folder click");
+        let double = mouse("Documents", &app, MouseKind::Left, 900);
+        assert!(matches!(
+            app.handle(double).as_slice(),
+            [Effect::Call(_, Call::Files { op: Op::List(path), .. })] if path == "/Documents"
+        ));
     }
 
     /// A kept session opens the main screen and loads it; its replies change it and its asks become effects.
@@ -2314,12 +2692,15 @@ mod interface {
             Ok(keyring_core::mock::Store::new().expect("mock")),
         ));
         tokens.set(&server.uri(), "t").expect("token");
-        let ports = ports(
+        let mut ports = ports(
             dir.path(),
             tokens.clone(),
             Arc::new(|_: &str| true),
             Arc::new(Mutex::new(Vec::new())),
         );
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let recorded = Arc::clone(&capture);
+        ports.mouse = Arc::new(move |enabled| recorded.lock().expect("capture").push(enabled));
         let mut config = Config::default();
         config.signed_in(&server.uri(), "ana@example.com");
         config.save(&ports.config_path).expect("config");
@@ -2330,7 +2711,9 @@ mod interface {
             (0, press(KeyCode::Enter)),
         ];
         events.extend((0..3).map(|_| (0, press(KeyCode::Down))));
-        events.extend([(0, press(KeyCode::Right)), (0, press(KeyCode::Esc))]);
+        events.push((0, press(KeyCode::Right)));
+        events.extend((0..5).map(|_| (0, press(KeyCode::Down))));
+        events.extend([(100, press(KeyCode::Right)), (0, press(KeyCode::Esc))]);
         events.extend([
             (200, press(KeyCode::Char('/'))),
             (0, Event::Paste("language es".to_owned())),
@@ -2352,10 +2735,12 @@ mod interface {
         .expect("the loop ended")
         .expect("drawing");
 
+        assert_eq!(*capture.lock().expect("capture"), [false]);
         assert_eq!(app.look().messages.language(), Language::Spanish);
         assert!(matches!(app.screen(), Screen::Server { .. }));
         assert_eq!(tokens.get(&server.uri()).expect("tokens"), None);
         let config = Config::load(&ports.config_path).expect("config");
+        assert!(!config.settings.mouse);
         assert_eq!(
             (config.settings.colors, config.current),
             (Colors::Terminal, None)

@@ -6,6 +6,7 @@ pub mod explorer;
 pub mod home;
 pub mod input;
 pub mod look;
+pub mod mouse;
 pub mod runtime;
 pub mod stream;
 pub mod theme;
@@ -24,11 +25,19 @@ use crate::secrets::TokenStore;
 /// The theme worn before the account says which, the default of the web.
 pub const DEFAULT_THEME: &str = "transferly-dark";
 
-/// The event of the interface for an event of the terminal: keys and pasted text; a resize only redraws.
+/// Maps keys, mouse input and pasted text to interface events. A resize only redraws.
 #[must_use]
 pub fn from_terminal(event: TerminalEvent) -> Option<Event> {
     match event {
         TerminalEvent::Key(key) => Some(Event::Key(key)),
+        TerminalEvent::Mouse(event) => {
+            mouse::MouseKind::from_terminal(event).map(|kind| Event::Mouse {
+                kind,
+                column: event.column,
+                row: event.row,
+                at: std::time::Instant::now(),
+            })
+        }
         TerminalEvent::Paste(text) => Some(Event::Paste(text)),
         TerminalEvent::Resize(..) => Some(Event::Tick),
         _ => None,

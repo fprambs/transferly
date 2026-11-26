@@ -40,6 +40,8 @@ pub struct Ports {
     pub open_browser: Arc<dyn Fn(&str) -> bool + Send + Sync>,
     /// Copies text to the clipboard of the terminal.
     pub copy: Arc<dyn Fn(&str) + Send + Sync>,
+    /// Changes whether the terminal captures mouse input.
+    pub mouse: Arc<dyn Fn(bool) + Send + Sync>,
     /// Address the listener of the callback takes.
     pub listen_on: String,
     /// How long to wait for the browser.
@@ -104,6 +106,7 @@ pub async fn run(
                     });
                 }
                 Effect::Copy(text) => (ports.copy)(&text),
+                Effect::Mouse(enabled) => (ports.mouse)(enabled),
                 Effect::Shorten {
                     server,
                     challenge,

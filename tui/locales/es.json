@@ -88,6 +88,7 @@
     "enterOnFile": "Enter en un archivo",
     "hiddenFiles": "Archivos ocultos",
     "confirmQuit": "Preguntar antes de salir",
+    "mouse": "Mouse",
     "checkUpdates": "Buscar actualizaciones",
     "account": "cuenta",
     "computer": "este equipo",
@@ -123,6 +124,7 @@
     "keys": "Enter desbloquear · Esc cancelar"
   },
   "help": {
+    "mouseSelection": "Shift + arrastrar para seleccionar texto",
     "title": "Teclas",
     "keys": "escribe para filtrar · ↑↓ desplazar · Esc cerrar",
     "everywhere": "En todas partes",

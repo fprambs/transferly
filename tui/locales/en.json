@@ -88,6 +88,7 @@
     "enterOnFile": "Enter on a file",
     "hiddenFiles": "Hidden files",
     "confirmQuit": "Ask before quitting",
+    "mouse": "Mouse",
     "checkUpdates": "Check for updates",
     "account": "account",
     "computer": "this computer",
@@ -123,6 +124,7 @@
     "keys": "Enter unlock · Esc cancel"
   },
   "help": {
+    "mouseSelection": "Shift + drag to select text",
     "title": "Keys",
     "keys": "type to filter · ↑↓ scroll · Esc close",
     "everywhere": "Everywhere",

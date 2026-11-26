@@ -41,6 +41,17 @@ pub fn copy_to_clipboard(text: &str) {
     let _ = stdout.flush();
 }
 
+/// Applies mouse capture to the terminal.
+fn mouse_capture(enabled: bool) -> std::io::Result<()> {
+    use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+
+    if enabled {
+        crossterm::execute!(std::io::stdout(), EnableMouseCapture)
+    } else {
+        crossterm::execute!(std::io::stdout(), DisableMouseCapture)
+    }
+}
+
 /// Opens the interface on the real terminal: sets it up (raw mode, alternate screen, bracketed paste, restored on panic), runs the
 /// interface over the events of the terminal and restores it.
 ///
@@ -68,6 +79,9 @@ pub fn interface(dir: &std::path::Path) -> std::io::Result<()> {
         tokens,
         open_browser: Arc::new(open_browser),
         copy: Arc::new(copy_to_clipboard),
+        mouse: Arc::new(|enabled| {
+            let _ = mouse_capture(enabled);
+        }),
         listen_on: crate::login::LOOPBACK.to_owned(),
         wait: crate::commands::BROWSER_WAIT,
         tick: std::time::Duration::from_millis(120),
@@ -75,11 +89,21 @@ pub fn interface(dir: &std::path::Path) -> std::io::Result<()> {
     };
     let runtime = tokio::runtime::Runtime::new()?;
     let mut terminal = ratatui::try_init()?;
-    crossterm::execute!(std::io::stdout(), crossterm::event::EnableBracketedPaste)?;
-    let events = crossterm::event::EventStream::new()
-        .filter_map(|event| async move { event.ok().and_then(ui::from_terminal) });
-    let mut draw = |app: &App| terminal.draw(|frame| app.render(frame)).map(|_| ());
-    let result = runtime.block_on(runtime::run(&mut app, &ports, Box::pin(events), &mut draw));
+    let restore = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = mouse_capture(false);
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::event::DisableBracketedPaste);
+        restore(info);
+    }));
+    let result = (|| {
+        crossterm::execute!(std::io::stdout(), crossterm::event::EnableBracketedPaste)?;
+        mouse_capture(config.settings.mouse)?;
+        let events = crossterm::event::EventStream::new()
+            .filter_map(|event| async move { event.ok().and_then(ui::from_terminal) });
+        let mut draw = |app: &App| terminal.draw(|frame| app.render(frame)).map(|_| ());
+        runtime.block_on(runtime::run(&mut app, &ports, Box::pin(events), &mut draw))
+    })();
+    let _ = mouse_capture(false);
     let _ = crossterm::execute!(std::io::stdout(), crossterm::event::DisableBracketedPaste);
     ratatui::restore();
     result

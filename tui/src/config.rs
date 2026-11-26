@@ -46,6 +46,10 @@ pub struct Profile {
 }
 
 /// The settings of this computer; those of the account (language, theme, time zone) live in the account.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent settings of this computer, each a yes or no"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -59,6 +63,8 @@ pub struct Settings {
     pub confirm_quit: bool,
     /// Whether the client looks for a new release once a day.
     pub check_updates: bool,
+    /// Whether the terminal captures mouse input.
+    pub mouse: bool,
 }
 
 impl Default for Settings {
@@ -69,6 +75,7 @@ impl Default for Settings {
             hidden_files: false,
             confirm_quit: true,
             check_updates: true,
+            mouse: true,
         }
     }
 }
@@ -198,10 +205,13 @@ mod tests {
         config.signed_in("https://files.example.com", "ana@example.com");
         config.settings.enter_on_file = EnterOnFile::Details;
         config.settings.colors = Colors::Terminal;
+        config.settings.mouse = false;
         config.save(&path).expect("save");
         assert_eq!(Config::load(&path).expect("load"), config);
         assert!(!path.with_extension("toml.tmp").exists());
 
+        std::fs::write(&path, "[settings]\nhidden_files = true").expect("old config");
+        assert!(Config::load(&path).expect("old settings").settings.mouse);
         std::fs::write(&path, "profiles = 3").expect("write");
         assert!(matches!(Config::load(&path), Err(ConfigError::Invalid(_))));
         assert!(matches!(Config::load(dir.path()), Err(ConfigError::Io(_))));

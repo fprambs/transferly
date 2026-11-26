@@ -1,9 +1,12 @@
 //! The state of the interface and how events change it (docs/design/terminal-client.md, Screens 1 and 2). Handling an event is pure: it
 //! returns the effects to run, such as probing a server or opening the browser, and the runtime feeds their results back as events.
 
+use std::cell::Cell;
+use std::time::{Duration, Instant};
+
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
@@ -12,6 +15,7 @@ use url::Url;
 use super::home::{Ask, Home, Reply, Session};
 use super::input::Input;
 use super::look::Look;
+use super::mouse::MouseKind;
 use super::theme::{ColorMode, Palette};
 use super::widgets::{background, card, error_line, field, highlight};
 use crate::config::{self, Profile, Settings};
@@ -37,6 +41,17 @@ pub enum Failure {
 pub enum Event {
     /// A key was pressed.
     Key(KeyEvent),
+    /// A mouse button or wheel action.
+    Mouse {
+        /// The action at the pointer.
+        kind: MouseKind,
+        /// The horizontal position in terminal cells.
+        column: u16,
+        /// The vertical position in terminal cells.
+        row: u16,
+        /// When the terminal delivered the action.
+        at: Instant,
+    },
     /// Text was pasted into the terminal.
     Paste(String),
     /// Time passed, for the spinner.
@@ -142,6 +157,8 @@ pub enum Effect {
     },
     /// Keep the settings of this computer.
     SaveSettings(Settings),
+    /// Change terminal mouse capture.
+    Mouse(bool),
     /// Leave the interface.
     Quit,
 }
@@ -229,6 +246,8 @@ pub struct App {
     redirect: Option<String>,
     spinner: usize,
     pending: Vec<Effect>,
+    area: Cell<Rect>,
+    click: Option<(Position, Instant)>,
 }
 
 impl App {
@@ -258,6 +277,8 @@ impl App {
             redirect: None,
             spinner: 0,
             pending: Vec::new(),
+            area: Cell::default(),
+            click: None,
         };
         if let Some(kept) = setup.signed_in {
             app.pending = app.enter(&kept.server, &kept.email, kept.token);
@@ -296,6 +317,7 @@ impl App {
                 }
                 Ask::Abort(id) => effects.push(Effect::Abort(id)),
                 Ask::Browse(url) => effects.push(Effect::OpenBrowser(url)),
+                Ask::Mouse(enabled) => effects.push(Effect::Mouse(enabled)),
                 Ask::Save => effects.push(Effect::SaveSettings(self.look.settings.clone())),
                 Ask::Logout => effects.push(Effect::Logout(session.clone())),
                 Ask::Leave(message) => {
@@ -410,7 +432,16 @@ impl App {
 
     /// Changes the interface for an event and returns what the runtime must do.
     pub fn handle(&mut self, event: Event) -> Vec<Effect> {
+        if matches!(event, Event::Key(_) | Event::Paste(_)) {
+            self.click = None;
+        }
         match event {
+            Event::Mouse {
+                kind,
+                column,
+                row,
+                at,
+            } => self.mouse(kind, Position::new(column, row), at),
             Event::Key(key) if key.kind != KeyEventKind::Press => Vec::new(),
             Event::Key(key)
                 if key.modifiers.contains(KeyModifiers::CONTROL)
@@ -712,8 +743,30 @@ impl App {
         }
     }
 
+    /// Recognizes consecutive left clicks at the same cell and routes them to the main screen.
+    fn mouse(&mut self, kind: MouseKind, position: Position, at: Instant) -> Vec<Effect> {
+        let previous = self.click.take();
+        if !self.look.settings.mouse {
+            return Vec::new();
+        }
+        let Screen::Main(home) = &mut self.screen else {
+            return Vec::new();
+        };
+        let double = kind == MouseKind::Left
+            && previous.is_some_and(|(last, time)| {
+                last == position && at.saturating_duration_since(time) <= Duration::from_millis(400)
+            });
+        let (asks, selected) = home.mouse(self.area.get(), position, kind, double, &mut self.look);
+        if kind == MouseKind::Left && selected && !double {
+            self.click = Some((position, at));
+        }
+        let session = home.session().clone();
+        self.asks(&session, asks)
+    }
+
     /// Draws the current screen.
     pub fn render(&self, frame: &mut Frame) {
+        self.area.set(frame.area());
         background(frame, &self.look.palette);
         match &self.screen {
             Screen::Server {

@@ -9,7 +9,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::layout::{Constraint, Layout, Position, Rect};
 use ratatui::style::{Modifier, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
@@ -17,6 +17,7 @@ use uuid::Uuid;
 
 use super::input::Input;
 use super::look::Look;
+use super::mouse::{first_row, footer_key, row};
 use super::widgets::{centered, error_line, field, highlight, panel, popup};
 
 /// How many rows Page Up and Page Down move.
@@ -648,11 +649,7 @@ impl Panel {
             return;
         }
         let status = self.status_line(look);
-        let [rows_area, status_area] = Layout::vertical([
-            Constraint::Fill(1),
-            Constraint::Length(u16::from(status.is_some())),
-        ])
-        .areas(inside);
+        let [rows_area, status_area] = self.rows_layout(inside);
         self.render_rows(frame, rows_area, look, zone);
         if let Some(line) = status {
             frame.render_widget(Paragraph::new(line), status_area);
@@ -663,6 +660,47 @@ impl Panel {
         if let Some(paths) = &self.confirm {
             render_confirm(frame, area, paths, look);
         }
+    }
+
+    /// The file rows and the optional status line below them.
+    fn rows_layout(&self, inside: Rect) -> [Rect; 2] {
+        let status = self.error.is_some()
+            || self.filtering
+            || !self.filter.value().is_empty()
+            || self.loading;
+        Layout::vertical([Constraint::Fill(1), Constraint::Length(u16::from(status))]).areas(inside)
+    }
+
+    /// Selects the visible file row under the pointer within this panel.
+    pub(super) fn select_at(&mut self, area: Rect, position: Position, look: &Look) -> bool {
+        let inside = panel("", false, &look.palette).inner(area);
+        let [rows, _] = self.rows_layout(inside);
+        if let Some(index) = row(
+            rows,
+            position,
+            first_row(rows, self.cursor),
+            self.rows().len(),
+        ) {
+            self.cursor = index;
+            return true;
+        }
+        false
+    }
+
+    /// The delete confirmation action clicked in the footer.
+    pub(super) fn confirmation_at(
+        &self,
+        area: Rect,
+        position: Position,
+        look: &Look,
+    ) -> Option<KeyEvent> {
+        let paths = self.confirm.as_ref()?;
+        footer_key(
+            confirmation_area(area, paths.len()),
+            position,
+            &look.messages.get("explorer.deleteKeys"),
+            &[KeyCode::Enter, KeyCode::Esc],
+        )
     }
 
     /// The line under the rows: the filter being typed or kept, what went wrong, or that the folder is being listed.
@@ -698,7 +736,7 @@ impl Panel {
             return;
         }
         let height = usize::from(area.height.max(1));
-        let skip = self.cursor.saturating_sub(height - 1);
+        let skip = first_row(area, self.cursor);
         let width = usize::from(area.width);
         let name_width = width.saturating_sub(2 + 10 + 17 + 2).max(4);
         let lines: Vec<Line> = rows
@@ -806,8 +844,7 @@ fn render_form(frame: &mut Frame, area: Rect, form: &Form, look: &Look) {
 fn render_confirm(frame: &mut Frame, area: Rect, paths: &[(String, bool)], look: &Look) {
     let (m, palette) = (&look.messages, &look.palette);
     let shown = paths.len().min(6);
-    let height = u16::try_from(shown).unwrap_or(6) + 7;
-    let box_area = centered(area, 64, height);
+    let box_area = confirmation_area(area, paths.len());
     let inside = popup(
         frame,
         box_area,
@@ -839,4 +876,9 @@ fn render_confirm(frame: &mut Frame, area: Rect, paths: &[(String, bool)], look:
     }
     lines.push(Line::from(m.get("explorer.undone")).fg(palette.muted));
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
+}
+
+/// The delete confirmation, with up to six entries listed.
+fn confirmation_area(area: Rect, count: usize) -> Rect {
+    centered(area, 64, u16::try_from(count.min(6)).unwrap_or(6) + 7)
 }

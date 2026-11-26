@@ -13,6 +13,7 @@ use uuid::Uuid;
 use super::super::explorer::human;
 use super::super::explorer::{Entry, Kind, Source};
 use super::super::look::Look;
+use super::super::mouse::first_row;
 use super::super::transfers::{Direction, Job, Row, Status, line};
 use super::super::widgets::{centered, error_line, highlight, panel, popup};
 use super::{Ask, Call, CallError, Focus, Home, Overlay, POLICIES, Side, Tab, explain};
@@ -232,16 +233,21 @@ impl Home {
             KeyCode::Char('[') => self.tab = Tab::Transfers,
             KeyCode::Char(']') => self.tab = Tab::Log,
             _ if self.tab == Tab::Log => {}
-            KeyCode::Down | KeyCode::Char('j') => {
-                self.queue.cursor =
-                    (self.queue.cursor + 1).min(self.queue.rows().len().saturating_sub(1));
-            }
-            KeyCode::Up | KeyCode::Char('k') => {
-                self.queue.cursor = self.queue.cursor.saturating_sub(1);
+            KeyCode::Down | KeyCode::Up | KeyCode::Char('j' | 'k') => {
+                self.scroll_transfers(key.code);
             }
             _ => return self.queue_key(key),
         }
         Vec::new()
+    }
+
+    /// Moves the transfer cursor one row in the direction of a navigation key.
+    pub(super) fn scroll_transfers(&mut self, code: KeyCode) {
+        self.queue.cursor = if matches!(code, KeyCode::Down | KeyCode::Char('j')) {
+            (self.queue.cursor + 1).min(self.queue.rows().len().saturating_sub(1))
+        } else {
+            self.queue.cursor.saturating_sub(1)
+        };
     }
 
     /// Handles a key on the transfer under the cursor of the queue.
@@ -348,7 +354,7 @@ impl Home {
     ) {
         let (m, palette) = (&look.messages, &look.palette);
         let shown = items.len().min(6);
-        let area = centered(frame.area(), 76, u16::try_from(shown).unwrap_or(6) + 9);
+        let area = Self::copy_area(frame.area(), items.len());
         let inside = popup(
             frame,
             area,
@@ -385,13 +391,29 @@ impl Home {
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
     }
 
+    /// The copy confirmation, with up to six entries listed.
+    pub(super) fn copy_area(area: Rect, count: usize) -> Rect {
+        centered(area, 76, u16::try_from(count.min(6)).unwrap_or(6) + 9)
+    }
+
+    /// The transfer popup, with up to eight rows.
+    pub(super) fn transfers_area(&self, area: Rect) -> Rect {
+        let shown = self.queue.rows().len().clamp(1, 8);
+        let width = area.width.saturating_sub(8).min(110);
+        centered(area, width, u16::try_from(shown).unwrap_or(8) + 2)
+    }
+
+    /// The confirmation for cancelling a transfer.
+    pub(super) fn cancel_area(area: Rect) -> Rect {
+        centered(area, 60, 6)
+    }
+
     /// The window of transfers in front of the screen: the newest transfers with their gauges.
     pub(super) fn render_transfers(&self, frame: &mut Frame, look: &Look) {
         let (m, palette) = (&look.messages, &look.palette);
         let rows = self.queue.rows();
         let shown = rows.len().clamp(1, 8);
-        let width = frame.area().width.saturating_sub(8).min(110);
-        let area = centered(frame.area(), width, u16::try_from(shown).unwrap_or(8) + 2);
+        let area = self.transfers_area(frame.area());
         let title = m.fill(
             "transfers.title",
             &[("count", &self.queue.active().len().to_string())],
@@ -406,14 +428,21 @@ impl Home {
         }
         let lines: Vec<Line> = rows
             .iter()
+            .enumerate()
+            .skip(first_row(inside, self.queue.cursor))
             .take(shown)
-            .map(|row| {
-                line(
+            .map(|(index, row)| {
+                let text = line(
                     row,
                     usize::from(inside.width),
                     palette,
                     &status_text(row, look),
-                )
+                );
+                if index == self.queue.cursor {
+                    highlight(text, palette)
+                } else {
+                    text
+                }
             })
             .collect();
         frame.render_widget(Paragraph::new(lines), inside);
@@ -457,7 +486,7 @@ impl Home {
             return;
         }
         let height = usize::from(inside.height.max(1));
-        let skip = self.queue.cursor.saturating_sub(height - 1);
+        let skip = first_row(inside, self.queue.cursor);
         let lines: Vec<Line> = rows
             .iter()
             .enumerate()
@@ -520,7 +549,7 @@ impl Home {
             .iter()
             .find(|row| row.id == id)
             .map_or("", |row| row.name.as_str());
-        let area = centered(frame.area(), 60, 6);
+        let area = Self::cancel_area(frame.area());
         let inside = popup(
             frame,
             area,

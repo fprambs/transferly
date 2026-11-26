@@ -100,10 +100,17 @@ pub fn popup(frame: &mut Frame, area: Rect, title: &str, keys: &str, palette: &P
     let block = panel(title, true, palette)
         .title_bottom(Line::from(format!(" {keys} ")).right_aligned())
         .style(Style::new().bg(palette.surface).fg(palette.text));
-    let inside = block.inner(area).inner(Margin::new(1, 0));
+    let inside = popup_inside(area, palette);
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
     inside
+}
+
+/// The usable area within a popup's borders.
+pub(super) fn popup_inside(area: Rect, palette: &Palette) -> Rect {
+    panel("", true, palette)
+        .inner(area)
+        .inner(Margin::new(1, 0))
 }
 
 /// A line marked as the selected one: on the raised background and bold, or reversed when there is no color.

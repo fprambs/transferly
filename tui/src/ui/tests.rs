@@ -416,6 +416,10 @@ fn quits_and_ignores_releases() {
 /// Terminal events become keys, pasted text and redraws; the rest is ignored.
 #[test]
 fn reads_terminal_events() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+
+    use super::mouse::MouseKind;
+
     let pressed = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
     assert_eq!(
         from_terminal(TerminalEvent::Key(pressed)),
@@ -430,6 +434,42 @@ fn reads_terminal_events() {
         Some(Event::Tick)
     );
     assert_eq!(from_terminal(TerminalEvent::FocusGained), None);
+    for (kind, expected) in [
+        (
+            MouseEventKind::Down(MouseButton::Left),
+            Some(MouseKind::Left),
+        ),
+        (
+            MouseEventKind::Down(MouseButton::Right),
+            Some(MouseKind::Right),
+        ),
+        (MouseEventKind::ScrollUp, Some(MouseKind::Up)),
+        (MouseEventKind::ScrollDown, Some(MouseKind::Down)),
+        (MouseEventKind::Drag(MouseButton::Left), None),
+    ] {
+        let event = MouseEvent {
+            kind,
+            column: 10,
+            row: 5,
+            modifiers: KeyModifiers::NONE,
+        };
+        let mapped = from_terminal(TerminalEvent::Mouse(event));
+        if let Some(expected) = expected {
+            assert!(matches!(
+                mapped,
+                Some(Event::Mouse { kind, column: 10, row: 5, .. }) if kind == expected
+            ));
+        } else {
+            assert_eq!(mapped, None);
+        }
+    }
+    let shifted = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 0,
+        row: 0,
+        modifiers: KeyModifiers::SHIFT,
+    };
+    assert_eq!(from_terminal(TerminalEvent::Mouse(shifted)), None);
 }
 
 /// The setup takes the language and colors of the environment, and the server already signed in to only when its token is kept.
@@ -477,6 +517,7 @@ pub(super) fn ports(
         tokens,
         open_browser: browser,
         copy: Arc::new(move |text: &str| copied.lock().expect("copied").push(text.to_owned())),
+        mouse: Arc::new(|_| {}),
         listen_on: crate::login::LOOPBACK.to_owned(),
         wait: Duration::from_secs(5),
         tick: Duration::from_millis(10),
