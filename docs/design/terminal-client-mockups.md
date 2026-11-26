@@ -728,3 +728,9 @@ A site whose credentials are in the locked vault asks for the master password fi
 ? shows every key of the screen.
 
 ![app-help](screens/app-help.png)
+
+### app-transfers
+
+Ctrl+E shows the queue: each transfer with its gauge, share, speed and time left; failures in red with their code.
+
+![app-transfers](screens/app-transfers.png)

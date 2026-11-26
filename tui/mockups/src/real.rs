@@ -162,6 +162,19 @@ pub fn shots() -> Vec<Shot> {
     english.handle(key(KeyCode::Esc));
     english.handle(key(KeyCode::Char('?')));
     shots.push(shot("app-help", "? shows every key of the screen.", &english));
+    english.handle(key(KeyCode::Esc));
+    let row = |n: u8, direction: &str, name: &str, status: &str, done: u64, total: u64| {
+        serde_json::json!({"id": format!("00000000-0000-0000-0000-0000000000{n:02}"), "direction": direction, "name": name, "siteName": "acme-prod", "status": status, "bytesDone": done, "totalBytes": total, "errorCode": if status == "failed" { Some("permission_denied") } else { None }})
+    };
+    let rows = vec![row(1, "upload", "release-2026-11.tar.gz", "running", 0, 734_003_200), row(2, "download", "backup-db.sql.gz", "running", 0, 52_428_800), row(3, "copy", "reports/", "queued", 0, 0), row(4, "upload", "notes.txt", "done", 2048, 2048), row(5, "download", "secret.key", "failed", 0, 512)];
+    english.handle(Event::Replied(Reply::Snapshot(parse(serde_json::Value::Array(rows)))));
+    let start = std::time::Instant::now();
+    for (n, done, seconds) in [(1, 100_000_000_u64, 0), (1, 285_000_000, 10), (2, 10_000_000, 0), (2, 39_000_000, 10)] {
+        let id = uuid(format!("00000000-0000-0000-0000-0000000000{n:02}"));
+        english.handle(Event::Replied(Reply::Progress { id, done, total: None, at: start + std::time::Duration::from_secs(seconds) }));
+    }
+    english.handle(Event::Key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL)));
+    shots.push(shot("app-transfers", "Ctrl+E shows the queue: each transfer with its gauge, share, speed and time left; failures in red with their code.", &english));
     shots
 }
 
