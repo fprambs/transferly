@@ -488,10 +488,10 @@ Revisado contra el código el 2026-11-24. Solo el middleware `authenticate` (`tr
 - [x] Carpetas completas en ambos sentidos; política ante archivos existentes (falla, sobrescribe, omite, más nuevo, renombra)
 - [x] Copias entre sitios por el servidor (`POST /copies`)
 - [x] Panel de cola con el progreso del WebSocket: pausar, reanudar, cancelar, prioridad; recarga tras reconectar
-- [ ] Integración con el stack de pruebas: login por el navegador (redirección a `127.0.0.1` y código pegado), subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv`
+- [x] Integración con el stack de pruebas: login por el navegador (redirección a `127.0.0.1` y código pegado), subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv` — hecho con `make tui-it` (`tui/tests/testenv.rs`): en el stack aislado la terminal inicia sesión con la misma aprobación del navegador, confía en la clave del SFTP, sube, lista, baja, reanuda una descarga con `Range`, rechaza lo que existe y copia entre dos sitios hasta `done`; FTP y S3 quedan para la revisión de T6
 - [x] Progreso visible: cada transferencia con barra (`━` contra `─`), porcentaje, velocidad y tiempo restante; ventana flotante en primer plano mientras dura, que `Esc` minimiza a la barra de estado; el panel inferior (`Ctrl+E`) con pestañas Transferencias y Registro (`[` `]`); las fallidas en rojo con su código y guía
 - [x] Teclas: `F5`/`c` copia lo marcado (o lo del cursor) al otro panel tras una confirmación que nombra el destino y la política ante archivos existentes (← → la cambian); en la cola `p` pausa o reanuda, `x`/`Supr` cancela con confirmación, `R` reanuda una subida interrumpida de este cliente, `+` `-` prioridad, `Enter` detalles
-- [ ] Orden: un archivo en cada sentido, luego reanudar, la cola con sus barras, carpetas y archivos existentes, copias entre sitios e integración con `testenv`; arrastrar con el mouse y notificaciones de escritorio quedan en T7
+- [x] Orden: un archivo en cada sentido, luego reanudar, la cola con sus barras, carpetas y archivos existentes, copias entre sitios e integración con `testenv`; arrastrar con el mouse y notificaciones de escritorio quedan en T7
 
 ### T5. Instalación con un comando (1 semana)
 

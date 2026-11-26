@@ -78,7 +78,7 @@ tui-mockups:
 RUST := $(COMPOSE) run --rm --no-deps -T rust
 # Code left out of coverage: the generated client, the entry point and the thin calls into the operating system (platform.rs), as
 # generated code and cmd/ are in Go.
-TUI_COVERAGE_IGNORE := '(tui/client/|tui/src/main\.rs|tui/src/platform\.rs)'
+TUI_COVERAGE_IGNORE := '(tui/client/|tui/tests/|tui/src/main\.rs|tui/src/platform\.rs)'
 
 .PHONY: tui-lint tui-test tui-cov tui-deny
 tui-lint:
@@ -99,4 +99,15 @@ tui-web-screens:
 	docker compose -f compose.test.yaml up -d --wait postgres transferly
 	docker run --rm -u $(shell id -u):$(shell id -g) -e HOME=/tmp --network transferly-test_default -v $(CURDIR):/repo -w /repo \
 		mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f node tui/mockups/web-screens.cjs
+	docker compose -f compose.test.yaml down
+
+# The terminal client against the isolated stack of compose.test.yaml and its SFTP server (tui/tests/testenv.rs): signs in through the
+# approval, then uploads, downloads, resumes and copies between sites.
+.PHONY: tui-it
+tui-it:
+	docker compose -f compose.test.yaml down -v
+	docker compose -f compose.test.yaml up -d --build --wait postgres transferly sftp
+	docker run --rm -u $(shell id -u):$(shell id -g) --network transferly-test_default -e TRANSFERLY_IT_URL=http://transferly:8080 \
+		-v $(CURDIR):/workspace -v transferly-dev_rust-cache:/cache -w /workspace/tui transferly-dev-rust \
+		cargo test -p transferly-tui --test testenv -- --ignored --nocapture
 	docker compose -f compose.test.yaml down
