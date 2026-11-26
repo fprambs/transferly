@@ -465,7 +465,12 @@ pub enum Overlay {
     /// The transfers in front of the screen, while they run.
     Transfers,
     /// Whether to cancel a transfer.
-    Cancel(Uuid),
+    Cancel {
+        /// The transfer to cancel.
+        id: Uuid,
+        /// Whether to return to the transfer window after answering.
+        from_window: bool,
+    },
     /// The questions of a server while a site connects, with the answers being typed and the one with the focus.
     Prompt {
         /// The questions.
@@ -1349,15 +1354,8 @@ impl Home {
                 items,
                 policy,
             } => self.copy_key(key, from, items, policy, look),
-            Overlay::Transfers => {
-                if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.log_shown = true;
-                    self.tab = Tab::Transfers;
-                    self.focus = Focus::Bottom;
-                }
-                Vec::new()
-            }
-            Overlay::Cancel(id) => self.cancel_key(key, id),
+            Overlay::Transfers => self.transfers_key(key),
+            Overlay::Cancel { id, from_window } => self.cancel_key(key, id, from_window),
             Overlay::Help { filter, scroll } => {
                 self.help_key(key, filter, scroll, look);
                 Vec::new()
@@ -1993,7 +1991,7 @@ impl Home {
                 self.render_details(frame, *side, entry, look, &zone);
             }
             Some(Overlay::Transfers) => self.render_transfers(frame, look),
-            Some(Overlay::Cancel(id)) => self.render_cancel(frame, *id, look),
+            Some(Overlay::Cancel { id, .. }) => self.render_cancel(frame, *id, look),
             Some(Overlay::Prompt {
                 prompt,
                 site,

@@ -286,7 +286,7 @@ impl Queue {
 }
 
 /// The arrow of a direction: up for uploads, down for downloads, both ways for copies between sites.
-fn arrow(direction: Direction) -> &'static str {
+pub(super) fn arrow(direction: Direction) -> &'static str {
     match direction {
         Direction::Upload => "↑",
         Direction::Download => "↓",
@@ -297,16 +297,21 @@ fn arrow(direction: Direction) -> &'static str {
 /// A gauge of a width: `━` for what is done against `─`, so it reads without colors too.
 #[must_use]
 pub fn gauge(ratio: Option<f64>, width: usize) -> String {
+    let full = gauge_fill(ratio, width);
+    format!("{}{}", "━".repeat(full), "─".repeat(width - full))
+}
+
+/// The number of cells filled in a gauge.
+pub(super) fn gauge_fill(ratio: Option<f64>, width: usize) -> usize {
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
         clippy::cast_precision_loss,
         reason = "cells of a gauge"
     )]
-    let full = ratio
+    ratio
         .map_or(0, |ratio| (ratio * width as f64).round() as usize)
-        .min(width);
-    format!("{}{}", "━".repeat(full), "─".repeat(width - full))
+        .min(width)
 }
 
 /// A duration in minutes and seconds, or hours when long.
@@ -322,6 +327,17 @@ pub fn clock(seconds: u64) -> String {
     } else {
         format!("{}:{:02}", seconds / 60, seconds % 60)
     }
+}
+
+/// A speed in binary units per second.
+pub(super) fn speed_text(speed: f64) -> String {
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "bytes per second for a person to read"
+    )]
+    let bytes = speed as u64;
+    format!("{}/s", human(bytes))
 }
 
 /// A transfer as a line: the arrow, the name, the gauge, the share, the speed and the time left, or how it ended; failures carry their
@@ -341,13 +357,8 @@ pub fn line(row: &Row, width: usize, palette: &Palette, status: &str) -> Line<'s
         || "  ? ".to_owned(),
         |ratio| format!("{:>3.0}%", ratio * 100.0),
     );
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "bytes per second for a person to read"
-    )]
     let speed = if row.status == Status::Running && row.speed > 0.0 {
-        format!("{}/s", human(row.speed as u64))
+        speed_text(row.speed)
     } else {
         String::new()
     };

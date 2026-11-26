@@ -1146,6 +1146,12 @@ A site whose credentials are in the locked vault asks for the master password fi
 
 ![app-help](screens/app-help.png)
 
+### app-transfer-window
+
+T opens the transfer window with aggregate progress, speed and time left, and a selectable row for each transfer.
+
+![app-transfer-window](screens/app-transfer-window.png)
+
 ### app-transfers
 
 Ctrl+E shows the queue: each transfer with its gauge, share, speed and time left; failures in red with their code.

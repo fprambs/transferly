@@ -2203,7 +2203,7 @@ fn copies_between_panels() {
         ("/srv/b.txt", "create")
     );
     assert!(docs.folder && docs.remote == "/srv/docs");
-    assert!(draw(&home, &look, 140, 30).contains("Transfers (3 running)"));
+    assert!(draw(&home, &look, 140, 30).contains("Transfers · 0 of 3"));
     home.key(ctrl('e'), &mut look);
     assert!(
         draw(&home, &look, 140, 30)
@@ -2651,6 +2651,187 @@ fn explains_transfer_failures_in_spanish() {
             "{text}"
         );
     }
+}
+
+/// The window totals weight bytes, sum running speeds and omit progress and time when a size is missing.
+#[test]
+fn totals_and_gauges_in_the_transfer_window() {
+    use ratatui::style::Modifier;
+
+    use super::transfers::Direction::{Copy, Download, Upload};
+    use super::transfers::Row;
+    use super::transfers::Status::{Done, Failed, Queued, Running};
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let mib = 1024 * 1024;
+    for (number, name, direction, status, done, total, speed) in [
+        (70, "ready.zip", Upload, Done, 10, 10, 99.0),
+        (71, "copy.tar", Copy, Running, 10, 40, 10.0),
+        (72, "backup.sql", Download, Running, 20, 40, 5.0),
+        (73, "secret.key", Download, Failed, 0, 0, 99.0),
+        (74, "waiting.txt", Upload, Queued, 0, 10, 0.0),
+    ] {
+        let mut row = Row::started(id(number), direction, name, "test-nas", Some(total * mib));
+        row.status = status;
+        row.bytes_done = done * mib;
+        row.speed = speed * f64::from(1024 * 1024);
+        home.queue_mut().start(row, None);
+    }
+    home.key(key(KeyCode::Char('T')), &mut look);
+    for width in (60..=96).step_by(4) {
+        let screen = draw(&home, &look, width, 30);
+        assert!(screen.contains("Transfers"), "{width}\n{screen}");
+    }
+    let screen = draw(&home, &look, 140, 30);
+    assert!(screen.contains("Transfers · 1 of 5 · 40% · 15.0 MiB/s · 0:04 left"));
+    for (name, gauge, detail) in [
+        ("↑ ready.zip", "██", "100%"),
+        ("⇄ copy.tar", "█░", "10.0 MiB/s"),
+        ("↓ backup.sql", "█░", "5.0 MiB/s"),
+        ("↓ secret.key", "░░", "failed"),
+    ] {
+        let row = screen.lines().find(|line| line.contains(name)).unwrap();
+        assert!(
+            row.contains(gauge) && row.contains(detail) && row.contains("test-nas"),
+            "{row}"
+        );
+    }
+    let narrow = draw(&home, &look, 60, 20);
+    let copy = narrow
+        .lines()
+        .find(|line| line.contains("copy.tar"))
+        .unwrap();
+    assert!(copy.contains("█░") && copy.contains("25%"), "{copy}");
+    assert!(
+        !copy.contains("MiB/s") && !copy.contains("test-nas"),
+        "{copy}"
+    );
+
+    let mut plain = Look::new(
+        Language::English,
+        DEFAULT_THEME,
+        ColorMode::Plain,
+        Settings::default(),
+    );
+    let mut terminal = Terminal::new(TestBackend::new(140, 30)).unwrap();
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    let cause = pointer(&screen, "failed");
+    assert_eq!(buffer[(cause.x, cause.y)].fg, look.palette.danger);
+    for (name, color) in [
+        ("ready.zip", look.palette.ok),
+        ("copy.tar", look.palette.accent),
+    ] {
+        let position = pointer(&screen, name);
+        let gauge = (position.x..140)
+            .find(|column| buffer[(*column, position.y)].symbol() == "█")
+            .unwrap();
+        assert_eq!(buffer[(gauge, position.y)].fg, color);
+    }
+
+    terminal
+        .draw(|frame| home.render(frame, &plain, "*"))
+        .unwrap();
+    let plain_screen = draw(&home, &plain, 140, 30);
+    assert!(plain_screen.contains("█░"));
+    let selected = pointer(&plain_screen, "waiting.txt");
+    assert!(
+        terminal.backend().buffer()[(selected.x, selected.y)]
+            .modifier
+            .contains(Modifier::REVERSED)
+    );
+
+    plain.speak("es");
+    assert!(
+        draw(&home, &plain, 140, 30)
+            .contains("Transferencias · 1 de 5 · 40% · 15.0 MiB/s · faltan 0:04")
+    );
+    home.queue_mut().start(
+        Row::started(id(75), Upload, "unknown.bin", "test-nas", None),
+        None,
+    );
+    let screen = draw(&home, &look, 140, 30);
+    let title = screen
+        .lines()
+        .find(|line| line.contains("Transfers · 1 of 6 · 15.0 MiB/s"))
+        .unwrap();
+    assert!(!title.contains('%') && !title.contains("left"), "{title}");
+}
+
+/// The transfer window shares selection and actions with the queue and stays open until dismissed.
+#[test]
+fn controls_the_selected_transfer_in_the_window() {
+    use ratatui::layout::Rect;
+
+    use super::mouse::MouseKind;
+    use super::transfers::{Direction, Row, Status};
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    let mut failed = Row::started(id(70), Direction::Download, "retry.bin", "nas", None);
+    failed.status = Status::Failed;
+    let queued = Row::started(id(71), Direction::Copy, "queued.bin", "nas", None);
+    home.queue_mut().snapshot(vec![queued.clone(), failed]);
+    let action = |number, action: &str| {
+        Ask::Call(Call::TransferAction {
+            id: id(number),
+            action: action.to_owned(),
+        })
+    };
+    let size = (140, 30);
+    nothing(&home.key(key(KeyCode::Char('T')), &mut look), "");
+    nothing(&home.key(key(KeyCode::Down), &mut look), "");
+    assert_eq!(
+        home.key(key(KeyCode::Char('R')), &mut look),
+        [action(70, "resume")]
+    );
+    nothing(&home.key(key(KeyCode::Up), &mut look), "");
+    assert_eq!(
+        home.key(key(KeyCode::Char('p')), &mut look),
+        [action(71, "pause")]
+    );
+
+    let point = pointer(&draw(&home, &look, size.0, size.1), "queued.bin");
+    nothing(
+        &home
+            .mouse(
+                Rect::new(0, 0, size.0, size.1),
+                point,
+                MouseKind::Down,
+                false,
+                &mut look,
+            )
+            .0,
+        "",
+    );
+    assert_eq!(home.queue().cursor, 1);
+    nothing(&click(&mut home, &mut look, size, "queued.bin"), "");
+    let mut paused = queued;
+    paused.paused = true;
+    home.queue_mut().put(paused);
+    assert_eq!(
+        home.key(key(KeyCode::Char('p')), &mut look),
+        [action(71, "resume")]
+    );
+    for cancel in [KeyCode::Char('x'), KeyCode::Delete] {
+        nothing(&home.key(key(cancel), &mut look), "");
+        assert!(draw(&home, &look, size.0, size.1).contains("Cancel queued.bin?"));
+        nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+        assert_eq!(home.overlay(), Some(&Overlay::Transfers));
+    }
+    nothing(&home.key(key(KeyCode::Delete), &mut look), "");
+    assert_eq!(
+        home.key(key(KeyCode::Enter), &mut look),
+        [Ask::Abort(id(71)), action(71, "cancel")],
+    );
+    nothing(&home.key(key(KeyCode::Esc), &mut look), "");
+    assert!(home.overlay().is_none());
+    nothing(&home.key(key(KeyCode::Char('T')), &mut look), "");
+    assert_eq!(home.overlay(), Some(&Overlay::Transfers));
+    assert_eq!(home.queue().cursor, 0);
 }
 
 /// `T` and `/transfers` bring the window of transfers in front at any moment, saying when there are none yet.

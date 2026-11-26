@@ -274,6 +274,8 @@ pub fn shots() -> Vec<Shot> {
         let id = uuid(format!("00000000-0000-0000-0000-0000000000{n:02}"));
         english.handle(Event::Replied(Reply::Progress { id, done, total: None, at: start + std::time::Duration::from_secs(seconds) }));
     }
+    english.handle(key(KeyCode::Char('T')));
+    shots.push(shot("app-transfer-window", "T opens the transfer window with aggregate progress, speed and time left, and a selectable row for each transfer.", &english));
     english.handle(Event::Key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL)));
     shots.push(shot("app-transfers", "Ctrl+E shows the queue: each transfer with its gauge, share, speed and time left; failures in red with their code.", &english));
     shots

@@ -2,19 +2,22 @@
 //! downloads move their bytes through this client and copies between sites run on the server, and the queue shows in a window in front
 //! while they run and in the bottom panel, where they are paused, resumed, cancelled and reordered.
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
+use std::fmt::Write as _;
 use uuid::Uuid;
 
 use super::super::explorer::human;
 use super::super::explorer::{Entry, Kind, Source};
 use super::super::look::Look;
 use super::super::mouse::first_row;
-use super::super::transfers::{Direction, Job, Row, Status, line};
+use super::super::transfers::{
+    Direction, Job, Row, Status, arrow, clock, gauge_fill, line, speed_text,
+};
 use super::super::widgets::{centered, error_line, highlight, panel, popup, visible_name};
 use super::{Ask, Call, CallError, Focus, Home, Overlay, POLICIES, Side, Tab, explain};
 
@@ -264,7 +267,10 @@ impl Home {
         };
         match key.code {
             KeyCode::Char('x') | KeyCode::Delete if row.status.active() => {
-                self.overlay = Some(Overlay::Cancel(row.id));
+                self.overlay = Some(Overlay::Cancel {
+                    id: row.id,
+                    from_window: self.overlay == Some(Overlay::Transfers),
+                });
             }
             KeyCode::Char('p')
                 if row.direction == Direction::Copy || row.status == Status::Queued =>
@@ -317,7 +323,8 @@ impl Home {
     }
 
     /// Handles a key on the question whether to cancel a transfer.
-    pub(super) fn cancel_key(&mut self, key: KeyEvent, id: Uuid) -> Vec<Ask> {
+    pub(super) fn cancel_key(&mut self, key: KeyEvent, id: Uuid, from_window: bool) -> Vec<Ask> {
+        self.overlay = from_window.then_some(Overlay::Transfers);
         match key.code {
             KeyCode::Char('y') | KeyCode::Enter => vec![
                 Ask::Abort(id),
@@ -328,7 +335,7 @@ impl Home {
             ],
             KeyCode::Char('n') | KeyCode::Esc => Vec::new(),
             _ => {
-                self.overlay = Some(Overlay::Cancel(id));
+                self.overlay = Some(Overlay::Cancel { id, from_window });
                 Vec::new()
             }
         }
@@ -408,16 +415,32 @@ impl Home {
         centered(area, 60, 6)
     }
 
-    /// The window of transfers in front of the screen: the newest transfers with their gauges.
+    /// Handles navigation and the shared queue actions while the window is open.
+    pub(super) fn transfers_key(&mut self, key: KeyEvent) -> Vec<Ask> {
+        match key.code {
+            KeyCode::Esc => return Vec::new(),
+            KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.log_shown = true;
+                self.tab = Tab::Transfers;
+                self.focus = Focus::Bottom;
+                return Vec::new();
+            }
+            KeyCode::Up | KeyCode::Down => self.scroll_transfers(key.code),
+            _ => {}
+        }
+        self.overlay = Some(Overlay::Transfers);
+        match key.code {
+            KeyCode::Char('p' | 'x' | 'R') | KeyCode::Delete => self.queue_key(key),
+            _ => Vec::new(),
+        }
+    }
+
+    /// The window of transfers in front of the screen, with totals and a scrollable list.
     pub(super) fn render_transfers(&self, frame: &mut Frame, look: &Look) {
         let (m, palette) = (&look.messages, &look.palette);
         let rows = self.queue.rows();
-        let shown = rows.len().clamp(1, 8);
         let area = self.transfers_area(frame.area());
-        let title = m.fill(
-            "transfers.title",
-            &[("count", &self.queue.active().len().to_string())],
-        );
+        let title = transfers_title(rows, look);
         let inside = popup(frame, area, &title, &m.get("transfers.keys"), palette);
         if rows.is_empty() {
             frame.render_widget(
@@ -426,26 +449,12 @@ impl Home {
             );
             return;
         }
-        let lines: Vec<Line> = rows
-            .iter()
-            .enumerate()
-            .skip(first_row(inside, self.queue.cursor))
-            .take(shown)
-            .map(|(index, row)| {
-                let text = line(
-                    row,
-                    usize::from(inside.width),
-                    palette,
-                    &status_text(row, look),
-                );
-                if index == self.queue.cursor {
-                    highlight(text, palette)
-                } else {
-                    text
-                }
-            })
-            .collect();
-        frame.render_widget(Paragraph::new(lines), inside);
+        let first = first_row(inside, self.queue.cursor);
+        for (offset, row) in (0..inside.height).zip(rows.iter().skip(first)) {
+            let area = Rect::new(inside.x, inside.y + offset, inside.width, 1);
+            let selected = first + usize::from(offset) == self.queue.cursor;
+            render_transfer_row(frame, area, row, selected, look);
+        }
     }
 
     /// The bottom panel: the queue of transfers or the log of connections, by its tab.
@@ -574,6 +583,128 @@ impl Home {
             .wrap(Wrap { trim: true }),
             inside,
         );
+    }
+}
+
+/// The completed count, byte-weighted progress, active throughput and estimated time left.
+fn transfers_title(rows: &[Row], look: &Look) -> String {
+    let messages = &look.messages;
+    let done = rows.iter().filter(|row| row.status == Status::Done).count();
+    let mut title = messages.fill(
+        "transfers.title",
+        &[
+            ("done", &done.to_string()),
+            ("count", &rows.len().to_string()),
+        ],
+    );
+    let mut total = Some(0_u128);
+    let mut moved = 0_u128;
+    let mut remaining = Some(0_u128);
+    let mut speed = 0.0;
+    for row in rows {
+        let size = row.total_bytes.map(u128::from);
+        let bytes = u128::from(row.bytes_done);
+        total = total.zip(size).map(|(total, size)| total + size);
+        moved += if row.status == Status::Done {
+            size.unwrap_or(bytes)
+        } else {
+            bytes.min(size.unwrap_or(bytes))
+        };
+        if row.status.active() {
+            remaining = remaining
+                .zip(size)
+                .map(|(remaining, size)| remaining + size.saturating_sub(bytes));
+            if row.status == Status::Running && row.speed > 0.0 {
+                speed += row.speed;
+            }
+        }
+    }
+    if let Some(total) = total.filter(|total| *total > 0) {
+        let percent = (moved * 100 + total / 2) / total;
+        let _ = write!(title, " · {percent}%");
+    }
+    if speed > 0.0 {
+        let _ = write!(title, " · {}", speed_text(speed));
+        if let Some(remaining) = remaining.filter(|remaining| *remaining > 0) {
+            #[allow(
+                clippy::cast_precision_loss,
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "seconds for a person to read"
+            )]
+            let time = clock((remaining as f64 / speed).ceil() as u64);
+            title.push_str(" · ");
+            title.push_str(&messages.fill("transfers.timeLeft", &[("time", &time)]));
+        }
+    }
+    title
+}
+
+/// Draws the primary columns first, adding detail and site columns as space permits.
+fn render_transfer_row(frame: &mut Frame, area: Rect, row: &Row, selected: bool, look: &Look) {
+    let palette = &look.palette;
+    let failed = row.status == Status::Failed;
+    let width = area.width;
+    let direction = width.min(2);
+    let share = if width >= 26 { 6 } else { 0 };
+    let detail = if width >= 76 || failed {
+        (width / 2).saturating_sub(3).min(46)
+    } else if width >= 50 {
+        16
+    } else {
+        0
+    };
+    let site = if width >= 76 { 14 } else { 0 };
+    let primary = width - direction - share - detail - site;
+    let gauge = primary.div_ceil(2).min(20);
+    let columns = Layout::horizontal(
+        [direction, primary - gauge, gauge, share, detail, site].map(Constraint::Length),
+    );
+    let [direction, mut name, gauge, share, mut detail, site] = columns.areas(area);
+    name.width = name.width.saturating_sub(1);
+    detail.width = detail.width.saturating_sub(1);
+    let ratio = row.ratio();
+    let filled = gauge_fill(ratio, usize::from(gauge.width));
+    let color = match row.status {
+        Status::Done => palette.ok,
+        Status::Failed => palette.danger,
+        _ => palette.accent,
+    };
+    let progress = Line::from(vec![
+        Span::raw("█".repeat(filled)).fg(color),
+        Span::raw("░".repeat(usize::from(gauge.width) - filled)).fg(palette.line),
+    ]);
+    let share_text = ratio.map_or_else(
+        || " ? ".to_owned(),
+        |ratio| format!(" {:>3.0}% ", ratio * 100.0),
+    );
+    let detail_text = if row.status == Status::Running && row.speed > 0.0 {
+        speed_text(row.speed)
+    } else {
+        status_text(row, look)
+    };
+    let detail_line = if failed {
+        error_line(&detail_text, palette)
+    } else {
+        Line::from(detail_text).right_aligned()
+    };
+    if selected {
+        frame
+            .buffer_mut()
+            .set_style(area, highlight(Line::default(), palette).style);
+    }
+    for (column, text) in [
+        (direction, Line::from(arrow(row.direction)).bold()),
+        (name, Line::from(visible_name(&row.name))),
+        (gauge, progress),
+        (share, Line::from(share_text)),
+        (detail, detail_line),
+        (
+            site,
+            Line::from(visible_name(&row.site_name)).fg(palette.muted),
+        ),
+    ] {
+        frame.render_widget(text, column);
     }
 }
 

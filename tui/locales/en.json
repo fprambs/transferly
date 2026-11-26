@@ -456,8 +456,9 @@
     }
   },
   "transfers": {
-    "title": "Transfers ({count} running)",
-    "keys": "Esc hide · Ctrl+E queue",
+    "title": "Transfers · {done} of {count}",
+    "timeLeft": "{time} left",
+    "keys": "Esc hide · T show again · p pause · x cancel · R resume · Ctrl+E queue",
     "tabs": "[Transfers] Log",
     "empty": "No transfers yet: F5 or c copies to the other panel.",
     "queueKeys": "p pause · x cancel · R resume · + - priority · [ ] tabs",

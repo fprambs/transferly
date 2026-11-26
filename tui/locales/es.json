@@ -456,8 +456,9 @@
     }
   },
   "transfers": {
-    "title": "Transferencias ({count} en curso)",
-    "keys": "Esc ocultar · Ctrl+E cola",
+    "title": "Transferencias · {done} de {count}",
+    "timeLeft": "faltan {time}",
+    "keys": "Esc ocultar · T mostrar · p pausar · x cancelar · R reanudar · Ctrl+E cola",
     "tabs": "[Transferencias] Registro",
     "empty": "Aún no hay transferencias: F5 o c copia al otro panel.",
     "queueKeys": "p pausar · x cancelar · R reanudar · + - prioridad · [ ] pestañas",

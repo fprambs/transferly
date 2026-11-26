@@ -216,7 +216,7 @@ impl Home {
                 &look.messages.get("copy.keys"),
                 &[KeyCode::Enter, KeyCode::Right, KeyCode::Esc],
             ),
-            Overlay::Cancel(_) => footer_key(
+            Overlay::Cancel { .. } => footer_key(
                 Self::cancel_area(area),
                 position,
                 &look.messages.get("explorer.deleteKeys"),
