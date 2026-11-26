@@ -75,7 +75,8 @@
     "web": "open Transferly in the browser",
     "keys": "every key of the screen",
     "logout": "sign this terminal out",
-    "quit": "close transferly-tui"
+    "quit": "close transferly-tui",
+    "transfers": "the transfers, in front"
   },
   "settings": {
     "title": "Settings",
@@ -169,7 +170,8 @@
     "cursor": "move the cursor",
     "erase": "erase",
     "clearWord": "clear the field, erase a word",
-    "paste": "paste (the paste of the terminal)"
+    "paste": "paste (the paste of the terminal)",
+    "transfers": "show the transfers"
   },
   "explorer": {
     "empty": "Empty panel",
@@ -201,7 +203,8 @@
     "auth_failed": "The server refused the credentials of the site.",
     "forbidden": "Your role in this workspace does not allow that.",
     "rate_limited": "Too many attempts. Wait a moment and try again.",
-    "credentials_required": "This site asks for its password."
+    "credentials_required": "This site asks for its password.",
+    "partly_failed": "Some files of the folder failed; the queue shows which."
   },
   "hostKey": {
     "title": "Trust this server?",
@@ -240,7 +243,7 @@
     "nothing": "Nothing to copy here.",
     "noTarget": "The other panel shows nothing: press o there to choose where to copy.",
     "localToLocal": "Both panels show the local disk: copy between this computer and a site, or between sites.",
-    "skipped": "{count} left out: they exist, or folders between this computer and a site come in the next version.",
+    "skipped": "{count} left out: they exist at the destination.",
     "policy": {
       "fail": "stop with an error",
       "overwrite": "replace it",

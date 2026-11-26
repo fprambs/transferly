@@ -142,12 +142,14 @@ impl Home {
                     }));
                     continue;
                 }
-                (None, Some(site)) if !folder => (Direction::Upload, site, here, there, &target),
-                (Some(site), None) if !folder => (Direction::Download, site, there, here, &source),
-                _ => {
-                    skipped += 1;
-                    continue;
-                }
+                (None, Some(site)) => (Direction::Upload, site, here, there, &target),
+                (site, _) => (
+                    Direction::Download,
+                    site.unwrap_or_default(),
+                    there,
+                    here,
+                    &source,
+                ),
             };
             let job = Job {
                 id,
@@ -159,9 +161,20 @@ impl Home {
                 mode,
                 from: 0,
                 side: to,
+                folder,
             };
             self.queue.start(
-                Row::started(id, direction, &name, &site_name(shown), Some(entry.size)),
+                Row::started(
+                    id,
+                    direction,
+                    &if folder {
+                        format!("{name}/")
+                    } else {
+                        name.clone()
+                    },
+                    &site_name(shown),
+                    (!folder).then_some(entry.size),
+                ),
                 Some(job.clone()),
             );
             asks.push(Ask::Transfer(job, to));
@@ -283,7 +296,7 @@ impl Home {
                 action: "resume".to_owned(),
             })];
         };
-        "resume".clone_into(&mut job.mode);
+        (if job.folder { "overwrite" } else { "resume" }).clone_into(&mut job.mode);
         job.from = if job.direction == Direction::Upload {
             row.bytes_done
         } else {
@@ -383,6 +396,13 @@ impl Home {
             &[("count", &self.queue.active().len().to_string())],
         );
         let inside = popup(frame, area, &title, &m.get("transfers.keys"), palette);
+        if rows.is_empty() {
+            frame.render_widget(
+                Paragraph::new(Line::from(m.get("transfers.empty")).fg(palette.muted)),
+                inside,
+            );
+            return;
+        }
         let lines: Vec<Line> = rows
             .iter()
             .take(shown)

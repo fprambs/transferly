@@ -28,13 +28,14 @@ use crate::i18n::Language;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The commands of the command line, in the order they are listed.
-pub const COMMANDS: [&str; 9] = [
+pub const COMMANDS: [&str; 10] = [
     "config",
     "theme",
     "language",
     "workspace",
     "server",
     "web",
+    "transfers",
     "keys",
     "logout",
     "quit",
@@ -1088,6 +1089,7 @@ impl Home {
                     selected: 0,
                 });
             }
+            KeyCode::Char('T') => self.overlay = Some(Overlay::Transfers),
             KeyCode::Char('q') | KeyCode::F(10) => return vec![Ask::Quit],
             KeyCode::Char('b') if control => {
                 self.sites_shown = !self.sites_shown;
@@ -1582,6 +1584,10 @@ impl Home {
                 "{}/",
                 self.session.server.origin().ascii_serialization()
             ))],
+            "transfers" => {
+                self.overlay = Some(Overlay::Transfers);
+                Vec::new()
+            }
             "keys" => {
                 self.overlay = Some(Overlay::Help {
                     filter: Input::default(),
@@ -2326,6 +2332,7 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
             ("Tab  Shift+Tab", "help.focus"),
             ("Ctrl+B", "help.sites"),
             ("Ctrl+E", "help.log"),
+            ("T", "help.transfers"),
             ("q  F10  Ctrl+C", "help.quit"),
         ],
     ),

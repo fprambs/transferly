@@ -1548,6 +1548,7 @@ fn copies_between_panels() {
     let [
         Ask::Transfer(newer, Side::Right),
         Ask::Transfer(fresh, Side::Right),
+        Ask::Transfer(docs, Side::Right),
     ] = asks.as_slice()
     else {
         panic!("{asks:?}")
@@ -1560,13 +1561,10 @@ fn copies_between_panels() {
         (fresh.remote.as_str(), fresh.mode.as_str()),
         ("/srv/b.txt", "create")
     );
-    assert!(draw(&home, &look, 140, 30).contains("Transfers (2 running)"));
-    assert_eq!(
-        home.notice().map(|n| n.text.contains("1 left out")),
-        Some(true)
-    );
+    assert!(docs.folder && docs.remote == "/srv/docs");
+    assert!(draw(&home, &look, 140, 30).contains("Transfers (3 running)"));
     home.key(ctrl('e'), &mut look);
-    assert!(draw(&home, &look, 140, 30).contains("⇅ 2"));
+    assert!(draw(&home, &look, 140, 30).contains("⇅ 3"));
     home.key(key(KeyCode::Esc), &mut look);
     assert!(home.overlay().is_none());
     home.key(key(KeyCode::BackTab), &mut look);
@@ -1691,6 +1689,7 @@ fn manages_the_queue() {
         } else {
             Side::Left
         },
+        folder: false,
     };
     let state = |n: u8, direction: &str, status: &str| -> Row {
         serde_json::from_value(serde_json::json!({"id": at(n), "direction": direction, "name": format!("t{n}"), "status": status, "bytesDone": 5, "totalBytes": 10, "errorCode": if status == "failed" { Some("disk_full") } else { None }})).expect("a row")
@@ -1938,6 +1937,19 @@ fn shows_transfers() {
     home.key(ctrl('a'), &mut look);
     home.key(key(KeyCode::Char('c')), &mut look);
     assert!(draw(&home, &look, 140, 40).contains("and 2 more"));
+}
+
+/// `T` and `/transfers` bring the window of transfers in front at any moment, saying when there are none yet.
+#[test]
+fn shows_transfers_on_demand() {
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    home.key(key(KeyCode::Char('T')), &mut look);
+    assert!(draw(&home, &look, 140, 30).contains("No transfers yet"));
+    home.key(key(KeyCode::Esc), &mut look);
+    assert!(home.overlay().is_none());
+    command(&mut home, &mut look, "transfers");
+    assert!(matches!(home.overlay(), Some(Overlay::Transfers)));
 }
 
 /// The interface around the main screen: a kept session starts on it, its replies reach it, and what it asks becomes effects; signing

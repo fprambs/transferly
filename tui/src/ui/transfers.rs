@@ -123,6 +123,9 @@ impl Row {
     /// The share done, from 0 to 1, when the size is known.
     #[must_use]
     pub fn ratio(&self) -> Option<f64> {
+        if self.status == Status::Done {
+            return Some(1.0);
+        }
         #[allow(clippy::cast_precision_loss, reason = "a share for a gauge")]
         self.total_bytes
             .filter(|total| *total > 0)
@@ -167,6 +170,8 @@ pub struct Job {
     pub from: u64,
     /// The panel to list again once it ends: the one it writes to.
     pub side: super::home::Side,
+    /// Whether it is a folder, moved with everything in it, a file at a time.
+    pub folder: bool,
 }
 
 /// The transfers of the account, newest first, with the one under the cursor of the queue.
@@ -425,6 +430,7 @@ mod tests {
             mode: "create".into(),
             from: 0,
             side: crate::ui::home::Side::Left,
+            folder: false,
         };
         queue.start(row("queued", 0), Some(job.clone()));
         queue.start(row("queued", 0), Some(job.clone()));

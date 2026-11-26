@@ -176,7 +176,7 @@ pub async fn run(
                     moving.insert(
                         id,
                         tokio::spawn(async move {
-                            let outcome = move_bytes(&session, &job).await;
+                            let outcome = transfer(&session, &job).await;
                             let _ = results
                                 .send(Event::Replied(Reply::TransferEnded { id, side, outcome }))
                                 .await;
@@ -673,6 +673,128 @@ async fn move_bytes(session: &Session, job: &Job) -> Result<(), CallError> {
     tokio::fs::rename(&part, &job.local)
         .await
         .map_err(io_failure)
+}
+
+/// The files and folders inside a local folder, with their paths relative to it and separated by `/`, folders before what they hold.
+fn walk(root: &std::path::Path) -> std::io::Result<Vec<(String, bool)>> {
+    let mut found = Vec::new();
+    let mut pending = vec![String::new()];
+    while let Some(relative) = pending.pop() {
+        for item in std::fs::read_dir(root.join(&relative))? {
+            let item = item?;
+            let name = item.file_name().to_string_lossy().into_owned();
+            let path = if relative.is_empty() {
+                name
+            } else {
+                format!("{relative}/{name}")
+            };
+            let folder = item.file_type()?.is_dir();
+            if folder {
+                pending.push(path.clone());
+            }
+            found.push((path, folder));
+        }
+    }
+    Ok(found)
+}
+
+/// The files and folders inside a folder of a site, with their paths relative to it, folders before what they hold.
+async fn walk_remote(
+    api: &Api,
+    workspace: &str,
+    site: &str,
+    root: &str,
+) -> Result<Vec<(String, bool)>, CallError> {
+    let mut found = Vec::new();
+    let mut pending = vec![String::new()];
+    while let Some(relative) = pending.pop() {
+        let folder = if relative.is_empty() {
+            root.to_owned()
+        } else {
+            format!("{}/{relative}", root.trim_end_matches('/'))
+        };
+        for entry in api.list(workspace, site, &folder).await.map_err(failure)? {
+            let path = if relative.is_empty() {
+                entry.name.clone()
+            } else {
+                format!("{relative}/{}", entry.name)
+            };
+            let is_folder =
+                entry.r#type == transferly_client::models::remote_entry::Type::Directory;
+            if is_folder {
+                pending.push(path.clone());
+            }
+            found.push((path, is_folder));
+        }
+    }
+    Ok(found)
+}
+
+/// Moves the bytes of a transfer of this client: a folder with everything in it, or a file.
+async fn transfer(session: &Session, job: &Job) -> Result<(), CallError> {
+    if job.folder {
+        return move_folder(session, job).await;
+    }
+    move_bytes(session, job).await
+}
+
+/// Moves a folder with everything in it, a file at a time: its folders are created first (one that exists is fine), then each file
+/// is moved as its own transfer, which the queue shows. Files that fail do not stop the others; the folder fails at the end with how
+/// many did.
+async fn move_folder(session: &Session, job: &Job) -> Result<(), CallError> {
+    let api = Api::new(session.server.clone()).with_token(&session.token);
+    let (workspace, site) = (job.workspace.to_string(), job.site.to_string());
+    let remote_root = job.remote.trim_end_matches('/').to_owned();
+    let entries = if job.direction == Direction::Upload {
+        let root = job.local.clone();
+        tokio::task::spawn_blocking(move || walk(&root))
+            .await
+            .expect("the task walking the folder")
+            .map_err(io_failure)?
+    } else {
+        walk_remote(&api, &workspace, &site, &remote_root).await?
+    };
+    if job.direction == Direction::Upload {
+        let _ = api.mkdir(&workspace, &site, &remote_root).await;
+    } else {
+        tokio::fs::create_dir_all(&job.local)
+            .await
+            .map_err(io_failure)?;
+    }
+    let mut failed = 0;
+    for (relative, folder) in entries {
+        let (local, remote) = (
+            job.local.join(&relative),
+            format!("{remote_root}/{relative}"),
+        );
+        if folder {
+            if job.direction == Direction::Upload {
+                let _ = api.mkdir(&workspace, &site, &remote).await;
+            } else if tokio::fs::create_dir_all(&local).await.is_err() {
+                failed += 1;
+            }
+            continue;
+        }
+        let file = Job {
+            id: uuid::Uuid::new_v4(),
+            local,
+            remote,
+            from: 0,
+            folder: false,
+            ..job.clone()
+        };
+        if move_bytes(session, &file).await.is_err() {
+            failed += 1;
+        }
+    }
+    if failed == 0 {
+        return Ok(());
+    }
+    Err(CallError {
+        code: Some("partly_failed".to_owned()),
+        message: format!("{failed} files failed"),
+        ..Default::default()
+    })
 }
 
 /// Ends the session on its server, forgets its token and leaves the server current no more; a session the server already ended is
@@ -1248,8 +1370,9 @@ mod tests {
             mode: mode.to_owned(),
             from,
             side: Side::Left,
+            folder: false,
         };
-        move_bytes(
+        transfer(
             &session,
             &job(Direction::Upload, file.clone(), "/up.bin", "create", 0),
         )
@@ -1418,6 +1541,131 @@ mod tests {
             )
             .await,
             Reply::Answered(Ok(()))
+        );
+    }
+
+    /// Folders move with everything in them: subfolders are created first, each file is its own transfer, the ones that fail do not stop
+    /// the others and the folder says how many did; a folder that cannot be read fails at once.
+    #[tokio::test]
+    #[allow(clippy::too_many_lines, reason = "both ways of moving a folder")]
+    async fn moves_folders() {
+        use wiremock::matchers::query_param;
+        let server = MockServer::start().await;
+        let base = "/api/v1/workspaces/00000000-0000-0000-0000-000000000000/sites/00000000-0000-0000-0000-000000000000";
+        let entry = |name: &str, kind: &str| serde_json::json!({"name": name, "path": format!("/{name}"), "type": kind, "size": 1, "mode": "", "modifiedAt": "2026-01-01T00:00:00Z", "modifiedPrecision": "second"});
+        Mock::given(method("POST"))
+            .and(path(format!("{base}/files/directories")))
+            .respond_with(ResponseTemplate::new(201).set_body_json(entry("d", "directory")))
+            .mount(&server)
+            .await;
+        Mock::given(method("PUT")).and(path(format!("{base}/files/content"))).and(query_param("path", "/srv/up/bad.txt")).respond_with(ResponseTemplate::new(403).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 403, "code": "forbidden"}))).mount(&server).await;
+        Mock::given(method("PUT"))
+            .and(path(format!("{base}/files/content")))
+            .respond_with(ResponseTemplate::new(201).set_body_json(entry("f", "file")))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files")))
+            .and(query_param("path", "/srv/d"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+                entry("x.txt", "file"),
+                entry("sub", "directory")
+            ])))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files")))
+            .and(query_param("path", "/srv/d/sub"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!([entry("y.txt", "file")])),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("GET")).and(path(format!("{base}/files"))).respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 404, "code": "not_found"}))).mount(&server).await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files/content")))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"z".to_vec()))
+            .mount(&server)
+            .await;
+        let session = Session {
+            server: Url::parse(&server.uri()).expect("url"),
+            token: "t".to_owned(),
+        };
+        let dir = tempfile::tempdir().expect("folder");
+        let up = dir.path().join("up");
+        std::fs::create_dir_all(up.join("inner")).expect("folders");
+        std::fs::write(up.join("a.txt"), "a").expect("a file");
+        std::fs::write(up.join("inner").join("b.txt"), "b").expect("a file");
+        let job = |direction, local: std::path::PathBuf, remote: &str| Job {
+            id: uuid::Uuid::nil(),
+            direction,
+            workspace: uuid::Uuid::nil(),
+            site: uuid::Uuid::nil(),
+            local,
+            remote: remote.to_owned(),
+            mode: "overwrite".to_owned(),
+            from: 0,
+            side: Side::Left,
+            folder: true,
+        };
+        transfer(&session, &job(Direction::Upload, up.clone(), "/srv/up/"))
+            .await
+            .expect("uploaded");
+        std::fs::write(up.join("bad.txt"), "x").expect("a file");
+        let failed = move_folder(&session, &job(Direction::Upload, up.clone(), "/srv/up"))
+            .await
+            .expect_err("one refused");
+        assert_eq!(
+            (failed.code.as_deref(), failed.message.as_str()),
+            (Some("partly_failed"), "1 files failed")
+        );
+        assert!(
+            move_folder(
+                &session,
+                &job(Direction::Upload, dir.path().join("none"), "/srv/none")
+            )
+            .await
+            .is_err()
+        );
+
+        let down = dir.path().join("down");
+        move_folder(&session, &job(Direction::Download, down.clone(), "/srv/d"))
+            .await
+            .expect("downloaded");
+        assert_eq!(
+            std::fs::read(down.join("sub").join("y.txt")).expect("a file"),
+            b"z"
+        );
+        let blocked = dir.path().join("blocked");
+        std::fs::create_dir_all(&blocked).expect("a folder");
+        std::fs::write(blocked.join("sub"), "a file where a folder goes").expect("a file");
+        let partly = move_folder(&session, &job(Direction::Download, blocked, "/srv/d"))
+            .await
+            .expect_err("sub cannot be made");
+        assert_eq!(partly.code.as_deref(), Some("partly_failed"));
+        std::fs::write(dir.path().join("file"), "x").expect("a file");
+        assert!(
+            move_folder(
+                &session,
+                &job(
+                    Direction::Download,
+                    dir.path().join("file").join("x"),
+                    "/srv/d"
+                )
+            )
+            .await
+            .is_err(),
+            "the folder cannot be made"
+        );
+        assert!(
+            move_folder(
+                &session,
+                &job(Direction::Download, dir.path().join("m"), "/srv/missing")
+            )
+            .await
+            .is_err(),
+            "the site has no such folder"
         );
     }
 }

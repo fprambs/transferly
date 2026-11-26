@@ -485,7 +485,7 @@ Revisado contra el código el 2026-11-24. Solo el middleware `authenticate` (`tr
 ### T4. Transferencias (1,5 a 2 semanas)
 
 - [x] Subir desde disco en flujo (`PUT files/content`), reanudar con `mode=resume&offset=`; descargar con `Range` y reanudar
-- [ ] Carpetas completas en ambos sentidos; política ante archivos existentes (falla, sobrescribe, omite, más nuevo, renombra)
+- [x] Carpetas completas en ambos sentidos; política ante archivos existentes (falla, sobrescribe, omite, más nuevo, renombra)
 - [x] Copias entre sitios por el servidor (`POST /copies`)
 - [x] Panel de cola con el progreso del WebSocket: pausar, reanudar, cancelar, prioridad; recarga tras reconectar
 - [ ] Integración con el stack de pruebas: login por el navegador (redirección a `127.0.0.1` y código pegado), subir, bajar, reanudar y copiar contra los SFTP, FTP y S3 de `testenv`

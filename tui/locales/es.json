@@ -75,7 +75,8 @@
     "web": "abrir Transferly en el navegador",
     "keys": "todas las teclas de la pantalla",
     "logout": "cerrar la sesión de esta terminal",
-    "quit": "cerrar transferly-tui"
+    "quit": "cerrar transferly-tui",
+    "transfers": "las transferencias, al frente"
   },
   "settings": {
     "title": "Ajustes",
@@ -169,7 +170,8 @@
     "cursor": "mover el cursor",
     "erase": "borrar",
     "clearWord": "vaciar el campo, borrar una palabra",
-    "paste": "pegar (el pegado de la terminal)"
+    "paste": "pegar (el pegado de la terminal)",
+    "transfers": "ver las transferencias"
   },
   "explorer": {
     "empty": "Panel vacío",
@@ -201,7 +203,8 @@
     "auth_failed": "El servidor rechazó las credenciales del sitio.",
     "forbidden": "Tu rol en este workspace no lo permite.",
     "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
-    "credentials_required": "Este sitio pide su contraseña."
+    "credentials_required": "Este sitio pide su contraseña.",
+    "partly_failed": "Algunos archivos de la carpeta fallaron; la cola muestra cuáles."
   },
   "hostKey": {
     "title": "¿Confiar en este servidor?",
@@ -240,7 +243,7 @@
     "nothing": "Aquí no hay nada que copiar.",
     "noTarget": "El otro panel no muestra nada: pulsa o ahí para elegir adónde copiar.",
     "localToLocal": "Ambos paneles muestran el disco local: copia entre este equipo y un sitio, o entre sitios.",
-    "skipped": "{count} sin copiar: ya existen, o son carpetas entre este equipo y un sitio, que llegan en la próxima versión.",
+    "skipped": "{count} sin copiar: ya existen en el destino.",
     "policy": {
       "fail": "detenerse con un error",
       "overwrite": "reemplazarlo",
