@@ -19,7 +19,7 @@ use super::bars::Bar;
 use super::input::Input;
 use super::look::Look;
 use super::mouse::{first_row, footer_key, row};
-use super::widgets::{centered, error_line, field, highlight, panel, popup};
+use super::widgets::{centered, error_line, field, highlight, panel, popup, visible_name};
 
 /// How many rows Page Up and Page Down move.
 const PAGE: usize = 10;
@@ -638,7 +638,7 @@ impl Panel {
                 controls.height,
             );
             frame.render_widget(
-                Line::from(format!(" {} ", self.path)).fg(palette.muted),
+                Line::from(format!(" {} ", visible_name(&self.path))).fg(palette.muted),
                 path,
             );
         }
@@ -724,7 +724,7 @@ impl Panel {
             look,
         );
         bar.separate(" ", look);
-        let path_width = Line::from(self.path.as_str()).width() + 2;
+        let path_width = Line::from(visible_name(&self.path)).width() + 2;
         let reserved = u16::try_from(path_width.min(usize::from(area.width / 4)))
             .expect("the path fits in the terminal");
         let width = u16::try_from(bar.width())
@@ -826,11 +826,10 @@ impl Panel {
                     Row::Up => (" ", "../".to_owned(), String::new(), String::new(), true),
                     Row::Entry(entry) => {
                         let folder = entry.kind == Kind::Folder;
-                        let name = if folder {
-                            format!("{}/", entry.name)
-                        } else {
-                            entry.name.clone()
-                        };
+                        let mut name = visible_name(&entry.name);
+                        if folder {
+                            name.push('/');
+                        }
                         let size = if folder {
                             String::new()
                         } else {
@@ -938,7 +937,8 @@ fn render_confirm(frame: &mut Frame, area: Rect, paths: &[(String, bool)], look:
     )];
     for (path, folder) in paths.iter().take(shown) {
         lines.push(Line::from(format!(
-            "  {path}{}",
+            "  {}{}",
+            visible_name(path),
             if *folder { "/" } else { "" }
         )));
     }

@@ -903,7 +903,7 @@ fn explains_failed_calls() {
     home.reply(Reply::Workspaces(Err(refused("internal"))), &mut look);
     assert_eq!(
         home.notice().map(|n| (n.text.as_str(), n.error)),
-        Some(("refused: internal", true))
+        Some(("The server refused the operation (code: internal).", true))
     );
     home.reply(Reply::Vault(Err(refused("vault_locked"))), &mut look);
     assert!(matches!(
@@ -1074,7 +1074,7 @@ fn unlocks_the_vault() {
             "That master password is not right.",
         ),
         ("rate_limited", "Too many attempts."),
-        ("other", "refused: other"),
+        ("other", "The server refused the operation (code: other)."),
     ] {
         home.reply(Reply::Unlocked(Err(refused(code))), &mut look);
         assert!(draw(&home, &look, 120, 30).contains(message), "{code}");
@@ -1563,7 +1563,9 @@ fn works_with_the_explorer() {
         },
         &mut look,
     );
-    assert!(draw(&home, &look, 140, 30).contains("something odd"));
+    assert!(
+        draw(&home, &look, 140, 30).contains("The server refused the operation (code: odd_code).")
+    );
     home.reply(
         Reply::Changed {
             side: Side::Right,
@@ -1626,7 +1628,7 @@ fn works_with_the_explorer() {
         },
         &mut look,
     );
-    assert!(draw(&home, &look, 140, 30).contains("os error 13"));
+    assert!(draw(&home, &look, 140, 30).contains("The operation failed."));
 
     assert_eq!(home.key(ctrl('d'), &mut look), vec![files(Op::Disconnect)]);
     assert!(home.panel(Side::Right).source().is_none());
@@ -2371,7 +2373,7 @@ fn manages_the_queue() {
     let text = draw(&home, &look, 140, 30);
     assert!(
         text.contains("t5")
-            && text.contains("disk_full")
+            && text.contains("The server refused the operation")
             && text.contains("cut: R resumes")
             && text.contains("⇅ 3"),
         "{text}"
@@ -2533,7 +2535,7 @@ fn shows_transfers() {
     }
     let text = draw(&home, &look, 140, 30);
     assert!(
-        text.contains("done") && text.contains("disk_full"),
+        text.contains("done") && text.contains("The server refused the operation"),
         "{text}"
     );
     nothing(
@@ -2579,6 +2581,76 @@ fn shows_transfers() {
     home.key(ctrl('a'), &mut look);
     home.key(key(KeyCode::Char('c')), &mut look);
     assert!(draw(&home, &look, 140, 40).contains("and 2 more"));
+}
+
+/// The Spanish message line explains what to do and both queue views show the short causes.
+#[test]
+fn explains_transfer_failures_in_spanish() {
+    use super::transfers::{Direction, Row};
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    look.speak("es");
+    for (number, name, code, cause) in [
+        (
+            70,
+            "existing.txt",
+            "already_exists",
+            "Ya existe algo con ese nombre.",
+        ),
+        (
+            71,
+            "tab\tname.txt",
+            "invalid_path",
+            "El nombre tiene un carácter inválido.",
+        ),
+    ] {
+        home.queue_mut().start(
+            Row::started(id(number), Direction::Download, name, "nas", None),
+            None,
+        );
+        home.reply(
+            Reply::TransferEnded {
+                id: id(number),
+                side: Side::Right,
+                outcome: Err(refused(code)),
+            },
+            &mut look,
+        );
+        assert!(draw(&home, &look, 160, 36).contains(cause));
+    }
+    assert!(home.notice().is_some_and(|notice| {
+        notice.text.contains("en el servidor con otra herramienta")
+            && notice.text.contains("tabulaciones o saltos de línea")
+    }));
+    home.reply(
+        Reply::TransferState(
+            serde_json::from_value(serde_json::json!({
+                "id": id(72), "direction": "copy", "name": "no-code.txt", "status": "failed"
+            }))
+            .expect("a failed transfer"),
+        ),
+        &mut look,
+    );
+    for popup in [false, true] {
+        if popup {
+            home.key(key(KeyCode::Char('T')), &mut look);
+        } else {
+            home.key(ctrl('e'), &mut look);
+        }
+        let text = draw(&home, &look, 160, 36);
+        assert!(
+            text.lines().any(|line| {
+                line.contains("tab⇥name.txt")
+                    && line.contains("El nombre tiene un carácter inválido.")
+            }),
+            "{text}"
+        );
+        assert!(text.contains("Ya existe algo con ese nombre."), "{text}");
+        assert!(
+            !text.contains("already_exists") && !text.contains("invalid_path"),
+            "{text}"
+        );
+    }
 }
 
 /// `T` and `/transfers` bring the window of transfers in front at any moment, saying when there are none yet.
@@ -3022,16 +3094,16 @@ mod interface {
             run(&mut app, "logout"),
             vec![Effect::Logout(session.clone())]
         );
-        app.handle(Event::LoggedOut(Err("offline".to_owned())));
+        app.handle(Event::LoggedOut(Err(refused("already_exists"))));
         assert_eq!(
             home(&app).notice().map(|n| n.text.as_str()),
-            Some("Could not sign out: offline")
+            Some("Could not sign out: Something with that name already exists.")
         );
         app.handle(Event::LoggedOut(Ok(())));
         assert!(matches!(app.screen(), Screen::Server { .. }));
         assert!(text(&app).contains("Signed out of https://files.example.com."));
         for ignored in [
-            Event::LoggedOut(Err("x".to_owned())),
+            Event::LoggedOut(Err(CallError::default())),
             Event::Saved(Err("x".to_owned())),
             Event::Replied(Reply::Vault(Ok(VaultStatus::default()))),
             Event::BrowserOpened(false),
@@ -3718,7 +3790,10 @@ fn handles_missing_and_delayed_site_catalogs() {
         &home.reply(Reply::Connectors(Err(refused("forbidden"))), &mut look),
         "",
     );
-    assert!(draw(&home, &look, size.0, size.1).contains("refused: forbidden"));
+    assert!(
+        draw(&home, &look, size.0, size.1)
+            .contains("Your role in this workspace does not allow that.")
+    );
 
     home.key(key(KeyCode::Char('N')), &mut look);
     nothing(
@@ -3872,8 +3947,12 @@ fn shows_field_and_operation_errors_for_site_drafts() {
     home.key(key(KeyCode::Char('E')), &mut look);
     home.reply(Reply::Connectors(Ok(site_catalog())), &mut look);
     for (field, reason, message) in [
-        (None, "required", "refused: invalid_config"),
-        (Some("private_key"), "required", "refused: invalid_config"),
+        (None, "required", "A setting of the site does not follow"),
+        (
+            Some("private_key"),
+            "required",
+            "A setting of the site does not follow",
+        ),
         (Some("username"), "length", "Use at most 255 characters."),
         (Some("port"), "unrecognized", "Choose one of the options."),
     ] {
@@ -3890,6 +3969,15 @@ fn shows_field_and_operation_errors_for_site_drafts() {
         nothing(&home.reply(Reply::Site(id(1), Err(error)), &mut look), "");
         assert!(draw(&home, &look, size.0, size.1).contains(message));
     }
+    look.speak("es");
+    home.key(ctrl('t'), &mut look);
+    home.reply(
+        Reply::Site(id(1), Err(refused("site_name_taken"))),
+        &mut look,
+    );
+    let text = draw(&home, &look, size.0, size.1);
+    assert!(text.contains("Otro sitio de la misma colección"), "{text}");
+    assert!(!text.contains("site_name_taken"), "{text}");
 }
 
 /// Jump-host tests require a reported peer and propagate authentication failure when trusting it.

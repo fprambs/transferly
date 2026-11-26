@@ -1,5 +1,7 @@
 //! The languages of the interface, English and Spanish, as the web has them: before signing in the language of the system, then the
-//! language of the account. The messages live in `tui/locales/<language>.json`, embedded in the binary.
+//! language of the account. Terminal messages and the shared web error catalog are embedded in the binary.
+
+use std::collections::HashMap;
 
 use serde_json::Value;
 
@@ -47,6 +49,7 @@ impl Language {
 pub struct Messages {
     language: Language,
     tree: Value,
+    web_errors: Value,
 }
 
 impl Messages {
@@ -61,8 +64,13 @@ impl Messages {
             Language::English => include_str!("../locales/en.json"),
             Language::Spanish => include_str!("../locales/es.json"),
         };
+        let web_errors = match language {
+            Language::English => include_str!("../../frontend/src/i18n/locales/en/errors.json"),
+            Language::Spanish => include_str!("../../frontend/src/i18n/locales/es/errors.json"),
+        };
         Self {
             language,
+            web_errors: serde_json::from_str(web_errors).expect("an embedded web error catalog"),
             tree: serde_json::from_str(text).expect("an embedded catalog"),
         }
     }
@@ -83,6 +91,44 @@ impl Messages {
             .to_owned()
     }
 
+    /// The short explanation of a refusal, with terminal wording where available.
+    pub(crate) fn error_cause(&self, code: &str) -> String {
+        self.cause(code, &HashMap::new())
+    }
+
+    /// The cause from either catalog, with any supplied parameters filled.
+    fn cause(&self, code: &str, params: &HashMap<String, Value>) -> String {
+        self.tree["errors"][code]
+            .as_str()
+            .or(self.web_errors["codes"][code]["cause"].as_str())
+            .map_or_else(
+                || self.fill("errorFallback.unknown", &[("code", code)]),
+                |cause| fill_error_params(cause, params),
+            )
+    }
+
+    /// The explanation and any next step for a failed call.
+    pub(crate) fn explain_error(
+        &self,
+        code: Option<&str>,
+        params: &HashMap<String, Value>,
+    ) -> String {
+        let Some(code) = code else {
+            return self.get("errorFallback.failed");
+        };
+        let mut cause = self.cause(code, params);
+        let next = if self.tree["errors"][code].is_string() {
+            &self.tree["errorNext"][code]
+        } else {
+            &self.web_errors["codes"][code]["next"]
+        };
+        if let Some(next) = next.as_str() {
+            cause.push(' ');
+            cause.push_str(next);
+        }
+        cause
+    }
+
     /// The message at a key with its `{name}` placeholders filled.
     #[must_use]
     pub fn fill(&self, key: &str, values: &[(&str, &str)]) -> String {
@@ -90,6 +136,18 @@ impl Messages {
             text.replace(&format!("{{{name}}}"), value)
         })
     }
+}
+
+/// Fills the web catalog's double-braced placeholders, with a question mark for missing values.
+fn fill_error_params(text: &str, params: &HashMap<String, Value>) -> String {
+    let mut parts = text.split("{{");
+    let mut text = parts.next().unwrap_or_default().to_owned();
+    for part in parts {
+        let (name, rest) = part.split_once("}}").unwrap_or((part, ""));
+        text.push_str(params.get(name).and_then(Value::as_str).unwrap_or("?"));
+        text.push_str(rest);
+    }
+    text
 }
 
 #[cfg(test)]
@@ -149,6 +207,51 @@ mod tests {
         );
         assert_eq!(spanish.get("server.nothing"), "server.nothing");
         assert_eq!(spanish.get("server"), "server");
+    }
+
+    /// Every entry in the backend's domain error table has a cause in both languages.
+    #[test]
+    fn explains_every_domain_problem() {
+        let source = include_str!("../../backend/internal/transport/httpapi/domain.go");
+        let (_, table) = source
+            .split_once("var domainProblems =")
+            .expect("the table");
+        let (table, _) = table.split_once("\n}\n").expect("the end of the table");
+        let codes: Vec<_> = table
+            .lines()
+            .filter_map(|line| line.split('"').nth(1))
+            .collect();
+        assert_ne!(codes, [] as [&str; 0]);
+        for language in [Language::English, Language::Spanish] {
+            let messages = Messages::new(language);
+            for code in &codes {
+                let cause = messages.error_cause(code);
+                assert!(!cause.is_empty(), "{language:?}: {code}");
+                assert_ne!(
+                    cause,
+                    messages.fill("errorFallback.unknown", &[("code", code)]),
+                    "{language:?}: {code}"
+                );
+            }
+        }
+    }
+
+    /// Terminal wording takes precedence and shared explanations include next steps and parameters.
+    #[test]
+    fn explains_errors_with_local_and_shared_text() {
+        let messages = Messages::new(Language::Spanish);
+        let params = HashMap::from([("category".to_owned(), Value::from("KEX"))]);
+        let ssh = messages.explain_error(Some("ssh_algorithm_incompatible"), &params);
+        assert!(ssh.contains("Falló la negociación SSH (KEX)."));
+        assert!(ssh.contains("habilitar algoritmos SSH seguros"));
+        assert!(!ssh.contains("{{"));
+        let path = messages.explain_error(Some("invalid_path"), &HashMap::new());
+        assert!(path.starts_with("El nombre tiene un carácter inválido."));
+        assert!(path.contains("en el servidor con otra herramienta"));
+        assert_eq!(
+            messages.error_cause("new_problem"),
+            "El servidor rechazó la operación (código: new_problem)."
+        );
     }
 
     /// The language comes from the tag or the environment, Spanish for any Spanish locale and English otherwise.

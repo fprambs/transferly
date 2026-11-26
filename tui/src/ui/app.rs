@@ -12,7 +12,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{Paragraph, Wrap};
 use url::Url;
 
-use super::home::{Ask, Home, Reply, Session};
+use super::home::{Ask, CallError, Home, Reply, Session, explain};
 use super::input::Input;
 use super::look::Look;
 use super::mouse::MouseKind;
@@ -89,7 +89,7 @@ pub enum Event {
     /// The server answered a call.
     Replied(Reply),
     /// Signing out ended, or why it failed.
-    LoggedOut(Result<(), String>),
+    LoggedOut(Result<(), CallError>),
     /// The settings of this computer were kept, or why not.
     Saved(Result<(), String>),
     /// Signing in failed.
@@ -420,10 +420,14 @@ impl App {
             {
                 self.look.messages.get(&format!("exchange.{code}"))
             }
-            Failure::Refused(reason) | Failure::Unreachable(reason) => self
-                .look
-                .messages
-                .fill("exchange.other", &[("reason", reason)]),
+            Failure::Refused(code) => explain(
+                &CallError {
+                    code: Some(code.clone()),
+                    ..Default::default()
+                },
+                &self.look,
+            ),
+            Failure::Unreachable(_) => self.look.messages.get("exchange.unreachable"),
             Failure::NotKept(reason) => self
                 .look
                 .messages
@@ -516,7 +520,7 @@ impl App {
     }
 
     /// Signing out ended: back to the address of the server, or the reason on the status bar.
-    fn logged_out(&mut self, outcome: Result<(), String>) -> Vec<Effect> {
+    fn logged_out(&mut self, outcome: Result<(), CallError>) -> Vec<Effect> {
         match (outcome, &mut self.screen) {
             (Ok(()), _) => {
                 let message = self
@@ -526,7 +530,8 @@ impl App {
                 self.back_to_server(Some(message));
                 return vec![Effect::StopStream];
             }
-            (Err(reason), Screen::Main(home)) => {
+            (Err(error), Screen::Main(home)) => {
+                let reason = explain(&error, &self.look);
                 home.say(
                     self.look
                         .messages

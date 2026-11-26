@@ -87,6 +87,25 @@ fn draw(panel: &Panel, width: u16, height: u16) -> String {
         .collect()
 }
 
+/// Control characters are visible in the explorer, while activation and paths use the original name.
+#[test]
+fn draws_control_characters_in_filenames() {
+    let mut panel = site_panel();
+    let name = "tab\tname\n.txt";
+    assert_eq!(
+        panel.homed(Ok("/upload".to_owned())),
+        vec![PanelAsk::Op(Op::List("/upload".to_owned()))]
+    );
+    panel.listed("/upload", Ok(vec![entry(name, Kind::File, 1, 0)]));
+    assert!(draw(&panel, 80, 15).contains("tab⇥name�.txt"));
+    panel.key(key(KeyCode::Down));
+    assert!(matches!(
+        panel.key(key(KeyCode::Enter)).as_slice(),
+        [PanelAsk::Activate(file)] if file.name == name
+    ));
+    assert_eq!(panel.join(name), "/upload/tab\tname\n.txt");
+}
+
 /// The names of the rows, in order, as drawn.
 fn names(panel: &Panel) -> Vec<String> {
     draw(panel, 80, 14)

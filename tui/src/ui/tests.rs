@@ -347,11 +347,11 @@ fn explains_failed_sign_ins() {
         ),
         (
             Event::SignInFailed(Failure::Refused("rate_limited".to_owned())),
-            "The sign-in failed: rate_limited",
+            "Too many attempts. Wait a moment and try again.",
         ),
         (
             Event::SignInFailed(Failure::Unreachable("reset".to_owned())),
-            "The sign-in failed: reset",
+            "The sign-in failed. Check the server address",
         ),
         (
             Event::SignInFailed(Failure::NotKept("locked".to_owned())),

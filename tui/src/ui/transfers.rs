@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use super::explorer::human;
 use super::theme::Palette;
+use super::widgets::visible_character;
 
 /// Which way a transfer goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -324,12 +325,18 @@ pub fn clock(seconds: u64) -> String {
 }
 
 /// A transfer as a line: the arrow, the name, the gauge, the share, the speed and the time left, or how it ended; failures carry their
-/// code in the danger color.
+/// explanation in the danger color.
 #[must_use]
 pub fn line(row: &Row, width: usize, palette: &Palette, status: &str) -> Line<'static> {
     let gauge_width = (width / 4).clamp(8, 30);
-    let name_width = width.saturating_sub(gauge_width + 40).max(8);
-    let name: String = row.name.chars().take(name_width).collect();
+    let reserved = if row.status == Status::Failed { 58 } else { 40 };
+    let name_width = width.saturating_sub(gauge_width + reserved).max(8);
+    let name: String = row
+        .name
+        .chars()
+        .take(name_width)
+        .map(visible_character)
+        .collect();
     let share = row.ratio().map_or_else(
         || "  ? ".to_owned(),
         |ratio| format!("{:>3.0}%", ratio * 100.0),
@@ -349,7 +356,6 @@ pub fn line(row: &Row, width: usize, palette: &Palette, status: &str) -> Line<'s
         .filter(|_| row.status == Status::Running)
         .map_or_default(clock);
     let tail = match row.status {
-        Status::Failed => row.error_code.clone().unwrap_or_default(),
         Status::Running if !speed.is_empty() => format!("{speed:>11} {left:>7}"),
         _ => status.to_owned(),
     };
@@ -458,9 +464,7 @@ mod tests {
             "{}",
             text(&running)
         );
-        let mut failed = row("failed", 10);
-        failed.error_code = Some("permission_denied".to_owned());
-        assert!(text(&failed).contains("permission_denied"));
+        assert!(text(&row("failed", 10)).contains("waiting"));
         assert!(text(&row("done", 1000)).contains("100%"));
         assert!(text(&row("queued", 0)).contains("waiting"));
         let copy = Row::started(Uuid::nil(), Direction::Copy, "c", "s", None);

@@ -15,7 +15,7 @@ use super::super::explorer::{Entry, Kind, Source};
 use super::super::look::Look;
 use super::super::mouse::first_row;
 use super::super::transfers::{Direction, Job, Row, Status, line};
-use super::super::widgets::{centered, error_line, highlight, panel, popup};
+use super::super::widgets::{centered, error_line, highlight, panel, popup, visible_name};
 use super::{Ask, Call, CallError, Focus, Home, Overlay, POLICIES, Side, Tab, explain};
 
 /// The other panel.
@@ -367,12 +367,12 @@ impl Home {
             "copy.body",
             &[
                 ("count", &items.len().to_string()),
-                ("target", target.path()),
+                ("target", &visible_name(target.path())),
             ],
         ))];
         for entry in items.iter().take(shown) {
             let suffix = if entry.kind == Kind::Folder { "/" } else { "" };
-            lines.push(Line::from(format!("  {}{suffix}", entry.name)).bold());
+            lines.push(Line::from(format!("  {}{suffix}", visible_name(&entry.name))).bold());
         }
         if items.len() > shown {
             lines.push(
@@ -520,7 +520,13 @@ impl Home {
     ) {
         let (m, palette) = (&look.messages, &look.palette);
         let area = centered(frame.area(), 72, 9);
-        let inside = popup(frame, area, &entry.name, &m.get("details.keys"), palette);
+        let inside = popup(
+            frame,
+            area,
+            &visible_name(&entry.name),
+            &m.get("details.keys"),
+            palette,
+        );
         #[rustfmt::skip]
         let modified = entry.modified.map_or_else(String::new, |at| at.to_zoned_datetime(zone.clone()).strftime("%Y-%m-%d %H:%M:%S").to_string());
         let row = |label: &str, value: String| {
@@ -535,7 +541,10 @@ impl Home {
                 format!("{} ({} B)", human(entry.size), entry.size),
             ),
             row("details.modified", modified),
-            row("details.path", self.panel(side).join(&entry.name)),
+            row(
+                "details.path",
+                visible_name(&self.panel(side).join(&entry.name)),
+            ),
         ];
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
     }
@@ -559,7 +568,7 @@ impl Home {
         );
         frame.render_widget(
             Paragraph::new(vec![error_line(
-                &m.fill("transfers.cancelBody", &[("name", name)]),
+                &m.fill("transfers.cancelBody", &[("name", &visible_name(name))]),
                 palette,
             )])
             .wrap(Wrap { trim: true }),
@@ -568,14 +577,19 @@ impl Home {
     }
 }
 
-/// How a transfer stands, in words: waiting, held back, done, cancelled or cut.
+/// The status of a transfer, with a short explanation for failures.
 fn status_text(row: &Row, look: &Look) -> String {
     let key = match row.status {
         Status::Queued if row.paused => "transfers.paused",
         Status::Queued => "transfers.queued",
         Status::Running => "transfers.running",
         Status::Done => "transfers.done",
-        Status::Failed => "transfers.failed",
+        Status::Failed => {
+            return row.error_code.as_deref().map_or_else(
+                || look.messages.get("transfers.failed"),
+                |code| look.messages.error_cause(code),
+            );
+        }
         Status::Canceled => "transfers.canceled",
         Status::Interrupted => "transfers.interrupted",
     };

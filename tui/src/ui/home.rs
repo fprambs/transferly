@@ -914,7 +914,7 @@ impl Home {
                 *error = Some(match failure.code.as_deref() {
                     Some("invalid_master_password") => look.messages.get("vault.wrong"),
                     Some("rate_limited") => look.messages.get("vault.limited"),
-                    _ => failure.message,
+                    _ => explain(&failure, look),
                 });
             }
         }
@@ -940,7 +940,7 @@ impl Home {
                 Vec::new()
             }
             _ => {
-                self.say(error.message.clone(), true);
+                self.say(explain(error, look), true);
                 Vec::new()
             }
         }
@@ -2582,18 +2582,10 @@ fn render_help(frame: &mut Frame, filter: &Input, scroll: usize, look: &Look) {
     );
 }
 
-/// A failure in words: the message of its stable code when the catalog has one, or what happened.
-fn explain(error: &CallError, look: &Look) -> String {
-    let Some(code) = &error.code else {
-        return error.message.clone();
-    };
-    let key = format!("errors.{code}");
-    let text = look.messages.get(&key);
-    if text == key {
-        error.message.clone()
-    } else {
-        text
-    }
+/// A failure in words, in the language of the interface.
+pub(super) fn explain(error: &CallError, look: &Look) -> String {
+    look.messages
+        .explain_error(error.code.as_deref(), &error.params)
 }
 
 /// The key of a server to trust: the site, the server, the type and fingerprint of the key, and when it changed the fingerprints

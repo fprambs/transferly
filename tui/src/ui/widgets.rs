@@ -74,6 +74,20 @@ pub fn card(
     inside
 }
 
+/// Replaces terminal control characters with visible single-cell symbols.
+pub(super) fn visible_character(character: char) -> char {
+    match character {
+        '\t' => '⇥',
+        character if character.is_control() => '�',
+        character => character,
+    }
+}
+
+/// Makes control characters visible in a filename or path.
+pub(super) fn visible_name(name: &str) -> String {
+    name.chars().map(visible_character).collect()
+}
+
 /// A one-line text field with its label as the title of its border; when focused it shows the cursor of the terminal.
 pub fn field(
     frame: &mut Frame,
@@ -87,7 +101,13 @@ pub fn field(
     let inside = block.inner(area);
     let width = usize::from(inside.width.max(1)) - 1;
     let skip = input.cursor().saturating_sub(width);
-    let visible: String = input.value().chars().skip(skip).take(width + 1).collect();
+    let visible: String = input
+        .value()
+        .chars()
+        .skip(skip)
+        .take(width + 1)
+        .map(visible_character)
+        .collect();
     frame.render_widget(Paragraph::new(visible).block(block), area);
     if focused {
         let column = u16::try_from(input.cursor() - skip).unwrap_or(u16::MAX);

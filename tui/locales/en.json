@@ -35,7 +35,7 @@
     "invalid_grant": "The code is not valid any more: it works once, for 5 minutes. Sign in again.",
     "cli_login_disabled": "This server has signing in from the terminal turned off; ask its administrator.",
     "http_404": "This server is too old to sign in from the terminal: update it.",
-    "other": "The sign-in failed: {reason}",
+    "unreachable": "The sign-in failed. Check the server address and connection, then try again.",
     "notKept": "Signed in, but the token could not be kept: {reason}"
   },
   "signed": {
@@ -375,7 +375,15 @@
     "undone": "This cannot be undone.",
     "deleteKeys": "y delete · n cancel"
   },
+  "errorFallback": {
+    "unknown": "The server refused the operation (code: {code}).",
+    "failed": "The operation failed. Check the connection or local files and try again."
+  },
+  "errorNext": {
+    "invalid_path": "Rename it on the server with another tool to remove characters such as tabs or line breaks."
+  },
   "errors": {
+    "invalid_path": "The name has an invalid character.",
     "vault_locked": "The vault is locked: unlock it to open the site.",
     "host_key_unknown": "The key of this server is not trusted yet.",
     "host_key_changed": "The key of this server changed since it was trusted.",

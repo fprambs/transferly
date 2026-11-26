@@ -817,12 +817,12 @@ async fn logout(
     session: &Session,
     tokens: Arc<dyn TokenStore>,
     config_path: PathBuf,
-) -> Result<(), String> {
+) -> Result<(), CallError> {
     let api = Api::new(session.server.clone()).with_token(&session.token);
     match api.logout().await {
         Ok(()) => {}
         Err(error) if error.code() == Some("unauthenticated") => {}
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return Err(failure(error)),
     }
     let origin = session.server.origin().ascii_serialization();
     tokio::task::spawn_blocking(move || {
@@ -835,6 +835,10 @@ async fn logout(
     })
     .await
     .expect("the task forgetting the token")
+    .map_err(|message| CallError {
+        message,
+        ..Default::default()
+    })
 }
 
 #[cfg(test)]
@@ -1414,6 +1418,15 @@ mod tests {
         Mock::given(method("GET")).and(path(format!("{base}/files/content"))).and(query_param("path", "/missing")).respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({"type": "about:blank", "title": "x", "status": 404, "code": "not_found"}))).mount(&server).await;
         Mock::given(method("GET"))
             .and(path(format!("{base}/files/content")))
+            .and(query_param("path", "/tab\tname.txt"))
+            .respond_with(ResponseTemplate::new(422).set_body_json(serde_json::json!({
+                "type": "about:blank", "title": "x", "status": 422, "code": "invalid_path"
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("{base}/files/content")))
             .respond_with(ResponseTemplate::new(200).set_body_bytes(b"abcdef".to_vec()))
             .mount(&server)
             .await;
@@ -1471,6 +1484,20 @@ mod tests {
             .is_err(),
             "refused by the server"
         );
+
+        let invalid = move_bytes(
+            &session,
+            &job(
+                Direction::Download,
+                dir.path().join("tab\tname.txt"),
+                "/tab\tname.txt",
+                "create",
+                0,
+            ),
+        )
+        .await
+        .expect_err("the server rejects control characters in the unchanged path");
+        assert_eq!(invalid.code.as_deref(), Some("invalid_path"));
 
         let down = dir.path().join("down.bin");
         move_bytes(

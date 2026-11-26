@@ -35,7 +35,7 @@
     "invalid_grant": "El código ya no es válido: sirve una vez, durante 5 minutos. Vuelve a iniciar sesión.",
     "cli_login_disabled": "Este servidor tiene desactivado el inicio de sesión desde la terminal; pregunta a quien lo administra.",
     "http_404": "Este servidor es demasiado viejo para iniciar sesión desde la terminal: actualízalo.",
-    "other": "El inicio de sesión falló: {reason}",
+    "unreachable": "El inicio de sesión falló. Revisa la dirección del servidor y la conexión, y vuelve a intentarlo.",
     "notKept": "Iniciaste sesión, pero no se pudo guardar el token: {reason}"
   },
   "signed": {
@@ -375,7 +375,15 @@
     "undone": "Esto no se puede deshacer.",
     "deleteKeys": "y borrar · n cancelar"
   },
+  "errorFallback": {
+    "unknown": "El servidor rechazó la operación (código: {code}).",
+    "failed": "La operación falló. Revisa la conexión o los archivos locales y vuelve a intentarlo."
+  },
+  "errorNext": {
+    "invalid_path": "Cambia el nombre en el servidor con otra herramienta para quitar caracteres como tabulaciones o saltos de línea."
+  },
   "errors": {
+    "invalid_path": "El nombre tiene un carácter inválido.",
     "vault_locked": "El vault está bloqueado: desbloquéalo para abrir el sitio.",
     "host_key_unknown": "La clave de este servidor aún no es de confianza.",
     "host_key_changed": "La clave de este servidor cambió desde que se confió en ella.",
