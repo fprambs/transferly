@@ -143,6 +143,14 @@ fn lists_and_sorts() {
     assert_eq!(names(&panel)[1..3], ["Backups/", "docs/"]);
     assert_eq!(human(10), "10 B");
     assert_eq!(human(u64::MAX), "16384.0 PiB");
+    let mut root = Panel::new(false);
+    root.open(Source::Site {
+        id: Uuid::nil(),
+        name: "root".to_owned(),
+    });
+    root.homed(Ok("/".to_owned()));
+    root.listed("/", Ok(vec![]));
+    assert_eq!(root.key(key(KeyCode::Enter)), Vec::new(), "nothing to open");
 }
 
 /// Enter opens a folder or a link and goes up from the folder above; Backspace goes up and keeps the folder left under the cursor; an
@@ -180,10 +188,9 @@ fn moves_through_folders() {
     assert_eq!(panel.path(), "/upload");
     assert!(draw(&panel, 80, 14).contains("not a folder"));
     panel.key(key(KeyCode::Up));
-    assert_eq!(
-        panel.key(key(KeyCode::Right)),
-        Vec::new(),
-        "a file does not open"
+    assert!(
+        matches!(panel.key(key(KeyCode::Right)).as_slice(), [PanelAsk::Activate(entry)] if entry.name == "b.txt"),
+        "a file is handed to the main screen"
     );
     panel.key(key(KeyCode::Home));
     assert_eq!(

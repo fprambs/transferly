@@ -426,6 +426,13 @@ pub enum Overlay {
         /// The policy, by its place in [`POLICIES`].
         policy: usize,
     },
+    /// The details of an entry of a panel.
+    Details {
+        /// The panel.
+        side: Side,
+        /// The entry.
+        entry: Entry,
+    },
     /// The transfers in front of the screen, while they run.
     Transfers,
     /// Whether to cancel a transfer.
@@ -762,7 +769,7 @@ impl Home {
                 let outcome = self.file_outcome(side, outcome, look);
                 let (text, mut asks) = outcome;
                 let more = self.panel_mut(side).homed(text);
-                asks.extend(self.panel_asks(side, more));
+                asks.extend(self.panel_asks(side, more, look));
                 asks
             }
             Reply::Listed {
@@ -780,13 +787,13 @@ impl Home {
                     Ok(()) => self.panel_mut(side).retry(),
                     Err(reason) => self.panel_mut(side).changed(Err(reason)),
                 };
-                asks.extend(self.panel_asks(side, more));
+                asks.extend(self.panel_asks(side, more, look));
                 asks
             }
             Reply::Changed { side, outcome } => {
                 let (outcome, mut asks) = self.file_outcome(side, outcome, look);
                 let more = self.panel_mut(side).changed(outcome);
-                asks.extend(self.panel_asks(side, more));
+                asks.extend(self.panel_asks(side, more, look));
                 asks
             }
             Reply::Me(Err(error))
@@ -1072,7 +1079,7 @@ impl Home {
             .focused_side()
             .filter(|side| self.panel(*side).captures())
         {
-            return self.explorer_key(side, key);
+            return self.explorer_key(side, key, look);
         }
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
         match key.code {
@@ -1114,7 +1121,7 @@ impl Home {
                         self.ask_copy(side, look);
                         Vec::new()
                     }
-                    (_, Some(side)) => self.explorer_key(side, key),
+                    (_, Some(side)) => self.explorer_key(side, key, look),
                     (_, None) => self.sites_key(key, look),
                 };
             }
@@ -1164,17 +1171,30 @@ impl Home {
     }
 
     /// Handles a key on the focused panel of the explorer.
-    fn explorer_key(&mut self, side: Side, key: KeyEvent) -> Vec<Ask> {
+    fn explorer_key(&mut self, side: Side, key: KeyEvent, look: &Look) -> Vec<Ask> {
         let asks = self.panel_mut(side).key(key);
-        self.panel_asks(side, asks)
+        self.panel_asks(side, asks, look)
+    }
+
+    /// Enter on a file: asks to copy it to the other panel, or shows its details, as the settings say.
+    fn activate(&mut self, side: Side, entry: Entry, look: &Look) {
+        if look.settings.enter_on_file == EnterOnFile::Details {
+            self.overlay = Some(Overlay::Details { side, entry });
+            return;
+        }
+        self.ask_copy(side, look);
+        if let Some(Overlay::Copy { items, .. }) = &mut self.overlay {
+            *items = vec![entry];
+        }
     }
 
     /// What the main screen does for what a panel asks: its files go to the local disk or to the server, and choosing what it shows
     /// opens the list of sources.
-    fn panel_asks(&mut self, side: Side, asks: Vec<PanelAsk>) -> Vec<Ask> {
+    fn panel_asks(&mut self, side: Side, asks: Vec<PanelAsk>, look: &Look) -> Vec<Ask> {
         let mut out = Vec::new();
         for ask in asks {
             match ask {
+                PanelAsk::Activate(entry) => self.activate(side, entry, look),
                 PanelAsk::Choose => {
                     let worn = String::new();
                     self.overlay = Some(Overlay::Choose {
@@ -1277,6 +1297,7 @@ impl Home {
     )]
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
+            Overlay::Details { .. } => Vec::new(),
             Overlay::Copy {
                 from,
                 items,
@@ -1901,6 +1922,9 @@ impl Home {
                         items,
                         policy,
                     }) => self.render_copy(frame, *from, items, *policy, look),
+                    Some(Overlay::Details { side, entry }) => {
+                        self.render_details(frame, *side, entry, look, &zone);
+                    }
                     Some(Overlay::Transfers) => self.render_transfers(frame, look),
                     Some(Overlay::Cancel(id)) => self.render_cancel(frame, *id, look),
                     Some(Overlay::Prompt {

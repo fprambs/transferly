@@ -114,6 +114,8 @@ pub enum PanelAsk {
     Op(Op),
     /// Choose what the panel shows.
     Choose,
+    /// Enter on a file: copy it to the other panel, or show its details, as the settings say.
+    Activate(Entry),
 }
 
 /// A form over a panel.
@@ -594,7 +596,8 @@ impl Panel {
                 let path = self.join(&entry.name);
                 self.go(path)
             }
-            _ => Vec::new(),
+            Some(Row::Entry(entry)) => vec![PanelAsk::Activate(entry.clone())],
+            None => Vec::new(),
         }
     }
 

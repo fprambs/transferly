@@ -267,5 +267,14 @@
     "interrupted": "cortada: R reanuda",
     "cancelTitle": "Cancelar",
     "cancelBody": "¿Cancelar {name}? Lo que ya se movió queda como está."
+  },
+  "details": {
+    "keys": "cualquier tecla cierra",
+    "kind": "Tipo",
+    "folder": "carpeta",
+    "file": "archivo",
+    "size": "Tamaño",
+    "modified": "Modificado",
+    "path": "Ruta"
   }
 }

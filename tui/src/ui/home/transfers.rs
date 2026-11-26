@@ -6,10 +6,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use uuid::Uuid;
 
+use super::super::explorer::human;
 use super::super::explorer::{Entry, Kind, Source};
 use super::super::look::Look;
 use super::super::transfers::{Direction, Job, Row, Status, line};
@@ -203,7 +204,7 @@ impl Home {
     ) -> Vec<Ask> {
         let Err(error) = outcome else {
             let asks = self.panel_mut(side).retry();
-            return self.panel_asks(side, asks);
+            return self.panel_asks(side, asks, look);
         };
         if let Some(mut row) = self
             .queue
@@ -477,6 +478,37 @@ impl Home {
             })
             .collect();
         frame.render_widget(Paragraph::new(lines), inside);
+    }
+
+    /// The details of an entry: its name, what it is, its size, when it changed, and where it is.
+    pub(super) fn render_details(
+        &self,
+        frame: &mut Frame,
+        side: Side,
+        entry: &Entry,
+        look: &Look,
+        zone: &jiff::tz::TimeZone,
+    ) {
+        let (m, palette) = (&look.messages, &look.palette);
+        let area = centered(frame.area(), 72, 9);
+        let inside = popup(frame, area, &entry.name, &m.get("details.keys"), palette);
+        #[rustfmt::skip]
+        let modified = entry.modified.map_or_else(String::new, |at| at.to_zoned_datetime(zone.clone()).strftime("%Y-%m-%d %H:%M:%S").to_string());
+        let row = |label: &str, value: String| {
+            Line::from(vec![
+                Span::raw(format!("{:<12}", m.get(label))).fg(palette.muted),
+                Span::raw(value),
+            ])
+        };
+        let lines = vec![
+            row(
+                "details.size",
+                format!("{} ({} B)", human(entry.size), entry.size),
+            ),
+            row("details.modified", modified),
+            row("details.path", self.panel(side).join(&entry.name)),
+        ];
+        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
     }
 
     /// The question whether to cancel a transfer.

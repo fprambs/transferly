@@ -267,5 +267,14 @@
     "interrupted": "cut: R resumes",
     "cancelTitle": "Cancel",
     "cancelBody": "Cancel {name}? What was moved stays as it is."
+  },
+  "details": {
+    "keys": "any key closes",
+    "kind": "Kind",
+    "folder": "folder",
+    "file": "file",
+    "size": "Size",
+    "modified": "Modified",
+    "path": "Path"
   }
 }

@@ -1952,6 +1952,121 @@ fn shows_transfers_on_demand() {
     assert!(matches!(home.overlay(), Some(Overlay::Transfers)));
 }
 
+/// Enter on a file asks to copy it alone to the other panel, or shows its details when the settings say so.
+#[test]
+fn enters_files() {
+    use super::explorer::{Entry, Kind};
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::Char('G')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Right,
+            outcome: Ok("/srv".to_owned()),
+        },
+        &mut look,
+    );
+    let files = vec![
+        Entry {
+            name: "x.bin".to_owned(),
+            kind: Kind::File,
+            size: 2048,
+            modified: Some(jiff::Timestamp::from_second(0).expect("a time")),
+        },
+        Entry {
+            name: "y.bin".to_owned(),
+            kind: Kind::File,
+            size: 1,
+            modified: None,
+        },
+    ];
+    home.reply(
+        Reply::Listed {
+            side: Side::Right,
+            path: "/srv".to_owned(),
+            outcome: Ok(files),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/home/ana".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home/ana".to_owned(),
+            outcome: Ok(vec![]),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Char(' ')), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    let text = draw(&home, &look, 140, 30);
+    assert!(text.contains("Copy 1 entries to /home/ana:"), "{text}");
+    assert!(
+        matches!(home.overlay(), Some(Overlay::Copy { items, .. }) if items.len() == 1 && items[0].name == "x.bin")
+    );
+    home.key(key(KeyCode::Esc), &mut look);
+    command(&mut home, &mut look, "config");
+    for _ in 0..4 {
+        home.key(key(KeyCode::Down), &mut look);
+    }
+    home.key(key(KeyCode::Right), &mut look);
+    home.key(key(KeyCode::Esc), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    let text = draw(&home, &look, 140, 30);
+    assert!(
+        text.contains("2.0 KiB (2048 B)") && text.contains("/srv/x.bin") && text.contains("file"),
+        "{text}"
+    );
+    nothing(
+        &home.key(key(KeyCode::Char('z')), &mut look),
+        "any key closes",
+    );
+    assert!(home.overlay().is_none());
+}
+
+/// Enter on a file with nothing on the other panel copies nothing and says why.
+#[test]
+fn enters_files_without_a_target() {
+    use super::explorer::{Entry, Kind};
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/home/ana".to_owned()),
+        },
+        &mut look,
+    );
+    let file = Entry {
+        name: "z".to_owned(),
+        kind: Kind::File,
+        size: 1,
+        modified: None,
+    };
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/home/ana".to_owned(),
+            outcome: Ok(vec![file]),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    assert!(home.overlay().is_none(), "nowhere to copy to");
+    assert!(home.notice().is_some_and(|notice| notice.error));
+}
+
 /// The interface around the main screen: a kept session starts on it, its replies reach it, and what it asks becomes effects; signing
 /// out, keeping the settings and opening the browser report back on it.
 mod interface {

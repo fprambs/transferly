@@ -97,7 +97,10 @@ async fn call(
 /// two sites on the server until the copy is done.
 #[tokio::test]
 #[ignore = "needs the isolated stack: make tui-it"]
-#[allow(clippy::too_many_lines, reason = "one walk through every way of moving bytes, in order")]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one walk through every way of moving bytes, in order"
+)]
 async fn moves_files_through_a_real_server() {
     let (browser, csrf) = browser().await;
     let token = sign_in(&browser, &csrf).await;
