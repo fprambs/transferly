@@ -399,10 +399,12 @@
     "cut": "Mostrando los primeros 4 MiB",
     "close": "Esc / q Cerrar",
     "webKeys": "w Abrir web · Esc / q Cerrar",
-    "textKeys": "↑↓ ←→ PgUp PgDn Home End Desplazar · / Buscar · n Siguiente · Esc / q Cerrar",
-    "tableKeys": "↑↓ ←→ PgUp PgDn Home End Desplazar · Esc / q Cerrar",
-    "sheetKeys": "Tab / Shift+Tab / [ ] Hoja · ↑↓ ←→ PgUp PgDn Home End Desplazar · Esc / q Cerrar",
-    "searchKeys": "Enter Buscar · Esc Cancelar"
+    "textKeys": "↑↓ ←→ PgUp PgDn Home End Desplazar · / Buscar · n Siguiente / N Anterior · Esc / q Cerrar",
+    "tableKeys": "↑↓ ←→ PgUp PgDn Home End Desplazar · / Buscar · n Siguiente / N Anterior · Esc / q Cerrar",
+    "sheetKeys": "Tab / Shift+Tab / [ ] Hoja · ↑↓ ←→ PgUp PgDn Home End Desplazar · / Buscar · n Siguiente / N Anterior · Esc / q Cerrar",
+    "searchKeys": "Enter Buscar · Esc Cancelar",
+    "match": "coincidencia {current} de {total}",
+    "noMatches": "sin coincidencias"
   },
   "errors": {
     "preview_unreadable": "No se pudo leer el libro.",

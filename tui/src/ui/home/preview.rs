@@ -1,8 +1,10 @@
 //! The full-screen F3 preview and its navigation.
 
 mod content;
+mod syntax;
 
 use std::num::NonZeroUsize;
+use std::ops::Range;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
@@ -36,8 +38,16 @@ pub(super) struct View {
     sheet: usize,
     input: Option<Input>,
     query: String,
-    matches: Vec<(usize, usize)>,
+    matches: Vec<Hit>,
     found: usize,
+}
+
+/// A text byte range or a table cell, ordered by sheet, row and column.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Hit {
+    sheet: usize,
+    row: usize,
+    columns: Range<usize>,
 }
 
 impl Home {
@@ -127,8 +137,12 @@ impl View {
 
     /// Parses the received prefix into displayable data.
     fn load(&mut self, bytes: &[u8], cut: bool) -> Result<(), CallError> {
-        self.content = Some(content::parse(&self.name, bytes, cut).map_err(unreadable)?);
-        self.cut = cut;
+        let content = content::parse(&self.name, bytes, cut).map_err(unreadable)?;
+        *self = Self {
+            content: Some(content),
+            cut,
+            ..Self::new(&self.name, self.size)
+        };
         Ok(())
     }
 
@@ -139,27 +153,52 @@ impl View {
         }
     }
 
-    /// Collects exact matches in reading order and jumps to the first.
+    /// Finds matches in reading order, searching other sheets only when needed.
     #[rustfmt::skip]
     fn search(&mut self, input: &Input) {
         input.value().clone_into(&mut self.query);
         self.matches.clear();
         self.found = 0;
-        let lines: &[String] = match &self.content { Some((_, Body::Text(lines))) if !self.query.is_empty() => lines, _ => &[] };
+        let query: String = self.query.chars().flat_map(char::to_lowercase).collect();
+        if query.is_empty() {
+            return;
+        }
+        let no_lines = Vec::new();
+        let no_tables = Vec::new();
+        let lines: &Vec<String> = match &self.content { Some((_, Body::Text(text))) => &text.lines, _ => &no_lines };
+        let tables: &Vec<content::Table> = match &self.content { Some((_, Body::Tables(tables))) => tables, _ => &no_tables };
         for (row, line) in lines.iter().enumerate() {
-            self.matches.extend(line.match_indices(self.query.as_str()).map(|(start, _)| (row, start)));
+            self.matches.extend(text_matches(line, &query).into_iter().map(|columns| Hit { sheet: 0, row, columns }));
+        }
+        if !tables.is_empty() {
+
+                table_matches(&mut self.matches, &tables[self.sheet], self.sheet, &query);
+                if self.matches.is_empty() {
+                    for (sheet, table) in tables
+                        .iter()
+                        .enumerate()
+                        .filter(|(sheet, _)| *sheet != self.sheet)
+                    {
+                        table_matches(&mut self.matches, table, sheet, &query);
+                    }
+                }
         }
         self.jump();
     }
 
     /// Selects the current match and scrolls to it, if there is one.
     fn jump(&mut self) {
-        if let Some(&(row, start)) = self.matches.get(self.found)
-            && let Some((_, Body::Text(lines))) = &self.content
-        {
-            self.row = row;
-            let width = Span::raw(&lines[row][..start]).width();
-            self.column = width.saturating_sub(12);
+        if let Some(hit) = self.matches.get(self.found) {
+            if let Some((_, Body::Text(text))) = &self.content {
+                self.row = hit.row;
+                self.column = Span::raw(&text.lines[hit.row][..hit.columns.start])
+                    .width()
+                    .saturating_sub(12);
+            } else {
+                self.sheet = hit.sheet;
+                self.row = hit.row.saturating_sub(1);
+                self.column = hit.columns.start;
+            }
         }
     }
 
@@ -182,18 +221,33 @@ impl View {
         let Some((_, body)) = &self.content else {
             return Action::Stay;
         };
+        if !matches!(body, Body::Web) {
+            match key.code {
+                KeyCode::Char('/') => {
+                    self.input = Some(Input::with(&self.query));
+                    return Action::Stay;
+                }
+                KeyCode::Char('n' | 'N') if !self.matches.is_empty() => {
+                    let count = self.matches.len();
+                    let step = if key.code == KeyCode::Char('n') {
+                        1
+                    } else {
+                        count - 1
+                    };
+                    self.found = (self.found + step) % count;
+                    self.jump();
+                    return Action::Stay;
+                }
+                _ => {}
+            }
+        }
         match body {
             Body::Web if key.code == KeyCode::Char('w') => return Action::Web,
             Body::Web => {}
-            Body::Text(lines) => match key.code {
-                KeyCode::Char('/') => self.input = Some(Input::with(&self.query)),
-                KeyCode::Char('n') if !self.matches.is_empty() => {
-                    self.found = (self.found + 1) % self.matches.len();
-                    self.jump();
-                }
+            Body::Text(text) => match key.code {
                 KeyCode::Left => self.column = self.column.saturating_sub(4),
                 KeyCode::Right => self.column = (self.column + 4).min(usize::from(u16::MAX)),
-                _ => self.scroll(key.code, lines.len()),
+                _ => self.scroll(key.code, text.lines.len()),
             },
             Body::Tables(tables) => {
                 let count = tables.len();
@@ -243,16 +297,14 @@ impl View {
     pub(super) fn render(&self, frame: &mut Frame, look: &Look, spinner: &str) {
         let palette = &look.palette;
         let messages = &look.messages;
-        let kind = self
-            .content
-            .as_ref()
-            .map_or("preview.file", |(kind, _)| kind.label());
-        let title = format!(
-            "{} · {} · {}",
-            self.name,
-            messages.get(kind),
-            human(self.size)
-        );
+        let kind = match &self.content {
+            Some((kind, Body::Text(text))) => text
+                .language
+                .map_or_else(|| messages.get(kind.label()), str::to_owned),
+            Some((kind, _)) => messages.get(kind.label()),
+            None => messages.get("preview.file"),
+        };
+        let title = format!("{} · {kind} · {}", self.name, human(self.size));
         let block = panel(&title, true, palette).style(Style::new().bg(palette.surface));
         let inside = block.inner(frame.area());
         frame.render_widget(block, frame.area());
@@ -272,8 +324,8 @@ impl View {
                 render_centered(frame, body, messages.get("preview.unavailable"));
                 "preview.webKeys"
             }
-            Some((_, Body::Text(lines))) => {
-                self.render_text(frame, body, lines, palette);
+            Some((_, Body::Text(text))) => {
+                self.render_text(frame, body, text, palette);
                 "preview.textKeys"
             }
             Some((kind, Body::Tables(tables))) => {
@@ -308,17 +360,18 @@ impl View {
                 messages.get("preview.searchKeys")
             )
         } else if !self.query.is_empty() {
-            let found = if self.matches.is_empty() {
-                0
+            let status = if self.matches.is_empty() {
+                messages.get("preview.noMatches")
             } else {
-                self.found + 1
+                messages.fill(
+                    "preview.match",
+                    &[
+                        ("current", &(self.found + 1).to_string()),
+                        ("total", &self.matches.len().to_string()),
+                    ],
+                )
             };
-            format!(
-                "{}  ·  / {} ({found}/{})",
-                messages.get(keys),
-                self.query,
-                self.matches.len()
-            )
+            format!("{status}  ·  {}", messages.get(keys))
         } else {
             messages.get(keys)
         };
@@ -326,7 +379,14 @@ impl View {
     }
 
     /// Draws only the visible lines, with a fixed gutter and highlights for matches.
-    fn render_text(&self, frame: &mut Frame, area: Rect, lines: &[String], palette: &Palette) {
+    fn render_text(
+        &self,
+        frame: &mut Frame,
+        area: Rect,
+        source: &content::Text,
+        palette: &Palette,
+    ) {
+        let lines = &source.lines;
         let digits = lines.len().to_string().len().max(4);
         let gutter = u16::try_from(digits + 2).unwrap_or(u16::MAX);
         let [numbers, text] =
@@ -337,7 +397,12 @@ impl View {
         let mut content = Vec::new();
         for (row, line) in lines.iter().enumerate().skip(start).take(height) {
             labels.push(Line::from(format!("{:>digits$}  ", row + 1)).fg(palette.faint));
-            content.push(self.text_line(row, line, palette));
+            content.push(self.text_line(
+                row,
+                line,
+                source.highlights.get(row).map_or(&[], Vec::as_slice),
+                palette,
+            ));
         }
         frame.render_widget(Paragraph::new(labels), numbers);
         frame.render_widget(
@@ -346,21 +411,57 @@ impl View {
         );
     }
 
-    /// Highlights every match, emphasizing the one selected by search.
-    fn text_line<'a>(&self, row: usize, line: &'a str, palette: &Palette) -> Line<'a> {
-        if self.query.is_empty() {
+    /// Combines syntax colors and search highlights for one visible line.
+    fn text_line<'a>(
+        &self,
+        row: usize,
+        line: &'a str,
+        highlights: &[syntax::Token],
+        palette: &Palette,
+    ) -> Line<'a> {
+        let first = self.matches.partition_point(|hit| hit.row < row);
+        let last = first + self.matches[first..].partition_point(|hit| hit.row == row);
+        let matches = &self.matches[first..last];
+        if (highlights.is_empty() || palette.plain) && matches.is_empty() {
             return Line::from(line);
         }
-        let mut spans = Vec::new();
-        let mut previous = 0;
-        for (start, matched) in line.match_indices(self.query.as_str()) {
-            spans.push(Span::raw(&line[previous..start]));
-            let current = self.matches.get(self.found) == Some(&(row, start));
-            let mark = Span::raw(matched).style(selection(palette));
-            spans.push(if current { mark.underlined() } else { mark });
-            previous = start + matched.len();
+        let mut boundaries = vec![0, line.len()];
+        let highlights = if palette.plain { &[] } else { highlights };
+        boundaries.extend(highlights.iter().map(|token| token.start));
+        for hit in matches {
+            boundaries.extend([hit.columns.start, hit.columns.end]);
         }
-        spans.push(Span::raw(&line[previous..]));
+        boundaries.sort_unstable();
+        boundaries.dedup();
+        let mut spans = Vec::new();
+        let mut syntax = highlights.iter().peekable();
+        let mut role = None;
+        let mut matched = 0;
+        for pair in boundaries.windows(2) {
+            let start = pair[0];
+            while let Some(entry) = syntax.next_if(|entry| entry.start <= start) {
+                role = Some(entry.role);
+            }
+            while matches
+                .get(matched)
+                .is_some_and(|hit| hit.columns.end <= start)
+            {
+                matched += 1;
+            }
+            let mut span = Span::raw(&line[start..pair[1]]);
+            if matches
+                .get(matched)
+                .is_some_and(|hit| hit.columns.start <= start)
+            {
+                span = span.style(selection(palette));
+                if first + matched == self.found {
+                    span = span.underlined();
+                }
+            } else if let Some(role) = role {
+                span = span.fg(role.color(palette));
+            }
+            spans.push(span);
+        }
         Line::from(spans)
     }
 
@@ -395,11 +496,9 @@ impl View {
             .collect::<Vec<_>>();
         let columns = widths.len();
         let widths = std::iter::once(Constraint::Length(5)).chain(widths);
-        let header = Row::new(std::iter::once(Cell::from("")).chain(table_cells(
-            header,
-            self.column,
-            columns,
-        )))
+        let header = Row::new(
+            std::iter::once(Cell::from("")).chain(self.table_cells(header, 0, columns, palette)),
+        )
         .fg(palette.accent_text)
         .bold()
         .bottom_margin(1);
@@ -412,22 +511,43 @@ impl View {
             .take(height)
             .map(|(index, row)| {
                 let label = Cell::from(format!("{:>4}", index + 1)).fg(palette.faint);
-                let cells =
-                    table_cells(row, self.column, columns)
-                        .enumerate()
-                        .map(|(column, cell)| {
-                            if index == self.row && column == 0 {
-                                cell.style(selection(palette))
-                            } else {
-                                cell
-                            }
-                        });
+                let cells = self.table_cells(row, index + 1, columns, palette);
                 Row::new(std::iter::once(label).chain(cells))
             });
         frame.render_widget(
             Table::new(rows, widths).header(header).column_spacing(2),
             area,
         );
+    }
+
+    /// Styles visible table cells, including the header, by their full table coordinates.
+    fn table_cells<'a>(
+        &'a self,
+        row: &'a [String],
+        index: usize,
+        count: usize,
+        palette: &'a Palette,
+    ) -> impl Iterator<Item = Cell<'a>> {
+        let searching_sheet = self
+            .matches
+            .get(self.found)
+            .is_some_and(|hit| hit.sheet == self.sheet);
+        (self.column..self.column + count).map(move |column| {
+            let cell = Cell::from(row.get(column).map_or("", String::as_str));
+            let matched = self
+                .matches
+                .binary_search_by_key(&(self.sheet, index, column), |hit| {
+                    (hit.sheet, hit.row, hit.columns.start)
+                });
+            match matched {
+                Ok(found) if found == self.found => cell.style(selection(palette)),
+                Ok(_) => cell.style(Style::new().fg(palette.accent_text).underlined()),
+                Err(_) if !searching_sheet && index == self.row + 1 && column == self.column => {
+                    cell.style(selection(palette))
+                }
+                Err(_) => cell,
+            }
+        })
     }
 
     /// Draws the sheet tabs, keeping the active tab in view on narrow screens.
@@ -458,9 +578,44 @@ impl View {
     }
 }
 
-/// Produces a cell for each visible column, including blank fields of short records.
-fn table_cells(row: &[String], start: usize, count: usize) -> impl Iterator<Item = Cell<'_>> {
-    (start..start + count).map(move |index| Cell::from(row.get(index).map_or("", String::as_str)))
+/// Finds original byte ranges on character boundaries after Unicode lowercasing.
+fn text_matches(line: &str, query: &str) -> Vec<Range<usize>> {
+    let mut offsets = Vec::new();
+    let mut folded = String::with_capacity(line.len());
+    for (original, character) in line.char_indices() {
+        offsets.push((folded.len(), original));
+        folded.extend(character.to_lowercase());
+    }
+    offsets.push((folded.len(), line.len()));
+    folded
+        .match_indices(query)
+        .filter_map(|(start, matched)| {
+            let first = offsets
+                .binary_search_by_key(&start, |&(folded, _)| folded)
+                .ok()?;
+            let end = start + matched.len();
+            let last = offsets
+                .binary_search_by_key(&end, |&(folded, _)| folded)
+                .ok()?;
+            Some(offsets[first].1..offsets[last].1)
+        })
+        .collect()
+}
+
+/// Adds one match per cell containing the folded query.
+fn table_matches(hits: &mut Vec<Hit>, table: &content::Table, sheet: usize, query: &str) {
+    for (row, cells) in table.rows.iter().enumerate() {
+        for (column, cell) in cells.iter().enumerate() {
+            let folded: String = cell.chars().flat_map(char::to_lowercase).collect();
+            if folded.contains(query) {
+                hits.push(Hit {
+                    sheet,
+                    row,
+                    columns: column..column + 1,
+                });
+            }
+        }
+    }
 }
 
 /// Styles selected tabs, cells and matches in color and monochrome.
@@ -485,5 +640,25 @@ fn unreadable((): ()) -> CallError {
     CallError {
         code: Some("preview_unreadable".to_owned()),
         ..CallError::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Offsets still refer to the original text when lowercase uses more bytes.
+    #[test]
+    fn maps_lowercase_matches_to_original_bytes() {
+        assert!(matches!(
+            text_matches("aİB", "i\u{307}").as_slice(),
+            [matched] if *matched == (1..3)
+        ));
+        assert!(matches!(
+            text_matches("aİB", "b").as_slice(),
+            [matched] if *matched == (3..4)
+        ));
+        assert_eq!(text_matches("aİB", "i"), Vec::<Range<usize>>::new());
+        assert_eq!(text_matches("aİB", "\u{307}"), Vec::<Range<usize>>::new());
     }
 }

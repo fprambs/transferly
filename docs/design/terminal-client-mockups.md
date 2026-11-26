@@ -1118,7 +1118,7 @@ F3 shows a workbook with tabs for its sheets.
 
 ### app-preview-text
 
-F3 shows numbered text with highlighted search matches.
+F3 shows Rust syntax in the theme palette alongside highlighted search matches.
 
 ![app-preview-text](screens/app-preview-text.png)
 

@@ -521,6 +521,7 @@ Maquetas aprobadas el 2026-11-26 (pantallas `t7-*`); el encargo para implementar
 - [x] **Ventana de transferencias**: totales por bytes, barras gruesas y acciones sobre la fila seleccionada con teclado o mouse.
 - [ ] **Notificaciones de escritorio** para transferencias largas (desactivables)
 - [x] **Vista previa con F3**: abre archivos locales y remotos desde ambos paneles, con búsqueda de texto, tablas CSV/TSV y Excel/ODS por hoja, JSON formateado y un atajo a la web para imágenes y PDF. Lee hasta 4 MiB.
+  La búsqueda ignora mayúsculas en texto y tablas, recorre coincidencias con `n` y `N` y busca en otras hojas si hace falta. El código usa los colores del tema.
 - [ ] **Editar archivos con F4**: abre `$EDITOR` en un archivo temporal, sube al guardar si cambió y avisa si cambió en el servidor mientras tanto.
 - [ ] **Marcadores y recientes**: los marcadores de carpetas de la web (`/bookmarks`, ya existen) y los últimos sitios y carpetas abiertos, en la paleta `Ctrl+K` y en la lista de `o`
 - [ ] **Operaciones del servidor que la web ya tiene**: checksum, tamaño de carpetas, comprimir y extraer (herramientas SSH, 5.7), conexión rápida (`Ctrl+O`, `/quick-connections`), y terminal SSH integrada en una pestaña para los sitios que la permiten (5.7c, por WebSocket)

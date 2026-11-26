@@ -4,6 +4,7 @@ use std::io::Cursor;
 
 use calamine::{Reader, open_workbook_auto_from_rs};
 
+use super::syntax::{Language, Token};
 use crate::ui::widgets::visible_name;
 
 /// The most rows read from each delimited file or worksheet, including its header.
@@ -53,11 +54,22 @@ impl Kind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Body {
     /// Displayable lines of text.
-    Text(Vec<String>),
+    Text(Text),
     /// A delimited file or the sheets of a workbook.
     Tables(Vec<Table>),
     /// A message offering to open the web application.
     Web,
+}
+
+/// Displayable text with an optional language and cached syntax transitions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Text {
+    /// The decoded text, split into display lines.
+    pub(super) lines: Vec<String>,
+    /// The syntax name shown in the title.
+    pub(super) language: Option<&'static str>,
+    /// The syntax transitions of each highlighted line.
+    pub(super) highlights: Vec<Vec<Token>>,
 }
 
 /// One delimited file or worksheet, with widths in terminal cells.
@@ -108,14 +120,21 @@ pub(super) fn parse(name: &str, bytes: &[u8], cut: bool) -> Result<(Kind, Body),
             Err(()) if cut => Ok((Kind::Workbook, Body::Web)),
             outcome => outcome,
         },
-        "json" => Ok((Kind::Json, json_or_text(bytes))),
-        "png" | "apng" | "jpg" | "jpeg" | "gif" | "bmp" | "tif" | "tiff" | "webp" | "svg"
-        | "ico" | "avif" | "heic" => Ok((Kind::Image, Body::Web)),
+        "json" => {
+            let json = pretty_json(bytes);
+            Ok(json_preview(json.as_ref().map_or(bytes, String::as_bytes)))
+        }
+        "png" | "apng" | "jpg" | "jpeg" | "gif" | "bmp" | "tif" | "tiff" | "webp" | "ico"
+        | "avif" | "heic" => Ok((Kind::Image, Body::Web)),
         "pdf" => Ok((Kind::Pdf, Body::Web)),
-        "txt" | "log" | "md" | "rs" | "go" | "py" | "sh" | "bash" | "zsh" | "js" | "ts" | "jsx"
-        | "tsx" | "html" | "css" | "xml" | "yaml" | "yml" | "toml" | "ini" | "sql" | "c"
-        | "cpp" | "h" | "java" | "rb" | "php" => Ok((Kind::Text, text(bytes))),
-        _ => Ok(sniff(bytes)),
+        "txt" => Ok(structured_text(bytes).unwrap_or_else(|| (Kind::Text, text(bytes, None)))),
+        _ => Ok(
+            if let Some(language) = Language::for_file(name, &extension) {
+                (Kind::Text, text(bytes, Some(language)))
+            } else {
+                sniff(bytes)
+            },
+        ),
     }
 }
 
@@ -145,24 +164,34 @@ fn sniff(bytes: &[u8]) -> (Kind, Body) {
     if bytes.iter().take(1024).any(|byte| *byte == 0) {
         return (Kind::Binary, Body::Web);
     }
-    if let Some(json) = pretty_json(bytes) {
-        return (Kind::Json, text(json.as_bytes()));
+    if let Some(preview) = structured_text(bytes) {
+        return preview;
     }
     match detect_delimiter(bytes, None) {
         Some(b'\t') => (Kind::Tsv, delimited(bytes, b'\t')),
         Some(delimiter) => (Kind::Csv, delimited(bytes, delimiter)),
-        None => (Kind::Text, text(bytes)),
+        None => (Kind::Text, text(bytes, None)),
     }
+}
+
+/// Detects JSON and other source formats whose first lines identify the language.
+fn structured_text(bytes: &[u8]) -> Option<(Kind, Body)> {
+    if let Some(json) = pretty_json(bytes) {
+        return Some(json_preview(json.as_bytes()));
+    }
+    let decoded = String::from_utf8_lossy(without_bom(bytes));
+    let language = Language::for_content(&decoded)?;
+    Some((Kind::Text, text(bytes, Some(language))))
+}
+
+/// Builds a highlighted JSON preview from its display bytes.
+fn json_preview(bytes: &[u8]) -> (Kind, Body) {
+    (Kind::Json, text(bytes, Language::for_file("", "json")))
 }
 
 /// Strips a UTF-8 byte order mark, if present.
 fn without_bom(bytes: &[u8]) -> &[u8] {
     bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(bytes)
-}
-
-/// Formats valid JSON and leaves malformed or truncated JSON readable.
-fn json_or_text(bytes: &[u8]) -> Body {
-    pretty_json(bytes).map_or_else(|| text(bytes), |json| text(json.as_bytes()))
 }
 
 /// Decodes and indents a complete JSON value.
@@ -172,13 +201,17 @@ fn pretty_json(bytes: &[u8]) -> Option<String> {
 }
 
 /// Decodes text lossily and makes control characters visible.
-fn text(bytes: &[u8]) -> Body {
-    Body::Text(
-        String::from_utf8_lossy(without_bom(bytes))
-            .lines()
-            .map(visible_name)
-            .collect(),
-    )
+fn text(bytes: &[u8], language: Option<Language>) -> Body {
+    let decoded = String::from_utf8_lossy(without_bom(bytes));
+    let lines = decoded.lines().map(visible_name).collect();
+    let highlights = language
+        .as_ref()
+        .map_or_else(Vec::new, |language| language.highlight(&decoded));
+    Body::Text(Text {
+        lines,
+        language: language.map(|language| language.name),
+        highlights,
+    })
 }
 
 /// Reads loss-tolerant delimited records, with CSV quoting and variable row lengths.
@@ -258,8 +291,15 @@ mod tests {
     #[test]
     fn recognizes_preview_kinds() {
         for (name, bytes, kind) in [
-            ("log.txt", b"{\"data\":1}".as_slice(), Kind::Text),
+            ("log.txt", b"{\"data\":1}".as_slice(), Kind::Json),
             ("config.JSON", b"{\"data\":1}", Kind::Json),
+            ("source.rs", b"{\"data\":1}", Kind::Text),
+            (
+                "script",
+                b"#!/usr/bin/env python\nprint('hello')",
+                Kind::Text,
+            ),
+            ("plain.txt", b"ordinary text", Kind::Text),
             ("notes", b"ordinary text", Kind::Text),
             ("report", b"%PDF-1.7", Kind::Pdf),
             ("photo", b"\xff\xd8\xff", Kind::Image),
@@ -284,21 +324,21 @@ mod tests {
     /// UTF-8 decoding and JSON indentation keep invalid input readable.
     #[test]
     fn formats_text_and_json() {
-        assert_eq!(
-            parse("data.json", b"\xef\xbb\xbf{\"name\":\"Ana\"}", false),
-            Ok((
-                Kind::Json,
-                Body::Text(vec![
-                    "{".to_owned(),
-                    "  \"name\": \"Ana\"".to_owned(),
-                    "}".to_owned()
-                ])
-            ))
-        );
-        assert_eq!(
-            parse("data.json", b"\xff{\t", true),
-            Ok((Kind::Json, Body::Text(vec!["�{⇥".to_owned()])))
-        );
+        for (bytes, cut, expected) in [
+            (
+                b"\xef\xbb\xbf{\"name\":\"Ana\"}".as_slice(),
+                false,
+                vec!["{", "  \"name\": \"Ana\"", "}"],
+            ),
+            (b"\xff{\t".as_slice(), true, vec!["�{⇥"]),
+        ] {
+            let (kind, body) = parse("data.json", bytes, cut).expect("preview");
+            assert_eq!(kind, Kind::Json);
+            assert!(matches!(
+                body,
+                Body::Text(text) if text.lines == expected && text.language == Some("JSON")
+            ));
+        }
     }
 
     /// Delimited data honors every separator, CSV quoting and the row cap.

@@ -226,9 +226,9 @@ pub fn shots() -> Vec<Shot> {
         ),
         (
             "app-preview-text",
-            "deploy.sh",
-            "F3 shows numbered text with highlighted search matches.",
-            b"#!/usr/bin/env bash\nset -euo pipefail\n\nrsync -a build/ release/\nrsync -a release/ current/".as_slice(),
+            "report.rs",
+            "F3 shows Rust syntax in the theme palette alongside highlighted search matches.",
+            b"// Describe a transfer without writing to disk.\nfn report(files: usize) {\n    let label = \"Files transferred\";\n    if files > 0 {\n        println!(\"{label}: {files}\");\n    }\n}".as_slice(),
         ),
     ];
     for (slug, name, about, bytes) in previews {
@@ -252,9 +252,9 @@ pub fn shots() -> Vec<Shot> {
             panic!("the interface asks to preview the file: {effects:?}");
         };
         with_menu.handle(Event::Replied(Reply::Preview(*request, Ok((bytes.to_vec(), false)))));
-        if name == "deploy.sh" {
+        if name == "report.rs" {
             with_menu.handle(key(KeyCode::Char('/')));
-            with_menu.handle(Event::Paste("rsync".to_owned()));
+            with_menu.handle(Event::Paste("label".to_owned()));
             with_menu.handle(key(KeyCode::Enter));
             with_menu.handle(key(KeyCode::Char('n')));
         }

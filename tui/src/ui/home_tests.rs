@@ -4482,7 +4482,7 @@ fn previews_local_text_and_ignores_stale_replies() {
         &home.reply(Reply::Preview(1, Err(refused("not_found"))), &mut look),
         "",
     );
-    let bytes = format!("first\nmatch twice match\n{}final\n", "middle\n".repeat(20));
+    let bytes = format!("first\nmatch twice MATCH\n{}final\n", "middle\n".repeat(20));
     nothing(
         &home.reply(Reply::Preview(2, Ok((bytes.into_bytes(), true))), &mut look),
         "",
@@ -4520,15 +4520,18 @@ fn previews_local_text_and_ignores_stale_replies() {
     nothing(&home.key(key(KeyCode::Left), &mut look), "");
     assert!(draw(&home, &look, 100, 12).contains("Enter Find"));
     nothing(&home.key(key(KeyCode::Enter), &mut look), "");
-    assert!(draw(&home, &look, 100, 12).contains("match (1/2)"));
+    assert!(draw(&home, &look, 100, 12).contains("match 1 of 2"));
     nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
     let screen = draw(&home, &look, 100, 12);
-    assert!(screen.contains("match (2/2)"));
+    assert!(screen.contains("match 2 of 2"));
+    nothing(&home.key(key(KeyCode::Char('N')), &mut look), "");
+    assert!(draw(&home, &look, 100, 12).contains("match 1 of 2"));
+    nothing(&home.key(key(KeyCode::Char('N')), &mut look), "");
     let mut terminal = Terminal::new(TestBackend::new(100, 12)).expect("backend");
     terminal
         .draw(|frame| home.render(frame, &look, "*"))
         .expect("draw");
-    let point = pointer(&screen, "match twice match");
+    let point = pointer(&screen, "MATCH");
     let matched = &terminal.backend().buffer()[(point.x, point.y)];
     assert!(matched.modifier.contains(Modifier::REVERSED));
     nothing(&home.key(key(KeyCode::Char('/')), &mut look), "");
@@ -4537,7 +4540,7 @@ fn previews_local_text_and_ignores_stale_replies() {
     nothing(&home.key(ctrl('u'), &mut look), "");
     home.paste("absent");
     nothing(&home.key(key(KeyCode::Enter), &mut look), "");
-    assert!(draw(&home, &look, 100, 12).contains("absent (0/0)"));
+    assert!(draw(&home, &look, 100, 12).contains("no matches"));
     nothing(&home.key(key(KeyCode::Char('q')), &mut look), "");
     assert!(!draw(&home, &look, 100, 20).contains("Showing the first"));
 }
@@ -4632,6 +4635,9 @@ fn previews_remote_tables_and_web_only_files() {
     );
     assert!(draw(&home, &look, 100, 12).contains("Pulsa w para abrir"));
     nothing(&home.key(key(KeyCode::Right), &mut look), "");
+    home.key(key(KeyCode::Char('/')), &mut look);
+    home.key(key(KeyCode::Char('x')), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
     assert_eq!(
         home.key(key(KeyCode::Char('w')), &mut look),
         vec![Ask::Browse("https://files.example.com/".to_owned())]
@@ -4645,6 +4651,179 @@ fn previews_remote_tables_and_web_only_files() {
         "",
     );
     assert!(draw(&home, &look, 100, 12).contains("empty.csv · CSV"));
+}
+
+/// Searches every cell and scrolls to a match outside both axes of the viewer.
+#[test]
+fn searches_table_headers_and_offscreen_cells() {
+    let mut look = look();
+    let bytes = format!(
+        "Name,widecolumn,Bogotá header\nfirst,Bogotá as well,none\n{}last,other,BOGOTÁ final",
+        "filler,not here,not here\n".repeat(15)
+    );
+    let mut home = open_local_preview(&mut look, "cities.csv", bytes.as_bytes());
+    find_preview(&mut home, &mut look, "bogotá");
+
+    let screen = draw(&home, &look, 48, 9);
+    assert!(screen.contains("match 1 of 3"));
+    assert!(screen.contains("Bogotá header"));
+    assert!(!screen.contains("Name"));
+    let mut terminal = Terminal::new(TestBackend::new(48, 9)).expect("backend");
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .expect("draw");
+    let header = pointer(&screen, "Bogotá header");
+    assert_eq!(
+        terminal.backend().buffer()[(header.x, header.y)].bg,
+        look.palette.accent
+    );
+
+    nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
+    let screen = draw(&home, &look, 48, 9);
+    assert!(screen.contains("match 2 of 3"));
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .expect("draw");
+    let other = pointer(&screen, "Bogotá header");
+    let cell = &terminal.backend().buffer()[(other.x, other.y)];
+    assert_eq!(cell.fg, look.palette.accent_text);
+    assert!(cell.modifier.contains(ratatui::style::Modifier::UNDERLINED));
+
+    nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
+    let screen = draw(&home, &look, 48, 9);
+    assert!(screen.contains("match 3 of 3"));
+    assert!(screen.contains("BOGOTÁ final"));
+    assert!(!screen.contains("Bogotá as well"));
+    nothing(&home.key(key(KeyCode::Char('n')), &mut look), "");
+    assert!(draw(&home, &look, 48, 9).contains("match 1 of 3"));
+    nothing(&home.key(key(KeyCode::Char('N')), &mut look), "");
+    assert!(draw(&home, &look, 48, 9).contains("match 3 of 3"));
+
+    let mut home = open_local_preview(&mut look, "cities.tsv", b"Name\tCity\nA\tLima");
+    find_preview(&mut home, &mut look, "LIMA");
+    assert!(draw(&home, &look, 48, 9).contains("match 1 of 1"));
+    find_preview(&mut home, &mut look, "");
+    assert!(!draw(&home, &look, 48, 9).contains("match 1 of 1"));
+}
+
+/// Searches the active sheet before falling back to the other sheets.
+#[test]
+fn searches_workbook_sheets_with_localized_status() {
+    let mut look = Look::new(
+        Language::Spanish,
+        DEFAULT_THEME,
+        ColorMode::Plain,
+        Settings::default(),
+    );
+    let workbook = include_bytes!("../../../testenv/preview-samples/office/workbook.xlsx");
+    let mut home = open_local_preview(&mut look, "workbook.xlsx", workbook);
+    find_preview(&mut home, &mut look, "SQUARE");
+    let screen = draw(&home, &look, 100, 15);
+    assert!(screen.contains("Square"));
+    assert!(screen.contains("coincidencia 1 de 1"));
+
+    find_preview(&mut home, &mut look, "VALUE");
+    let screen = draw(&home, &look, 100, 15);
+    assert!(screen.contains("Value"));
+    assert!(screen.contains("coincidencia 1 de 1"));
+
+    find_preview(&mut home, &mut look, "FORMULA");
+    let screen = draw(&home, &look, 100, 15);
+    assert!(screen.contains("Formulas show"));
+    assert!(screen.contains("coincidencia 1 de 2"));
+    nothing(&home.key(key(KeyCode::Char('N')), &mut look), "");
+    assert!(draw(&home, &look, 100, 15).contains("coincidencia 2 de 2"));
+    find_preview(&mut home, &mut look, "missing");
+    assert!(draw(&home, &look, 100, 15).contains("sin coincidencias"));
+    find_preview(&mut home, &mut look, "0");
+    assert!(draw(&home, &look, 100, 15).contains("1200.5"));
+    nothing(&home.key(key(KeyCode::Char('N')), &mut look), "");
+    assert!(draw(&home, &look, 100, 15).contains("Square"));
+}
+
+/// Colors source tokens with the theme and preserves legibility in `NO_COLOR` mode.
+#[test]
+fn highlights_source_with_the_active_palette() {
+    use ratatui::style::Color;
+
+    let mut look = look();
+    let mut home = open_local_preview(
+        &mut look,
+        "example.rs",
+        b"fn display() {\n    let label = \"green\";\n    let count = 42;\n    // explanation\n}",
+    );
+    let screen = draw(&home, &look, 80, 12);
+    assert!(screen.contains("example.rs · Rust · 42 B"));
+    let mut terminal = Terminal::new(TestBackend::new(80, 12)).expect("backend");
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .expect("draw");
+    for (word, color) in [
+        ("fn display", look.palette.accent),
+        ("// explanation", look.palette.muted),
+        ("green", look.palette.ok),
+        ("42;", look.palette.warn),
+        ("display", look.palette.info),
+    ] {
+        let point = pointer(&screen, word);
+        assert_eq!(
+            terminal.backend().buffer()[(point.x, point.y)].fg,
+            color,
+            "{word}"
+        );
+    }
+
+    find_preview(&mut home, &mut look, "FN DISPLAY");
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .expect("draw");
+    let point = pointer(&screen, "fn display");
+    assert_eq!(
+        terminal.backend().buffer()[(point.x, point.y)].bg,
+        look.palette.accent
+    );
+
+    let plain = Look::new(
+        Language::English,
+        DEFAULT_THEME,
+        ColorMode::detect(
+            |name| (name == "NO_COLOR").then(|| "1".to_owned()),
+            Colors::Theme,
+        ),
+        Settings::default(),
+    );
+    terminal
+        .draw(|frame| home.render(frame, &plain, "*"))
+        .expect("draw");
+    for cell in &terminal.backend().buffer().content {
+        assert_eq!((cell.fg, cell.bg), (Color::Reset, Color::Reset));
+    }
+    assert!(draw(&home, &plain, 80, 12).contains("// explanation"));
+}
+
+/// Loads a real preview through the explorer and its reply.
+fn open_local_preview(look: &mut Look, name: &str, bytes: &[u8]) -> Home {
+    let (mut home, _) = Home::new(session(), "ana@example.com", false);
+    home.key(key(KeyCode::Tab), look);
+    list_preview_file(&mut home, look, Side::Left, name);
+    home.key(key(KeyCode::End), look);
+    assert!(matches!(
+        home.key(key(KeyCode::F(3)), look).as_slice(),
+        [Ask::Call(Call::Preview { request: 1, .. })]
+    ));
+    nothing(
+        &home.reply(Reply::Preview(1, Ok((bytes.to_vec(), false))), look),
+        "",
+    );
+    home
+}
+
+/// Replaces the current preview query and submits it.
+fn find_preview(home: &mut Home, look: &mut Look, query: &str) {
+    nothing(&home.key(key(KeyCode::Char('/')), look), "");
+    nothing(&home.key(ctrl('u'), look), "");
+    home.paste(query);
+    nothing(&home.key(key(KeyCode::Enter), look), "");
 }
 
 /// Replaces a panel listing with one file for a preview test.

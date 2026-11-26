@@ -399,10 +399,12 @@
     "cut": "Showing the first 4 MiB",
     "close": "Esc / q Close",
     "webKeys": "w Open web · Esc / q Close",
-    "textKeys": "↑↓ ←→ PgUp PgDn Home End Scroll · / Search · n Next · Esc / q Close",
-    "tableKeys": "↑↓ ←→ PgUp PgDn Home End Scroll · Esc / q Close",
-    "sheetKeys": "Tab / Shift+Tab / [ ] Sheet · ↑↓ ←→ PgUp PgDn Home End Scroll · Esc / q Close",
-    "searchKeys": "Enter Find · Esc Cancel"
+    "textKeys": "↑↓ ←→ PgUp PgDn Home End Scroll · / Search · n Next / N Previous · Esc / q Close",
+    "tableKeys": "↑↓ ←→ PgUp PgDn Home End Scroll · / Search · n Next / N Previous · Esc / q Close",
+    "sheetKeys": "Tab / Shift+Tab / [ ] Sheet · ↑↓ ←→ PgUp PgDn Home End Scroll · / Search · n Next / N Previous · Esc / q Close",
+    "searchKeys": "Enter Find · Esc Cancel",
+    "match": "match {current} of {total}",
+    "noMatches": "no matches"
   },
   "errors": {
     "preview_unreadable": "The workbook could not be read.",
