@@ -619,6 +619,399 @@ The bottom panel on its log tab, following the connection. 120 × 34.
  ana@files.acme.com · Acme Web · vault unlocked        F5 copy · F7 folder · Del delete · f filter · / commands  ? help
 ```
 
+## T7 Bars
+
+T7: the bars of termscp: the settings of each panel under it and a row of keys at the bottom, all clickable; the mouse is on by default. 132 × 34.
+
+![T7 Bars](screens/t7-bars.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+│▾ Production          ││    Name                            Size Modified   ││    Name                            Size Modified   │
+│    ● prod-web        ││    ../                                             ││    ../                                             │
+│      prod-db         ││    releases/                            11-20 09:12││    current/                             11-23 22:05│
+│▾ Staging             ││› ✓ site-v2.tar.gz              48.2 MiB 11-24 18:40││    shared/                              09-30 10:44│
+│      staging         ││  ✓ assets.zip                 212.7 MiB 11-24 18:41││›   site-v1.tar.gz              47.9 MiB 11-01 08:15│
+│▸ Customers           ││    notes.md                     4.1 KiB 11-22 11:03││    deploy.log                  88.0 KiB 11-24 18:30│
+│  backups (S3)        ││    .env.example                   312 B 10-02 16:20││                                                    │
+│  drive (Google)      ││                                                    ││                                                    │
+│  nas (WebDAV)        ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ─────────────╯╰ /var/www ──────────────────────────────────────────╯
+                         Sort  Name ↑  Hidden  no  Filter  —                   Sort  Date ↓  Hidden  no  Sync  off
+ F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Context menu
+
+T7: a right click on an entry opens its menu, each action with its key. 132 × 34.
+
+![T7 Context menu](screens/t7-context-menu.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+│▾ Production          ││    Name                            Size Modified   ││    Name                            Size Modified   │
+│    ● prod-web        ││    ../                                             ││    ../                                             │
+│      prod-db         ││    releases/                            11-20 09:12││    current/                             11-23 22:05│
+│▾ Staging             ││› ✓ site-v2.tar.gz              48.2 MiB 11-24 18:40││    shared/                              09-30 10:44│
+│      staging         ││  ✓ assets.zip                 212.7 MiB 11-24 18:41││›   site-v1.tar.gz              47.9 MiB 11-01 08:15│
+│▸ Customers           ││    notes.md                     4.1 KiB 11-22 11:03││    deploy.log                  88.0 KiB 11-24 18:30│
+│  backups (S3)        ││    .env.example                   312 B 10-02 16:20││                                                    │
+│  drive (Google)      ││                                                    │╭────────────────────────────╮                       │
+│  nas (WebDAV)        ││                                                    ││ Open                 Enter │                       │
+│                      ││                                                    ││ View                    F3 │                       │
+│                      ││                                                    ││ Edit                    F4 │                       │
+│                      ││                                                    ││ Copy to Local           F5 │                       │
+│                      ││                                                    ││ Rename                  F2 │                       │
+│                      ││                                                    ││ Copy the path            y │                       │
+│                      ││                                                    ││ Details                  i │                       │
+│                      ││                                                    ││ ───────────────────────────│                       │
+│                      ││                                                    ││ Delete                 Del │                       │
+│                      ││                                                    ││                            │                       │
+│                      ││                                                    │╰────────────────────────────╯                       │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ─────────────╯╰ /var/www ──────────────────────────────────────────╯
+                         Sort  Name ↑  Hidden  no  Filter  —                   Sort  Date ↓  Hidden  no  Sync  off
+ F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Sites
+
+T7: the sites as a table with search, as termirs lists its connections; N creates, E edits, D deletes. 132 × 34.
+
+![T7 Sites](screens/t7-sites.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web (9) ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  Name                                                 Host                                Port   User       Kind     Last used   │
+│› Production / prod-web                                web1.acme.com                       22     deploy     SFTP     today 18:40 │
+│  Production / prod-db                                 db1.acme.com                        22     deploy     SFTP     yesterday   │
+│  Staging / staging                                    stg.acme.com                        2222   deploy     SFTP     11-20       │
+│  Customers / globex                                   ftp.globex.com                      21     acme       FTPS     10-31       │
+│  backups                                              s3.eu-west-1                        443    AKIA…      S3       11-24       │
+│  nas                                                  nas.home.lan                        443    ana        WebDAV   11-02       │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+╰ Search: prod▏ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ Enter  Open   N  New   E  Edit   D  Delete   C  Duplicate   M  Move   /  Search   Ctrl+L  Import
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 New site
+
+T7: a new site in a form drawn from the schema of its connector, as termirs adds a connection; Ctrl+T tests it. 132 × 40.
+
+![T7 New site](screens/t7-new-site.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web (9) ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  Name                                                 Host                                Port   User       Kind     Last used   │
+│› Production / prod-web                                web1.acme.com                       22     deploy     SFTP     today 18:40 │
+│  Production / prod-db                                 db1.acme.com                        22     deploy     SFTP     yesterday   │
+│  Staging / staging        ╭ New site · SFTP ─────────────────────────────────────────────────────────╮y     SFTP     11-20       │
+│  Customers / globex       │                                                                          │      FTPS     10-31       │
+│  backups                  │ Kind   ‹ SFTP ›    FTP/FTPS  S3  WebDAV  Azure  Google Drive             │      S3       11-24       │
+│  nas                      │                                                                          │      WebDAV   11-02       │
+│                           │╭ Host ──────────────────────────────────────────────────────╮╭ Port ────╮│                           │
+│                           ││web1.acme.com                                               ││22        ││                           │
+│                           │╰────────────────────────────────────────────────────────────╯╰──────────╯│                           │
+│                           │╭ Username ──────────────────────────────────────────────────────────────╮│                           │
+│                           ││deploy▏                                                                 ││                           │
+│                           │╰────────────────────────────────────────────────────────────────────────╯│                           │
+│                           │╭ Password ──────────────────────────────────────────────────────────────╮│                           │
+│                           ││Kept in your vault                                                      ││                           │
+│                           │╰────────────────────────────────────────────────────────────────────────╯│                           │
+│                           │╭ Private key ───────────────────────────────────────────────────────────╮│                           │
+│                           ││~/.ssh/id_ed25519 · or leave empty to use the password                  ││                           │
+│                           │╰────────────────────────────────────────────────────────────────────────╯│                           │
+│                           │╭ Name ──────────────────────────────────────────────────────────────────╮│                           │
+│                           ││prod-web                                                                ││                           │
+│                           │╰────────────────────────────────────────────────────────────────────────╯│                           │
+│                           │╭ Start in ──────────────────────────────────────────────────────────────╮│                           │
+│                           ││/var/www                                                                ││                           │
+│                           │╰────────────────────────────────────────────────────────────────────────╯│                           │
+│                           │╭ Collection ────────────────────────────────────────────────────────────╮│                           │
+│                           ││Production                                                              ││                           │
+│                           │╰────────────────────────────────────────────────────────────────────────╯│                           │
+│                           │ ✓ Connected in 0.4 s · host key SHA256:3vF…q8k trusted                   │                           │
+│                           │                                                                          │                           │
+│                           │                                                                          │                           │
+│                           │                                                                          │                           │
+│                           ╰──────────────────────── Tab next · Ctrl+T test · Enter save · Esc cancel ╯                           │
+│                                                                                                                                  │
+│                                                                                                                                  │
+╰ Search: prod▏ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ Enter  Open   N  New   E  Edit   D  Delete   C  Duplicate   M  Move   /  Search   Ctrl+L  Import
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Import
+
+T7: importing ~/.ssh/config, with what each host becomes before anything is created. 132 × 34.
+
+![T7 Import](screens/t7-import.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web (9) ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  Name                                                 Host                                Port   User       Kind     Last used   │
+│› Production / prod-web                                web1.acme.com                       22     deploy     SFTP     today 18:40 │
+│  Production / prod-db                                 db1.acme.com                        22     deploy     SFTP     yesterday   │
+│  Staging / staging                                    stg.acme.com                        2222   deploy     SFTP     11-20       │
+│  Customers / globex                                   ftp.globex.com                      21     acme       FTPS     10-31       │
+│  backups                                              s3.eu-west-1                        443    AKIA…      S3       11-24       │
+│  nas                                                  nas.home.lan                        443    ana        WebDAV   11-02       │
+│                       ╭ Import ~/.ssh/config (5 hosts) ──────────────────────────────────────────────────╮                       │
+│                       │   Host         Address               Sign in                Becomes              │                       │
+│                       │✓  web1         deploy@web1.acme.com: key ~/.ssh/id_ed25519  new                  │                       │
+│                       │✓  db1          deploy@db1.acme.com:2 jump via web1          new                  │                       │
+│                       │✓  nas          ana@nas.home.lan:2222 password, asked        new                  │                       │
+│                       │   github.com   git@github.com:22     key                    skipped: not a file s│                       │
+│                       │   stg          deploy@stg.acme.com:2 key                    exists as staging    │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       │                                                                                  │                       │
+│                       ╰──────────────────────────────── Space mark · a all · Enter import 3 · Esc cancel ╯                       │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+│                                                                                                                                  │
+╰ Search: prod▏ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ Enter  Open   N  New   E  Edit   D  Delete   C  Duplicate   M  Move   /  Search   Ctrl+L  Import
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Transfers
+
+T7: the window of transfers in front, with the total, a gauge per transfer, speed and time left. 132 × 34.
+
+![T7 Transfers](screens/t7-transfers.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+│▾ Production          ││    Name                            Size Modified   ││    Name                            Size Modified   │
+│    ● prod-web        ││    ../                                             ││    ../                                             │
+│      prod-db         ││    releases/                            11-20 09:12││    current/                             11-23 22:05│
+│▾ Staging             ││› ✓ site-v2.tar.gz              48.2 MiB 11-24 18:40││    shared/                              09-30 10:44│
+│      staging         ││  ✓ assets.zip                 212.7 MiB 11-24 18:41││›   site-v1.tar.gz              47.9 MiB 11-01 08:15│
+│▸ Customers           ││    notes.md                     4.1 KiB 11-22 11:03││    deploy.log                  88.0 KiB 11-24 18:30│
+│  backups (S3)        ││    .env.example                   312 B 10-02 16:20││                                                    │
+│  drive (Google)      ││                                                    ││                                                    │
+│  nas (WebDAV)        ││                                                    ││                                                    │
+│             ╭ Transfers · 2 of 5 · 41% · 18.4 MiB/s · 0:42 left ───────────────────────────────────────────────────╮             │
+│             │↑  site-v2.tar.gz  prod-web    100% ██████████████████████           48.2 MiB               done      │             │
+│             │                                                                                                      │             │
+│             │↑  assets.zip  prod-web         62% █████████████░░░░░░░░░  131.9 / 212.7 MiB         11.2 MiB/s  0:07│             │
+│             │                                                                                                      │             │
+│             │↓  backup-2026-11-24.sql.gz  p  18% ███░░░░░░░░░░░░░░░░░░░     9.4 / 52.0 MiB          7.2 MiB/s  0:06│             │
+│             │                                                                                                      │             │
+│             │⇄  reports/  backups → nas       0% ░░░░░░░░░░░░░░░░░░░░░░                               waiting      │             │
+│             │                                                                                                      │             │
+│             │↓  secret.key  prod-web          0% ░░░░░░░░░░░░░░░░░░░░░░                     permission denied      │             │
+│             │                                                                                                      │             │
+│             ╰───────────────────────────────────────── Esc hide · T show again · p pause · x cancel · Ctrl+E queue ╯             │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+│                      ││                                                    ││                                                    │
+╰ f filter ────────────╯╰ ~/projects/site · 2 marked, 260.9 MiB ─────────────╯╰ /var/www ──────────────────────────────────────────╯
+                         Sort  Name ↑  Hidden  no  Filter  —                   Sort  Date ↓  Hidden  no  Sync  off
+ F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Preview CSV
+
+T7: F3 on a CSV shows it as a table. 132 × 34.
+
+![T7 Preview CSV](screens/t7-preview-csv.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+│▾ ╭ ventas.csv · 1,204 rows · 6 columns · separator ; ─────────────────────────────────────────────────────────────────────────╮  │
+│  │       Date                Customer            Product             Units              Total               State             │  │
+│  │                                                                                                                            │05│
+│▾ │   1   2026-11-01          Acme                Widgets             1,240              CLP 3.100.000       paid              │44│
+│  │   2   2026-11-02          Globex              Bolts               88                 CLP 264.000         paid              │15│
+│▸ │   3   2026-11-03          Initech             Gears               512                CLP 1.536.000       due               │30│
+│  │   4   2026-11-04          Umbrella            Widgets             77                 CLP 192.500         paid              │  │
+│  │   5   2026-11-05          Hooli               Springs             1,003              CLP 2.006.000       late              │  │
+│  │   6   2026-11-06          Acme                Bolts               430                CLP 1.290.000       paid              │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+╰ f│                                                                                                                            │──╯
+   ╰──────────────────────────────────────────────────────────────────────── ↑↓←→ move · / search · Enter copy cell · Esc close ╯
+ F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Preview spreadsheet
+
+T7: F3 on an Excel file shows its sheets as tables, Tab to change sheet. 132 × 34.
+
+![T7 Preview spreadsheet](screens/t7-preview-spreadsheet.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+│▾ ╭ informe-noviembre.xlsx · Ventas · A1:F1204 ────────────────────────────────────────────────────────────────────────────────╮  │
+│  │       A · Date            B · Customer        C · Product         D · Units          E · Total           F · State         │  │
+│  │                                                                                                                            │05│
+│▾ │   1   2026-11-01          Acme                Widgets             1,240              CLP 3.100.000       paid              │44│
+│  │   2   2026-11-02          Globex              Bolts               88                 CLP 264.000         paid              │15│
+│▸ │   3   2026-11-03          Initech             Gears               512                CLP 1.536.000       due               │30│
+│  │   4   2026-11-04          Umbrella            Widgets             77                 CLP 192.500         paid              │  │
+│  │   5   2026-11-05          Hooli               Springs             1,003              CLP 2.006.000       late              │  │
+│  │   6   2026-11-06          Acme                Bolts               430                CLP 1.290.000       paid              │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+╰ f│ Ventas   Clientes    Resumen    · formulas show their value; the first 5,000 rows                                          │──╯
+   ╰────────────────────────────────────────────────────────────────────────────── Tab sheet · ↑↓←→ move · / search · Esc close ╯
+ F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
+## T7 Preview text
+
+T7: F3 on a text or code file, with numbered lines and search. 132 × 34.
+
+![T7 Preview text](screens/t7-preview-text.png)
+
+```text
+  1 prod-web  │  2 backups  │  3 local                                                   transferly-tui 1.4.0 → 1.5.0 · U to update
+╭ Sites · Acme Web ────╮╭ Local ─────────────────────────────────────────────╮╭ prod-web · SFTP ───────────────────────────────────╮
+│▾ ╭ deploy.sh · 2.1 KiB · UTF-8 ───────────────────────────────────────────────────────────────────────────────────────────────╮  │
+│  │   1  #!/usr/bin/env bash                                                                                                   │  │
+│  │   2  set -euo pipefail                                                                                                     │05│
+│▾ │   3                                                                                                                        │44│
+│  │   4  TARGET=/var/www/current                                                                                               │15│
+│▸ │   5  RELEASE="/var/www/releases/$(date +%Y%m%d%H%M)"                                                                       │30│
+│  │   6                                                                                                                        │  │
+│  │   7  mkdir -p "$RELEASE"                                                                                                   │  │
+│  │   8  rsync -a --delete build/ "$RELEASE/"                                                                                  │  │
+│  │   9  ln -sfn "$RELEASE" "$TARGET"                                                                                          │  │
+│  │  10  systemctl reload nginx                                                                                                │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+│  │                                                                                                                            │  │
+╰ f│                                                                                                                            │──╯
+   ╰─────────────────────────────────────────────────────── ↑↓ PgUp PgDn scroll · / search: rsync (2 of 3) · n next · Esc close ╯
+ F1  Help   Tab  Panel   Enter  Open   F3  View   F4  Edit   F5  Copy   F6  Rename   F7  Folder   F8  Delete   F9  Menu   F10  Quit
+ ana@files.acme.com · Acme Web · vault unlocked · ⇅ 2 · 41%
+```
+
 ## Themes
 
 The explorer in each theme of the web, read from `tui/themes.json`; the theme is the one of the account, shared with the web.
