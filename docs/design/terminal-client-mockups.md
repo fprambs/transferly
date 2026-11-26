@@ -1098,6 +1098,12 @@ The explorer settings, clickable shortcuts and session status.
 
 ![app-bars](screens/app-bars.png)
 
+### app-context-menu
+
+The explorer context menu beside an entry, with each action and its shortcut.
+
+![app-context-menu](screens/app-context-menu.png)
+
 ### app-commands
 
 / opens the command line with the commands that match, as in Claude Code.

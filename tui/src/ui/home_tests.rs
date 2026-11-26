@@ -376,6 +376,9 @@ fn clicks_explorer_shortcuts() {
     assert!(draw(&home, &look, 160, 30).contains("F6  Renombrar"));
     home.reply(Reply::Version(Ok("v99.1.0".to_owned())), &mut look);
     nothing(&click(&mut home, &mut look, (160, 30), "F9  Menú"), "");
+    assert!(draw(&home, &look, 160, 30).contains("Copiar la ruta"));
+    home.key(key(KeyCode::Esc), &mut look);
+    nothing(&click(&mut home, &mut look, (160, 30), "F3  Ver"), "");
     let text = draw(&home, &look, 160, 30);
     assert!(text.lines().nth(27).unwrap().contains(" · Próximamente."));
     assert_eq!(
@@ -385,6 +388,228 @@ fn clicks_explorer_shortcuts() {
             look.messages.get("main.vaultOpen")
         ),
     );
+}
+
+/// The mouse and keyboard menu run the existing actions, including their confirmations.
+#[test]
+fn context_menu_runs_explorer_shortcuts() {
+    use ratatui::layout::Rect;
+
+    use super::explorer::{Entry, Kind};
+    use super::mouse::MouseKind;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, Some((true, true)));
+    home.key(key(KeyCode::End), &mut look);
+    home.key(key(KeyCode::Enter), &mut look);
+    home.key(key(KeyCode::BackTab), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/work".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/work".to_owned(),
+            outcome: Ok(vec![Entry {
+                name: "notes.txt".to_owned(),
+                kind: Kind::File,
+                size: 1,
+                modified: None,
+            }]),
+        },
+        &mut look,
+    );
+    for code in [KeyCode::F(9), KeyCode::Char('y'), KeyCode::Char('i')] {
+        nothing(
+            &home.key(key(code), &mut look),
+            "no entry on the parent row",
+        );
+        assert!(home.overlay().is_none());
+    }
+
+    let size = (150, 30);
+    let point = pointer(&draw(&home, &look, size.0, size.1), "notes.txt");
+    let bounds = Rect::new(0, 0, size.0, size.1);
+    let mut opened = home.clone();
+    let (asks, selected) = opened.mouse(bounds, point, MouseKind::Right, false, &mut look);
+    nothing(&asks, "right click only opens the menu");
+    assert!(!selected);
+    let mut outside = home.clone();
+    let (asks, _) = outside.mouse(
+        bounds,
+        ratatui::layout::Position::new(60, 20),
+        MouseKind::Right,
+        false,
+        &mut look,
+    );
+    nothing(&asks, "a right click away from every row");
+    assert!(outside.overlay().is_none());
+    assert_eq!(
+        opened.overlay(),
+        Some(&Overlay::ContextMenu { selected: 0 })
+    );
+    let screen = draw(&opened, &look, size.0, size.1);
+    let menu = screen.lines().take(28).collect::<Vec<_>>().join("\n");
+    assert_eq!(pointer(&menu, "Copy to home-nas").y, point.y + 5);
+
+    home.key(key(KeyCode::End), &mut look);
+    for (index, (label, shortcut, code)) in [
+        ("Open", "Enter", KeyCode::Enter),
+        ("View", "F3", KeyCode::F(3)),
+        ("Edit", "F4", KeyCode::F(4)),
+        ("Copy to home-nas", "F5", KeyCode::F(5)),
+        ("Rename", "F2", KeyCode::F(2)),
+        ("Copy the path", "y", KeyCode::Char('y')),
+        ("Details", "i", KeyCode::Char('i')),
+        ("Delete", "Del", KeyCode::Delete),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let point = pointer(&menu, label);
+        assert!(
+            menu.lines()
+                .nth(usize::from(point.y))
+                .unwrap()
+                .contains(shortcut)
+        );
+        let mut clicked = opened.clone();
+        let mut navigated = opened.clone();
+        let mut pressed = home.clone();
+        for _ in 0..index {
+            navigated.key(key(KeyCode::Down), &mut look);
+        }
+        let expected = pressed.key(key(code), &mut look);
+        assert_eq!(
+            clicked
+                .mouse(bounds, point, MouseKind::Left, false, &mut look)
+                .0,
+            expected,
+            "{label}"
+        );
+        assert_eq!(navigated.key(key(KeyCode::Enter), &mut look), expected);
+        assert_eq!(clicked, pressed);
+        assert_eq!(navigated, pressed);
+    }
+}
+
+/// The menu keeps its highlight on unrelated input and closes on Escape or an outside click.
+#[test]
+fn context_menu_dismisses_and_uses_the_palette() {
+    use ratatui::style::Modifier;
+
+    use super::explorer::{Entry, Kind};
+    use super::mouse::MouseKind;
+
+    let mut look = look();
+    let mut home = loaded(&mut look, None);
+    home.key(key(KeyCode::Tab), &mut look);
+    home.reply(
+        Reply::Homed {
+            side: Side::Left,
+            outcome: Ok("/".to_owned()),
+        },
+        &mut look,
+    );
+    home.reply(
+        Reply::Listed {
+            side: Side::Left,
+            path: "/".to_owned(),
+            outcome: Ok(vec![Entry {
+                name: "notes.txt".to_owned(),
+                kind: Kind::File,
+                size: 1,
+                modified: None,
+            }]),
+        },
+        &mut look,
+    );
+    home.key(key(KeyCode::F(9)), &mut look);
+    home.key(key(KeyCode::Down), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Up), &mut look);
+    home.key(key(KeyCode::Char('q')), &mut look);
+    assert_eq!(home.overlay(), Some(&Overlay::ContextMenu { selected: 0 }));
+
+    let size = (60, 16);
+    let menu = draw(&home, &look, size.0, size.1);
+    let delete = pointer(&menu, "Delete");
+    let detail = pointer(&menu, "Details");
+    assert_eq!(delete.y, detail.y + 2);
+    let mut terminal = Terminal::new(TestBackend::new(size.0, size.1)).unwrap();
+    terminal
+        .draw(|frame| home.render(frame, &look, "*"))
+        .unwrap();
+    assert_eq!(
+        terminal.backend().buffer()[(delete.x, delete.y)].fg,
+        look.palette.danger
+    );
+
+    let bounds = ratatui::layout::Rect::new(0, 0, size.0, size.1);
+    let separator = ratatui::layout::Position::new(delete.x, delete.y - 1);
+    nothing(
+        &home
+            .mouse(bounds, separator, MouseKind::Left, false, &mut look)
+            .0,
+        "separator",
+    );
+    nothing(
+        &home
+            .mouse(bounds, separator, MouseKind::Down, false, &mut look)
+            .0,
+        "wheel",
+    );
+    assert_eq!(home.overlay(), Some(&Overlay::ContextMenu { selected: 0 }));
+
+    let mut plain = Look::new(
+        Language::English,
+        DEFAULT_THEME,
+        ColorMode::Plain,
+        Settings::default(),
+    );
+    let screen = draw(&home, &plain, size.0, size.1);
+    let menu = screen.lines().take(14).collect::<Vec<_>>().join("\n");
+    let open = pointer(&menu, "Open");
+    terminal
+        .draw(|frame| home.render(frame, &plain, "*"))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    assert!(
+        buffer[(open.x, open.y)]
+            .modifier
+            .contains(Modifier::REVERSED)
+    );
+    assert!(
+        buffer[(delete.x, delete.y)]
+            .modifier
+            .contains(Modifier::BOLD)
+    );
+
+    home.key(key(KeyCode::Esc), &mut plain);
+    assert!(home.overlay().is_none());
+    home.key(key(KeyCode::F(9)), &mut plain);
+    nothing(
+        &click(&mut home, &mut plain, size, "1 Local disk"),
+        "outside",
+    );
+    assert!(home.overlay().is_none());
+    for (filter, shortcut) in [
+        ("open the context menu", "F9"),
+        ("copy the path", "y"),
+        ("show entry details", "i"),
+    ] {
+        home.key(key(KeyCode::F(1)), &mut plain);
+        home.paste(filter);
+        let help = draw(&home, &plain, 120, 30);
+        assert!(help.lines().any(|line| {
+            line.contains(filter) && line.split_whitespace().any(|word| word == shortcut)
+        }));
+        home.key(key(KeyCode::F(1)), &mut plain);
+    }
 }
 
 /// Chips follow their explorer, use the theme and stay readable in plain mode.
@@ -488,6 +713,19 @@ fn ignores_clicks_outside_mouse_targets() {
 
     home.key(key(KeyCode::Char('/')), &mut look);
     let commands = home.overlay().cloned();
+    let point = pointer(&draw(&home, &look, size.0, size.1), "1 Local disk");
+    nothing(
+        &home
+            .mouse(
+                Rect::new(0, 0, size.0, size.1),
+                point,
+                MouseKind::Right,
+                false,
+                &mut look,
+            )
+            .0,
+        "right click leaves other overlays alone",
+    );
     nothing(&click(&mut home, &mut look, size, "1 Local disk"), "");
     assert_eq!(home.overlay(), commands.as_ref());
     home.key(key(KeyCode::Esc), &mut look);
@@ -2636,6 +2874,25 @@ mod interface {
         nothing(&app.handle(single), "single file click");
         let double = mouse("notes.txt", &app, MouseKind::Left, 700);
         nothing(&app.handle(double), "details are local state");
+        assert!(matches!(
+            home(&app).overlay(),
+            Some(Overlay::Details { .. })
+        ));
+        app.handle(press(KeyCode::Esc));
+
+        let context = mouse("notes.txt", &app, MouseKind::Right, 710);
+        nothing(&app.handle(context), "opens the context menu");
+        let copy = mouse("Copy the path", &app, MouseKind::Left, 720);
+        assert_eq!(
+            app.handle(copy),
+            vec![Effect::Copy("/notes.txt".to_owned())]
+        );
+        assert!(text(&app).contains("The path was copied."));
+        assert_eq!(
+            app.handle(press(KeyCode::Char('y'))),
+            vec![Effect::Copy("/notes.txt".to_owned())]
+        );
+        nothing(&app.handle(press(KeyCode::Char('i'))), "details");
         assert!(matches!(
             home(&app).overlay(),
             Some(Overlay::Details { .. })

@@ -19,11 +19,22 @@ impl Home {
         double: bool,
         look: &mut Look,
     ) -> (Vec<Ask>, bool) {
-        if area.width < 60 || area.height < 16 || kind == MouseKind::Right {
+        if area.width < 60 || area.height < 16 {
             return (Vec::new(), false);
+        }
+        if matches!(self.overlay, Some(Overlay::ContextMenu { .. })) {
+            let asks = if matches!(kind, MouseKind::Left | MouseKind::Right) {
+                self.context_menu_click(area, position, look)
+            } else {
+                Vec::new()
+            };
+            return (asks, false);
         }
         let [_, sites, left, right, bottom, _, keys, status] = self.layout(area);
         if let Some(overlay) = self.overlay.as_ref() {
+            if kind == MouseKind::Right {
+                return (Vec::new(), false);
+            }
             return (
                 self.overlay_mouse(area, status, position, kind, overlay.clone(), look),
                 false,
@@ -68,7 +79,9 @@ impl Home {
             (right, Focus::Right),
             (bottom, Focus::Bottom),
         ] {
-            if target.contains(position) {
+            if target.contains(position)
+                && (kind != MouseKind::Right || matches!(focus, Focus::Left | Focus::Right))
+            {
                 return self.panel_mouse(target, position, kind, double, focus, look);
             }
         }
@@ -125,6 +138,12 @@ impl Home {
                 false
             }
         };
+        if kind == MouseKind::Right {
+            if selected {
+                self.open_context_menu(self.last);
+            }
+            return (Vec::new(), false);
+        }
         let asks = if selected && double {
             self.key(key(KeyCode::Enter), look)
         } else {

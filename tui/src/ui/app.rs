@@ -317,6 +317,7 @@ impl App {
                 }
                 Ask::Abort(id) => effects.push(Effect::Abort(id)),
                 Ask::Browse(url) => effects.push(Effect::OpenBrowser(url)),
+                Ask::CopyPath(path) => effects.push(Effect::Copy(path)),
                 Ask::Mouse(enabled) => effects.push(Effect::Mouse(enabled)),
                 Ask::Save => effects.push(Effect::SaveSettings(self.look.settings.clone())),
                 Ask::Logout => effects.push(Effect::Logout(session.clone())),

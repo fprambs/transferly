@@ -10,8 +10,9 @@ use transferly_tui::config::Profile;
 use transferly_tui::i18n::Language;
 use transferly_tui::login::Answer;
 use transferly_tui::config::Settings;
-use transferly_tui::ui::app::{App, Effect, Event, Setup};
-use transferly_tui::ui::home::Reply;
+use transferly_tui::ui::app::{App, Effect, Event, Kept, Setup};
+use transferly_tui::ui::explorer::{Entry, Kind};
+use transferly_tui::ui::home::{Reply, Side};
 use transferly_tui::ui::theme::ColorMode;
 
 use crate::html;
@@ -149,6 +150,50 @@ pub fn shots() -> Vec<Shot> {
         "app-bars",
         "The explorer settings, clickable shortcuts and session status.",
         &english,
+        132,
+        34,
+    ));
+
+    let mut with_menu = App::new(Setup {
+        language: Language::English,
+        mode: ColorMode::TrueColor,
+        theme: "transferly-dark".to_owned(),
+        settings: Settings::default(),
+        profiles: Vec::new(),
+        host: "laptop".to_owned(),
+        browser_possible: true,
+        signed_in: Some(Kept {
+            server: "https://files.acme.com".to_owned(),
+            email: "ana@acme.com".to_owned(),
+            token: "t".to_owned(),
+        }),
+    });
+    load(&mut with_menu);
+    for code in [KeyCode::Down, KeyCode::Down, KeyCode::Enter] {
+        with_menu.handle(key(code));
+    }
+    let remote_path = "/var/www";
+    with_menu.handle(Event::Replied(Reply::Homed {
+        side: Side::Right,
+        outcome: Ok(remote_path.to_owned()),
+    }));
+    with_menu.handle(Event::Replied(Reply::Listed {
+        side: Side::Right,
+        path: remote_path.to_owned(),
+        outcome: Ok(vec![Entry {
+            name: "release.tar.gz".to_owned(),
+            kind: Kind::File,
+            size: 50_331_648,
+            modified: None,
+        }]),
+    }));
+    with_menu.handle(key(KeyCode::End));
+    with_menu.handle(key(KeyCode::F(9)));
+    with_menu.handle(key(KeyCode::Down));
+    shots.push(shot_at(
+        "app-context-menu",
+        "The explorer context menu beside an entry, with each action and its shortcut.",
+        &with_menu,
         132,
         34,
     ));

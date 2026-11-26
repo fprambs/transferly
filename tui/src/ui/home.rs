@@ -23,6 +23,7 @@ use super::mouse::first_row;
 use super::theme::{self, Palette};
 use super::widgets::{centered, error_line, field, highlight, panel, popup};
 
+mod context_menu;
 mod mouse;
 use crate::api::{HostKey, TrustMode};
 use crate::config::{Colors, EnterOnFile};
@@ -355,6 +356,8 @@ pub enum Ask {
     },
     /// Open an address in the browser.
     Browse(String),
+    /// Copy an entry path through the terminal.
+    CopyPath(String),
     /// Keep the settings of this computer.
     Save,
     /// Change terminal mouse capture.
@@ -432,6 +435,11 @@ pub enum Overlay {
         items: Vec<Entry>,
         /// The policy, by its place in [`POLICIES`].
         policy: usize,
+    },
+    /// The actions of the entry under the explorer cursor.
+    ContextMenu {
+        /// The highlighted action.
+        selected: usize,
     },
     /// The details of an entry of a panel.
     Details {
@@ -1128,9 +1136,16 @@ impl Home {
                         self.ask_copy(side, look);
                         Vec::new()
                     }
-                    (_, Some(_)) if matches!(key.code, KeyCode::F(3 | 4 | 9)) => {
+                    (_, Some(_)) if matches!(key.code, KeyCode::F(3 | 4)) => {
                         self.say(look.messages.get("main.comingSoon"), false);
                         Vec::new()
+                    }
+                    (_, Some(side)) if matches!(key.code, KeyCode::F(9)) => {
+                        self.open_context_menu(side);
+                        Vec::new()
+                    }
+                    (_, Some(side)) if !control && matches!(key.code, KeyCode::Char('y' | 'i')) => {
+                        self.entry_shortcut(side, key.code, look)
                     }
                     (_, Some(side)) => self.explorer_key(side, key, look),
                     (_, None) => self.sites_key(key, look),
@@ -1308,6 +1323,7 @@ impl Home {
     )]
     fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
         match overlay {
+            Overlay::ContextMenu { selected } => self.context_menu_key(key.code, selected, look),
             Overlay::Details { .. } => Vec::new(),
             Overlay::Copy {
                 from,
@@ -1954,6 +1970,9 @@ impl Home {
                         items,
                         policy,
                     }) => self.render_copy(frame, *from, items, *policy, look),
+                    Some(Overlay::ContextMenu { selected }) => {
+                        self.render_context_menu(frame, *selected, look);
+                    }
                     Some(Overlay::Details { side, entry }) => {
                         self.render_details(frame, *side, entry, look, &zone);
                     }
@@ -2450,6 +2469,9 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
             ("Esc", "help.clear"),
             ("n  F7", "help.mkdir"),
             ("F2  F6", "help.rename"),
+            ("F9", "help.contextMenu"),
+            ("y", "help.copyPath"),
+            ("i", "help.details"),
             ("Delete  F8", "help.delete"),
             ("f  Ctrl+F", "help.filter"),
             (".", "help.hidden"),

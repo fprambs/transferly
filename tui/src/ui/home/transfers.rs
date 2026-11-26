@@ -19,7 +19,7 @@ use super::super::widgets::{centered, error_line, highlight, panel, popup};
 use super::{Ask, Call, CallError, Focus, Home, Overlay, POLICIES, Side, Tab, explain};
 
 /// The other panel.
-fn other(side: Side) -> Side {
+pub(super) fn other(side: Side) -> Side {
     match side {
         Side::Left => Side::Right,
         Side::Right => Side::Left,

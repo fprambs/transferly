@@ -158,6 +158,9 @@
     "clear": "clear the marks, then the filter",
     "mkdir": "new folder",
     "rename": "rename",
+    "contextMenu": "open the context menu",
+    "copyPath": "copy the path",
+    "details": "show entry details",
     "delete": "delete, after asking",
     "filter": "filter while typing",
     "hidden": "show or hide hidden files",
@@ -241,6 +244,17 @@
     "title": "Connection log",
     "empty": "Nothing yet: the steps of connections to sites show here.",
     "tabs": "Transfers [Log]"
+  },
+  "menu": {
+    "open": "Open",
+    "view": "View",
+    "edit": "Edit",
+    "copy": "Copy to {panel}",
+    "rename": "Rename",
+    "copyPath": "Copy the path",
+    "details": "Details",
+    "delete": "Delete",
+    "pathCopied": "The path was copied."
   },
   "copy": {
     "title": "Copy",

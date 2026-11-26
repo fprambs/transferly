@@ -402,7 +402,7 @@ impl Panel {
     }
 
     /// The entry under the cursor, if it is one.
-    fn current(&self) -> Option<Entry> {
+    pub(super) fn current(&self) -> Option<Entry> {
         match self.rows().get(self.cursor) {
             Some(Row::Entry(entry)) => Some((*entry).clone()),
             _ => None,
@@ -630,11 +630,7 @@ impl Panel {
         zone: &TimeZone,
     ) {
         let (m, palette) = (&look.messages, &look.palette);
-        let title = match &self.source {
-            Some(Source::Local) => m.get("main.local"),
-            Some(Source::Site { name, .. }) => name.clone(),
-            None => m.get("explorer.empty"),
-        };
+        let title = self.title(look);
         let mut block = panel(&title, focused, palette);
         if !self.path.is_empty() {
             block = block.title_bottom(Line::from(format!(" {} ", self.path)).fg(palette.muted));
@@ -661,6 +657,22 @@ impl Panel {
         if let Some(paths) = &self.confirm {
             render_confirm(frame, area, paths, look);
         }
+    }
+
+    /// The title of this panel, also used to name it as a copy destination.
+    pub(super) fn title(&self, look: &Look) -> String {
+        match &self.source {
+            Some(Source::Local) => look.messages.get("main.local"),
+            Some(Source::Site { name, .. }) => name.clone(),
+            None => look.messages.get("explorer.empty"),
+        }
+    }
+
+    /// The screen row of the cursor, using the same scroll offset as the file list.
+    pub(super) fn cursor_row(&self, area: Rect, look: &Look) -> u16 {
+        let [rows, _] = self.rows_layout(panel("", false, &look.palette).inner(area));
+        let offset = self.cursor - first_row(rows, self.cursor);
+        rows.y + u16::try_from(offset).expect("the cursor is within the visible rows")
     }
 
     /// The settings below this panel, with separate targets for the sort field and direction.

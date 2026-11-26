@@ -158,6 +158,9 @@
     "clear": "limpiar las marcas y luego el filtro",
     "mkdir": "carpeta nueva",
     "rename": "renombrar",
+    "contextMenu": "abrir el menú contextual",
+    "copyPath": "copiar la ruta",
+    "details": "mostrar los detalles de la entrada",
     "delete": "borrar, tras preguntar",
     "filter": "filtrar mientras escribes",
     "hidden": "mostrar u ocultar los ocultos",
@@ -241,6 +244,17 @@
     "title": "Registro de conexión",
     "empty": "Nada todavía: aquí se ven los pasos de las conexiones a los sitios.",
     "tabs": "Transferencias [Registro]"
+  },
+  "menu": {
+    "open": "Abrir",
+    "view": "Ver",
+    "edit": "Editar",
+    "copy": "Copiar a {panel}",
+    "rename": "Renombrar",
+    "copyPath": "Copiar la ruta",
+    "details": "Detalles",
+    "delete": "Borrar",
+    "pathCopied": "Se copió la ruta."
   },
   "copy": {
     "title": "Copiar",
