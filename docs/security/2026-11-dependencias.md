@@ -61,3 +61,9 @@ Go 1.27.4 (10 de noviembre) corrige GO-2026-6859 / CVE-2026-97054: una petición
 
 El perfil HTTPS compila Caddy 2.11.9 con la revisión de Smallstep integrada en [Caddy #8368](https://github.com/caddyserver/caddy/pull/8368), que elimina go-jose v3, y con `golang.org/x/net` 0.62.0. Trivy confirmó cero hallazgos altos o críticos en la imagen resultante. La prueba aislada verificó TLS con la CA local, autenticación HTTPS, atributos de cookies, HSTS y rechazo de un origen ajeno. La emisión y renovación con una CA pública quedan pendientes de comprobar en un despliegue con dominio.
 
+PostgreSQL se mantiene en 17.12 sobre Bookworm. La imagen derivada instala PAM `1.5.2-6+deb12u3` o posterior y recompila `gosu` 1.19 con Go 1.27.4. Trivy pasó de 4 hallazgos críticos y 141 altos a 3 críticos y 112 altos, contados por paquete y binario. Desaparecieron los cuatro hallazgos de PAM y los 26 de la biblioteca estándar de Go en `gosu`. [Aviso de PAM en Debian](https://security-tracker.debian.org/tracker/CVE-2025-6020)
+
+Trivy no indica una versión corregida en Bookworm para los hallazgos restantes. Debian confirma que los avisos de SQLite y libxml2 siguen abiertos en Bookworm. El tercer hallazgo crítico corresponde a MiniZip, que Debian no compila dentro de `zlib1g` para Bookworm, y el informe de la imagen no incluye un paquete MiniZip instalado. [SQLite](https://security-tracker.debian.org/tracker/CVE-2025-7458) · [libxml2](https://security-tracker.debian.org/tracker/CVE-2026-6653) · [MiniZip](https://security-tracker.debian.org/tracker/CVE-2023-45853)
+
+En pruebas aisladas se verificaron la inicialización desde cero, el arranque de Transferly con un volumen creado por la imagen anterior, la conservación de los datos y de la versión de collation 2.36, y la restauración de un respaldo en la instancia nueva.
+

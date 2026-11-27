@@ -40,7 +40,10 @@ services:
 
   postgres:
     # Stays on Debian 12: moving a database with data to another system can change its collations and needs a planned reindex.
-    image: postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+    build:
+      context: ./docker
+      dockerfile: postgres.Dockerfile
+    image: transferly-postgres:17.12-bookworm-patched
     restart: unless-stopped
     environment:
       POSTGRES_USER: transferly
