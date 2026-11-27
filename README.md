@@ -78,7 +78,7 @@ Abre **http://localhost:8080**. El asistente del primer arranque crea la cuenta 
 Para publicarlo con HTTPS y certificados automáticos:
 
 ```sh
-TRANSFERLY_DOMAIN=transferly.tuempresa.com TRANSFERLY_BASE_URL=https://transferly.tuempresa.com docker compose --profile https up -d
+TRANSFERLY_DOMAIN=transferly.tuempresa.com TRANSFERLY_BASE_URL=https://transferly.tuempresa.com docker compose --profile https up -d --build
 ```
 
 La imagen corre sin privilegios, con el sistema de archivos de solo lectura y sin capacidades del kernel.

@@ -57,3 +57,7 @@ Conteo final: `govulncheck` sin vulnerabilidades alcanzables, `pnpm audit` limpi
 
 Go 1.27.4 (10 de noviembre) corrige GO-2026-6859 / CVE-2026-97054: una petición que supera el límite de `MaxBytesReader` podía tumbar el servidor HTTP/1. `govulncheck` encontraba la ruta desde nuestro código, que limita los cuerpos a 1 MiB, así que la imagen `v1.0.0-rc.2` quedó afectada. Se publica `v1.0.0-rc.3` con Go 1.27.4 y Caddy 2.11.9, que ya está en Docker Hub. Caddy 2.11.9 actualiza go-jose v4 pero sigue trayendo go-jose v3, sin parche para CVE-2026-116587 (denegación de servicio con claves RSA manipuladas, en la emisión de certificados ACME), y CVE-2026-78661 en `x/net/html`, que Caddy usa en sus plantillas; ambos quedan como riesgo aceptado hasta una versión de Caddy que los resuelva. La imagen de Transferly queda sin hallazgos altos ni críticos.
 
+## Actualización del 27 de noviembre
+
+El perfil HTTPS compila Caddy 2.11.9 con la revisión de Smallstep integrada en [Caddy #8368](https://github.com/caddyserver/caddy/pull/8368), que elimina go-jose v3, y con `golang.org/x/net` 0.62.0. Trivy confirmó cero hallazgos altos o críticos en la imagen resultante. La prueba aislada verificó TLS con la CA local, autenticación HTTPS, atributos de cookies, HSTS y rechazo de un origen ajeno. La emisión y renovación con una CA pública quedan pendientes de comprobar en un despliegue con dominio.
+
