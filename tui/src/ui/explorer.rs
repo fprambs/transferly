@@ -141,11 +141,11 @@ pub enum Form {
 
 /// A row of the panel: the folder above, or an entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Row<'a> {
+enum Row {
     /// The folder above.
     Up,
     /// An entry.
-    Entry(&'a Entry),
+    Entry(usize),
 }
 
 /// Identifies one listing, including when the same path is requested again.
@@ -180,6 +180,7 @@ pub struct Panel {
     pending: Option<Pending>,
     select: Option<String>,
     entries: Vec<Entry>,
+    rows: Vec<Row>,
     cursor: usize,
     marks: HashSet<String>,
     filter: Input,
@@ -203,6 +204,7 @@ impl Panel {
             pending: None,
             select: None,
             entries: Vec::new(),
+            rows: Vec::new(),
             cursor: 0,
             marks: HashSet::new(),
             filter: Input::default(),
@@ -342,12 +344,12 @@ impl Panel {
                 path.clone_into(&mut self.path);
                 self.entries = entries;
                 let wanted = self.select.take();
-                let rows = self.rows();
-                self.cursor = rows
+                self.rebuild_rows();
+                self.cursor = self
+                    .rows
                     .iter()
-                    .position(|row| matches!(row, Row::Entry(entry) if Some(&entry.name) == wanted.as_ref()))
-                    .unwrap_or(0)
-                    .min(rows.len().saturating_sub(1));
+                    .position(|row| matches!(row, Row::Entry(index) if Some(&self.entries[*index].name) == wanted.as_ref()))
+                    .unwrap_or(0);
             }
             Err(reason) => self.error = Some(reason),
         }
@@ -415,43 +417,47 @@ impl Panel {
         }
     }
 
-    /// The rows in view: the folder above, then the entries the filter and the hidden files let through, folders first, sorted.
-    fn rows(&self) -> Vec<Row<'_>> {
+    /// Rebuilds the visible order when entries, their sort order, or the active filter change.
+    fn rebuild_rows(&mut self) {
         let filter = self.filter.value().to_lowercase();
-        let mut entries: Vec<&Entry> = self
+        let mut entries: Vec<_> = self
             .entries
             .iter()
-            .filter(|entry| self.hidden || !entry.name.starts_with('.'))
-            .filter(|entry| filter.is_empty() || entry.name.to_lowercase().contains(&filter))
+            .enumerate()
+            .filter(|(_, entry)| self.hidden || !entry.name.starts_with('.'))
+            .map(|(index, entry)| (index, entry.name.to_lowercase()))
+            .filter(|(_, name)| name.contains(&filter))
             .collect();
-        entries.sort_by(|a, b| {
+        entries.sort_by(|(left, left_name), (right, right_name)| {
+            let (left, right) = (&self.entries[*left], &self.entries[*right]);
             let order = match self.sort {
-                Sort::Name => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                Sort::Size => a.size.cmp(&b.size),
-                Sort::Date => a.modified.cmp(&b.modified),
+                Sort::Name => left_name.cmp(right_name),
+                Sort::Size => left.size.cmp(&right.size),
+                Sort::Date => left.modified.cmp(&right.modified),
             };
             let order = if self.descending {
                 order.reverse()
             } else {
                 order
             };
-            let order = order.then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-            (b.kind == Kind::Folder)
-                .cmp(&(a.kind == Kind::Folder))
+            (right.kind == Kind::Folder)
+                .cmp(&(left.kind == Kind::Folder))
                 .then(order)
+                .then_with(|| left_name.cmp(right_name))
         });
-        let mut rows = Vec::with_capacity(entries.len() + 1);
-        if self.parent().is_some() && self.filter.value().is_empty() {
-            rows.push(Row::Up);
+        self.rows.clear();
+        if self.parent().is_some() && filter.is_empty() {
+            self.rows.push(Row::Up);
         }
-        rows.extend(entries.into_iter().map(Row::Entry));
-        rows
+        self.rows
+            .extend(entries.into_iter().map(|(index, _)| Row::Entry(index)));
+        self.cursor = self.cursor.min(self.rows.len().saturating_sub(1));
     }
 
     /// The entry under the cursor, if it is one.
     pub(super) fn current(&self) -> Option<Entry> {
-        match self.rows().get(self.cursor) {
-            Some(Row::Entry(entry)) => Some((*entry).clone()),
+        match self.rows.get(self.cursor) {
+            Some(Row::Entry(index)) => Some(self.entries[*index].clone()),
             _ => None,
         }
     }
@@ -530,13 +536,17 @@ impl Panel {
             Some(Form::Mkdir(input) | Form::Rename { input, .. } | Form::Goto(input)) => {
                 input.insert(text);
             }
-            None if self.filtering => self.filter.insert(text),
+            None if self.filtering => {
+                self.filter.insert(text);
+                self.rebuild_rows();
+            }
             None => {}
         }
     }
 
     /// Handles a key while typing the filter: Enter keeps it, Esc clears it.
     fn filter_key(&mut self, key: KeyEvent) {
+        let previous = self.filter.value().to_owned();
         match key.code {
             KeyCode::Enter => self.filtering = false,
             KeyCode::Esc => {
@@ -548,6 +558,9 @@ impl Panel {
             }
         }
         self.cursor = 0;
+        if self.filter.value() != previous {
+            self.rebuild_rows();
+        }
     }
 
     /// Handles a key of a form: Enter does what it asks, Esc gives up.
@@ -590,7 +603,7 @@ impl Panel {
     /// Handles a key while browsing.
     fn browse_key(&mut self, key: KeyEvent) -> Vec<PanelAsk> {
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
-        let last = self.rows().len().saturating_sub(1);
+        let last = self.rows.len().saturating_sub(1);
         match key.code {
             KeyCode::Char('g') if control => self.form = Some(Form::Goto(Input::with(&self.path))),
             KeyCode::Char('d') if control => {
@@ -601,10 +614,10 @@ impl Panel {
             }
             KeyCode::Char('a') if control => {
                 let names: Vec<String> = self
-                    .rows()
+                    .rows
                     .iter()
                     .filter_map(|row| match row {
-                        Row::Entry(entry) => Some(entry.name.clone()),
+                        Row::Entry(index) => Some(self.entries[*index].name.clone()),
                         Row::Up => None,
                     })
                     .collect();
@@ -627,7 +640,10 @@ impl Panel {
                 self.cursor = (self.cursor + 1).min(last);
             }
             KeyCode::Esc if !self.marks.is_empty() => self.marks.clear(),
-            KeyCode::Esc => self.filter = Input::default(),
+            KeyCode::Esc if !self.filter.value().is_empty() => {
+                self.filter = Input::default();
+                self.rebuild_rows();
+            }
             KeyCode::F(7) | KeyCode::Char('n') => self.form = Some(Form::Mkdir(Input::default())),
             KeyCode::F(2 | 6) => {
                 if let Some(entry) = self.current() {
@@ -639,15 +655,22 @@ impl Panel {
             }
             KeyCode::Delete | KeyCode::F(8) => self.ask_delete(),
             KeyCode::Char('f') => self.filtering = true,
-            KeyCode::Char('.') => self.hidden = !self.hidden,
+            KeyCode::Char('.') => {
+                self.hidden = !self.hidden;
+                self.rebuild_rows();
+            }
             KeyCode::Char('s') => {
                 self.sort = match self.sort {
                     Sort::Name => Sort::Size,
                     Sort::Size => Sort::Date,
                     Sort::Date => Sort::Name,
                 };
+                self.rebuild_rows();
             }
-            KeyCode::Char('S') => self.descending = !self.descending,
+            KeyCode::Char('S') => {
+                self.descending = !self.descending;
+                self.rebuild_rows();
+            }
             KeyCode::Char('r') => return self.go(self.path.clone()),
             _ => {}
         }
@@ -656,13 +679,15 @@ impl Panel {
 
     /// Enter on a row: the folder above or a folder opens; files are copied in the next version.
     fn enter(&mut self) -> Vec<PanelAsk> {
-        match self.rows().get(self.cursor).copied() {
+        match self.rows.get(self.cursor) {
             Some(Row::Up) => self.up(),
-            Some(Row::Entry(entry)) if entry.kind == Kind::Folder || entry.kind == Kind::Link => {
-                let path = self.join(&entry.name);
-                self.go(path)
+            Some(Row::Entry(index)) => {
+                let entry = &self.entries[*index];
+                if matches!(entry.kind, Kind::Folder | Kind::Link) {
+                    return self.go(self.join(&entry.name));
+                }
+                vec![PanelAsk::Activate(entry.clone())]
             }
-            Some(Row::Entry(entry)) => vec![PanelAsk::Activate(entry.clone())],
             None => Vec::new(),
         }
     }
@@ -850,7 +875,7 @@ impl Panel {
             rows,
             position,
             first_row(rows, self.cursor),
-            self.rows().len(),
+            self.rows.len(),
         ) {
             self.cursor = index;
             return true;
@@ -893,7 +918,7 @@ impl Panel {
     /// The rows: a mark, the name, the size and the date, the selected row highlighted when the panel has the focus.
     fn render_rows(&self, frame: &mut Frame, area: Rect, look: &Look, zone: &TimeZone) {
         let palette = &look.palette;
-        let rows = self.rows();
+        let rows = &self.rows;
         let style = if self.listing() {
             Style::new().add_modifier(Modifier::DIM)
         } else {
@@ -923,7 +948,8 @@ impl Panel {
             .map(|(at, row)| {
                 let (mark, name, size, date, folder) = match row {
                     Row::Up => (" ", "../".to_owned(), String::new(), String::new(), true),
-                    Row::Entry(entry) => {
+                    Row::Entry(index) => {
+                        let entry = &self.entries[*index];
                         let folder = entry.kind == Kind::Folder;
                         let mut name = visible_name(&entry.name);
                         if folder {

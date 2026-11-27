@@ -87,6 +87,55 @@ fn draw(panel: &Panel, width: u16, height: u16) -> String {
         .collect()
 }
 
+/// Moves and redraws a large remote listing, then verifies that changing its filter updates the visible rows.
+#[test]
+fn scrolls_a_folder_with_fifty_thousand_files() {
+    let mut panel = site_panel();
+    panel.key(key(KeyCode::Char('r')));
+    let entries = (0..50_000)
+        .rev()
+        .map(|index| entry(&format!("file-{index:05}.txt"), Kind::File, index, 0))
+        .collect();
+    let started = std::time::Instant::now();
+    panel.listed("/upload", Ok(entries));
+    let listing = started.elapsed();
+    let look = Look::new(
+        Language::English,
+        DEFAULT_THEME,
+        ColorMode::TrueColor,
+        Settings::default(),
+    );
+    let mut terminal = Terminal::new(TestBackend::new(100, 24)).expect("backend");
+    let started = std::time::Instant::now();
+    for direction in [KeyCode::Down, KeyCode::Up] {
+        for _ in 0..60 {
+            assert_eq!(panel.key(key(direction)), Vec::new());
+            terminal
+                .draw(|frame| panel.render(frame, frame.area(), &look, true, &TimeZone::UTC))
+                .expect("draw");
+        }
+        if direction == KeyCode::Down {
+            assert_eq!(
+                panel.current().expect("current file").name,
+                "file-00059.txt"
+            );
+        }
+    }
+    eprintln!(
+        "50,000 files: listing {listing:?}, 120 key presses and draws {:?}",
+        started.elapsed()
+    );
+    assert!(panel.current().is_none());
+    panel.key(key(KeyCode::Char('f')));
+    panel.paste("FILE-49999");
+    panel.key(key(KeyCode::Enter));
+    assert!(draw(&panel, 100, 24).contains("file-49999.txt"));
+    assert_eq!(
+        panel.current().expect("filtered file").name,
+        "file-49999.txt"
+    );
+}
+
 /// The listing dims the retained rows and shows its translated path and hint with colors disabled.
 #[test]
 fn draws_listing_with_no_color() {
