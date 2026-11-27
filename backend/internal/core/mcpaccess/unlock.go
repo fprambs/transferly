@@ -92,16 +92,19 @@ func (u *Unlocks) Lock(link uuid.UUID) {
 	u.remove(link)
 }
 
-// Sweep cancels and removes all expired generations.
-func (u *Unlocks) Sweep() {
+// Sweep cancels and removes all expired generations and reports how many it removed.
+func (u *Unlocks) Sweep() int {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	now := u.clock.Now()
+	removed := 0
 	for link, window := range u.windows {
 		if window.expired(now) {
 			u.remove(link)
+			removed++
 		}
 	}
+	return removed
 }
 
 // expired reports whether the service or either deadline ended the window.

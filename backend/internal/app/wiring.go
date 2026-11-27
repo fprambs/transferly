@@ -34,6 +34,7 @@ import (
 	"github.com/fprambs/transferly/internal/core/hostkey"
 	"github.com/fprambs/transferly/internal/core/invite"
 	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/mcpaccess"
 	"github.com/fprambs/transferly/internal/core/mfa"
 	"github.com/fprambs/transferly/internal/core/netguard"
 	"github.com/fprambs/transferly/internal/core/passkey"
@@ -137,6 +138,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		connect.Offering(offered), connect.Google(google), connect.ServerCommands(quotas.ServerCommandsAllowed), connect.StrictServers(store))
 	pool := connections.New(connector, system, connections.Config{OnChange: connections.PublishTo(hub)})
 
+	mcpWindows := mcpaccess.NewUnlocks(system, 0, 0)
 	return wiring{
 		pool:    pool,
 		hub:     hub,
@@ -148,6 +150,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 			Auth:          authService,
 			Workspaces:    workspaces,
 			Vault:         vaults,
+			MCPVault:      mcpaccess.VaultAccess{Windows: mcpWindows, Vault: vaults, Keys: keys, Pools: pool, Credentials: askedPasswords},
 			Keys:          keys,
 			Sites:         sites,
 			Probe:         connector,
@@ -189,6 +192,7 @@ func newWiring(cfg config.Config, logger *slog.Logger, store *postgres.Store, in
 		},
 		janitor: []janitorTask{
 			{name: "expired sessions", run: authService.PurgeExpired},
+			{name: "expired MCP unlocks", run: func(context.Context) (int, error) { return mcpWindows.Sweep(), nil }},
 			{name: "expired terminal approvals", run: authService.PurgeCLIAuthorizations},
 			{name: "idle quick connections", run: func(context.Context) (int, error) { return quickConnections.Sweep(cfg.SessionIdle), nil }},
 			{name: "asked passwords", run: func(context.Context) (int, error) { return askedPasswords.Sweep(openConnections(pool)), nil }},

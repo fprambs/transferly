@@ -28,6 +28,7 @@ import (
 	"github.com/fprambs/transferly/internal/core/hostkey"
 	"github.com/fprambs/transferly/internal/core/invite"
 	"github.com/fprambs/transferly/internal/core/limits"
+	"github.com/fprambs/transferly/internal/core/mcpaccess"
 	"github.com/fprambs/transferly/internal/core/mfa"
 	"github.com/fprambs/transferly/internal/core/passkey"
 	"github.com/fprambs/transferly/internal/core/ports"
@@ -141,6 +142,8 @@ type Deps struct {
 	Keys *wskey.Service
 	// Vault is the credential vault service.
 	Vault *vault.Service
+	// MCPVault owns the resources of approved MCP unlocks.
+	MCPVault mcpaccess.VaultAccess
 	// Limits are the rate limiters of the unauthenticated endpoints.
 	Limits Limits
 	// InstanceKey signs the anti-CSRF tokens.
