@@ -13,6 +13,7 @@ import { renderApp } from '@/test/render-app'
  * Scenarios:
  * - a visitor without a session is sent to login, or to setup on a fresh install
  * - a signed-in user sees the shell and is kept away from login and setup
+ * - a signed-in user sent to login goes on to the path of the application they were going to, never to another site
  * - setup is closed once the administrator exists
  * - signing in stores the session, sends the anti-CSRF token and opens the shell
  * - creating the administrator opens the shell
@@ -48,6 +49,18 @@ describe('routes', () => {
     expect(history.location.pathname).toBe('/setup')
   })
 
+  it('opens the privacy and cookies notice without signing in', async () => {
+    mockSession(null)
+    mockSetupRequired(false)
+    const { history } = await renderApp({ path: '/login' })
+
+    await userEvent.click(await screen.findByRole('link', { name: 'Privacy, cookies and terms' }))
+
+    expect(await screen.findByRole('heading', { name: 'Cookies and browser storage' })).toBeInTheDocument()
+    expect(screen.getByText(/transferly_session/)).toBeInTheDocument()
+    expect(history.location.pathname).toBe('/legal')
+  })
+
   it('shows the shell to a signed-in user', async () => {
     mockSession(adminSession)
 
@@ -64,6 +77,18 @@ describe('routes', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
     expect(history.location.pathname).toBe('/')
+  })
+
+  it.each([
+    ['/login?redirect=%2F%3Ffrom%3Dlogin', '/'],
+    ['/login?redirect=%2F%2Fevil.example.com%2F', '/'],
+  ])('sends a signed-in user from %s to the path they were going to, if it is one of the application', async (path, expected) => {
+    mockSession(adminSession)
+
+    const { history } = await renderApp({ path })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Transferly' })).toBeInTheDocument()
+    expect(history.location.pathname).toBe(expected)
   })
 
   it('closes setup once the administrator exists', async () => {

@@ -1,0 +1,15 @@
+[package]
+name = "transferly-tui-mockups"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Draws the screens of docs/design/terminal-client.md with ratatui and writes them as text (make tui-mockups)."
+
+[dependencies]
+ratatui = "0.30.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+transferly-tui = { path = ".." }
+crossterm = "0.29.0"
+transferly-client = { path = "../client" }
+uuid = "1.29.3"

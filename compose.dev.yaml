@@ -28,6 +28,21 @@ services:
       postgres:
         condition: service_healthy
 
+  # Rust toolchain of the terminal client (tui/), apart from the Go and Node tools; see docker/rust.Dockerfile.
+  rust:
+    profiles: ["tools"]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    build:
+      context: .
+      dockerfile: docker/rust.Dockerfile
+    image: transferly-dev-rust
+    working_dir: /workspace/tui
+    environment:
+      INSTA_UPDATE: "no"
+    volumes:
+      - .:/workspace
+      - rust-cache:/cache
+
   backend:
     <<: *tools
     working_dir: /workspace/backend
@@ -76,7 +91,10 @@ services:
       retries: 60
 
   postgres:
-    image: postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+    build:
+      context: ./docker
+      dockerfile: postgres.Dockerfile
+    image: transferly-postgres:17.12-bookworm-patched
     environment:
       POSTGRES_USER: transferly
       POSTGRES_PASSWORD: transferly
@@ -94,4 +112,5 @@ services:
 
 volumes:
   cache:
+  rust-cache:
   pgdata:

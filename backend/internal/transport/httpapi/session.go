@@ -33,6 +33,8 @@ const (
 type authenticated struct {
 	auth.Principal
 	token string
+	// bearer is set when the token came in the Authorization header, which only sessions of the terminal client use (ADR-0029).
+	bearer bool
 }
 
 // clientFrom returns the client information stored by the clientInfo middleware.
@@ -80,25 +82,33 @@ type vaultSessions interface {
 	Remember(ctx context.Context, session, secret string)
 }
 
-// authenticate resolves the session cookie to a signed-in user. Missing, unknown and expired sessions
-// leave the request anonymous; only infrastructure failures stop it. Every request of a signed-in session keeps its vault
-// unlocked, as long as it was.
+// authenticate resolves the session cookie of a browser, or the bearer token of the terminal client (ADR-0029), to a signed-in user.
+// A token of one kind of session sent the other way, and missing, unknown and expired sessions, leave the request anonymous; a
+// request with both credentials is refused, and otherwise only infrastructure failures stop it. Every request of a signed-in
+// session keeps its vault unlocked, as long as it was.
 func authenticate(service *auth.Service, vaults vaultSessions, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie(sessionCookieName)
-			if err != nil {
+			token, bearer, ambiguous := sessionToken(r)
+			if ambiguous {
+				writeProblem(w, http.StatusBadRequest, "ambiguous_credentials", nil)
+				return
+			}
+			if token == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
-			principal, err := service.Authenticate(r.Context(), cookie.Value)
+			principal, err := service.Authenticate(r.Context(), token)
+			if err == nil && (principal.Session.Kind == auth.SessionCLI) != bearer {
+				err = auth.ErrUnauthenticated
+			}
 			switch {
 			case err == nil:
-				ctx := context.WithValue(r.Context(), principalKey, authenticated{Principal: principal, token: cookie.Value})
+				ctx := context.WithValue(r.Context(), principalKey, authenticated{Principal: principal, token: token, bearer: bearer})
 				session := principal.Session.ID.String()
-				vaults.Resume(ctx, session, cookie.Value)
+				vaults.Resume(ctx, session, token)
 				next.ServeHTTP(w, r.WithContext(ctx))
-				vaults.Remember(context.WithoutCancel(ctx), session, cookie.Value)
+				vaults.Remember(context.WithoutCancel(ctx), session, token)
 			case isAnonymous(err):
 				next.ServeHTTP(w, r)
 			default:
@@ -107,6 +117,22 @@ func authenticate(service *auth.Service, vaults vaultSessions, logger *slog.Logg
 			}
 		})
 	}
+}
+
+// sessionToken returns the session token of a request and whether it came as a bearer token. A request with both a bearer token
+// and the session cookie is ambiguous and must be refused, so neither credential can stand in for the other. An Authorization header
+// of another scheme is not a session token.
+func sessionToken(r *http.Request) (token string, bearer, ambiguous bool) {
+	scheme, value, _ := strings.Cut(r.Header.Get("Authorization"), " ")
+	cookie, err := r.Cookie(sessionCookieName)
+	hasCookie := err == nil && cookie.Value != ""
+	if strings.EqualFold(scheme, "Bearer") && value != "" {
+		return value, true, hasCookie
+	}
+	if hasCookie {
+		return cookie.Value, false, false
+	}
+	return "", false, false
 }
 
 // isAnonymous reports whether an authentication error simply means the caller is not signed in.
@@ -191,7 +217,7 @@ func protectedOperations(spec *openapi3.T) map[string]bool {
 }
 
 // requireSession enforces authentication on the protected operations and, for their state-changing
-// requests, the anti-CSRF token. It answers the problem itself and stops the operation.
+// requests of browser sessions, the anti-CSRF token; a bearer token is never sent by a browser on its own, so it needs none. It answers the problem itself and stops the operation.
 func requireSession(instanceKey []byte, protected map[string]bool) StrictMiddlewareFunc {
 	return func(next StrictHandlerFunc, operationID string) StrictHandlerFunc {
 		if !protected[operationID] {
@@ -203,7 +229,7 @@ func requireSession(instanceKey []byte, protected map[string]bool) StrictMiddlew
 				writeProblem(w, http.StatusUnauthorized, "unauthenticated", nil)
 				return nil, nil
 			}
-			if isUnsafe(r.Method) && !auth.VerifyCSRF(instanceKey, p.Session.ID, r.Header.Get(csrfHeader)) {
+			if isUnsafe(r.Method) && !p.bearer && !auth.VerifyCSRF(instanceKey, p.Session.ID, r.Header.Get(csrfHeader)) {
 				writeProblem(w, http.StatusForbidden, "csrf_invalid", nil)
 				return nil, nil
 			}

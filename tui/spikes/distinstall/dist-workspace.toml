@@ -1,0 +1,12 @@
+# The cargo-dist configuration tried in docs/spikes/cargo-dist.md. In the repository it moves to the root with members = ["cargo:tui"].
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.34.0"
+ci = "github"
+installers = ["shell", "powershell"]
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-musl", "x86_64-apple-darwin", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+install-path = ["$XDG_BIN_HOME/", "~/.local/bin"]
+hosting = "github"
+install-updater = false

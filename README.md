@@ -44,6 +44,7 @@ Está pensado para equipos: cada persona tiene su cuenta y su espacio personal, 
   - [Seguridad](#seguridad)
   - [Equipos y administración](#equipos-y-administración)
   - [Una interfaz cómoda](#una-interfaz-cómoda)
+- [Rendimiento medido](#rendimiento-medido)
 - [Galería](#galería)
 - [Lo que viene](#lo-que-viene)
 - [Configuración](#configuración)
@@ -78,7 +79,7 @@ Abre **http://localhost:8080**. El asistente del primer arranque crea la cuenta 
 Para publicarlo con HTTPS y certificados automáticos:
 
 ```sh
-TRANSFERLY_DOMAIN=transferly.tuempresa.com TRANSFERLY_BASE_URL=https://transferly.tuempresa.com docker compose --profile https up -d
+TRANSFERLY_DOMAIN=transferly.tuempresa.com TRANSFERLY_BASE_URL=https://transferly.tuempresa.com docker compose --profile https up -d --build
 ```
 
 La imagen corre sin privilegios, con el sistema de archivos de solo lectura y sin capacidades del kernel.
@@ -161,6 +162,40 @@ Todo lo que puede ser peligroso se dibuja en una página aislada: origen opaco, 
 - **Mensajes de error guiados**: cada error dice su causa probable y qué hacer.
 - **Accesible**: navegable con teclado, compatible con lectores de pantalla y con contraste WCAG AA en todos los temas.
 
+## Rendimiento medido
+
+Una instancia en Docker, con la API de Transferly y un servidor SFTP en la misma máquina. Medición del 27 de noviembre de 2026, con **318 operaciones correctas** en los lotes medidos.
+
+| Operación | Solicitudes simultáneas | p50 | p95 | Tasa agregada |
+|---|---:|---:|---:|---:|
+| Abrir conexión SFTP, listar y cerrar | 1 | 77,52 ms | 112,54 ms | 12,19 op/s |
+| Abrir conexión SFTP, listar y cerrar | 2 | 80,51 ms | 97,45 ms | 23,43 op/s |
+| Abrir conexión SFTP, listar y cerrar | 4 | 87,27 ms | 110,72 ms | 37,73 op/s |
+| Listar con la conexión reutilizada | 1 | 8,47 ms | 9,88 ms | 115,03 op/s |
+| Listar con la conexión reutilizada | 4 | 10,24 ms | 12,26 ms | 244,76 op/s |
+| Listar con la conexión reutilizada | 8 | 14,28 ms | 30,34 ms | 446,76 op/s |
+| Descargar y verificar 16 MiB | 1 | 296,89 ms | 316,81 ms | 53,76 MiB/s |
+| Descargar y verificar 16 MiB | 4 | 531,82 ms | 588,59 ms | 114,19 MiB/s |
+| Descargar y verificar 16 MiB | 8 | 1.025,19 ms | 1.191,51 ms | 117,29 MiB/s |
+
+En esta ejecución, cuatro descargas simultáneas duplicaron la tasa agregada frente a una. Con ocho, la tasa apenas aumentó y el p95 casi se duplicó respecto de cuatro. La tabla describe una carga local de un usuario y un servidor SFTP.
+
+Reproduce la prueba con `./scripts/bench-connections.sh > connections.json`. Consulta la [metodología y el entorno](docs/benchmarks/sftp-http.md) y los [datos por solicitud](docs/benchmarks/sftp-http-2026-11-27.json).
+
+### Varios usuarios simultáneos
+
+La carga mixta combinó tres listados por cada descarga de 16 MiB. Cada usuario tenía su propia cuenta, sesión HTTP y conexión SFTP. Se completaron **976 solicitudes sin errores** entre los cinco niveles.
+
+| Usuarios | Solicitudes | p95 listado | p95 descarga | Descarga agregada |
+|---:|---:|---:|---:|---:|
+| 1 | 16 | 20,95 ms | 331,52 ms | 51,51 MiB/s |
+| 4 | 64 | 12,46 ms | 327,46 ms | 203,75 MiB/s |
+| 8 | 128 | 26,46 ms | 605,80 ms | 224,76 MiB/s |
+| 16 | 256 | 49,13 ms | 766,12 ms | 320,02 MiB/s |
+| 32 | 512 | 185,38 ms | 1.691,29 ms | 302,15 MiB/s |
+
+El mayor caudal de esta corrida fue con 16 usuarios. A 32, el caudal cayó un 5,6 % y el p95 de descarga se multiplicó por 2,2. Son lotes breves sobre una instancia y un servidor SFTP en red local. [Cómo reproducir la carga](docs/benchmarks/sftp-http.md#carga-con-varios-usuarios) · [Datos por solicitud](docs/benchmarks/sftp-http-multi-user-2026-11-27.json)
+
 ## Galería
 
 <table>
@@ -225,6 +260,8 @@ Variables principales del despliegue con Docker Compose:
 | `TRANSFERLY_ALLOWED_NETWORKS` | Redes privadas que los sitios pueden alcanzar, separadas por coma | ninguna |
 | `TRANSFERLY_TRUSTED_PROXIES` | Proxies de confianza, para conocer la IP real del cliente | ninguno en el binario; Compose confía solo en Caddy (`172.30.252.3`) |
 | `TRANSFERLY_GOOGLE_CLIENT_ID`, `TRANSFERLY_GOOGLE_CLIENT_SECRET` | Cliente OAuth registrado en Google Cloud, para los sitios de Google Drive ([guía](docs/guides/google.md)) | ninguno |
+| `TRANSFERLY_CLI_LOGIN` | Permite iniciar sesión desde la terminal (`transferly-tui`) aprobándolo en el navegador ([ADR-0029](docs/adr/0029-terminal-client-and-browser-login.md)); `false` lo apaga | `true` |
+| `TRANSFERLY_CLI_SESSION_IDLE`, `TRANSFERLY_CLI_SESSION_MAX` | Cuánto dura una sesión de terminal sin uso y como máximo, en horas de Go (no admite días) | `168h` (7 días) y `720h` (30 días) |
 
 Las redes permitidas y los límites también se cambian en caliente desde el panel de administración.
 
@@ -258,6 +295,7 @@ Con `make testenv` se levanta un servidor de prueba para cada conector (SFTP, SS
 
 - [Roadmap](docs/ROADMAP.md) y [arquitectura](docs/ARCHITECTURE.md)
 - [Decisiones de diseño (ADR)](docs/adr), [guías de librerías](docs/guides/README.md) y [revisiones de seguridad](docs/security/README.md)
+- [Privacidad y términos para operadores](docs/guides/instance-privacy.md). La web muestra el aviso en `/legal` y el terminal con `transferly-tui privacy`.
 - [Kit de marca](branding/README.md): logo, colores, tipografía e íconos
 - [Cómo contribuir](CONTRIBUTING.md) y [cómo agregar un idioma](docs/guides/i18n.md#adding-a-language)
 

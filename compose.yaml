@@ -21,6 +21,9 @@ services:
       TRANSFERLY_ALLOWED_NETWORKS: ${TRANSFERLY_ALLOWED_NETWORKS:-}
       TRANSFERLY_GOOGLE_CLIENT_ID: ${TRANSFERLY_GOOGLE_CLIENT_ID:-}
       TRANSFERLY_GOOGLE_CLIENT_SECRET: ${TRANSFERLY_GOOGLE_CLIENT_SECRET:-}
+      TRANSFERLY_CLI_LOGIN: ${TRANSFERLY_CLI_LOGIN:-}
+      TRANSFERLY_CLI_SESSION_IDLE: ${TRANSFERLY_CLI_SESSION_IDLE:-}
+      TRANSFERLY_CLI_SESSION_MAX: ${TRANSFERLY_CLI_SESSION_MAX:-}
     ports:
       - "${TRANSFERLY_BIND:-127.0.0.1}:${TRANSFERLY_HTTP_PORT:-8080}:8080"
     volumes:
@@ -37,7 +40,10 @@ services:
 
   postgres:
     # Stays on Debian 12: moving a database with data to another system can change its collations and needs a planned reindex.
-    image: postgres:17-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+    build:
+      context: ./docker
+      dockerfile: postgres.Dockerfile
+    image: transferly-postgres:17.12-bookworm-patched
     restart: unless-stopped
     environment:
       POSTGRES_USER: transferly
@@ -53,7 +59,10 @@ services:
 
   caddy:
     profiles: ["https"]
-    image: caddy:2.11.9@sha256:4e2425f6009577e7c651010f16679c28f7d12df3e7b1914f941a7a3370746b3c
+    build:
+      context: ./docker
+      dockerfile: caddy.Dockerfile
+    image: transferly-caddy:2.11.9-patched
     restart: unless-stopped
     environment:
       TRANSFERLY_DOMAIN: ${TRANSFERLY_DOMAIN:-localhost}

@@ -3,10 +3,14 @@ info:
   title: Transferly API
   version: 0.1.0
   description: HTTP API of the Transferly file transfer client.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
 servers:
   - url: /
 security:
   - sessionCookie: []
+  - bearerAuth: []
 paths:
   /healthz:
     get:
@@ -147,6 +151,7 @@ paths:
       operationId: logout
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Sign out
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
@@ -173,6 +178,7 @@ paths:
       operationId: listConnectors
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: List the connectors Transferly is built with
       description: >-
         The catalog of connectors (ADR-0019): every kind of storage a site can reach, with what it can do, the settings its sites take, the
@@ -197,6 +203,7 @@ paths:
       operationId: getMe
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The signed-in user and the anti-CSRF token of the session
       responses:
         "200":
@@ -215,6 +222,7 @@ paths:
       operationId: updateMe
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Change the interface language and time zone
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
@@ -260,6 +268,7 @@ paths:
       operationId: answerPrompt
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Answer what a server asks while connecting
       description: >-
         Hands the answers, one per question and in order, to a connection of an interactive site that waits for them (ADR-0016). The
@@ -311,6 +320,7 @@ paths:
       operationId: cancelPrompt
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Decline what a server asks while connecting
       description: The connection that asked fails as refused credentials. A prompt that no longer waits is 404 prompt_not_found.
       parameters:
@@ -342,6 +352,7 @@ paths:
       operationId: listWorkspaces
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Workspaces the signed-in user belongs to, with their role in each
       responses:
         "200":
@@ -362,6 +373,7 @@ paths:
       operationId: createWorkspace
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Create a team workspace owned by the signed-in user
       description: >-
         Needs the vault unlocked (409 vault_locked), because the workspace gets a key of its own sealed with the public key of its
@@ -404,6 +416,7 @@ paths:
       operationId: getWorkspace
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: One workspace of the signed-in user
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -431,6 +444,7 @@ paths:
       operationId: listMembers
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Members of a team workspace
       description: >-
         Any member may read the list. Personal workspaces have no members to list and answer 409 personal_workspace. When the caller has
@@ -469,6 +483,7 @@ paths:
       operationId: setMemberRole
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Change the role of a member
       description: >-
         Needs manage_members. The caller can only give roles below their own and only change members ranked below them, so an admin
@@ -520,6 +535,7 @@ paths:
       operationId: removeMember
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Remove a member from a team workspace
       description: Needs manage_members and a role above the member's. The owner cannot be removed.
       parameters:
@@ -564,6 +580,7 @@ paths:
       operationId: leaveWorkspace
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Leave a team workspace
       description: The owner cannot leave; ownership has to be transferred first.
       parameters:
@@ -601,6 +618,7 @@ paths:
       operationId: transferOwnership
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Hand a team workspace to another member
       description: Only the owner may do it. The previous owner becomes an admin.
       parameters:
@@ -644,6 +662,7 @@ paths:
       operationId: listInvitations
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Invitations waiting in a team workspace
       description: Needs manage_members. Used, revoked and expired invitations are not listed.
       parameters:
@@ -685,6 +704,7 @@ paths:
       operationId: createInvitation
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Invite an email address to a team workspace
       description: >-
         Needs manage_members and a role above the invited one. The reply carries the token once; only its hash is stored.
@@ -740,6 +760,7 @@ paths:
       operationId: revokeInvitation
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Revoke an invitation
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -806,6 +827,7 @@ paths:
       operationId: acceptInvitation
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Join a team workspace with the signed-in account
       description: The account must have the invited email address; any other account gets 404 invitation_not_found. Rate limited per client address.
       parameters:
@@ -898,6 +920,7 @@ paths:
       operationId: listAudit
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The audit trail of a workspace
       description: >-
         What changed in the workspace and who did it: members, roles, invitations, sites, keys and trusted servers. Needs manage_members.
@@ -961,6 +984,7 @@ paths:
       operationId: listAdminUsers
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The accounts of the instance
       description: Needs the administrator role of the instance.
       responses:
@@ -989,6 +1013,7 @@ paths:
       operationId: updateAdminUser
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Disable, enable or change the role of an account
       description: >-
         Needs the administrator role of the instance. Disabling an account ends its sessions. Nobody changes their own account here and the
@@ -1040,6 +1065,7 @@ paths:
       operationId: resetSecondFactor
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Remove the second factor of an account
       description: >-
         For somebody who lost their device and their recovery codes. Removes the authenticator app, the passkeys and the recovery codes, and
@@ -1079,6 +1105,7 @@ paths:
       operationId: getNetworks
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The private networks saved sites may reach
       description: Needs the administrator role of the instance. Public addresses are always allowed.
       responses:
@@ -1104,6 +1131,7 @@ paths:
       operationId: setNetworks
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Replace the private networks an administrator allows
       description: >-
         Takes effect for the next connection. Entries are addresses or networks in CIDR notation. Networks wider than /8 (IPv4) or /7 (IPv6)
@@ -1146,6 +1174,7 @@ paths:
       operationId: getLimits
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The caps and quotas of the instance
       description: Needs the administrator role of the instance. A zero means no limit.
       responses:
@@ -1171,6 +1200,7 @@ paths:
       operationId: setLimits
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Replace the caps and quotas of the instance
       description: >-
         Bandwidth caps, how many transfers run at once, and quotas on sites, teams, members and the volume a person moves in a day. The change
@@ -1213,6 +1243,7 @@ paths:
       operationId: setConnectorEnabled
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Enable or disable a connector for the instance
       description: >-
         Needs the administrator role of the instance (ADR-0019). A disabled connector is not offered when creating sites; sites of it stay
@@ -1261,6 +1292,7 @@ paths:
       operationId: listAdminAudit
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The audit trail of the instance
       description: >-
         What administrators did that belongs to no workspace: accounts, roles, second factors and networks. Needs the administrator role of the
@@ -1361,6 +1393,7 @@ paths:
       operationId: getSecurity
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The second factor of the signed-in account
       responses:
         "200":
@@ -1380,6 +1413,7 @@ paths:
       operationId: beginTotp
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Start enrolling an authenticator app
       description: Creates a secret and returns it with the address an authenticator app scans. It is not active until confirmed with a code; starting again replaces it.
       parameters:
@@ -1408,6 +1442,7 @@ paths:
       operationId: confirmTotp
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Activate the authenticator app with a code
       description: Proves the secret was scanned, turns the second factor on and returns ten recovery codes, shown only here.
       parameters:
@@ -1456,6 +1491,7 @@ paths:
       operationId: disableTotp
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Turn the second factor off
       description: Needs the account password again.
       parameters:
@@ -1488,6 +1524,7 @@ paths:
       operationId: regenerateRecoveryCodes
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Replace the recovery codes
       description: Needs the account password again. The old codes stop working.
       parameters:
@@ -1610,6 +1647,7 @@ paths:
       operationId: beginPasskeyRegistration
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Ask for the options to register a passkey
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
@@ -1643,6 +1681,7 @@ paths:
       operationId: finishPasskeyRegistration
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Register a passkey
       description: Verifies the answer of the browser and stores the passkey. The first second factor of an account without recovery codes also creates them, shown only here.
       parameters:
@@ -1689,6 +1728,7 @@ paths:
       operationId: removePasskey
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Remove a passkey
       description: Needs the account password again.
       parameters:
@@ -1734,6 +1774,7 @@ paths:
       summary: State of the vault in this session
       security:
         - sessionCookie: []
+        - bearerAuth: []
       responses:
         "200":
           description: Whether the vault exists and is unlocked in this session.
@@ -1754,6 +1795,7 @@ paths:
       description: The recovery kit in the response is shown once and never stored; without it a lost master password loses every secret.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -1806,6 +1848,7 @@ paths:
       description: Rate limited per account.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -1850,6 +1893,7 @@ paths:
       description: Signed-in people only, so the version is not told to anyone who asks.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       responses:
         "200":
           description: The version, such as v0.5.0, or dev for builds that are not releases.
@@ -1874,6 +1918,7 @@ paths:
         the email of the account, or an error: denied, expired, no_refresh_token, not_configured or failed.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
@@ -1907,6 +1952,7 @@ paths:
       summary: Lock the vault for this session
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
@@ -1931,6 +1977,7 @@ paths:
       description: Needs the current one. Rate limited per account.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -1981,6 +2028,7 @@ paths:
       description: Unlocks the vault for this session. Rate limited per account.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -2031,6 +2079,7 @@ paths:
       description: Needs the master password; the previous kit stops working. Rate limited per account.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -2077,6 +2126,7 @@ paths:
       operationId: listSites
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Sites of a workspace
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2105,6 +2155,7 @@ paths:
       operationId: createSite
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Save a site
       description: Writing secrets needs the vault unlocked in the session. Hosts on private networks are refused unless the administrator allowed them.
       parameters:
@@ -2164,6 +2215,7 @@ paths:
       operationId: testSiteDraft
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Try a site as a form holds it, without saving it
       description: >-
         Connects with the settings given, lists the folder the server opens sessions in and disconnects, saving nothing. With a
@@ -2235,6 +2287,7 @@ paths:
       operationId: getSite
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: One site
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2262,6 +2315,7 @@ paths:
       operationId: updateSite
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Change a site
       description: Secrets left out stay as they are, an empty string removes one and any other value replaces it.
       parameters:
@@ -2321,6 +2375,7 @@ paths:
       operationId: deleteSite
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Delete a site and its secrets
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2352,6 +2407,7 @@ paths:
       operationId: listKnownHosts
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Server keys trusted in a workspace
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2380,6 +2436,7 @@ paths:
       operationId: trustHostKey
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Trust a server key
       description: Records the key a user saw and confirmed. A different key of a type already trusted needs a mode, add or replace (4.13b).
       parameters:
@@ -2438,6 +2495,7 @@ paths:
       operationId: forgetHostKey
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Forget a trusted key, so the next connection asks again
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2505,6 +2563,7 @@ paths:
         encryption, argon2d or cost).
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -2547,6 +2606,7 @@ paths:
         event stream.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
       responses:
@@ -2577,6 +2637,7 @@ paths:
         lost connection. The next request to the site connects again. Tells the connection log (ADR-0011).
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2610,6 +2671,7 @@ paths:
         Held in server memory for this session only, never stored (ADR-0010). The site must use the ask logon type.
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2658,6 +2720,7 @@ paths:
       operationId: listFiles
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: List a remote directory
       description: Connects to the site if needed. The vault must be unlocked in the session, and a server key that is not trusted yet answers 409 host_key_unknown with its fingerprint.
       parameters:
@@ -2719,6 +2782,7 @@ paths:
       operationId: deleteFile
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Delete a remote file or directory
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2782,6 +2846,7 @@ paths:
       operationId: statFile
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Describe a remote path
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -2841,6 +2906,7 @@ paths:
       operationId: downloadArchive
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Download a remote folder as a ZIP file
       description: >-
         Streams the files of the folder and its subfolders as a ZIP attachment, produced as it is read from the server.
@@ -2915,6 +2981,7 @@ paths:
       operationId: listArchiveEntries
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: List the entries of a remote archive
       description: >-
         Lists a ZIP, 7z, RAR, TAR (plain or compressed with gzip, bzip2, xz or zstd) or single compressed file without downloading it:
@@ -2991,6 +3058,7 @@ paths:
       operationId: downloadArchiveEntry
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Read one file entry of a remote archive
       description: >-
         Streams one file of a remote archive as an attachment, extracted on the fly and never written to disk. Entries larger than 512 MiB,
@@ -3078,6 +3146,7 @@ paths:
       operationId: getChecksum
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Compute the checksum of a remote file
       description: >-
         Reads the whole file through the server and answers with its digest. The cost is reading the file, so large files take
@@ -3147,6 +3216,7 @@ paths:
       operationId: probeTimeZone
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Find the time zone in which an FTP server prints file times
       description: >-
         FTP listings carry no time zone. The server writes a small file of its own in the folder, reads the time the listing prints for it,
@@ -3216,6 +3286,7 @@ paths:
       operationId: downloadFile
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Download a remote file
       description: Streams the file as an attachment, never as a page. Supports one byte range.
       parameters:
@@ -3331,6 +3402,7 @@ paths:
       operationId: uploadFile
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Upload a file
       description: The body is streamed to a "<directory>/transferly-<transferId>.part" file owned by its recorded transfer. An interrupted upload retains that staging file; resume must use the same transferId and its staged size as offset. Existing destinations are replaced only when the adapter and server provide safe replacement; otherwise safe_replace_unsupported preserves the original and the client can save under another name. Unowned legacy "<path>.part" files are not adopted automatically.
       parameters:
@@ -3437,6 +3509,7 @@ paths:
       operationId: createDirectory
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Create a remote directory
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -3508,6 +3581,7 @@ paths:
       operationId: getServerTools
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Tell what the server of a connection can do on its own
       description: >-
         What an SFTP server lets the account run (ADR-0027): copies, checksums, archives and disk usage computed on the server
@@ -3551,6 +3625,7 @@ paths:
       operationId: getHomeFolder
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Tell the folder a connection starts in
       description: >-
         The folder the server opened the session in, as an SFTP or FTP client shows with pwd, such as /home/deploy; the root for
@@ -3606,6 +3681,7 @@ paths:
       operationId: getDiskUsage
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Measure the space a file or folder takes on the server
       description: The server measures it, as du does (ADR-0027). Fails with server_commands_unsupported when it cannot.
       parameters:
@@ -3660,6 +3736,7 @@ paths:
       operationId: compressFiles
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Pack entries of a folder into a new archive on the server
       description: >-
         The server packs them, without moving the data (ADR-0027). The archive is created next to them and never replaces a
@@ -3734,6 +3811,7 @@ paths:
       operationId: extractArchive
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Unpack an archive into a new folder next to it, on the server
       description: >-
         The server unpacks a ZIP or tar.gz archive into a new folder named after it, keeping members that would climb out of it
@@ -3808,6 +3886,7 @@ paths:
       operationId: renameFile
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Move or rename a remote file or directory
       description: An existing destination is never replaced.
       parameters:
@@ -3880,6 +3959,7 @@ paths:
       operationId: createCopy
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Copy a file or a folder from one site to another through the server
       description: >-
         The server streams the file between the two sites without it reaching the browser and answers at once with the
@@ -3954,6 +4034,7 @@ paths:
       operationId: listActivity
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: What the signed-in user did on the connections of a workspace, newest first
       description: >-
         The log names paths and outcomes, never credentials or file contents, and is private to the user who acted. Old entries
@@ -3995,6 +4076,7 @@ paths:
       operationId: exportSites
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Export the sites and their secrets to an encrypted file
       description: >-
         Answers a file with every collection and site of the workspace and their secrets, sealed with the password given, which is
@@ -4063,6 +4145,7 @@ paths:
       operationId: importTransferly
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Import a file exported by Transferly
       description: >-
         Opens a file of exportSites with its password and creates its collections and sites as the FileZilla import does: dry run,
@@ -4152,6 +4235,7 @@ paths:
       operationId: importFilezilla
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Import the site manager of FileZilla
       description: >-
         Reads a sitemanager.xml sent as the body and creates its folders and sites. Sites are independent: one that cannot be created
@@ -4242,6 +4326,7 @@ paths:
       operationId: listTransfers
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The signed-in user's transfers, newest first
       description: Transfers are private to the user who started them.
       parameters:
@@ -4280,6 +4365,7 @@ paths:
       operationId: getTransfer
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: One transfer
       parameters:
         - $ref: "#/components/parameters/TransferId"
@@ -4306,6 +4392,7 @@ paths:
       operationId: setTransferPriority
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Change the priority of a waiting transfer
       description: Waiting transfers start by priority, then by arrival.
       parameters:
@@ -4364,6 +4451,7 @@ paths:
       operationId: deleteTransfer
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Remove a finished transfer from the history
       parameters:
         - $ref: "#/components/parameters/TransferId"
@@ -4400,6 +4488,7 @@ paths:
       operationId: pauseTransfer
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Hold a waiting transfer back
       description: A transfer waits in the queue while its site, workspace, user or the server is at its limit of running transfers. A paused one keeps its place but is not started until it is resumed. A transfer that already runs cannot be paused; cancel it instead.
       parameters:
@@ -4441,6 +4530,7 @@ paths:
       operationId: resumeTransfer
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Let a paused transfer start
       parameters:
         - $ref: "#/components/parameters/TransferId"
@@ -4481,6 +4571,7 @@ paths:
       operationId: cancelTransfer
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Stop a transfer in progress
       parameters:
         - $ref: "#/components/parameters/TransferId"
@@ -4517,6 +4608,7 @@ paths:
       operationId: listCollections
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Collections of a workspace
       description: A flat list; clients build the tree from parentId.
       parameters:
@@ -4546,6 +4638,7 @@ paths:
       operationId: createCollection
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Create a collection
       description: At the top level, or inside another collection. Collections nest up to eight levels.
       parameters:
@@ -4605,6 +4698,7 @@ paths:
       operationId: listBookmarks
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Bookmarked folders of a saved site
       description: Whoever may browse the workspace sees its bookmarks (4.14b). A quick connection has none and is site_not_found.
       parameters:
@@ -4635,6 +4729,7 @@ paths:
       operationId: createBookmark
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Bookmark a folder of a saved site
       description: Needs the right to manage sites. The name is unique on the site regardless of case (bookmark_name_taken); a site keeps up to 200 bookmarks (bookmark_limit_reached). The path is absolute and stored cleaned.
       parameters:
@@ -4695,6 +4790,7 @@ paths:
       operationId: updateBookmark
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Rename a bookmark or point it at another folder
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -4754,6 +4850,7 @@ paths:
       operationId: deleteBookmark
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Remove a bookmark
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -4786,6 +4883,7 @@ paths:
       operationId: moveSite
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Move a saved site to another collection
       description: Puts the site in a collection, or at the top level when collectionId is left out, keeping every other setting (4.14h). The host is not checked again.
       parameters:
@@ -4834,6 +4932,7 @@ paths:
       operationId: updateCollection
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Rename or move a collection
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -4892,6 +4991,7 @@ paths:
       operationId: deleteCollection
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Delete an empty collection
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -4929,6 +5029,7 @@ paths:
       operationId: listQuickConnections
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: The signed-in user's quick connections in a workspace
       description: Quick connections are servers tried without saving anything. Their credentials live in memory only.
       parameters:
@@ -4958,6 +5059,7 @@ paths:
       operationId: createQuickConnection
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Try a server without saving it
       description: The returned id works wherever a siteId is expected, in the file endpoints. Needs the permission to manage sites, follows the same rules as a saved site (private destinations are refused) and is rate limited.
       parameters:
@@ -5019,6 +5121,7 @@ paths:
       operationId: closeQuickConnection
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: End a quick connection and forget its credentials
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -5050,6 +5153,7 @@ paths:
       operationId: saveQuickConnection
       security:
         - sessionCookie: []
+        - bearerAuth: []
       summary: Keep a quick connection as a site
       description: Seals the credentials with the vault, so it needs the vault unlocked (409 vault_locked otherwise, and the quick connection stays). On success the quick connection ends and the site takes its place.
       parameters:
@@ -5105,6 +5209,180 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+  /api/v1/cli/authorizations:
+    post:
+      operationId: approveCli
+      security:
+        - sessionCookie: []
+      summary: Approve a sign-in of the terminal client
+      description: >-
+        Called by the approval page of the browser (ADR-0029), never by a terminal session. Needs the account password again, so a
+        stolen browser cookie cannot start a terminal session. Answers a single-use code that lives 5 minutes, for the loopback
+        redirect address or for the person to paste. Password attempts are rate limited per account.
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliApproval"
+      responses:
+        "201":
+          description: Approved; hand the code to the terminal client.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliApprovalCode"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/cli/token:
+    post:
+      operationId: exchangeCliCode
+      security: []
+      summary: Exchange an approved code for a session of the terminal client
+      description: >-
+        The code is spent by the first attempt, right or wrong. Every refusal is invalid_grant. Rate limited per client address.
+        Send the token as Authorization Bearer; it is never a cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliTokenRequest"
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliToken"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/cli/links:
+    post:
+      operationId: createCliLink
+      security: []
+      summary: Register a request of the terminal client under a short link
+      description: >-
+        The terminal client shows /cli/a/<code> instead of the long address of /cli/authorize, so it fits on one line and can be typed
+        on another device. The link expires in 10 minutes and grants nothing by itself. The request is checked as an approval checks
+        it. Rate limited per client address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CliLinkInput"
+      responses:
+        "201":
+          description: The short link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliLink"
+        "400":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/cli/links/{code}:
+    get:
+      operationId: getCliLink
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      summary: The request of the terminal client behind a short link
+      description: Case, dashes and spaces of the code do not matter. An unknown or expired code is cli_link_not_found.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The request, as /cli/authorize would read it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CliLinkRequest"
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/v1/me/sessions:
+    get:
+      operationId: listCliSessions
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      summary: The sessions of the terminal client of the signed-in account
+      description: Most recently used first; the one making the request is marked current.
+      responses:
+        "200":
+          description: The sessions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CliSession"
+  /api/v1/me/sessions/{sessionId}:
+    delete:
+      operationId: revokeSession
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      summary: End a session of the signed-in account
+      description: Ends it at once, with its vault keys, typed passwords, event streams and terminals.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: The session ended.
+        "404":
+          description: An error. The stable code tells the client what happened.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 components:
   securitySchemes:
     sessionCookie:
@@ -5112,6 +5390,10 @@ components:
       in: cookie
       name: transferly_session
       description: Opaque session token set by login and setup. State-changing requests also need the X-CSRF-Token header.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Opaque token of a session of the terminal client (ADR-0029), from exchangeCliCode. Needs no X-CSRF-Token.
   parameters:
     CsrfToken:
       name: X-CSRF-Token
@@ -5204,6 +5486,14 @@ components:
       in: path
       required: true
       description: Identifier of the bookmark.
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: Identifier of the session.
       schema:
         type: string
         format: uuid
@@ -6573,6 +6863,138 @@ components:
         fileDoubleClick:
           type: string
           enum: [download, edit, preview]
+    CliApproval:
+      type: object
+      additionalProperties: false
+      required: [codeChallenge, clientName, password]
+      properties:
+        codeChallenge:
+          type: string
+          description: PKCE S256 challenge, base64url of the SHA-256 of the verifier without padding (43 characters).
+        redirectUri:
+          type: string
+          description: http://127.0.0.1:<port>/callback or http://[::1]:<port>/callback; left out or empty when the person pastes the code.
+        clientName:
+          type: string
+          description: Name the client declares, 1 to 64 printable characters.
+        clientHost:
+          type: string
+          description: Host name the client declares it runs on, up to 253 printable characters.
+        password:
+          type: string
+          description: The account password, asked again. Sent to the server only; never returned.
+    CliApprovalCode:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Single-use code for the terminal client; valid for 5 minutes. Never share it.
+    CliLinkInput:
+      type: object
+      additionalProperties: false
+      required: [codeChallenge, clientName]
+      properties:
+        codeChallenge:
+          type: string
+          description: PKCE S256 challenge, base64url of the SHA-256 of the verifier without padding (43 characters).
+        redirectUri:
+          type: string
+          description: http://127.0.0.1:<port>/callback or http://[::1]:<port>/callback; left out or empty when the person pastes the code.
+        state:
+          type: string
+          description: Value the terminal client checks on its callback, up to 128 printable characters without spaces.
+        clientName:
+          type: string
+          description: Name the client declares, 1 to 64 printable characters.
+        clientHost:
+          type: string
+          description: Host name the client declares it runs on, up to 253 printable characters.
+    CliLink:
+      type: object
+      required: [code, path, expiresAt]
+      properties:
+        code:
+          type: string
+          description: The code, in two groups of four characters, such as K7P2-9QXM.
+        path:
+          type: string
+          description: Path of the approval page for the code on this server, such as /cli/a/K7P2-9QXM.
+        expiresAt:
+          type: string
+          format: date-time
+    CliLinkRequest:
+      type: object
+      required: [codeChallenge, clientName]
+      properties:
+        codeChallenge:
+          type: string
+        redirectUri:
+          type: string
+          description: Left out when the person pastes the code.
+        state:
+          type: string
+          description: Left out when the client sent none.
+        clientName:
+          type: string
+        clientHost:
+          type: string
+    CliTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [code, codeVerifier]
+      properties:
+        code:
+          type: string
+        codeVerifier:
+          type: string
+          description: PKCE verifier whose S256 challenge was approved.
+        redirectUri:
+          type: string
+          description: The same redirect address as the approval; left out or empty for a pasted code.
+    CliToken:
+      type: object
+      required: [token, expiresAt, user]
+      properties:
+        token:
+          type: string
+          description: Opaque bearer token of the session; shown once.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Latest end of the session; it ends earlier when unused for the idle time of terminal sessions.
+        user:
+          $ref: "#/components/schemas/User"
+    CliSession:
+      type: object
+      required: [id, name, host, ip, userAgent, createdAt, lastSeenAt, expiresAt, current]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Name the client declared.
+        host:
+          type: string
+          description: Host name the client declared it runs on.
+        ip:
+          type: string
+          description: Address the session was started from.
+        userAgent:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+          description: Whether this is the session making the request.
     SessionInfo:
       type: object
       required: [user, csrfToken]

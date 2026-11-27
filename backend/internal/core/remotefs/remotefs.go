@@ -174,6 +174,10 @@ func NoteWholeRead(fsys RemoteFS, reported, read int64) {
 // HostKeyError reports the key a server presented when it was not accepted. It matches [ErrHostKeyUnknown]
 // or [ErrHostKeyMismatch] with [errors.Is], so callers can ask the user to confirm the fingerprint or refuse.
 type HostKeyError struct {
+	// Host is the peer whose key was rejected, when the verifier knows it.
+	Host string
+	// Port is the peer's port.
+	Port int
 	// Type is the key algorithm, such as ssh-ed25519.
 	Type string
 	// Fingerprint is the SHA-256 fingerprint of the key in OpenSSH notation.

@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -41,12 +40,20 @@ type Config struct {
 	IdleTimeout time.Duration
 	// AbsoluteTimeout ends a session this long after it started, however active it is.
 	AbsoluteTimeout time.Duration
+	// CLIIdleTimeout ends a session of the terminal client that was not used for this long (ADR-0029).
+	CLIIdleTimeout time.Duration
+	// CLIAbsoluteTimeout ends a session of the terminal client this long after it started.
+	CLIAbsoluteTimeout time.Duration
+	// CLILogin lets the terminal client sign in through the browser; off, approvals and exchanges are refused.
+	CLILogin bool
 }
 
-// Service implements sign-up of the first administrator, sign-in, sign-out and session validation.
+// Service implements sign-up of the first administrator, sign-in, sign-out, session validation, and the sign-in of the terminal
+// client through the browser (ADR-0029).
 type Service struct {
 	users       UserStore
 	sessions    SessionStore
+	cli         CLIAuthorizationStore
 	hasher      *Hasher
 	clock       ports.Clock
 	random      io.Reader
@@ -55,10 +62,10 @@ type Service struct {
 	placeholder string
 }
 
-// NewService returns a service over the given stores. newID may be nil to use UUIDv7.
-func NewService(users UserStore, sessions SessionStore, hasher *Hasher, clock ports.Clock, random io.Reader, config Config) *Service {
+// NewService returns a service over the given stores. Identifiers are UUIDv7.
+func NewService(users UserStore, sessions SessionStore, cli CLIAuthorizationStore, hasher *Hasher, clock ports.Clock, random io.Reader, config Config) *Service {
 	return &Service{
-		users: users, sessions: sessions, hasher: hasher, clock: clock, random: random, config: config,
+		users: users, sessions: sessions, cli: cli, hasher: hasher, clock: clock, random: random, config: config,
 		newID:       uuid.NewV7,
 		placeholder: hasher.placeholder(),
 	}
@@ -190,11 +197,15 @@ func (s *Service) upgradeHash(ctx context.Context, user User, password string) e
 // StartSession creates a session for user with a fresh random token, so an earlier token is never reused.
 // It returns the token, which is shown to the client once, and the principal.
 func (s *Service) StartSession(ctx context.Context, user User, client ClientInfo) (string, Principal, error) {
-	raw := make([]byte, tokenLength)
-	if _, err := io.ReadFull(s.random, raw); err != nil {
+	return s.startSession(ctx, user, client, Session{Kind: SessionBrowser}, s.config.AbsoluteTimeout)
+}
+
+// startSession creates a session of the kind, name and host of template for user, lasting at most lifetime.
+func (s *Service) startSession(ctx context.Context, user User, client ClientInfo, template Session, lifetime time.Duration) (string, Principal, error) {
+	token, err := s.randomToken()
+	if err != nil {
 		return "", Principal{}, fmt.Errorf("reading session token: %w", err)
 	}
-	token := base64.RawURLEncoding.EncodeToString(raw)
 	id, err := s.newID()
 	if err != nil {
 		return "", Principal{}, fmt.Errorf("generating session id: %w", err)
@@ -203,7 +214,8 @@ func (s *Service) StartSession(ctx context.Context, user User, client ClientInfo
 	session := Session{
 		ID: id, UserID: user.ID, TokenHash: hashToken(token),
 		UserAgent: client.UserAgent, IP: client.IP,
-		CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(s.config.AbsoluteTimeout),
+		CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(lifetime),
+		Kind: template.Kind, Name: template.Name, Host: template.Host,
 	}
 	if err := s.sessions.CreateSession(ctx, session); err != nil {
 		return "", Principal{}, err
@@ -237,7 +249,11 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Princ
 	}
 
 	now := s.clock.Now()
-	if !now.Before(session.ExpiresAt) || now.Sub(session.LastSeenAt) >= s.config.IdleTimeout {
+	idle := s.config.IdleTimeout
+	if session.Kind == SessionCLI {
+		idle = s.config.CLIIdleTimeout
+	}
+	if !now.Before(session.ExpiresAt) || now.Sub(session.LastSeenAt) >= idle {
 		if err := s.sessions.DeleteSession(ctx, session.ID); err != nil {
 			return Principal{}, err
 		}
@@ -277,10 +293,10 @@ func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 	return err
 }
 
-// PurgeExpired deletes expired sessions and returns how many were removed.
+// PurgeExpired deletes expired sessions, each kind with its own idle time, and returns how many were removed.
 func (s *Service) PurgeExpired(ctx context.Context) (int, error) {
 	now := s.clock.Now()
-	return s.sessions.DeleteExpiredSessions(ctx, now, now.Add(-s.config.IdleTimeout))
+	return s.sessions.DeleteExpiredSessions(ctx, now, IdleCutoffs{Browser: now.Add(-s.config.IdleTimeout), CLI: now.Add(-s.config.CLIIdleTimeout)})
 }
 
 // UpdatePreferences validates and stores the preferences of a user and returns the updated user.

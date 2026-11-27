@@ -1,0 +1,270 @@
+{
+  "defaultThemeId": "transferly-dark",
+  "systemLightThemeId": "transferly-light",
+  "themes": [
+    {
+      "id": "transferly-dark",
+      "name": "Transferly Dark",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#121212",
+        "surface": "#1a1f22",
+        "raised": "#232a2e",
+        "line": "#2e373c",
+        "lineSoft": "#20272a",
+        "text": "#e0f2f1",
+        "muted": "#a3b1b5",
+        "faint": "#8a979c",
+        "accent": "#ff9800",
+        "accentText": "#ffa726",
+        "ink": "#121212",
+        "ok": "#66bb6a",
+        "danger": "#ff7961",
+        "warn": "#ffca28",
+        "info": "#64a0f0"
+      }
+    },
+    {
+      "id": "transferly-light",
+      "name": "Transferly Light",
+      "scheme": "light",
+      "tokens": {
+        "bg": "#f4f8f8",
+        "surface": "#ffffff",
+        "raised": "#eaf1f1",
+        "line": "#c9d6d8",
+        "lineSoft": "#e0eaea",
+        "text": "#0a1f44",
+        "muted": "#45525a",
+        "faint": "#5c686e",
+        "accent": "#ff9800",
+        "accentText": "#0d47a1",
+        "ink": "#121212",
+        "ok": "#1b5e20",
+        "danger": "#b71c1c",
+        "warn": "#8a5300",
+        "info": "#0d47a1"
+      }
+    },
+    {
+      "id": "monokai",
+      "name": "Monokai",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#272822",
+        "surface": "#1e1f1c",
+        "raised": "#34352e",
+        "line": "#3e3d32",
+        "lineSoft": "#32332b",
+        "text": "#f8f8f2",
+        "muted": "#cfcfc2",
+        "faint": "#9e9e94",
+        "accent": "#a6e22e",
+        "accentText": "#a6e22e",
+        "ink": "#1b2400",
+        "ok": "#a6e22e",
+        "danger": "#fa4989",
+        "warn": "#e6db74",
+        "info": "#66d9ef"
+      }
+    },
+    {
+      "id": "dracula",
+      "name": "Dracula",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#282a36",
+        "surface": "#21222c",
+        "raised": "#343746",
+        "line": "#44475a",
+        "lineSoft": "#383a4a",
+        "text": "#f8f8f2",
+        "muted": "#c7c9d6",
+        "faint": "#9ba0be",
+        "accent": "#bd93f9",
+        "accentText": "#bd93f9",
+        "ink": "#1b1233",
+        "ok": "#50fa7b",
+        "danger": "#ff5555",
+        "warn": "#f1fa8c",
+        "info": "#8be9fd"
+      }
+    },
+    {
+      "id": "nord",
+      "name": "Nord",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#2e3440",
+        "surface": "#292e39",
+        "raised": "#3b4252",
+        "line": "#434c5e",
+        "lineSoft": "#3a4252",
+        "text": "#eceff4",
+        "muted": "#d8dee9",
+        "faint": "#a5b0c2",
+        "accent": "#88c0d0",
+        "accentText": "#88c0d0",
+        "ink": "#10252b",
+        "ok": "#a3be8c",
+        "danger": "#e17f8a",
+        "warn": "#ebcb8b",
+        "info": "#81a1c1"
+      }
+    },
+    {
+      "id": "one-dark",
+      "name": "One Dark",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#282c34",
+        "surface": "#21252b",
+        "raised": "#2c313a",
+        "line": "#3b4048",
+        "lineSoft": "#32373f",
+        "text": "#d7dae0",
+        "muted": "#abb2bf",
+        "faint": "#9199aa",
+        "accent": "#61afef",
+        "accentText": "#61afef",
+        "ink": "#0d2238",
+        "ok": "#98c379",
+        "danger": "#e1727b",
+        "warn": "#e5c07b",
+        "info": "#56b6c2"
+      }
+    },
+    {
+      "id": "tokyo-night",
+      "name": "Tokyo Night",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#1a1b26",
+        "surface": "#16161e",
+        "raised": "#24283b",
+        "line": "#2f334d",
+        "lineSoft": "#292d44",
+        "text": "#c0caf5",
+        "muted": "#a9b1d6",
+        "faint": "#858eb6",
+        "accent": "#7aa2f7",
+        "accentText": "#7aa2f7",
+        "ink": "#0d1730",
+        "ok": "#9ece6a",
+        "danger": "#f7768e",
+        "warn": "#e0af68",
+        "info": "#7dcfff"
+      }
+    },
+    {
+      "id": "gruvbox-dark",
+      "name": "Gruvbox Dark",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#282828",
+        "surface": "#1d2021",
+        "raised": "#32302f",
+        "line": "#45403d",
+        "lineSoft": "#3a3634",
+        "text": "#ebdbb2",
+        "muted": "#d5c4a1",
+        "faint": "#a89984",
+        "accent": "#fabd2f",
+        "accentText": "#fabd2f",
+        "ink": "#2a1f00",
+        "ok": "#b8bb26",
+        "danger": "#fb5440",
+        "warn": "#fe8019",
+        "info": "#83a598"
+      }
+    },
+    {
+      "id": "solarized-dark",
+      "name": "Solarized Dark",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#002b36",
+        "surface": "#00232c",
+        "raised": "#073642",
+        "line": "#0d4552",
+        "lineSoft": "#0a3b47",
+        "text": "#eee8d5",
+        "muted": "#adb9b9",
+        "faint": "#8fa0a2",
+        "accent": "#2aa198",
+        "accentText": "#3cc4ba",
+        "ink": "#00222a",
+        "ok": "#a3b41a",
+        "danger": "#ff6b68",
+        "warn": "#d9a520",
+        "info": "#4aa3e8"
+      }
+    },
+    {
+      "id": "github-dark",
+      "name": "GitHub Dark",
+      "scheme": "dark",
+      "tokens": {
+        "bg": "#0d1117",
+        "surface": "#161b22",
+        "raised": "#1c2128",
+        "line": "#30363d",
+        "lineSoft": "#21262d",
+        "text": "#e6edf3",
+        "muted": "#b1bac4",
+        "faint": "#9ba4ae",
+        "accent": "#58a6ff",
+        "accentText": "#58a6ff",
+        "ink": "#0a2540",
+        "ok": "#3fb950",
+        "danger": "#ff7b72",
+        "warn": "#e3b341",
+        "info": "#79c0ff"
+      }
+    },
+    {
+      "id": "solarized-light",
+      "name": "Solarized Light",
+      "scheme": "light",
+      "tokens": {
+        "bg": "#fdf6e3",
+        "surface": "#fffdf5",
+        "raised": "#eee8d5",
+        "line": "#d9d2bd",
+        "lineSoft": "#e7e0cb",
+        "text": "#073642",
+        "muted": "#455a61",
+        "faint": "#576a71",
+        "accent": "#1a7bb8",
+        "accentText": "#146393",
+        "ink": "#ffffff",
+        "ok": "#4b5400",
+        "danger": "#c02a28",
+        "warn": "#8f6500",
+        "info": "#1e76b0"
+      }
+    },
+    {
+      "id": "github-light",
+      "name": "GitHub Light",
+      "scheme": "light",
+      "tokens": {
+        "bg": "#f6f8fa",
+        "surface": "#ffffff",
+        "raised": "#f3f4f6",
+        "line": "#d0d7de",
+        "lineSoft": "#e1e6eb",
+        "text": "#1f2328",
+        "muted": "#424a53",
+        "faint": "#59636e",
+        "accent": "#0969da",
+        "accentText": "#0969da",
+        "ink": "#ffffff",
+        "ok": "#116329",
+        "danger": "#cf222e",
+        "warn": "#9a6700",
+        "info": "#0550ae"
+      }
+    }
+  ]
+}

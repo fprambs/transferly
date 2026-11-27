@@ -323,6 +323,9 @@ func asProblem(err error) (domainProblem, bool) {
 			code = "host_key_changed"
 		}
 		params := map[string]any{"keyType": hostKey.Type, "fingerprint": hostKey.Fingerprint}
+		if hostKey.Host != "" {
+			params["host"], params["port"] = hostKey.Host, hostKey.Port
+		}
 		if hostKey.Changed {
 			params["trusted"] = hostKey.Trusted
 		}

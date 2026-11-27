@@ -17,7 +17,11 @@ import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
 import { SiteExplorer } from '@/features/explorer/SiteExplorer'
 import { homePath } from '@/features/sites/start-path'
 import { AppShell } from '@/features/shell/AppShell'
+import { LegalPage } from '@/features/legal/LegalPage'
 import { AuthScreen } from '@/features/auth/AuthScreen'
+import { returnPath } from '@/features/auth/return-path'
+import { CliAuthorizePage, CliLinkPage } from '@/features/cli/CliAuthorizePage'
+import { cliAuthorizeSearch } from '@/features/cli/request'
 import type { Api } from '@/lib/api/use-api'
 import type { Transport } from '@/lib/transport'
 
@@ -99,22 +103,23 @@ const siteRoute = createRoute({
   component: SiteExplorer,
 })
 
-/** Sends a signed-in user home; anyone else may see the screen. */
-async function redirectHomeWhenSignedIn(context: RouterContext): Promise<void> {
+/** Sends a signed-in user home, or to the path of this application they were going to; anyone else may see the screen. */
+async function redirectHomeWhenSignedIn(context: RouterContext, back?: string): Promise<void> {
   const session = await context.queryClient.ensureQueryData(sessionQuery(context.api, context.transport))
   if (session !== null) {
-    throw redirect({ to: '/' })
+    throw back === undefined ? redirect({ to: '/' }) : redirect({ href: back })
   }
 }
 
 /** Where an invitation link lands: open to everybody, because whoever holds the link may not have an account yet. */
 const inviteRoute = createRoute({ getParentRoute: () => rootRoute, path: '/invite', component: AcceptInvitationPage })
 
-/** Login screen. */
+/** Login screen; `redirect` is the path of this application to go back to once signed in. */
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  beforeLoad: ({ context }) => redirectHomeWhenSignedIn(context),
+  validateSearch: z.object({ redirect: z.string().optional().catch(undefined) }),
+  beforeLoad: ({ context, search }) => redirectHomeWhenSignedIn(context, returnPath(search.redirect)),
   component: () => <AuthScreen mode="login" />,
 })
 
@@ -131,8 +136,41 @@ const setupRoute = createRoute({
   component: () => <AuthScreen mode="setup" />,
 })
 
+/**
+ * Where the terminal client sends the person to approve its sign-in (ADR-0029). It needs a browser session: a visitor signs in first
+ * and comes back with the same request.
+ */
+const cliAuthorizeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cli/authorize',
+  validateSearch: cliAuthorizeSearch,
+  beforeLoad: async ({ context, location }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQuery(context.api, context.transport))
+    if (session === null) {
+      throw redirect({ to: '/login', search: { redirect: location.href } })
+    }
+  },
+  component: CliAuthorizePage,
+})
+
+/** A short link to the approval page, /cli/a/<code>: the same page, with the request the terminal registered under the code. */
+const cliLinkRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cli/a/$code',
+  beforeLoad: async ({ context, location }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQuery(context.api, context.transport))
+    if (session === null) {
+      throw redirect({ to: '/login', search: { redirect: location.href } })
+    }
+  },
+  component: CliLinkPage,
+})
+
+/** Public notice, available before setup and authentication. */
+const legalRoute = createRoute({ getParentRoute: () => rootRoute, path: '/legal', component: LegalPage })
+
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute, cliAuthorizeRoute, cliLinkRoute, legalRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

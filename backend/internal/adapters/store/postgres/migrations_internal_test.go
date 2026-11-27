@@ -164,3 +164,76 @@ func TestMigration_SiteConfig(t *testing.T) {
 		t.Errorf("secrets after migrating down = %d, %v; want the private key only", kinds, err)
 	}
 }
+
+// sessionsBeforeCLI is the last schema version whose sessions are all of the browser.
+const sessionsBeforeCLI = 37
+
+// TestMigration_CLISessions verifies that migration 38 makes every existing session a browser session, adds the approvals of the
+// terminal client, and that its down step ends terminal sessions before it drops their kind (ADR-0029).
+//
+// Scenarios:
+//   - a session saved before the migration is a browser session with no name or host after it
+//   - a terminal session and an approval are stored; an unknown kind is refused by the database
+//   - migrating down deletes the terminal session, keeps the browser one, and drops the columns and the table
+func TestMigration_CLISessions(t *testing.T) {
+	ctx := context.Background()
+	url := testutil.NewDatabase(t)
+	p, closeDB, err := newProvider(url, pgmigrations.FS)
+	if err != nil {
+		t.Fatalf("newProvider() = %v", err)
+	}
+	defer closeDB()
+	if _, err := p.UpTo(ctx, sessionsBeforeCLI); err != nil {
+		t.Fatalf("UpTo(%d) = %v", sessionsBeforeCLI, err)
+	}
+	conn, err := pgx.Connect(ctx, url)
+	if err != nil {
+		t.Fatalf("connecting: %v", err)
+	}
+	defer func() { _ = conn.Close(ctx) }()
+	seed := []string{
+		`INSERT INTO users (id, email, password_hash) VALUES ('00000000-0000-0000-0000-000000000001', 'owner@example.com', 'x')`,
+		`INSERT INTO user_sessions (id, user_id, token_hash, expires_at)
+		 VALUES ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'browser', now() + interval '1 hour')`,
+	}
+	for _, statement := range seed {
+		if _, err := conn.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	if _, err := p.UpByOne(ctx); err != nil {
+		t.Fatalf("UpByOne() = %v", err)
+	}
+	var kind, name, host string
+	if err := conn.QueryRow(ctx, `SELECT kind, name, host FROM user_sessions`).Scan(&kind, &name, &host); err != nil || kind != "browser" || name != "" || host != "" {
+		t.Errorf("existing session after migrating up = %q %q %q, %v; want a browser session with no name or host", kind, name, host, err)
+	}
+	for _, statement := range []string{
+		`INSERT INTO user_sessions (id, user_id, token_hash, expires_at, kind, name, host)
+		 VALUES ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'cli', now() + interval '30 days', 'cli', 'transferly-tui', 'laptop')`,
+		`INSERT INTO cli_authorizations (id, user_id, code_hash, code_challenge, client_name, client_host, expires_at)
+		 VALUES ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', 'code', 'challenge', 'transferly-tui', 'laptop', now())`,
+	} {
+		if _, err := conn.Exec(ctx, statement); err != nil {
+			t.Errorf("storing after migrating up: %v", err)
+		}
+	}
+	if _, err := conn.Exec(ctx, `UPDATE user_sessions SET kind = 'robot'`); err == nil {
+		t.Error("storing the kind robot = nil, want a check violation")
+	}
+	if _, err := p.Down(ctx); err != nil {
+		t.Fatalf("Down() = %v", err)
+	}
+	var sessions int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM user_sessions WHERE token_hash = 'browser'`).Scan(&sessions); err != nil || sessions != 1 {
+		t.Errorf("browser sessions after migrating down = %d, %v, want 1", sessions, err)
+	}
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM user_sessions`).Scan(&sessions); err != nil || sessions != 1 {
+		t.Errorf("sessions after migrating down = %d, %v, want only the browser one", sessions, err)
+	}
+	var leftovers int
+	if err := conn.QueryRow(ctx, `SELECT (SELECT count(*) FROM information_schema.columns WHERE table_name = 'user_sessions' AND column_name IN ('kind', 'name', 'host'))
+		+ (SELECT count(*) FROM information_schema.tables WHERE table_name = 'cli_authorizations')`).Scan(&leftovers); err != nil || leftovers != 0 {
+		t.Errorf("columns and tables left after migrating down = %d, %v, want 0", leftovers, err)
+	}
+}

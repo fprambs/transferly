@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -43,17 +44,23 @@ func (c *countingDeriver) count() int {
 	return c.calls
 }
 
-// fakeStore is an in-memory implementation of both stores with per-method failure injection.
+// fakeStore is an in-memory implementation of the user, session and approval stores with per-method failure injection.
 type fakeStore struct {
-	mu       sync.Mutex
-	users    map[uuid.UUID]auth.User
-	sessions map[uuid.UUID]auth.Session
-	fail     map[string]error
+	mu             sync.Mutex
+	users          map[uuid.UUID]auth.User
+	sessions       map[uuid.UUID]auth.Session
+	authorizations map[string]auth.CLIAuthorization
+	links          map[string]auth.CLILink
+	used           map[string]bool
+	fail           map[string]error
 }
 
 // newFakeStore returns an empty store.
 func newFakeStore() *fakeStore {
-	return &fakeStore{users: map[uuid.UUID]auth.User{}, sessions: map[uuid.UUID]auth.Session{}, fail: map[string]error{}}
+	return &fakeStore{
+		users: map[uuid.UUID]auth.User{}, sessions: map[uuid.UUID]auth.Session{},
+		authorizations: map[string]auth.CLIAuthorization{}, links: map[string]auth.CLILink{}, used: map[string]bool{}, fail: map[string]error{},
+	}
 }
 
 // failing makes the named method return errBoom.
@@ -218,8 +225,40 @@ func (f *fakeStore) DeleteUserSessions(_ context.Context, userID uuid.UUID) (int
 	return n, nil
 }
 
-// DeleteExpiredSessions removes expired or idle sessions.
-func (f *fakeStore) DeleteExpiredSessions(_ context.Context, now, idleBefore time.Time) (int, error) {
+// ListUserSessions returns the sessions of a kind of a user, most recently used first.
+func (f *fakeStore) ListUserSessions(_ context.Context, userID uuid.UUID, kind auth.SessionKind) ([]auth.Session, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["ListUserSessions"]; err != nil {
+		return nil, err
+	}
+	var list []auth.Session
+	for _, s := range f.sessions {
+		if s.UserID == userID && s.Kind == kind {
+			list = append(list, s)
+		}
+	}
+	slices.SortFunc(list, func(a, b auth.Session) int { return b.LastSeenAt.Compare(a.LastSeenAt) })
+	return list, nil
+}
+
+// DeleteUserSession removes one session of a user.
+func (f *fakeStore) DeleteUserSession(_ context.Context, userID, id uuid.UUID) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["DeleteUserSession"]; err != nil {
+		return false, err
+	}
+	s, ok := f.sessions[id]
+	if !ok || s.UserID != userID {
+		return false, nil
+	}
+	delete(f.sessions, id)
+	return true, nil
+}
+
+// DeleteExpiredSessions removes expired sessions and sessions idle before the cutoff of their kind.
+func (f *fakeStore) DeleteExpiredSessions(_ context.Context, now time.Time, idle auth.IdleCutoffs) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err := f.fail["DeleteExpiredSessions"]; err != nil {
@@ -227,6 +266,10 @@ func (f *fakeStore) DeleteExpiredSessions(_ context.Context, now, idleBefore tim
 	}
 	n := 0
 	for id, s := range f.sessions {
+		idleBefore := idle.Browser
+		if s.Kind == auth.SessionCLI {
+			idleBefore = idle.CLI
+		}
 		if !now.Before(s.ExpiresAt) || s.LastSeenAt.Before(idleBefore) {
 			delete(f.sessions, id)
 			n++
@@ -254,9 +297,94 @@ func newHarness(t *testing.T, store *fakeStore) *harness {
 	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	deriver := &countingDeriver{inner: vault.NewKDF(2)}
 	hasher := auth.NewHasher(deriver, fastParams, rand.Reader)
-	config := auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour}
+	config := auth.Config{
+		IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour,
+		CLIIdleTimeout: 7 * 24 * time.Hour, CLIAbsoluteTimeout: 30 * 24 * time.Hour, CLILogin: true,
+	}
 	return &harness{
-		svc: auth.NewService(store, store, hasher, clock, rand.Reader, config), store: store, clock: clock,
+		svc: auth.NewService(store, store, store, hasher, clock, rand.Reader, config), store: store, clock: clock,
 		deriver: deriver, hasher: hasher, instance: []byte("0123456789abcdef0123456789abcdef"),
 	}
+}
+
+// CreateCLIAuthorization stores an approval by its code hash.
+func (f *fakeStore) CreateCLIAuthorization(_ context.Context, a auth.CLIAuthorization) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["CreateCLIAuthorization"]; err != nil {
+		return err
+	}
+	f.authorizations[string(a.CodeHash)] = a
+	return nil
+}
+
+// UseCLIAuthorization returns an unused approval and marks it used.
+func (f *fakeStore) UseCLIAuthorization(_ context.Context, codeHash []byte, _ time.Time) (auth.CLIAuthorization, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["UseCLIAuthorization"]; err != nil {
+		return auth.CLIAuthorization{}, err
+	}
+	a, ok := f.authorizations[string(codeHash)]
+	if !ok || f.used[string(codeHash)] {
+		return auth.CLIAuthorization{}, auth.ErrNotFound
+	}
+	f.used[string(codeHash)] = true
+	return a, nil
+}
+
+// DeleteExpiredCLIAuthorizations removes approvals that expired at or before now.
+func (f *fakeStore) DeleteExpiredCLIAuthorizations(_ context.Context, now time.Time) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["DeleteExpiredCLIAuthorizations"]; err != nil {
+		return 0, err
+	}
+	n := 0
+	for hash, a := range f.authorizations {
+		if !now.Before(a.ExpiresAt) {
+			delete(f.authorizations, hash)
+			n++
+		}
+	}
+	return n, nil
+}
+
+// CreateCLILink stores a short link by its code.
+func (f *fakeStore) CreateCLILink(_ context.Context, l auth.CLILink) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["CreateCLILink"]; err != nil {
+		return err
+	}
+	f.links[l.Code] = l
+	return nil
+}
+
+// CLILink returns a short link that has not expired at now.
+func (f *fakeStore) CLILink(_ context.Context, code string, now time.Time) (auth.CLILink, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	l, ok := f.links[code]
+	if !ok || !now.Before(l.ExpiresAt) {
+		return auth.CLILink{}, auth.ErrNotFound
+	}
+	return l, nil
+}
+
+// DeleteExpiredCLILinks removes short links that expired at or before now.
+func (f *fakeStore) DeleteExpiredCLILinks(_ context.Context, now time.Time) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.fail["DeleteExpiredCLILinks"]; err != nil {
+		return 0, err
+	}
+	n := 0
+	for code, l := range f.links {
+		if !now.Before(l.ExpiresAt) {
+			delete(f.links, code)
+			n++
+		}
+	}
+	return n, nil
 }

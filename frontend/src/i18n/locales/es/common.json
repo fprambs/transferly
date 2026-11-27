@@ -9,5 +9,17 @@
   "deferred": {
     "failed": "No se pudo cargar esta función. Recarga la página para volver a intentarlo.",
     "reload": "Recargar página"
+  },
+  "legal": {
+    "title": "Privacidad, cookies y términos",
+    "instance": "Transferly es autohospedado. El operador de esta instancia define sus políticas de acceso, retención y respaldo. Contacta a quien te dio acceso para consultar su aviso completo de privacidad, sus términos y presentar solicitudes sobre tus datos.",
+    "privacyTitle": "Privacidad",
+    "privacy": "La instancia procesa datos de cuenta y espacios de trabajo, conexiones guardadas, credenciales y registros de actividad para dar acceso y transferir archivos. Los secretos guardados de conexión se cifran en la bóveda. El servidor procesa el contenido de los archivos cuando es necesario para transferirlos o previsualizarlos.",
+    "providers": "Al usar un conector externo, la instancia envía los datos necesarios para esa operación al proveedor o servidor remoto. Por ejemplo, Google Drive usa el servicio de autorización y la API de Google.",
+    "cookiesTitle": "Cookies y almacenamiento del navegador",
+    "cookies": "La cookie transferly_session mantiene tu sesión y se elimina al salir. Por defecto dura hasta ocho horas, con un cierre por 30 minutos de inactividad en el servidor. El operador puede cambiar esos límites. La cookie es HttpOnly, SameSite=Lax y tiene el atributo Secure en HTTPS.",
+    "storage": "El navegador guarda localmente preferencias como el idioma, la distribución de paneles y los sitios recientes. Puedes borrarlas desde la configuración de datos del sitio en el navegador. Transferly se distribuye sin rastreadores de analítica ni publicidad.",
+    "termsTitle": "Uso de esta instancia",
+    "terms": "Usa la instancia y los servidores conectados solo con autorización. Asegúrate de tener permiso para leer, transferir, editar o compartir los archivos a los que accedas. El operador proporciona los términos de esta instancia. El software se distribuye bajo la licencia Apache 2.0."
   }
 }

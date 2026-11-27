@@ -21,6 +21,8 @@ const (
 	defaultBaseURL           = "http://localhost:8080"
 	defaultSessionIdle       = 30 * time.Minute
 	defaultSessionMax        = 8 * time.Hour
+	defaultCLISessionIdle    = 7 * 24 * time.Hour
+	defaultCLISessionMax     = 30 * 24 * time.Hour
 	defaultJanitor           = 10 * time.Minute
 	defaultActivityRetention = 30 * 24 * time.Hour
 	instanceKeyLength        = 32
@@ -53,6 +55,12 @@ type Config struct {
 	SessionIdle time.Duration
 	// SessionMax ends a session this long after it started.
 	SessionMax time.Duration
+	// CLISessionIdle ends a session of the terminal client left unused for this long (ADR-0029).
+	CLISessionIdle time.Duration
+	// CLISessionMax ends a session of the terminal client this long after it started.
+	CLISessionMax time.Duration
+	// CLILogin lets the terminal client sign in through the browser (ADR-0029). On by default.
+	CLILogin bool
 	// AllowedNetworks lists the private networks sites may point to; public addresses are always allowed.
 	AllowedNetworks []netip.Prefix
 	// TrustedProxies lists the IP addresses or networks whose X-Forwarded-For header is believed.
@@ -126,6 +134,9 @@ func Load(getenv func(string) string) (Config, error) {
 		BaseURL:           valueOr(getenv("TRANSFERLY_BASE_URL"), defaultBaseURL),
 		SessionIdle:       defaultSessionIdle,
 		SessionMax:        defaultSessionMax,
+		CLISessionIdle:    defaultCLISessionIdle,
+		CLISessionMax:     defaultCLISessionMax,
+		CLILogin:          true,
 		JanitorInterval:   defaultJanitor,
 		ActivityRetention: defaultActivityRetention,
 		TransferLimits:    TransferLimits{Global: 32, PerWorkspace: 16, PerUser: 8, PerSite: 4},
@@ -158,6 +169,8 @@ func Load(getenv func(string) string) (Config, error) {
 		{"TRANSFERLY_SHUTDOWN_TIMEOUT", &cfg.ShutdownTimeout},
 		{"TRANSFERLY_SESSION_IDLE", &cfg.SessionIdle},
 		{"TRANSFERLY_SESSION_MAX", &cfg.SessionMax},
+		{"TRANSFERLY_CLI_SESSION_IDLE", &cfg.CLISessionIdle},
+		{"TRANSFERLY_CLI_SESSION_MAX", &cfg.CLISessionMax},
 		{"TRANSFERLY_JANITOR_INTERVAL", &cfg.JanitorInterval},
 		{"TRANSFERLY_ACTIVITY_RETENTION", &cfg.ActivityRetention},
 	} {
@@ -201,6 +214,9 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if cfg.SessionIdle > cfg.SessionMax {
 		errs = append(errs, errors.New("TRANSFERLY_SESSION_IDLE must not exceed TRANSFERLY_SESSION_MAX"))
+	}
+	if cfg.CLISessionIdle > cfg.CLISessionMax {
+		errs = append(errs, errors.New("TRANSFERLY_CLI_SESSION_IDLE must not exceed TRANSFERLY_CLI_SESSION_MAX"))
 	}
 
 	origin, err := parseOrigin(cfg.BaseURL)
@@ -251,6 +267,7 @@ func Load(getenv func(string) string) (Config, error) {
 	}{
 		{"TRANSFERLY_AUTO_MIGRATE", &cfg.AutoMigrate},
 		{"TRANSFERLY_VAULT_REMEMBER_SESSIONS", &cfg.VaultRememberSessions},
+		{"TRANSFERLY_CLI_LOGIN", &cfg.CLILogin},
 	} {
 		v := getenv(b.name)
 		switch strings.ToLower(v) {

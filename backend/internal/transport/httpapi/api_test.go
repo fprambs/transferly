@@ -106,7 +106,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 
 	clock := testutil.NewFakeClock(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	hasher := auth.NewHasher(vault.NewKDF(2), vault.Params{MemoryKiB: 64, Time: 1, Threads: 1}, rand.Reader)
-	service := auth.NewService(store, store, hasher, clock, rand.Reader, auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour})
+	service := auth.NewService(store, store, store, hasher, clock, rand.Reader, auth.Config{IdleTimeout: 30 * time.Minute, AbsoluteTimeout: 8 * time.Hour, CLIIdleTimeout: 7 * 24 * time.Hour, CLIAbsoluteTimeout: 30 * 24 * time.Hour, CLILogin: true})
 	workspaces := workspace.NewService(store, clock, nil)
 	vaults := newTestVault(store, clock)
 	keys := wskey.NewService(store, vaults, workspaces, rand.Reader)
@@ -183,6 +183,7 @@ func newAPIWithTransfers(t *testing.T, transfers transfer.Config, tweaks ...func
 			QuickConnect:  ratelimit.New(clock, ratelimit.Rule{Burst: 3, Every: 10 * time.Second}, 100),
 			MFA:           ratelimit.New(clock, ratelimit.Rule{Burst: 6, Every: 10 * time.Second}, 100),
 			Invitations:   ratelimit.New(clock, ratelimit.Rule{Burst: 20, Every: 10 * time.Second}, 100),
+			CLIToken:      ratelimit.New(clock, ratelimit.Rule{Burst: 5, Every: 10 * time.Second}, 100),
 		},
 		InstanceKey:    instanceKey,
 		Cookie:         httpapi.CookieConfig{MaxAge: 8 * time.Hour},
@@ -743,7 +744,7 @@ const unknownProbeHost = "1.1.1.1"
 func (c memConnector) Probe(_ context.Context, _ connections.Key, _ string, s site.Site, secrets map[site.SecretKind][]byte) (remotefs.RemoteFS, error) {
 	switch s.Setting(connectors.FieldHost) {
 	case unknownProbeHost:
-		return nil, &remotefs.HostKeyError{Type: "ssh-ed25519", Fingerprint: "SHA256:draft"}
+		return nil, &remotefs.HostKeyError{Host: unknownProbeHost, Port: 22, Type: "ssh-ed25519", Fingerprint: "SHA256:draft"}
 	case failingProbeHost:
 		return nil, errors.New("boom: internal detail")
 	}

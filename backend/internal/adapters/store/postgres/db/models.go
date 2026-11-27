@@ -34,6 +34,32 @@ type AuditEvent struct {
 	At          time.Time
 }
 
+type CliAuthorization struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	CodeHash      []byte
+	CodeChallenge string
+	RedirectUri   string
+	ClientName    string
+	ClientHost    string
+	Ip            string
+	CreatedAt     time.Time
+	ExpiresAt     time.Time
+	UsedAt        *time.Time
+}
+
+type CliLink struct {
+	Code          string
+	CodeChallenge string
+	RedirectUri   string
+	State         string
+	ClientName    string
+	ClientHost    string
+	Ip            string
+	CreatedAt     time.Time
+	ExpiresAt     time.Time
+}
+
 type ConnectorSetting struct {
 	Type      string
 	Enabled   bool
@@ -184,6 +210,9 @@ type UserSession struct {
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	ExpiresAt  time.Time
+	Kind       string
+	Name       string
+	Host       string
 }
 
 type UserTotp struct {

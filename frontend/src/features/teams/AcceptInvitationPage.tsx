@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Loading } from '@/components/ui/loading'
 import { formatInstant } from '@/lib/datetime'
 import type { InvitationPreview, MfaChallenge, SessionInfo } from '@/lib/api'
+import { LegalLink } from '@/features/legal/LegalPage'
 import { useApi } from '@/lib/api/use-api'
 import { useTransport } from '@/lib/transport'
 import { useUiStore } from '@/state/ui-store'
@@ -39,6 +40,7 @@ function Card({ title, children }: { title: string; children?: ReactNode }) {
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       </div>
       {children}
+      <LegalLink />
     </AuthFrame>
   )
 }

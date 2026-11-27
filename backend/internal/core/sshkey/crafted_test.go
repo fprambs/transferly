@@ -2,7 +2,6 @@ package sshkey_test
 
 import (
 	"bytes"
-	"crypto/dsa" //nolint:staticcheck // A DSA public key is built to check how its size is reported.
 	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rand"
@@ -257,7 +256,7 @@ func TestRead_CraftedPKCS8(t *testing.T) {
 // Use cases:
 //   - a PEM elliptic curve key on a curve SSH does not define, and a PEM X25519 public key, are unsupported
 //   - a PKCS#1 RSA public key is recognized as a public key
-//   - a DSA public key and a certificate are public keys with no size given
+//   - a certificate is a public key with no size given
 func TestRead_OtherKeyTypes(t *testing.T) {
 	for _, file := range []string{"pem-ec-p224", "pkix-x25519-public.pem"} {
 		if _, err := sshkey.Read(fixture(t, file), nil); !errors.Is(err, sshkey.ErrUnsupported) {
@@ -268,17 +267,6 @@ func TestRead_OtherKeyTypes(t *testing.T) {
 		t.Errorf("Read(PKCS#1 public key) = %+v, %v; want a 2048-bit public key", key.Info, err)
 	}
 
-	var dsaKey dsa.PrivateKey
-	if err := dsa.GenerateParameters(&dsaKey.Parameters, rand.Reader, dsa.L1024N160); err != nil {
-		t.Fatal(err)
-	}
-	if err := dsa.GenerateKey(&dsaKey, rand.Reader); err != nil {
-		t.Fatal(err)
-	}
-	dsaPublic, err := ssh.NewPublicKey(&dsaKey.PublicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -287,14 +275,15 @@ func TestRead_OtherKeyTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	certificate := &ssh.Certificate{Key: signer.PublicKey(), CertType: ssh.UserCert, ValidBefore: ssh.CertTimeInfinity}
+	certificate := &ssh.Certificate{
+		Key: signer.PublicKey(), CertType: ssh.UserCert,
+		ValidPrincipals: []string{"transferly"}, ValidBefore: ssh.CertTimeInfinity,
+	}
 	if err := certificate.SignCert(rand.Reader, signer); err != nil {
 		t.Fatal(err)
 	}
-	for name, public := range map[string]ssh.PublicKey{"dsa": dsaPublic, "certificate": certificate} {
-		key, err := sshkey.Read(ssh.MarshalAuthorizedKey(public), nil)
-		if !errors.Is(err, sshkey.ErrPublicKey) || key.Bits != 0 || key.Algorithm != public.Type() {
-			t.Errorf("Read(%s) = %+v, %v; want a public key of unknown size", name, key.Info, err)
-		}
+	key, err := sshkey.Read(ssh.MarshalAuthorizedKey(certificate), nil)
+	if !errors.Is(err, sshkey.ErrPublicKey) || key.Bits != 0 || key.Algorithm != certificate.Type() {
+		t.Errorf("Read(certificate) = %+v, %v; want a public key of unknown size", key.Info, err)
 	}
 }

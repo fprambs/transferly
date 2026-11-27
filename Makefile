@@ -59,4 +59,55 @@ hooks:
 .PHONY: gen
 
 gen:
+	./scripts/generate-tui-client.sh
 	$(TOOLS) ./scripts/generate.sh
+
+# Draws the screens of the design of the terminal client with ratatui into docs/design/terminal-client-mockups.md, and photographs
+# them in their theme colors into docs/design/screens.
+.PHONY: tui-mockups
+tui-mockups:
+	mkdir -p tui/mockups/pages
+	docker run --rm -v $(CURDIR):/repo -v transferly-tui-cargo:/usr/local/cargo/registry -v transferly-tui-target:/target -e CARGO_TARGET_DIR=/target \
+		-w /repo/tui/mockups rust:1.100-bookworm sh -c 'cargo run -q --release --locked -- /repo/docs/design/terminal-client-mockups.md /repo/tui/mockups/pages && chown -R $(shell id -u):$(shell id -g) /repo/docs/design/terminal-client-mockups.md /repo/tui/mockups/pages Cargo.lock'
+	docker run --rm -v $(CURDIR)/tui/mockups/pages:/out debian:bookworm-slim sh -c 'test -f /out/DejaVuSansMono-Bold.ttf || { apt-get -qq update >/dev/null && apt-get -qq install -y fonts-dejavu-core >/dev/null \
+		&& cp /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf /usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf /out/ && chown $(shell id -u):$(shell id -g) /out/*.ttf; }'
+	docker run --rm -u $(shell id -u):$(shell id -g) -e HOME=/tmp -v $(CURDIR):/repo -w /repo/tui/mockups \
+		mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f node screenshot.cjs pages /repo/docs/design/screens
+
+# The terminal client (tui/), in the Rust image of compose.dev.yaml; see docs/guides/rust-tooling.md.
+RUST := $(COMPOSE) run --rm --no-deps -T rust
+# Code left out of coverage: the generated client, the entry point and the thin calls into the operating system (platform.rs), as
+# generated code and cmd/ are in Go.
+TUI_COVERAGE_IGNORE := '(tui/client/|tui/tests/|tui/src/main\.rs|tui/src/platform\.rs)'
+
+.PHONY: tui-lint tui-test tui-cov tui-deny
+tui-lint:
+	$(RUST) sh -c 'cargo fmt -p transferly-tui -- --check && cargo clippy -p transferly-tui --all-targets --all-features -- -D warnings'
+
+tui-test:
+	$(RUST) sh -c 'cargo nextest run -p transferly-tui && cargo test -p transferly-tui --doc'
+
+tui-cov:
+	$(RUST) cargo llvm-cov nextest -p transferly-tui --ignore-filename-regex $(TUI_COVERAGE_IGNORE) --fail-under-lines 100 --fail-under-functions 100
+
+tui-deny:
+	$(RUST) cargo deny check
+
+# Photographs the web pages of signing in the terminal client into docs/design/screens, against the isolated test stack.
+.PHONY: tui-web-screens
+tui-web-screens:
+	docker compose -f compose.test.yaml up -d --wait postgres transferly
+	docker run --rm -u $(shell id -u):$(shell id -g) -e HOME=/tmp --network transferly-test_default -v $(CURDIR):/repo -w /repo \
+		mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f node tui/mockups/web-screens.cjs
+	docker compose -f compose.test.yaml down
+
+# The terminal client against the isolated stack of compose.test.yaml and its SFTP server (tui/tests/testenv.rs): signs in through the
+# approval, then uploads, downloads, resumes and copies between sites.
+.PHONY: tui-it
+tui-it:
+	docker compose -f compose.test.yaml down -v
+	docker compose -f compose.test.yaml up -d --build --wait postgres transferly sftp
+	docker run --rm -u $(shell id -u):$(shell id -g) --network transferly-test_default -e TRANSFERLY_IT_URL=http://transferly:8080 \
+		-v $(CURDIR):/workspace -v transferly-dev_rust-cache:/cache -w /workspace/tui transferly-dev-rust \
+		cargo test -p transferly-tui --test testenv -- --ignored --nocapture
+	docker compose -f compose.test.yaml down

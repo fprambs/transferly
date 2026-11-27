@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +19,7 @@ import { MfaStep } from '../security/MfaStep'
 import { needsSecondStep } from '../security/errors'
 
 import { errorKeyOf, type ErrorKey } from './errors'
+import { returnPath } from './return-path'
 
 /** Which of the two account screens the form serves. */
 export type AuthMode = 'login' | 'setup'
@@ -52,6 +53,8 @@ export function AuthForm({ mode, onSecondStepChange }: AuthFormProps) {
   const transport = useTransport()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const router = useRouter()
+  const { redirect } = useSearch({ strict: false }) as { redirect?: string }
   const [failure, setFailure] = useState<ErrorKey | null>(null)
   const [challenge, setChallenge] = useState<MfaChallenge | null>(null)
   const schema = schemaFor(mode)
@@ -70,7 +73,12 @@ export function AuthForm({ mode, onSecondStepChange }: AuthFormProps) {
     announceSessionChange()
     queryClient.setQueryData(sessionKey, session)
     queryClient.setQueryData(setupKey, false)
-    await navigate({ to: '/' })
+    const back = returnPath(redirect)
+    if (back === undefined) {
+      await navigate({ to: '/' })
+    } else {
+      router.history.push(back)
+    }
   }
 
   const submit = handleSubmit(async (values) => {

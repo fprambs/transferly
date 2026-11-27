@@ -60,19 +60,24 @@ func TestAuthStore_ReportsDatabaseFailures(t *testing.T) {
 	session := auth.Session{ID: id, UserID: id, TokenHash: []byte("h"), CreatedAt: at, LastSeenAt: at, ExpiresAt: at}
 
 	calls := map[string]error{
-		"CreateFirstUser":       store.CreateFirstUser(ctx, user),
-		"CreateUser":            store.CreateUser(ctx, user),
-		"UpdatePasswordHash":    store.UpdatePasswordHash(ctx, id, "h"),
-		"UpdatePreferences":     store.UpdatePreferences(ctx, id, auth.Preferences{Locale: "en", Timezone: "UTC", Theme: "transferly-dark", FileDoubleClick: auth.FileDoubleClickDownload}),
-		"CreateSession":         store.CreateSession(ctx, session),
-		"TouchSession":          store.TouchSession(ctx, id, at),
-		"DeleteSession":         store.DeleteSession(ctx, id),
-		"UserByEmail":           second(store.UserByEmail(ctx, "x@example.com")),
-		"UserByID":              second(store.UserByID(ctx, id)),
-		"CountUsers":            second(store.CountUsers(ctx)),
-		"SessionByTokenHash":    second(store.SessionByTokenHash(ctx, []byte("h"))),
-		"DeleteUserSessions":    second(store.DeleteUserSessions(ctx, id)),
-		"DeleteExpiredSessions": second(store.DeleteExpiredSessions(ctx, at, at)),
+		"CreateFirstUser":                store.CreateFirstUser(ctx, user),
+		"CreateUser":                     store.CreateUser(ctx, user),
+		"UpdatePasswordHash":             store.UpdatePasswordHash(ctx, id, "h"),
+		"UpdatePreferences":              store.UpdatePreferences(ctx, id, auth.Preferences{Locale: "en", Timezone: "UTC", Theme: "transferly-dark", FileDoubleClick: auth.FileDoubleClickDownload}),
+		"CreateSession":                  store.CreateSession(ctx, session),
+		"TouchSession":                   store.TouchSession(ctx, id, at),
+		"DeleteSession":                  store.DeleteSession(ctx, id),
+		"UserByEmail":                    second(store.UserByEmail(ctx, "x@example.com")),
+		"UserByID":                       second(store.UserByID(ctx, id)),
+		"CountUsers":                     second(store.CountUsers(ctx)),
+		"SessionByTokenHash":             second(store.SessionByTokenHash(ctx, []byte("h"))),
+		"DeleteUserSessions":             second(store.DeleteUserSessions(ctx, id)),
+		"DeleteExpiredSessions":          second(store.DeleteExpiredSessions(ctx, at, auth.IdleCutoffs{Browser: at, CLI: at})),
+		"ListUserSessions":               second(store.ListUserSessions(ctx, id, auth.SessionCLI)),
+		"DeleteUserSession":              second(store.DeleteUserSession(ctx, id, id)),
+		"CreateCLIAuthorization":         store.CreateCLIAuthorization(ctx, auth.CLIAuthorization{ID: id, UserID: id, CodeHash: []byte("c"), CreatedAt: at, ExpiresAt: at}),
+		"UseCLIAuthorization":            second(store.UseCLIAuthorization(ctx, []byte("c"), at)),
+		"DeleteExpiredCLIAuthorizations": second(store.DeleteExpiredCLIAuthorizations(ctx, at)),
 	}
 	for name, err := range calls {
 		if err == nil {

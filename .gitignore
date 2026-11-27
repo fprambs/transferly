@@ -26,3 +26,6 @@ backend/internal/transport/webui/dist/*
 frontend/blob-report/
 frontend/e2e/.auth/
 frontend/shots/
+
+# Pages the mockups of the terminal client are photographed from (make tui-mockups).
+tui/mockups/pages/

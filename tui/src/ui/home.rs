@@ -1,0 +1,2850 @@
+//! The main screen (docs/design/terminal-client.md, Layout, Commands, Settings and Screens 3, 4, 8, 11 and 12): the tabs, the sites of
+//! the workspace as a tree, the explorer, the status bar, and over them the command line of `/`, the settings of `/config`, the lists
+//! to choose a theme, a language or a workspace, the help and the vault. Like the rest of the interface it is pure: keys and the replies
+//! of the server change it and it returns the calls to make.
+
+use std::collections::HashSet;
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Layout, Rect};
+use ratatui::style::{Modifier, Style, Stylize};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Paragraph, Wrap};
+use transferly_client::models::{Collection, Site, User, VaultStatus, Workspace, workspace};
+use url::Url;
+use uuid::Uuid;
+
+use super::bars::Bar;
+use super::explorer::{Entry, Op, Panel, PanelAsk, Source};
+use super::input::Input;
+use super::look::Look;
+use super::mouse::first_row;
+use super::theme::{self, Palette};
+use super::widgets::{centered, error_line, field, highlight, panel, popup};
+
+mod context_menu;
+mod mouse;
+mod preview;
+mod sites;
+
+use crate::api::{HostKey, TrustMode};
+use crate::config::{Colors, EnterOnFile};
+use crate::i18n::Language;
+pub(super) use preview::PREVIEW_LIMIT;
+
+/// The version of this client.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The commands of the command line, in the order they are listed.
+pub const COMMANDS: [&str; 11] = [
+    "config",
+    "theme",
+    "language",
+    "workspace",
+    "server",
+    "web",
+    "sites",
+    "transfers",
+    "keys",
+    "logout",
+    "quit",
+];
+
+/// The rows of `/config`, in order.
+const SETTINGS: [&str; 9] = [
+    "language",
+    "theme",
+    "timezone",
+    "colors",
+    "enterOnFile",
+    "hiddenFiles",
+    "confirmQuit",
+    "checkUpdates",
+    "mouse",
+];
+
+/// The policies for what exists at the destination of a copy, as the API names them.
+pub const POLICIES: [&str; 5] = ["fail", "overwrite", "skip", "newer", "rename"];
+
+/// The tab of the bottom panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tab {
+    /// The queue of transfers.
+    Transfers,
+    /// The log of connections.
+    Log,
+}
+
+mod transfers;
+
+/// How many steps of connections the log keeps.
+const LOG_LINES: usize = 500;
+
+/// How many rows the log panel takes.
+const LOG_ROWS: u16 = 9;
+
+/// The width of the sites panel.
+const SITES_WIDTH: u16 = 28;
+
+/// Below this width only the focused panel is shown.
+const NARROW: u16 = 100;
+
+/// The server signed in to and the token of the session.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Session {
+    /// The server.
+    pub server: Url,
+    /// The token of the session.
+    pub token: String,
+}
+
+/// A request from the main screen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Call {
+    /// Read a file prefix on the local disk or at a site.
+    Preview {
+        /// Identifies the preview waiting for this reply.
+        request: u64,
+        /// Workspace and site for a remote file.
+        remote: Option<(Uuid, Uuid)>,
+        /// The file to read.
+        path: String,
+    },
+    /// The connector schemas for site forms.
+    Connectors,
+    /// Change or test a site in the given workspace.
+    Site(Uuid, crate::api::SiteAction),
+    /// Trust a host key from a draft connection test.
+    TrustDraft(Uuid, HostKey),
+    /// The account.
+    Me,
+    /// The version of the server.
+    Version,
+    /// The workspaces of the account.
+    Workspaces,
+    /// The collections and sites of a workspace.
+    Tree(Uuid),
+    /// The state of the vault.
+    Vault,
+    /// Unlock the vault with the master password.
+    Unlock(String),
+    /// Change the language or the theme of the account.
+    Preferences {
+        /// The new language, if it changes.
+        locale: Option<String>,
+        /// The new theme, if it changes.
+        theme: Option<String>,
+    },
+    /// Give the password of a site that asks for it, and try the panel again.
+    Credential {
+        /// The workspace of the site.
+        workspace: Uuid,
+        /// The site.
+        site: Uuid,
+        /// The panel to try again.
+        side: Side,
+        /// The password.
+        password: String,
+    },
+    /// Copy a file or folder between two sites, on the server.
+    Copy {
+        /// The workspace of the sites.
+        workspace: Uuid,
+        /// The site to read from.
+        source: Uuid,
+        /// The path to read.
+        from: String,
+        /// The site to write to.
+        target: Uuid,
+        /// The full path to write, name included.
+        to: String,
+        /// What to do with what exists: `fail`, `overwrite`, `skip`, `newer` or `rename`.
+        policy: String,
+        /// The transfer, chosen by the client.
+        id: Uuid,
+        /// The panel to list again.
+        side: Side,
+    },
+    /// Pause, resume or cancel a transfer on the server.
+    TransferAction {
+        /// The transfer.
+        id: Uuid,
+        /// `pause`, `resume` or `cancel`.
+        action: String,
+    },
+    /// Change the place of a waiting transfer in the queue.
+    Priority {
+        /// The transfer.
+        id: Uuid,
+        /// From -1 (low) to 1 (high).
+        priority: i8,
+    },
+    /// Hand the answers of a prompt to the connection that waits.
+    Answer {
+        /// The prompt.
+        id: Uuid,
+        /// The answers, one per question, in order.
+        answers: Vec<String>,
+    },
+    /// Refuse to answer a prompt; the connection fails.
+    CancelPrompt(Uuid),
+    /// Trust the key of a server and try the panel again.
+    Trust {
+        /// The workspace of the site.
+        workspace: Uuid,
+        /// The panel to try again.
+        side: Side,
+        /// The key.
+        key: HostKey,
+    },
+    /// Work with the files of a site in a panel.
+    Files {
+        /// The workspace of the site.
+        workspace: Uuid,
+        /// The site.
+        site: Uuid,
+        /// The panel that asked.
+        side: Side,
+        /// What to do.
+        op: Op,
+    },
+}
+
+/// What a server asks while a site connects, such as a verification code (ADR-0016).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Prompt {
+    /// Identifies the prompt when answering it.
+    pub id: Uuid,
+    /// The workspace of the site.
+    pub workspace: Uuid,
+    /// The site that connects.
+    pub site: Uuid,
+    /// The title the server gives the questions, maybe empty.
+    pub name: String,
+    /// The explanation of the server, maybe empty.
+    pub instruction: String,
+    /// The questions, each with whether its answer may be shown while typed.
+    pub questions: Vec<(String, bool)>,
+}
+
+/// A step of a connection to a site (ADR-0011).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogLine {
+    /// The site.
+    pub site: Uuid,
+    /// When it happened.
+    pub time: Option<jiff::Timestamp>,
+    /// `info`, `warn` or `error`.
+    pub level: String,
+    /// The step, such as `connecting` or `authenticated`.
+    pub step: String,
+    /// What the step says, by name, such as the host.
+    pub params: Vec<(String, String)>,
+}
+
+/// A panel of the explorer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    /// The left panel, which starts on the local disk.
+    Left,
+    /// The right panel, where sites open.
+    Right,
+}
+
+/// Why a call failed: the stable code of a refusal, or none when the server could not be reached, and what happened.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CallError {
+    /// The stable code, such as `vault_locked` or `http_404`.
+    pub code: Option<String>,
+    /// What happened, in words.
+    pub message: String,
+    /// What the refusal says about itself, such as the fingerprint of a key, by name.
+    pub params: std::collections::HashMap<String, serde_json::Value>,
+}
+
+/// The answer of the server to a call.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Reply {
+    /// A file prefix and whether any bytes remain.
+    Preview(u64, Result<(Vec<u8>, bool), CallError>),
+    /// The connector schemas for site forms.
+    Connectors(Result<Vec<transferly_client::models::Connector>, CallError>),
+    /// The outcome of a site change or test in its workspace.
+    Site(Uuid, Result<(), CallError>),
+    /// The outcome of trusting a host from a draft test.
+    DraftTrusted(Result<(), CallError>),
+    /// The account.
+    Me(Result<User, CallError>),
+    /// The version of the server.
+    Version(Result<String, CallError>),
+    /// The workspaces of the account.
+    Workspaces(Result<Vec<Workspace>, CallError>),
+    /// The collections and sites of a workspace.
+    Tree {
+        /// The workspace asked for.
+        workspace: Uuid,
+        /// Its collections and sites.
+        outcome: Result<(Vec<Collection>, Vec<Site>), CallError>,
+    },
+    /// The state of the vault.
+    Vault(Result<VaultStatus, CallError>),
+    /// Whether the vault was unlocked.
+    Unlocked(Result<(), CallError>),
+    /// The account after changing its preferences.
+    Preferences(Result<User, CallError>),
+    /// A server asks questions while a site connects.
+    Prompt(Prompt),
+    /// A prompt no longer waits, answered or not.
+    PromptClosed(Uuid),
+    /// A step of a connection to a site.
+    Log(LogLine),
+    /// The transfers running when the stream connected.
+    Snapshot(Vec<super::transfers::Row>),
+    /// A transfer changed.
+    TransferState(super::transfers::Row),
+    /// Bytes moved by a transfer, at the instant they were told.
+    Progress {
+        /// The transfer.
+        id: Uuid,
+        /// Bytes moved.
+        done: u64,
+        /// Bytes to move, once known.
+        total: Option<u64>,
+        /// When the stream told it.
+        at: std::time::Instant,
+    },
+    /// A transfer this client moved ended, or why not; the panel it wrote to is listed again.
+    TransferEnded {
+        /// The transfer.
+        id: Uuid,
+        /// The panel to list again.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
+    },
+    /// The answers of a prompt were handed over, or why not.
+    Answered(Result<(), CallError>),
+    /// The home folder of what a panel shows.
+    Homed {
+        /// The panel.
+        side: Side,
+        /// The folder.
+        outcome: Result<String, CallError>,
+    },
+    /// The entries of a folder of a panel.
+    Listed {
+        /// The panel.
+        side: Side,
+        /// The folder.
+        path: String,
+        /// Its entries.
+        outcome: Result<Vec<Entry>, CallError>,
+    },
+    /// The password of a site was given, or why not.
+    Credentialed {
+        /// The panel to try again.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
+    },
+    /// The key of a server was trusted, or why not.
+    Trusted {
+        /// The panel to try again.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
+    },
+    /// A change of the files of a panel ended.
+    Changed {
+        /// The panel.
+        side: Side,
+        /// How it went.
+        outcome: Result<(), CallError>,
+    },
+}
+
+/// What the main screen asks of the interface.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ask {
+    /// Run a request in the current session.
+    Call(Call),
+    /// Listen to the event stream of the session.
+    Stream,
+    /// Move the bytes of an upload or a download through this client, then list a panel again.
+    Transfer(super::transfers::Job, Side),
+    /// Stop moving the bytes of a transfer of this client.
+    Abort(Uuid),
+    /// Work with the files of the local disk in a panel.
+    Local {
+        /// The panel that asked.
+        side: Side,
+        /// What to do.
+        op: Op,
+    },
+    /// Open an address in the browser.
+    Browse(String),
+    /// Copy an entry path through the terminal.
+    CopyPath(String),
+    /// Keep the settings of this computer.
+    Save,
+    /// Change terminal mouse capture.
+    Mouse(bool),
+    /// Sign this terminal out.
+    Logout,
+    /// Go back to the address of the server, with what to say there.
+    Leave(Option<String>),
+    /// Close the client.
+    Quit,
+}
+
+/// The panel with the focus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    /// The sites of the workspace.
+    Sites,
+    /// The left panel of the explorer.
+    Left,
+    /// The right panel of the explorer.
+    Right,
+    /// The panel of transfers and of the log.
+    Bottom,
+}
+
+/// What a list chooses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Choice {
+    /// A theme, previewed while choosing.
+    Theme,
+    /// A language.
+    Language,
+    /// A workspace.
+    Workspace,
+    /// The site to open in the remote panel.
+    Site,
+}
+
+/// What is shown over the screen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Overlay {
+    /// The command line, with the matching command chosen.
+    Commands {
+        /// What is typed after `/`.
+        input: Input,
+        /// The chosen match.
+        selected: usize,
+    },
+    /// The settings.
+    Settings {
+        /// The chosen row.
+        selected: usize,
+    },
+    /// A list to choose from.
+    Choose {
+        /// What it chooses.
+        what: Choice,
+        /// The chosen row.
+        selected: usize,
+        /// The theme worn before previewing, to go back to.
+        worn: String,
+    },
+    /// Every key of the screen, with a filter and how far it is scrolled.
+    Help {
+        /// What is typed to filter the keys.
+        filter: Input,
+        /// The first row shown.
+        scroll: usize,
+    },
+    /// What to copy to the other panel, and what to do with what exists there.
+    Copy {
+        /// The panel copied from.
+        from: Side,
+        /// The entries.
+        items: Vec<Entry>,
+        /// The policy, by its place in [`POLICIES`].
+        policy: usize,
+    },
+    /// The actions of the entry under the explorer cursor.
+    ContextMenu {
+        /// The highlighted action.
+        selected: usize,
+    },
+    /// The details of an entry of a panel.
+    Details {
+        /// The panel.
+        side: Side,
+        /// The entry.
+        entry: Entry,
+    },
+    /// The transfers in front of the screen, while they run.
+    Transfers,
+    /// Whether to cancel a transfer.
+    Cancel {
+        /// The transfer to cancel.
+        id: Uuid,
+        /// Whether to return to the transfer window after answering.
+        from_window: bool,
+    },
+    /// The questions of a server while a site connects, with the answers being typed and the one with the focus.
+    Prompt {
+        /// The questions.
+        prompt: Prompt,
+        /// The name of the site.
+        site: String,
+        /// The answers being typed.
+        answers: Vec<Input>,
+        /// The answer with the focus.
+        focus: usize,
+    },
+    /// The password of a site that asks for it when connecting.
+    Password {
+        /// The panel that connects.
+        side: Side,
+        /// The site.
+        site: Uuid,
+        /// Its name.
+        name: String,
+        /// The password being typed.
+        input: Input,
+    },
+    /// The key of a server to trust, the first time or because it changed.
+    HostKey {
+        /// The panel that connects.
+        side: Side,
+        /// The name of the site.
+        site: String,
+        /// The key the server shows.
+        key: HostKey,
+        /// The fingerprints trusted until now, when it changed.
+        trusted: Option<Vec<String>>,
+    },
+    /// The master password of the vault.
+    Vault {
+        /// The password being typed.
+        input: Input,
+        /// Whether it is being checked.
+        busy: bool,
+        /// What went wrong last.
+        error: Option<String>,
+        /// The site to open once unlocked.
+        site: Option<Uuid>,
+    },
+}
+
+/// A short message on the status bar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Notice {
+    /// What it says.
+    pub text: String,
+    /// Whether something went wrong.
+    pub error: bool,
+}
+
+/// A row of the sites panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Row {
+    /// A collection, open or closed.
+    Collection {
+        /// Its position in the collections.
+        index: usize,
+        /// How deep it is.
+        depth: usize,
+        /// Whether its contents are shown.
+        open: bool,
+    },
+    /// A site.
+    Site {
+        /// Its position in the sites.
+        index: usize,
+        /// How deep it is.
+        depth: usize,
+    },
+}
+
+/// The main screen.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Home {
+    session: Session,
+    email: String,
+    locale: String,
+    theme: String,
+    timezone: String,
+    server_version: Option<String>,
+    workspaces: Vec<Workspace>,
+    workspace: Option<Uuid>,
+    collections: Vec<Collection>,
+    sites: Vec<Site>,
+    closed: HashSet<Uuid>,
+    cursor: usize,
+    loading: bool,
+    vault: Option<VaultStatus>,
+    left: Panel,
+    right: Panel,
+    last: Side,
+    log: std::collections::VecDeque<LogLine>,
+    log_shown: bool,
+    queue: super::transfers::Queue,
+    tab: Tab,
+    sites_shown: bool,
+    focus: Focus,
+    overlay: Option<Overlay>,
+    notice: Option<Notice>,
+    site_view: Option<sites::View>,
+    preview: Option<Box<preview::View>>,
+    preview_request: u64,
+}
+
+impl Home {
+    /// The main screen of a session, loading the account, the version of the server, the workspaces and the vault.
+    #[must_use]
+    pub fn new(session: Session, email: &str, hidden: bool) -> (Self, Vec<Ask>) {
+        let mut home = Self {
+            session,
+            email: email.to_owned(),
+            locale: String::new(),
+            theme: String::new(),
+            timezone: String::new(),
+            server_version: None,
+            workspaces: Vec::new(),
+            workspace: None,
+            collections: Vec::new(),
+            sites: Vec::new(),
+            closed: HashSet::new(),
+            cursor: 0,
+            loading: true,
+            vault: None,
+            left: Panel::new(hidden),
+            right: Panel::new(hidden),
+            last: Side::Right,
+            log: std::collections::VecDeque::new(),
+            log_shown: false,
+            queue: super::transfers::Queue::default(),
+            tab: Tab::Transfers,
+            sites_shown: true,
+            focus: Focus::Sites,
+            overlay: None,
+            notice: None,
+            site_view: None,
+            preview: None,
+            preview_request: 0,
+        };
+        let mut asks: Vec<Ask> = [Call::Me, Call::Version, Call::Workspaces, Call::Vault]
+            .into_iter()
+            .map(Ask::Call)
+            .collect();
+        let op = home.left.open(Source::Local);
+        asks.push(Ask::Local {
+            side: Side::Left,
+            op,
+        });
+        asks.push(Ask::Stream);
+        (home, asks)
+    }
+
+    /// The session of the screen.
+    #[must_use]
+    pub fn session(&self) -> &Session {
+        &self.session
+    }
+
+    /// What is shown over the screen.
+    #[must_use]
+    pub fn overlay(&self) -> Option<&Overlay> {
+        self.overlay.as_ref()
+    }
+
+    /// The message on the status bar.
+    #[must_use]
+    pub fn notice(&self) -> Option<&Notice> {
+        self.notice.as_ref()
+    }
+
+    /// The site open in the explorer.
+    #[must_use]
+    pub fn opened(&self) -> Option<&Site> {
+        [&self.right, &self.left]
+            .into_iter()
+            .find_map(|panel| match panel.source() {
+                Some(Source::Site { id, .. }) => self.sites.iter().find(|site| site.id == *id),
+                _ => None,
+            })
+    }
+
+    /// A panel of the explorer.
+    #[must_use]
+    pub fn panel(&self, side: Side) -> &Panel {
+        match side {
+            Side::Left => &self.left,
+            Side::Right => &self.right,
+        }
+    }
+
+    /// A panel of the explorer, to change.
+    pub(super) fn panel_mut(&mut self, side: Side) -> &mut Panel {
+        match side {
+            Side::Left => &mut self.left,
+            Side::Right => &mut self.right,
+        }
+    }
+
+    /// The workspace shown.
+    #[must_use]
+    pub fn workspace(&self) -> Option<&Workspace> {
+        self.workspace
+            .and_then(|id| self.workspaces.iter().find(|workspace| workspace.id == id))
+    }
+
+    /// The transfers of the account.
+    #[must_use]
+    pub fn queue(&self) -> &super::transfers::Queue {
+        &self.queue
+    }
+
+    /// The transfers of the account, to change.
+    pub fn queue_mut(&mut self) -> &mut super::transfers::Queue {
+        &mut self.queue
+    }
+
+    /// Advances listing animations on both panels.
+    pub(super) fn tick(&mut self) {
+        self.left.tick();
+        self.right.tick();
+    }
+
+    /// The panel with the focus.
+    #[must_use]
+    pub fn focus(&self) -> Focus {
+        self.focus
+    }
+
+    /// Shows feedback above the shortcuts.
+    pub fn say(&mut self, text: String, error: bool) {
+        self.notice = Some(Notice { text, error });
+    }
+
+    /// Puts pasted text into the field being typed in: the command line or the master password.
+    pub fn paste(&mut self, text: &str) {
+        if let Some(preview) = &mut self.preview {
+            preview.paste(text);
+            return;
+        }
+        match &mut self.overlay {
+            Some(
+                Overlay::Commands { input, .. }
+                | Overlay::Vault { input, .. }
+                | Overlay::Password { input, .. },
+            ) => input.insert(text),
+            Some(Overlay::Prompt { answers, focus, .. }) => answers[*focus].insert(text),
+            Some(Overlay::Help { filter, scroll }) => {
+                filter.insert(text);
+                *scroll = 0;
+            }
+            Some(_) => {}
+            None if self.site_view.is_some() => self.paste_site_view(text),
+            None => {
+                if let Some(side) = self.focused_side() {
+                    self.panel_mut(side).paste(text);
+                }
+            }
+        }
+    }
+
+    /// Handles a reply of the server.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per kind of reply, overlay or part of the screen"
+    )]
+    pub fn reply(&mut self, reply: Reply, look: &mut Look) -> Vec<Ask> {
+        match reply {
+            Reply::Preview(request, outcome) => self.preview_reply(request, outcome, look),
+            Reply::Connectors(outcome) => self.site_connectors(outcome, look),
+            Reply::Site(workspace, outcome) => {
+                self.site_reply(workspace, outcome.as_ref().copied(), look)
+            }
+            Reply::DraftTrusted(outcome) => self.draft_trusted(outcome.as_ref().copied(), look),
+            Reply::Me(Ok(user)) | Reply::Preferences(Ok(user)) => {
+                self.account(&user, look);
+                Vec::new()
+            }
+            Reply::Version(Ok(version)) => {
+                self.server_version = Some(version);
+                Vec::new()
+            }
+            Reply::Workspaces(Ok(workspaces)) => self.workspaces(workspaces),
+            Reply::Tree { workspace, outcome } => match outcome {
+                Ok((collections, sites)) if Some(workspace) == self.workspace => {
+                    self.collections = collections;
+                    self.sites = sites;
+                    self.loading = false;
+                    self.cursor = self.cursor.min(self.rows().len().saturating_sub(1));
+                    Vec::new()
+                }
+                Ok(_) => Vec::new(),
+                Err(error) => {
+                    self.loading = false;
+                    self.trouble(&error, look)
+                }
+            },
+            Reply::Vault(Ok(status)) => {
+                self.vault = Some(status);
+                Vec::new()
+            }
+            Reply::Unlocked(outcome) => self.unlocked(outcome, look),
+            Reply::Preferences(Err(error)) => {
+                look.wear(&self.theme);
+                look.speak(&self.locale);
+                self.trouble(&error, look)
+            }
+            Reply::Prompt(prompt) => self.prompted(prompt),
+            Reply::PromptClosed(id) => {
+                if matches!(&self.overlay, Some(Overlay::Prompt { prompt, .. }) if prompt.id == id)
+                {
+                    self.overlay = None;
+                }
+                Vec::new()
+            }
+            Reply::Log(line) => {
+                if self.log.len() == LOG_LINES {
+                    self.log.pop_front();
+                }
+                self.log.push_back(line);
+                Vec::new()
+            }
+            Reply::Snapshot(rows) => {
+                self.queue.snapshot(rows);
+                Vec::new()
+            }
+            Reply::TransferState(row) => {
+                self.queue.put(row);
+                Vec::new()
+            }
+            Reply::Progress {
+                id,
+                done,
+                total,
+                at,
+            } => {
+                self.queue.progress(id, done, total, at);
+                Vec::new()
+            }
+            Reply::TransferEnded { id, side, outcome } => {
+                self.transfer_ended(id, side, outcome, look)
+            }
+            Reply::Answered(outcome) => {
+                if let Err(error) = outcome {
+                    self.say(explain(&error, look), true);
+                }
+                Vec::new()
+            }
+            Reply::Homed { side, outcome } => {
+                let outcome = self.file_outcome(side, outcome, look);
+                let (text, mut asks) = outcome;
+                let more = self.panel_mut(side).homed(text);
+                asks.extend(self.panel_asks(side, more, look));
+                asks
+            }
+            Reply::Listed {
+                side,
+                path,
+                outcome,
+            } => {
+                let (outcome, asks) = self.file_outcome(side, outcome, look);
+                self.panel_mut(side).listed(&path, outcome);
+                asks
+            }
+            Reply::Trusted { side, outcome } | Reply::Credentialed { side, outcome } => {
+                let (outcome, mut asks) = self.file_outcome(side, outcome, look);
+                let more = match outcome {
+                    Ok(()) => self.panel_mut(side).retry(),
+                    Err(reason) => self.panel_mut(side).changed(Err(reason)),
+                };
+                asks.extend(self.panel_asks(side, more, look));
+                asks
+            }
+            Reply::Changed { side, outcome } => {
+                let (outcome, mut asks) = self.file_outcome(side, outcome, look);
+                let more = self.panel_mut(side).changed(outcome);
+                asks.extend(self.panel_asks(side, more, look));
+                asks
+            }
+            Reply::Me(Err(error))
+            | Reply::Version(Err(error))
+            | Reply::Workspaces(Err(error))
+            | Reply::Vault(Err(error)) => self.trouble(&error, look),
+        }
+    }
+
+    /// The account as the server says it: its email, and the language and theme it wears.
+    fn account(&mut self, user: &User, look: &mut Look) {
+        self.email.clone_from(&user.email);
+        self.locale.clone_from(&user.locale);
+        self.theme.clone_from(&user.theme);
+        self.timezone.clone_from(&user.timezone);
+        look.speak(&user.locale);
+        look.wear(&user.theme);
+    }
+
+    /// The workspaces arrived: the one shown stays, otherwise the personal one opens.
+    fn workspaces(&mut self, workspaces: Vec<Workspace>) -> Vec<Ask> {
+        self.workspaces = workspaces;
+        let kept = self
+            .workspace
+            .filter(|id| self.workspaces.iter().any(|workspace| workspace.id == *id));
+        let chosen = kept.or_else(|| {
+            self.workspaces
+                .iter()
+                .find(|workspace| workspace.kind == workspace::Kind::Personal)
+                .or(self.workspaces.first())
+                .map(|workspace| workspace.id)
+        });
+        if let Some(id) = chosen {
+            self.show_workspace(id)
+        } else {
+            self.loading = false;
+            Vec::new()
+        }
+    }
+
+    /// Shows a workspace, loading its sites.
+    fn show_workspace(&mut self, id: Uuid) -> Vec<Ask> {
+        self.workspace = Some(id);
+        self.collections.clear();
+        self.sites.clear();
+        self.closed.clear();
+        self.cursor = 0;
+        for side in [Side::Left, Side::Right] {
+            if matches!(self.panel(side).source(), Some(Source::Site { .. })) {
+                self.panel_mut(side).close();
+            }
+        }
+        self.loading = true;
+        vec![Ask::Call(Call::Tree(id))]
+    }
+
+    /// The vault answered the master password.
+    fn unlocked(&mut self, outcome: Result<(), CallError>, look: &Look) -> Vec<Ask> {
+        let Some(Overlay::Vault {
+            busy, error, site, ..
+        }) = &mut self.overlay
+        else {
+            return Vec::new();
+        };
+        *busy = false;
+        match outcome {
+            Ok(()) => {
+                let site = *site;
+                self.overlay = None;
+                self.vault = Some(VaultStatus {
+                    initialized: true,
+                    unlocked: true,
+                });
+                self.say(look.messages.get("vault.unlocked"), false);
+                if let Some(site) = site {
+                    return self.open_site(site);
+                }
+                return self.resume_site_action();
+            }
+            Err(failure) => {
+                *error = Some(match failure.code.as_deref() {
+                    Some("invalid_master_password") => look.messages.get("vault.wrong"),
+                    Some("rate_limited") => look.messages.get("vault.limited"),
+                    _ => explain(&failure, look),
+                });
+            }
+        }
+        Vec::new()
+    }
+
+    /// A call failed: an ended session goes back to signing in, a locked vault asks for its password, an old server says so, and
+    /// anything else is said on the status bar.
+    fn trouble(&mut self, error: &CallError, look: &Look) -> Vec<Ask> {
+        let m = &look.messages;
+        match error.code.as_deref() {
+            Some("unauthenticated") => vec![Ask::Leave(Some(m.get("main.ended")))],
+            Some("vault_locked") => {
+                self.vault = Some(VaultStatus {
+                    initialized: true,
+                    unlocked: false,
+                });
+                self.ask_vault(None);
+                Vec::new()
+            }
+            Some("http_404") => {
+                self.say(m.get("main.tooOld"), true);
+                Vec::new()
+            }
+            _ => {
+                self.say(explain(error, look), true);
+                Vec::new()
+            }
+        }
+    }
+
+    /// The outcome of a call on the files of a panel, with its failure in words: an ended session goes back to signing in, and a locked
+    /// vault asks for its password and opens the site again once unlocked.
+    fn file_outcome<T>(
+        &mut self,
+        side: Side,
+        outcome: Result<T, CallError>,
+        look: &Look,
+    ) -> (Result<T, String>, Vec<Ask>) {
+        let mut asks = Vec::new();
+        let outcome = outcome.map_err(|error| {
+            let (text, more) = self.file_failure(side, &error, look);
+            asks = more;
+            text
+        });
+        (outcome, asks)
+    }
+
+    /// A failure on the files of a panel in words, with what the main screen must do about it.
+    fn file_failure(&mut self, side: Side, error: &CallError, look: &Look) -> (String, Vec<Ask>) {
+        let m = &look.messages;
+        match error.code.as_deref() {
+            Some("unauthenticated") => (
+                m.get("main.ended"),
+                vec![Ask::Leave(Some(m.get("main.ended")))],
+            ),
+            Some("vault_locked") => {
+                let site = self.panel(side).source().and_then(Source::site);
+                self.vault = Some(VaultStatus {
+                    initialized: true,
+                    unlocked: false,
+                });
+                self.last = side;
+                self.ask_vault(site);
+                (m.get("errors.vault_locked"), Vec::new())
+            }
+            Some("credentials_required") => {
+                let site = self.panel(side).source().and_then(Source::site);
+                if let Some(site) = self.sites.iter().find(|known| Some(known.id) == site) {
+                    self.overlay = Some(Overlay::Password {
+                        side,
+                        site: site.id,
+                        name: site.name.clone(),
+                        input: Input::default(),
+                    });
+                }
+                (explain(error, look), Vec::new())
+            }
+            Some(code @ ("host_key_unknown" | "host_key_changed")) => {
+                self.ask_trust(side, error, code == "host_key_changed");
+                (explain(error, look), Vec::new())
+            }
+            _ => (explain(error, look), Vec::new()),
+        }
+    }
+
+    /// Asks to trust the key a server showed, with the host and port of the site of the panel.
+    fn ask_trust(&mut self, side: Side, error: &CallError, changed: bool) {
+        let site = self.panel(side).source().and_then(Source::site);
+        let Some(site) = self.sites.iter().find(|known| Some(known.id) == site) else {
+            return;
+        };
+        let text = |name: &str| {
+            error
+                .params
+                .get(name)
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_owned()
+        };
+        let setting = |name: &str| site.config.get(name).cloned().unwrap_or_default();
+        let key = HostKey {
+            host: setting("host"),
+            port: setting("port").parse().unwrap_or(22),
+            key_type: text("keyType"),
+            fingerprint: text("fingerprint"),
+            mode: None,
+        };
+        let trusted = changed.then(|| {
+            error
+                .params
+                .get("trusted")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(serde_json::Value::as_str)
+                .map(str::to_owned)
+                .collect()
+        });
+        self.overlay = Some(Overlay::HostKey {
+            side,
+            site: site.name.clone(),
+            key,
+            trusted,
+        });
+    }
+
+    /// A server asks questions while a site of a panel connects: they are shown to answer, unless something else is on the screen or the
+    /// site is not one of the panels (another client of the account connects).
+    fn prompted(&mut self, prompt: Prompt) -> Vec<Ask> {
+        let shown = [Side::Left, Side::Right]
+            .iter()
+            .any(|side| self.panel(*side).source().and_then(Source::site) == Some(prompt.site));
+        let Some(site) = self
+            .sites
+            .iter()
+            .find(|site| site.id == prompt.site)
+            .filter(|_| shown && self.overlay.is_none())
+        else {
+            return Vec::new();
+        };
+        if prompt.questions.is_empty() {
+            return vec![Ask::Call(Call::Answer {
+                id: prompt.id,
+                answers: Vec::new(),
+            })];
+        }
+        let answers = vec![Input::default(); prompt.questions.len()];
+        self.overlay = Some(Overlay::Prompt {
+            site: site.name.clone(),
+            prompt,
+            answers,
+            focus: 0,
+        });
+        Vec::new()
+    }
+
+    /// Asks for the master password, to open a site afterwards.
+    fn ask_vault(&mut self, site: Option<Uuid>) {
+        self.overlay = Some(Overlay::Vault {
+            input: Input::default(),
+            busy: false,
+            error: None,
+            site,
+        });
+    }
+
+    /// The rows of the sites panel: collections with their sub-collections and sites, then the sites outside any collection.
+    fn rows(&self) -> Vec<Row> {
+        let mut rows = Vec::new();
+        self.branch(None, 0, &mut rows);
+        rows
+    }
+
+    /// Adds the collections and sites inside a collection, or at the top.
+    fn branch(&self, parent: Option<Uuid>, depth: usize, rows: &mut Vec<Row>) {
+        for (index, collection) in self.collections.iter().enumerate() {
+            if collection.parent_id != parent {
+                continue;
+            }
+            let open = !self.closed.contains(&collection.id);
+            rows.push(Row::Collection { index, depth, open });
+            if open {
+                self.branch(Some(collection.id), depth + 1, rows);
+            }
+        }
+        for (index, site) in self.sites.iter().enumerate() {
+            if site.collection_id == parent {
+                rows.push(Row::Site { index, depth });
+            }
+        }
+    }
+
+    /// Handles a pressed key.
+    pub fn key(&mut self, key: KeyEvent, look: &mut Look) -> Vec<Ask> {
+        if self.preview.is_some() {
+            return self.preview_key(key);
+        }
+        if let Some(overlay) = self.overlay.take() {
+            return self.overlay_key(key, overlay, look);
+        }
+        if self.site_view.is_some() {
+            return self.site_view_key(key, look);
+        }
+        if let Some(side) = self.focused_listing()
+            && !matches!(key.code, KeyCode::Tab | KeyCode::BackTab)
+        {
+            self.panel_mut(side).key(key);
+            return Vec::new();
+        }
+        if let Some(side) = self
+            .focused_side()
+            .filter(|side| self.panel(*side).captures())
+        {
+            return self.explorer_key(side, key, look);
+        }
+        let control = key.modifiers.contains(KeyModifiers::CONTROL);
+        match key.code {
+            KeyCode::Char('?') | KeyCode::F(1) => {
+                self.overlay = Some(Overlay::Help {
+                    filter: Input::default(),
+                    scroll: 0,
+                });
+            }
+            KeyCode::Char('/') => {
+                self.notice = None;
+                self.overlay = Some(Overlay::Commands {
+                    input: Input::default(),
+                    selected: 0,
+                });
+            }
+            KeyCode::Char('T') => self.overlay = Some(Overlay::Transfers),
+            KeyCode::Char('q') | KeyCode::F(10) => return vec![Ask::Quit],
+            KeyCode::Char('b') if control => {
+                self.sites_shown = !self.sites_shown;
+                if self.sites_shown {
+                    self.focus = Focus::Sites;
+                } else if self.focus == Focus::Sites {
+                    self.focus = Self::focus_of(self.last);
+                }
+            }
+            KeyCode::Char('e') if control => {
+                self.log_shown = !self.log_shown;
+                if !self.log_shown && self.focus == Focus::Bottom {
+                    self.focus = Self::focus_of(self.last);
+                }
+            }
+            KeyCode::Tab => self.cycle(true),
+            KeyCode::BackTab => self.cycle(false),
+            _ => {
+                return match (self.focus, self.focused_side()) {
+                    (Focus::Bottom, _) => self.bottom_key(key),
+                    (_, Some(side)) if matches!(key.code, KeyCode::F(5) | KeyCode::Char('c')) => {
+                        self.ask_copy(side, look);
+                        Vec::new()
+                    }
+                    (_, Some(side)) if key.code == KeyCode::F(3) => self.open_preview(side),
+                    (_, Some(_)) if key.code == KeyCode::F(4) => {
+                        self.say(look.messages.get("main.comingSoon"), false);
+                        Vec::new()
+                    }
+                    (_, Some(side)) if matches!(key.code, KeyCode::F(9)) => {
+                        self.open_context_menu(side);
+                        Vec::new()
+                    }
+                    (_, Some(side)) if !control && matches!(key.code, KeyCode::Char('y' | 'i')) => {
+                        self.entry_shortcut(side, key.code, look)
+                    }
+                    (_, Some(side)) => self.explorer_key(side, key, look),
+                    (_, None) => self.sites_key(key, look),
+                };
+            }
+        }
+        Vec::new()
+    }
+
+    /// The focus of a panel of the explorer.
+    fn focus_of(side: Side) -> Focus {
+        match side {
+            Side::Left => Focus::Left,
+            Side::Right => Focus::Right,
+        }
+    }
+
+    /// The panel of the explorer with the focus, if one has it.
+    fn focused_side(&self) -> Option<Side> {
+        match self.focus {
+            Focus::Left => Some(Side::Left),
+            Focus::Right => Some(Side::Right),
+            Focus::Sites | Focus::Bottom => None,
+        }
+    }
+
+    /// The focused explorer panel if its listing is taking input.
+    pub(super) fn focused_listing(&self) -> Option<Side> {
+        self.focused_side().filter(|side| {
+            self.overlay.is_none() && self.site_view.is_none() && self.panel(*side).listing()
+        })
+    }
+
+    /// Moves the focus to the next or previous panel: the sites, when shown, then the left and the right panel.
+    fn cycle(&mut self, forward: bool) {
+        let mut order = vec![Focus::Left, Focus::Right];
+        if self.sites_shown {
+            order.insert(0, Focus::Sites);
+        }
+        if self.log_shown {
+            order.push(Focus::Bottom);
+        }
+        let at = order
+            .iter()
+            .position(|focus| *focus == self.focus)
+            .unwrap_or(0);
+        let next = if forward {
+            (at + 1) % order.len()
+        } else {
+            (at + order.len() - 1) % order.len()
+        };
+        self.focus = order[next];
+        if let Some(side) = self.focused_side() {
+            self.last = side;
+        }
+    }
+
+    /// Handles a key on the focused panel of the explorer.
+    fn explorer_key(&mut self, side: Side, key: KeyEvent, look: &Look) -> Vec<Ask> {
+        if side == Side::Right && key.code == KeyCode::Char('o') && !self.right.captures() {
+            return self.choose(Choice::Site, look);
+        }
+        let asks = self.panel_mut(side).key(key);
+        self.panel_asks(side, asks, look)
+    }
+
+    /// Enter on a file: asks to copy it to the other panel, or shows its details, as the settings say.
+    fn activate(&mut self, side: Side, entry: Entry, look: &Look) {
+        if look.settings.enter_on_file == EnterOnFile::Details {
+            self.overlay = Some(Overlay::Details { side, entry });
+            return;
+        }
+        self.ask_copy(side, look);
+        if let Some(Overlay::Copy { items, .. }) = &mut self.overlay {
+            *items = vec![entry];
+        }
+    }
+
+    /// Sends panel actions to the local disk or to the server.
+    fn panel_asks(&mut self, side: Side, asks: Vec<PanelAsk>, look: &Look) -> Vec<Ask> {
+        let mut out = Vec::new();
+        for ask in asks {
+            match ask {
+                PanelAsk::Activate(entry) => self.activate(side, entry, look),
+                PanelAsk::Op(Op::Disconnect) => {
+                    out.extend(self.files(side, Op::Disconnect));
+                    self.panel_mut(side).close();
+                }
+                PanelAsk::Op(op) => out.extend(self.files(side, op)),
+            }
+        }
+        out
+    }
+
+    /// Where an operation on the files of a panel goes: the local disk, or the site it shows in the workspace.
+    fn files(&self, side: Side, op: Op) -> Option<Ask> {
+        let source = self.panel(side).source()?;
+        let Some(site) = source.site() else {
+            return Some(Ask::Local { side, op });
+        };
+        let workspace = self.workspace?;
+        Some(Ask::Call(Call::Files {
+            workspace,
+            site,
+            side,
+            op,
+        }))
+    }
+
+    /// Handles a key on the sites panel.
+    fn sites_key(&mut self, key: KeyEvent, look: &mut Look) -> Vec<Ask> {
+        let rows = self.rows();
+        let last = rows.len().saturating_sub(1);
+        match key.code {
+            KeyCode::Down | KeyCode::Char('j') => self.cursor = (self.cursor + 1).min(last),
+            KeyCode::Up | KeyCode::Char('k') => self.cursor = self.cursor.saturating_sub(1),
+            KeyCode::Home | KeyCode::Char('g') => self.cursor = 0,
+            KeyCode::End | KeyCode::Char('G') => self.cursor = last,
+            KeyCode::Char('S') => return self.show_site_view(),
+            KeyCode::Char('w') => return self.choose(Choice::Workspace, look),
+            KeyCode::Right | KeyCode::Char('l' | 'h') | KeyCode::Left | KeyCode::Enter => {
+                match rows.get(self.cursor) {
+                    Some(Row::Collection { index, open, .. }) => {
+                        let id = self.collections[*index].id;
+                        let opening = match key.code {
+                            KeyCode::Right | KeyCode::Char('l') => true,
+                            KeyCode::Enter => !open,
+                            _ => false,
+                        };
+                        if opening {
+                            self.closed.remove(&id);
+                        } else {
+                            self.closed.insert(id);
+                        }
+                    }
+                    Some(Row::Site { index, .. }) if key.code == KeyCode::Enter => {
+                        let id = self.sites[*index].id;
+                        return self.open_site(id);
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    /// Opens a site in the remote panel, asking for the master password first when its credentials are in a locked vault.
+    fn open_site(&mut self, id: Uuid) -> Vec<Ask> {
+        let Some(site) = self.sites.iter().find(|site| site.id == id) else {
+            return Vec::new();
+        };
+        let locked = self
+            .vault
+            .as_ref()
+            .is_some_and(|vault| vault.initialized && !vault.unlocked);
+        if locked && !site.secrets.is_empty() {
+            self.ask_vault(Some(site.id));
+            return Vec::new();
+        }
+        let source = Source::Site {
+            id,
+            name: site.name.clone(),
+        };
+        self.last = Side::Right;
+        self.focus = Focus::Right;
+        let op = self.right.open(source);
+        self.files(Side::Right, op).into_iter().collect()
+    }
+
+    /// Handles a key on what is shown over the screen.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per kind of reply, overlay or part of the screen"
+    )]
+    fn overlay_key(&mut self, key: KeyEvent, overlay: Overlay, look: &mut Look) -> Vec<Ask> {
+        match overlay {
+            Overlay::ContextMenu { selected } => self.context_menu_key(key.code, selected, look),
+            Overlay::Details { .. } => Vec::new(),
+            Overlay::Copy {
+                from,
+                items,
+                policy,
+            } => self.copy_key(key, from, items, policy, look),
+            Overlay::Transfers => self.transfers_key(key),
+            Overlay::Cancel { id, from_window } => self.cancel_key(key, id, from_window),
+            Overlay::Help { filter, scroll } => {
+                self.help_key(key, filter, scroll, look);
+                Vec::new()
+            }
+            Overlay::Prompt {
+                prompt,
+                site,
+                answers,
+                focus,
+            } => self.prompt_key(key, prompt, site, answers, focus),
+            Overlay::Password {
+                side,
+                site,
+                name,
+                mut input,
+            } => match key.code {
+                KeyCode::Esc => Vec::new(),
+                KeyCode::Enter if !input.value().is_empty() => {
+                    let password = input.value().to_owned();
+                    self.workspace
+                        .map(|workspace| {
+                            Ask::Call(Call::Credential {
+                                workspace,
+                                site,
+                                side,
+                                password,
+                            })
+                        })
+                        .into_iter()
+                        .collect()
+                }
+                _ => {
+                    input.handle(key);
+                    self.overlay = Some(Overlay::Password {
+                        side,
+                        site,
+                        name,
+                        input,
+                    });
+                    Vec::new()
+                }
+            },
+            Overlay::HostKey {
+                side,
+                site,
+                key: shown,
+                trusted,
+            } => self.host_key_key(key, side, site, shown, trusted),
+            Overlay::Commands { input, selected } => self.commands_key(key, input, selected, look),
+            Overlay::Settings { selected } => self.settings_key(key, selected, look),
+            Overlay::Choose {
+                what,
+                selected,
+                worn,
+            } => self.choose_key(key, what, selected, worn, look),
+            Overlay::Vault {
+                mut input,
+                busy,
+                error,
+                site,
+            } => {
+                if busy {
+                    self.overlay = Some(Overlay::Vault {
+                        input,
+                        busy,
+                        error,
+                        site,
+                    });
+                    return Vec::new();
+                }
+                match key.code {
+                    KeyCode::Esc => {
+                        self.cancel_site_action();
+                        Vec::new()
+                    }
+                    KeyCode::Enter if !input.value().is_empty() => {
+                        let password = input.value().to_owned();
+                        self.overlay = Some(Overlay::Vault {
+                            input,
+                            busy: true,
+                            error: None,
+                            site,
+                        });
+                        vec![Ask::Call(Call::Unlock(password))]
+                    }
+                    _ => {
+                        input.handle(key);
+                        self.overlay = Some(Overlay::Vault {
+                            input,
+                            busy,
+                            error,
+                            site,
+                        });
+                        Vec::new()
+                    }
+                }
+            }
+        }
+    }
+
+    /// Handles a key on the help: typing filters the keys, the arrows and pages scroll, Esc clears the filter and then closes, F1 closes.
+    fn help_key(&mut self, key: KeyEvent, mut filter: Input, mut scroll: usize, look: &Look) {
+        let last = help_lines(filter.value(), look).len().saturating_sub(1);
+        match key.code {
+            KeyCode::F(1) => return,
+            KeyCode::Esc | KeyCode::Char('?') if filter.value().is_empty() => return,
+            KeyCode::Esc => filter = Input::default(),
+            KeyCode::Down => scroll = (scroll + 1).min(last),
+            KeyCode::Up => scroll = scroll.saturating_sub(1),
+            KeyCode::PageDown => scroll = (scroll + 10).min(last),
+            KeyCode::PageUp => scroll = scroll.saturating_sub(10),
+            _ => {
+                if filter.handle(key) {
+                    scroll = 0;
+                }
+            }
+        }
+        self.overlay = Some(Overlay::Help { filter, scroll });
+    }
+
+    /// Handles a key on the questions of a server: Tab and the arrows move between answers, Enter goes to the next one and sends them
+    /// from the last, Esc refuses to answer.
+    fn prompt_key(
+        &mut self,
+        key: KeyEvent,
+        prompt: Prompt,
+        site: String,
+        mut answers: Vec<Input>,
+        mut focus: usize,
+    ) -> Vec<Ask> {
+        let last = answers.len().saturating_sub(1);
+        match key.code {
+            KeyCode::Esc => return vec![Ask::Call(Call::CancelPrompt(prompt.id))],
+            KeyCode::Enter if focus >= last => {
+                let answers = answers
+                    .iter()
+                    .map(|input| input.value().to_owned())
+                    .collect();
+                return vec![Ask::Call(Call::Answer {
+                    id: prompt.id,
+                    answers,
+                })];
+            }
+            KeyCode::Enter | KeyCode::Tab | KeyCode::Down => focus = (focus + 1).min(last),
+            KeyCode::BackTab | KeyCode::Up => focus = focus.saturating_sub(1),
+            _ => {
+                answers[focus].handle(key);
+            }
+        }
+        self.overlay = Some(Overlay::Prompt {
+            prompt,
+            site,
+            answers,
+            focus,
+        });
+        Vec::new()
+    }
+
+    /// Handles a key on the key of a server to trust: `y` trusts a new key, `a` adds and `r` replaces a key that changed, Esc gives up.
+    fn host_key_key(
+        &mut self,
+        key: KeyEvent,
+        side: Side,
+        site: String,
+        mut shown: HostKey,
+        trusted: Option<Vec<String>>,
+    ) -> Vec<Ask> {
+        shown.mode = match (key.code, &trusted) {
+            (KeyCode::Char('y') | KeyCode::Enter, None) => None,
+            (KeyCode::Char('a'), Some(_)) => Some(TrustMode::Add),
+            (KeyCode::Char('r'), Some(_)) => Some(TrustMode::Replace),
+            (KeyCode::Char('n') | KeyCode::Esc, _) => {
+                self.cancel_site_action();
+                return Vec::new();
+            }
+            _ => {
+                self.overlay = Some(Overlay::HostKey {
+                    side,
+                    site,
+                    key: shown,
+                    trusted,
+                });
+                return Vec::new();
+            }
+        };
+        if let Some(ask) = self.trust_draft(&shown) {
+            return vec![ask];
+        }
+        self.workspace
+            .map(|workspace| {
+                Ask::Call(Call::Trust {
+                    workspace,
+                    side,
+                    key: shown,
+                })
+            })
+            .into_iter()
+            .collect()
+    }
+
+    /// The commands whose name starts with what is typed before a space.
+    fn matches(input: &Input) -> Vec<&'static str> {
+        let typed = input.value().split(' ').next().unwrap_or("");
+        COMMANDS
+            .into_iter()
+            .filter(|name| name.starts_with(typed))
+            .collect()
+    }
+
+    /// Handles a key on the command line.
+    fn commands_key(
+        &mut self,
+        key: KeyEvent,
+        mut input: Input,
+        mut selected: usize,
+        look: &mut Look,
+    ) -> Vec<Ask> {
+        let matches = Self::matches(&input);
+        match key.code {
+            KeyCode::Esc => return Vec::new(),
+            KeyCode::Backspace if input.value().is_empty() => return Vec::new(),
+            KeyCode::Down => selected = (selected + 1).min(matches.len().saturating_sub(1)),
+            KeyCode::Up => selected = selected.saturating_sub(1),
+            KeyCode::Tab => {
+                if let Some(name) = matches.get(selected) {
+                    input = Input::with(&format!("{name} "));
+                    selected = 0;
+                }
+            }
+            KeyCode::Enter => {
+                let typed = input.value().trim().to_owned();
+                let (name, value) = typed.split_once(' ').unwrap_or((&typed, ""));
+                let command = if COMMANDS.contains(&name) {
+                    Some(name)
+                } else {
+                    matches.get(selected).copied()
+                };
+                return if let Some(command) = command {
+                    self.run(command, value.trim(), look)
+                } else {
+                    self.say(
+                        look.messages.fill("commands.unknown", &[("name", name)]),
+                        true,
+                    );
+                    Vec::new()
+                };
+            }
+            _ => {
+                if input.handle(key) {
+                    selected = 0;
+                }
+            }
+        }
+        self.overlay = Some(Overlay::Commands { input, selected });
+        Vec::new()
+    }
+
+    /// Runs a command of the command line, with the value typed after it.
+    fn run(&mut self, command: &str, value: &str, look: &mut Look) -> Vec<Ask> {
+        match command {
+            "config" => {
+                self.overlay = Some(Overlay::Settings { selected: 0 });
+                Vec::new()
+            }
+            "theme" if value.is_empty() => self.choose(Choice::Theme, look),
+            "theme" => {
+                let wanted = value.to_lowercase();
+                match theme::all()
+                    .into_iter()
+                    .find(|theme| theme.id == wanted || theme.name.to_lowercase() == wanted)
+                {
+                    Some(theme) => Self::set_theme(&theme.id, look),
+                    None => self.nothing_called(value, look),
+                }
+            }
+            "language" if value.is_empty() => self.choose(Choice::Language, look),
+            "language" => match value.to_lowercase().as_str() {
+                "en" | "english" | "inglés" | "ingles" => {
+                    Self::set_language(Language::English, look)
+                }
+                "es" | "español" | "espanol" | "spanish" => {
+                    Self::set_language(Language::Spanish, look)
+                }
+                _ => self.nothing_called(value, look),
+            },
+            "workspace" if value.is_empty() => self.choose(Choice::Workspace, look),
+            "workspace" => {
+                let wanted = value.to_lowercase();
+                match self
+                    .workspaces
+                    .iter()
+                    .find(|workspace| workspace.name.to_lowercase() == wanted)
+                {
+                    Some(workspace) => self.show_workspace(workspace.id),
+                    None => self.nothing_called(value, look),
+                }
+            }
+            "server" => vec![Ask::Leave(None)],
+            "web" => vec![self.web()],
+            "sites" => self.show_site_view(),
+            "transfers" => {
+                self.overlay = Some(Overlay::Transfers);
+                Vec::new()
+            }
+            "keys" => {
+                self.overlay = Some(Overlay::Help {
+                    filter: Input::default(),
+                    scroll: 0,
+                });
+                Vec::new()
+            }
+            "logout" => {
+                self.say(look.messages.get("main.signingOut"), false);
+                vec![Ask::Logout]
+            }
+            _ => vec![Ask::Quit],
+        }
+    }
+
+    /// Opens the web application at the signed-in server.
+    fn web(&self) -> Ask {
+        Ask::Browse(format!(
+            "{}/",
+            self.session.server.origin().ascii_serialization()
+        ))
+    }
+
+    /// Says that nothing goes by a name.
+    fn nothing_called(&mut self, value: &str, look: &Look) -> Vec<Ask> {
+        self.say(
+            look.messages.fill("commands.noMatch", &[("value", value)]),
+            true,
+        );
+        Vec::new()
+    }
+
+    /// The names of what a list chooses from, with the one in use.
+    fn choices(&self, what: Choice, look: &Look) -> (Vec<String>, usize) {
+        match what {
+            Choice::Theme => {
+                let themes = theme::all();
+                let current = themes
+                    .iter()
+                    .position(|theme| theme.id == look.theme)
+                    .unwrap_or(0);
+                (
+                    themes.into_iter().map(|theme| theme.name).collect(),
+                    current,
+                )
+            }
+            Choice::Language => (
+                vec!["English".to_owned(), "Español".to_owned()],
+                usize::from(look.messages.language() == Language::Spanish),
+            ),
+            Choice::Workspace => (
+                self.workspaces
+                    .iter()
+                    .map(|workspace| workspace.name.clone())
+                    .collect(),
+                self.workspaces
+                    .iter()
+                    .position(|workspace| Some(workspace.id) == self.workspace)
+                    .unwrap_or(0),
+            ),
+            Choice::Site => (
+                self.sites.iter().map(|site| site.name.clone()).collect(),
+                self.site_index().unwrap_or(0),
+            ),
+        }
+    }
+
+    /// The row for the open site in the site picker.
+    fn site_index(&self) -> Option<usize> {
+        let site = self.right.source().and_then(Source::site);
+        self.sites.iter().position(|known| Some(known.id) == site)
+    }
+
+    /// Opens a list on the value in use.
+    fn choose(&mut self, what: Choice, look: &Look) -> Vec<Ask> {
+        let (_, selected) = self.choices(what, look);
+        self.overlay = Some(Overlay::Choose {
+            what,
+            selected,
+            worn: look.theme.clone(),
+        });
+        Vec::new()
+    }
+
+    /// Handles a key on a list: themes are worn while moving, Enter keeps the choice, Esc goes back to what was worn.
+    fn choose_key(
+        &mut self,
+        key: KeyEvent,
+        what: Choice,
+        mut selected: usize,
+        worn: String,
+        look: &mut Look,
+    ) -> Vec<Ask> {
+        let (names, _) = self.choices(what, look);
+        let last = names.len().saturating_sub(1);
+        match key.code {
+            KeyCode::Esc => {
+                look.wear(&worn);
+                return Vec::new();
+            }
+            KeyCode::Enter if !names.is_empty() => {
+                look.wear(&worn);
+                return match what {
+                    Choice::Theme => Self::set_theme(&theme::all()[selected].id, look),
+                    Choice::Language => Self::set_language(
+                        if selected == 0 {
+                            Language::English
+                        } else {
+                            Language::Spanish
+                        },
+                        look,
+                    ),
+                    Choice::Workspace => self.show_workspace(self.workspaces[selected].id),
+                    Choice::Site => self.open_site(self.sites[selected].id),
+                };
+            }
+            KeyCode::Down | KeyCode::Char('j') => selected = (selected + 1).min(last),
+            KeyCode::Up | KeyCode::Char('k') => selected = selected.saturating_sub(1),
+            _ => {}
+        }
+        if what == Choice::Theme {
+            look.wear(&theme::all()[selected].id);
+        }
+        self.overlay = Some(Overlay::Choose {
+            what,
+            selected,
+            worn,
+        });
+        Vec::new()
+    }
+
+    /// Wears a theme and keeps it in the account.
+    fn set_theme(id: &str, look: &mut Look) -> Vec<Ask> {
+        look.wear(id);
+        vec![Ask::Call(Call::Preferences {
+            locale: None,
+            theme: Some(id.to_owned()),
+        })]
+    }
+
+    /// Speaks a language and keeps it in the account.
+    fn set_language(language: Language, look: &mut Look) -> Vec<Ask> {
+        look.speak(language.tag());
+        vec![Ask::Call(Call::Preferences {
+            locale: Some(language.tag().to_owned()),
+            theme: None,
+        })]
+    }
+
+    /// Handles a key on the settings: ← → change the value in place, Enter opens the list of the language and the theme.
+    fn settings_key(&mut self, key: KeyEvent, mut selected: usize, look: &mut Look) -> Vec<Ask> {
+        let forward = match key.code {
+            KeyCode::Esc => return Vec::new(),
+            KeyCode::Down | KeyCode::Char('j') => {
+                selected = (selected + 1).min(SETTINGS.len() - 1);
+                None
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                selected = selected.saturating_sub(1);
+                None
+            }
+            KeyCode::Enter if selected < 2 => {
+                return self.choose([Choice::Language, Choice::Theme][selected], look);
+            }
+            KeyCode::Right | KeyCode::Char('l' | ' ') | KeyCode::Enter => Some(true),
+            KeyCode::Left | KeyCode::Char('h') => Some(false),
+            _ => None,
+        };
+        self.overlay = Some(Overlay::Settings { selected });
+        forward.map_or_else(Vec::new, |forward| {
+            self.change(SETTINGS[selected], forward, look)
+        })
+    }
+
+    /// Changes a setting to its next or previous value.
+    fn change(&mut self, setting: &str, forward: bool, look: &mut Look) -> Vec<Ask> {
+        let settings = &mut look.settings;
+        match setting {
+            "language" => {
+                let next = if look.messages.language() == Language::English {
+                    Language::Spanish
+                } else {
+                    Language::English
+                };
+                return Self::set_language(next, look);
+            }
+            "theme" => {
+                let themes = theme::all();
+                let at = themes
+                    .iter()
+                    .position(|theme| theme.id == look.theme)
+                    .unwrap_or(0);
+                let next = if forward {
+                    (at + 1) % themes.len()
+                } else {
+                    (at + themes.len() - 1) % themes.len()
+                };
+                return Self::set_theme(&themes[next].id, look);
+            }
+            "timezone" => {
+                self.say(look.messages.get("settings.timezoneWeb"), false);
+                return Vec::new();
+            }
+            "colors" => {
+                settings.colors = match settings.colors {
+                    Colors::Theme => Colors::Terminal,
+                    Colors::Terminal => Colors::Theme,
+                };
+                let worn = look.theme.clone();
+                look.wear(&worn);
+            }
+            "enterOnFile" => {
+                settings.enter_on_file = match settings.enter_on_file {
+                    EnterOnFile::Copy => EnterOnFile::Details,
+                    EnterOnFile::Details => EnterOnFile::Copy,
+                };
+            }
+            "hiddenFiles" => settings.hidden_files = !settings.hidden_files,
+            "confirmQuit" => settings.confirm_quit = !settings.confirm_quit,
+            "mouse" => {
+                settings.mouse = !settings.mouse;
+                return vec![Ask::Mouse(settings.mouse), Ask::Save];
+            }
+            _ => settings.check_updates = !settings.check_updates,
+        }
+        vec![Ask::Save]
+    }
+
+    /// Whether the server and this client differ in their major or minor version, when both say one.
+    fn mismatched(&self) -> Option<&str> {
+        let server = self.server_version.as_deref()?;
+        let minor = |version: &str| {
+            let mut parts = version.trim_start_matches('v').split('.');
+            let major: u32 = parts.next()?.parse().ok()?;
+            let minor: u32 = parts.next()?.parse().ok()?;
+            Some((major, minor))
+        };
+        (minor(server)? != minor(VERSION)?).then_some(server)
+    }
+
+    /// The main screen areas, including feedback and the bottom shortcuts.
+    fn layout(&self, area: Rect) -> [Rect; 7] {
+        let feedback_rows = u16::from(self.notice.is_some() || self.mismatched().is_some());
+        let [top, body, feedback, _, keys] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Fill(1),
+            Constraint::Length(feedback_rows),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .areas(area);
+        let log_rows = if self.log_shown { LOG_ROWS } else { 0 };
+        let [body, log_area] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(log_rows)]).areas(body);
+        let [sites, left, right] = if area.width >= NARROW {
+            let sites_width = if self.sites_shown { SITES_WIDTH } else { 0 };
+            let [sites, left, right] = Layout::horizontal([
+                Constraint::Length(sites_width),
+                Constraint::Fill(1),
+                Constraint::Fill(1),
+            ])
+            .areas(body);
+            [sites, left, right]
+        } else {
+            match self.focus {
+                Focus::Sites => [body, Rect::ZERO, Rect::ZERO],
+                Focus::Left => [Rect::ZERO, body, Rect::ZERO],
+                Focus::Right | Focus::Bottom => [Rect::ZERO, Rect::ZERO, body],
+            }
+        };
+        [top, sites, left, right, log_area, feedback, keys]
+    }
+
+    /// Draws the screen.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per kind of reply, overlay or part of the screen"
+    )]
+    pub fn render(&self, frame: &mut Frame, look: &Look, spinner: &str) {
+        if let Some(preview) = &self.preview {
+            preview.render(frame, look, spinner);
+            return;
+        }
+        let m = &look.messages;
+        let area = frame.area();
+        if area.width < 60 || area.height < 16 {
+            let text = Paragraph::new(m.get("main.small"))
+                .wrap(Wrap { trim: true })
+                .centered();
+            frame.render_widget(text, centered(area, area.width, 3));
+            return;
+        }
+        let [top, sites, left, right, log_area, feedback, keys] = self.layout(area);
+        self.render_tabs(frame, top, look);
+        let zone = jiff::tz::TimeZone::get(&self.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+        if self.site_view.is_some() {
+            self.render_site_view(frame, look);
+        } else {
+            if !sites.is_empty() {
+                self.render_sites(frame, sites, look, spinner);
+            }
+            if !left.is_empty() {
+                self.left
+                    .render(frame, left, look, self.focus == Focus::Left, &zone);
+            }
+            if !right.is_empty() {
+                self.right
+                    .render(frame, right, look, self.focus == Focus::Right, &zone);
+            }
+            if !log_area.is_empty() {
+                self.render_bottom(frame, log_area, look, &zone);
+            }
+            self.render_feedback(frame, feedback, look);
+            self.shortcut_bar(keys, look).render(frame, keys, look);
+        }
+        match &self.overlay {
+            Some(Overlay::Commands { input, selected }) => {
+                Self::render_commands(frame, input, *selected, look);
+            }
+            Some(Overlay::Settings { selected }) => {
+                self.render_settings(frame, *selected, look);
+            }
+            Some(Overlay::Choose { what, selected, .. }) => {
+                self.render_choose(frame, *what, *selected, look);
+            }
+            Some(Overlay::Help { filter, scroll }) => {
+                render_help(frame, filter, *scroll, look);
+            }
+            Some(Overlay::Copy {
+                from,
+                items,
+                policy,
+            }) => self.render_copy(frame, *from, items, *policy, look),
+            Some(Overlay::ContextMenu { selected }) => {
+                self.render_context_menu(frame, *selected, look);
+            }
+            Some(Overlay::Details { side, entry }) => {
+                self.render_details(frame, *side, entry, look, &zone);
+            }
+            Some(Overlay::Transfers) => self.render_transfers(frame, look),
+            Some(Overlay::Cancel { id, .. }) => self.render_cancel(frame, *id, look),
+            Some(Overlay::Prompt {
+                prompt,
+                site,
+                answers,
+                focus,
+            }) => render_prompt(frame, prompt, site, answers, *focus, look),
+            Some(Overlay::Password { name, input, .. }) => {
+                render_password(frame, name, input, look);
+            }
+            Some(Overlay::HostKey {
+                site, key, trusted, ..
+            }) => render_host_key(frame, site, key, trusted.as_deref(), look),
+            Some(Overlay::Vault {
+                input,
+                busy,
+                error,
+                site,
+            }) => self.render_vault(frame, input, *busy, error.as_deref(), *site, look, spinner),
+            None => {}
+        }
+    }
+
+    /// The open tab and the right-aligned session summary, with the version when it fits.
+    fn render_tabs(&self, frame: &mut Frame, area: Rect, look: &Look) {
+        let palette = &look.palette;
+        let title = self
+            .opened()
+            .map_or_else(|| look.messages.get("main.local"), |site| site.name.clone());
+        let tab = Span::styled(format!(" 1 {title} "), active(palette));
+        let version = Span::raw(format!("transferly-tui {VERSION} · ")).fg(palette.muted);
+        let mut session = Line::from(self.status_spans(look));
+        let width = usize::from(area.width);
+        let tab_width = tab.width().min(width / 2);
+        if tab_width + session.width() + version.width() <= width {
+            session.spans.insert(1, version);
+        }
+        let tab_width = u16::try_from(tab_width).expect("the tab fits in the terminal");
+        let [left, right] =
+            Layout::horizontal([Constraint::Length(tab_width), Constraint::Fill(1)]).areas(area);
+        frame.render_widget(Line::from(tab).bg(palette.surface), left);
+        frame.render_widget(session.right_aligned().bg(palette.surface), right);
+    }
+
+    /// The sites panel: the collections and sites of the workspace, with a dot on the open site.
+    fn render_sites(&self, frame: &mut Frame, area: Rect, look: &Look, spinner: &str) {
+        let (m, palette) = (&look.messages, &look.palette);
+        let title = self
+            .workspace()
+            .map_or_else(|| m.get("main.sites"), |workspace| workspace.name.clone());
+        let block = panel(&title, self.focus == Focus::Sites, palette);
+        let inside = block.inner(area);
+        frame.render_widget(block, area);
+        if self.loading {
+            frame.render_widget(
+                Paragraph::new(format!("{spinner} {}", m.get("main.loading"))),
+                inside,
+            );
+            return;
+        }
+        let rows = self.rows();
+        if rows.is_empty() {
+            frame.render_widget(
+                Paragraph::new(Line::from(m.get("main.noSites")).fg(palette.muted))
+                    .wrap(Wrap { trim: true }),
+                inside,
+            );
+            return;
+        }
+        let height = usize::from(inside.height.max(1));
+        let skip = first_row(inside, self.cursor);
+        let width = usize::from(inside.width);
+        let lines: Vec<Line> = rows
+            .iter()
+            .enumerate()
+            .skip(skip)
+            .take(height)
+            .map(|(at, row)| {
+                let text = match *row {
+                    Row::Collection { index, depth, open } => format!(
+                        "{}{} {}",
+                        "  ".repeat(depth),
+                        if open { "▾" } else { "▸" },
+                        self.collections[index].name
+                    ),
+                    Row::Site { index, depth } => {
+                        let site = &self.sites[index];
+                        let dot = if [Side::Left, Side::Right].iter().any(|side| matches!(self.panel(*side).source(), Some(Source::Site { id, .. }) if *id == site.id)) {
+                            "●"
+                        } else {
+                            "·"
+                        };
+                        format!("{}{dot} {}", "  ".repeat(depth), site.name)
+                    }
+                };
+                let text: String = text.chars().take(width).collect();
+                let mut line = Line::from(format!("{text:<width$}"));
+                if matches!(row, Row::Collection { .. }) {
+                    line = line.add_modifier(Modifier::BOLD);
+                }
+                if at == self.cursor && self.focus == Focus::Sites {
+                    highlight(line, palette)
+                } else {
+                    line
+                }
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(lines), inside);
+    }
+
+    /// The styled session information in the top bar.
+    fn status_spans(&self, look: &Look) -> Vec<Span<'static>> {
+        let (m, palette) = (&look.messages, &look.palette);
+        let vault = match &self.vault {
+            Some(VaultStatus {
+                initialized: false, ..
+            }) => m.get("main.vaultNone"),
+            Some(VaultStatus { unlocked: true, .. }) => m.get("main.vaultOpen"),
+            Some(_) => m.get("main.vaultLocked"),
+            None => String::new(),
+        };
+        let server = self
+            .session
+            .server
+            .host_str()
+            .unwrap_or_default()
+            .to_owned();
+        let workspace = self
+            .workspace()
+            .map_or_default(|workspace| workspace.name.clone());
+        let mut spans: Vec<Span> = vec![Span::raw(" ")];
+        let parts = [server, self.email.clone(), workspace, vault];
+        for (at, part) in parts
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .enumerate()
+        {
+            if at > 0 {
+                spans.push(Span::raw(" · ").fg(palette.faint));
+            }
+            spans.push(Span::raw(part));
+        }
+        if let Some(summary) = self.transfer_summary() {
+            spans.push(Span::raw(" · ").fg(palette.faint));
+            spans.push(Span::raw(summary).fg(palette.accent_text).bold());
+        }
+        spans.push(Span::raw(" "));
+        spans
+    }
+
+    /// Shows version warnings and action feedback above the shortcuts.
+    fn render_feedback(&self, frame: &mut Frame, area: Rect, look: &Look) {
+        if area.is_empty() {
+            return;
+        }
+        let (m, palette) = (&look.messages, &look.palette);
+        let mut spans = vec![Span::raw(" ")];
+        if let Some(server) = self.mismatched() {
+            spans.push(
+                Span::raw(m.fill("main.versions", &[("server", server), ("client", VERSION)]))
+                    .fg(palette.warn),
+            );
+        }
+        if let Some(notice) = &self.notice {
+            if spans.len() > 1 {
+                spans.push(Span::raw(" · ").fg(palette.faint));
+            }
+            spans.push(if notice.error {
+                Span::styled(notice.text.clone(), error_line("", palette).style)
+            } else {
+                Span::raw(notice.text.clone()).fg(palette.ok)
+            });
+        }
+        frame.render_widget(Line::from(spans).bg(palette.surface), area);
+    }
+
+    /// The clickable keys of the focused panel, in display order.
+    fn shortcut_bar(&self, area: Rect, look: &Look) -> Bar {
+        let queue_codes = [
+            KeyCode::Char('p'),
+            KeyCode::Char('x'),
+            KeyCode::Char('R'),
+            if self.tab == Tab::Log {
+                KeyCode::Char('[')
+            } else {
+                KeyCode::Char(']')
+            },
+            KeyCode::F(1),
+        ];
+        let (labels, codes): (_, &[_]) = match self.focus {
+            Focus::Sites => (
+                "main.keysSites",
+                &[
+                    KeyCode::Enter,
+                    KeyCode::Char('w'),
+                    KeyCode::Char('/'),
+                    KeyCode::F(1),
+                    KeyCode::Char('q'),
+                ],
+            ),
+            Focus::Left | Focus::Right => (
+                "main.keysExplorer",
+                &[
+                    KeyCode::F(1),
+                    KeyCode::Tab,
+                    KeyCode::Enter,
+                    KeyCode::F(3),
+                    KeyCode::F(4),
+                    KeyCode::F(5),
+                    KeyCode::F(6),
+                    KeyCode::F(7),
+                    KeyCode::F(8),
+                    KeyCode::F(9),
+                    KeyCode::F(10),
+                ],
+            ),
+            Focus::Bottom => ("main.keysQueue", &queue_codes),
+        };
+        Bar::shortcuts(
+            &look.messages.get(labels),
+            codes,
+            usize::from(area.width),
+            look,
+        )
+    }
+
+    /// The command line in place of the shortcuts, with the matching commands above it.
+    fn render_commands(frame: &mut Frame, input: &Input, selected: usize, look: &Look) {
+        let (m, palette) = (&look.messages, &look.palette);
+        let matches = Self::matches(input);
+        let inside = popup(
+            frame,
+            commands_area(frame.area(), matches.len()),
+            &m.get("commands.title"),
+            &m.get("commands.hint"),
+            palette,
+        );
+        let line = Line::from(vec![
+            Span::raw("/").fg(palette.accent).bold(),
+            Span::raw(input.value().to_owned()),
+        ]);
+        frame.render_widget(Paragraph::new(line), inside);
+        let column = u16::try_from(input.cursor() + 1).unwrap_or(u16::MAX);
+        frame.set_cursor_position((inside.x.saturating_add(column), inside.y));
+        let lines: Vec<Line> = matches
+            .iter()
+            .enumerate()
+            .map(|(at, name)| {
+                let line = Line::from(vec![
+                    Span::raw(format!("/{name:<12}")).bold(),
+                    Span::raw(m.get(&format!("commands.{name}"))).fg(palette.muted),
+                ]);
+                if at == selected {
+                    highlight(line, palette)
+                } else {
+                    line
+                }
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(lines), commands_list(inside));
+    }
+
+    /// The settings with their values and where each lives.
+    fn render_settings(&self, frame: &mut Frame, selected: usize, look: &Look) {
+        let (m, palette) = (&look.messages, &look.palette);
+        let area = settings_area(frame.area());
+        let inside = popup(
+            frame,
+            area,
+            &m.get("settings.title"),
+            &m.get("settings.keys"),
+            palette,
+        );
+        let settings = &look.settings;
+        let yes_no = |value: bool| m.get(if value { "settings.yes" } else { "settings.no" });
+        let mut lines = Vec::new();
+        for (at, setting) in SETTINGS.iter().enumerate() {
+            let value = match *setting {
+                "language" => match look.messages.language() {
+                    Language::English => "English".to_owned(),
+                    Language::Spanish => "Español".to_owned(),
+                },
+                "theme" => theme::find(&look.theme).name,
+                "timezone" => self.timezone.clone(),
+                "colors" => m.get(match settings.colors {
+                    Colors::Theme => "settings.colorsTheme",
+                    Colors::Terminal => "settings.colorsTerminal",
+                }),
+                "enterOnFile" => m.get(match settings.enter_on_file {
+                    EnterOnFile::Copy => "settings.enterCopy",
+                    EnterOnFile::Details => "settings.enterDetails",
+                }),
+                "hiddenFiles" => m.get(if settings.hidden_files {
+                    "settings.shown"
+                } else {
+                    "settings.hidden"
+                }),
+                "confirmQuit" => yes_no(settings.confirm_quit),
+                "mouse" => yes_no(settings.mouse),
+                _ => m.get(if settings.check_updates {
+                    "settings.daily"
+                } else {
+                    "settings.never"
+                }),
+            };
+            let place = m.get(if at < 3 {
+                "settings.account"
+            } else {
+                "settings.computer"
+            });
+            let line = Line::from(vec![
+                Span::raw(format!("{:<30}", m.get(&format!("settings.{setting}")))),
+                Span::raw(format!("‹ {value:<22} ›")).bold(),
+                Span::raw(format!("  {place}")).fg(palette.muted),
+            ]);
+            lines.push(if at == selected {
+                highlight(line, palette)
+            } else {
+                line
+            });
+        }
+        lines.push(Line::default());
+        lines.push(Line::from(m.get("settings.note")).fg(palette.muted));
+        frame.render_widget(Paragraph::new(lines), inside);
+    }
+
+    /// A list to choose a theme, a language or a workspace, with a check on the one in use.
+    fn render_choose(&self, frame: &mut Frame, what: Choice, selected: usize, look: &Look) {
+        let (m, palette) = (&look.messages, &look.palette);
+        let (names, _) = self.choices(what, look);
+        let current = match what {
+            Choice::Theme => theme::all().iter().position(|theme| theme.id == self.theme),
+            Choice::Language => Some(usize::from(self.locale.starts_with("es"))),
+            Choice::Workspace => self
+                .workspaces
+                .iter()
+                .position(|workspace| Some(workspace.id) == self.workspace),
+            Choice::Site => self.site_index(),
+        };
+        let title = m.get(match what {
+            Choice::Theme => "choose.theme",
+            Choice::Language => "choose.language",
+            Choice::Workspace => "choose.workspace",
+            Choice::Site => "choose.source",
+        });
+        let area = choices_area(frame.area(), names.len());
+        let inside = popup(frame, area, &title, &m.get("choose.keys"), palette);
+        let visible = usize::from(inside.height.max(1));
+        let skip = first_row(inside, selected);
+        let lines: Vec<Line> = names
+            .iter()
+            .enumerate()
+            .skip(skip)
+            .take(visible)
+            .map(|(at, name)| {
+                let check = if Some(at) == current { "✓" } else { " " };
+                let line = Line::from(format!(" {check} {name}"));
+                if at == selected {
+                    highlight(line, palette)
+                } else {
+                    line
+                }
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(lines), inside);
+    }
+
+    /// The popup asking for the master password.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the parts of the popup, as the overlay holds them"
+    )]
+    fn render_vault(
+        &self,
+        frame: &mut Frame,
+        input: &Input,
+        busy: bool,
+        error: Option<&str>,
+        site: Option<Uuid>,
+        look: &Look,
+        spinner: &str,
+    ) {
+        let (m, palette) = (&look.messages, &look.palette);
+        let area = centered(frame.area(), 66, 12);
+        let inside = popup(
+            frame,
+            area,
+            &m.get("vault.title"),
+            &m.get("vault.keys"),
+            palette,
+        );
+        let [text, password, status] = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .areas(inside);
+        let intro = match site.and_then(|id| self.sites.iter().find(|site| site.id == id)) {
+            Some(site) => m.fill("vault.forSite", &[("site", &site.name)]),
+            None => m.get("vault.intro"),
+        };
+        frame.render_widget(Paragraph::new(intro).wrap(Wrap { trim: true }), text);
+        field(
+            frame,
+            password,
+            palette,
+            &m.get("vault.field"),
+            &input.masked(),
+            !busy,
+        );
+        let line = if busy {
+            Line::from(format!("{spinner} {}", m.get("vault.checking"))).bold()
+        } else {
+            error.map_or_else(Line::default, |text| error_line(text, palette))
+        };
+        frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: true }), status);
+    }
+}
+
+/// The style of the active tab: the accent background, or reversed without color.
+fn active(palette: &Palette) -> Style {
+    if palette.plain {
+        Style::new().add_modifier(Modifier::REVERSED | Modifier::BOLD)
+    } else {
+        Style::new()
+            .bg(palette.accent)
+            .fg(palette.ink)
+            .add_modifier(Modifier::BOLD)
+    }
+}
+
+/// The keys of the help, grouped as the design groups them: the message of each group and its keys with the message of their action.
+const HELP: [(&str, &[(&str, &str)]); 6] = [
+    (
+        "help.everywhere",
+        &[
+            ("?  F1", "help.help"),
+            ("transferly-tui privacy", "privacy.help"),
+            ("/", "help.commands"),
+            ("Tab  Shift+Tab", "help.focus"),
+            ("Ctrl+B", "help.sites"),
+            ("Ctrl+E", "help.log"),
+            ("T", "help.transfers"),
+            ("q  F10  Ctrl+C", "help.quit"),
+        ],
+    ),
+    (
+        "help.sitesPanel",
+        &[
+            ("↑ ↓  j k", "help.move"),
+            ("g G  Home End", "help.ends"),
+            ("→ l  ← h", "help.collections"),
+            ("Enter", "help.openSite"),
+            ("w", "help.workspace"),
+            ("S", "siteView.title"),
+        ],
+    ),
+    (
+        "help.explorer",
+        &[
+            ("↑ ↓  j k", "help.move"),
+            ("PgUp PgDn  g G", "help.page"),
+            ("Enter  →  l", "help.enter"),
+            ("Backspace  ←  h", "help.up"),
+            ("Space  Insert", "help.mark"),
+            ("Ctrl+A", "help.markAll"),
+            ("Esc", "help.clear"),
+            ("n  F7", "help.mkdir"),
+            ("F2  F6", "help.rename"),
+            ("F9", "help.contextMenu"),
+            ("y", "help.copyPath"),
+            ("i", "help.details"),
+            ("Delete  F8", "help.delete"),
+            ("f  Ctrl+F", "help.filter"),
+            (".", "help.hidden"),
+            ("s  S", "help.sort"),
+            ("r", "help.refresh"),
+            ("Ctrl+G", "help.goto"),
+            ("o", "help.chooseSite"),
+            ("Ctrl+D", "help.disconnect"),
+        ],
+    ),
+    (
+        "help.commandLine",
+        &[
+            ("↑ ↓", "help.choose"),
+            ("Tab", "help.complete"),
+            ("Enter", "help.run"),
+        ],
+    ),
+    (
+        "help.popups",
+        &[
+            ("Enter", "help.confirm"),
+            ("Esc", "help.back"),
+            ("← →", "help.change"),
+            ("y  n", "help.yesNo"),
+        ],
+    ),
+    (
+        "help.fields",
+        &[
+            ("← → Home End", "help.cursor"),
+            ("Backspace  Delete", "help.erase"),
+            ("Ctrl+U  Ctrl+W", "help.clearWord"),
+            ("Shift+Ctrl+V", "help.paste"),
+        ],
+    ),
+];
+
+/// The lines of the help: each group with the keys whose key or action contains the filter, ignoring case; groups without any are left
+/// out.
+fn help_lines(filter: &str, look: &Look) -> Vec<Line<'static>> {
+    let (m, palette) = (&look.messages, &look.palette);
+    let wanted = filter.to_lowercase();
+    let mut lines = Vec::new();
+    let selection = m.get("help.mouseSelection");
+    if selection.to_lowercase().contains(&wanted) {
+        lines.push(Line::from(selection));
+    }
+    for (group, keys) in HELP {
+        let rows: Vec<Line> = keys
+            .iter()
+            .map(|(key, action)| (*key, m.get(action)))
+            .filter(|(key, action)| {
+                wanted.is_empty()
+                    || key.to_lowercase().contains(&wanted)
+                    || action.to_lowercase().contains(&wanted)
+            })
+            .map(|(key, action)| {
+                Line::from(vec![
+                    Span::raw(format!("  {key:<20} ")).bold(),
+                    Span::raw(action),
+                ])
+            })
+            .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        lines.push(Line::from(m.get(group)).fg(palette.accent_text).bold());
+        lines.extend(rows);
+        lines.push(Line::default());
+    }
+    lines
+}
+
+/// Every key of the screen, grouped, with the filter on top and the rows below it scrolled.
+fn render_help(frame: &mut Frame, filter: &Input, scroll: usize, look: &Look) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let area = centered(frame.area(), 74, frame.area().height.saturating_sub(4));
+    let inside = popup(
+        frame,
+        area,
+        &m.get("help.title"),
+        &m.get("help.keys"),
+        palette,
+    );
+    let [top, rows] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(inside);
+    field(
+        frame,
+        top,
+        palette,
+        &m.get("help.filterField"),
+        filter,
+        true,
+    );
+    let lines = help_lines(filter.value(), look);
+    if lines.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(m.get("help.nothing")).fg(palette.muted)),
+            rows,
+        );
+        return;
+    }
+    let skip = scroll.min(lines.len().saturating_sub(usize::from(rows.height)));
+    frame.render_widget(
+        Paragraph::new(lines.into_iter().skip(skip).collect::<Vec<_>>()),
+        rows,
+    );
+}
+
+/// A failure in words, in the language of the interface.
+pub(super) fn explain(error: &CallError, look: &Look) -> String {
+    look.messages
+        .explain_error(error.code.as_deref(), &error.params)
+}
+
+/// The key of a server to trust: the site, the server, the type and fingerprint of the key, and when it changed the fingerprints
+/// trusted until now, in the danger color.
+fn render_host_key(
+    frame: &mut Frame,
+    site: &str,
+    key: &HostKey,
+    trusted: Option<&[String]>,
+    look: &Look,
+) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let area = host_key_area(frame.area(), trusted);
+    let (title, keys, intro) = if trusted.is_some() {
+        (
+            "hostKey.changedTitle",
+            "hostKey.changedKeys",
+            "hostKey.changedIntro",
+        )
+    } else {
+        ("hostKey.title", "hostKey.keys", "hostKey.intro")
+    };
+    let inside = popup(frame, area, &m.get(title), &m.get(keys), palette);
+    let intro = m.fill(intro, &[("site", site)]);
+    let mut lines = vec![
+        if trusted.is_some() {
+            error_line(&intro, palette)
+        } else {
+            Line::from(intro)
+        },
+        Line::default(),
+        Line::from(vec![
+            Span::raw(format!("{:<14}", m.get("hostKey.server"))).fg(palette.muted),
+            Span::raw(format!("{}:{}", key.host, key.port)),
+        ]),
+        Line::from(vec![
+            Span::raw(format!("{:<14}", m.get("hostKey.type"))).fg(palette.muted),
+            Span::raw(key.key_type.clone()),
+        ]),
+        Line::from(vec![
+            Span::raw(format!("{:<14}", m.get("hostKey.fingerprint"))).fg(palette.muted),
+            Span::raw(key.fingerprint.clone()).bold(),
+        ]),
+    ];
+    if let Some(trusted) = trusted {
+        lines.push(Line::default());
+        lines.push(Line::from(m.get("hostKey.trusted")).fg(palette.muted));
+        lines.extend(
+            trusted
+                .iter()
+                .map(|fingerprint| Line::from(format!("  {fingerprint}"))),
+        );
+    }
+    lines.push(Line::default());
+    lines.push(Line::from(m.get("hostKey.check")).fg(palette.muted));
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inside);
+}
+
+/// The password of a site that asks for it when connecting, typed hidden.
+fn render_password(frame: &mut Frame, name: &str, input: &Input, look: &Look) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let area = centered(frame.area(), 66, 10);
+    let inside = popup(
+        frame,
+        area,
+        &m.fill("password.title", &[("site", name)]),
+        &m.get("password.keys"),
+        palette,
+    );
+    let [text, field_area] =
+        Layout::vertical([Constraint::Length(3), Constraint::Length(3)]).areas(inside);
+    frame.render_widget(
+        Paragraph::new(m.get("password.intro")).wrap(Wrap { trim: true }),
+        text,
+    );
+    field(
+        frame,
+        field_area,
+        palette,
+        &m.get("password.field"),
+        &input.masked(),
+        true,
+    );
+}
+
+/// The questions of a server while a site connects: the site, the title and explanation of the server, and a field per question, hidden
+/// unless the server says its answer may be shown.
+fn render_prompt(
+    frame: &mut Frame,
+    prompt: &Prompt,
+    site: &str,
+    answers: &[Input],
+    focus: usize,
+    look: &Look,
+) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let fields = u16::try_from(answers.len()).unwrap_or(4).saturating_mul(3);
+    let area = centered(frame.area(), 70, fields.saturating_add(7));
+    let inside = popup(
+        frame,
+        area,
+        &m.fill("prompt.title", &[("site", site)]),
+        &m.get("prompt.keys"),
+        palette,
+    );
+    let [text, rest] = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).areas(inside);
+    let mut intro = Vec::new();
+    for part in [&prompt.name, &prompt.instruction] {
+        if !part.is_empty() {
+            intro.push(Line::from(part.clone()));
+        }
+    }
+    if intro.is_empty() {
+        intro.push(Line::from(m.get("prompt.intro")).fg(palette.muted));
+    }
+    frame.render_widget(Paragraph::new(intro).wrap(Wrap { trim: true }), text);
+    let rows = Layout::vertical(answers.iter().map(|_| Constraint::Length(3))).split(rest);
+    for (at, ((question, echo), input)) in prompt.questions.iter().zip(answers).enumerate() {
+        let shown = if *echo { input.clone() } else { input.masked() };
+        field(frame, rows[at], palette, question, &shown, at == focus);
+    }
+}
+
+/// The log of connections: the latest steps of the connections to sites, with the time, the site and what happened, warnings and errors
+/// in their colors.
+pub(super) fn render_log(
+    frame: &mut Frame,
+    area: Rect,
+    log: &std::collections::VecDeque<LogLine>,
+    sites: &[Site],
+    zone: &jiff::tz::TimeZone,
+    look: &Look,
+    focused: bool,
+) {
+    let (m, palette) = (&look.messages, &look.palette);
+    let block = panel(&m.get("log.tabs"), focused, palette);
+    let inside = block.inner(area);
+    frame.render_widget(block, area);
+    if log.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(m.get("log.empty")).fg(palette.muted)),
+            inside,
+        );
+        return;
+    }
+    let height = usize::from(inside.height);
+    let lines: Vec<Line> = log
+        .iter()
+        .skip(log.len().saturating_sub(height))
+        .map(|line| {
+            let time = line.time.map_or_else(String::new, |at| {
+                at.to_zoned_datetime(zone.clone())
+                    .strftime("%H:%M:%S")
+                    .to_string()
+            });
+            let site = sites
+                .iter()
+                .find(|site| site.id == line.site)
+                .map_or("", |site| site.name.as_str());
+            let params: Vec<String> = line
+                .params
+                .iter()
+                .map(|(name, value)| format!("{name}={value}"))
+                .collect();
+            let text = Line::from(format!(
+                "{time} {site:<16} {} {}",
+                line.step,
+                params.join(" ")
+            ));
+            match line.level.as_str() {
+                "error" => error_line(&text.to_string(), palette),
+                "warn" => text.fg(palette.warn),
+                _ => text,
+            }
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), inside);
+}
+
+/// The popup for settings local to the terminal and settings from the account.
+fn settings_area(area: Rect) -> Rect {
+    centered(area, 78, u16::try_from(SETTINGS.len()).unwrap_or(0) + 6)
+}
+
+/// The popup of commands in the middle of the screen: the line being typed, a blank line and the matching commands.
+fn commands_area(screen: Rect, count: usize) -> Rect {
+    let height = u16::try_from(count).unwrap_or(u16::MAX).saturating_add(4);
+    centered(screen, 66, height)
+}
+
+/// The rows of the commands under the line being typed and a blank line.
+fn commands_list(inside: Rect) -> Rect {
+    Rect::new(
+        inside.x,
+        inside.y.saturating_add(2),
+        inside.width,
+        inside.height.saturating_sub(2),
+    )
+}
+
+/// The popup for a list of choices.
+fn choices_area(area: Rect, count: usize) -> Rect {
+    let height = u16::try_from(count)
+        .unwrap_or(u16::MAX)
+        .saturating_add(2)
+        .min(18);
+    centered(area, 44, height)
+}
+
+/// The host-key popup, with room for any keys already trusted.
+fn host_key_area(area: Rect, trusted: Option<&[String]>) -> Rect {
+    let rows = trusted.map_or(0, <[String]>::len);
+    let height = u16::try_from(rows)
+        .unwrap_or(0)
+        .saturating_add(if trusted.is_some() { 13 } else { 11 });
+    centered(area, 78, height)
+}

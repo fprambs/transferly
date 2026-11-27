@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Page, PageHeader } from '@/components/page/Page'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select } from '@/components/ui/select'
+import { LegalLink } from '@/features/legal/LegalPage'
 import { languages } from '@/i18n'
 import { useUiStore } from '@/state/ui-store'
 
@@ -101,6 +102,7 @@ export function SettingsPage() {
             ) : null}
           </section>
         </div>
+        <LegalLink />
       </Page>
     </div>
   )

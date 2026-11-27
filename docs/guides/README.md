@@ -47,6 +47,11 @@ Before using a library for the first time, read its official documentation and r
 | [SSH key files](ssh-keys.md) | done |
 | [Resizable panels (react-resizable-panels)](resizable-panels.md) | done |
 | [Libraries of the file viewers](preview-libraries.md) | done |
+| [Ratatui and crossterm](ratatui.md) | done |
+| [Tokio](tokio.md) | done |
+| [reqwest and tokio-tungstenite](reqwest.md) | done |
+| [cargo-dist](cargo-dist.md) | done |
+| [Rust tooling](rust-tooling.md) | done |
 | TanStack Router, Table, Virtual; react-hook-form and zod; dnd-kit; react-arborist; Vitest; MSW | before use |
 | jlaffaye/ftp (see the FTPS spike), coder/websocket, `x/text` | before first use |
 
@@ -71,3 +76,24 @@ Before using a library for the first time, read its official documentation and r
 | jlaffaye/ftp | v0.2.4 |
 | coder/websocket | v1.8.15 |
 | golang.org/x/crypto | v0.57.0 |
+
+## Pinned Versions of the Terminal Client (checked 2026-11-24)
+
+| Component | Version |
+|---|---|
+| Rust | 1.100.0, edition 2024 |
+| ratatui | 0.30.2 |
+| crossterm | 0.29.0 |
+| tokio | 1.54.1 |
+| tokio-util | 0.7.20 |
+| reqwest | 0.13.5 |
+| tokio-tungstenite | 0.30.0 |
+| clap | 4.6.10 |
+| keyring | 4.2.0 |
+| insta | 1.49.0 |
+| cargo-llvm-cov | 0.9.2 |
+| cargo-nextest | 0.9.152 |
+| cargo-deny | 0.22.1 |
+| dist (cargo-dist) | 0.34.0 |
+| axoupdater | 0.10.3 |
+| openapi-generator | v7.17.0 |

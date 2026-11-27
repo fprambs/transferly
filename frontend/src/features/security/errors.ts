@@ -16,6 +16,11 @@ const securityErrorKeys = [
   'invalid_name',
   'no_passkeys',
   'passkey_not_found',
+  'invalid_redirect',
+  'invalid_cli_request',
+  'cli_login_disabled',
+  'browser_session_required',
+  'session_not_found',
   'network_error',
 ] as const
 

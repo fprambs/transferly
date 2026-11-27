@@ -97,6 +97,46 @@ func TestLoad_VaultRememberSessions(t *testing.T) {
 	}
 }
 
+// TestLoad_CLISessions verifies the sessions of the terminal client and the switch of its sign-in (ADR-0029).
+//
+// Scenarios:
+//   - defaults: sign-in on, 7 days idle and 30 days at most
+//   - both durations and the switch are overridden, the switch with true, 1, false and 0
+//   - an idle time above the maximum, a non-positive duration and an unknown switch value are reported by name
+func TestLoad_CLISessions(t *testing.T) {
+	cfg, err := config.Load(env(map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.CLILogin || cfg.CLISessionIdle != 7*24*time.Hour || cfg.CLISessionMax != 30*24*time.Hour {
+		t.Errorf("defaults: CLILogin %v, idle %v, max %v", cfg.CLILogin, cfg.CLISessionIdle, cfg.CLISessionMax)
+	}
+
+	cfg, err = config.Load(env(map[string]string{
+		"TRANSFERLY_DATABASE_URL": "postgres://x", "TRANSFERLY_CLI_SESSION_IDLE": "24h", "TRANSFERLY_CLI_SESSION_MAX": "72h",
+	}))
+	if err != nil || cfg.CLISessionIdle != 24*time.Hour || cfg.CLISessionMax != 72*time.Hour {
+		t.Errorf("overrides: idle %v, max %v, %v", cfg.CLISessionIdle, cfg.CLISessionMax, err)
+	}
+	for value, want := range map[string]bool{"true": true, "1": true, "false": false, "0": false, "": true} {
+		cfg, err := config.Load(env(map[string]string{"TRANSFERLY_DATABASE_URL": "postgres://x", "TRANSFERLY_CLI_LOGIN": value}))
+		if err != nil || cfg.CLILogin != want {
+			t.Errorf("CLILogin with %q = %v, %v; want %v", value, cfg.CLILogin, err, want)
+		}
+	}
+
+	for name, c := range map[string]struct{ vars map[string]string }{
+		"TRANSFERLY_CLI_SESSION_IDLE must not exceed": {map[string]string{"TRANSFERLY_CLI_SESSION_IDLE": "800h"}},
+		"invalid TRANSFERLY_CLI_SESSION_MAX":          {map[string]string{"TRANSFERLY_CLI_SESSION_MAX": "-1h"}},
+		"invalid TRANSFERLY_CLI_LOGIN":                {map[string]string{"TRANSFERLY_CLI_LOGIN": "maybe"}},
+	} {
+		c.vars["TRANSFERLY_DATABASE_URL"] = "postgres://x"
+		if _, err := config.Load(env(c.vars)); err == nil || !strings.Contains(err.Error(), name) {
+			t.Errorf("%v: error %v does not mention %q", c.vars, err, name)
+		}
+	}
+}
+
 // TestLoad_DataDirAndInstanceKey verifies the data directory and instance key settings.
 //
 // Scenarios:

@@ -21,8 +21,9 @@ const (
 )
 
 var (
-	_ auth.UserStore    = (*Store)(nil)
-	_ auth.SessionStore = (*Store)(nil)
+	_ auth.UserStore             = (*Store)(nil)
+	_ auth.SessionStore          = (*Store)(nil)
+	_ auth.CLIAuthorizationStore = (*Store)(nil)
 )
 
 // defaultTheme is the theme of users created without one, the same as the column default.
@@ -137,11 +138,16 @@ func (s *Store) UpdatePreferences(ctx context.Context, id uuid.UUID, p auth.Pref
 	return s.queries.UpdatePreferences(ctx, db.UpdatePreferencesParams{ID: id, Locale: p.Locale, Timezone: p.Timezone, Theme: p.Theme, FileDoubleClick: p.FileDoubleClick})
 }
 
-// CreateSession implements [auth.SessionStore].
+// CreateSession implements [auth.SessionStore]. A session without a kind is a browser session, the same as the column default.
 func (s *Store) CreateSession(ctx context.Context, session auth.Session) error {
+	kind := session.Kind
+	if kind == "" {
+		kind = auth.SessionBrowser
+	}
 	return s.queries.InsertSession(ctx, db.InsertSessionParams{
 		ID: session.ID, UserID: session.UserID, TokenHash: session.TokenHash, UserAgent: session.UserAgent,
 		Ip: session.IP, CreatedAt: session.CreatedAt, LastSeenAt: session.LastSeenAt, ExpiresAt: session.ExpiresAt,
+		Kind: string(kind), Name: session.Name, Host: session.Host,
 	})
 }
 
@@ -151,10 +157,29 @@ func (s *Store) SessionByTokenHash(ctx context.Context, hash []byte) (auth.Sessi
 	if err != nil {
 		return auth.Session{}, notFound(err)
 	}
+	return sessionFrom(r), nil
+}
+
+// sessionFrom converts a stored session row to the core type.
+func sessionFrom(r db.UserSession) auth.Session {
 	return auth.Session{
 		ID: r.ID, UserID: r.UserID, TokenHash: r.TokenHash, UserAgent: r.UserAgent, IP: r.Ip,
 		CreatedAt: r.CreatedAt.UTC(), LastSeenAt: r.LastSeenAt.UTC(), ExpiresAt: r.ExpiresAt.UTC(),
-	}, nil
+		Kind: auth.SessionKind(r.Kind), Name: r.Name, Host: r.Host,
+	}
+}
+
+// ListUserSessions implements [auth.SessionStore].
+func (s *Store) ListUserSessions(ctx context.Context, userID uuid.UUID, kind auth.SessionKind) ([]auth.Session, error) {
+	rows, err := s.queries.ListUserSessions(ctx, db.ListUserSessionsParams{UserID: userID, Kind: string(kind)})
+	if err != nil {
+		return nil, err
+	}
+	sessions := make([]auth.Session, 0, len(rows))
+	for _, r := range rows {
+		sessions = append(sessions, sessionFrom(r))
+	}
+	return sessions, nil
 }
 
 // TouchSession implements [auth.SessionStore].
@@ -167,6 +192,12 @@ func (s *Store) DeleteSession(ctx context.Context, id uuid.UUID) error {
 	return s.queries.DeleteSession(ctx, id)
 }
 
+// DeleteUserSession implements [auth.SessionStore].
+func (s *Store) DeleteUserSession(ctx context.Context, userID, id uuid.UUID) (bool, error) {
+	n, err := s.queries.DeleteUserSession(ctx, db.DeleteUserSessionParams{ID: id, UserID: userID})
+	return n > 0, err
+}
+
 // DeleteUserSessions implements [auth.SessionStore].
 func (s *Store) DeleteUserSessions(ctx context.Context, userID uuid.UUID) (int, error) {
 	n, err := s.queries.DeleteUserSessions(ctx, userID)
@@ -174,7 +205,7 @@ func (s *Store) DeleteUserSessions(ctx context.Context, userID uuid.UUID) (int, 
 }
 
 // DeleteExpiredSessions implements [auth.SessionStore].
-func (s *Store) DeleteExpiredSessions(ctx context.Context, now, idleBefore time.Time) (int, error) {
-	n, err := s.queries.DeleteExpiredSessions(ctx, db.DeleteExpiredSessionsParams{ExpiresAt: now, LastSeenAt: idleBefore})
+func (s *Store) DeleteExpiredSessions(ctx context.Context, now time.Time, idle auth.IdleCutoffs) (int, error) {
+	n, err := s.queries.DeleteExpiredSessions(ctx, db.DeleteExpiredSessionsParams{Now: now, BrowserIdleBefore: idle.Browser, CliIdleBefore: idle.CLI})
 	return int(n), err
 }

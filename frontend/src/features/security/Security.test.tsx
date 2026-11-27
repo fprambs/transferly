@@ -25,6 +25,7 @@ function mockFactor(status: SecurityStatus = { totp: false, recoveryCodesLeft: 0
     state.calls.push(`${request.method} ${new URL(request.url).pathname} ${text}`.trim())
   }
   server.use(
+    http.get('/api/v1/me/sessions', () => HttpResponse.json([])),
     http.get('/api/v1/me/security', () => HttpResponse.json(state.status)),
     http.post('/api/v1/me/totp', async ({ request }) => {
       await record(request)

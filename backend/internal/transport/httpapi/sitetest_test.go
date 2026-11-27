@@ -82,7 +82,12 @@ func TestSiteDraft(t *testing.T) {
 		t.Error("trying a draft changed the saved site")
 	}
 
-	expectProblem(t, try(map[string]any{"site": sftpDraft("1.1.1.1", "deploy", "draft secret")}), http.StatusConflict, "host_key_unknown")
+	untrusted := try(map[string]any{"site": sftpDraft(unknownProbeHost, "deploy", "draft secret")})
+	expectProblem(t, untrusted, http.StatusConflict, "host_key_unknown")
+	params := untrusted.problem(t).Params
+	if params == nil || (*params)["host"] != unknownProbeHost || (*params)["port"] != float64(22) {
+		t.Errorf("untrusted peer address is missing or incorrect: %s", untrusted.Body)
+	}
 	expectProblem(t, try(map[string]any{"site": map[string]any{"name": "Bad", "connector": "sftp", "config": map[string]any{"host": "8.8.8.8"}}}), http.StatusUnprocessableEntity, "invalid_config")
 	expectProblem(t, try(map[string]any{"siteId": uuid.New(), "site": sftpDraft("8.8.8.8", "u", "")}), http.StatusNotFound, "site_not_found")
 	expectProblem(t, e.a.send(http.MethodPost, draftPath(e.ws), map[string]any{"site": sftpDraft("8.8.8.8", "u", "x")}, e.cookie["viewer"], e.csrf["viewer"]), http.StatusForbidden, "forbidden")

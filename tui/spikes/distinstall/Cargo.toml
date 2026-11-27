@@ -1,0 +1,15 @@
+[package]
+name = "transferly-tui"
+version = "0.0.1"
+edition = "2021"
+description = "Spike: one-command install of the terminal client with cargo-dist (docs/spikes/cargo-dist.md)."
+license = "Apache-2.0"
+repository = "https://github.com/fprambs/transferly"
+homepage = "https://github.com/fprambs/transferly"
+
+[dependencies]
+
+# The profile that dist builds with.
+[profile.dist]
+inherits = "release"
+lto = "thin"

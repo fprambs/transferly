@@ -296,7 +296,9 @@ func (c *Connector) verifyHost(ctx context.Context, workspaceID uuid.UUID, host 
 	case verdict == hostkey.Trusted:
 		return nil
 	}
-	return &remotefs.HostKeyError{Type: keyType, Fingerprint: fingerprint, Changed: verdict == hostkey.Changed, Trusted: trusted}
+	return &remotefs.HostKeyError{
+		Host: host, Port: port, Type: keyType, Fingerprint: fingerprint, Changed: verdict == hostkey.Changed, Trusted: trusted,
+	}
 }
 
 // askedPassword returns the password the session typed for a site that asks for one when connecting, and records that

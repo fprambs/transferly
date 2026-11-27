@@ -29,7 +29,12 @@
     "no_passkeys": "This account has no passkeys.",
     "passkey_not_found": "This passkey no longer exists.",
     "passkeyCancelled": "The passkey was not used: the request was cancelled or timed out.",
-    "passkeyUnsupported": "This browser or this address cannot use passkeys. They need a secure page (https)."
+    "passkeyUnsupported": "This browser or this address cannot use passkeys. They need a secure page (https).",
+    "invalid_redirect": "The terminal asked to send the code somewhere other than this computer.",
+    "invalid_cli_request": "The sign-in request of the terminal is not valid.",
+    "cli_login_disabled": "Signing in from the terminal is turned off on this server.",
+    "browser_session_required": "Approve sign-ins of the terminal from the browser.",
+    "session_not_found": "That session already ended."
   },
   "section": {
     "title": "Two-step verification",
@@ -97,5 +102,42 @@
     "title": "Remove the passkey {{name}}",
     "body": "Enter your password to confirm.",
     "confirm": "Remove"
+  },
+  "cli": {
+    "title": "Sign in from the terminal?",
+    "intro": "{{client}} on {{host}} asks to use your account {{email}}.",
+    "introNoHost": "{{client}} asks to use your account {{email}}.",
+    "declared": "The name and the computer are what the terminal client says about itself; the server cannot check them.",
+    "warning": "Approve only if you just started this sign-in in your terminal. That terminal will use your account until its session expires or you end it in Security.",
+    "password": "Your password",
+    "approve": "Approve",
+    "working": "Approving…",
+    "deny": "Deny",
+    "approvedTitle": "Sign-in approved",
+    "returningBody": "Going back to your terminal. You can close this page.",
+    "codeBody": "Paste this code into your terminal. It works once, for 5 minutes.",
+    "codeLabel": "Sign-in code",
+    "codeWarning": "Never give this code to anyone: whoever has it, with the terminal that asked, signs in as you.",
+    "copy": "Copy code",
+    "copied": "Copied",
+    "deniedTitle": "Sign-in denied",
+    "deniedBody": "The terminal was not signed in. You can close this page.",
+    "loading": "Loading the sign-in request…",
+    "invalidTitle": "This sign-in link is not valid",
+    "invalidBody": "Start the sign-in again from your terminal, and open the link it shows."
+  },
+  "terminals": {
+    "title": "Terminal sessions",
+    "description": "Terminals signed in with transferly-tui. End a session here if you lost that computer or no longer use it.",
+    "loading": "Loading the terminal sessions…",
+    "empty": "No terminal is signed in. Install transferly-tui and sign in from it.",
+    "nameOn": "{{name}} on {{host}}",
+    "detail": "Signed in {{started}} · last used {{used}} · from {{ip}}",
+    "current": "This terminal",
+    "end": "End session",
+    "endOf": "End the session of {{name}}",
+    "endTitle": "End the session of {{name}}?",
+    "endBody": "That terminal loses access to your account at once and has to sign in again to use it.",
+    "endConfirm": "End session"
   }
 }
