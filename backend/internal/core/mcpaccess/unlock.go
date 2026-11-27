@@ -22,6 +22,7 @@ type Unlocks struct {
 
 // Window identifies one unlock generation and carries cancellation for its operations.
 type Window struct {
+	id      uuid.UUID
 	context context.Context
 	cancel  context.CancelFunc
 	maximum time.Time
@@ -48,10 +49,13 @@ func (u *Unlocks) Open(lifetime context.Context, link uuid.UUID) *Window {
 	u.remove(link)
 	now := u.clock.Now()
 	ctx, cancel := context.WithCancel(lifetime)
-	window := &Window{context: ctx, cancel: cancel, maximum: now.Add(u.maximum), idle: now.Add(u.idle)}
+	window := &Window{id: uuid.New(), context: ctx, cancel: cancel, maximum: now.Add(u.maximum), idle: now.Add(u.idle)}
 	u.windows[link] = window
 	return window
 }
+
+// ID identifies this generation in the connection pool.
+func (w *Window) ID() uuid.UUID { return w.id }
 
 // Context returns the cancellation signal for this generation.
 func (w *Window) Context() context.Context { return w.context }

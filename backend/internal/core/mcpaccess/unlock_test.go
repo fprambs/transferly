@@ -44,6 +44,9 @@ func TestUnlocks(t *testing.T) {
 
 	third := registry.Open(t.Context(), link)
 	fourth := registry.Open(t.Context(), link)
+	if third.ID() == uuid.Nil || third.ID() == fourth.ID() {
+		t.Fatal("generation did not receive its own pool identity")
+	}
 	registry.Sweep()
 	if registry.Admit(link, third, true) != ErrUnavailable || third.Context().Err() == nil {
 		t.Fatal("old generation kept access")

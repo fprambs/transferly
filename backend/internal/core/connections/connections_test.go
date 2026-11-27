@@ -1131,3 +1131,27 @@ func TestManager_ConnectorTimeoutStops(t *testing.T) {
 		}
 	}
 }
+
+// TestManager_CloseIsolation checks that unlock generations cannot reuse or close another pool.
+func TestManager_CloseIsolation(t *testing.T) {
+	f := newFixture(t, connections.Config{})
+	shared := f.acquire(t)
+	shared.Release(nil)
+
+	isolated := f.key
+	isolated.IsolationID = uuid.New()
+	other := isolated
+	other.IsolationID = uuid.New()
+	for _, key := range []connections.Key{isolated, other} {
+		lease, err := f.m.Acquire(t.Context(), key, "session")
+		if err != nil {
+			t.Fatal(err)
+		}
+		lease.Release(nil)
+	}
+	f.m.CloseIsolation(uuid.Nil)
+	f.m.CloseIsolation(isolated.IsolationID)
+	if f.conn.connection(1).closed.Load() || !f.conn.connection(2).closed.Load() || f.conn.connection(3).closed.Load() {
+		t.Fatal("closing one generation affected a different pool")
+	}
+}
