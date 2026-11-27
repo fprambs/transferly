@@ -237,3 +237,57 @@ func TestMigration_CLISessions(t *testing.T) {
 		t.Errorf("columns and tables left after migrating down = %d, %v, want 0", leftovers, err)
 	}
 }
+
+// TestMigration_MCPLinks preserves existing sites and enforces the approved workspace and site pair.
+func TestMigration_MCPLinks(t *testing.T) {
+	ctx := t.Context()
+	url := testutil.NewDatabase(t)
+	provider, closeDatabase, err := newProvider(url, pgmigrations.FS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeDatabase()
+	if _, err := provider.UpTo(ctx, 39); err != nil {
+		t.Fatal(err)
+	}
+	connection, err := pgx.Connect(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = connection.Close(ctx) }()
+
+	const user = "00000000-0000-0000-0000-000000000001"
+	const workspace = "00000000-0000-0000-0000-000000000002"
+	const otherWorkspace = "00000000-0000-0000-0000-000000000003"
+	const site = "00000000-0000-0000-0000-000000000004"
+	const link = "00000000-0000-0000-0000-000000000005"
+	execute := func(query string, args ...any) {
+		t.Helper()
+		if _, err := connection.Exec(ctx, query, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	execute(`INSERT INTO users (id, email, password_hash) VALUES ($1, 'owner@example.invalid', 'x')`, user)
+	execute(`INSERT INTO workspaces (id, owner_id, kind, name) VALUES ($1, $3, 'personal', 'Personal'), ($2, $3, 'team', 'Team')`, workspace, otherWorkspace, user)
+	execute(`INSERT INTO sites (id, workspace_id, name, connector) VALUES ($1, $2, 'Existing', 'sftp')`, site, workspace)
+	if _, err := provider.UpByOne(ctx); err != nil {
+		t.Fatal(err)
+	}
+	execute(`INSERT INTO mcp_links (id, user_id, client_id) VALUES ($1, $2, 'claude')`, link, user)
+	const approve = `INSERT INTO mcp_link_sites (link_id, workspace_id, site_id) VALUES ($1, $2, $3)`
+	if _, err := connection.Exec(ctx, approve, link, otherWorkspace, site); err == nil {
+		t.Fatal("a site was approved under the wrong workspace")
+	}
+	execute(approve, link, workspace, site)
+	execute(`DELETE FROM mcp_links WHERE id = $1`, link)
+	var sites int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM mcp_link_sites`).Scan(&sites); err != nil || sites != 0 {
+		t.Fatalf("approved sites after link removal: %d, %v", sites, err)
+	}
+	if _, err := provider.Down(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM sites WHERE id = $1`, site).Scan(&sites); err != nil || sites != 1 {
+		t.Fatalf("existing sites after rollback: %d, %v", sites, err)
+	}
+}

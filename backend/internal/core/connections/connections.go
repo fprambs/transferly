@@ -26,6 +26,8 @@ type Key struct {
 	WorkspaceID uuid.UUID
 	// SiteID is the site to connect to.
 	SiteID uuid.UUID
+	// IsolationID separates an unlock generation from other pools; zero uses the shared user pool.
+	IsolationID uuid.UUID
 }
 
 // Connector opens a new connection to the site of a key.
@@ -693,6 +695,23 @@ func (m *Manager) CloseSite(siteID uuid.UUID) {
 	var closing []*pool
 	for key, p := range m.pools {
 		if key.SiteID == siteID {
+			closing = append(closing, p)
+			delete(m.pools, key)
+		}
+	}
+	m.mu.Unlock()
+	m.closePools(closing)
+}
+
+// CloseIsolation closes every pool for one unlock generation. Active leases close on release.
+func (m *Manager) CloseIsolation(isolationID uuid.UUID) {
+	if isolationID == uuid.Nil {
+		return
+	}
+	m.mu.Lock()
+	var closing []*pool
+	for key, p := range m.pools {
+		if key.IsolationID == isolationID {
 			closing = append(closing, p)
 			delete(m.pools, key)
 		}

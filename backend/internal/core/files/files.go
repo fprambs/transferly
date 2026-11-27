@@ -87,6 +87,8 @@ type Target struct {
 	Site uuid.UUID
 	// Session identifies the actor's session, whose unlocked vault key opens the site credentials.
 	Session string
+	// IsolationID scopes pooled connections to one unlock generation when set.
+	IsolationID uuid.UUID
 	// UploadID owns the staging path; HTTP transfers always supply their persisted identifier.
 	UploadID uuid.UUID
 	// Observer follows uploads and downloads; nil follows nothing.
@@ -98,7 +100,7 @@ type Target struct {
 
 // key returns the pool key of the target.
 func (t Target) key() connections.Key {
-	return connections.Key{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site}
+	return connections.Key{UserID: t.Actor, WorkspaceID: t.Workspace, SiteID: t.Site, IsolationID: t.IsolationID}
 }
 
 // Service performs file operations.

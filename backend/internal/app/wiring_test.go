@@ -82,15 +82,15 @@ func TestNewWiring_RegistersJanitorTasks(t *testing.T) {
 				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
 			}
 		}
-		if task.name == "expired vault keys" || task.name == "asked passwords" {
+		if task.name == "expired vault keys" || task.name == "asked passwords" || task.name == "expired MCP unlocks" {
 			if removed, err := task.run(t.Context()); removed != 0 || err != nil {
 				t.Errorf("%s = %d, %v; want nothing removed", task.name, removed, err)
 			}
 		}
 		names[task.name]++
 	}
-	if names["old activity"] != 1 || names["expired invitations"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 || names["asked passwords"] != 1 || names["expired terminal approvals"] != 1 {
-		t.Errorf("janitor tasks = %v; want sessions, terminal approvals, quick connections, vault keys, asked passwords, old activity and invitations once each", names)
+	if w.deps.MCPVault.Windows == nil || names["expired MCP unlocks"] != 1 || names["old activity"] != 1 || names["expired invitations"] != 1 || names["expired vault keys"] != 1 || names["expired sessions"] != 1 || names["idle quick connections"] != 1 || names["asked passwords"] != 1 || names["expired terminal approvals"] != 1 {
+		t.Errorf("janitor tasks = %v; want sessions, terminal approvals, MCP unlocks, quick connections, vault keys, asked passwords, old activity and invitations once each", names)
 	}
 }
 
