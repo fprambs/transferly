@@ -19,4 +19,16 @@ El script crea un proyecto desechable sin puertos publicados, una cuenta y datos
 - **Descarga:** el mismo sitio sirve un archivo aleatorio de 16 MiB. Se realizan 16 descargas por nivel después de un calentamiento. Se incluye la lectura y comprobación de integridad del archivo en el cliente.
 - **p50 y p95:** mediana y rango más próximo, respectivamente, del tiempo de cada operación desde que su trabajador la toma. Las tasas agregadas usan el tiempo de pared del lote. Con diez muestras, el p95 de conexiones nuevas es el máximo observado.
 
-Los [datos originales](sftp-http-2026-11-27.json) incluyen tiempos por solicitud, duración total y tasa por lote. Esta ejecución mide una sola instancia, un usuario y un servidor SFTP en red local. Para caracterizar una instalación con red remota, múltiples usuarios, otros conectores o distinta configuración haz una medición específica. El [experimento de RTT](../spikes/sftp-throughput.md) mide por separado SFTP bajo latencia y ancho de banda inyectados.
+Los [datos originales](sftp-http-2026-11-27.json) incluyen tiempos por solicitud, duración total y tasa por lote. Esa primera ejecución mide una sola instancia, un usuario y un servidor SFTP en red local. El [experimento de RTT](../spikes/sftp-throughput.md) mide por separado SFTP bajo latencia y ancho de banda inyectados.
+
+## Carga con varios usuarios
+
+```sh
+./scripts/bench-connections.sh --users 1 4 8 16 32 --rounds 4 > multi-user.json
+```
+
+Cada usuario tiene una cuenta sintética, su propia sesión HTTP y una conexión SFTP en su espacio personal. El aprovisionamiento usa invitaciones reales, respeta `Retry-After` y queda fuera de la medición. Durante la preparación se fija en cada espacio la clave del servidor SFTP del banco. Antes de cada lote se intenta calentar la conexión de cada usuario mediante un listado. Todos los usuarios de un lote empiezan juntos. Cada uno ejecuta cuatro ciclos de tres listados y una descarga de 16 MiB verificada por SHA-256, con una solicitud a la vez y sin pausas artificiales.
+
+Los percentiles de cada operación usan las solicitudes exitosas. El informe separa los fallos de calentamiento de los de la carga medida y el script devuelve un estado distinto de cero si hubo errores en cualquiera de esas fases. La tasa de descarga se calcula sobre el tiempo completo del lote mixto. La prueba mide sesiones concurrentes en una sola instancia, con un servidor SFTP y una red local compartidos.
+
+La corrida del 27 de noviembre usó el mismo entorno descrito arriba, con la aplicación en la revisión `9f2ddb0`. Los lotes duraron entre 1,24 y 6,78 segundos. Los [datos originales](sftp-http-multi-user-2026-11-27.json) incluyen las 976 solicitudes, los percentiles, los recuentos de errores y el tiempo de pared de cada lote.

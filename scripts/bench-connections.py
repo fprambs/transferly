@@ -1,11 +1,15 @@
 """Measure the HTTP API against the isolated Docker Compose SFTP service."""
 
+import argparse
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
+from http.client import HTTPException
 import json
 import math
 import statistics
 import sys
+from threading import Barrier
 import time
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -26,14 +30,28 @@ CONNECTION = {
 class Client:
     """Authenticate once, then issue independent HTTP requests from each worker."""
 
-    def __init__(self):
+    def __init__(self, token=None):
+        """Start a new session through setup or a single-use team invitation."""
         self.headers = {"Origin": BASE}
-        with self.request("/setup", method="POST", payload=CREDENTIALS) as response:
+        path, payload = ("/setup", CREDENTIALS) if token is None else (
+            "/invitations/join", {"token": token, "password": CREDENTIALS["password"]},
+        )
+        for attempt in range(20):
+            try:
+                response = self.request(path, "POST", payload)
+                break
+            except HTTPError as error:
+                with error:
+                    if token is None or error.code != 429 or attempt == 19:
+                        raise
+                    time.sleep(max(1, int(error.headers["Retry-After"])))
+        with response:
             self.headers["Cookie"] = response.headers["Set-Cookie"].split(";", 1)[0]
             self.headers["X-CSRF-Token"] = json.load(response)["csrfToken"]
         with self.request("/vault/setup", "POST", {"masterPassword": "synthetic benchmark master password"}):
             pass
-        self.workspace = "/workspaces/" + self.read("/workspaces")[0]["id"]
+        personal = next(workspace for workspace in self.read("/workspaces") if workspace["kind"] == "personal")
+        self.workspace = "/workspaces/" + personal["id"]
         self.quick = self.workspace + "/quick-connections"
 
     def request(self, path, method="GET", payload=None):
@@ -73,7 +91,7 @@ class Client:
             raise ValueError("SFTP listing did not include the benchmark file")
 
     def trust(self, site):
-        """Approve the initial host key on the disposable test instance."""
+        """Approve and return the initial host key on the disposable test instance."""
         try:
             self.listing(site)
         except HTTPError as error:
@@ -82,11 +100,17 @@ class Client:
             if error.code != 409 or problem.get("code") != "host_key_unknown":
                 raise
             key = problem["params"]
-            with self.request(self.workspace + "/known-hosts", "POST", {
-                "host": "sftp", "port": 22, "keyType": key["keyType"], "fingerprint": key["fingerprint"],
-            }):
-                pass
+            self.trust_host(key)
             self.listing(site)
+            return key
+        return None
+
+    def trust_host(self, key):
+        """Pin the same isolated server's key in this user's workspace."""
+        with self.request(self.workspace + "/known-hosts", "POST", {
+            "host": "sftp", "port": 22, "keyType": key["keyType"], "fingerprint": key["fingerprint"],
+        }):
+            pass
 
     def download(self, site, expected):
         """Stream and verify the size and SHA-256 of one download."""
@@ -153,5 +177,124 @@ def main(expected):
         client.disconnect(warm)
 
 
+def simulated_users(count):
+    """Provision separate users, sessions and personal workspaces before applying load."""
+    print(f"provisioning {count} accounts before timing", file=sys.stderr)
+    admin = Client()
+    users = [admin]
+    if count > 1:
+        team = admin.read("/workspaces", "POST", {"name": "Benchmark onboarding"})
+        for number in range(2, count + 1):
+            invite = admin.read(f"/workspaces/{team['id']}/invitations", "POST", {
+                "email": f"benchmark-{number}@example.invalid", "role": "viewer",
+            })
+            users.append(Client(invite["token"]))
+    return users
+
+
+def mixed_load(actors, rounds, expected):
+    """Release all users together, alternating three listings and a verified download."""
+    ready = Barrier(len(actors) + 1)
+
+    def workload(actor):
+        """Run one user's requests in order and retain failures as measured outcomes."""
+        client, site = actor
+        results = []
+        ready.wait()
+        for operation in ("listing", "listing", "listing", "download") * rounds:
+            started = time.perf_counter()
+            error = None
+            try:
+                if operation == "listing":
+                    client.listing(site)
+                else:
+                    client.download(site, expected)
+            except HTTPError as failure:
+                error = http_failure(failure)
+            except (HTTPException, OSError, ValueError) as failure:
+                error = type(failure).__name__
+            results.append({
+                "operation": operation, "ms": round((time.perf_counter() - started) * 1000, 3),
+                "error": error,
+            })
+        return results
+
+    print(f"mixed SFTP load: {len(actors)} users, {rounds} rounds each", file=sys.stderr)
+    with ThreadPoolExecutor(max_workers=len(actors)) as pool:
+        pending = [pool.submit(workload, actor) for actor in actors]
+        started = time.perf_counter()
+        ready.wait()
+        results = [item for task in pending for item in task.result()]
+        elapsed = time.perf_counter() - started
+    failures = Counter(item["error"] for item in results if item["error"])
+    summary = {}
+    for operation in ("listing", "download"):
+        durations = sorted(item["ms"] for item in results if item["operation"] == operation and not item["error"])
+        summary[operation] = {
+            "completed": len(durations),
+            "p50_ms": round(statistics.median(durations), 2) if durations else None,
+            "p95_ms": round(durations[math.ceil(len(durations) * 0.95) - 1], 2) if durations else None,
+        }
+    return {
+        "users": len(actors), "elapsed_seconds": round(elapsed, 6), "attempted": len(results),
+        "errors": dict(failures), "results": summary,
+        "operations_per_second": round((len(results) - sum(failures.values())) / elapsed, 2),
+        "download_mib_per_second": round(summary["download"]["completed"] * PAYLOAD_BYTES / (1024 ** 2) / elapsed, 2),
+        "samples": results,
+    }
+
+
+def http_failure(failure):
+    """Preserve the HTTP status and the API problem code without logging the response body."""
+    with failure:
+        try:
+            code = json.load(failure).get("code")
+        except (HTTPException, OSError, ValueError):
+            code = None
+    return f"http_{failure.code}:{code}" if code else f"http_{failure.code}"
+
+
+def multi_user(expected, levels, rounds):
+    """Measure each requested concurrency level against one shared OpenSSH server."""
+    actors = []
+    try:
+        for client in simulated_users(max(levels)):
+            site = client.connect()
+            actors.append((client, site))
+        admin, first_site = actors[0]
+        key = admin.trust(first_site)
+        for client, _ in actors[1:]:
+            client.trust_host(key)
+        results = []
+        for level in levels:
+            active = actors[:level]
+            warmup_errors = Counter()
+            for client, site in active:
+                try:
+                    client.listing(site)
+                except HTTPError as failure:
+                    warmup_errors[http_failure(failure)] += 1
+                except (HTTPException, OSError, ValueError) as failure:
+                    warmup_errors[type(failure).__name__] += 1
+            result = mixed_load(active, rounds, expected)
+            result["warmup_errors"] = dict(warmup_errors)
+            results.append(result)
+        print(json.dumps({"payload_bytes": PAYLOAD_BYTES, "rounds_per_user": rounds, "measurements": results}, indent=2))
+        return any(result["errors"] or result["warmup_errors"] for result in results)
+    finally:
+        for client, site in actors:
+            client.disconnect(site)
+
+
 if __name__ == "__main__":
-    main(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("checksum")
+    parser.add_argument("--users", type=int, nargs="+", help="concurrent accounts for each mixed-load stage")
+    parser.add_argument("--rounds", type=int, default=4, help="mixed-load rounds per user")
+    options = parser.parse_args()
+    if options.users is None:
+        main(options.checksum)
+    else:
+        if not 1 <= min(options.users) <= max(options.users) <= 64 or options.rounds < 1:
+            parser.error("use 1–64 users per stage and at least one round")
+        sys.exit(multi_user(options.checksum, options.users, options.rounds))

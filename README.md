@@ -182,6 +182,20 @@ En esta ejecución, cuatro descargas simultáneas duplicaron la tasa agregada fr
 
 Reproduce la prueba con `./scripts/bench-connections.sh > connections.json`. Consulta la [metodología y el entorno](docs/benchmarks/sftp-http.md) y los [datos por solicitud](docs/benchmarks/sftp-http-2026-11-27.json).
 
+### Varios usuarios simultáneos
+
+La carga mixta combinó tres listados por cada descarga de 16 MiB. Cada usuario tenía su propia cuenta, sesión HTTP y conexión SFTP. Se completaron **976 solicitudes sin errores** entre los cinco niveles.
+
+| Usuarios | Solicitudes | p95 listado | p95 descarga | Descarga agregada |
+|---:|---:|---:|---:|---:|
+| 1 | 16 | 20,95 ms | 331,52 ms | 51,51 MiB/s |
+| 4 | 64 | 12,46 ms | 327,46 ms | 203,75 MiB/s |
+| 8 | 128 | 26,46 ms | 605,80 ms | 224,76 MiB/s |
+| 16 | 256 | 49,13 ms | 766,12 ms | 320,02 MiB/s |
+| 32 | 512 | 185,38 ms | 1.691,29 ms | 302,15 MiB/s |
+
+El mayor caudal de esta corrida fue con 16 usuarios. A 32, el caudal cayó un 5,6 % y el p95 de descarga se multiplicó por 2,2. Son lotes breves sobre una instancia y un servidor SFTP en red local. [Cómo reproducir la carga](docs/benchmarks/sftp-http.md#carga-con-varios-usuarios) · [Datos por solicitud](docs/benchmarks/sftp-http-multi-user-2026-11-27.json)
+
 ## Galería
 
 <table>

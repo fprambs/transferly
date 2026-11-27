@@ -25,4 +25,4 @@ checksum=$(compose exec -T sftp sh -ec '
     chown 1001 "$file"
     sha256sum "$file" | cut -d " " -f 1
 ')
-compose run --rm --no-deps -T unit python3 scripts/bench-connections.py "$checksum"
+compose run --rm --no-deps -T unit python3 scripts/bench-connections.py "$checksum" "$@"
