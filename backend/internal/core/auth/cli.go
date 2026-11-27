@@ -167,7 +167,7 @@ func (s *Service) ExchangeCLI(ctx context.Context, ex CLIExchange, client Client
 	if err != nil {
 		return "", Principal{}, err
 	}
-	if !now.Before(approval.ExpiresAt) || ex.RedirectURI != approval.RedirectURI || !verifierMatches(ex.CodeVerifier, approval.CodeChallenge) {
+	if !now.Before(approval.ExpiresAt) || ex.RedirectURI != approval.RedirectURI || !MatchesS256Verifier(ex.CodeVerifier, approval.CodeChallenge) {
 		return "", Principal{}, ErrInvalidGrant
 	}
 	user, err := s.users.UserByID(ctx, approval.UserID)
@@ -223,7 +223,7 @@ func (s *Service) randomToken() (string, error) {
 
 // validateCLIRequest checks the challenge, the redirect address and what the client declares about itself.
 func validateCLIRequest(req CLIRequest) error {
-	if !validChallenge(req.CodeChallenge) || !validLabel(req.ClientName, 1, maxClientNameRunes) || !validLabel(req.ClientHost, 0, maxClientHostRunes) {
+	if !ValidS256Challenge(req.CodeChallenge) || !validLabel(req.ClientName, 1, maxClientNameRunes) || !validLabel(req.ClientHost, 0, maxClientHostRunes) {
 		return ErrInvalidCLIRequest
 	}
 	if req.RedirectURI != "" && !validRedirect(req.RedirectURI) {
@@ -232,8 +232,8 @@ func validateCLIRequest(req CLIRequest) error {
 	return nil
 }
 
-// validChallenge reports whether c is an S256 challenge: 43 characters of base64url that decode to 32 bytes.
-func validChallenge(c string) bool {
+// ValidS256Challenge reports whether c is an S256 challenge: 43 characters of base64url that decode to 32 bytes.
+func ValidS256Challenge(c string) bool {
 	if len(c) != challengeLength {
 		return false
 	}
@@ -267,8 +267,8 @@ func validRedirect(raw string) bool {
 	return err == nil && port >= 1 && port <= 65535 && strconv.Itoa(port) == u.Port()
 }
 
-// verifierMatches reports whether verifier is a well-formed PKCE verifier whose S256 challenge is challenge, in constant time.
-func verifierMatches(verifier, challenge string) bool {
+// MatchesS256Verifier reports whether verifier is a well-formed PKCE verifier whose S256 challenge is challenge, in constant time.
+func MatchesS256Verifier(verifier, challenge string) bool {
 	if len(verifier) < minVerifierLength || len(verifier) > maxVerifierLength {
 		return false
 	}
