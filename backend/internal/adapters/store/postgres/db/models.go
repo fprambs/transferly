@@ -95,6 +95,20 @@ type KnownHost struct {
 	AcceptedBy        uuid.NullUUID
 }
 
+type McpLink struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	ClientID  string
+	CreatedAt time.Time
+	RevokedAt *time.Time
+}
+
+type McpLinkSite struct {
+	LinkID      uuid.UUID
+	WorkspaceID uuid.UUID
+	SiteID      uuid.UUID
+}
+
 type Membership struct {
 	WorkspaceID uuid.UUID
 	UserID      uuid.UUID
