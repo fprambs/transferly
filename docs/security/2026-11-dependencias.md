@@ -67,3 +67,7 @@ Trivy no indica una versión corregida en Bookworm para los hallazgos restantes.
 
 En pruebas aisladas se verificaron la inicialización desde cero, el arranque de Transferly con un volumen creado por la imagen anterior, la conservación de los datos y de la versión de collation 2.36, y la restauración de un respaldo en la instancia nueva.
 
+El backend pasa a `golang.org/x/crypto` 0.59.0. `govulncheck` ya no reporta GO-2026-5932. El paquete OpenPGP afectado ya estaba fuera de los imports del backend. Esta versión también retira DSA de SSH. SFTP sigue rechazando esas claves antes de conectarse y mantiene la restricción de firmas RSA a SHA-2. [Aviso de Go](https://pkg.go.dev/vuln/GO-2026-5932) · [API SSH](https://pkg.go.dev/golang.org/x/crypto@v0.59.0/ssh)
+
+Se revisaron las copias locales por separado porque `govulncheck` las identifica por su ruta de reemplazo. FTP v0.2.4 incluye las dos correcciones publicadas en v0.2.3. El adaptador mantiene desactivada la confianza en la IP anunciada por PASV, y `ACCT` pasa por la misma validación de CR/LF que `USER` y `PASS`. SevenZip v1.6.5 sigue siendo la última versión publicada y su repositorio no lista avisos de seguridad. Se conservan sus límites locales de memoria para la vista previa. [FTP PASV](https://github.com/jlaffaye/ftp/security/advisories/GHSA-gg5p-4pp8-7j5x) · [FTP CR/LF](https://github.com/jlaffaye/ftp/security/advisories/GHSA-3wqq-h39g-266f) · [SevenZip](https://github.com/bodgit/sevenzip/security/advisories)
+

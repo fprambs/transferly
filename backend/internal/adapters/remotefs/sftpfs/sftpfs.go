@@ -188,6 +188,9 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 		} else {
 			signer, err = ssh.ParsePrivateKey(cfg.PrivateKey)
 		}
+		if err == nil {
+			signer, err = safeSigner(signer)
+		}
 		var missing *ssh.PassphraseMissingError
 		switch {
 		case errors.As(err, &missing):
@@ -196,10 +199,6 @@ func authMethods(cfg Config) ([]ssh.AuthMethod, error) {
 			return nil, fmt.Errorf("%w: wrong passphrase for the private key", remotefs.ErrAuth)
 		case err != nil:
 			return nil, fmt.Errorf("%w: unreadable private key", remotefs.ErrAuth)
-		}
-		signer, err = safeSigner(signer)
-		if err != nil {
-			return nil, fmt.Errorf("%w: private key requires an obsolete signature: %w", remotefs.ErrAuth, err)
 		}
 		methods = append(methods, ssh.PublicKeys(signer))
 	}

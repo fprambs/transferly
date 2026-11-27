@@ -1280,7 +1280,7 @@ func TestDial_RejectsDSAAuthentication(t *testing.T) {
 			return nil, nil
 		},
 	})
-	if !errors.Is(err, remotefs.ErrAuth) || !strings.Contains(err.Error(), "obsolete signature") {
+	if !errors.Is(err, remotefs.ErrAuth) || !strings.Contains(err.Error(), "unreadable private key") {
 		t.Fatalf("DSA = %v", err)
 	}
 }

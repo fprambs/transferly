@@ -239,17 +239,15 @@ func describe(info *Info, public ssh.PublicKey) {
 
 // bits returns the size of a public key, or zero for types without one.
 func bits(public ssh.PublicKey) int {
-	holder, ok := public.(ssh.CryptoPublicKey)
-	if !ok {
-		return 0
-	}
-	switch key := holder.CryptoPublicKey().(type) {
-	case *rsa.PublicKey:
-		return key.N.BitLen()
-	case *ecdsa.PublicKey:
-		return key.Curve.Params().BitSize
-	case ed25519.PublicKey:
-		return 256
+	if holder, ok := public.(ssh.CryptoPublicKey); ok {
+		switch key := holder.CryptoPublicKey().(type) {
+		case *rsa.PublicKey:
+			return key.N.BitLen()
+		case *ecdsa.PublicKey:
+			return key.Curve.Params().BitSize
+		case ed25519.PublicKey:
+			return 256
+		}
 	}
 	return 0
 }
