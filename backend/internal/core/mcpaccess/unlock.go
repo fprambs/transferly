@@ -44,12 +44,17 @@ func NewUnlocks(clock ports.Clock, maximum, idle time.Duration) *Unlocks {
 // Open starts a new generation after vault verification and invalidates any prior window.
 // lifetime is the service lifetime and must outlive the approving HTTP request.
 func (u *Unlocks) Open(lifetime context.Context, link uuid.UUID) *Window {
+	return u.open(lifetime, link, uuid.New())
+}
+
+// open publishes a generation with an already allocated pool and vault identity.
+func (u *Unlocks) open(lifetime context.Context, link, generation uuid.UUID) *Window {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.remove(link)
 	now := u.clock.Now()
 	ctx, cancel := context.WithCancel(lifetime)
-	window := &Window{id: uuid.New(), context: ctx, cancel: cancel, maximum: now.Add(u.maximum), idle: now.Add(u.idle)}
+	window := &Window{id: generation, context: ctx, cancel: cancel, maximum: now.Add(u.maximum), idle: now.Add(u.idle)}
 	u.windows[link] = window
 	return window
 }
