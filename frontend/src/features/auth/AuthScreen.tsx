@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import { AuthFrame } from '@/components/brand/AuthFrame'
 import { BrandMark } from '@/components/brand/BrandMark'
+import { LegalLink } from '@/features/legal/LegalPage'
 
 import { AuthForm, type AuthMode } from './AuthForm'
 
@@ -32,6 +33,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       </div>
       <AuthForm mode={mode} onSecondStepChange={setSecond} />
       <p className="text-xs text-muted-foreground">{t(($) => $.secure)}</p>
+      <LegalLink />
     </AuthFrame>
   )
 }

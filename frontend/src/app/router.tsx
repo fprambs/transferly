@@ -17,6 +17,7 @@ import { EmptyExplorer } from '@/features/explorer/EmptyExplorer'
 import { SiteExplorer } from '@/features/explorer/SiteExplorer'
 import { homePath } from '@/features/sites/start-path'
 import { AppShell } from '@/features/shell/AppShell'
+import { LegalPage } from '@/features/legal/LegalPage'
 import { AuthScreen } from '@/features/auth/AuthScreen'
 import { returnPath } from '@/features/auth/return-path'
 import { CliAuthorizePage, CliLinkPage } from '@/features/cli/CliAuthorizePage'
@@ -165,8 +166,11 @@ const cliLinkRoute = createRoute({
   component: CliLinkPage,
 })
 
+/** Public notice, available before setup and authentication. */
+const legalRoute = createRoute({ getParentRoute: () => rootRoute, path: '/legal', component: LegalPage })
+
 /** Route tree of the application. */
-const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute, cliAuthorizeRoute, cliLinkRoute])
+const routeTree = rootRoute.addChildren([shellRoute.addChildren([homeRoute, siteRoute, membersRoute, auditRoute, adminRoute, settingsRoute, serversRoute]), inviteRoute, loginRoute, setupRoute, cliAuthorizeRoute, cliLinkRoute, legalRoute])
 
 /** Builds the application router; tests pass a memory history. */
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

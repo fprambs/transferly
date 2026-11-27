@@ -505,5 +505,9 @@
     "size": "Size",
     "modified": "Modified",
     "path": "Path"
+  },
+  "privacy": {
+    "summary": "Transferly connects to the server you choose. This device stores connection preferences and a session token in the system credential store, or in a restricted local file when that store is unavailable. The terminal itself uses no cookies. Browser approval uses the server’s web session and sends the client’s name and device hostname to the server. For this instance’s privacy notice, cookie information and terms, open /legal on that server. Use only servers and files you are authorized to access.",
+    "help": "Privacy, cookies and terms"
   }
 }

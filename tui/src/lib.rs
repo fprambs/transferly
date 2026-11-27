@@ -42,6 +42,8 @@ pub enum Command {
     Status,
     /// End the session of this terminal and forget its token.
     Logout,
+    /// Show the privacy, cookies and terms notice.
+    Privacy,
 }
 
 /// Runs the command line and returns the exit status.
@@ -88,6 +90,11 @@ fn run_in(
             Command::Login { server, paste } => commands::login(&mut ctx, server, *paste).await,
             Command::Status => commands::status(&mut ctx).await,
             Command::Logout => commands::logout(&mut ctx).await,
+            Command::Privacy => {
+                let language = i18n::Language::from_env(|name| std::env::var(name).ok());
+                println!("{}", i18n::Messages::new(language).get("privacy.summary"));
+                ExitCode::SUCCESS
+            }
         }
     })
 }
@@ -127,6 +134,17 @@ mod tests {
         let status = Cli::try_parse_from(["transferly-tui", "--version"]);
         assert!(status.is_err(), "--version prints and exits through clap");
         let _ = run(&Cli::try_parse_from(["transferly-tui", "status"]).expect("status"));
+    }
+
+    /// The privacy notice is available without a saved session.
+    #[test]
+    fn prints_privacy_without_a_session() {
+        let cli = Cli::try_parse_from(["transferly-tui", "privacy"]).expect("privacy command");
+        let dir = tempfile::tempdir().expect("folder");
+        assert_eq!(
+            run_in(&cli, Some(dir.path().to_path_buf()), no_terminal),
+            ExitCode::SUCCESS
+        );
     }
 
     /// The commands parse and run against the configuration folder; with nothing signed in, status and logout say so.

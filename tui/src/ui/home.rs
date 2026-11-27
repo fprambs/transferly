@@ -2483,6 +2483,7 @@ const HELP: [(&str, &[(&str, &str)]); 6] = [
         "help.everywhere",
         &[
             ("?  F1", "help.help"),
+            ("transferly-tui privacy", "privacy.help"),
             ("/", "help.commands"),
             ("Tab  Shift+Tab", "help.focus"),
             ("Ctrl+B", "help.sites"),
@@ -2576,7 +2577,7 @@ fn help_lines(filter: &str, look: &Look) -> Vec<Line<'static>> {
             })
             .map(|(key, action)| {
                 Line::from(vec![
-                    Span::raw(format!("  {key:<20}")).bold(),
+                    Span::raw(format!("  {key:<20} ")).bold(),
                     Span::raw(action),
                 ])
             })

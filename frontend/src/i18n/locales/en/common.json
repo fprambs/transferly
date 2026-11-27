@@ -9,5 +9,17 @@
   "deferred": {
     "failed": "This feature could not be loaded. Reload the page to try again.",
     "reload": "Reload page"
+  },
+  "legal": {
+    "title": "Privacy, cookies and terms",
+    "instance": "Transferly is self-hosted. The operator of this instance sets its access, retention and backup policies. Contact the person or organization that gave you access for its full privacy notice, terms and data requests.",
+    "privacyTitle": "Privacy",
+    "privacy": "This instance processes account and workspace details, saved connections, credentials and activity records to provide access and transfer files. Stored connection secrets are encrypted in the vault. The server handles file contents as needed for transfers and previews.",
+    "providers": "When you use an external connector, the instance sends the data needed for that operation to that provider or remote server. For example, connecting Google Drive uses Google’s authorization service and API.",
+    "cookiesTitle": "Cookies and browser storage",
+    "cookies": "The transferly_session cookie keeps you signed in and is cleared on logout. By default it lasts up to eight hours, with a server-side idle timeout of 30 minutes. The operator can change these limits. The cookie is HttpOnly, SameSite=Lax and marked Secure on HTTPS.",
+    "storage": "The browser stores preferences such as language, panel layout and recent sites locally. You can remove local preferences through the browser’s site data settings. Transferly ships without analytics or advertising trackers.",
+    "termsTitle": "Using this instance",
+    "terms": "Use the instance and connected servers only with authorization. Make sure you have permission to read, transfer, edit or share the files you access. The operator provides the terms governing this instance. The software itself is distributed under the Apache License 2.0."
   }
 }

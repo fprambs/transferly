@@ -49,6 +49,18 @@ describe('routes', () => {
     expect(history.location.pathname).toBe('/setup')
   })
 
+  it('opens the privacy and cookies notice without signing in', async () => {
+    mockSession(null)
+    mockSetupRequired(false)
+    const { history } = await renderApp({ path: '/login' })
+
+    await userEvent.click(await screen.findByRole('link', { name: 'Privacy, cookies and terms' }))
+
+    expect(await screen.findByRole('heading', { name: 'Cookies and browser storage' })).toBeInTheDocument()
+    expect(screen.getByText(/transferly_session/)).toBeInTheDocument()
+    expect(history.location.pathname).toBe('/legal')
+  })
+
   it('shows the shell to a signed-in user', async () => {
     mockSession(adminSession)
 

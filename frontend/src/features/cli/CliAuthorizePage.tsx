@@ -8,6 +8,7 @@ import { BrandMark } from '@/components/brand/BrandMark'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { LegalLink } from '@/features/legal/LegalPage'
 import { useApi } from '@/lib/api/use-api'
 
 import { useSession } from '../auth/use-session'
@@ -46,6 +47,7 @@ function Card({ title, children }: { title: string; children?: ReactNode }) {
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
       </div>
       {children}
+      <LegalLink />
     </AuthFrame>
   )
 }

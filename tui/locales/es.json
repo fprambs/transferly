@@ -505,5 +505,9 @@
     "size": "Tamaño",
     "modified": "Modificado",
     "path": "Ruta"
+  },
+  "privacy": {
+    "summary": "Transferly se conecta al servidor que elijas. Este equipo guarda las preferencias de conexión y un token de sesión en el almacén de credenciales del sistema o, si no está disponible, en un archivo local de acceso restringido. El terminal no usa cookies. La aprobación en el navegador usa la sesión web y envía al servidor el nombre del cliente y el nombre de host del equipo. Consulta /legal en ese servidor para ver el aviso de privacidad, las cookies y los términos. Usa solo servidores y archivos a los que tengas acceso autorizado.",
+    "help": "Privacidad, cookies y términos"
   }
 }
